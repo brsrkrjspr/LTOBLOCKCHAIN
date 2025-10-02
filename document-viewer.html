@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Viewer - LTO Blockchain</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="container">
+                <div class="dashboard-nav">
+                    <div class="logo">
+                        <h1>LTO Blockchain</h1>
+                        <p>Document Viewer</p>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-avatar">JO</div>
+                        <div class="user-details">
+                            <span class="user-name">John Owner</span>
+                            <span class="user-role">Vehicle Owner</span>
+                        </div>
+                        <a href="owner-dashboard.html" class="btn-secondary">Back</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <div class="container">
+                <div class="document-header">
+                    <h2 id="documentTitle">Document Viewer</h2>
+                    <p id="documentInfo">Loading document information...</p>
+                </div>
+
+                <div class="document-viewer">
+                    <div class="document-preview">
+                        <div id="documentPreview" class="placeholder-box">
+                            <div class="document-icon">📄</div>
+                            <p>Document Preview</p>
+                            <small>Click to view document</small>
+                        </div>
+                    </div>
+
+                    <div class="document-info">
+                        <div class="info-card">
+                            <h3>Document Details</h3>
+                            <div id="documentDetails">
+                                <p><strong>Filename:</strong> <span id="documentFilename">Loading...</span></p>
+                                <p><strong>Type:</strong> <span id="documentType">Loading...</span></p>
+                                <p><strong>Application ID:</strong> <span id="applicationId">Loading...</span></p>
+                                <p><strong>Upload Date:</strong> <span id="uploadDate">Loading...</span></p>
+                            </div>
+                        </div>
+
+                        <div class="qr-section">
+                            <h3>Document Verification</h3>
+                            <div class="qr-placeholder">QR CODE</div>
+                            <button class="btn-primary" onclick="verifyDocument()">Verify Document</button>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn-primary" onclick="downloadDocument()">Download Document</button>
+                            <button class="btn-secondary" onclick="printDocument()">Print</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="audit-trail">
+                    <h3>Audit Trail</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-icon">📝</div>
+                            <div class="timeline-content">
+                                <h4>Application Submitted</h4>
+                                <p>John Owner submitted registration</p>
+                                <small>2024-01-15 10:30 AM</small>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon">✅</div>
+                            <div class="timeline-content">
+                                <h4>Emission Verified</h4>
+                                <p>Elena Verifier approved emission test</p>
+                                <small>2024-01-15 2:15 PM</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/document-viewer.js"></script>
+</body>
+</html>

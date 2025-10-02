@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - LTO Blockchain</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="container">
+                <div class="dashboard-nav">
+                    <div class="logo">
+                        <h1>LTO Blockchain</h1>
+                        <p>Admin Dashboard</p>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-profile">
+                            <div class="user-avatar">AD</div>
+                            <div class="user-details">
+                                <span class="user-name">Admin User</span>
+                                <span class="user-role">System Administrator</span>
+                            </div>
+                        </div>
+                        <div class="user-actions">
+                            <a href="settings.html" class="btn-secondary">Settings</a>
+                            <a href="index.html" class="btn-secondary">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <div class="container">
+                <!-- System Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">1,245</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">3,567</div>
+                        <div class="stat-label">Total Applications</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">89</div>
+                        <div class="stat-label">Active Organizations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">99.8%</div>
+                        <div class="stat-label">System Uptime</div>
+                    </div>
+                </div>
+
+                <!-- Admin Actions -->
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">👥</span> User Management</h3>
+                        <p>Manage system users and their permissions</p>
+                        <a href="#users" class="btn-primary">Manage Users</a>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">🏢</span> Organization Management</h3>
+                        <p>Manage organizations and their settings</p>
+                        <a href="#orgs" class="btn-secondary">Manage Orgs</a>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">📊</span> Audit Logs</h3>
+                        <p>View system activity and audit trails</p>
+                        <a href="#audit" class="btn-secondary">View Logs</a>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">📈</span> Reports</h3>
+                        <p>Generate system reports and analytics</p>
+                        <a href="#reports" class="btn-secondary">Generate Reports</a>
+                    </div>
+                </div>
+
+                <!-- Recent Users -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">👤</span> Recent Users</h3>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Last Login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Users will be loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Submitted Applications -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">📋</span> Submitted Applications</h3>
+                    <div class="table-container">
+                        <table class="table" id="submitted-applications-table">
+                            <thead>
+                                <tr>
+                                    <th>Application ID</th>
+                                    <th>Vehicle</th>
+                                    <th>Owner</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="submitted-applications-tbody">
+                                <!-- Applications will be loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Organizations -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">🏢</span> Organizations</h3>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Org ID</th>
+                                    <th>Organization Name</th>
+                                    <th>Type</th>
+                                    <th>Users</th>
+                                    <th>Applications</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Organizations will be loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- System Audit Logs -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">📋</span> Recent Audit Logs</h3>
+                    <div class="audit-logs">
+                        <!-- Audit logs will be loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/admin-dashboard.js"></script>
+    <script src="js/admin-modals.js"></script>
+</body>
+</html>

@@ -1,0 +1,461 @@
+# TrustChain LTO - Production Docker Compose
+# Complete production setup with all components
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # HYPERLEDGER FABRIC NETWORK
+  # ===========================================
+  
+  # Orderer Services (Raft Consensus)
+  orderer1.lto.gov.ph:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer1.lto.gov.ph
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/orderer.genesis.block
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/tls/:/var/hyperledger/orderer/tls
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - orderer1.lto.gov.ph:/var/hyperledger/production/orderer
+    ports:
+      - "7050:7050"
+    networks:
+      - lto-network
+
+  orderer2.lto.gov.ph:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer2.lto.gov.ph
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer2.lto.gov.ph/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer2.lto.gov.ph/tls/:/var/hyperledger/orderer/tls
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - orderer2.lto.gov.ph:/var/hyperledger/production/orderer
+    ports:
+      - "8050:7050"
+    networks:
+      - lto-network
+
+  orderer3.lto.gov.ph:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer3.lto.gov.ph
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer3.lto.gov.ph/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer3.lto.gov.ph/tls/:/var/hyperledger/orderer/tls
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - orderer3.lto.gov.ph:/var/hyperledger/production/orderer
+    ports:
+      - "9050:7050"
+    networks:
+      - lto-network
+
+  # LTO Organization Peers
+  peer0.lto.gov.ph:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.lto.gov.ph
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=lto-network
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true
+      - CORE_PEER_GOSSIP_ORGLEADER=false
+      - CORE_PEER_PROFILE_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer0.lto.gov.ph
+      - CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.lto.gov.ph:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.lto.gov.ph:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.lto.gov.ph:7051
+      - CORE_PEER_LOCALMSPID=LTOMSP
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls:/etc/hyperledger/fabric/tls
+      - peer0.lto.gov.ph:/var/hyperledger/production
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - "7051:7051"
+    depends_on:
+      - orderer1.lto.gov.ph
+      - orderer2.lto.gov.ph
+      - orderer3.lto.gov.ph
+    networks:
+      - lto-network
+
+  # CouchDB for LTO
+  couchdb0:
+    image: couchdb:3.2
+    container_name: couchdb0
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb0:/opt/couchdb/data
+    networks:
+      - lto-network
+
+  # ===========================================
+  # IPFS CLUSTER
+  # ===========================================
+  
+  ipfs-node-1:
+    image: ipfs/go-ipfs:latest
+    container_name: ipfs-node-1
+    environment:
+      - IPFS_PROFILE=server
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+    volumes:
+      - ipfs-node-1:/data/ipfs
+    networks:
+      - lto-network
+
+  ipfs-node-2:
+    image: ipfs/go-ipfs:latest
+    container_name: ipfs-node-2
+    environment:
+      - IPFS_PROFILE=server
+    ports:
+      - "4002:4001"
+      - "5002:5001"
+      - "8081:8080"
+    volumes:
+      - ipfs-node-2:/data/ipfs
+    networks:
+      - lto-network
+
+  ipfs-node-3:
+    image: ipfs/go-ipfs:latest
+    container_name: ipfs-node-3
+    environment:
+      - IPFS_PROFILE=server
+    ports:
+      - "4003:4001"
+      - "5003:5001"
+      - "8082:8080"
+    volumes:
+      - ipfs-node-3:/data/ipfs
+    networks:
+      - lto-network
+
+  # IPFS Cluster Manager
+  ipfs-cluster:
+    image: ipfs/ipfs-cluster:latest
+    container_name: ipfs-cluster
+    environment:
+      - CLUSTER_SECRET=your-cluster-secret-here
+      - CLUSTER_PEERNAME=cluster-node-1
+      - CLUSTER_BOOTSTRAP=/ip4/127.0.0.1/tcp/9096/ipfs/12D3KooWQYV9dEUGBkHFLQK3EVi4DqGrnG6p7NuuB6yc1H8Bj5Fk
+    ports:
+      - "9094:9094"
+      - "9095:9095"
+      - "9096:9096"
+    volumes:
+      - ipfs-cluster:/data/ipfs-cluster
+    depends_on:
+      - ipfs-node-1
+      - ipfs-node-2
+      - ipfs-node-3
+    networks:
+      - lto-network
+
+  # ===========================================
+  # APPLICATION SERVICES
+  # ===========================================
+  
+  # Main Application
+  lto-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: lto-app
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=lto_blockchain
+      - DB_USER=lto_user
+      - DB_PASSWORD=lto_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - IPFS_HOST=ipfs-cluster
+      - IPFS_PORT=9094
+      - FABRIC_NETWORK_CONFIG=./network-config.yaml
+      - JWT_SECRET=your-jwt-secret-here
+      - ENCRYPTION_KEY=your-encryption-key-here
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./network-config.yaml:/app/network-config.yaml
+      - ./wallet:/app/wallet
+      - app-logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+      - ipfs-cluster
+      - peer0.lto.gov.ph
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # ===========================================
+  # DATABASE SERVICES
+  # ===========================================
+  
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=lto_blockchain
+      - POSTGRES_USER=lto_user
+      - POSTGRES_PASSWORD=lto_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes --requirepass redis_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # ===========================================
+  # MONITORING & LOGGING
+  # ===========================================
+  
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # ELK Stack for Logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: logstash
+    volumes:
+      - ./monitoring/logstash/pipeline:/usr/share/logstash/pipeline
+      - ./monitoring/logstash/config:/usr/share/logstash/config
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    depends_on:
+      - elasticsearch
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # ===========================================
+  # LOAD BALANCER & REVERSE PROXY
+  # ===========================================
+  
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      - lto-app
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # ===========================================
+  # BACKUP SERVICES
+  # ===========================================
+  
+  backup:
+    image: postgres:15
+    container_name: backup
+    environment:
+      - PGPASSWORD=lto_password
+    volumes:
+      - ./backup:/backup
+      - postgres-data:/var/lib/postgresql/data:ro
+    command: >
+      sh -c "
+        while true; do
+          pg_dump -h postgres -U lto_user -d lto_blockchain > /backup/backup_$$(date +%Y%m%d_%H%M%S).sql
+          find /backup -name 'backup_*.sql' -mtime +7 -delete
+          sleep 86400
+        done
+      "
+    depends_on:
+      - postgres
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+volumes:
+  # Fabric Volumes
+  orderer1.lto.gov.ph:
+  orderer2.lto.gov.ph:
+  orderer3.lto.gov.ph:
+  peer0.lto.gov.ph:
+  couchdb0:
+  
+  # IPFS Volumes
+  ipfs-node-1:
+  ipfs-node-2:
+  ipfs-node-3:
+  ipfs-cluster:
+  
+  # Database Volumes
+  postgres-data:
+  redis-data:
+  
+  # Monitoring Volumes
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:
+  
+  # Application Volumes
+  app-logs:
+  nginx-logs:
+
+networks:
+  lto-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

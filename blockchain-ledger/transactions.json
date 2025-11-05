@@ -1,0 +1,37 @@
+[
+  {
+    "id": "mock_tx_1760778589444",
+    "type": "VEHICLE_REGISTRATION",
+    "vin": "1HGBH41JXMN1760778589268",
+    "plateNumber": "ABC-9268",
+    "owner": {
+      "id": "OWN589441",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.com",
+      "phone": "+63 912 345 6789",
+      "address": "123 Main St, Manila",
+      "idType": "DRIVERS_LICENSE",
+      "idNumber": "DL123456789",
+      "dateOfBirth": "1990-01-01",
+      "nationality": "Filipino"
+    },
+    "timestamp": "2025-10-18T09:09:49.445Z",
+    "blockNumber": 1,
+    "status": "CONFIRMED",
+    "gasUsed": 41023,
+    "gasPrice": "20000000000",
+    "hash": "0xf6cffc879a68eec6f2045ca6cee5ace313e5f39a7e2499855f8586d2efa3775f",
+    "from": "0x14ef9d13c68b1",
+    "to": "0x065014e8762af",
+    "value": "0",
+    "input": "{\"transactionId\":\"mock_tx_1760778589444\",\"type\":\"VEHICLE_REGISTRATION\",\"vin\":\"1HGBH41JXMN1760778589268\",\"plateNumber\":\"ABC-9268\",\"owner\":{\"id\":\"OWN589441\",\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\",\"phone\":\"+63 912 345 6789\",\"address\":\"123 Main St, Manila\",\"idType\":\"DRIVERS_LICENSE\",\"idNumber\":\"DL123456789\",\"dateOfBirth\":\"1990-01-01\",\"nationality\":\"Filipino\"},\"documents\":{\"registrationCert\":{\"cid\":\"QmTest123\",\"filename\":\"reg_cert.pdf\"},\"insuranceCert\":{\"cid\":\"QmTest456\",\"filename\":\"insurance.pdf\"},\"emissionCert\":{\"cid\":\"QmTest789\",\"filename\":\"emission.pdf\"},\"ownerId\":{\"cid\":\"QmTest000\",\"filename\":\"id.pdf\"}}}",
+    "receipt": {
+      "status": "0x1",
+      "cumulativeGasUsed": 60181,
+      "logs": [],
+      "contractAddress": null,
+      "gasUsed": 31569
+    }
+  }
+]

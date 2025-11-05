@@ -35,17 +35,29 @@
                         <p>Access your dashboard and manage your vehicle registrations</p>
                     </div>
 
-                    <form class="auth-form" onsubmit="return validateLogin()">
+                    <!-- Demo Credentials -->
+                    <div class="demo-credentials">
+                        <h4>Demo Accounts:</h4>
+                        <div class="demo-account" onclick="fillCredentials('admin@lto.gov.ph', 'admin123')">
+                            <strong>Admin:</strong> admin@lto.gov.ph / admin123
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('owner@example.com', 'admin123')">
+                            <strong>Owner:</strong> owner@example.com / admin123
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('verifier@insurance.com', 'admin123')">
+                            <strong>Insurance:</strong> verifier@insurance.com / admin123
+                        </div>
+                    </div>
+
+                    <form class="auth-form" onsubmit="handleLogin(event)">
                         <div class="form-group">
                             <label for="loginEmail">Email Address</label>
                             <input type="email" id="loginEmail" name="email" placeholder="Enter your email" required>
-                            <small class="hint">Use: owner@example.com</small>
                         </div>
 
                         <div class="form-group">
                             <label for="loginPassword">Password</label>
                             <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
-                            <small class="hint">Use: owner123</small>
                         </div>
 
                         <div class="form-options">
@@ -58,6 +70,7 @@
                         </div>
 
                         <button type="submit" class="btn-primary btn-full">Login</button>
+                        <button type="button" class="btn-secondary btn-full" onclick="testLogin()" style="margin-top: 10px;">Test Login (Debug)</button>
                     </form>
                 </div>
 

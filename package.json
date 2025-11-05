@@ -1,0 +1,52 @@
+{
+  "name": "trustchain-lto-system",
+  "version": "1.0.0",
+  "description": "TrustChain: Blockchain-based Vehicle Registration System for LTO Lipa City",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "setup": "PowerShell -ExecutionPolicy Bypass -File scripts/setup-blockchain.ps1",
+    "fabric:up": "PowerShell -ExecutionPolicy Bypass -File scripts/start-network.ps1",
+    "fabric:down": "docker-compose -f docker-compose-fabric.yml down --volumes --remove-orphans",
+    "fabric:logs": "docker-compose -f docker-compose-fabric.yml logs -f",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "nodemailer": "^6.9.7",
+    "twilio": "^4.19.0",
+    "fabric-ca-client": "^2.2.19",
+    "fabric-network": "^2.2.19",
+    "ipfs-http-client": "^60.0.1",
+    "uuid": "^9.0.0",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "@types/jest": "^29.5.8"
+  },
+  "keywords": [
+    "blockchain",
+    "hyperledger-fabric",
+    "vehicle-registration",
+    "lto",
+    "smart-contracts",
+    "ipfs",
+    "trustchain"
+  ],
+  "author": "Besmar, Kim Andrei M. | Dulla, Jasper Dave C. | Latag, Joshua Ivan G.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

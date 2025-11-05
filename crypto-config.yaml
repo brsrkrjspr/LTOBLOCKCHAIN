@@ -1,0 +1,21 @@
+# TrustChain LTO - Cryptographic Configuration
+# Hyperledger Fabric v2.5 Production Setup
+
+OrdererOrgs:
+  - Name: Orderer
+    Domain: lto.gov.ph
+    Specs:
+      - Hostname: orderer1
+      - Hostname: orderer2
+      - Hostname: orderer3
+
+PeerOrgs:
+  - Name: LTO
+    Domain: lto.gov.ph
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 2
+    Specs:
+      - Hostname: peer0

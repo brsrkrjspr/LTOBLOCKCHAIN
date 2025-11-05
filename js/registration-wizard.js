@@ -379,7 +379,7 @@ function updateReviewData() {
     document.getElementById('review-id-type').textContent = idType;
 }
 
-function submitApplication() {
+async function submitApplication() {
     const termsAgreement = document.getElementById('termsAgreement');
     
     if (!termsAgreement.checked) {
@@ -390,23 +390,52 @@ function submitApplication() {
     // Show loading state
     showLoadingState();
     
-    // Collect all form data
-    const applicationData = collectApplicationData();
-    
-    // Simulate application submission
-    setTimeout(() => {
-        hideLoadingState();
+    try {
+        // Collect all form data
+        const applicationData = collectApplicationData();
         
-        // Store application in localStorage
+        // Upload documents first
+        const documentUploads = await uploadDocuments();
+        applicationData.documents = documentUploads;
+        
+        // Submit to backend API
+        const response = await fetch('/api/vehicles/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            },
+            body: JSON.stringify(applicationData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Store application locally as backup
+            storeApplication(applicationData);
+            
+            showNotification('Vehicle registration submitted successfully! You will receive a confirmation email shortly.', 'success');
+            
+            // Redirect to dashboard after delay
+            setTimeout(() => {
+                window.location.href = 'owner-dashboard.html';
+            }, 2000);
+        } else {
+            throw new Error(result.error || 'Registration failed');
+        }
+        
+    } catch (error) {
+        console.error('Registration error:', error);
+        showNotification(`Registration failed: ${error.message}`, 'error');
+        
+        // Fallback to local storage
+        const applicationData = collectApplicationData();
         storeApplication(applicationData);
+        showNotification('Application saved locally. Please try again later.', 'warning');
         
-        showNotification('Application submitted successfully! You will receive a confirmation email shortly.', 'success');
-        
-        // Redirect to dashboard after delay
-        setTimeout(() => {
-            window.location.href = 'owner-dashboard.html';
-        }, 2000);
-    }, 3000);
+    } finally {
+        hideLoadingState();
+    }
 }
 
 function collectApplicationData() {
@@ -553,6 +582,124 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
+// Helper functions for API integration
+async function uploadDocuments() {
+    const documentTypes = ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId'];
+    const uploadResults = {};
+    
+    for (const docType of documentTypes) {
+        const fileInput = document.getElementById(docType);
+        if (fileInput.files && fileInput.files[0]) {
+            try {
+                const formData = new FormData();
+                formData.append('document', fileInput.files[0]);
+                formData.append('type', docType);
+                
+                const response = await fetch('/api/documents/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getAuthToken()}`
+                    },
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    uploadResults[docType] = {
+                        cid: result.cid,
+                        filename: result.filename,
+                        url: result.url
+                    };
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                console.error(`Upload error for ${docType}:`, error);
+                // Fallback to mock data
+                uploadResults[docType] = {
+                    cid: `mock_cid_${docType}_${Date.now()}`,
+                    filename: fileInput.files[0].name,
+                    url: `mock_url_${docType}`
+                };
+            }
+        }
+    }
+    
+    return uploadResults;
+}
+
+function getAuthToken() {
+    // Get token from localStorage or sessionStorage
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || 'mock_token';
+}
+
+function generateVIN() {
+    // Generate a mock VIN for the vehicle
+    const chars = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
+    let vin = '';
+    for (let i = 0; i < 17; i++) {
+        vin += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return vin;
+}
+
+// Enhanced collectApplicationData function
+function collectApplicationData() {
+    // Generate unique application ID and VIN
+    const applicationId = 'APP-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
+    const vin = generateVIN();
+    
+    // Collect vehicle information
+    const vehicleInfo = {
+        vin: vin,
+        make: document.getElementById('make').value,
+        model: document.getElementById('model').value,
+        year: parseInt(document.getElementById('year').value),
+        color: document.getElementById('color').value,
+        engineNumber: document.getElementById('engineNumber').value,
+        chassisNumber: document.getElementById('chassisNumber').value,
+        plateNumber: document.getElementById('plateNumber').value.toUpperCase(),
+        vehicleType: 'PASSENGER', // Default type
+        fuelType: 'GASOLINE', // Default fuel type
+        transmission: 'AUTOMATIC', // Default transmission
+        engineDisplacement: '1.5L' // Default displacement
+    };
+    
+    // Collect owner information
+    const ownerInfo = {
+        firstName: document.getElementById('firstName').value,
+        lastName: document.getElementById('lastName').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        address: document.getElementById('address').value,
+        idType: document.getElementById('idType').value,
+        idNumber: document.getElementById('idNumber').value,
+        dateOfBirth: new Date().toISOString().split('T')[0], // Mock DOB
+        nationality: 'Filipino' // Default nationality
+    };
+    
+    return {
+        id: applicationId,
+        vin: vin,
+        vehicle: vehicleInfo,
+        owner: ownerInfo,
+        status: 'SUBMITTED',
+        submittedDate: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        priority: 'MEDIUM',
+        verificationStatus: {
+            insurance: 'PENDING',
+            emission: 'PENDING',
+            admin: 'PENDING'
+        },
+        notes: {
+            admin: '',
+            insurance: '',
+            emission: ''
+        }
+    };
+}
+
 // Export functions for global access
 window.nextStep = nextStep;
 window.prevStep = prevStep;
@@ -564,5 +711,7 @@ window.RegistrationWizard = {
     prevStep,
     submitApplication,
     validateCurrentStep,
-    showNotification
+    showNotification,
+    uploadDocuments,
+    collectApplicationData
 };

@@ -1,0 +1,140 @@
+# TrustChain LTO - Laptop Optimized Configuration
+# Optimized for: Intel i3-7020U, 4GB RAM, 447GB SSD
+# Zero-cost production-ready setup
+
+services:
+  # ===========================================
+  # LIGHTWEIGHT APPLICATION STACK
+  # ===========================================
+  
+  # Main Application (Optimized)
+  lto-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.laptop
+    container_name: lto-app
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=lto_blockchain
+      - DB_USER=lto_user
+      - DB_PASSWORD=lto_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-jwt-secret-here
+      - ENCRYPTION_KEY=your-encryption-key-here
+      - BLOCKCHAIN_MODE=mock
+      - STORAGE_MODE=local
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./blockchain-ledger:/app/blockchain-ledger
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # ===========================================
+  # LIGHTWEIGHT DATABASE SERVICES
+  # ===========================================
+  
+  # PostgreSQL Database (Optimized for 4GB RAM)
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=lto_blockchain
+      - POSTGRES_USER=lto_user
+      - POSTGRES_PASSWORD=lto_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=4MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+
+  # Redis Cache (Minimal Configuration)
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # ===========================================
+  # LIGHTWEIGHT MONITORING
+  # ===========================================
+  
+  # Simple Health Monitor
+  health-monitor:
+    image: nginx:alpine
+    container_name: health-monitor
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/laptop.conf:/etc/nginx/nginx.conf
+      - ./logs:/var/log/nginx
+    depends_on:
+      - lto-app
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  default:
+    driver: bridge

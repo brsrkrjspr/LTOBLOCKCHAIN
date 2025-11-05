@@ -1,0 +1,43 @@
+# TrustChain LTO - Ultra Simple Configuration
+# Minimal resource usage for laptop deployment
+
+services:
+  # Main Application (No separate containers)
+  lto-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    container_name: lto-app
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=localhost
+      - DB_PORT=5432
+      - DB_NAME=lto_blockchain
+      - DB_USER=lto_user
+      - DB_PASSWORD=lto_password
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-jwt-secret-here
+      - ENCRYPTION_KEY=your-encryption-key-here
+      - BLOCKCHAIN_MODE=mock
+      - STORAGE_MODE=local
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./blockchain-ledger:/app/blockchain-ledger
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Lightweight Database (SQLite instead of PostgreSQL)
+  # This will be handled by the application itself
+

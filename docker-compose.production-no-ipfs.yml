@@ -1,0 +1,235 @@
+# TrustChain LTO - Production Docker Compose (Without IPFS)
+# Production-ready setup with PostgreSQL, Redis, and monitoring
+# Uses local file storage instead of IPFS
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # APPLICATION SERVICES
+  # ===========================================
+  
+  # Main Application
+  lto-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.laptop
+    container_name: lto-app-prod
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=lto_blockchain
+      - DB_USER=lto_user
+      - DB_PASSWORD=lto_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_password
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production-jwt-secret-key}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-this-32-character-encryption-key}
+      - BLOCKCHAIN_MODE=${BLOCKCHAIN_MODE:-mock}
+      - STORAGE_MODE=local
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3001}
+      - MAX_FILE_SIZE=10485760
+      - ALLOWED_FILE_TYPES=pdf,jpg,jpeg,png
+      - ENCRYPT_FILES=${ENCRYPT_FILES:-false}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./blockchain-ledger:/app/blockchain-ledger
+      - ./.env:/app/.env:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================
+  # DATABASE SERVICES
+  # ===========================================
+  
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-prod
+    environment:
+      - POSTGRES_DB=lto_blockchain
+      - POSTGRES_USER=lto_user
+      - POSTGRES_PASSWORD=lto_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init-laptop.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lto_user -d lto_blockchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=2GB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=8MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_connections=200
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis-prod
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass redis_password
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ===========================================
+  # MONITORING & LOGGING
+  # ===========================================
+  
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-prod
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-prod
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # ===========================================
+  # LOAD BALANCER & REVERSE PROXY
+  # ===========================================
+  
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/production.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      - lto-app
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # ===========================================
+  # BACKUP SERVICES
+  # ===========================================
+  
+  backup:
+    image: postgres:15-alpine
+    container_name: backup-prod
+    environment:
+      - PGPASSWORD=lto_password
+    volumes:
+      - ./backup:/backup
+      - postgres-data:/var/lib/postgresql/data:ro
+    command: >
+      sh -c "
+        while true; do
+          pg_dump -h postgres -U lto_user -d lto_blockchain > /backup/backup_$$(date +%Y%m%d_%H%M%S).sql
+          find /backup -name 'backup_*.sql' -mtime +7 -delete
+          sleep 86400
+        done
+      "
+    depends_on:
+      - postgres
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+volumes:
+  # Database Volumes
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  
+  # Monitoring Volumes
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  
+  # Application Volumes
+  nginx-logs:
+    driver: local
+
+networks:
+  lto-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+

@@ -3,13 +3,17 @@ const express = require('express');
 const router = express.Router();
 const fabricService = require('../services/optimizedFabricService');
 
-// Initialize Fabric service
-fabricService.initialize().then(connected => {
-    if (connected) {
+// Initialize Fabric service (automatically uses mock mode for laptop deployment)
+fabricService.initialize().then(result => {
+    if (result && result.mode === 'fabric') {
         console.log('✅ Real Hyperledger Fabric integration active');
     } else {
-        console.log('🔄 Using mock blockchain service');
+        console.log('🔄 Using mock blockchain service (laptop-optimized mode)');
+        console.log('💡 This mode requires no Hyperledger Fabric setup - perfect for development and testing');
     }
+}).catch(err => {
+    console.log('🔄 Using mock blockchain service (fallback mode)');
+    console.log('⚠️  Fabric initialization failed:', err.message);
 });
 
 // Legacy mock service for fallback

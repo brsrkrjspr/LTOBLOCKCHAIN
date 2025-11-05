@@ -29,7 +29,7 @@ app.use(helmet({
     },
 }));
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
     credentials: true
 }));
 
@@ -94,24 +94,24 @@ app.get('/search', (req, res) => {
     res.sendFile(path.join(__dirname, 'search.html'));
 });
 
-app.get('/test-login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'test-login.html'));
+app.get('/verifier-dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'verifier-dashboard.html'));
 });
 
-app.get('/simple-login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'simple-login.html'));
+app.get('/insurance-verifier-dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'insurance-verifier-dashboard.html'));
 });
 
-app.get('/comprehensive-test', (req, res) => {
-    res.sendFile(path.join(__dirname, 'comprehensive-test.html'));
-});
-
-app.get('/fixed-login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'fixed-login.html'));
+app.get('/document-viewer', (req, res) => {
+    res.sendFile(path.join(__dirname, 'document-viewer.html'));
 });
 
 app.get('/admin-blockchain-viewer', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin-blockchain-viewer.html'));
+});
+
+app.get('/login-signup', (req, res) => {
+    res.sendFile(path.join(__dirname, 'login-signup.html'));
 });
 
 // Serve React app for all other routes (fallback)

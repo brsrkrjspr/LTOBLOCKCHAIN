@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <script src="js/utils.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -118,7 +119,12 @@
 
                 <!-- Submitted Applications -->
                 <div class="dashboard-card">
-                    <h3><span class="card-icon">📋</span> Submitted Applications</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0;"><span class="card-icon">📋</span> Submitted Applications</h3>
+                        <button class="btn-secondary no-print" onclick="window.print()" style="padding: 0.5rem 1rem;">
+                            🖨️ Print Report
+                        </button>
+                    </div>
                     <div class="table-container">
                         <table class="table" id="submitted-applications-table">
                             <thead>

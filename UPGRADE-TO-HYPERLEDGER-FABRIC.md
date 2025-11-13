@@ -565,7 +565,7 @@ docker-compose -f docker-compose.production-no-ipfs.yml start lto-app-prod
 
 # Check logs
 docker-compose -f docker-compose.production-no-ipfs.yml logs -f lto-app-prod
-```
+``` 
 
 ### 7.2 Verify Connection
 

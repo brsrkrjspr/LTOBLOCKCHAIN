@@ -1,13 +1,25 @@
 // Registration Wizard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     initializeRegistrationWizard();
+    initializeKeyboardShortcuts();
+    restoreFormData();
 });
+
+// Track if form is submitting to prevent double submissions
+let isSubmitting = false;
+let currentAbortController = null;
 
 function initializeRegistrationWizard() {
     // Initialize wizard functionality
     initializeFormValidation();
     initializeFileUploads();
     initializeProgressTracking();
+    
+    // Initialize auto-save
+    const form = document.querySelector('.wizard-form');
+    if (form) {
+        FormPersistence.autoSave('registration-wizard', form);
+    }
 }
 
 let currentStep = 1;
@@ -104,38 +116,64 @@ function validateCurrentStep() {
 }
 
 function validateVehicleInfo() {
-    const plateNumber = document.getElementById('plateNumber').value.trim();
-    const year = document.getElementById('year').value;
-    const engineNumber = document.getElementById('engineNumber').value.trim();
-    const chassisNumber = document.getElementById('chassisNumber').value.trim();
+    const plateNumber = document.getElementById('plateNumber')?.value.trim() || '';
+    const year = document.getElementById('year')?.value || '';
+    const engineNumber = document.getElementById('engineNumber')?.value.trim() || '';
+    const chassisNumber = document.getElementById('chassisNumber')?.value.trim() || '';
+    const vin = document.getElementById('vin')?.value.trim().toUpperCase() || '';
     
     let isValid = true;
     let errors = [];
     
+    // Validate VIN (17 characters, alphanumeric, no I, O, Q)
+    const vinField = document.getElementById('vin');
+    if (vin) {
+        const vinPattern = /^[A-HJ-NPR-Z0-9]{17}$/;
+        if (!vinPattern.test(vin)) {
+            if (vinField) {
+                vinField.classList.add('invalid');
+                showFieldError(vinField, 'VIN must be exactly 17 characters (alphanumeric, no I, O, or Q)');
+            }
+            errors.push('VIN must be exactly 17 characters (alphanumeric, no I, O, or Q)');
+            isValid = false;
+        } else if (vinField) {
+            vinField.classList.remove('invalid');
+            vinField.classList.add('valid');
+            hideFieldError(vinField);
+        }
+    }
+    
     // Validate license plate format
-    if (plateNumber && !/^[A-Z]{3}-[0-9]{4}$/.test(plateNumber)) {
+    if (plateNumber && !/^[A-Z]{3}-[0-9]{4}$/.test(plateNumber.toUpperCase())) {
         const plateField = document.getElementById('plateNumber');
-        plateField.classList.add('invalid');
-        showFieldError(plateField, 'License plate must be in format ABC-1234');
+        if (plateField) {
+            plateField.classList.add('invalid');
+            showFieldError(plateField, 'License plate must be in format ABC-1234');
+        }
         errors.push('License plate must be in format ABC-1234 (e.g., ABC-1234)');
         isValid = false;
     }
     
-    // Validate year
+    // Validate year (not future, reasonable range: 1990 to current year)
     const currentYear = new Date().getFullYear();
-    if (year && (year < 1990 || year > currentYear)) {
+    const yearNum = parseInt(year);
+    if (year && (isNaN(yearNum) || yearNum < 1990 || yearNum > currentYear)) {
         const yearField = document.getElementById('year');
-        yearField.classList.add('invalid');
-        showFieldError(yearField, `Year must be between 1990 and ${currentYear}`);
-        errors.push(`Year must be between 1990 and ${currentYear}`);
+        if (yearField) {
+            yearField.classList.add('invalid');
+            showFieldError(yearField, `Year must be between 1990 and ${currentYear} (not future)`);
+        }
+        errors.push(`Year must be between 1990 and ${currentYear} (not future)`);
         isValid = false;
     }
     
     // Validate engine number format
     if (engineNumber && engineNumber.length < 5) {
         const engineField = document.getElementById('engineNumber');
-        engineField.classList.add('invalid');
-        showFieldError(engineField, 'Engine number must be at least 5 characters');
+        if (engineField) {
+            engineField.classList.add('invalid');
+            showFieldError(engineField, 'Engine number must be at least 5 characters');
+        }
         errors.push('Engine number must be at least 5 characters long');
         isValid = false;
     }
@@ -143,8 +181,10 @@ function validateVehicleInfo() {
     // Validate chassis number format
     if (chassisNumber && chassisNumber.length < 10) {
         const chassisField = document.getElementById('chassisNumber');
-        chassisField.classList.add('invalid');
-        showFieldError(chassisField, 'Chassis number must be at least 10 characters');
+        if (chassisField) {
+            chassisField.classList.add('invalid');
+            showFieldError(chassisField, 'Chassis number must be at least 10 characters');
+        }
         errors.push('Chassis number must be at least 10 characters long');
         isValid = false;
     }
@@ -259,9 +299,28 @@ function validateField(field) {
     }
     
     if (field.id === 'plateNumber' && value.length > 0) {
-        if (!/^[A-Z]{3}-[0-9]{4}$/.test(value)) {
+        if (!/^[A-Z]{3}-[0-9]{4}$/.test(value.toUpperCase())) {
             field.classList.add('invalid');
             showFieldError(field, 'License plate must be in format ABC-1234');
+            return false;
+        }
+    }
+    
+    if (field.id === 'vin' && value.length > 0) {
+        const vinPattern = /^[A-HJ-NPR-Z0-9]{17}$/;
+        if (!vinPattern.test(value.toUpperCase())) {
+            field.classList.add('invalid');
+            showFieldError(field, 'VIN must be exactly 17 characters (alphanumeric, no I, O, or Q)');
+            return false;
+        }
+    }
+    
+    if (field.id === 'year' && value.length > 0) {
+        const currentYear = new Date().getFullYear();
+        const yearNum = parseInt(value);
+        if (isNaN(yearNum) || yearNum < 1990 || yearNum > currentYear) {
+            field.classList.add('invalid');
+            showFieldError(field, `Year must be between 1990 and ${currentYear} (not future)`);
             return false;
         }
     }
@@ -314,17 +373,26 @@ function handleFileUpload(input) {
     const file = input.files[0];
     if (file) {
         // Validate file type
-        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
-        if (!allowedTypes.includes(file.type)) {
-            showFieldError(input, 'Please upload a PDF or JPEG file');
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+            showFieldError(input, 'Please upload a PDF, JPEG, or PNG file');
             input.classList.add('invalid');
+            ToastNotification.show('Invalid file type. Please upload PDF, JPEG, or PNG files only.', 'error');
+            input.value = ''; // Clear the input
             return;
         }
         
         // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            showFieldError(input, 'File size must be less than 5MB');
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            showFieldError(input, `File size (${sizeMB}MB) exceeds maximum of 5MB`);
             input.classList.add('invalid');
+            ToastNotification.show(`File size (${sizeMB}MB) exceeds maximum of 5MB. Please choose a smaller file.`, 'error');
+            input.value = ''; // Clear the input
             return;
         }
         
@@ -333,16 +401,27 @@ function handleFileUpload(input) {
         input.classList.add('valid');
         hideFieldError(input);
         
-        // Update upload label
+        // Show file preview for images
         const label = input.nextElementSibling;
-        if (label) {
+        if (label && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                label.innerHTML = `
+                    <img src="${e.target.result}" style="max-width: 100px; max-height: 100px; border-radius: 4px; margin-bottom: 0.5rem;" alt="Preview">
+                    <span>${file.name}</span>
+                    <small style="display: block; color: #666; font-size: 0.8rem;">${(file.size / 1024).toFixed(2)} KB</small>
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else if (label) {
             label.innerHTML = `
                 <span class="upload-icon">✅</span>
                 <span>${file.name}</span>
+                <small style="display: block; color: #666; font-size: 0.8rem;">${(file.size / 1024).toFixed(2)} KB</small>
             `;
         }
         
-        showNotification(`File "${file.name}" uploaded successfully`, 'success');
+        ToastNotification.show(`File "${file.name}" uploaded successfully`, 'success');
     }
 }
 
@@ -380,22 +459,57 @@ function updateReviewData() {
 }
 
 async function submitApplication() {
-    const termsAgreement = document.getElementById('termsAgreement');
-    
-    if (!termsAgreement.checked) {
-        showNotification('Please agree to the terms and conditions before submitting', 'error');
+    // Prevent double submission
+    if (isSubmitting) {
+        ToastNotification.show('Please wait, submission in progress...', 'warning');
         return;
     }
     
-    // Show loading state
-    showLoadingState();
+    const termsAgreement = document.getElementById('termsAgreement');
+    
+    if (!termsAgreement || !termsAgreement.checked) {
+        ToastNotification.show('Please agree to the terms and conditions before submitting', 'error');
+        return;
+    }
+    
+    // Show confirmation dialog
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Submit Application',
+        message: 'Are you sure you want to submit this vehicle registration application? Please review all information before proceeding.',
+        confirmText: 'Submit Application',
+        cancelText: 'Review Again',
+        confirmColor: '#27ae60',
+        type: 'question'
+    });
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    isSubmitting = true;
+    
+    // Cancel any previous requests
+    if (currentAbortController) {
+        currentAbortController.abort();
+    }
+    
+    // Create new abort controller
+    currentAbortController = new AbortController();
+    const signal = currentAbortController.signal;
+    
+    const submitButton = document.querySelector('#step-4 .btn-primary');
+    LoadingManager.show(submitButton, 'Submitting...');
+    
+    // Disable all form buttons
+    const allButtons = document.querySelectorAll('#step-4 button');
+    allButtons.forEach(btn => btn.disabled = true);
     
     try {
         // Collect all form data
         const applicationData = collectApplicationData();
         
-        // Upload documents first
-        const documentUploads = await uploadDocuments();
+        // Upload documents first with abort signal
+        const documentUploads = await uploadDocuments(signal);
         applicationData.documents = documentUploads;
         
         // Submit to backend API
@@ -405,36 +519,71 @@ async function submitApplication() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getAuthToken()}`
             },
-            body: JSON.stringify(applicationData)
+            body: JSON.stringify(applicationData),
+            signal: signal
         });
+        
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
         
         const result = await response.json();
         
         if (result.success) {
+            // Clear saved form data
+            FormPersistence.clear('registration-wizard');
+            
             // Store application locally as backup
             storeApplication(applicationData);
             
-            showNotification('Vehicle registration submitted successfully! You will receive a confirmation email shortly.', 'success');
+            // Success animation
+            const reviewSection = document.querySelector('.review-section');
+            if (reviewSection) {
+                reviewSection.classList.add('success-animation');
+            }
+            
+            ToastNotification.show('Vehicle registration submitted successfully! You will receive a confirmation email shortly.', 'success', 6000);
             
             // Redirect to dashboard after delay
             setTimeout(() => {
                 window.location.href = 'owner-dashboard.html';
-            }, 2000);
+            }, 3000);
         } else {
             throw new Error(result.error || 'Registration failed');
         }
         
     } catch (error) {
+        if (error.name === 'AbortError') {
+            ToastNotification.show('Request cancelled', 'info');
+            return;
+        }
+        
         console.error('Registration error:', error);
-        showNotification(`Registration failed: ${error.message}`, 'error');
+        
+        let errorMessage = 'Registration failed. ';
+        if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+            errorMessage += 'Please check your internet connection and try again.';
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+            errorMessage += 'Authentication error. Please log in again.';
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
+        } else {
+            errorMessage += error.message || 'An unexpected error occurred.';
+        }
+        
+        ToastNotification.show(errorMessage, 'error', 8000);
         
         // Fallback to local storage
         const applicationData = collectApplicationData();
         storeApplication(applicationData);
-        showNotification('Application saved locally. Please try again later.', 'warning');
+        ToastNotification.show('Application saved locally. Please try again later.', 'warning');
         
     } finally {
-        hideLoadingState();
+        isSubmitting = false;
+        LoadingManager.hide(submitButton);
+        allButtons.forEach(btn => btn.disabled = false);
+        currentAbortController = null;
     }
 }
 
@@ -505,22 +654,44 @@ function storeApplication(applicationData) {
     console.log('Application stored:', applicationData);
 }
 
-function showLoadingState() {
-    const submitButton = document.querySelector('#step-4 .btn-primary');
-    if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<span class="loading-spinner"></span> Submitting Application...';
-        submitButton.classList.add('loading');
+// Restore form data on page load
+function restoreFormData() {
+    const form = document.querySelector('.wizard-form');
+    if (form && FormPersistence.restore('registration-wizard', form)) {
+        ToastNotification.show('Previous form data restored', 'info', 3000);
     }
 }
 
-function hideLoadingState() {
-    const submitButton = document.querySelector('#step-4 .btn-primary');
-    if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.textContent = 'Submit Application';
-        submitButton.classList.remove('loading');
-    }
+// Keyboard shortcuts
+function initializeKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+S or Cmd+S to save (prevent default and show message)
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            ToastNotification.show('Form data is automatically saved as you type', 'info');
+        }
+        
+        // Escape to go back
+        if (e.key === 'Escape' && currentStep > 1) {
+            prevStep();
+        }
+        
+        // Enter to proceed (if on a step with next button)
+        if (e.key === 'Enter' && !e.shiftKey && !e.target.matches('textarea')) {
+            const activeStep = document.querySelector('.wizard-step.active');
+            if (activeStep) {
+                const nextButton = activeStep.querySelector('.btn-primary');
+                if (nextButton && !nextButton.disabled) {
+                    e.preventDefault();
+                    if (currentStep < totalSteps) {
+                        nextStep();
+                    } else if (currentStep === totalSteps) {
+                        submitApplication();
+                    }
+                }
+            }
+        }
+    });
 }
 
 function showTopError(message) {
@@ -563,34 +734,25 @@ function showTopError(message) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Legacy notification function - now uses ToastNotification
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <span class="notification-message">${message}</span>
-            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 5000);
+    ToastNotification.show(message, type);
 }
 
 // Helper functions for API integration
-async function uploadDocuments() {
+async function uploadDocuments(signal) {
     const documentTypes = ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId'];
     const uploadResults = {};
     
     for (const docType of documentTypes) {
         const fileInput = document.getElementById(docType);
-        if (fileInput.files && fileInput.files[0]) {
+        if (fileInput && fileInput.files && fileInput.files[0]) {
             try {
+                // Check if request was aborted
+                if (signal && signal.aborted) {
+                    throw new Error('Upload cancelled');
+                }
+                
                 const formData = new FormData();
                 formData.append('document', fileInput.files[0]);
                 formData.append('type', docType);
@@ -600,8 +762,13 @@ async function uploadDocuments() {
                     headers: {
                         'Authorization': `Bearer ${getAuthToken()}`
                     },
-                    body: formData
+                    body: formData,
+                    signal: signal
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
                 
                 const result = await response.json();
                 if (result.success) {
@@ -614,8 +781,11 @@ async function uploadDocuments() {
                     throw new Error(result.error || 'Upload failed');
                 }
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw error;
+                }
                 console.error(`Upload error for ${docType}:`, error);
-                // Fallback to mock data
+                // Fallback to mock data for development
                 uploadResults[docType] = {
                     cid: `mock_cid_${docType}_${Date.now()}`,
                     filename: fileInput.files[0].name,
@@ -645,20 +815,23 @@ function generateVIN() {
 
 // Enhanced collectApplicationData function
 function collectApplicationData() {
-    // Generate unique application ID and VIN
+    // Generate unique application ID
     const applicationId = 'APP-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
-    const vin = generateVIN();
+    
+    // Get VIN from form or generate if not provided
+    const vinInput = document.getElementById('vin');
+    const vin = vinInput ? vinInput.value.trim().toUpperCase() : generateVIN();
     
     // Collect vehicle information
     const vehicleInfo = {
-        vin: vin,
-        make: document.getElementById('make').value,
-        model: document.getElementById('model').value,
-        year: parseInt(document.getElementById('year').value),
-        color: document.getElementById('color').value,
-        engineNumber: document.getElementById('engineNumber').value,
-        chassisNumber: document.getElementById('chassisNumber').value,
-        plateNumber: document.getElementById('plateNumber').value.toUpperCase(),
+        vin: vin || generateVIN(),
+        make: document.getElementById('make')?.value || '',
+        model: document.getElementById('model')?.value || '',
+        year: parseInt(document.getElementById('year')?.value || new Date().getFullYear()),
+        color: document.getElementById('color')?.value || '',
+        engineNumber: document.getElementById('engineNumber')?.value || '',
+        chassisNumber: document.getElementById('chassisNumber')?.value || '',
+        plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
         vehicleType: 'PASSENGER', // Default type
         fuelType: 'GASOLINE', // Default fuel type
         transmission: 'AUTOMATIC', // Default transmission
@@ -667,20 +840,20 @@ function collectApplicationData() {
     
     // Collect owner information
     const ownerInfo = {
-        firstName: document.getElementById('firstName').value,
-        lastName: document.getElementById('lastName').value,
-        email: document.getElementById('email').value,
-        phone: document.getElementById('phone').value,
-        address: document.getElementById('address').value,
-        idType: document.getElementById('idType').value,
-        idNumber: document.getElementById('idNumber').value,
+        firstName: document.getElementById('firstName')?.value || '',
+        lastName: document.getElementById('lastName')?.value || '',
+        email: document.getElementById('email')?.value || '',
+        phone: document.getElementById('phone')?.value || '',
+        address: document.getElementById('address')?.value || '',
+        idType: document.getElementById('idType')?.value || '',
+        idNumber: document.getElementById('idNumber')?.value || '',
         dateOfBirth: new Date().toISOString().split('T')[0], // Mock DOB
         nationality: 'Filipino' // Default nationality
     };
     
     return {
         id: applicationId,
-        vin: vin,
+        vin: vin || generateVIN(),
         vehicle: vehicleInfo,
         owner: ownerInfo,
         status: 'SUBMITTED',

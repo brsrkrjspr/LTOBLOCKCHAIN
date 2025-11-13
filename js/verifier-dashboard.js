@@ -1,7 +1,15 @@
 // Emission Verifier Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     initializeVerifierDashboard();
+    initializeKeyboardShortcuts();
 });
+
+// Add utils script to HTML
+if (!document.querySelector('script[src="js/utils.js"]')) {
+    const script = document.createElement('script');
+    script.src = 'js/utils.js';
+    document.head.appendChild(script);
+}
 
 function initializeVerifierDashboard() {
     // Initialize dashboard functionality
@@ -48,57 +56,140 @@ function initializeTaskManagement() {
     }
 }
 
-function handleEmissionApprove(e) {
+async function handleEmissionApprove(e) {
     const row = e.target.closest('tr');
     const appId = row.querySelector('td:first-child').textContent;
-    const vehicleInfo = row.querySelector('.vehicle-info strong').textContent;
-    const emissionTest = row.querySelector('td:nth-child(3)').textContent;
+    const vehicleInfo = row.querySelector('.vehicle-info strong')?.textContent || 'Vehicle';
+    const emissionTest = row.querySelector('td:nth-child(3)')?.textContent || 'N/A';
     
-    if (confirm(`Approve emission test for ${vehicleInfo} (${appId})? Test result: ${emissionTest}`)) {
-        showNotification('Emission test approved successfully!', 'success');
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Approve Emission Test',
+        message: `Approve emission test for ${vehicleInfo} (${appId})? Test result: ${emissionTest}`,
+        confirmText: 'Approve',
+        cancelText: 'Cancel',
+        confirmColor: '#27ae60',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        const button = e.target;
+        LoadingManager.show(button, 'Approving...');
         
-        // Update row status
-        row.style.backgroundColor = '#f0f9ff';
-        row.querySelector('.btn-primary').textContent = 'Approved';
-        row.querySelector('.btn-primary').classList.remove('btn-primary');
-        row.querySelector('.btn-primary').classList.add('btn-success');
-        row.querySelector('.btn-primary').disabled = true;
-        
-        // Update status badge
-        const statusBadge = row.querySelector('.status-badge');
-        statusBadge.textContent = 'Approved';
-        statusBadge.className = 'status-badge status-approved';
-        
-        // Update stats
-        updateTaskStats('approved');
+        try {
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            ToastNotification.show('Emission test approved successfully!', 'success');
+            
+            // Update row status
+            row.style.backgroundColor = '#f0f9ff';
+            const approveBtn = row.querySelector('.btn-primary');
+            if (approveBtn) {
+                approveBtn.textContent = 'Approved';
+                approveBtn.classList.remove('btn-primary');
+                approveBtn.classList.add('btn-success');
+                approveBtn.disabled = true;
+            }
+            
+            // Update status badge
+            const statusBadge = row.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = 'Approved';
+                statusBadge.className = 'status-badge status-approved';
+            }
+            
+            // Update stats
+            updateTaskStats('approved');
+        } catch (error) {
+            ToastNotification.show('Failed to approve emission test. Please try again.', 'error');
+        } finally {
+            LoadingManager.hide(button);
+        }
     }
 }
 
-function handleEmissionReject(e) {
+async function handleEmissionReject(e) {
     const row = e.target.closest('tr');
     const appId = row.querySelector('td:first-child').textContent;
-    const vehicleInfo = row.querySelector('.vehicle-info strong').textContent;
-    const emissionTest = row.querySelector('td:nth-child(3)').textContent;
+    const vehicleInfo = row.querySelector('.vehicle-info strong')?.textContent || 'Vehicle';
     
-    const reason = prompt(`Please provide reason for rejecting emission test for ${vehicleInfo} (${appId}):`);
-    if (reason && reason.trim()) {
-        showNotification(`Emission test rejected: ${reason}`, 'warning');
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Reject Emission Test</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem;">Please provide a reason for rejecting emission test for ${vehicleInfo} (${appId}):</p>
+                <textarea id="rejectionReason" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button class="btn-danger" id="confirmReject">Reject</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    return new Promise((resolve) => {
+        modal.querySelector('#confirmReject').onclick = async function() {
+            const reason = document.getElementById('rejectionReason').value.trim();
+            if (!reason) {
+                ToastNotification.show('Please provide a reason for rejection', 'error');
+                return;
+            }
+            
+            const button = this;
+            LoadingManager.show(button, 'Rejecting...');
+            
+            try {
+                await new Promise(resolve => setTimeout(resolve, 800));
+                
+                ToastNotification.show(`Emission test rejected: ${reason}`, 'warning');
+                
+                // Update row status
+                row.style.backgroundColor = '#fef2f2';
+                const rejectBtn = row.querySelector('.btn-danger');
+                if (rejectBtn) {
+                    rejectBtn.textContent = 'Rejected';
+                    rejectBtn.classList.remove('btn-danger');
+                    rejectBtn.classList.add('btn-warning');
+                    rejectBtn.disabled = true;
+                }
+                
+                // Update status badge
+                const statusBadge = row.querySelector('.status-badge');
+                if (statusBadge) {
+                    statusBadge.textContent = 'Rejected';
+                    statusBadge.className = 'status-badge status-rejected';
+                }
+                
+                // Update stats
+                updateTaskStats('rejected');
+                
+                modal.remove();
+                resolve();
+            } catch (error) {
+                ToastNotification.show('Failed to reject emission test. Please try again.', 'error');
+            } finally {
+                LoadingManager.hide(button);
+            }
+        };
         
-        // Update row status
-        row.style.backgroundColor = '#fef2f2';
-        row.querySelector('.btn-danger').textContent = 'Rejected';
-        row.querySelector('.btn-danger').classList.remove('btn-danger');
-        row.querySelector('.btn-danger').classList.add('btn-warning');
-        row.querySelector('.btn-danger').disabled = true;
+        modal.querySelector('.modal-close').onclick = () => {
+            modal.remove();
+            resolve();
+        };
         
-        // Update status badge
-        const statusBadge = row.querySelector('.status-badge');
-        statusBadge.textContent = 'Rejected';
-        statusBadge.className = 'status-badge status-rejected';
-        
-        // Update stats
-        updateTaskStats('rejected');
-    }
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.remove();
+                resolve();
+            }
+        };
+    });
 }
 
 function handleEmissionReview(e) {
@@ -209,22 +300,16 @@ function updateTaskStats(action) {
 }
 
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <span class="notification-message">${message}</span>
-            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
+    ToastNotification.show(message, type);
+}
+
+function initializeKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            e.preventDefault();
+            window.print();
         }
-    }, 4000);
+    });
 }
 
 // Export functions for potential external use

@@ -1,7 +1,15 @@
 // Owner Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     initializeOwnerDashboard();
+    initializeKeyboardShortcuts();
+    initializePagination();
 });
+
+// Pagination state
+let currentPage = 1;
+const itemsPerPage = 10;
+let allApplications = [];
+let filteredApplications = [];
 
 function initializeOwnerDashboard() {
     // Initialize user information
@@ -60,22 +68,33 @@ function updateUserInfo() {
     }
 }
 
-function updateOwnerStats() {
-    // Simulate real-time updates for owner stats
-    const stats = {
-        registeredVehicles: Math.floor(Math.random() * 2) + 3,
-        pendingApplications: Math.floor(Math.random() * 2) + 1,
-        approvedApplications: Math.floor(Math.random() * 2) + 2,
-        notifications: Math.floor(Math.random() * 3) + 5
-    };
-    
-    // Update stat cards
+async function updateOwnerStats() {
     const statCards = document.querySelectorAll('.stat-card .stat-number');
-    if (statCards.length >= 4) {
-        statCards[0].textContent = stats.registeredVehicles;
-        statCards[1].textContent = stats.pendingApplications;
-        statCards[2].textContent = stats.approvedApplications;
-        statCards[3].textContent = stats.notifications;
+    statCards.forEach(card => {
+        card.textContent = '...';
+    });
+    
+    try {
+        const signal = requestManager.createRequest('owner-stats');
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const stats = {
+            registeredVehicles: Math.floor(Math.random() * 2) + 3,
+            pendingApplications: Math.floor(Math.random() * 2) + 1,
+            approvedApplications: Math.floor(Math.random() * 2) + 2,
+            notifications: Math.floor(Math.random() * 3) + 5
+        };
+        
+        if (statCards.length >= 4) {
+            statCards[0].textContent = stats.registeredVehicles;
+            statCards[1].textContent = stats.pendingApplications;
+            statCards[2].textContent = stats.approvedApplications;
+            statCards[3].textContent = stats.notifications;
+        }
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.error('Failed to update stats:', error);
+        }
     }
 }
 
@@ -262,25 +281,7 @@ function addNotificationToUI(notification) {
 }
 
 function showNotification(message, type = 'info') {
-    // Create notification toast
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-        <div class="toast-content">
-            <span class="toast-message">${message}</span>
-            <button class="toast-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-    
-    // Add to page
-    document.body.appendChild(toast);
-    
-    // Auto remove after 4 seconds
-    setTimeout(() => {
-        if (toast.parentElement) {
-            toast.remove();
-        }
-    }, 4000);
+    ToastNotification.show(message, type);
 }
 
 // Quick action handlers
@@ -310,15 +311,54 @@ function initializeSubmittedApplications() {
 }
 
 function loadUserApplications() {
-    const applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+    allApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
     const applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
     
     if (!applicationsTable) return;
     
-    // Clear existing rows
+    // Sort applications by submission date (newest first)
+    allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+    
+    // Apply filters
+    filteredApplications = applyFilters(allApplications);
+    
+    // Update pagination
+    updatePagination();
+    renderApplications();
+    
+    // Update stats based on all applications
+    updateStatsFromApplications(allApplications);
+}
+
+function applyFilters(applications) {
+    const searchInput = document.getElementById('applicationSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    
+    let filtered = [...applications];
+    
+    if (searchInput && searchInput.value.trim()) {
+        const searchTerm = searchInput.value.toLowerCase();
+        filtered = filtered.filter(app => 
+            app.id.toLowerCase().includes(searchTerm) ||
+            `${app.vehicle.make} ${app.vehicle.model}`.toLowerCase().includes(searchTerm) ||
+            app.vehicle.plateNumber.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    if (statusFilter && statusFilter.value !== 'all') {
+        filtered = filtered.filter(app => app.status === statusFilter.value);
+    }
+    
+    return filtered;
+}
+
+function renderApplications() {
+    const applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    if (!applicationsTable) return;
+    
     applicationsTable.innerHTML = '';
     
-    if (applications.length === 0) {
+    if (filteredApplications.length === 0) {
         applicationsTable.innerHTML = `
             <tr>
                 <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
@@ -329,17 +369,83 @@ function loadUserApplications() {
         return;
     }
     
-    // Sort applications by submission date (newest first)
-    applications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageApplications = filteredApplications.slice(startIndex, endIndex);
     
-    // Display applications
-    applications.forEach(app => {
+    pageApplications.forEach(app => {
         const row = createUserApplicationRow(app);
         applicationsTable.appendChild(row);
     });
+}
+
+function initializePagination() {
+    const tableContainer = document.querySelector('.dashboard-card:nth-child(3)');
+    if (tableContainer && !document.getElementById('applicationSearch')) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'management-toolbar';
+        toolbar.innerHTML = `
+            <div class="search-box">
+                <input type="text" id="applicationSearch" placeholder="Search applications..." style="padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px; min-width: 250px;">
+            </div>
+            <div class="filter-box">
+                <select id="statusFilter" style="padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;">
+                    <option value="all">All Status</option>
+                    <option value="submitted">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+        `;
+        
+        const table = tableContainer.querySelector('table');
+        if (table) {
+            tableContainer.insertBefore(toolbar, table);
+        }
+        
+        document.getElementById('applicationSearch')?.addEventListener('input', () => {
+            currentPage = 1;
+            loadUserApplications();
+        });
+        
+        document.getElementById('statusFilter')?.addEventListener('change', () => {
+            currentPage = 1;
+            loadUserApplications();
+        });
+    }
     
-    // Update stats based on applications
-    updateStatsFromApplications(applications);
+    const tbody = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    if (tbody && !document.getElementById('pagination-container-owner')) {
+        const paginationContainer = document.createElement('div');
+        paginationContainer.id = 'pagination-container-owner';
+        paginationContainer.style.marginTop = '1rem';
+        tbody.closest('table')?.parentElement?.appendChild(paginationContainer);
+    }
+}
+
+function updatePagination() {
+    const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+    const container = document.getElementById('pagination-container-owner');
+    
+    if (container) {
+        PaginationHelper.createPagination(container, currentPage, totalPages, (page) => {
+            currentPage = page;
+            renderApplications();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+}
+
+function initializeKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            const searchInput = document.getElementById('applicationSearch');
+            if (searchInput) {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        }
+    });
 }
 
 function createUserApplicationRow(application) {
@@ -509,32 +615,45 @@ function downloadCertificate(applicationId) {
     }, 2000);
 }
 
-function resubmitApplication(applicationId) {
-    if (confirm('Are you sure you want to resubmit this application?')) {
-        // Update application status back to submitted
-        let applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
-        let application = applications.find(app => app.id === applicationId);
-        
-        if (application) {
-            application.status = 'submitted';
-            application.lastUpdated = new Date().toISOString();
-            application.adminNotes = '';
-            localStorage.setItem('userApplications', JSON.stringify(applications));
+async function resubmitApplication(applicationId) {
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Resubmit Application',
+        message: 'Are you sure you want to resubmit this application? It will be sent for review again.',
+        confirmText: 'Resubmit',
+        cancelText: 'Cancel',
+        confirmColor: '#3498db',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        try {
+            // Update application status back to submitted
+            let applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+            let application = applications.find(app => app.id === applicationId);
+            
+            if (application) {
+                application.status = 'submitted';
+                application.lastUpdated = new Date().toISOString();
+                application.adminNotes = '';
+                localStorage.setItem('userApplications', JSON.stringify(applications));
+            }
+            
+            // Also update in submitted applications
+            let submittedApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            let submittedApp = submittedApplications.find(app => app.id === applicationId);
+            
+            if (submittedApp) {
+                submittedApp.status = 'submitted';
+                submittedApp.lastUpdated = new Date().toISOString();
+                submittedApp.adminNotes = '';
+                localStorage.setItem('submittedApplications', JSON.stringify(submittedApplications));
+            }
+            
+            ToastNotification.show('Application resubmitted successfully!', 'success');
+            loadUserApplications(); // Refresh the table
+        } catch (error) {
+            ToastNotification.show('Failed to resubmit application. Please try again.', 'error');
         }
-        
-        // Also update in submitted applications
-        let submittedApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-        let submittedApp = submittedApplications.find(app => app.id === applicationId);
-        
-        if (submittedApp) {
-            submittedApp.status = 'submitted';
-            submittedApp.lastUpdated = new Date().toISOString();
-            submittedApp.adminNotes = '';
-            localStorage.setItem('submittedApplications', JSON.stringify(submittedApplications));
-        }
-        
-        showNotification('Application resubmitted successfully!', 'success');
-        loadUserApplications(); // Refresh the table
     }
 }
 

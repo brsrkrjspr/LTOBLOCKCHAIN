@@ -1,0 +1,15 @@
+{
+  "id": "doc_1763175134825_oqe6jh4mi",
+  "originalName": "LTO-Certificate-of-Registration-Sample-3.jpg",
+  "filename": "document-1763175134757-374381748.jpg",
+  "path": "C:\\Users\\Jasper\\OneDrive\\Documents\\GitHub\\LTOBLOCKCHAIN\\backend\\uploads\\document-1763175134757-374381748.jpg",
+  "size": 178323,
+  "mimetype": "image/jpeg",
+  "documentType": "insuranceCert",
+  "vehicleVin": null,
+  "ownerEmail": null,
+  "uploadDate": "2025-11-15T02:52:14.825Z",
+  "hash": "befa0a712a38320ba84643df916eed35608f29aa14fcb6b2021d3f2217162030",
+  "encrypted": false,
+  "verified": false
+}

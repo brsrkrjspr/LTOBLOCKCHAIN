@@ -1,0 +1,135 @@
+# TrustChain LTO - Network Configuration
+# Connection profile for Hyperledger Fabric SDK
+# This file is used by the application to connect to the Fabric network
+
+name: TrustChainNetwork
+version: 1.0.0
+
+client:
+  organization: LTO
+  connection:
+    timeout:
+      peer:
+        endorser: 300
+      orderer: 300
+
+organizations:
+  LTO:
+    mspid: LTOMSP
+    peers:
+      - peer0.lto.gov.ph
+    certificateAuthorities:
+      - ca.lto.gov.ph
+
+  Insurance:
+    mspid: InsuranceMSP
+    peers:
+      - peer0.insurance.com
+    certificateAuthorities:
+      - ca.insurance.com
+
+  Emission:
+    mspid: EmissionMSP
+    peers:
+      - peer0.emission.com
+    certificateAuthorities:
+      - ca.emission.com
+
+peers:
+  peer0.lto.gov.ph:
+    url: grpcs://localhost:7051
+    grpcOptions:
+      ssl-target-name-override: peer0.lto.gov.ph
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+
+  peer0.insurance.com:
+    url: grpcs://localhost:8051
+    grpcOptions:
+      ssl-target-name-override: peer0.insurance.com
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: fabric-network/crypto-config/peerOrganizations/insurance.com/peers/peer0.insurance.com/tls/ca.crt
+
+  peer0.emission.com:
+    url: grpcs://localhost:9051
+    grpcOptions:
+      ssl-target-name-override: peer0.emission.com
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: fabric-network/crypto-config/peerOrganizations/emission.com/peers/peer0.emission.com/tls/ca.crt
+
+certificateAuthorities:
+  ca.lto.gov.ph:
+    url: https://localhost:7054
+    caName: ca.lto.gov.ph
+    tlsCACerts:
+      path: fabric-network/crypto-config/peerOrganizations/lto.gov.ph/ca/ca.lto.gov.ph-cert.pem
+    httpOptions:
+      verify: false
+
+  ca.insurance.com:
+    url: https://localhost:8054
+    caName: ca.insurance.com
+    tlsCACerts:
+      path: fabric-network/crypto-config/peerOrganizations/insurance.com/ca/ca.insurance.com-cert.pem
+    httpOptions:
+      verify: false
+
+  ca.emission.com:
+    url: https://localhost:9054
+    caName: ca.emission.com
+    tlsCACerts:
+      path: fabric-network/crypto-config/peerOrganizations/emission.com/ca/ca.emission.com-cert.pem
+    httpOptions:
+      verify: false
+
+orderers:
+  orderer1.lto.gov.ph:
+    url: grpcs://localhost:7050
+    grpcOptions:
+      ssl-target-name-override: orderer1.lto.gov.ph
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/tls/ca.crt
+
+  orderer2.lto.gov.ph:
+    url: grpcs://localhost:8050
+    grpcOptions:
+      ssl-target-name-override: orderer2.lto.gov.ph
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer2.lto.gov.ph/tls/ca.crt
+
+  orderer3.lto.gov.ph:
+    url: grpcs://localhost:9050
+    grpcOptions:
+      ssl-target-name-override: orderer3.lto.gov.ph
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer3.lto.gov.ph/tls/ca.crt
+
+channels:
+  ltochannel:
+    orderers:
+      - orderer1.lto.gov.ph
+      - orderer2.lto.gov.ph
+      - orderer3.lto.gov.ph
+    peers:
+      peer0.lto.gov.ph:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+      peer0.insurance.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+      peer0.emission.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+

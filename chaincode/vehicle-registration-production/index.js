@@ -33,6 +33,13 @@ class VehicleRegistrationContract extends Contract {
                 throw new Error(`Vehicle with VIN ${vehicle.vin} already exists`);
             }
 
+            // Organization-based authorization (Permissioned Network)
+            // Only LTO organization can register vehicles
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTO organization (LTOMSP) can register vehicles. Current MSP: ${clientMSPID}`);
+            }
+
             // Generate unique transaction ID
             const txId = ctx.stub.getTxID();
             const timestamp = new Date().toISOString();
@@ -158,6 +165,19 @@ class VehicleRegistrationContract extends Contract {
                 throw new Error(`Invalid status: ${status}`);
             }
 
+            // Organization-based authorization (Permissioned Network)
+            // Only authorized organizations can perform specific verifications
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            const authorizedMSPs = {
+                'insurance': ['InsuranceMSP', 'LTOMSP'], // Insurance companies or LTO can verify insurance
+                'emission': ['EmissionMSP', 'LTOMSP'],  // Emission centers or LTO can verify emission
+                'admin': ['LTOMSP']                      // Only LTO can perform admin verification
+            };
+
+            if (!authorizedMSPs[verifierType] || !authorizedMSPs[verifierType].includes(clientMSPID)) {
+                throw new Error(`Unauthorized: ${clientMSPID} cannot perform ${verifierType} verification. Authorized MSPs: ${authorizedMSPs[verifierType].join(', ')}`);
+            }
+
             // Update verification status
             vehicle.verificationStatus[verifierType] = status;
             vehicle.notes[verifierType] = notes || '';
@@ -228,6 +248,13 @@ class VehicleRegistrationContract extends Contract {
             const transfer = JSON.parse(transferData);
             const txId = ctx.stub.getTxID();
             const timestamp = new Date().toISOString();
+
+            // Organization-based authorization (Permissioned Network)
+            // Only LTO organization can transfer ownership
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTO organization (LTOMSP) can transfer vehicle ownership. Current MSP: ${clientMSPID}`);
+            }
 
             // Validate current ownership
             if (vehicle.owner.email !== transfer.currentOwnerEmail) {

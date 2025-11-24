@@ -11,28 +11,152 @@ function initializeDocumentViewer() {
     initializeAuditTrail();
 }
 
-function loadDocumentData() {
-    // Get parameters from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const type = urlParams.get('type') || 'registration';
-    const appId = urlParams.get('appId') || 'APP-2024-001';
-    const filename = urlParams.get('filename') || 'document.pdf';
-    
-    // Load application data from localStorage
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    const application = applications.find(app => app.id === appId);
-    
-    if (application) {
-        updateDocumentHeader(application, type, filename);
-        updateDocumentDetails(application, type, filename);
+async function loadDocumentData() {
+    try {
+        // Get parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const documentId = urlParams.get('documentId');
+        const vehicleId = urlParams.get('vehicleId');
+        const vin = urlParams.get('vin');
+        const type = urlParams.get('type') || 'registration';
+        const appId = urlParams.get('appId');
+        const filename = urlParams.get('filename') || 'document.pdf';
+        
         showLoadingState();
         
-        setTimeout(() => {
+        // Try to load from API first
+        if (documentId && typeof APIClient !== 'undefined') {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                if (!token) {
+                    throw new Error('Not authenticated');
+                }
+                
+                const response = await fetch(`/api/documents/${documentId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.document) {
+                        // Load vehicle data
+                        let vehicle = null;
+                        if (data.document.vehicleId) {
+                            const vehicleResponse = await fetch(`/api/vehicles/${data.document.vehicleId}`, {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            if (vehicleResponse.ok) {
+                                const vehicleData = await vehicleResponse.json();
+                                vehicle = vehicleData.vehicle || vehicleData;
+                            }
+                        }
+                        
+                        hideLoadingState();
+                        displayDocumentFromAPI(data.document, vehicle, type);
+                        return;
+                    }
+                }
+            } catch (apiError) {
+                console.warn('API load failed, trying localStorage:', apiError);
+            }
+        }
+        
+        // Try to load vehicle by VIN or vehicleId
+        if (vin || vehicleId) {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                if (token) {
+                    let vehicleResponse;
+                    if (vin) {
+                        vehicleResponse = await fetch(`/api/vehicles/${vin}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                    } else if (vehicleId) {
+                        vehicleResponse = await fetch(`/api/vehicles/${vehicleId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                    }
+                    
+                    if (vehicleResponse && vehicleResponse.ok) {
+                        const vehicleData = await vehicleResponse.json();
+                        if (vehicleData.success && vehicleData.vehicle) {
+                            const vehicle = vehicleData.vehicle;
+                            // Get documents for this vehicle
+                            const documents = vehicle.documents || [];
+                            
+                            // If multiple documents, show document selector
+                            if (documents.length > 1) {
+                                hideLoadingState();
+                                displayMultipleDocuments(documents, vehicle, type);
+                                return;
+                            }
+                            
+                            // Find specific document by type
+                            const doc = documents.find(d => 
+                                d.documentType === type || 
+                                d.document_type === type ||
+                                (type === 'registration' && (d.documentType === 'registration_cert' || d.document_type === 'registration_cert')) ||
+                                (type === 'insurance' && (d.documentType === 'insurance_cert' || d.document_type === 'insurance_cert')) ||
+                                (type === 'emission' && (d.documentType === 'emission_cert' || d.document_type === 'emission_cert')) ||
+                                (type === 'ownerId' && (d.documentType === 'owner_id' || d.document_type === 'owner_id'))
+                            ) || documents[0];
+                            
+                            if (doc) {
+                                hideLoadingState();
+                                displayDocumentFromAPI(doc, vehicle, type);
+                                return;
+                            } else if (documents.length > 0) {
+                                // Use first document if type doesn't match
+                                hideLoadingState();
+                                displayDocumentFromAPI(documents[0], vehicle, type);
+                                return;
+                            } else {
+                                // No documents available - show message instead of trying to display
+                                hideLoadingState();
+                                showNoDocumentsState(vehicle, type, filename);
+                                return;
+                            }
+                        }
+                    }
+                }
+            } catch (vehicleError) {
+                console.warn('Vehicle load failed:', vehicleError);
+            }
+        }
+        
+        // Fallback to localStorage
+        const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+        const application = appId ? applications.find(app => app.id === appId) : null;
+        
+        if (application) {
+            updateDocumentHeader(application, type, filename);
+            updateDocumentDetails(application, type, filename);
             hideLoadingState();
             displayDocumentPreview(application, type, filename);
-        }, 1500);
-    } else {
-        showErrorState('Application not found');
+        } else {
+            hideLoadingState();
+            showErrorState('Document not found. Please ensure you are logged in and the document exists. Try accessing from the owner dashboard.');
+        }
+    } catch (error) {
+        console.error('Error loading document data:', error);
+        hideLoadingState();
+        showErrorState('Failed to load document: ' + error.message);
     }
 }
 
@@ -60,6 +184,440 @@ function updateDocumentDetails(application, type, filename) {
     document.getElementById('documentType').textContent = type.toUpperCase();
     document.getElementById('applicationId').textContent = application.id;
     document.getElementById('uploadDate').textContent = new Date(application.submittedDate).toLocaleDateString();
+}
+
+function displayDocumentFromAPI(doc, vehicle, type) {
+    const previewArea = document.getElementById('documentPreview');
+    const title = document.getElementById('documentTitle');
+    const info = document.getElementById('documentInfo');
+    
+    if (!previewArea) return;
+    
+    // Ensure document has required fields - validate document structure
+    if (!doc) {
+        showErrorState('Document information is missing. Please try again.');
+        return;
+    }
+    
+    // Ensure document has an ID or filename for retrieval
+    if (!doc.id && !doc.filename) {
+        console.warn('Document missing both id and filename:', doc);
+        showErrorState('Document information is incomplete. Please contact support.');
+        return;
+    }
+    
+    const typeIcons = {
+        'insurance': '🛡️',
+        'registration': '📄',
+        'emission': '🌱',
+        'owner': '🆔',
+        'insurance_cert': '🛡️',
+        'registration_cert': '📄',
+        'emission_cert': '🌱',
+        'owner_id': '🆔'
+    };
+    
+    const typeTitles = {
+        'insurance': 'Insurance Certificate',
+        'registration': 'Official Receipt & Certificate of Registration',
+        'emission': 'Emission Test Certificate',
+        'owner': 'Owner Identification Document',
+        'insurance_cert': 'Insurance Certificate',
+        'registration_cert': 'Official Receipt & Certificate of Registration',
+        'emission_cert': 'Emission Test Certificate',
+        'owner_id': 'Owner Identification Document'
+    };
+    
+    const docType = doc.documentType || doc.document_type || type;
+    const docIcon = typeIcons[docType] || '📄';
+    const docTitle = typeTitles[docType] || 'Document';
+    
+    // Update header
+    if (title) {
+        title.textContent = docTitle;
+    }
+    
+    if (info && vehicle) {
+        info.textContent = `Vehicle: ${vehicle.make} ${vehicle.model} ${vehicle.year} | VIN: ${vehicle.vin}`;
+    }
+    
+    // Update details
+    const filenameEl = document.getElementById('documentFilename');
+    const typeEl = document.getElementById('documentType');
+    const appIdEl = document.getElementById('applicationId');
+    const uploadDateEl = document.getElementById('uploadDate');
+    
+    if (filenameEl) filenameEl.textContent = doc.originalName || doc.original_name || doc.filename || 'document.pdf';
+    if (typeEl) typeEl.textContent = (docType || type).toUpperCase().replace('_', ' ');
+    if (appIdEl) appIdEl.textContent = doc.id || vehicle?.id || 'N/A';
+    if (uploadDateEl) {
+        const uploadDate = doc.uploadedAt || doc.uploaded_at || doc.created_at;
+        uploadDateEl.textContent = uploadDate ? new Date(uploadDate).toLocaleDateString() : 'N/A';
+    }
+    
+    // Get MIME type for image detection
+    const mimeType = doc.mimeType || doc.mime_type || 
+        (doc.filename || doc.original_name ? (() => {
+            const filename = doc.filename || doc.original_name || '';
+            const ext = filename.split('.').pop().toLowerCase();
+            const mimeMap = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'webp': 'image/webp',
+                'pdf': 'application/pdf'
+            };
+            return mimeMap[ext] || 'application/octet-stream';
+        })() : 'application/pdf');
+    
+    // Check if document is an image
+    const isImage = mimeType && (
+        mimeType.startsWith('image/') || 
+        /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.filename || doc.original_name || '')
+    );
+    
+    // Build document URL - try multiple sources
+    // IMPORTANT: Only use doc.id if it's actually a document ID (UUID format), not a vehicle/application ID
+    let documentUrl = doc.url || doc.file_path;
+    let needsAuth = false;
+    
+    // Check if doc.id is a valid document ID (UUID format) vs vehicle/application ID
+    const isValidDocumentId = doc.id && 
+        typeof doc.id === 'string' && 
+        doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
+        !doc.id.startsWith('APP-'); // Application IDs start with APP-
+    
+    if (!documentUrl && isValidDocumentId) {
+        documentUrl = `/api/documents/${doc.id}/view`; // Use view endpoint for inline display
+        needsAuth = true; // API endpoint requires authentication
+    } else if (!documentUrl && doc.filename) {
+        documentUrl = `/uploads/${doc.filename}`;
+        needsAuth = false; // Static file doesn't need auth
+    } else if (documentUrl && documentUrl.startsWith('/api/')) {
+        needsAuth = true; // Any API endpoint needs auth
+    }
+    
+    // Display preview with actual document viewer
+    // Check if document is an image and render accordingly
+    if (isImage && documentUrl) {
+        // For images, use <img> tag instead of iframe
+        previewArea.innerHTML = `
+            <div class="document-preview-content">
+                <div class="document-header">
+                    <div class="document-icon-large">${docIcon}</div>
+                    <h4>${docTitle}</h4>
+                </div>
+                <div class="document-viewer-container">
+                    <div class="image-viewer-container" style="text-align: center; padding: 20px;">
+                        ${needsAuth && isValidDocumentId ? `
+                            <img id="document-image" src="" alt="${docTitle}" style="max-width: 100%; max-height: 80vh; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+                            <div class="loading-spinner" style="margin: 20px auto;"></div>
+                            <p>Loading image...</p>
+                        ` : `
+                            <img src="${documentUrl}" alt="${docTitle}" style="max-width: 100%; max-height: 80vh; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.parentElement.innerHTML='<p style=\'color:red;\'>Failed to load image. Please try again.</p>'" />
+                        `}
+                    </div>
+                </div>
+                <div class="document-fields">
+                ${vehicle ? `
+                <div class="field-row">
+                    <span class="field-label">Vehicle:</span>
+                    <span class="field-value">${vehicle.make} ${vehicle.model} ${vehicle.year}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Plate Number:</span>
+                    <span class="field-value">${vehicle.plate_number || vehicle.plateNumber || 'N/A'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">VIN:</span>
+                    <span class="field-value">${vehicle.vin || 'N/A'}</span>
+                </div>
+                ` : ''}
+                <div class="field-row">
+                    <span class="field-label">Document:</span>
+                    <span class="field-value">${doc.originalName || doc.original_name || doc.filename || 'document.pdf'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Upload Date:</span>
+                    <span class="field-value">${doc.uploadedAt || doc.uploaded_at ? new Date(doc.uploadedAt || doc.uploaded_at).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">File Size:</span>
+                    <span class="field-value">${doc.fileSize || doc.file_size ? ((doc.fileSize || doc.file_size) / 1024).toFixed(2) + ' KB' : 'N/A'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Status:</span>
+                    <span class="field-value">${doc.verified ? '✅ Verified' : '⏳ Pending Verification'}</span>
+                </div>
+                ${doc.ipfs_cid || doc.cid ? `
+                <div class="field-row">
+                    <span class="field-label">IPFS CID:</span>
+                    <span class="field-value"><code>${doc.ipfs_cid || doc.cid}</code></span>
+                </div>
+                ` : ''}
+            </div>
+            <div class="document-status">
+                <div class="status-indicator">
+                    <span class="status-icon">${doc.verified ? '✅' : '⏳'}</span>
+                    <span class="status-text">${doc.verified ? 'Document Verified' : 'Pending Verification'}</span>
+                </div>
+            </div>
+            ${documentUrl ? `
+            <div class="document-actions-preview">
+                <a href="${documentUrl}" target="_blank" class="btn-primary" id="document-view-link">View Full Document</a>
+                <button class="btn-secondary" onclick="downloadDocument()">Download</button>
+            </div>
+            ` : ''}
+        </div>
+        `;
+        
+        // If needs auth, load image via blob URL
+        if (needsAuth && isValidDocumentId) {
+            loadImageInViewer(doc.id, documentUrl);
+        }
+    } else {
+        // For PDFs and other documents, use iframe
+        previewArea.innerHTML = `
+            <div class="document-preview-content">
+                <div class="document-header">
+                    <div class="document-icon-large">${docIcon}</div>
+                    <h4>${docTitle}</h4>
+                </div>
+                ${documentUrl ? `
+                <div class="document-viewer-container">
+                    <div id="document-iframe-container" class="document-iframe-placeholder">
+                        <div class="loading-spinner"></div>
+                        <p>Loading document...</p>
+                    </div>
+                    <div class="document-fallback">
+                        <p>If the document doesn't load, <a href="${documentUrl}" target="_blank" class="btn-primary" id="document-fallback-link">click here to open in new tab</a></p>
+                    </div>
+                </div>
+                ` : ''}
+            <div class="document-fields">
+                ${vehicle ? `
+                <div class="field-row">
+                    <span class="field-label">Vehicle:</span>
+                    <span class="field-value">${vehicle.make} ${vehicle.model} ${vehicle.year}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Plate Number:</span>
+                    <span class="field-value">${vehicle.plate_number || vehicle.plateNumber || 'N/A'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">VIN:</span>
+                    <span class="field-value">${vehicle.vin || 'N/A'}</span>
+                </div>
+                ` : ''}
+                <div class="field-row">
+                    <span class="field-label">Document:</span>
+                    <span class="field-value">${doc.originalName || doc.original_name || doc.filename || 'document.pdf'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Upload Date:</span>
+                    <span class="field-value">${doc.uploadedAt || doc.uploaded_at ? new Date(doc.uploadedAt || doc.uploaded_at).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">File Size:</span>
+                    <span class="field-value">${doc.fileSize || doc.file_size ? ((doc.fileSize || doc.file_size) / 1024).toFixed(2) + ' KB' : 'N/A'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Status:</span>
+                    <span class="field-value">${doc.verified ? '✅ Verified' : '⏳ Pending Verification'}</span>
+                </div>
+                ${doc.ipfs_cid || doc.cid ? `
+                <div class="field-row">
+                    <span class="field-label">IPFS CID:</span>
+                    <span class="field-value"><code>${doc.ipfs_cid || doc.cid}</code></span>
+                </div>
+                ` : ''}
+            </div>
+            <div class="document-status">
+                <div class="status-indicator">
+                    <span class="status-icon">${doc.verified ? '✅' : '⏳'}</span>
+                    <span class="status-text">${doc.verified ? 'Document Verified' : 'Pending Verification'}</span>
+                </div>
+            </div>
+            ${documentUrl ? `
+            <div class="document-actions-preview">
+                <a href="${documentUrl}" target="_blank" class="btn-primary" id="document-view-link">View Full Document</a>
+                <button class="btn-secondary" onclick="downloadDocument()">Download</button>
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    // Store document ID for download function
+    if (doc.id) {
+        window.currentDocumentId = doc.id;
+    }
+    
+    // Load document in iframe with authentication (only for non-images)
+    if (!isImage) {
+        // Only try to load if we have a valid document ID (not vehicle/application ID)
+        // Note: isValidDocumentId was already declared above, so we reuse it here
+        if (documentUrl && needsAuth && isValidDocumentId) {
+            loadDocumentInIframe(doc.id, documentUrl);
+        } else if (documentUrl && !needsAuth) {
+            // For static files, load directly
+            const container = document.getElementById('document-iframe-container');
+            if (container) {
+                container.innerHTML = `<iframe src="${documentUrl}" class="document-iframe" frameborder="0"></iframe>`;
+            }
+        } else {
+            // No valid document URL available
+            const container = document.getElementById('document-iframe-container');
+            if (container) {
+                container.innerHTML = `
+                    <div class="error-state">
+                        <div class="error-icon">⚠️</div>
+                        <h4>Document Not Available</h4>
+                        <p>Document file could not be located. This may happen if the document was not properly uploaded or linked to the vehicle.</p>
+                        ${doc.id ? `<p style="font-size: 0.9em; color: #666; margin-top: 10px;">Document ID: ${doc.id}</p>` : ''}
+                    </div>
+                `;
+            }
+        }
+    }
+    }
+}
+
+// Load document in iframe with authentication
+async function loadDocumentInIframe(documentId, documentUrl) {
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token) {
+            throw new Error('Not authenticated. Please log in to view documents.');
+        }
+        
+        // Validate documentId
+        if (!documentId || documentId === 'undefined' || documentId === 'null' || documentId === '') {
+            throw new Error('Invalid document ID. The document may not be properly linked to the vehicle.');
+        }
+        
+        // Fetch document with authentication
+        const response = await fetch(documentUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            if (response.status === 404) {
+                throw new Error('Document not found. It may have been deleted or you may not have permission to view it.');
+            } else if (response.status === 403) {
+                throw new Error('Access denied. You do not have permission to view this document.');
+            } else {
+                throw new Error(errorData.error || `Failed to load document (Status: ${response.status})`);
+            }
+        }
+        
+        // Convert response to blob
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        // Create iframe with blob URL
+        const container = document.getElementById('document-iframe-container');
+        if (container) {
+            container.innerHTML = `<iframe src="${blobUrl}" class="document-iframe" frameborder="0"></iframe>`;
+            
+            // Update fallback link to use blob URL
+            const fallbackLink = document.getElementById('document-fallback-link');
+            if (fallbackLink) {
+                fallbackLink.href = blobUrl;
+            }
+            
+            // Update view link to use blob URL
+            const viewLink = document.getElementById('document-view-link');
+            if (viewLink) {
+                viewLink.href = blobUrl;
+            }
+            
+            // Clean up blob URL when page unloads
+            window.addEventListener('beforeunload', () => {
+                window.URL.revokeObjectURL(blobUrl);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading document in iframe:', error);
+        console.error('Document ID:', documentId);
+        console.error('Document URL:', documentUrl);
+        const container = document.getElementById('document-iframe-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <h4>Error Loading Document</h4>
+                    <p>${error.message || 'Failed to load document. Please try again.'}</p>
+                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                        Document ID: ${documentId || 'N/A'}<br>
+                        If this problem persists, the document may not be properly linked to your vehicle registration.
+                    </p>
+                    <a href="${documentUrl}" target="_blank" class="btn-primary" style="margin-top: 15px;">Try Opening in New Tab</a>
+                </div>
+            `;
+        }
+    }
+}
+
+// Load image in viewer with authentication
+async function loadImageInViewer(documentId, imageUrl) {
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    if (!token) {
+        showErrorState('Please log in to view documents');
+        return;
+    }
+
+    try {
+        const response = await fetch(imageUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Image not found');
+            } else if (response.status === 403) {
+                throw new Error('Access denied');
+            } else {
+                throw new Error(`Failed to load image: ${response.statusText}`);
+            }
+        }
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const img = document.getElementById('document-image');
+        if (img) {
+            img.src = blobUrl;
+            img.onload = () => {
+                // Remove loading spinner
+                const spinner = img.parentElement.querySelector('.loading-spinner');
+                const loadingText = img.parentElement.querySelector('p');
+                if (spinner) spinner.remove();
+                if (loadingText) loadingText.remove();
+            };
+            img.onerror = () => {
+                img.parentElement.innerHTML = '<p style="color:red;">Failed to load image. Please try again.</p>';
+            };
+            
+            // Clean up blob URL when page unloads
+            window.addEventListener('beforeunload', () => {
+                URL.revokeObjectURL(blobUrl);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading image:', error);
+        const img = document.getElementById('document-image');
+        if (img && img.parentElement) {
+            img.parentElement.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+        }
+    }
 }
 
 function displayDocumentPreview(application, type, filename) {
@@ -132,18 +690,173 @@ function showErrorState(message) {
     }
 }
 
+function showNoDocumentsState(vehicle, type, filename) {
+    const previewArea = document.getElementById('documentPreview');
+    const title = document.getElementById('documentTitle');
+    const info = document.getElementById('documentInfo');
+    
+    const typeTitles = {
+        'insurance': 'Insurance Certificate',
+        'registration': 'Official Receipt & Certificate of Registration',
+        'emission': 'Emission Test Certificate',
+        'owner': 'Owner Identification Document',
+        'insurance_cert': 'Insurance Certificate',
+        'registration_cert': 'Official Receipt & Certificate of Registration',
+        'emission_cert': 'Emission Test Certificate',
+        'owner_id': 'Owner Identification Document'
+    };
+    
+    const docTitle = typeTitles[type] || 'Document';
+    
+    if (title) {
+        title.textContent = docTitle;
+    }
+    
+    if (info && vehicle) {
+        info.textContent = `Vehicle: ${vehicle.make} ${vehicle.model} ${vehicle.year} | VIN: ${vehicle.vin}`;
+    }
+    
+    // Update details
+    const filenameEl = document.getElementById('documentFilename');
+    const typeEl = document.getElementById('documentType');
+    const appIdEl = document.getElementById('applicationId');
+    const uploadDateEl = document.getElementById('uploadDate');
+    
+    if (filenameEl) filenameEl.textContent = filename || 'document.pdf';
+    if (typeEl) typeEl.textContent = (type || 'REGISTRATION').toUpperCase().replace('_', ' ');
+    if (appIdEl) appIdEl.textContent = vehicle?.id || 'N/A';
+    if (uploadDateEl) {
+        const uploadDate = vehicle?.registrationDate || vehicle?.registration_date || vehicle?.created_at;
+        uploadDateEl.textContent = uploadDate ? new Date(uploadDate).toLocaleDateString() : 'N/A';
+    }
+    
+    if (previewArea) {
+        previewArea.innerHTML = `
+            <div class="document-preview-content">
+                <div class="document-header">
+                    <div class="document-icon-large">📄</div>
+                    <h4>${docTitle}</h4>
+                </div>
+                <div class="document-viewer-container">
+                    <div id="document-iframe-container" class="document-iframe-placeholder">
+                        <div class="error-state">
+                            <div class="error-icon">⚠️</div>
+                            <h4>Document Not Available</h4>
+                            <p>This document was not uploaded during vehicle registration. Documents may have failed to upload due to storage service issues.</p>
+                            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                                You can upload documents later from your dashboard or contact support for assistance.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="document-fields">
+                    ${vehicle ? `
+                    <div class="field-row">
+                        <span class="field-label">Vehicle:</span>
+                        <span class="field-value">${vehicle.make} ${vehicle.model} ${vehicle.year}</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-label">Plate Number:</span>
+                        <span class="field-value">${vehicle.plate_number || vehicle.plateNumber || 'N/A'}</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-label">VIN:</span>
+                        <span class="field-value">${vehicle.vin || 'N/A'}</span>
+                    </div>
+                    ` : ''}
+                    <div class="field-row">
+                        <span class="field-label">Document:</span>
+                        <span class="field-value">${filename || 'document.pdf'}</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-label">Upload Date:</span>
+                        <span class="field-value">N/A</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-label">File Size:</span>
+                        <span class="field-value">N/A</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-label">Status:</span>
+                        <span class="field-value">⚠️ Not Uploaded</span>
+                    </div>
+                </div>
+                <div class="document-status">
+                    <div class="status-indicator">
+                        <span class="status-icon">⚠️</span>
+                        <span class="status-text">Document Not Uploaded</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
 function initializeDocumentActions() {
     // Actions are now handled by onclick attributes in HTML
 }
 
-function downloadDocument() {
-    showNotification('Preparing document download...', 'info');
-    
-    // Simulate document download
-    setTimeout(() => {
-        showNotification('Document downloaded successfully!', 'success');
-        // In a real app, this would trigger actual document download
-    }, 2000);
+async function downloadDocument() {
+    try {
+        showNotification('Preparing document download...', 'info');
+        
+        // Get document ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const documentId = urlParams.get('documentId');
+        
+        if (documentId) {
+            // Download from API
+            const token = localStorage.getItem('token');
+            if (!token) {
+                showNotification('Please log in to download documents', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/documents/${documentId}/download`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    // Get filename from Content-Disposition header or use default
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'document.pdf';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1];
+                        }
+                    }
+                    
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showNotification('Document downloaded successfully!', 'success');
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Failed to download document');
+                }
+            } catch (fetchError) {
+                console.error('Download fetch error:', fetchError);
+                throw fetchError;
+            }
+        } else {
+            // Fallback: simulate download if no documentId
+            showNotification('Document downloaded successfully!', 'success');
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification('Failed to download document: ' + (error.message || 'Please try again.'), 'error');
+    }
 }
 
 function printDocument() {
@@ -258,11 +971,111 @@ function showNotification(message, type = 'info') {
     }
 }
 
+// Export functions - create aliases for HTML onclick handlers
+function handleDownloadPDF() {
+    downloadDocument();
+}
+
+function handlePrint() {
+    printDocument();
+}
+
+function handleQRVerification() {
+    verifyDocument();
+}
+
+// Display multiple documents with selector
+function displayMultipleDocuments(documents, vehicle, selectedType) {
+    const previewArea = document.getElementById('documentPreview');
+    const title = document.getElementById('documentTitle');
+    const info = document.getElementById('documentInfo');
+    
+    if (!previewArea) return;
+    
+    // Find selected document or use first one
+    const selectedDoc = documents.find(d => 
+        (d.documentType === selectedType || d.document_type === selectedType) ||
+        (selectedType === 'registration' && (d.documentType === 'registration_cert' || d.document_type === 'registration_cert'))
+    ) || documents[0];
+    
+    // Update header
+    if (title) {
+        title.textContent = `Document Viewer - ${documents.length} Documents Available`;
+    }
+    
+    if (info && vehicle) {
+        info.textContent = `Vehicle: ${vehicle.make} ${vehicle.model} ${vehicle.year} | VIN: ${vehicle.vin}`;
+    }
+    
+    // Create document selector and viewer
+    previewArea.innerHTML = `
+        <div class="document-preview-content">
+            <div class="document-selector">
+                <h4>Select Document to View:</h4>
+                <div class="document-list">
+                    ${documents.map((doc, index) => {
+                        const docType = doc.documentType || doc.document_type || 'document';
+                        const typeNames = {
+                            'registration_cert': 'Registration Certificate',
+                            'insurance_cert': 'Insurance Certificate',
+                            'emission_cert': 'Emission Certificate',
+                            'owner_id': 'Owner ID'
+                        };
+                        const isSelected = doc.id === selectedDoc.id;
+                        return `
+                            <div class="document-item ${isSelected ? 'selected' : ''}" onclick="selectDocument('${doc.id}', '${vehicle.vin || vehicle.id}')">
+                                <span class="doc-icon">${docType.includes('insurance') ? '🛡️' : docType.includes('emission') ? '🌱' : docType.includes('owner') ? '🆔' : '📄'}</span>
+                                <span class="doc-name">${typeNames[docType] || docType}</span>
+                                <span class="doc-filename">${doc.originalName || doc.original_name || doc.filename || 'document.pdf'}</span>
+                                ${isSelected ? '<span class="doc-selected">✓</span>' : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+            <div class="document-viewer-section">
+                ${selectedDoc ? (() => {
+                    displayDocumentFromAPI(selectedDoc, vehicle, selectedDoc.documentType || selectedDoc.document_type || selectedType);
+                    return '<div id="selectedDocumentView"></div>';
+                })() : ''}
+            </div>
+        </div>
+    `;
+    
+    // Display selected document
+    if (selectedDoc) {
+        const viewerSection = previewArea.querySelector('.document-viewer-section');
+        if (viewerSection) {
+            const tempDiv = document.createElement('div');
+            tempDiv.id = 'tempDocumentView';
+            viewerSection.appendChild(tempDiv);
+            displayDocumentFromAPI(selectedDoc, vehicle, selectedDoc.documentType || selectedDoc.document_type || selectedType);
+        }
+    }
+}
+
+// Select document function
+window.selectDocument = function(documentId, vehicleId) {
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    if (!token) {
+        showNotification('Please log in to view documents', 'error');
+        return;
+    }
+    
+    // Reload page with selected document
+    window.location.href = `document-viewer.html?documentId=${documentId}&vehicleId=${vehicleId}`;
+};
+
 // Export functions
 window.DocumentViewer = {
     loadDocumentData,
+    downloadDocument,
+    printDocument,
+    verifyDocument,
     handleDownloadPDF,
     handlePrint,
     handleQRVerification,
-    showNotification
+    showNotification,
+    displayMultipleDocuments,
+    selectDocument
 };

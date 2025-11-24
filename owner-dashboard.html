@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Owner Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
-    <script src="js/utils.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -17,11 +16,11 @@
                         <p>Owner Dashboard</p>
                     </div>
                     <div class="user-info">
-                        <div class="user-profile">
-                            <div class="user-avatar">JO</div>
-                            <div class="user-details">
-                                <span class="user-name">John Owner</span>
-                                <span class="user-role">Vehicle Owner</span>
+                    <div class="user-profile">
+                        <div class="user-avatar" id="userAvatar">GU</div>
+                        <div class="user-details">
+                            <span class="user-name" id="userName">Loading...</span>
+                            <span class="user-role" id="userRole">Loading...</span>
                             </div>
                         </div>
                         <div class="user-actions">
@@ -77,7 +76,7 @@
                 </div>
 
                 <!-- Recent Applications -->
-                <div class="dashboard-card">
+                <div class="dashboard-card" id="applications">
                     <h3><span class="card-icon">📊</span> Recent Applications</h3>
                     <div class="table-container">
                         <table class="table">
@@ -98,7 +97,7 @@
                 </div>
 
                 <!-- Notifications -->
-                <div class="dashboard-card">
+                <div class="dashboard-card" id="notifications">
                     <h3><span class="card-icon">🔔</span> Recent Notifications</h3>
                     <div class="notifications-list">
                         <!-- Notifications will be loaded dynamically -->
@@ -107,6 +106,59 @@
             </div>
         </main>
     </div>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
     <script src="js/owner-dashboard.js"></script>
+    <script>
+        // Initialize user data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    
+                    if (userNameEl) {
+                        userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    if (userRoleEl) {
+                        const roleNames = {
+                            'vehicle_owner': 'Vehicle Owner',
+                            'admin': 'Administrator',
+                            'insurance_verifier': 'Insurance Verifier',
+                            'emission_verifier': 'Emission Verifier'
+                        };
+                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (userAvatarEl) {
+                        userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    }
+                } else {
+                    // Not authenticated, redirect to login
+                    window.location.href = 'login.html';
+                }
+            }
+            
+            // Handle anchor link smooth scrolling
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    const href = this.getAttribute('href');
+                    if (href === '#' || href === '#applications' || href === '#notifications') {
+                        e.preventDefault();
+                        const targetId = href.substring(1);
+                        const targetElement = document.getElementById(targetId);
+                        if (targetElement) {
+                            targetElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start'
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

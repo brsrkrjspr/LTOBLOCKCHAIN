@@ -1,0 +1,3386 @@
+[
+  {
+    "timestamp": "2025-11-15T01:29:20.010Z",
+    "system": {
+      "uptime": 150.046,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3793809408,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26368,
+      "uptime": 2.2302243,
+      "memoryUsage": {
+        "rss": 90181632,
+        "heapTotal": 63053824,
+        "heapUsed": 42965064,
+        "external": 3660229,
+        "arrayBuffers": 140661
+      },
+      "cpuUsage": {
+        "user": 1484000,
+        "system": 921000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T01:34:20.017Z",
+    "system": {
+      "uptime": 450.046,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2464260096,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26368,
+      "uptime": 302.2258091,
+      "memoryUsage": {
+        "rss": 88780800,
+        "heapTotal": 41820160,
+        "heapUsed": 39275240,
+        "external": 5405471,
+        "arrayBuffers": 1611544
+      },
+      "cpuUsage": {
+        "user": 4578000,
+        "system": 2140000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T01:39:20.020Z",
+    "system": {
+      "uptime": 750.046,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2856042496,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26368,
+      "uptime": 602.227645,
+      "memoryUsage": {
+        "rss": 89432064,
+        "heapTotal": 43393024,
+        "heapUsed": 40299856,
+        "external": 5442246,
+        "arrayBuffers": 1652945
+      },
+      "cpuUsage": {
+        "user": 4812000,
+        "system": 2187000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T01:44:20.028Z",
+    "system": {
+      "uptime": 1050.062,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3792936960,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26368,
+      "uptime": 902.235665,
+      "memoryUsage": {
+        "rss": 84475904,
+        "heapTotal": 42868736,
+        "heapUsed": 40577624,
+        "external": 5432863,
+        "arrayBuffers": 1643530
+      },
+      "cpuUsage": {
+        "user": 4968000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T01:49:20.029Z",
+    "system": {
+      "uptime": 1350.062,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3820072960,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26368,
+      "uptime": 1202.2363433,
+      "memoryUsage": {
+        "rss": 72896512,
+        "heapTotal": 43130880,
+        "heapUsed": 40807312,
+        "external": 5463768,
+        "arrayBuffers": 1640587
+      },
+      "cpuUsage": {
+        "user": 5218000,
+        "system": 2312000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T01:54:20.035Z",
+    "system": {
+      "uptime": 1650.062,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3583455232,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26368,
+      "uptime": 1502.2425715,
+      "memoryUsage": {
+        "rss": 72331264,
+        "heapTotal": 43393024,
+        "heapUsed": 41639720,
+        "external": 5463008,
+        "arrayBuffers": 1673355
+      },
+      "cpuUsage": {
+        "user": 5281000,
+        "system": 2375000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T01:55:02.161Z",
+    "system": {
+      "uptime": 1692.187,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3669106688,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 7068,
+      "uptime": 2.4618923,
+      "memoryUsage": {
+        "rss": 90943488,
+        "heapTotal": 63053824,
+        "heapUsed": 43528248,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1218000,
+        "system": 1328000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:00:02.161Z",
+    "system": {
+      "uptime": 1992.187,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3241811968,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 7068,
+      "uptime": 302.4618799,
+      "memoryUsage": {
+        "rss": 83927040,
+        "heapTotal": 40247296,
+        "heapUsed": 36910936,
+        "external": 3963019,
+        "arrayBuffers": 173991
+      },
+      "cpuUsage": {
+        "user": 2843000,
+        "system": 2296000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:02:02.475Z",
+    "system": {
+      "uptime": 2112.5,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3279949824,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 4892,
+      "uptime": 1.8980972,
+      "memoryUsage": {
+        "rss": 90554368,
+        "heapTotal": 63053824,
+        "heapUsed": 43073984,
+        "external": 3645216,
+        "arrayBuffers": 125648
+      },
+      "cpuUsage": {
+        "user": 1390000,
+        "system": 750000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:07:02.487Z",
+    "system": {
+      "uptime": 2412.515,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3109441536,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 4892,
+      "uptime": 301.9075815,
+      "memoryUsage": {
+        "rss": 89530368,
+        "heapTotal": 43130880,
+        "heapUsed": 39895936,
+        "external": 5426534,
+        "arrayBuffers": 1637265
+      },
+      "cpuUsage": {
+        "user": 2828000,
+        "system": 1703000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:12:02.499Z",
+    "system": {
+      "uptime": 2712.531,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2696687616,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 4892,
+      "uptime": 601.9197935,
+      "memoryUsage": {
+        "rss": 89518080,
+        "heapTotal": 43130880,
+        "heapUsed": 39984256,
+        "external": 5426534,
+        "arrayBuffers": 1637265
+      },
+      "cpuUsage": {
+        "user": 2843000,
+        "system": 1703000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:14:01.593Z",
+    "system": {
+      "uptime": 2831.64,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3010564096,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27524,
+      "uptime": 1.8867243,
+      "memoryUsage": {
+        "rss": 90787840,
+        "heapTotal": 63053824,
+        "heapUsed": 43238496,
+        "external": 3651683,
+        "arrayBuffers": 132115
+      },
+      "cpuUsage": {
+        "user": 1203000,
+        "system": 906000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:15:36.455Z",
+    "system": {
+      "uptime": 2926.484,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3313602560,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27056,
+      "uptime": 1.7550716,
+      "memoryUsage": {
+        "rss": 90804224,
+        "heapTotal": 63053824,
+        "heapUsed": 43449200,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1281000,
+        "system": 890000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:16:10.202Z",
+    "system": {
+      "uptime": 2960.234,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3441659904,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 16252,
+      "uptime": 1.8008506,
+      "memoryUsage": {
+        "rss": 90648576,
+        "heapTotal": 63053824,
+        "heapUsed": 43193168,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1031000,
+        "system": 984000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:16:32.396Z",
+    "system": {
+      "uptime": 2982.437,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3200999424,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26740,
+      "uptime": 1.7815289,
+      "memoryUsage": {
+        "rss": 90910720,
+        "heapTotal": 63053824,
+        "heapUsed": 43455064,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1500000,
+        "system": 718000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:21:32.400Z",
+    "system": {
+      "uptime": 3282.437,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2911244288,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26740,
+      "uptime": 301.7818418,
+      "memoryUsage": {
+        "rss": 89501696,
+        "heapTotal": 41820160,
+        "heapUsed": 39360768,
+        "external": 5471299,
+        "arrayBuffers": 1682094
+      },
+      "cpuUsage": {
+        "user": 3296000,
+        "system": 1640000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:26:32.404Z",
+    "system": {
+      "uptime": 3582.437,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2468769792,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26740,
+      "uptime": 601.785882,
+      "memoryUsage": {
+        "rss": 90271744,
+        "heapTotal": 42344448,
+        "heapUsed": 40518352,
+        "external": 5473171,
+        "arrayBuffers": 1679239
+      },
+      "cpuUsage": {
+        "user": 3453000,
+        "system": 1750000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:27:56.787Z",
+    "system": {
+      "uptime": 3666.828,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2117251072,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 5572,
+      "uptime": 2.1951817,
+      "memoryUsage": {
+        "rss": 94617600,
+        "heapTotal": 63053824,
+        "heapUsed": 43336928,
+        "external": 3651683,
+        "arrayBuffers": 132115
+      },
+      "cpuUsage": {
+        "user": 1375000,
+        "system": 906000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:28:26.130Z",
+    "system": {
+      "uptime": 3696.171,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2679439360,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 24316,
+      "uptime": 2.2703993,
+      "memoryUsage": {
+        "rss": 94617600,
+        "heapTotal": 63053824,
+        "heapUsed": 43215928,
+        "external": 3652565,
+        "arrayBuffers": 132997
+      },
+      "cpuUsage": {
+        "user": 1468000,
+        "system": 781000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:29:53.000Z",
+    "system": {
+      "uptime": 3783.031,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2876157952,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26740,
+      "uptime": 802.3855896,
+      "memoryUsage": {
+        "rss": 90787840,
+        "heapTotal": 42606592,
+        "heapUsed": 40378792,
+        "external": 5470599,
+        "arrayBuffers": 1679027
+      },
+      "cpuUsage": {
+        "user": 3484000,
+        "system": 1781000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:30:07.328Z",
+    "system": {
+      "uptime": 3797.359,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2872614912,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26740,
+      "uptime": 816.7132673,
+      "memoryUsage": {
+        "rss": 91070464,
+        "heapTotal": 42606592,
+        "heapUsed": 40541256,
+        "external": 5470599,
+        "arrayBuffers": 1679027
+      },
+      "cpuUsage": {
+        "user": 3484000,
+        "system": 1796000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:31:32.417Z",
+    "system": {
+      "uptime": 3882.453,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2858115072,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26740,
+      "uptime": 901.7989455,
+      "memoryUsage": {
+        "rss": 91623424,
+        "heapTotal": 43393024,
+        "heapUsed": 41535224,
+        "external": 5485075,
+        "arrayBuffers": 1695806
+      },
+      "cpuUsage": {
+        "user": 3687000,
+        "system": 1875000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:34:36.688Z",
+    "system": {
+      "uptime": 4066.718,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2618236928,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22508,
+      "uptime": 2.056534,
+      "memoryUsage": {
+        "rss": 91074560,
+        "heapTotal": 63053824,
+        "heapUsed": 43600024,
+        "external": 3640226,
+        "arrayBuffers": 120658
+      },
+      "cpuUsage": {
+        "user": 1093000,
+        "system": 1250000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:35:04.357Z",
+    "system": {
+      "uptime": 4094.39,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2749235200,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22508,
+      "uptime": 29.7252731,
+      "memoryUsage": {
+        "rss": 81833984,
+        "heapTotal": 38150144,
+        "heapUsed": 35881192,
+        "external": 3931819,
+        "arrayBuffers": 145376
+      },
+      "cpuUsage": {
+        "user": 2546000,
+        "system": 2078000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:39:36.691Z",
+    "system": {
+      "uptime": 4366.718,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3252936704,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22508,
+      "uptime": 302.0609225,
+      "memoryUsage": {
+        "rss": 82558976,
+        "heapTotal": 38412288,
+        "heapUsed": 35971000,
+        "external": 3952659,
+        "arrayBuffers": 152820
+      },
+      "cpuUsage": {
+        "user": 2593000,
+        "system": 2078000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:42:11.616Z",
+    "system": {
+      "uptime": 4521.64,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3138752512,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 1.873569,
+      "memoryUsage": {
+        "rss": 91013120,
+        "heapTotal": 63053824,
+        "heapUsed": 43579736,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1375000,
+        "system": 968000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:43:41.651Z",
+    "system": {
+      "uptime": 4611.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2936713216,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 91.9070395,
+      "memoryUsage": {
+        "rss": 81408000,
+        "heapTotal": 38412288,
+        "heapUsed": 35959408,
+        "external": 3931819,
+        "arrayBuffers": 145376
+      },
+      "cpuUsage": {
+        "user": 2625000,
+        "system": 1750000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:47:11.624Z",
+    "system": {
+      "uptime": 4821.656,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2713452544,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 301.8805117,
+      "memoryUsage": {
+        "rss": 86810624,
+        "heapTotal": 40509440,
+        "heapUsed": 38320776,
+        "external": 5847272,
+        "arrayBuffers": 2060893
+      },
+      "cpuUsage": {
+        "user": 3781000,
+        "system": 1859000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:50:31.488Z",
+    "system": {
+      "uptime": 5021.515,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2953842688,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 501.7491948,
+      "memoryUsage": {
+        "rss": 86876160,
+        "heapTotal": 40509440,
+        "heapUsed": 38490120,
+        "external": 5847272,
+        "arrayBuffers": 2060893
+      },
+      "cpuUsage": {
+        "user": 3796000,
+        "system": 1859000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:52:11.635Z",
+    "system": {
+      "uptime": 5121.671,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2839924736,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 601.8901094,
+      "memoryUsage": {
+        "rss": 85135360,
+        "heapTotal": 40771584,
+        "heapUsed": 38083736,
+        "external": 3968918,
+        "arrayBuffers": 182507
+      },
+      "cpuUsage": {
+        "user": 3812000,
+        "system": 1875000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T02:57:11.649Z",
+    "system": {
+      "uptime": 5421.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3220934656,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 901.9045426,
+      "memoryUsage": {
+        "rss": 86061056,
+        "heapTotal": 40771584,
+        "heapUsed": 38429688,
+        "external": 5343944,
+        "arrayBuffers": 1557533
+      },
+      "cpuUsage": {
+        "user": 3828000,
+        "system": 1921000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:02:11.653Z",
+    "system": {
+      "uptime": 5721.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3309023232,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 1201.9088276,
+      "memoryUsage": {
+        "rss": 86142976,
+        "heapTotal": 40771584,
+        "heapUsed": 38563168,
+        "external": 5343944,
+        "arrayBuffers": 1557533
+      },
+      "cpuUsage": {
+        "user": 3828000,
+        "system": 1921000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:07:11.657Z",
+    "system": {
+      "uptime": 6021.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3234189312,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 1501.9127472,
+      "memoryUsage": {
+        "rss": 86151168,
+        "heapTotal": 40771584,
+        "heapUsed": 38716648,
+        "external": 5343976,
+        "arrayBuffers": 1557565
+      },
+      "cpuUsage": {
+        "user": 3828000,
+        "system": 1921000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:12:11.656Z",
+    "system": {
+      "uptime": 6321.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3934003200,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 1801.9157422,
+      "memoryUsage": {
+        "rss": 85045248,
+        "heapTotal": 40771584,
+        "heapUsed": 38082368,
+        "external": 5343976,
+        "arrayBuffers": 174373
+      },
+      "cpuUsage": {
+        "user": 3828000,
+        "system": 1953000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:17:11.659Z",
+    "system": {
+      "uptime": 6621.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3715792896,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 2101.9146213,
+      "memoryUsage": {
+        "rss": 85467136,
+        "heapTotal": 40771584,
+        "heapUsed": 38291720,
+        "external": 3960816,
+        "arrayBuffers": 174405
+      },
+      "cpuUsage": {
+        "user": 3828000,
+        "system": 1984000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:22:11.669Z",
+    "system": {
+      "uptime": 6921.703,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3530199040,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 2401.9250084,
+      "memoryUsage": {
+        "rss": 75808768,
+        "heapTotal": 40771584,
+        "heapUsed": 38385480,
+        "external": 3960816,
+        "arrayBuffers": 174405
+      },
+      "cpuUsage": {
+        "user": 3828000,
+        "system": 1984000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:27:11.670Z",
+    "system": {
+      "uptime": 7221.703,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3713634304,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 26320,
+      "uptime": 2701.9249391,
+      "memoryUsage": {
+        "rss": 75546624,
+        "heapTotal": 40771584,
+        "heapUsed": 38482384,
+        "external": 3960816,
+        "arrayBuffers": 174405
+      },
+      "cpuUsage": {
+        "user": 3828000,
+        "system": 1984000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:27:52.445Z",
+    "system": {
+      "uptime": 7262.484,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3481210880,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 2.308901,
+      "memoryUsage": {
+        "rss": 93106176,
+        "heapTotal": 63053824,
+        "heapUsed": 43284968,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1000000,
+        "system": 1296000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:32:52.446Z",
+    "system": {
+      "uptime": 7562.484,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3317518336,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 302.3092374,
+      "memoryUsage": {
+        "rss": 92205056,
+        "heapTotal": 41820160,
+        "heapUsed": 39745944,
+        "external": 5408648,
+        "arrayBuffers": 1619443
+      },
+      "cpuUsage": {
+        "user": 2687000,
+        "system": 2203000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:37:52.447Z",
+    "system": {
+      "uptime": 7862.484,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3255844864,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 602.3094694,
+      "memoryUsage": {
+        "rss": 92246016,
+        "heapTotal": 41820160,
+        "heapUsed": 39242560,
+        "external": 5408648,
+        "arrayBuffers": 1614197
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2203000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:42:52.450Z",
+    "system": {
+      "uptime": 8162.484,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2912161792,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 902.312479,
+      "memoryUsage": {
+        "rss": 92233728,
+        "heapTotal": 41820160,
+        "heapUsed": 39413976,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2203000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:47:52.451Z",
+    "system": {
+      "uptime": 8462.484,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3597484032,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 1202.3131008,
+      "memoryUsage": {
+        "rss": 91836416,
+        "heapTotal": 41820160,
+        "heapUsed": 39570736,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2203000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:52:52.451Z",
+    "system": {
+      "uptime": 8762.484,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3636228096,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 1502.3139912,
+      "memoryUsage": {
+        "rss": 91807744,
+        "heapTotal": 41820160,
+        "heapUsed": 39741064,
+        "external": 5403466,
+        "arrayBuffers": 1614261
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T03:57:52.462Z",
+    "system": {
+      "uptime": 9062.5,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3664957440,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 1802.3245194,
+      "memoryUsage": {
+        "rss": 91807744,
+        "heapTotal": 41820160,
+        "heapUsed": 39903336,
+        "external": 5403466,
+        "arrayBuffers": 1614261
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:02:52.473Z",
+    "system": {
+      "uptime": 9362.5,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3826036736,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 2102.336738,
+      "memoryUsage": {
+        "rss": 91914240,
+        "heapTotal": 41820160,
+        "heapUsed": 39343536,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:07:52.475Z",
+    "system": {
+      "uptime": 9662.5,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3782471680,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 2402.3375217,
+      "memoryUsage": {
+        "rss": 91983872,
+        "heapTotal": 41820160,
+        "heapUsed": 39467368,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:12:52.480Z",
+    "system": {
+      "uptime": 9962.515,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3751510016,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 2702.3422002,
+      "memoryUsage": {
+        "rss": 91992064,
+        "heapTotal": 41820160,
+        "heapUsed": 39597816,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:17:52.484Z",
+    "system": {
+      "uptime": 10262.515,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3768590336,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 3002.3463557,
+      "memoryUsage": {
+        "rss": 91992064,
+        "heapTotal": 41820160,
+        "heapUsed": 39719880,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:23:33.602Z",
+    "system": {
+      "uptime": 10603.64,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3538636800,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 3343.4748976,
+      "memoryUsage": {
+        "rss": 92024832,
+        "heapTotal": 41820160,
+        "heapUsed": 39857688,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:28:33.603Z",
+    "system": {
+      "uptime": 10903.64,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3582382080,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 3643.4663777,
+      "memoryUsage": {
+        "rss": 92008448,
+        "heapTotal": 41820160,
+        "heapUsed": 39984000,
+        "external": 5403434,
+        "arrayBuffers": 1614229
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:33:33.607Z",
+    "system": {
+      "uptime": 11203.64,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2011443200,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 3943.4698169,
+      "memoryUsage": {
+        "rss": 70823936,
+        "heapTotal": 41820160,
+        "heapUsed": 39270552,
+        "external": 5403434,
+        "arrayBuffers": 1614197
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:38:33.621Z",
+    "system": {
+      "uptime": 11503.656,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 7459246080,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 4243.4840759,
+      "memoryUsage": {
+        "rss": 2641920,
+        "heapTotal": 41820160,
+        "heapUsed": 39401408,
+        "external": 5403434,
+        "arrayBuffers": 1614197
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:43:33.631Z",
+    "system": {
+      "uptime": 11803.656,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 7492603904,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 4543.4938136,
+      "memoryUsage": {
+        "rss": 5271552,
+        "heapTotal": 41820160,
+        "heapUsed": 39535352,
+        "external": 5403434,
+        "arrayBuffers": 1614197
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2234000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:48:33.634Z",
+    "system": {
+      "uptime": 12103.671,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 7267295232,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 4843.4965905,
+      "memoryUsage": {
+        "rss": 5615616,
+        "heapTotal": 41820160,
+        "heapUsed": 39671448,
+        "external": 5403434,
+        "arrayBuffers": 1614197
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2234000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:53:33.650Z",
+    "system": {
+      "uptime": 12403.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 7401623552,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 5143.5124264,
+      "memoryUsage": {
+        "rss": 5832704,
+        "heapTotal": 41820160,
+        "heapUsed": 39809432,
+        "external": 5403434,
+        "arrayBuffers": 1614197
+      },
+      "cpuUsage": {
+        "user": 2703000,
+        "system": 2234000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T04:58:33.658Z",
+    "system": {
+      "uptime": 12703.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 6196060160,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 5443.5205886,
+      "memoryUsage": {
+        "rss": 57225216,
+        "heapTotal": 43130880,
+        "heapUsed": 39441664,
+        "external": 3967423,
+        "arrayBuffers": 171579
+      },
+      "cpuUsage": {
+        "user": 3078000,
+        "system": 2343000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:03:33.660Z",
+    "system": {
+      "uptime": 13003.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 6151970816,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 5743.5231131,
+      "memoryUsage": {
+        "rss": 58003456,
+        "heapTotal": 43130880,
+        "heapUsed": 40106064,
+        "external": 3983262,
+        "arrayBuffers": 188487
+      },
+      "cpuUsage": {
+        "user": 3187000,
+        "system": 2375000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:08:33.662Z",
+    "system": {
+      "uptime": 13303.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 6183190528,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 6043.5250545,
+      "memoryUsage": {
+        "rss": 60846080,
+        "heapTotal": 44703744,
+        "heapUsed": 41055952,
+        "external": 5454188,
+        "arrayBuffers": 1664614
+      },
+      "cpuUsage": {
+        "user": 3375000,
+        "system": 2437000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:13:33.675Z",
+    "system": {
+      "uptime": 13603.703,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 6035312640,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 6343.5381839,
+      "memoryUsage": {
+        "rss": 60862464,
+        "heapTotal": 44703744,
+        "heapUsed": 41236568,
+        "external": 5454188,
+        "arrayBuffers": 1664614
+      },
+      "cpuUsage": {
+        "user": 3375000,
+        "system": 2437000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:18:33.690Z",
+    "system": {
+      "uptime": 13903.718,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5766451200,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 6643.5529709,
+      "memoryUsage": {
+        "rss": 60850176,
+        "heapTotal": 43655168,
+        "heapUsed": 40724240,
+        "external": 5451836,
+        "arrayBuffers": 1662262
+      },
+      "cpuUsage": {
+        "user": 3375000,
+        "system": 2437000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:23:33.703Z",
+    "system": {
+      "uptime": 14203.734,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5971292160,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 6943.5653613,
+      "memoryUsage": {
+        "rss": 60858368,
+        "heapTotal": 43655168,
+        "heapUsed": 40908744,
+        "external": 5451836,
+        "arrayBuffers": 1662262
+      },
+      "cpuUsage": {
+        "user": 3375000,
+        "system": 2437000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:28:33.715Z",
+    "system": {
+      "uptime": 14503.75,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5991260160,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 7243.5768668,
+      "memoryUsage": {
+        "rss": 57536512,
+        "heapTotal": 43655168,
+        "heapUsed": 41100696,
+        "external": 5451844,
+        "arrayBuffers": 1662270
+      },
+      "cpuUsage": {
+        "user": 3406000,
+        "system": 2453000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:33:33.729Z",
+    "system": {
+      "uptime": 14803.765,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5702361088,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 7543.5912471,
+      "memoryUsage": {
+        "rss": 44687360,
+        "heapTotal": 43655168,
+        "heapUsed": 41308688,
+        "external": 5451844,
+        "arrayBuffers": 1662270
+      },
+      "cpuUsage": {
+        "user": 3406000,
+        "system": 2468000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:38:33.735Z",
+    "system": {
+      "uptime": 15103.765,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5933408256,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 7843.5968052,
+      "memoryUsage": {
+        "rss": 36601856,
+        "heapTotal": 43655168,
+        "heapUsed": 40690712,
+        "external": 5451844,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3421000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:43:33.747Z",
+    "system": {
+      "uptime": 15403.781,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 6019420160,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 8143.6093273,
+      "memoryUsage": {
+        "rss": 25735168,
+        "heapTotal": 43655168,
+        "heapUsed": 40850840,
+        "external": 5451844,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3437000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:48:33.753Z",
+    "system": {
+      "uptime": 15703.781,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5324603392,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 8443.6152495,
+      "memoryUsage": {
+        "rss": 25792512,
+        "heapTotal": 43655168,
+        "heapUsed": 41012592,
+        "external": 5451844,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3437000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:53:33.765Z",
+    "system": {
+      "uptime": 16003.796,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5274800128,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 8743.6279414,
+      "memoryUsage": {
+        "rss": 25165824,
+        "heapTotal": 43655168,
+        "heapUsed": 41222784,
+        "external": 5451844,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3437000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T05:58:33.767Z",
+    "system": {
+      "uptime": 16303.796,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 4704776192,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 9043.6294847,
+      "memoryUsage": {
+        "rss": 25128960,
+        "heapTotal": 43655168,
+        "heapUsed": 41389760,
+        "external": 5451844,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3468000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:03:33.768Z",
+    "system": {
+      "uptime": 16603.796,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 4583116800,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 9343.6309994,
+      "memoryUsage": {
+        "rss": 24723456,
+        "heapTotal": 43655168,
+        "heapUsed": 40666944,
+        "external": 5451828,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3484000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:08:33.774Z",
+    "system": {
+      "uptime": 16903.812,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 4677279744,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 9643.6365781,
+      "memoryUsage": {
+        "rss": 22237184,
+        "heapTotal": 43655168,
+        "heapUsed": 40838048,
+        "external": 5451828,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3500000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:13:33.782Z",
+    "system": {
+      "uptime": 17203.812,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5304668160,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 9943.6449038,
+      "memoryUsage": {
+        "rss": 20918272,
+        "heapTotal": 43655168,
+        "heapUsed": 41012072,
+        "external": 5451828,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3500000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:18:33.788Z",
+    "system": {
+      "uptime": 17503.812,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5204303872,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 10243.650637,
+      "memoryUsage": {
+        "rss": 21086208,
+        "heapTotal": 43655168,
+        "heapUsed": 41234712,
+        "external": 5451828,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3515000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:23:33.794Z",
+    "system": {
+      "uptime": 17803.828,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 5102661632,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 10543.6560147,
+      "memoryUsage": {
+        "rss": 21229568,
+        "heapTotal": 43655168,
+        "heapUsed": 41412864,
+        "external": 5451828,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3515000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:28:33.804Z",
+    "system": {
+      "uptime": 18103.843,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3586707456,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 10843.6670296,
+      "memoryUsage": {
+        "rss": 21331968,
+        "heapTotal": 43655168,
+        "heapUsed": 40667480,
+        "external": 5451828,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3515000,
+        "system": 2484000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:33:31.723Z",
+    "system": {
+      "uptime": 18401.75,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3441172480,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 11141.587606,
+      "memoryUsage": {
+        "rss": 25509888,
+        "heapTotal": 43655168,
+        "heapUsed": 40904000,
+        "external": 5451828,
+        "arrayBuffers": 1662254
+      },
+      "cpuUsage": {
+        "user": 3515000,
+        "system": 2500000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:33:33.813Z",
+    "system": {
+      "uptime": 18403.843,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3503747072,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 11143.6780745,
+      "memoryUsage": {
+        "rss": 31047680,
+        "heapTotal": 43655168,
+        "heapUsed": 41417056,
+        "external": 5453086,
+        "arrayBuffers": 1663320
+      },
+      "cpuUsage": {
+        "user": 3515000,
+        "system": 2515000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:35:54.822Z",
+    "system": {
+      "uptime": 18544.859,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3571240960,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 27120,
+      "uptime": 11284.6846535,
+      "memoryUsage": {
+        "rss": 31387648,
+        "heapTotal": 43655168,
+        "heapUsed": 40793368,
+        "external": 5453086,
+        "arrayBuffers": 1662371
+      },
+      "cpuUsage": {
+        "user": 3515000,
+        "system": 2515000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T06:36:24.411Z",
+    "system": {
+      "uptime": 18574.453,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3619500032,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 12440,
+      "uptime": 2.2285246,
+      "memoryUsage": {
+        "rss": 90836992,
+        "heapTotal": 63053824,
+        "heapUsed": 43479544,
+        "external": 3646098,
+        "arrayBuffers": 126530
+      },
+      "cpuUsage": {
+        "user": 1015000,
+        "system": 1218000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:02:24.542Z",
+    "system": {
+      "uptime": 20134.578,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3918000128,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 31320,
+      "uptime": 1.8718361,
+      "memoryUsage": {
+        "rss": 93384704,
+        "heapTotal": 63053824,
+        "heapUsed": 43427744,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1343000,
+        "system": 828000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:07:24.547Z",
+    "system": {
+      "uptime": 20434.578,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3519545344,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 31320,
+      "uptime": 301.8740892,
+      "memoryUsage": {
+        "rss": 93708288,
+        "heapTotal": 42606592,
+        "heapUsed": 40887928,
+        "external": 5481904,
+        "arrayBuffers": 1692667
+      },
+      "cpuUsage": {
+        "user": 3781000,
+        "system": 1937000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:12:24.551Z",
+    "system": {
+      "uptime": 20734.578,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3758567424,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 31320,
+      "uptime": 601.8793953,
+      "memoryUsage": {
+        "rss": 94343168,
+        "heapTotal": 43393024,
+        "heapUsed": 41204728,
+        "external": 5489648,
+        "arrayBuffers": 1700347
+      },
+      "cpuUsage": {
+        "user": 4062000,
+        "system": 1968000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:17:24.557Z",
+    "system": {
+      "uptime": 21034.593,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2736361472,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 31320,
+      "uptime": 901.8837948,
+      "memoryUsage": {
+        "rss": 94146560,
+        "heapTotal": 43393024,
+        "heapUsed": 41627792,
+        "external": 5497074,
+        "arrayBuffers": 1707453
+      },
+      "cpuUsage": {
+        "user": 4156000,
+        "system": 2015000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:22:24.570Z",
+    "system": {
+      "uptime": 21334.609,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 1937891328,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 31320,
+      "uptime": 1201.8969872,
+      "memoryUsage": {
+        "rss": 94044160,
+        "heapTotal": 43655168,
+        "heapUsed": 41171048,
+        "external": 5512986,
+        "arrayBuffers": 1672983
+      },
+      "cpuUsage": {
+        "user": 4265000,
+        "system": 2046000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:27:24.574Z",
+    "system": {
+      "uptime": 21634.609,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3062218752,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 31320,
+      "uptime": 1501.90043,
+      "memoryUsage": {
+        "rss": 93966336,
+        "heapTotal": 43917312,
+        "heapUsed": 41570088,
+        "external": 5491733,
+        "arrayBuffers": 1701792
+      },
+      "cpuUsage": {
+        "user": 4296000,
+        "system": 2093000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:32:24.574Z",
+    "system": {
+      "uptime": 21934.609,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 4397731840,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 31320,
+      "uptime": 1801.9042637,
+      "memoryUsage": {
+        "rss": 94818304,
+        "heapTotal": 43917312,
+        "heapUsed": 41875704,
+        "external": 5498296,
+        "arrayBuffers": 1708195
+      },
+      "cpuUsage": {
+        "user": 4375000,
+        "system": 2109000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:34:36.653Z",
+    "system": {
+      "uptime": 22066.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 4077142016,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22580,
+      "uptime": 1.5915801,
+      "memoryUsage": {
+        "rss": 93323264,
+        "heapTotal": 63053824,
+        "heapUsed": 43202264,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1156000,
+        "system": 734000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:34:41.282Z",
+    "system": {
+      "uptime": 22071.312,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3997323264,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22580,
+      "uptime": 6.2190205,
+      "memoryUsage": {
+        "rss": 122310656,
+        "heapTotal": 75898880,
+        "heapUsed": 48740360,
+        "external": 3978457,
+        "arrayBuffers": 184511
+      },
+      "cpuUsage": {
+        "user": 1968000,
+        "system": 1390000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:39:37.966Z",
+    "system": {
+      "uptime": 22366.687,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3619647488,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22580,
+      "uptime": 301.5964339,
+      "memoryUsage": {
+        "rss": 93839360,
+        "heapTotal": 42606592,
+        "heapUsed": 40836248,
+        "external": 5461901,
+        "arrayBuffers": 1672728
+      },
+      "cpuUsage": {
+        "user": 3437000,
+        "system": 1640000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:44:37.970Z",
+    "system": {
+      "uptime": 22666.703,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3492978688,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22580,
+      "uptime": 601.6031609,
+      "memoryUsage": {
+        "rss": 95154176,
+        "heapTotal": 44179456,
+        "heapUsed": 41590104,
+        "external": 5467235,
+        "arrayBuffers": 1677998
+      },
+      "cpuUsage": {
+        "user": 3796000,
+        "system": 1734000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:49:37.988Z",
+    "system": {
+      "uptime": 22966.718,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3058835456,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22580,
+      "uptime": 901.6184426,
+      "memoryUsage": {
+        "rss": 94408704,
+        "heapTotal": 44179456,
+        "heapUsed": 41644576,
+        "external": 5507641,
+        "arrayBuffers": 1665898
+      },
+      "cpuUsage": {
+        "user": 3843000,
+        "system": 1812000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:54:37.995Z",
+    "system": {
+      "uptime": 23266.718,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3236298752,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 22580,
+      "uptime": 1201.6268213,
+      "memoryUsage": {
+        "rss": 95354880,
+        "heapTotal": 44441600,
+        "heapUsed": 42266200,
+        "external": 5485873,
+        "arrayBuffers": 1696156
+      },
+      "cpuUsage": {
+        "user": 3906000,
+        "system": 1843000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:58:50.480Z",
+    "system": {
+      "uptime": 23519.203,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3130617856,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 2788,
+      "uptime": 1.4819602,
+      "memoryUsage": {
+        "rss": 93732864,
+        "heapTotal": 63053824,
+        "heapUsed": 43480792,
+        "external": 3657555,
+        "arrayBuffers": 137987
+      },
+      "cpuUsage": {
+        "user": 1093000,
+        "system": 687000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T07:59:01.194Z",
+    "system": {
+      "uptime": 23529.921,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 3099774976,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 2788,
+      "uptime": 12.1949663,
+      "memoryUsage": {
+        "rss": 85991424,
+        "heapTotal": 39198720,
+        "heapUsed": 35988808,
+        "external": 3949739,
+        "arrayBuffers": 160711
+      },
+      "cpuUsage": {
+        "user": 2109000,
+        "system": 1421000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T08:03:50.489Z",
+    "system": {
+      "uptime": 23819.218,
+      "loadAverage": [
+        0,
+        0,
+        0
+      ],
+      "totalMemory": 16329916416,
+      "freeMemory": 2890653696,
+      "cpuCount": 12,
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "process": {
+      "pid": 2788,
+      "uptime": 301.4852027,
+      "memoryUsage": {
+        "rss": 94040064,
+        "heapTotal": 42868736,
+        "heapUsed": 40768200,
+        "external": 5499920,
+        "arrayBuffers": 1710843
+      },
+      "cpuUsage": {
+        "user": 2906000,
+        "system": 1656000
+      },
+      "version": "v22.19.0"
+    },
+    "application": {
+      "nodeEnv": "development",
+      "port": "3001"
+    }
+  }
+]

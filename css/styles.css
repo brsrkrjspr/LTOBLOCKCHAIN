@@ -2777,3 +2777,129 @@ input.invalid {
         page-break-after: always;
     }
 }
+
+/* Document Viewer Enhancements */
+.document-viewer-container {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 1rem 0;
+    background: #f8f9fa;
+}
+
+.document-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.document-fallback {
+    padding: 2rem;
+    text-align: center;
+    background: #fff;
+}
+
+.document-selector {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.document-selector h4 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.document-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.document-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.document-item:hover {
+    background: #e9ecef;
+    border-color: #3498db;
+    transform: translateX(5px);
+}
+
+.document-item.selected {
+    background: #e3f2fd;
+    border-color: #3498db;
+    font-weight: 600;
+}
+
+.doc-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.doc-name {
+    flex: 1;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+.doc-filename {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    flex: 2;
+}
+
+.doc-selected {
+    color: #3498db;
+    font-weight: bold;
+    margin-left: auto;
+}
+
+.document-viewer-section {
+    margin-top: 2rem;
+}
+
+.document-actions-preview {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+}
+
+.document-actions-preview .btn-primary,
+.document-actions-preview .btn-secondary {
+    padding: 0.75rem 1.5rem;
+}
+
+.document-icon-large {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+/* Loading spinner for document viewer */
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 2rem auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

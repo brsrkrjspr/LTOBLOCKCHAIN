@@ -250,21 +250,82 @@ function initializeSubmittedApplications() {
     setInterval(loadSubmittedApplications, 10000); // Update every 10 seconds
 }
 
-function loadSubmittedApplications() {
-    allApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+async function loadSubmittedApplications() {
     const tbody = document.getElementById('submitted-applications-tbody');
-    
     if (!tbody) return;
     
-    // Sort applications by submission date (newest first)
-    allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+    // Show loading state
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
     
-    // Apply filters/search if any
-    filteredApplications = applyFilters(allApplications);
-    
-    // Update pagination
-    updatePagination();
-    renderApplications();
+    try {
+        // Try to load from API first
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (token && typeof APIClient !== 'undefined') {
+            try {
+                const apiClient = new APIClient();
+                const response = await apiClient.get('/api/vehicles?status=SUBMITTED&limit=100');
+                
+                if (response && response.success && response.vehicles) {
+                    // Convert vehicles to application format
+                    allApplications = response.vehicles.map(vehicle => ({
+                        id: vehicle.id,
+                        vehicle: {
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
+                            vin: vehicle.vin,
+                            color: vehicle.color,
+                            engineNumber: vehicle.engineNumber || vehicle.engine_number,
+                            chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
+                        },
+                        owner: {
+                            firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
+                            lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
+                            email: vehicle.owner_email || 'unknown@example.com'
+                        },
+                        status: vehicle.status?.toLowerCase() || 'submitted',
+                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
+                        priority: vehicle.priority || 'MEDIUM',
+                        documents: vehicle.documents || [],
+                        verifications: vehicle.verifications || []
+                    }));
+                    
+                    // Save to localStorage for offline access
+                    localStorage.setItem('submittedApplications', JSON.stringify(allApplications));
+                    
+                    // Sort applications by submission date (newest first)
+                    allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+                    
+                    // Apply filters/search if any
+                    filteredApplications = applyFilters(allApplications);
+                    
+                    // Update pagination
+                    updatePagination();
+                    renderApplications();
+                    return;
+                }
+            } catch (apiError) {
+                console.warn('API load failed, trying localStorage:', apiError);
+            }
+        }
+        
+        // Fallback to localStorage
+        allApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+        
+        // Sort applications by submission date (newest first)
+        allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+        
+        // Apply filters/search if any
+        filteredApplications = applyFilters(allApplications);
+        
+        // Update pagination
+        updatePagination();
+        renderApplications();
+    } catch (error) {
+        console.error('Error loading applications:', error);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error loading applications. Please refresh the page.</td></tr>';
+    }
 }
 
 function applyFilters(applications) {
@@ -344,9 +405,17 @@ function initializePagination() {
             </div>
         `;
         
-        const table = tableContainer.querySelector('table');
-        if (table) {
-            tableContainer.insertBefore(toolbar, table);
+        // Find the table-container div (which contains the table)
+        const tableContainerDiv = tableContainer.querySelector('.table-container');
+        if (tableContainerDiv) {
+            // Insert toolbar before the table-container div
+            tableContainer.insertBefore(toolbar, tableContainerDiv);
+        } else {
+            // Fallback: try to find table and insert before its parent
+            const table = tableContainer.querySelector('table');
+            if (table && table.parentElement) {
+                table.parentElement.insertBefore(toolbar, table);
+            }
         }
         
         // Add event listeners
@@ -437,16 +506,65 @@ function getStatusText(status) {
     return statusMap[status] || status;
 }
 
-function viewApplication(applicationId) {
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    const application = applications.find(app => app.id === applicationId);
-    
-    if (!application) {
-        showNotification('Application not found', 'error');
-        return;
+async function viewApplication(applicationId) {
+    try {
+        // Try to load from API first
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        let application = null;
+        
+        if (token && typeof APIClient !== 'undefined') {
+            try {
+                const apiClient = new APIClient();
+                // Use /id/:id route for UUID vehicle IDs
+                const response = await apiClient.get(`/api/vehicles/id/${applicationId}`);
+                
+                if (response && response.success && response.vehicle) {
+                    const vehicle = response.vehicle;
+                    application = {
+                        id: vehicle.id,
+                        vehicle: {
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
+                            vin: vehicle.vin,
+                            color: vehicle.color,
+                            engineNumber: vehicle.engineNumber || vehicle.engine_number,
+                            chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
+                        },
+                        owner: {
+                            firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
+                            lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
+                            email: vehicle.owner_email || 'unknown@example.com'
+                        },
+                        status: vehicle.status?.toLowerCase() || 'submitted',
+                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
+                        priority: vehicle.priority || 'MEDIUM',
+                        documents: vehicle.documents || [],
+                        verifications: vehicle.verifications || []
+                    };
+                }
+            } catch (apiError) {
+                console.warn('API load failed, trying localStorage:', apiError);
+            }
+        }
+        
+        // Fallback to localStorage
+        if (!application) {
+            const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            application = applications.find(app => app.id === applicationId);
+        }
+        
+        if (!application) {
+            showNotification('Application not found', 'error');
+            return;
+        }
+        
+        showApplicationModal(application);
+    } catch (error) {
+        console.error('Error viewing application:', error);
+        showNotification('Failed to load application details', 'error');
     }
-    
-    showApplicationModal(application);
 }
 
 function showApplicationModal(application) {
@@ -519,11 +637,41 @@ function showApplicationModal(application) {
                     <div class="detail-section">
                         <h4>Documents</h4>
                         <div class="document-list">
-                            <div class="document-item">📄 ${application.documents.registrationCert}</div>
-                            <div class="document-item">🛡️ ${application.documents.insuranceCert}</div>
-                            <div class="document-item">🌱 ${application.documents.emissionCert}</div>
-                            <div class="document-item">🆔 ${application.documents.ownerId}</div>
+                            ${application.documents && application.documents.length > 0 ? 
+                                application.documents.map(doc => {
+                                    const docType = doc.documentType || doc.document_type || 'document';
+                                    const typeNames = {
+                                        'registration_cert': '📄 Registration Certificate',
+                                        'insurance_cert': '🛡️ Insurance Certificate',
+                                        'emission_cert': '🌱 Emission Certificate',
+                                        'owner_id': '🆔 Owner ID'
+                                    };
+                                    const docName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
+                                    
+                                    // Use document ID if available (valid UUID), otherwise use VIN + type
+                                    const isValidDocumentId = doc.id && 
+                                        typeof doc.id === 'string' && 
+                                        doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
+                                        !doc.id.startsWith('TEMP_');
+                                    
+                                    const typeParam = docType.replace('_cert', '').replace('_', '');
+                                    const viewerUrl = isValidDocumentId 
+                                        ? `document-viewer.html?documentId=${doc.id}`
+                                        : `document-viewer.html?vin=${application.vehicle.vin || application.vehicle?.vin || ''}&type=${typeParam}`;
+                                    
+                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0;" onclick="window.open('${viewerUrl}', '_blank')">
+                                        ${docName}
+                                        <span style="float: right; color: #3498db;">View →</span>
+                                    </div>`;
+                                }).join('') :
+                                '<p style="color: #999;">No documents uploaded yet</p>'
+                            }
                         </div>
+                        ${application.vehicle && application.vehicle.vin ? `
+                        <div style="margin-top: 15px;">
+                            <a href="document-viewer.html?vin=${application.vehicle.vin}" target="_blank" class="btn-secondary">View All Documents</a>
+                        </div>
+                        ` : ''}
                     </div>
                     
                     <div class="detail-section">

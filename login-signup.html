@@ -24,8 +24,8 @@
             <div class="auth-card">
                 <!-- Toggle Tabs -->
                 <div class="auth-tabs">
-                    <button class="tab-btn active" onclick="showLogin()">Login</button>
-                    <button class="tab-btn" onclick="showSignup()">Sign Up</button>
+                    <button class="tab-btn active" onclick="showLogin(); return false;">Login</button>
+                    <button class="tab-btn" onclick="showSignup(); return false;">Sign Up</button>
                 </div>
 
                 <!-- Login Form -->
@@ -38,13 +38,13 @@
                     <!-- Demo Credentials -->
                     <div class="demo-credentials">
                         <h4>Demo Accounts:</h4>
-                        <div class="demo-account" onclick="fillCredentials('admin@lto.gov.ph', 'admin123')">
+                        <div class="demo-account" onclick="fillCredentials('admin@lto.gov.ph', 'admin123'); return false;">
                             <strong>Admin:</strong> admin@lto.gov.ph / admin123
                         </div>
-                        <div class="demo-account" onclick="fillCredentials('owner@example.com', 'admin123')">
+                        <div class="demo-account" onclick="fillCredentials('owner@example.com', 'admin123'); return false;">
                             <strong>Owner:</strong> owner@example.com / admin123
                         </div>
-                        <div class="demo-account" onclick="fillCredentials('verifier@insurance.com', 'admin123')">
+                        <div class="demo-account" onclick="fillCredentials('verifier@insurance.com', 'admin123'); return false;">
                             <strong>Insurance:</strong> verifier@insurance.com / admin123
                         </div>
                     </div>
@@ -70,7 +70,6 @@
                         </div>
 
                         <button type="submit" class="btn-primary btn-full">Login</button>
-                        <button type="button" class="btn-secondary btn-full" onclick="testLogin()" style="margin-top: 10px;">Test Login (Debug)</button>
                     </form>
                 </div>
 
@@ -130,7 +129,7 @@
 
 
                 <div class="auth-footer">
-                    <p id="authFooterText">Don't have an account? <a href="#" onclick="showSignup()">Sign up here</a></p>
+                    <p id="authFooterText">Don't have an account? <a href="#" onclick="showSignup(); return false;">Sign up here</a></p>
                 </div>
             </div>
         </div>

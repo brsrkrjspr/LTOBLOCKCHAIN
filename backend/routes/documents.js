@@ -3,16 +3,25 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const router = express.Router();
+const db = require('../database/services');
+const storageService = require('../services/storageService');
+const { authenticateToken } = require('../middleware/auth');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadDir = './uploads';
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+        const uploadDir = path.join(__dirname, '../uploads');
+        try {
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            cb(null, uploadDir);
+        } catch (error) {
+            console.error('Error creating upload directory:', error);
+            cb(error, null);
         }
-        cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -37,31 +46,45 @@ const upload = multer({
     }
 });
 
-// Mock IPFS service (in production, use real IPFS)
-class MockIPFSService {
-    static async addFile(filePath) {
-        // Simulate IPFS hash generation
-        const hash = 'Qm' + Buffer.from(filePath + Date.now()).toString('base64').substring(0, 44);
-        return {
-            hash,
-            size: fs.statSync(filePath).size,
-            path: filePath
-        };
+// Helper function to calculate file hash
+function calculateFileHash(filePath) {
+    try {
+        if (!filePath || !fs.existsSync(filePath)) {
+            console.warn('File path does not exist for hash calculation:', filePath);
+            return null; // Return null instead of throwing
+        }
+        const fileBuffer = fs.readFileSync(filePath);
+        return crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    } catch (error) {
+        console.error('Error calculating file hash:', error);
+        return null; // Return null instead of throwing
     }
+}
 
-    static async getFile(hash) {
-        // Simulate file retrieval
-        return {
-            hash,
-            exists: true,
-            content: 'Mock file content'
-        };
-    }
+// Map document type names to database enum values
+function mapDocumentType(type) {
+    const mapping = {
+        'registrationCert': 'registration_cert',
+        'insuranceCert': 'insurance_cert',
+        'emissionCert': 'emission_cert',
+        'ownerId': 'owner_id',
+        'general': 'registration_cert' // Default
+    };
+    return mapping[type] || 'registration_cert';
 }
 
 // Upload document (for registration wizard - no auth required)
 router.post('/upload', upload.single('document'), async (req, res) => {
     try {
+        console.log('📤 Document upload request received');
+        console.log('File info:', req.file ? {
+            filename: req.file.filename,
+            originalname: req.file.originalname,
+            size: req.file.size,
+            path: req.file.path,
+            mimetype: req.file.mimetype
+        } : 'No file');
+        
         if (!req.file) {
             return res.status(400).json({
                 success: false,
@@ -69,7 +92,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
             });
         }
 
-        const { type, documentType } = req.body;
+        const { type, documentType, vehicleId } = req.body;
         const docType = type || documentType || 'general';
 
         // Validate document type
@@ -82,59 +105,203 @@ router.post('/upload', upload.single('document'), async (req, res) => {
             });
         }
 
-        // Upload to IPFS (mock)
-        const ipfsResult = await MockIPFSService.addFile(req.file.path);
+        // Store document using unified storage service (IPFS or local)
+        let storageResult;
+        const requiredStorageMode = process.env.STORAGE_MODE || 'auto';
+        
+        try {
+            console.log(`📦 Storing document: ${docType}, file: ${req.file.filename}`);
+            console.log(`📦 Storage mode requirement: ${requiredStorageMode}`);
+            
+            storageResult = await storageService.storeDocument(
+                req.file,
+                docType,
+                null, // vehicleVin - not available yet
+                null  // ownerEmail - not available yet
+            );
+            console.log('✅ Storage result:', {
+                success: storageResult?.success,
+                storageMode: storageResult?.storageMode,
+                cid: storageResult?.cid,
+                filename: storageResult?.filename
+            });
+            
+            // If STORAGE_MODE=ipfs is required, verify it was used
+            if (requiredStorageMode === 'ipfs' && storageResult?.storageMode !== 'ipfs') {
+                console.error('❌ CRITICAL: STORAGE_MODE=ipfs required but document stored in:', storageResult?.storageMode);
+                throw new Error(`Document storage failed: IPFS mode required but storage returned '${storageResult?.storageMode}'. Check IPFS service and configuration.`);
+            }
+            
+            // Ensure storageResult has required fields
+            if (!storageResult || !storageResult.success) {
+                // If STORAGE_MODE=ipfs, fail instead of falling back
+                if (requiredStorageMode === 'ipfs') {
+                    throw new Error('Document storage failed: IPFS storage is required but storage service returned failure.');
+                }
+                
+                // Only fallback to local if not in strict IPFS mode
+                let fileHash = null;
+                try {
+                    fileHash = calculateFileHash(req.file.path);
+                } catch (hashError) {
+                    console.warn('Could not calculate file hash:', hashError);
+                }
+                
+                storageResult = {
+                    success: true, // Mark as success so upload can continue
+                    documentId: 'TEMP_' + Date.now(),
+                    filename: req.file.filename,
+                    hash: fileHash,
+                    size: req.file.size,
+                    uploadDate: new Date().toISOString(),
+                    storageMode: 'local',
+                    cid: null,
+                    gatewayUrl: `/uploads/${req.file.filename}`
+                };
+            }
+        } catch (storageError) {
+            console.error('Storage service error:', storageError);
+            console.error('Storage error stack:', storageError.stack);
+            
+            // If STORAGE_MODE=ipfs is required, fail the upload instead of falling back
+            if (requiredStorageMode === 'ipfs') {
+                // Clean up uploaded file
+                try {
+                    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+                        fs.unlinkSync(req.file.path);
+                    }
+                } catch (cleanupError) {
+                    console.error('Error cleaning up file:', cleanupError);
+                }
+                
+                return res.status(503).json({
+                    success: false,
+                    error: 'Document storage failed',
+                    message: `IPFS storage is required (STORAGE_MODE=ipfs) but IPFS service is unavailable. Please ensure IPFS is running and accessible.`,
+                    details: storageError.message,
+                    troubleshooting: {
+                        checkIPFS: 'Verify IPFS container is running: docker ps | findstr ipfs',
+                        checkAPI: 'Test IPFS API: Invoke-RestMethod -Uri "http://localhost:5001/api/v0/version" -Method POST',
+                        checkConfig: 'Verify IPFS API address: docker exec ipfs ipfs config Addresses.API',
+                        restartIPFS: 'Restart IPFS: docker restart ipfs'
+                    }
+                });
+            }
+            
+            // Only fallback to local if not in strict IPFS mode
+            let fileHash = null;
+            try {
+                fileHash = calculateFileHash(req.file.path);
+            } catch (hashError) {
+                console.warn('Could not calculate file hash:', hashError);
+            }
+            
+            storageResult = {
+                success: true, // Mark as success so upload can continue
+                documentId: 'TEMP_' + Date.now(),
+                filename: req.file.filename,
+                hash: fileHash,
+                size: req.file.size,
+                uploadDate: new Date().toISOString(),
+                storageMode: 'local',
+                cid: null,
+                gatewayUrl: `/uploads/${req.file.filename}`,
+                warning: storageError.message // Include warning but don't fail
+            };
+        }
 
-        // Generate mock CID
-        const mockCid = 'Qm' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        // Save document to database even without vehicleId (for registration wizard)
+        // vehicleId will be linked later during vehicle registration
+        let documentRecord = null;
+        try {
+            documentRecord = await db.createDocument({
+                vehicleId: vehicleId || null, // Allow null for registration wizard
+                documentType: mapDocumentType(docType),
+                filename: req.file.filename,
+                originalName: req.file.originalname,
+                filePath: req.file.path,
+                fileSize: req.file.size,
+                mimeType: req.file.mimetype,
+                fileHash: storageResult.hash,
+                uploadedBy: null, // No user for registration wizard
+                ipfsCid: storageResult.cid || null // Store CID if available
+            });
+            console.log(`✅ Document saved to database: ${documentRecord.id} (CID: ${storageResult.cid || 'none'})`);
+        } catch (dbError) {
+            console.error('Database error:', dbError);
+            // Continue even if database save fails, but log warning
+            console.warn('⚠️ Document uploaded to storage but not saved to database. It may not be linkable to vehicle later.');
+        }
 
-        // Create document record
-        const document = {
-            id: 'DOC' + Date.now(),
-            documentType: docType,
-            originalName: req.file.originalname,
-            fileName: req.file.filename,
-            filePath: req.file.path,
-            fileSize: req.file.size,
-            mimeType: req.file.mimetype,
-            cid: mockCid,
-            ipfsHash: mockCid,
-            uploadedBy: 'REGISTRATION_WIZARD',
-            uploadedAt: new Date().toISOString(),
-            status: 'UPLOADED'
-        };
-
-        res.json({
+        // Build response - ensure all required fields are present
+        const response = {
             success: true,
             message: 'Document uploaded successfully',
             document: {
-                id: document.id,
-                documentType: document.documentType,
-                originalName: document.originalName,
-                fileSize: document.fileSize,
-                cid: document.cid,
-                ipfsHash: document.ipfsHash,
-                filename: document.fileName,
-                url: `/uploads/${document.fileName}`,
-                uploadedAt: document.uploadedAt
+                id: documentRecord?.id || storageResult.documentId || 'TEMP_' + Date.now(),
+                documentType: docType,
+                originalName: req.file.originalname,
+                fileSize: req.file.size,
+                cid: storageResult.cid || null,
+                ipfsHash: storageResult.cid || null,
+                filename: req.file.filename,
+                url: storageResult.gatewayUrl || storageResult.url || `/uploads/${req.file.filename}`,
+                uploadedAt: storageResult.uploadDate || new Date().toISOString(),
+                fileHash: storageResult.hash || (() => {
+                    try {
+                        return calculateFileHash(req.file.path);
+                    } catch (e) {
+                        return null;
+                    }
+                })(),
+                storageMode: storageResult.storageMode || (process.env.STORAGE_MODE === 'ipfs' ? 'ipfs' : 'local')
             },
-            cid: mockCid,
+            cid: storageResult.cid || null,
             filename: req.file.filename,
-            url: `/uploads/${req.file.filename}`
-        });
-
-    } catch (error) {
-        console.error('Upload error:', error);
+            url: storageResult.gatewayUrl || storageResult.url || `/uploads/${req.file.filename}`,
+            storageMode: storageResult.storageMode || 'local'
+        };
         
-        // Clean up uploaded file if it exists
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
+        // Include warning if storage had issues but upload succeeded
+        if (storageResult.warning) {
+            response.warning = storageResult.warning;
         }
 
-        res.status(500).json({
-            success: false,
-            error: 'Failed to upload document'
-        });
+        res.json(response);
+
+    } catch (error) {
+        console.error('❌ Upload error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        
+        // Clean up uploaded file if it exists
+        if (req.file && req.file.path) {
+            try {
+                if (fs.existsSync(req.file.path)) {
+                    fs.unlinkSync(req.file.path);
+                    console.log('✅ Cleaned up uploaded file');
+                }
+            } catch (unlinkError) {
+                console.error('Error cleaning up file:', unlinkError);
+            }
+        }
+
+        // Provide more detailed error message
+        const errorMessage = error.message || 'Failed to upload document';
+        const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV !== 'production';
+        
+        // Ensure response hasn't been sent
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                error: errorMessage,
+                details: isDevelopment ? error.stack : undefined,
+                errorType: error.name || 'UnknownError'
+            });
+        } else {
+            console.error('⚠️ Response already sent, cannot send error response');
+        }
     }
 });
 
@@ -169,35 +336,61 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
             });
         }
 
-        // Upload to IPFS (mock)
-        const ipfsResult = await MockIPFSService.addFile(req.file.path);
+        // Get vehicle by VIN
+        const vehicle = await db.getVehicleByVin(vehicleVin);
+        if (!vehicle) {
+            fs.unlinkSync(req.file.path);
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
 
-        // Create document record
-        const document = {
-            id: 'DOC' + Date.now(),
-            vehicleVin,
+        // Check permission
+        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+            fs.unlinkSync(req.file.path);
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Store document using unified storage service (IPFS or local)
+        const storageResult = await storageService.storeDocument(
+            req.file,
             documentType,
+            vehicleVin,
+            req.user.email || null
+        );
+
+        // Create document record in database with CID
+        const document = await db.createDocument({
+            vehicleId: vehicle.id,
+            documentType: mapDocumentType(documentType),
+            filename: req.file.filename,
             originalName: req.file.originalname,
-            fileName: req.file.filename,
             filePath: req.file.path,
             fileSize: req.file.size,
             mimeType: req.file.mimetype,
-            ipfsHash: ipfsResult.hash,
+            fileHash: storageResult.hash,
             uploadedBy: req.user.userId,
-            uploadedAt: new Date().toISOString(),
-            status: 'UPLOADED'
-        };
+            ipfsCid: storageResult.cid || null // Store CID if available
+        });
 
         res.json({
             success: true,
             message: 'Document uploaded successfully',
             document: {
                 id: document.id,
-                documentType: document.documentType,
-                originalName: document.originalName,
-                fileSize: document.fileSize,
-                ipfsHash: document.ipfsHash,
-                uploadedAt: document.uploadedAt
+                documentType: documentType,
+                originalName: document.original_name,
+                fileSize: document.file_size,
+                fileHash: document.file_hash,
+                uploadedAt: document.uploaded_at,
+                filename: document.filename,
+                url: storageResult.gatewayUrl || `/uploads/${document.filename}`,
+                cid: storageResult.cid || null,
+                storageMode: storageResult.storageMode || (process.env.STORAGE_MODE === 'ipfs' ? 'ipfs' : 'local')
             }
         });
 
@@ -217,28 +410,91 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
 });
 
 // Get document by ID
-router.get('/:documentId', authenticateToken, (req, res) => {
+router.get('/:documentId', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
 
-        // Mock document retrieval
-        const document = {
-            id: documentId,
-            vehicleVin: 'VIN123456789',
-            documentType: 'registrationCert',
-            originalName: 'registration_certificate.pdf',
-            fileName: 'registrationCert-1234567890.pdf',
-            fileSize: 1024000,
-            mimeType: 'application/pdf',
-            ipfsHash: 'QmXvJ1Z...',
-            uploadedBy: req.user.userId,
-            uploadedAt: new Date().toISOString(),
-            status: 'UPLOADED'
-        };
+        const document = await db.getDocumentById(documentId);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document not found'
+            });
+        }
+
+        // Get vehicle to check permissions
+        const vehicle = await db.getVehicleById(document.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permission - Allow: admins, vehicle owners, and verifiers (for verification purposes)
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        
+        // Debug logging (temporary)
+        if (process.env.NODE_ENV === 'development') {
+            console.log('Document permission check:', {
+                userRole: req.user.role,
+                userId: req.user.userId,
+                vehicleOwnerId: vehicle.owner_id,
+                ownerIdType: typeof vehicle.owner_id,
+                userIdType: typeof req.user.userId,
+                isEqual: String(vehicle.owner_id) === String(req.user.userId),
+                isAdmin,
+                isOwner,
+                isVerifier
+            });
+        }
+        
+        if (!isAdmin && !isOwner && !isVerifier) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Build document URL
+        let documentUrl = null;
+        if (document.ipfs_cid) {
+            // Try IPFS gateway first
+            const ipfsService = require('../services/ipfsService');
+            if (ipfsService.isAvailable()) {
+                documentUrl = ipfsService.getGatewayUrl(document.ipfs_cid);
+            }
+        }
+        // Fallback to local file
+        if (!documentUrl && document.file_path && fs.existsSync(document.file_path)) {
+            documentUrl = `/uploads/${document.filename}`;
+        } else if (!documentUrl && document.filename) {
+            documentUrl = `/uploads/${document.filename}`;
+        }
 
         res.json({
             success: true,
-            document
+            document: {
+                id: document.id,
+                vehicleId: document.vehicle_id,
+                documentType: document.document_type,
+                originalName: document.original_name,
+                filename: document.filename,
+                fileSize: document.file_size,
+                mimeType: document.mime_type,
+                fileHash: document.file_hash,
+                uploadedBy: document.uploaded_by,
+                uploadedAt: document.uploaded_at,
+                verified: document.verified,
+                verifiedAt: document.verified_at,
+                verifiedBy: document.verified_by,
+                ipfs_cid: document.ipfs_cid,
+                cid: document.ipfs_cid,
+                url: documentUrl,
+                file_path: document.file_path
+            }
         });
 
     } catch (error) {
@@ -251,21 +507,72 @@ router.get('/:documentId', authenticateToken, (req, res) => {
 });
 
 // Download document
-router.get('/:documentId/download', authenticateToken, (req, res) => {
+router.get('/:documentId/download', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
 
-        // Mock file path (in production, retrieve from IPFS)
-        const mockFilePath = './uploads/registrationCert-1234567890.pdf';
-        
-        if (!fs.existsSync(mockFilePath)) {
+        const document = await db.getDocumentById(documentId);
+        if (!document) {
             return res.status(404).json({
                 success: false,
-                error: 'Document file not found'
+                error: 'Document not found'
             });
         }
 
-        res.download(mockFilePath, 'document.pdf', (err) => {
+        // Get vehicle to check permissions
+        const vehicle = await db.getVehicleById(document.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permission
+        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Get document from storage service (handles IPFS or local)
+        let filePath = null;
+
+        // Use storage service to get document (will query database and retrieve from IPFS if needed)
+        if (document.ipfs_cid || document.file_path) {
+            try {
+                const storageResult = await storageService.getDocument(document.id);
+                filePath = storageResult.filePath;
+            } catch (storageError) {
+                console.error('Storage service error:', storageError);
+                // Try direct file path as last resort
+                if (document.file_path && fs.existsSync(document.file_path)) {
+                    filePath = document.file_path;
+                } else {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Document file not found',
+                        details: storageError.message
+                    });
+                }
+            }
+        } else {
+            return res.status(404).json({
+                success: false,
+                error: 'Document has no storage location (no IPFS CID or file path)'
+            });
+        }
+
+        // Check if file exists
+        if (!filePath || !fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document file not found on storage system'
+            });
+        }
+
+        res.download(filePath, document.original_name, (err) => {
             if (err) {
                 console.error('Download error:', err);
                 res.status(500).json({
@@ -284,25 +591,179 @@ router.get('/:documentId/download', authenticateToken, (req, res) => {
     }
 });
 
+// View document (inline, for iframe display)
+router.get('/:documentId/view', authenticateToken, async (req, res) => {
+    try {
+        const { documentId } = req.params;
+
+        const document = await db.getDocumentById(documentId);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document not found'
+            });
+        }
+
+        // Get vehicle to check permissions
+        const vehicle = await db.getVehicleById(document.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permission - Allow: admins, vehicle owners, and verifiers
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        
+        if (!isAdmin && !isOwner && !isVerifier) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Get document from storage service (handles IPFS or local)
+        let filePath = null;
+        let mimeType = document.mime_type || 'application/pdf';
+
+        // Use storage service to get document (will query database and retrieve from IPFS if needed)
+        if (document.ipfs_cid || document.file_path) {
+            try {
+                const storageResult = await storageService.getDocument(document.id);
+                filePath = storageResult.filePath;
+                if (storageResult.mimeType) {
+                    mimeType = storageResult.mimeType;
+                }
+            } catch (storageError) {
+                console.error('Storage service error:', storageError);
+                // Try direct file path as last resort
+                if (document.file_path && fs.existsSync(document.file_path)) {
+                    filePath = document.file_path;
+                } else {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Document file not found',
+                        details: storageError.message
+                    });
+                }
+            }
+        } else {
+            return res.status(404).json({
+                success: false,
+                error: 'Document has no storage location (no IPFS CID or file path)'
+            });
+        }
+
+        // Check if file exists
+        if (!filePath || !fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document file not found on storage system'
+            });
+        }
+
+        // Set headers for inline viewing
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="${document.original_name}"`);
+        
+        // Send file
+        res.sendFile(path.resolve(filePath), (err) => {
+            if (err) {
+                console.error('View error:', err);
+                res.status(500).json({
+                    success: false,
+                    error: 'Failed to view document'
+                });
+            }
+        });
+
+    } catch (error) {
+        console.error('View error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to view document'
+        });
+    }
+});
+
 // Verify document integrity
 router.post('/:documentId/verify', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
 
-        // Mock document verification
-        const verification = {
-            documentId,
-            verified: true,
-            hash: 'QmXvJ1Z...',
-            timestamp: new Date().toISOString(),
-            verifiedBy: req.user.userId,
-            details: 'Document integrity verified successfully'
-        };
+        const document = await db.getDocumentById(documentId);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document not found'
+            });
+        }
+
+        // Check permission (admin or verifier only)
+        if (!['admin', 'insurance_verifier', 'emission_verifier'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Verify document using storage service (handles IPFS or local)
+        let verificationResult;
+        try {
+            verificationResult = await storageService.verifyDocument(documentId);
+        } catch (verifyError) {
+            console.error('Verification error:', verifyError);
+            // Fallback to basic hash check
+            let currentHash = null;
+            if (fs.existsSync(document.file_path)) {
+                currentHash = calculateFileHash(document.file_path);
+            }
+            const hashMatches = currentHash === document.file_hash;
+            
+            if (hashMatches) {
+                await db.verifyDocument(documentId, req.user.userId);
+            }
+
+            return res.json({
+                success: true,
+                message: hashMatches ? 'Document verified successfully' : 'Document hash mismatch',
+                verification: {
+                    documentId: document.id,
+                    verified: hashMatches,
+                    hash: document.file_hash,
+                    currentHash: currentHash,
+                    hashMatches: hashMatches,
+                    timestamp: new Date().toISOString(),
+                    verifiedBy: hashMatches ? req.user.userId : null,
+                    details: hashMatches ? 'Document integrity verified successfully' : 'Document file may have been modified'
+                }
+            });
+        }
+
+        // Update verification status if verified
+        if (verificationResult.integrityValid) {
+            await db.verifyDocument(documentId, req.user.userId);
+        }
 
         res.json({
             success: true,
-            message: 'Document verified successfully',
-            verification
+            message: verificationResult.integrityValid ? 'Document verified successfully' : 'Document verification failed',
+            verification: {
+                documentId: document.id,
+                verified: verificationResult.integrityValid,
+                hash: document.file_hash,
+                currentHash: verificationResult.storedHash,
+                hashMatches: verificationResult.integrityValid,
+                timestamp: verificationResult.verifiedAt || new Date().toISOString(),
+                verifiedBy: verificationResult.integrityValid ? req.user.userId : null,
+                storageMode: verificationResult.storageMode || 'local',
+                ipfsExists: verificationResult.ipfsExists || null,
+                ipfsPinned: verificationResult.ipfsPinned || null,
+                details: verificationResult.integrityValid ? 'Document integrity verified successfully' : 'Document verification failed'
+            }
         });
 
     } catch (error) {
@@ -315,44 +776,57 @@ router.post('/:documentId/verify', authenticateToken, async (req, res) => {
 });
 
 // Get documents by vehicle VIN
-router.get('/vehicle/:vin', authenticateToken, (req, res) => {
+router.get('/vehicle/:vin', authenticateToken, async (req, res) => {
     try {
         const { vin } = req.params;
 
-        // Mock documents for vehicle
-        const documents = [
-            {
-                id: 'DOC001',
-                documentType: 'registrationCert',
-                originalName: 'registration_certificate.pdf',
-                fileSize: 1024000,
-                ipfsHash: 'QmXvJ1Z...',
-                uploadedAt: '2024-01-15T10:30:00Z',
-                status: 'UPLOADED'
-            },
-            {
-                id: 'DOC002',
-                documentType: 'insuranceCert',
-                originalName: 'insurance_certificate.pdf',
-                fileSize: 512000,
-                ipfsHash: 'QmAbC2D...',
-                uploadedAt: '2024-01-15T11:00:00Z',
-                status: 'UPLOADED'
-            },
-            {
-                id: 'DOC003',
-                documentType: 'emissionCert',
-                originalName: 'emission_test.pdf',
-                fileSize: 256000,
-                ipfsHash: 'QmEfG3H...',
-                uploadedAt: '2024-01-15T11:30:00Z',
-                status: 'UPLOADED'
-            }
-        ];
+        const vehicle = await db.getVehicleByVin(vin);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permission
+        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        const documents = await db.getDocumentsByVehicle(vehicle.id);
 
         res.json({
             success: true,
-            documents,
+            documents: documents.map(doc => ({
+                id: doc.id,
+                vehicleId: doc.vehicle_id,
+                documentType: doc.document_type,
+                document_type: doc.document_type, // Keep both for compatibility
+                originalName: doc.original_name,
+                original_name: doc.original_name,
+                filename: doc.filename,
+                fileSize: doc.file_size,
+                file_size: doc.file_size,
+                fileHash: doc.file_hash,
+                file_hash: doc.file_hash,
+                mimeType: doc.mime_type,
+                mime_type: doc.mime_type,
+                uploadedBy: doc.uploaded_by,
+                uploaded_by: doc.uploaded_by,
+                uploadedAt: doc.uploaded_at,
+                uploaded_at: doc.uploaded_at,
+                verified: doc.verified,
+                verifiedAt: doc.verified_at,
+                verified_at: doc.verified_at,
+                uploaderName: doc.uploader_name,
+                ipfs_cid: doc.ipfs_cid,
+                cid: doc.ipfs_cid,
+                url: doc.url || `/uploads/${doc.filename}`,
+                file_path: doc.file_path
+            })),
             count: documents.length
         });
 
@@ -366,11 +840,44 @@ router.get('/vehicle/:vin', authenticateToken, (req, res) => {
 });
 
 // Delete document
-router.delete('/:documentId', authenticateToken, (req, res) => {
+router.delete('/:documentId', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
 
-        // Mock document deletion
+        const document = await db.getDocumentById(documentId);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document not found'
+            });
+        }
+
+        // Get vehicle to check permissions
+        const vehicle = await db.getVehicleById(document.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permission (admin or owner)
+        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Delete file from filesystem
+        if (fs.existsSync(document.file_path)) {
+            fs.unlinkSync(document.file_path);
+        }
+
+        // Delete from database
+        const dbModule = require('../database/db');
+        await dbModule.query('DELETE FROM documents WHERE id = $1', [documentId]);
+
         res.json({
             success: true,
             message: 'Document deleted successfully'
@@ -384,30 +891,5 @@ router.delete('/:documentId', authenticateToken, (req, res) => {
         });
     }
 });
-
-// Middleware to authenticate JWT token
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            error: 'Access token required'
-        });
-    }
-
-    const jwt = require('jsonwebtoken');
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
-        if (err) {
-            return res.status(403).json({
-                success: false,
-                error: 'Invalid or expired token'
-            });
-        }
-        req.user = user;
-        next();
-    });
-}
 
 module.exports = router;

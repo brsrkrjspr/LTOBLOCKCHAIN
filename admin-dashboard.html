@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
 </head>
 <body>
@@ -18,10 +21,10 @@
                     </div>
                     <div class="user-info">
                         <div class="user-profile">
-                            <div class="user-avatar">AD</div>
+                            <div class="user-avatar" id="userAvatar">AD</div>
                             <div class="user-details">
-                                <span class="user-name">Admin User</span>
-                                <span class="user-role">System Administrator</span>
+                                <span class="user-name" id="userName">Loading...</span>
+                                <span class="user-role" id="userRole">Loading...</span>
                             </div>
                         </div>
                         <div class="user-actions">
@@ -180,5 +183,37 @@
     </div>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-modals.js"></script>
+    <script>
+        // Initialize user data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    
+                    if (userNameEl) {
+                        userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    if (userRoleEl) {
+                        const roleNames = {
+                            'vehicle_owner': 'Vehicle Owner',
+                            'admin': 'System Administrator',
+                            'insurance_verifier': 'Insurance Verifier',
+                            'emission_verifier': 'Emission Verifier'
+                        };
+                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (userAvatarEl) {
+                        userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    }
+                } else {
+                    // Not authenticated, redirect to login
+                    window.location.href = 'login.html';
+                }
+            }
+        });
+    </script>
 </body>
 </html>

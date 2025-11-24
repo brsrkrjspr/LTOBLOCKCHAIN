@@ -118,13 +118,16 @@ function handleViewApplication(e) {
     const vehicleInfo = row.querySelector('.vehicle-info strong').textContent;
     const applicationId = row.querySelector('td:nth-child(2)').textContent;
     
-    // Simulate opening document viewer
-    showNotification(`Opening documents for ${vehicleInfo} (${applicationId})`, 'info');
-    
-    // In a real application, this would navigate to document-viewer.html with parameters
-    setTimeout(() => {
-        window.location.href = 'document-viewer.html?app=' + applicationId;
-    }, 1000);
+    // Find the application to get vehicle details
+    const application = allApplications.find(app => app.id === applicationId);
+    if (application && application.vehicle) {
+        const vin = application.vehicle.vin;
+        // Navigate to document viewer with VIN
+        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=registration`;
+    } else {
+        // Fallback to appId
+        window.location.href = `document-viewer.html?appId=${applicationId}&type=registration`;
+    }
 }
 
 function animateStatusUpdates() {
@@ -310,24 +313,96 @@ function initializeSubmittedApplications() {
     setInterval(loadUserApplications, 10000); // Update every 10 seconds
 }
 
-function loadUserApplications() {
-    allApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+async function loadUserApplications() {
     const applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
-    
     if (!applicationsTable) return;
     
-    // Sort applications by submission date (newest first)
-    allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+    // Show loading state
+    applicationsTable.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
     
-    // Apply filters
-    filteredApplications = applyFilters(allApplications);
-    
-    // Update pagination
-    updatePagination();
-    renderApplications();
-    
-    // Update stats based on all applications
-    updateStatsFromApplications(allApplications);
+    try {
+        // Try to load from API first
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (token && typeof APIClient !== 'undefined') {
+            try {
+                const apiClient = new APIClient();
+                const response = await apiClient.get('/api/vehicles/my-vehicles');
+                
+                if (response && response.success && response.vehicles) {
+                    // Convert vehicles to application format
+                    allApplications = response.vehicles.map(vehicle => ({
+                        id: vehicle.id,
+                        vehicle: {
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
+                            vin: vehicle.vin
+                        },
+                        status: vehicle.status?.toLowerCase() || 'submitted',
+                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
+                        documents: vehicle.documents || []
+                    }));
+                    
+                    // Save to localStorage for offline access
+                    localStorage.setItem('userApplications', JSON.stringify(allApplications));
+                    
+                    // Sort applications by submission date (newest first)
+                    allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+                    
+                    // Apply filters
+                    filteredApplications = applyFilters(allApplications);
+                    
+                    // Update pagination
+                    updatePagination();
+                    renderApplications();
+                    
+                    // Update stats based on all applications
+                    updateStatsFromApplications(allApplications);
+                    return;
+                }
+            } catch (apiError) {
+                console.warn('API load failed, trying localStorage:', apiError);
+            }
+        }
+        
+        // Fallback to localStorage
+        allApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+        
+        if (allApplications.length === 0) {
+            applicationsTable.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
+                        No applications found. <a href="registration-wizard.html" style="color: #007bff;">Register a vehicle</a>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Sort applications by submission date (newest first)
+        allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+        
+        // Apply filters
+        filteredApplications = applyFilters(allApplications);
+        
+        // Update pagination
+        updatePagination();
+        renderApplications();
+        
+        // Update stats based on all applications
+        updateStatsFromApplications(allApplications);
+        
+    } catch (error) {
+        console.error('Error loading applications:', error);
+        applicationsTable.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 20px; color: #dc3545;">
+                    Error loading applications. Please refresh the page.
+                </td>
+            </tr>
+        `;
+    }
 }
 
 function applyFilters(applications) {
@@ -498,6 +573,42 @@ function updateStatsFromApplications(applications) {
 }
 
 function viewUserApplication(applicationId) {
+    // Find the application to get vehicle details
+    const application = allApplications.find(app => app.id === applicationId);
+    if (application && application.vehicle) {
+        const vin = application.vehicle.vin;
+        // Check if we have specific documents to view
+        if (application.documents && application.documents.length > 0) {
+            // If only one document, view it directly
+            if (application.documents.length === 1) {
+                const doc = application.documents[0];
+                const docType = doc.documentType || doc.document_type || 'registration';
+                const typeParam = docType.replace('_cert', '').replace('_', '');
+                // Check if document has valid ID
+                const isValidDocumentId = doc.id && 
+                    typeof doc.id === 'string' && 
+                    doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
+                    !doc.id.startsWith('TEMP_');
+                if (isValidDocumentId) {
+                    window.location.href = `document-viewer.html?documentId=${doc.id}`;
+                } else {
+                    window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=${typeParam}`;
+                }
+            } else {
+                // Multiple documents - show all via VIN
+                window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=registration`;
+            }
+        } else {
+            // No documents - still try to view by VIN
+            window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=registration`;
+        }
+    } else {
+        // Fallback to appId
+        window.location.href = `document-viewer.html?appId=${applicationId}&type=registration`;
+    }
+}
+
+function viewUserApplication_OLD(applicationId) {
     const applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
     const application = applications.find(app => app.id === applicationId);
     

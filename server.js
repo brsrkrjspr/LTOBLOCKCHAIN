@@ -24,7 +24,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https:", "data:"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
-            frameSrc: ["'none'"],
+            frameSrc: ["'self'", "blob:"], // Allow iframes from same origin and blob URLs
         },
     },
 }));
@@ -33,10 +33,17 @@ app.use(cors({
     credentials: true
 }));
 
-// Rate limiting
+// Rate limiting - more lenient for development
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+    max: 1000, // limit each IP to 1000 requests per windowMs (increased for development)
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+        // Skip rate limiting for health checks
+        return req.path === '/api/health';
+    }
 });
 app.use(limiter);
 
@@ -129,12 +136,28 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Initialize storage service on startup (non-blocking)
+const storageService = require('./backend/services/storageService');
+storageService.initialize().then(result => {
+    console.log(`📦 Storage service initialized: ${result.mode} mode`);
+    if (process.env.STORAGE_MODE === 'ipfs' && result.mode !== 'ipfs') {
+        console.error('❌ WARNING: STORAGE_MODE=ipfs but storage service initialized in', result.mode, 'mode');
+    }
+}).catch(error => {
+    console.error('❌ Storage service initialization failed:', error.message);
+    if (process.env.STORAGE_MODE === 'ipfs') {
+        console.error('❌ CRITICAL: IPFS mode required but initialization failed. Documents will fail to upload.');
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 TrustChain LTO System running on port ${PORT}`);
     console.log(`📁 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
     console.log(`🌐 Frontend URL: http://localhost:${PORT}`);
+    console.log(`📦 Storage Mode: ${process.env.STORAGE_MODE || 'auto'}`);
+    console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'mock'}`);
 });
 
 module.exports = app;

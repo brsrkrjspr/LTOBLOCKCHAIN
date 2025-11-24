@@ -8,6 +8,26 @@ services:
   # HYPERLEDGER FABRIC NETWORK
   # ===========================================
   
+  # Certificate Authority (CA)
+  ca.lto.gov.ph:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.lto.gov.ph
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca.lto.gov.ph
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=7054
+      - FABRIC_CA_SERVER_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+    ports:
+      - "7054:7054"
+      - "9443:9443"
+    volumes:
+      - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/ca:/etc/hyperledger/fabric-ca-server-config
+      - ca.lto.gov.ph:/etc/hyperledger/fabric-ca-server
+    command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
+    networks:
+      - lto-network
+  
   # Orderer Services (Raft Consensus)
   orderer1.lto.gov.ph:
     image: hyperledger/fabric-orderer:2.5
@@ -134,6 +154,7 @@ services:
     ports:
       - "7051:7051"
     depends_on:
+      - ca.lto.gov.ph
       - orderer1.lto.gov.ph
       - orderer2.lto.gov.ph
       - orderer3.lto.gov.ph
@@ -241,11 +262,17 @@ services:
       - DB_PASSWORD=lto_password
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - IPFS_HOST=ipfs-cluster
-      - IPFS_PORT=9094
+      - REDIS_PASSWORD=redis_password
+      - IPFS_HOST=ipfs-node-1
+      - IPFS_PORT=5001
+      - IPFS_PROTOCOL=http
+      - STORAGE_MODE=ipfs
+      - BLOCKCHAIN_MODE=fabric
       - FABRIC_NETWORK_CONFIG=./network-config.yaml
-      - JWT_SECRET=your-jwt-secret-here
-      - ENCRYPTION_KEY=your-encryption-key-here
+      - FABRIC_CHANNEL=ltochannel
+      - FABRIC_CHAINCODE=vehicle-registration
+      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-secret-key}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-this-to-a-random-encryption-key}
     ports:
       - "3001:3001"
     volumes:
@@ -428,6 +455,7 @@ services:
 
 volumes:
   # Fabric Volumes
+  ca.lto.gov.ph:
   orderer1.lto.gov.ph:
   orderer2.lto.gov.ph:
   orderer3.lto.gov.ph:

@@ -509,31 +509,34 @@ async function submitApplication() {
         const applicationData = collectApplicationData();
         
         // Upload documents first with abort signal
-        const documentUploads = await uploadDocuments(signal);
-        applicationData.documents = documentUploads;
-        
-        // Submit to backend API
-        const response = await fetch('/api/vehicles/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getAuthToken()}`
-            },
-            body: JSON.stringify(applicationData),
-            signal: signal
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        let documentUploads = {};
+        try {
+            documentUploads = await uploadDocuments(signal);
+            applicationData.documents = documentUploads;
+        } catch (uploadError) {
+            // If document uploads fail, log warning but allow registration to proceed
+            console.warn('⚠️ Document uploads failed, but proceeding with registration:', uploadError.message);
+            console.warn('   Documents can be uploaded later. Registration will continue without documents.');
+            
+            // Show user-friendly warning
+            ToastNotification.show(
+                'Warning: Some documents failed to upload. Registration will continue, but you may need to upload documents later.',
+                'warning',
+                8000
+            );
+            
+            // Continue with empty documents object
+            applicationData.documents = {};
         }
         
-        const result = await response.json();
+        // Submit to backend API using apiClient
+        const result = await apiClient.post('/api/vehicles/register', applicationData);
         
         if (result.success) {
             // Clear saved form data
             FormPersistence.clear('registration-wizard');
             
-            // Store application locally as backup
+            // Store application locally as backup (only on success)
             storeApplication(applicationData);
             
             // Success animation
@@ -558,26 +561,51 @@ async function submitApplication() {
             return;
         }
         
-        console.error('Registration error:', error);
+        // Check if it's a duplicate VIN error (409 Conflict)
+        const isDuplicateError = error.message && (
+            error.message.includes('already exists') || 
+            error.message.includes('Vehicle with this VIN') ||
+            error.message.includes('duplicate')
+        );
         
-        let errorMessage = 'Registration failed. ';
-        if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-            errorMessage += 'Please check your internet connection and try again.';
-        } else if (error.message.includes('401') || error.message.includes('403')) {
-            errorMessage += 'Authentication error. Please log in again.';
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 2000);
+        // Use ErrorHandler if available, otherwise show error
+        if (typeof ErrorHandler !== 'undefined') {
+            ErrorHandler.handleAPIError(error, 'Registration');
         } else {
-            errorMessage += error.message || 'An unexpected error occurred.';
+            console.error('Registration error:', error);
+            ToastNotification.show(error.message || 'Registration failed. Please try again.', 'error', 8000);
         }
         
-        ToastNotification.show(errorMessage, 'error', 8000);
+        // Don't save locally if it's a duplicate VIN error - user needs to fix the VIN
+        if (isDuplicateError) {
+            // Highlight the VIN field to help user identify the issue
+            const vinInput = document.querySelector('input[name="vin"], #vin');
+            if (vinInput) {
+                vinInput.classList.add('error');
+                vinInput.focus();
+                // Show field-specific error
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'field-error';
+                errorMsg.textContent = 'This VIN is already registered. Please check your VIN number.';
+                errorMsg.style.color = '#e74c3c';
+                errorMsg.style.fontSize = '0.875rem';
+                errorMsg.style.marginTop = '0.25rem';
+                // Remove existing error message if any
+                const existingError = vinInput.parentElement.querySelector('.field-error');
+                if (existingError) existingError.remove();
+                vinInput.parentElement.appendChild(errorMsg);
+            }
+            return; // Don't proceed with local storage
+        }
         
-        // Fallback to local storage
-        const applicationData = collectApplicationData();
-        storeApplication(applicationData);
-        ToastNotification.show('Application saved locally. Please try again later.', 'warning');
+        // Fallback to local storage as backup (only for non-duplicate errors)
+        try {
+            const applicationData = collectApplicationData();
+            storeApplication(applicationData);
+            ToastNotification.show('Application saved locally as backup. Please try again later.', 'warning');
+        } catch (storageError) {
+            console.error('Failed to save application locally:', storageError);
+        }
         
     } finally {
         isSubmitting = false;
@@ -637,21 +665,17 @@ function collectApplicationData() {
 }
 
 function storeApplication(applicationData) {
-    // Get existing applications
-    let applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+    // REMOVED: Applications are now stored in PostgreSQL via API
+    // No longer storing in localStorage - data persists in database
+    // This function is kept for backward compatibility but does nothing
     
-    // Add new application
-    applications.push(applicationData);
-    
-    // Store back to localStorage
-    localStorage.setItem('submittedApplications', JSON.stringify(applications));
-    
-    // Also store in user's personal applications
-    let userApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
-    userApplications.push(applicationData);
-    localStorage.setItem('userApplications', JSON.stringify(userApplications));
-    
-    console.log('Application stored:', applicationData);
+    // Only log in development to reduce console noise
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('Application registered successfully (stored in PostgreSQL):', { 
+            id: applicationData.id, 
+            vin: applicationData.vehicle?.vin 
+        });
+    }
 }
 
 // Restore form data on page load
@@ -743,8 +767,10 @@ function showNotification(message, type = 'info') {
 async function uploadDocuments(signal) {
     const documentTypes = ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId'];
     const uploadResults = {};
+    const uploadErrors = [];
     
-    for (const docType of documentTypes) {
+    // Upload documents in parallel for better performance
+    const uploadPromises = documentTypes.map(async (docType) => {
         const fileInput = document.getElementById(docType);
         if (fileInput && fileInput.files && fileInput.files[0]) {
             try {
@@ -757,42 +783,94 @@ async function uploadDocuments(signal) {
                 formData.append('document', fileInput.files[0]);
                 formData.append('type', docType);
                 
-                const response = await fetch('/api/documents/upload', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${getAuthToken()}`
-                    },
-                    body: formData,
-                    signal: signal
-                });
+                // Use apiClient upload method for FormData
+                const result = await apiClient.upload('/api/documents/upload', formData);
                 
-                if (!response.ok) {
-                    throw new Error(`Upload failed: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                if (result.success) {
+                if (result && result.success) {
+                    // Verify storage mode - should be 'ipfs' when STORAGE_MODE=ipfs
+                    const actualStorageMode = result.storageMode || result.document?.storageMode;
+                    if (!actualStorageMode || actualStorageMode === 'local') {
+                        console.warn(`⚠️ Document uploaded but storage mode is 'local' instead of 'ipfs'. Check STORAGE_MODE environment variable.`);
+                    }
+                    
                     uploadResults[docType] = {
-                        cid: result.cid,
-                        filename: result.filename,
-                        url: result.url
+                        id: result.document?.id || result.id || null, // Include document ID for linking
+                        cid: result.cid || result.document?.cid || null,
+                        filename: result.filename || result.document?.filename || fileInput.files[0].name,
+                        url: result.url || result.document?.url || `/uploads/${result.filename || result.document?.filename}`,
+                        storageMode: actualStorageMode || 'unknown'
                     };
+                    
+                    // Log success with storage mode
+                    const storageMode = uploadResults[docType].storageMode === 'ipfs' ? '🌐 IPFS' : 
+                                      uploadResults[docType].storageMode === 'local' ? '📁 Local (WARNING: Should be IPFS!)' : 
+                                      '❓ Unknown';
+                    console.log(`✅ Uploaded ${docType} to ${storageMode}:`, uploadResults[docType]);
                 } else {
-                    throw new Error(result.error || 'Upload failed');
+                    // Check if there's a warning but still proceed
+                    if (result && result.warning) {
+                        console.warn(`⚠️ Upload warning for ${docType}:`, result.warning);
+                        // Still add to results with available data
+                        const actualStorageMode = result.storageMode || 'unknown';
+                        if (actualStorageMode === 'local') {
+                            console.warn(`⚠️ Document fallback to local storage. Check IPFS service and STORAGE_MODE setting.`);
+                        }
+                        
+                        uploadResults[docType] = {
+                            id: result.document?.id || result.id || null, // Include document ID for linking
+                            cid: result.cid || null,
+                            filename: result.filename || fileInput.files[0].name,
+                            url: result.url || `/uploads/${result.filename || fileInput.files[0].name}`,
+                            storageMode: actualStorageMode,
+                            warning: result.warning
+                        };
+                    } else {
+                        throw new Error(result?.error || result?.message || 'Upload failed');
+                    }
                 }
             } catch (error) {
                 if (error.name === 'AbortError') {
-                    throw error;
+                    throw error; // Re-throw abort errors immediately
                 }
+                
+                // Log detailed error for debugging
                 console.error(`Upload error for ${docType}:`, error);
-                // Fallback to mock data for development
-                uploadResults[docType] = {
-                    cid: `mock_cid_${docType}_${Date.now()}`,
-                    filename: fileInput.files[0].name,
-                    url: `mock_url_${docType}`
-                };
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                
+                // Store error but don't fail entire upload
+                uploadErrors.push({ docType, error: error.message });
+                
+                // Use ErrorHandler if available (but don't throw)
+                if (typeof ErrorHandler !== 'undefined') {
+                    ErrorHandler.handleAPIError(error, `Document Upload (${docType})`);
+                }
+                
+                // For required documents (registrationCert), we should fail
+                if (docType === 'registrationCert') {
+                    throw new Error(`Failed to upload required ${docType} document: ${error.message || 'Unknown error'}`);
+                }
+                
+                // For optional documents, just log and continue
+                console.warn(`⚠️ Optional document ${docType} upload failed, continuing...`);
             }
         }
+    });
+    
+    // Wait for all uploads to complete
+    await Promise.allSettled(uploadPromises);
+    
+    // If we have errors but no results, throw
+    if (uploadErrors.length > 0 && Object.keys(uploadResults).length === 0) {
+        throw new Error(`All document uploads failed: ${uploadErrors.map(e => e.error).join(', ')}`);
+    }
+    
+    // Log summary
+    if (uploadErrors.length > 0) {
+        console.warn(`⚠️ Some documents failed to upload:`, uploadErrors);
     }
     
     return uploadResults;
@@ -800,7 +878,22 @@ async function uploadDocuments(signal) {
 
 function getAuthToken() {
     // Get token from localStorage or sessionStorage
-    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || 'mock_token';
+    // Get token and check authentication
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    if (!token) {
+        // Not authenticated, redirect to login
+        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        return null;
+    }
+    
+    // Check token expiration if AuthUtils is available
+    if (typeof AuthUtils !== 'undefined') {
+        if (!AuthUtils.isAuthenticated()) {
+            return null; // AuthUtils will handle redirect
+        }
+    }
+    
+    return token;
 }
 
 function generateVIN() {

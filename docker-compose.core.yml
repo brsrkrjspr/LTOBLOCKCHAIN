@@ -1,0 +1,337 @@
+# TrustChain LTO - Core Services Docker Compose
+# Production-ready local deployment with PostgreSQL, IPFS, and Hyperledger Fabric
+# All services are FREE - no payment required
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # DATABASE SERVICES
+  # ===========================================
+  
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=lto_blockchain
+      - POSTGRES_USER=lto_user
+      - POSTGRES_PASSWORD=lto_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init-laptop.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lto_user -d lto_blockchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=4MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=512MB
+      -c max_wal_size=2GB
+      -c max_connections=100
+
+  # Redis Cache (Optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes --requirepass redis_password --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ===========================================
+  # IPFS STORAGE
+  # ===========================================
+  
+  # IPFS Node (Single node for local deployment)
+  ipfs:
+    image: ipfs/go-ipfs:latest
+    container_name: ipfs
+    environment:
+      - IPFS_PROFILE=server
+    ports:
+      - "4001:4001"   # Swarm port
+      - "5001:5001"   # API port
+      - "8080:8080"   # Gateway port
+    volumes:
+      - ipfs-data:/data/ipfs
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:5001/api/v0/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Configure CORS and API address to allow access from application
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /data/ipfs/config ]; then
+          ipfs init --profile=server
+        fi
+        ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
+        ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["PUT", "POST", "GET", "OPTIONS"]'
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Headers '["*"]'
+        ipfs config --json API.HTTPHeaders.Access-Control-Expose-Headers '["*"]'
+        ipfs config --json Gateway.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
+        ipfs config --json Gateway.HTTPHeaders.Access-Control-Allow-Methods '["PUT", "POST", "GET", "OPTIONS"]'
+        ipfs daemon --migrate=true
+
+  # ===========================================
+  # HYPERLEDGER FABRIC NETWORK
+  # ===========================================
+  
+  # Certificate Authority (CA)
+  ca.lto.gov.ph:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.lto.gov.ph
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca.lto.gov.ph
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=7054
+      - FABRIC_CA_SERVER_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+    ports:
+      - "7054:7054"
+      - "9443:9443"
+    volumes:
+      - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/ca:/etc/hyperledger/fabric-ca-server-config:ro
+      - ca-data:/etc/hyperledger/fabric-ca-server
+    depends_on: []
+    command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # Orderer 1 (Raft Consensus)
+  orderer1.lto.gov.ph:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer1.lto.gov.ph
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/orderer.genesis.block
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/msp:/var/hyperledger/orderer/msp:ro
+      - ./fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/tls:/var/hyperledger/orderer/tls:ro
+      - ./fabric-network/channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block:ro
+      - orderer1-data:/var/hyperledger/production/orderer
+    ports:
+      - "7050:7050"
+    networks:
+      - lto-network
+    restart: unless-stopped
+    depends_on:
+      - ca.lto.gov.ph
+
+  # Orderer 2 (Raft Consensus)
+  orderer2.lto.gov.ph:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer2.lto.gov.ph
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer2.lto.gov.ph/msp:/var/hyperledger/orderer/msp:ro
+      - ./fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer2.lto.gov.ph/tls:/var/hyperledger/orderer/tls:ro
+      - ./fabric-network/channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block:ro
+      - orderer2-data:/var/hyperledger/production/orderer
+    ports:
+      - "8050:7050"
+    networks:
+      - lto-network
+    restart: unless-stopped
+    depends_on:
+      - ca.lto.gov.ph
+
+  # Orderer 3 (Raft Consensus)
+  orderer3.lto.gov.ph:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer3.lto.gov.ph
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer3.lto.gov.ph/msp:/var/hyperledger/orderer/msp:ro
+      - ./fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer3.lto.gov.ph/tls:/var/hyperledger/orderer/tls:ro
+      - ./fabric-network/channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block:ro
+      - orderer3-data:/var/hyperledger/production/orderer
+    ports:
+      - "9050:7050"
+    networks:
+      - lto-network
+    restart: unless-stopped
+    depends_on:
+      - ca.lto.gov.ph
+
+  # LTO Organization Peer
+  peer0.lto.gov.ph:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.lto.gov.ph
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=lto-network
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true
+      - CORE_PEER_GOSSIP_ORGLEADER=false
+      - CORE_PEER_PROFILE_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer0.lto.gov.ph
+      - CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.lto.gov.ph:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.lto.gov.ph:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.lto.gov.ph:7051
+      - CORE_PEER_LOCALMSPID=LTOMSP
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb0:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp:/etc/hyperledger/fabric/msp:ro
+      - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls:/etc/hyperledger/fabric/tls:ro
+      - peer0-data:/var/hyperledger/production
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - "7051:7051"
+    depends_on:
+      - ca.lto.gov.ph
+      - orderer1.lto.gov.ph
+      - orderer2.lto.gov.ph
+      - orderer3.lto.gov.ph
+      - couchdb0
+    networks:
+      - lto-network
+    restart: unless-stopped
+
+  # CouchDB for Peer State Database
+  couchdb0:
+    image: couchdb:3.2
+    container_name: couchdb0
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5984/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  # Database Volumes
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  
+  # IPFS Volumes
+  ipfs-data:
+    driver: local
+  
+  # Fabric Volumes
+  ca-data:
+    driver: local
+  orderer1-data:
+    driver: local
+  orderer2-data:
+    driver: local
+  orderer3-data:
+    driver: local
+  peer0-data:
+    driver: local
+  couchdb-data:
+    driver: local
+
+networks:
+  lto-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+

@@ -1,7 +1,15 @@
 // Admin Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     initializeAdminDashboard();
+    initializeKeyboardShortcuts();
+    initializePagination();
 });
+
+// Pagination state
+let currentPage = 1;
+const itemsPerPage = 10;
+let allApplications = [];
+let filteredApplications = [];
 
 function initializeAdminDashboard() {
     // Initialize real-time stats updates
@@ -26,20 +34,39 @@ function initializeAdminDashboard() {
     setInterval(updateSystemStats, 30000); // Update every 30 seconds
 }
 
-function updateSystemStats() {
-    // Simulate real-time data updates
-    const stats = {
-        totalUsers: Math.floor(Math.random() * 100) + 1200,
-        totalApplications: Math.floor(Math.random() * 200) + 3500,
-        activeOrganizations: Math.floor(Math.random() * 10) + 85,
-        systemUptime: (99.5 + Math.random() * 0.4).toFixed(1) + '%'
-    };
+async function updateSystemStats() {
+    // Show loading state
+    const statCards = document.querySelectorAll('.stat-card .stat-number');
+    statCards.forEach(card => {
+        card.textContent = '...';
+    });
     
-    // Update stat cards
-    document.querySelector('.stat-card:nth-child(1) .stat-number').textContent = stats.totalUsers.toLocaleString();
-    document.querySelector('.stat-card:nth-child(2) .stat-number').textContent = stats.totalApplications.toLocaleString();
-    document.querySelector('.stat-card:nth-child(3) .stat-number').textContent = stats.activeOrganizations;
-    document.querySelector('.stat-card:nth-child(4) .stat-number').textContent = stats.systemUptime;
+    try {
+        // Simulate API call with abort controller
+        const signal = requestManager.createRequest('system-stats');
+        
+        // Simulate real-time data updates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const stats = {
+            totalUsers: Math.floor(Math.random() * 100) + 1200,
+            totalApplications: Math.floor(Math.random() * 200) + 3500,
+            activeOrganizations: Math.floor(Math.random() * 10) + 85,
+            systemUptime: (99.5 + Math.random() * 0.4).toFixed(1) + '%'
+        };
+        
+        // Update stat cards
+        if (statCards.length >= 4) {
+            statCards[0].textContent = stats.totalUsers.toLocaleString();
+            statCards[1].textContent = stats.totalApplications.toLocaleString();
+            statCards[2].textContent = stats.activeOrganizations;
+            statCards[3].textContent = stats.systemUptime;
+        }
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.error('Failed to update stats:', error);
+        }
+    }
 }
 
 function initializeUserManagement() {
@@ -65,16 +92,36 @@ function initializeUserManagement() {
     }
 }
 
-function handleUserSuspend(e) {
+async function handleUserSuspend(e) {
     const row = e.target.closest('tr');
     const userId = row.querySelector('td:first-child').textContent;
     const userName = row.querySelector('td:nth-child(2)').textContent;
     
-    if (confirm(`Are you sure you want to suspend user ${userName} (${userId})?`)) {
-        // Simulate API call
-        showNotification('User suspended successfully', 'success');
-        row.querySelector('.status-badge').textContent = 'Suspended';
-        row.querySelector('.status-badge').className = 'status-badge status-suspended';
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Suspend User',
+        message: `Are you sure you want to suspend user ${userName} (${userId})? This action can be reversed later.`,
+        confirmText: 'Suspend User',
+        cancelText: 'Cancel',
+        confirmColor: '#e74c3c',
+        type: 'warning'
+    });
+    
+    if (confirmed) {
+        const button = e.target;
+        LoadingManager.show(button, 'Suspending...');
+        
+        try {
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            ToastNotification.show('User suspended successfully', 'success');
+            row.querySelector('.status-badge').textContent = 'Suspended';
+            row.querySelector('.status-badge').className = 'status-badge status-suspended';
+        } catch (error) {
+            ToastNotification.show('Failed to suspend user. Please try again.', 'error');
+        } finally {
+            LoadingManager.hide(button);
+        }
     }
 }
 
@@ -192,25 +239,7 @@ function createAuditLogElement(event) {
 }
 
 function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <span class="notification-message">${message}</span>
-            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-    
-    // Add to page
-    document.body.appendChild(notification);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 5000);
+    ToastNotification.show(message, type);
 }
 
 function initializeSubmittedApplications() {
@@ -221,37 +250,225 @@ function initializeSubmittedApplications() {
     setInterval(loadSubmittedApplications, 10000); // Update every 10 seconds
 }
 
-function loadSubmittedApplications() {
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+async function loadSubmittedApplications() {
     const tbody = document.getElementById('submitted-applications-tbody');
+    if (!tbody) return;
     
-    // Debug logging
-    console.log('Loading submitted applications:', applications);
-    console.log('Found tbody element:', tbody);
+    // Show loading state
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
     
+    try {
+        // Try to load from API first
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (token && typeof APIClient !== 'undefined') {
+            try {
+                const apiClient = new APIClient();
+                const response = await apiClient.get('/api/vehicles?status=SUBMITTED&limit=100');
+                
+                if (response && response.success && response.vehicles) {
+                    // Convert vehicles to application format
+                    allApplications = response.vehicles.map(vehicle => ({
+                        id: vehicle.id,
+                        vehicle: {
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
+                            vin: vehicle.vin,
+                            color: vehicle.color,
+                            engineNumber: vehicle.engineNumber || vehicle.engine_number,
+                            chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
+                        },
+                        owner: {
+                            firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
+                            lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
+                            email: vehicle.owner_email || 'unknown@example.com'
+                        },
+                        status: vehicle.status?.toLowerCase() || 'submitted',
+                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
+                        priority: vehicle.priority || 'MEDIUM',
+                        documents: vehicle.documents || [],
+                        verifications: vehicle.verifications || []
+                    }));
+                    
+                    // Save to localStorage for offline access
+                    localStorage.setItem('submittedApplications', JSON.stringify(allApplications));
+                    
+                    // Sort applications by submission date (newest first)
+                    allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+                    
+                    // Apply filters/search if any
+                    filteredApplications = applyFilters(allApplications);
+                    
+                    // Update pagination
+                    updatePagination();
+                    renderApplications();
+                    return;
+                }
+            } catch (apiError) {
+                console.warn('API load failed, trying localStorage:', apiError);
+            }
+        }
+        
+        // Fallback to localStorage
+        allApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+        
+        // Sort applications by submission date (newest first)
+        allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+        
+        // Apply filters/search if any
+        filteredApplications = applyFilters(allApplications);
+        
+        // Update pagination
+        updatePagination();
+        renderApplications();
+    } catch (error) {
+        console.error('Error loading applications:', error);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error loading applications. Please refresh the page.</td></tr>';
+    }
+}
+
+function applyFilters(applications) {
+    // Get search/filter values if they exist
+    const searchInput = document.getElementById('applicationSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    
+    let filtered = [...applications];
+    
+    // Apply search
+    if (searchInput && searchInput.value.trim()) {
+        const searchTerm = searchInput.value.toLowerCase();
+        filtered = filtered.filter(app => 
+            app.id.toLowerCase().includes(searchTerm) ||
+            `${app.vehicle.make} ${app.vehicle.model}`.toLowerCase().includes(searchTerm) ||
+            `${app.owner.firstName} ${app.owner.lastName}`.toLowerCase().includes(searchTerm) ||
+            app.vehicle.plateNumber.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Apply status filter
+    if (statusFilter && statusFilter.value !== 'all') {
+        filtered = filtered.filter(app => app.status === statusFilter.value);
+    }
+    
+    return filtered;
+}
+
+function renderApplications() {
+    const tbody = document.getElementById('submitted-applications-tbody');
     if (!tbody) return;
     
     // Clear existing rows
     tbody.innerHTML = '';
     
-    if (applications.length === 0) {
+    if (filteredApplications.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="7" style="text-align: center; padding: 20px; color: #666;">
-                    No submitted applications found
+                    No applications found
                 </td>
             </tr>
         `;
         return;
     }
     
-    // Sort applications by submission date (newest first)
-    applications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+    // Calculate pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageApplications = filteredApplications.slice(startIndex, endIndex);
     
     // Display applications
-    applications.forEach(app => {
+    pageApplications.forEach(app => {
         const row = createApplicationRow(app);
         tbody.appendChild(row);
+    });
+}
+
+function initializePagination() {
+    // Add search and filter controls if they don't exist
+    const tableContainer = document.querySelector('.dashboard-card:has(#submitted-applications-tbody)');
+    if (tableContainer && !document.getElementById('applicationSearch')) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'management-toolbar';
+        toolbar.innerHTML = `
+            <div class="search-box">
+                <input type="text" id="applicationSearch" placeholder="Search applications..." style="padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px; min-width: 250px;">
+            </div>
+            <div class="filter-box">
+                <select id="statusFilter" style="padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;">
+                    <option value="all">All Status</option>
+                    <option value="submitted">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="processing">Processing</option>
+                </select>
+            </div>
+        `;
+        
+        // Find the table-container div (which contains the table)
+        const tableContainerDiv = tableContainer.querySelector('.table-container');
+        if (tableContainerDiv) {
+            // Insert toolbar before the table-container div
+            tableContainer.insertBefore(toolbar, tableContainerDiv);
+        } else {
+            // Fallback: try to find table and insert before its parent
+            const table = tableContainer.querySelector('table');
+            if (table && table.parentElement) {
+                table.parentElement.insertBefore(toolbar, table);
+            }
+        }
+        
+        // Add event listeners
+        document.getElementById('applicationSearch')?.addEventListener('input', () => {
+            currentPage = 1;
+            loadSubmittedApplications();
+        });
+        
+        document.getElementById('statusFilter')?.addEventListener('change', () => {
+            currentPage = 1;
+            loadSubmittedApplications();
+        });
+    }
+    
+    // Add pagination container
+    const tbody = document.getElementById('submitted-applications-tbody');
+    if (tbody && !document.getElementById('pagination-container')) {
+        const paginationContainer = document.createElement('div');
+        paginationContainer.id = 'pagination-container';
+        paginationContainer.style.marginTop = '1rem';
+        tbody.closest('table')?.parentElement?.appendChild(paginationContainer);
+    }
+}
+
+function updatePagination() {
+    const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+    const container = document.getElementById('pagination-container');
+    
+    if (container) {
+        PaginationHelper.createPagination(container, currentPage, totalPages, (page) => {
+            currentPage = page;
+            renderApplications();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+}
+
+function initializeKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+F or Cmd+F to focus search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            const searchInput = document.getElementById('applicationSearch');
+            if (searchInput) {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        }
+        
+        // Ctrl+P or Cmd+P to print
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            e.preventDefault();
+            window.print();
+        }
     });
 }
 
@@ -289,16 +506,65 @@ function getStatusText(status) {
     return statusMap[status] || status;
 }
 
-function viewApplication(applicationId) {
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    const application = applications.find(app => app.id === applicationId);
-    
-    if (!application) {
-        showNotification('Application not found', 'error');
-        return;
+async function viewApplication(applicationId) {
+    try {
+        // Try to load from API first
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        let application = null;
+        
+        if (token && typeof APIClient !== 'undefined') {
+            try {
+                const apiClient = new APIClient();
+                // Use /id/:id route for UUID vehicle IDs
+                const response = await apiClient.get(`/api/vehicles/id/${applicationId}`);
+                
+                if (response && response.success && response.vehicle) {
+                    const vehicle = response.vehicle;
+                    application = {
+                        id: vehicle.id,
+                        vehicle: {
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
+                            vin: vehicle.vin,
+                            color: vehicle.color,
+                            engineNumber: vehicle.engineNumber || vehicle.engine_number,
+                            chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
+                        },
+                        owner: {
+                            firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
+                            lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
+                            email: vehicle.owner_email || 'unknown@example.com'
+                        },
+                        status: vehicle.status?.toLowerCase() || 'submitted',
+                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
+                        priority: vehicle.priority || 'MEDIUM',
+                        documents: vehicle.documents || [],
+                        verifications: vehicle.verifications || []
+                    };
+                }
+            } catch (apiError) {
+                console.warn('API load failed, trying localStorage:', apiError);
+            }
+        }
+        
+        // Fallback to localStorage
+        if (!application) {
+            const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            application = applications.find(app => app.id === applicationId);
+        }
+        
+        if (!application) {
+            showNotification('Application not found', 'error');
+            return;
+        }
+        
+        showApplicationModal(application);
+    } catch (error) {
+        console.error('Error viewing application:', error);
+        showNotification('Failed to load application details', 'error');
     }
-    
-    showApplicationModal(application);
 }
 
 function showApplicationModal(application) {
@@ -371,11 +637,41 @@ function showApplicationModal(application) {
                     <div class="detail-section">
                         <h4>Documents</h4>
                         <div class="document-list">
-                            <div class="document-item">📄 ${application.documents.registrationCert}</div>
-                            <div class="document-item">🛡️ ${application.documents.insuranceCert}</div>
-                            <div class="document-item">🌱 ${application.documents.emissionCert}</div>
-                            <div class="document-item">🆔 ${application.documents.ownerId}</div>
+                            ${application.documents && application.documents.length > 0 ? 
+                                application.documents.map(doc => {
+                                    const docType = doc.documentType || doc.document_type || 'document';
+                                    const typeNames = {
+                                        'registration_cert': '📄 Registration Certificate',
+                                        'insurance_cert': '🛡️ Insurance Certificate',
+                                        'emission_cert': '🌱 Emission Certificate',
+                                        'owner_id': '🆔 Owner ID'
+                                    };
+                                    const docName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
+                                    
+                                    // Use document ID if available (valid UUID), otherwise use VIN + type
+                                    const isValidDocumentId = doc.id && 
+                                        typeof doc.id === 'string' && 
+                                        doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
+                                        !doc.id.startsWith('TEMP_');
+                                    
+                                    const typeParam = docType.replace('_cert', '').replace('_', '');
+                                    const viewerUrl = isValidDocumentId 
+                                        ? `document-viewer.html?documentId=${doc.id}`
+                                        : `document-viewer.html?vin=${application.vehicle.vin || application.vehicle?.vin || ''}&type=${typeParam}`;
+                                    
+                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0;" onclick="window.open('${viewerUrl}', '_blank')">
+                                        ${docName}
+                                        <span style="float: right; color: #3498db;">View →</span>
+                                    </div>`;
+                                }).join('') :
+                                '<p style="color: #999;">No documents uploaded yet</p>'
+                            }
                         </div>
+                        ${application.vehicle && application.vehicle.vin ? `
+                        <div style="margin-top: 15px;">
+                            <a href="document-viewer.html?vin=${application.vehicle.vin}" target="_blank" class="btn-secondary">View All Documents</a>
+                        </div>
+                        ` : ''}
                     </div>
                     
                     <div class="detail-section">
@@ -406,29 +702,99 @@ function showApplicationModal(application) {
     });
 }
 
-function approveApplication(applicationId) {
-    if (confirm('Are you sure you want to approve this application?')) {
-        updateApplicationStatus(applicationId, 'approved', 'Application approved by admin');
-        showNotification('Application approved successfully! User will be notified.', 'success');
+async function approveApplication(applicationId) {
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Approve Application',
+        message: 'Are you sure you want to approve this application? The user will be notified immediately.',
+        confirmText: 'Approve',
+        cancelText: 'Cancel',
+        confirmColor: '#27ae60',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        const button = event?.target || document.querySelector(`[onclick*="approveApplication('${applicationId}')"]`);
+        if (button) LoadingManager.show(button, 'Approving...');
         
-        // Add notification for user
-        addUserNotification(applicationId, 'approved', 'Your application has been approved! You can now download your certificate.');
-        
-        loadSubmittedApplications(); // Refresh the table
+        try {
+            updateApplicationStatus(applicationId, 'approved', 'Application approved by admin');
+            ToastNotification.show('Application approved successfully! User will be notified.', 'success');
+            
+            // Add notification for user
+            addUserNotification(applicationId, 'approved', 'Your application has been approved! You can now download your certificate.');
+            
+            loadSubmittedApplications(); // Refresh the table
+        } catch (error) {
+            ToastNotification.show('Failed to approve application. Please try again.', 'error');
+        } finally {
+            if (button) LoadingManager.hide(button);
+        }
     }
 }
 
-function rejectApplication(applicationId) {
-    const reason = prompt('Please provide a reason for rejection:');
-    if (reason && reason.trim()) {
-        updateApplicationStatus(applicationId, 'rejected', `Application rejected: ${reason}`);
-        showNotification('Application rejected successfully! User will be notified.', 'success');
+async function rejectApplication(applicationId) {
+    // Show custom dialog for rejection reason
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Reject Application</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem;">Please provide a reason for rejection:</p>
+                <textarea id="rejectionReason" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button class="btn-danger" id="confirmReject">Reject Application</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    return new Promise((resolve) => {
+        modal.querySelector('#confirmReject').onclick = async function() {
+            const reason = document.getElementById('rejectionReason').value.trim();
+            if (!reason) {
+                ToastNotification.show('Please provide a reason for rejection', 'error');
+                return;
+            }
+            
+            const button = this;
+            LoadingManager.show(button, 'Rejecting...');
+            
+            try {
+                updateApplicationStatus(applicationId, 'rejected', `Application rejected: ${reason}`);
+                ToastNotification.show('Application rejected successfully! User will be notified.', 'success');
+                
+                // Add notification for user
+                addUserNotification(applicationId, 'rejected', `Your application has been rejected. Reason: ${reason}. Please review and resubmit.`);
+                
+                loadSubmittedApplications(); // Refresh the table
+                modal.remove();
+                resolve();
+            } catch (error) {
+                ToastNotification.show('Failed to reject application. Please try again.', 'error');
+            } finally {
+                LoadingManager.hide(button);
+            }
+        };
         
-        // Add notification for user
-        addUserNotification(applicationId, 'rejected', `Your application has been rejected. Reason: ${reason}. Please review and resubmit.`);
+        modal.querySelector('.modal-close').onclick = () => {
+            modal.remove();
+            resolve();
+        };
         
-        loadSubmittedApplications(); // Refresh the table
-    }
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.remove();
+                resolve();
+            }
+        };
+    });
 }
 
 function updateApplicationStatus(applicationId, newStatus, notes) {

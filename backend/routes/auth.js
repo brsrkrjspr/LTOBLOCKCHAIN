@@ -3,70 +3,24 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-
-// Mock user database (in production, use real database)
-const users = [
-    {
-        id: 'USR001',
-        email: 'admin@lto.gov.ph',
-        password: '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', // admin123
-        firstName: 'Admin',
-        lastName: 'User',
-        role: 'admin',
-        organization: 'LTO',
-        isActive: true,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'USR002',
-        email: 'verifier@insurance.com',
-        password: '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', // admin123
-        firstName: 'Insurance',
-        lastName: 'Verifier',
-        role: 'insurance_verifier',
-        organization: 'Insurance Company',
-        isActive: true,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'USR003',
-        email: 'verifier@emission.com',
-        password: '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', // admin123
-        firstName: 'Emission',
-        lastName: 'Verifier',
-        role: 'emission_verifier',
-        organization: 'Emission Testing Center',
-        isActive: true,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'USR004',
-        email: 'owner@example.com',
-        password: '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', // admin123
-        firstName: 'Vehicle',
-        lastName: 'Owner',
-        role: 'vehicle_owner',
-        organization: 'Individual',
-        isActive: true,
-        createdAt: new Date().toISOString()
-    }
-];
+const db = require('../database/services');
+const { authenticateToken } = require('../middleware/auth');
 
 // Register new user
 router.post('/register', async (req, res) => {
     try {
-        const { email, password, firstName, lastName, role, organization } = req.body;
+        const { email, password, firstName, lastName, role, organization, phone } = req.body;
 
         // Validate required fields
-        if (!email || !password || !firstName || !lastName || !role) {
+        if (!email || !password || !firstName || !lastName) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'Missing required fields (email, password, firstName, lastName)'
             });
         }
 
         // Check if user already exists
-        const existingUser = users.find(user => user.email === email);
+        const existingUser = await db.getUserByEmail(email);
         if (existingUser) {
             return res.status(400).json({
                 success: false,
@@ -76,22 +30,18 @@ router.post('/register', async (req, res) => {
 
         // Hash password
         const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const passwordHash = await bcrypt.hash(password, saltRounds);
 
         // Create new user
-        const newUser = {
-            id: 'USR' + Date.now(),
+        const newUser = await db.createUser({
             email,
-            password: hashedPassword,
+            passwordHash,
             firstName,
             lastName,
-            role,
+            role: role || 'vehicle_owner',
             organization: organization || 'Individual',
-            isActive: true,
-            createdAt: new Date().toISOString()
-        };
-
-        users.push(newUser);
+            phone
+        });
 
         // Generate JWT token
         const token = jwt.sign(
@@ -105,12 +55,19 @@ router.post('/register', async (req, res) => {
         );
 
         // Return user data (without password)
-        const { password: _, ...userWithoutPassword } = newUser;
-
         res.status(201).json({
             success: true,
             message: 'User registered successfully',
-            user: userWithoutPassword,
+            user: {
+                id: newUser.id,
+                email: newUser.email,
+                firstName: newUser.first_name,
+                lastName: newUser.last_name,
+                role: newUser.role,
+                organization: newUser.organization,
+                phone: newUser.phone,
+                createdAt: newUser.created_at
+            },
             token
         });
 
@@ -136,8 +93,8 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Find user
-        const user = users.find(u => u.email === email && u.isActive);
+        // Find user in database
+        const user = await db.getUserByEmail(email);
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -146,13 +103,16 @@ router.post('/login', async (req, res) => {
         }
 
         // Verify password
-        const isValidPassword = await bcrypt.compare(password, user.password);
+        const isValidPassword = await bcrypt.compare(password, user.password_hash);
         if (!isValidPassword) {
             return res.status(401).json({
                 success: false,
                 error: 'Invalid credentials'
             });
         }
+
+        // Update last login
+        await db.updateUserLastLogin(user.id);
 
         // Generate JWT token
         const token = jwt.sign(
@@ -166,12 +126,21 @@ router.post('/login', async (req, res) => {
         );
 
         // Return user data (without password)
-        const { password: _, ...userWithoutPassword } = user;
-
         res.json({
             success: true,
             message: 'Login successful',
-            user: userWithoutPassword,
+            user: {
+                id: user.id,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                role: user.role,
+                organization: user.organization,
+                phone: user.phone,
+                isActive: user.is_active,
+                emailVerified: user.email_verified,
+                createdAt: user.created_at
+            },
             token
         });
 
@@ -185,9 +154,9 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user profile
-router.get('/profile', authenticateToken, (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
     try {
-        const user = users.find(u => u.id === req.user.userId);
+        const user = await db.getUserById(req.user.userId);
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -195,11 +164,20 @@ router.get('/profile', authenticateToken, (req, res) => {
             });
         }
 
-        const { password: _, ...userWithoutPassword } = user;
-
         res.json({
             success: true,
-            user: userWithoutPassword
+            user: {
+                id: user.id,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                role: user.role,
+                organization: user.organization,
+                phone: user.phone,
+                isActive: user.is_active,
+                emailVerified: user.email_verified,
+                createdAt: user.created_at
+            }
         });
 
     } catch (error) {
@@ -214,10 +192,10 @@ router.get('/profile', authenticateToken, (req, res) => {
 // Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
     try {
-        const { firstName, lastName, organization } = req.body;
-        const userIndex = users.findIndex(u => u.id === req.user.userId);
+        const { firstName, lastName, organization, phone } = req.body;
+        const user = await db.getUserById(req.user.userId);
         
-        if (userIndex === -1) {
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 error: 'User not found'
@@ -225,17 +203,34 @@ router.put('/profile', authenticateToken, async (req, res) => {
         }
 
         // Update user data
-        if (firstName) users[userIndex].firstName = firstName;
-        if (lastName) users[userIndex].lastName = lastName;
-        if (organization) users[userIndex].organization = organization;
-        users[userIndex].lastUpdated = new Date().toISOString();
+        const updateData = {};
+        if (firstName) updateData.first_name = firstName;
+        if (lastName) updateData.last_name = lastName;
+        if (organization) updateData.organization = organization;
+        if (phone !== undefined) updateData.phone = phone;
 
-        const { password: _, ...userWithoutPassword } = users[userIndex];
+        if (Object.keys(updateData).length > 0) {
+            const dbModule = require('../database/db');
+            await dbModule.query(
+                `UPDATE users SET ${Object.keys(updateData).map((key, i) => `${key} = $${i + 1}`).join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${Object.keys(updateData).length + 1}`,
+                [...Object.values(updateData), req.user.userId]
+            );
+        }
+
+        const updatedUser = await db.getUserById(req.user.userId);
 
         res.json({
             success: true,
             message: 'Profile updated successfully',
-            user: userWithoutPassword
+            user: {
+                id: updatedUser.id,
+                email: updatedUser.email,
+                firstName: updatedUser.first_name,
+                lastName: updatedUser.last_name,
+                role: updatedUser.role,
+                organization: updatedUser.organization,
+                phone: updatedUser.phone
+            }
         });
 
     } catch (error) {
@@ -259,8 +254,8 @@ router.put('/change-password', authenticateToken, async (req, res) => {
             });
         }
 
-        const userIndex = users.findIndex(u => u.id === req.user.userId);
-        if (userIndex === -1) {
+        const user = await db.getUserByEmail(req.user.email);
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 error: 'User not found'
@@ -268,7 +263,7 @@ router.put('/change-password', authenticateToken, async (req, res) => {
         }
 
         // Verify current password
-        const isValidPassword = await bcrypt.compare(currentPassword, users[userIndex].password);
+        const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
         if (!isValidPassword) {
             return res.status(401).json({
                 success: false,
@@ -278,11 +273,14 @@ router.put('/change-password', authenticateToken, async (req, res) => {
 
         // Hash new password
         const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
-        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+        const passwordHash = await bcrypt.hash(newPassword, saltRounds);
 
         // Update password
-        users[userIndex].password = hashedPassword;
-        users[userIndex].lastUpdated = new Date().toISOString();
+        const dbModule = require('../database/db');
+        await dbModule.query(
+            'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [passwordHash, req.user.userId]
+        );
 
         res.json({
             success: true,
@@ -305,29 +303,5 @@ router.post('/logout', authenticateToken, (req, res) => {
         message: 'Logged out successfully'
     });
 });
-
-// Middleware to authenticate JWT token
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            error: 'Access token required'
-        });
-    }
-
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
-        if (err) {
-            return res.status(403).json({
-                success: false,
-                error: 'Invalid or expired token'
-            });
-        }
-        req.user = user;
-        next();
-    });
-}
 
 module.exports = router;

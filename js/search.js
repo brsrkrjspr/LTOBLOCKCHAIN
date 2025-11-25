@@ -103,52 +103,30 @@ function isValidPlate(plate) {
     return /^[A-Z]{3}-[0-9]{4}$/.test(plate);
 }
 
-function performSearch(type, query) {
+async function performSearch(type, query) {
     showLoadingState();
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+        // Use real API call
+        const endpoint = type === 'cid' 
+            ? `/api/ledger/verify?cid=${encodeURIComponent(query)}`
+            : `/api/vehicles/search?${type}=${encodeURIComponent(query)}`;
+        
+        const result = await apiClient.get(endpoint, { public: true });
+        
         hideLoadingState();
         
-        const results = simulateSearchResults(type, query);
-        if (results) {
-            displaySearchResults(results);
+        if (result && result.success && result.data) {
+            displaySearchResults(result.data);
         } else {
             showNoResults(type, query);
         }
-    }, 1500);
-}
-
-function simulateSearchResults(type, query) {
-    // Simulate search results based on query
-    const mockResults = {
-        'QmXvJ1Z': {
-            vehicle: 'Toyota Vios 2023',
-            plate: 'ABC-1234',
-            owner: 'John Owner',
-            cid: 'QmXvJ1Z...',
-            lastUpdated: '2024-01-15',
-            status: 'verified'
-        },
-        'ABC-1234': {
-            vehicle: 'Toyota Vios 2023',
-            plate: 'ABC-1234',
-            owner: 'John Owner',
-            cid: 'QmXvJ1Z...',
-            lastUpdated: '2024-01-15',
-            status: 'verified'
-        },
-        'XYZ-5678': {
-            vehicle: 'Honda Civic 2022',
-            plate: 'XYZ-5678',
-            owner: 'Sarah Driver',
-            cid: 'QmAbC2D...',
-            lastUpdated: '2024-01-10',
-            status: 'verified'
-        }
-    };
-    
-    return mockResults[query] || null;
+    } catch (error) {
+        hideLoadingState();
+        console.error('Search error:', error);
+        showError(error.message || 'Search failed. Please try again.');
+        showNoResults(type, query);
+    }
 }
 
 function displaySearchResults(result) {

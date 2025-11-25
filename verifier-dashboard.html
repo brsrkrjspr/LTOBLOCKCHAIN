@@ -16,10 +16,10 @@
                         <p>Emission Verifier Dashboard</p>
                     </div>
                     <div class="user-info">
-                        <div class="user-avatar">EV</div>
+                        <div class="user-avatar" id="userAvatar">EV</div>
                         <div class="user-details">
-                            <span class="user-name">Elena Verifier</span>
-                            <span class="user-role">Emission Verification Specialist</span>
+                            <span class="user-name" id="userName">Loading...</span>
+                            <span class="user-role" id="userRole">Loading...</span>
                         </div>
                         <a href="settings.html" class="btn-secondary">Settings</a>
                         <a href="index.html" class="btn-secondary">Logout</a>
@@ -125,6 +125,41 @@
             </div>
         </main>
     </div>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
     <script src="js/verifier-dashboard.js"></script>
+    <script>
+        // Initialize user data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    
+                    if (userNameEl) {
+                        userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    if (userRoleEl) {
+                        const roleNames = {
+                            'vehicle_owner': 'Vehicle Owner',
+                            'admin': 'Administrator',
+                            'insurance_verifier': 'Insurance Verifier',
+                            'emission_verifier': 'Emission Verification Specialist'
+                        };
+                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (userAvatarEl) {
+                        userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    }
+                } else {
+                    window.location.href = 'login.html';
+                }
+            }
+        });
+    </script>
 </body>
 </html>

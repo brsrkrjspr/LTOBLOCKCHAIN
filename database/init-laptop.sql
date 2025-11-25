@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 -- Create custom types
 CREATE TYPE user_role AS ENUM ('admin', 'staff', 'insurance_verifier', 'emission_verifier', 'vehicle_owner');
 CREATE TYPE verification_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
-CREATE TYPE vehicle_status AS ENUM ('SUBMITTED', 'REGISTERED', 'APPROVED', 'REJECTED', 'SUSPENDED');
+CREATE TYPE vehicle_status AS ENUM ('SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED', 'REJECTED', 'SUSPENDED');
 CREATE TYPE document_type AS ENUM ('registration_cert', 'insurance_cert', 'emission_cert', 'owner_id');
 
 -- Users table (optimized)
@@ -169,10 +169,31 @@ INSERT INTO users (email, password_hash, first_name, last_name, role, organizati
 ('owner@example.com', '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', 'Vehicle', 'Owner', 'vehicle_owner', 'Individual', true, true);
 
 -- Create function to update updated_at timestamp
+-- Handles both 'updated_at' and 'last_updated' columns
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
+    -- For vehicles table, update last_updated
+    IF TG_TABLE_NAME = 'vehicles' THEN
+        NEW.last_updated := CURRENT_TIMESTAMP;
+    -- For other tables, try updated_at first, then last_updated
+    ELSE
+        -- Try to update updated_at if it exists (for users, verifications, etc.)
+        BEGIN
+            NEW.updated_at := CURRENT_TIMESTAMP;
+        EXCEPTION
+            WHEN undefined_column THEN
+                -- Column doesn't exist, try last_updated instead
+                BEGIN
+                    NEW.last_updated := CURRENT_TIMESTAMP;
+                EXCEPTION
+                    WHEN undefined_column THEN
+                        -- Neither column exists, do nothing
+                        NULL;
+                END;
+        END;
+    END IF;
+    
     RETURN NEW;
 END;
 $$ language 'plpgsql';

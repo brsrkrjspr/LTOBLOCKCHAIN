@@ -28,17 +28,30 @@ class OptimizedFabricService {
                 return { success: true, mode: 'mock' };
             }
 
-            // Try to connect to real Fabric network
-            console.log('🔗 Attempting to connect to Hyperledger Fabric...');
+            // Check if network configuration exists first (before attempting connection)
+            let connectionProfilePath = path.join(__dirname, '../../network-config.json');
+            let connectionProfile;
             
-            // Check if network configuration exists
-            const connectionProfilePath = path.join(__dirname, '../../network-config.yaml');
             if (!fs.existsSync(connectionProfilePath)) {
-                console.log('⚠️ Network configuration not found, using mock mode');
+                // Try YAML file
+                connectionProfilePath = path.join(__dirname, '../../network-config.yaml');
+                if (!fs.existsSync(connectionProfilePath)) {
+                    // No config found - skip connection attempt entirely
+                    this.isConnected = true;
+                    this.mode = 'mock';
+                    return { success: true, mode: 'mock' };
+                }
+                // For YAML, we'd need a YAML parser, but for now, use JSON
                 this.isConnected = true;
                 this.mode = 'mock';
                 return { success: true, mode: 'mock' };
             }
+            
+            // Load JSON connection profile
+            connectionProfile = JSON.parse(fs.readFileSync(connectionProfilePath, 'utf8'));
+            
+            // Try to connect to real Fabric network (only if config exists)
+            console.log('🔗 Attempting to connect to Hyperledger Fabric...');
 
             // Create wallet
             const walletPath = path.join(__dirname, '../../wallet');
@@ -53,22 +66,57 @@ class OptimizedFabricService {
                 return { success: true, mode: 'mock' };
             }
 
-            // Load connection profile
-            const connectionProfile = JSON.parse(fs.readFileSync(connectionProfilePath, 'utf8'));
+            // Suppress gRPC error logs during connection attempt
+            const originalError = console.error;
+            const originalInfo = console.info;
+            const suppressedErrors = [];
+            
+            // Intercept console.error to filter gRPC connection errors
+            console.error = (...args) => {
+                const message = args.join(' ');
+                if (message.includes('ServiceEndpoint') || 
+                    message.includes('Failed to connect before the deadline') ||
+                    message.includes('waitForReady') ||
+                    message.includes('Unable to connect') ||
+                    message.includes('Endorser-') ||
+                    message.includes('Committer-') ||
+                    message.includes('buildPeer') ||
+                    message.includes('buildOrderer')) {
+                    suppressedErrors.push(message);
+                    return; // Suppress these errors
+                }
+                originalError(...args);
+            };
+            
+            // Also intercept console.info to filter connection attempts
+            console.info = (...args) => {
+                const message = args.join(' ');
+                if (message.includes('ServiceEndpoint') || 
+                    message.includes('Unable to connect')) {
+                    return; // Suppress these info messages
+                }
+                originalInfo(...args);
+            };
 
-            // Connect to gateway with timeout
-            const connectPromise = this.gateway.connect(connectionProfile, {
-                wallet: this.wallet,
-                identity: 'admin',
-                discovery: { enabled: true, asLocalhost: true }
-            });
+            try {
+                // Connect to gateway with shorter timeout and disabled discovery to reduce connection attempts
+                const connectPromise = this.gateway.connect(connectionProfile, {
+                    wallet: this.wallet,
+                    identity: 'admin',
+                    discovery: { enabled: false, asLocalhost: true } // Disable discovery to reduce connection attempts
+                });
 
-            // Add timeout to connection attempt
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Connection timeout')), 10000); // 10 second timeout
-            });
+                // Add timeout to connection attempt (reduced to 3 seconds)
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Connection timeout')), 3000);
+                });
 
-            await Promise.race([connectPromise, timeoutPromise]);
+                await Promise.race([connectPromise, timeoutPromise]);
+            } finally {
+                // Restore original console methods
+                console.error = originalError;
+                console.info = originalInfo;
+            }
 
             // Get network and contract
             this.network = await this.gateway.getNetwork('ltochannel');
@@ -81,7 +129,10 @@ class OptimizedFabricService {
             return { success: true, mode: 'fabric' };
 
         } catch (error) {
-            console.error('❌ Failed to connect to Fabric network, using mock mode:', error.message);
+            // Only show error if it's not a connection timeout (expected in mock mode)
+            if (!error.message.includes('timeout') && !error.message.includes('Connection timeout')) {
+                console.error('❌ Failed to connect to Fabric network, using mock mode:', error.message);
+            }
             this.isConnected = true;
             this.mode = 'mock';
             return { success: true, mode: 'mock' };
@@ -263,18 +314,129 @@ class OptimizedFabricService {
         }
     }
 
+    // Get transaction status by polling the ledger
+    // This checks if a transaction has been committed by querying the vehicle
+    async getTransactionStatus(transactionId, vin, maxRetries = 10, retryDelay = 2000) {
+        try {
+            if (this.mode === 'mock') {
+                // In mock mode, assume transaction is immediately committed
+                return {
+                    status: 'committed',
+                    transactionId: transactionId,
+                    blockNumber: null,
+                    timestamp: new Date().toISOString(),
+                    mode: 'mock'
+                };
+            }
+
+            // Real Fabric implementation - poll by checking if vehicle exists on ledger
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    // Try to get the vehicle from the ledger
+                    // If it exists, the transaction was committed
+                    const vehicleResult = await this.getVehicle(vin);
+                    
+                    if (vehicleResult.success && vehicleResult.vehicle) {
+                        // Vehicle exists on ledger - transaction is committed
+                        const vehicle = vehicleResult.vehicle;
+                        
+                        // Check if this vehicle has the matching transaction ID
+                        if (vehicle.blockchainTxId === transactionId || 
+                            vehicle.history?.some(h => h.transactionId === transactionId)) {
+                            return {
+                                status: 'committed',
+                                transactionId: transactionId,
+                                vin: vin,
+                                blockNumber: vehicle.blockNumber || null,
+                                timestamp: vehicle.lastUpdated || vehicle.registrationDate,
+                                mode: 'fabric',
+                                vehicle: vehicle
+                            };
+                        }
+                    }
+                    
+                    // If vehicle doesn't exist yet, transaction might still be pending
+                    // Wait and retry
+                    if (attempt < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                        continue;
+                    }
+                    
+                    // After max retries, assume pending
+                    return {
+                        status: 'pending',
+                        transactionId: transactionId,
+                        vin: vin,
+                        message: 'Transaction submitted but not yet committed after polling',
+                        attempts: attempt,
+                        mode: 'fabric'
+                    };
+                    
+                } catch (queryError) {
+                    // If vehicle not found, transaction might still be pending
+                    if (queryError.message.includes('not found') || queryError.message.includes('does not exist')) {
+                        if (attempt < maxRetries) {
+                            await new Promise(resolve => setTimeout(resolve, retryDelay));
+                            continue;
+                        }
+                        
+                        // After max retries, still not found
+                        return {
+                            status: 'pending',
+                            transactionId: transactionId,
+                            vin: vin,
+                            message: 'Transaction submitted but vehicle not found on ledger after polling',
+                            attempts: attempt,
+                            mode: 'fabric'
+                        };
+                    }
+                    
+                    // Other error - might indicate transaction failed
+                    throw queryError;
+                }
+            }
+            
+            // Should not reach here, but return pending status
+            return {
+                status: 'pending',
+                transactionId: transactionId,
+                vin: vin,
+                message: 'Transaction status unknown after polling',
+                attempts: maxRetries,
+                mode: 'fabric'
+            };
+            
+        } catch (error) {
+            console.error('❌ Failed to get transaction status:', error);
+            return {
+                status: 'unknown',
+                transactionId: transactionId,
+                vin: vin,
+                error: error.message,
+                mode: this.mode
+            };
+        }
+    }
+
     // Get network status
     getStatus() {
         if (this.mode === 'mock') {
-            return this.mockService.getStatus();
+            const mockStatus = this.mockService.getStatus();
+            return {
+                isConnected: mockStatus.connected || this.isConnected,
+                mode: 'mock',
+                network: mockStatus.network || 'Mock Blockchain',
+                channel: null,
+                contract: null
+            };
         }
 
         return {
-            connected: this.isConnected,
+            isConnected: this.isConnected,
+            mode: 'fabric',
             network: 'Hyperledger Fabric',
             channel: 'ltochannel',
-            contract: 'vehicle-registration',
-            mode: this.mode
+            contract: 'vehicle-registration'
         };
     }
 

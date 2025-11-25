@@ -1,12 +1,7 @@
-// TrustChain - Centralized Authentication Middleware
-// Shared authentication and authorization middleware for all routes
-
+// TrustChain Authentication Middleware
 const jwt = require('jsonwebtoken');
 
-/**
- * Middleware to authenticate JWT token
- * Extracts and validates JWT token from Authorization header
- */
+// Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -30,32 +25,26 @@ function authenticateToken(req, res, next) {
     });
 }
 
-/**
- * Middleware to authorize user roles
- * Checks if the authenticated user has one of the allowed roles
- * @param {string[]} allowedRoles - Array of role names allowed to access the route
- */
-function authorizeRole(allowedRoles) {
-    return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'Authentication required'
-            });
-        }
+// Optional authentication - sets req.user if token is valid, but doesn't require it
+function optionalAuth(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-        if (!allowedRoles.includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Insufficient permissions'
-            });
-        }
+    if (token) {
+        jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
+            if (!err && user) {
+                req.user = user;
+            }
+            // Continue regardless of token validity
+            next();
+        });
+    } else {
+        // No token provided - continue without req.user
         next();
-    };
+    }
 }
 
 module.exports = {
     authenticateToken,
-    authorizeRole
+    optionalAuth
 };
-

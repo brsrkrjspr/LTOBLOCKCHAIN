@@ -1,0 +1,17 @@
+{
+  "id": "doc_1763051972480_pneuko6di",
+  "cid": "bafkreif67ifhckrygif2qrsd36iw53jvmchstkqu7s3leaq5h4rbofraga",
+  "originalName": "LTO-Certificate-of-Registration-Sample-3.jpg",
+  "filename": "document-1763051972413-276230227.jpg",
+  "path": "uploads\\document-1763051972413-276230227.jpg",
+  "size": 178323,
+  "mimetype": "image/jpeg",
+  "documentType": "insuranceCert",
+  "vehicleVin": null,
+  "ownerEmail": null,
+  "uploadDate": "2025-11-13T16:39:32.415Z",
+  "hash": "befa0a712a38320ba84643df916eed35608f29aa14fcb6b2021d3f2217162030",
+  "storageMode": "ipfs",
+  "ipfsUrl": "ipfs://bafkreif67ifhckrygif2qrsd36iw53jvmchstkqu7s3leaq5h4rbofraga",
+  "gatewayUrl": "http://localhost:8080/ipfs/bafkreif67ifhckrygif2qrsd36iw53jvmchstkqu7s3leaq5h4rbofraga"
+}

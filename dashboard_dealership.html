@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dealership Dashboard - LTO Blockchain</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dealership.css">
+</head>
+<body>
+    <!-- Top Navbar -->
+    <header class="dashboard-header">
+        <div class="container">
+            <div class="dashboard-nav">
+                <div class="logo">
+                    <h1>LTO Blockchain</h1>
+                </div>
+                <div class="user-info">
+                    <div class="user-profile">
+                        <div class="user-avatar" id="userAvatar">AD</div>
+                        <div class="user-details">
+                            <div class="user-name" id="userName">Auto Dealership</div>
+                            <div class="user-role" id="userRole">Car Dealership</div>
+                        </div>
+                    </div>
+                    <button class="btn-secondary" onclick="handleLogout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <div class="container">
+            <div class="dashboard-content">
+                <!-- Sidebar Navigation -->
+                <div class="dashboard-sidebar">
+                    <nav class="sidebar-nav">
+                        <a href="#mint" class="sidebar-link active" onclick="showSection('mint'); return false;">
+                            <span class="sidebar-icon">🪙</span>
+                            <span>Mint Vehicle Token</span>
+                        </a>
+                        <a href="#vehicles" class="sidebar-link" onclick="showSection('vehicles'); return false;">
+                            <span class="sidebar-icon">🚗</span>
+                            <span>Manage Vehicles</span>
+                        </a>
+                        <a href="#sales" class="sidebar-link" onclick="showSection('sales'); return false;">
+                            <span class="sidebar-icon">📊</span>
+                            <span>Sales History</span>
+                        </a>
+                        <a href="#inventory" class="sidebar-link" onclick="showSection('inventory'); return false;">
+                            <span class="sidebar-icon">📦</span>
+                            <span>Inventory</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="dashboard-main">
+                    <!-- Mint Section -->
+                    <section id="mint-section" class="dashboard-section active">
+                        <div class="section-header">
+                            <h2>Mint New Vehicle Token</h2>
+                        </div>
+                        <div class="dashboard-card">
+                            <form class="mint-form" onsubmit="mintVehicleToken(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="vin">VIN (Vehicle Identification Number)</label>
+                                        <input type="text" id="vin" placeholder="Enter VIN" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="make">Make</label>
+                                        <input type="text" id="make" placeholder="e.g., Toyota" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="model">Model</label>
+                                        <input type="text" id="model" placeholder="e.g., Camry" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="year">Year</label>
+                                        <input type="number" id="year" placeholder="2024" min="1900" max="2100" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="color">Color</label>
+                                        <input type="text" id="color" placeholder="e.g., Blue" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="licensePlate">License Plate</label>
+                                        <input type="text" id="licensePlate" placeholder="ABC-1234" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleDescription">Vehicle Description</label>
+                                    <textarea id="vehicleDescription" rows="4" placeholder="Additional details about the vehicle"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleDocuments">Upload Documents</label>
+                                    <input type="file" id="vehicleDocuments" multiple accept=".pdf,.jpg,.jpeg,.png">
+                                    <small class="hint">Upload OR/CR, insurance, and other relevant documents</small>
+                                </div>
+                                <button type="submit" class="btn-primary">Mint Vehicle Token</button>
+                            </form>
+                        </div>
+                    </section>
+
+                    <!-- Vehicles Section -->
+                    <section id="vehicles-section" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Manage Vehicles</h2>
+                            <button class="btn-primary" onclick="refreshVehicles()">Refresh</button>
+                        </div>
+                        <div class="vehicles-grid" id="vehiclesGrid">
+                            <!-- Vehicles will be loaded here -->
+                        </div>
+                    </section>
+
+                    <!-- Sales History Section -->
+                    <section id="sales-section" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Sales History</h2>
+                            <div class="filter-controls">
+                                <select id="salesFilter" onchange="filterSales()">
+                                    <option value="all">All Sales</option>
+                                    <option value="month">This Month</option>
+                                    <option value="year">This Year</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Vehicle</th>
+                                        <th>Buyer</th>
+                                        <th>Token ID</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="salesTableBody">
+                                    <!-- Sales data will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- Inventory Section -->
+                    <section id="inventory-section" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Inventory</h2>
+                            <button class="btn-primary" onclick="refreshInventory()">Refresh</button>
+                        </div>
+                        <div class="inventory-stats">
+                            <div class="stat-card">
+                                <div class="stat-number" id="totalVehicles">0</div>
+                                <div class="stat-label">Total Vehicles</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="availableVehicles">0</div>
+                                <div class="stat-label">Available</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="soldVehicles">0</div>
+                                <div class="stat-label">Sold</div>
+                            </div>
+                        </div>
+                        <div class="inventory-list" id="inventoryList">
+                            <!-- Inventory items will be loaded here -->
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Vehicle Details Modal -->
+    <div id="vehicleDetailsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Vehicle Details</h3>
+                <button class="modal-close" onclick="closeModal('vehicleDetailsModal')">×</button>
+            </div>
+            <div class="modal-body" id="vehicleDetailsContent">
+                <!-- Vehicle details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('vehicleDetailsModal')">Close</button>
+                <button class="btn-primary" onclick="editVehicle()">Edit Vehicle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Vehicle Modal -->
+    <div id="editVehicleModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Vehicle Details</h3>
+                <button class="modal-close" onclick="closeModal('editVehicleModal')">×</button>
+            </div>
+            <div class="modal-body" id="editVehicleContent">
+                <!-- Edit form will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('editVehicleModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveVehicleChanges()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mint Confirmation Modal -->
+    <div id="mintConfirmationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Token Minted Successfully</h3>
+                <button class="modal-close" onclick="closeModal('mintConfirmationModal')">×</button>
+            </div>
+            <div class="modal-body" id="mintConfirmationContent">
+                <!-- Mint confirmation details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="closeModal('mintConfirmationModal')">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dealership.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Police Dashboard - LTO Blockchain</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/police.css">
+</head>
+<body>
+    <!-- Top Navbar -->
+    <header class="dashboard-header">
+        <div class="container">
+            <div class="dashboard-nav">
+                <div class="logo">
+                    <h1>LTO Blockchain</h1>
+                </div>
+                <div class="user-info">
+                    <div class="user-profile">
+                        <div class="user-avatar" id="userAvatar">OS</div>
+                        <div class="user-details">
+                            <div class="user-name" id="userName">Officer Smith</div>
+                            <div class="user-role" id="userRole">Police & Law Enforcement</div>
+                        </div>
+                    </div>
+                    <button class="btn-secondary" onclick="handleLogout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <div class="container">
+            <div class="dashboard-content">
+                <!-- Sidebar Navigation -->
+                <div class="dashboard-sidebar">
+                    <nav class="sidebar-nav">
+                        <a href="#verify" class="sidebar-link active" onclick="showSection('verify'); return false;">
+                            <span class="sidebar-icon">🔍</span>
+                            <span>Verify Ownership</span>
+                        </a>
+                        <a href="#reports" class="sidebar-link" onclick="showSection('reports'); return false;">
+                            <span class="sidebar-icon">📝</span>
+                            <span>Update Reports</span>
+                        </a>
+                        <a href="#history" class="sidebar-link" onclick="showSection('history'); return false;">
+                            <span class="sidebar-icon">📜</span>
+                            <span>Vehicle History</span>
+                        </a>
+                        <a href="#stolen" class="sidebar-link" onclick="showSection('stolen'); return false;">
+                            <span class="sidebar-icon">🚨</span>
+                            <span>Stolen Vehicles</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="dashboard-main">
+                    <!-- Verify Ownership Section -->
+                    <section id="verify-section" class="dashboard-section active">
+                        <div class="section-header">
+                            <h2>Verify Vehicle Ownership</h2>
+                        </div>
+                        <div class="dashboard-card">
+                            <form class="verify-form" onsubmit="verifyOwnership(event)">
+                                <div class="form-group">
+                                    <label for="verifyTokenId">Vehicle Token ID, VIN, or License Plate</label>
+                                    <input type="text" id="verifyTokenId" placeholder="Enter Token ID, VIN, or License Plate" required>
+                                </div>
+                                <button type="submit" class="btn-primary">Verify Ownership</button>
+                            </form>
+                            <div id="ownershipResult" class="ownership-result" style="display: none;"></div>
+                        </div>
+                    </section>
+
+                    <!-- Update Reports Section -->
+                    <section id="reports-section" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Update Vehicle Reports</h2>
+                        </div>
+                        <div class="reports-tabs">
+                            <button class="tab-btn active" onclick="showReportTab('stolen')">Report Stolen</button>
+                            <button class="tab-btn" onclick="showReportTab('accident')">Report Accident</button>
+                            <button class="tab-btn" onclick="showReportTab('violation')">Report Violation</button>
+                        </div>
+
+                        <!-- Stolen Report Tab -->
+                        <div id="stolen-report-tab" class="tab-content active">
+                            <div class="dashboard-card">
+                                <form class="report-form" onsubmit="submitStolenReport(event)">
+                                    <div class="form-group">
+                                        <label for="stolenTokenId">Vehicle Token ID or VIN</label>
+                                        <input type="text" id="stolenTokenId" placeholder="Enter Token ID or VIN" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="stolenDate">Date Stolen</label>
+                                        <input type="date" id="stolenDate" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="stolenLocation">Location</label>
+                                        <input type="text" id="stolenLocation" placeholder="Where was the vehicle stolen?" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="stolenDescription">Description</label>
+                                        <textarea id="stolenDescription" rows="4" placeholder="Additional details about the theft"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn-primary">Report as Stolen</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Accident Report Tab -->
+                        <div id="accident-report-tab" class="tab-content">
+                            <div class="dashboard-card">
+                                <form class="report-form" onsubmit="submitAccidentReport(event)">
+                                    <div class="form-group">
+                                        <label for="accidentTokenId">Vehicle Token ID or VIN</label>
+                                        <input type="text" id="accidentTokenId" placeholder="Enter Token ID or VIN" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="accidentDate">Accident Date</label>
+                                        <input type="date" id="accidentDate" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="accidentLocation">Location</label>
+                                        <input type="text" id="accidentLocation" placeholder="Where did the accident occur?" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="accidentSeverity">Severity</label>
+                                        <select id="accidentSeverity" required>
+                                            <option value="">Select severity</option>
+                                            <option value="minor">Minor</option>
+                                            <option value="moderate">Moderate</option>
+                                            <option value="severe">Severe</option>
+                                            <option value="totaled">Totaled</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="accidentDescription">Description</label>
+                                        <textarea id="accidentDescription" rows="4" placeholder="Details about the accident"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn-primary">Submit Accident Report</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Violation Report Tab -->
+                        <div id="violation-report-tab" class="tab-content">
+                            <div class="dashboard-card">
+                                <form class="report-form" onsubmit="submitViolationReport(event)">
+                                    <div class="form-group">
+                                        <label for="violationTokenId">Vehicle Token ID or License Plate</label>
+                                        <input type="text" id="violationTokenId" placeholder="Enter Token ID or License Plate" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="violationType">Violation Type</label>
+                                        <select id="violationType" required>
+                                            <option value="">Select violation type</option>
+                                            <option value="speeding">Speeding</option>
+                                            <option value="parking">Parking Violation</option>
+                                            <option value="registration">Registration Expired</option>
+                                            <option value="insurance">No Insurance</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="violationDate">Date</label>
+                                        <input type="date" id="violationDate" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="violationLocation">Location</label>
+                                        <input type="text" id="violationLocation" placeholder="Where did the violation occur?" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="violationDescription">Description</label>
+                                        <textarea id="violationDescription" rows="4" placeholder="Additional details"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn-primary">Submit Violation Report</button>
+                                </form>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Vehicle History Section -->
+                    <section id="history-section" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Vehicle History</h2>
+                        </div>
+                        <div class="dashboard-card">
+                            <form class="history-form" onsubmit="viewVehicleHistory(event)">
+                                <div class="form-group">
+                                    <label for="historyTokenId">Vehicle Token ID, VIN, or License Plate</label>
+                                    <input type="text" id="historyTokenId" placeholder="Enter Token ID, VIN, or License Plate" required>
+                                </div>
+                                <button type="submit" class="btn-primary">View History</button>
+                            </form>
+                            <div id="historyResult" class="history-result" style="display: none;"></div>
+                        </div>
+                    </section>
+
+                    <!-- Stolen Vehicles Section -->
+                    <section id="stolen-section" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Stolen Vehicles Database</h2>
+                            <button class="btn-primary" onclick="refreshStolenVehicles()">Refresh</button>
+                        </div>
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Vehicle</th>
+                                        <th>Token ID</th>
+                                        <th>Date Reported</th>
+                                        <th>Location</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stolenVehiclesTableBody">
+                                    <!-- Stolen vehicles will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Vehicle Details Modal -->
+    <div id="vehicleDetailsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Vehicle Details</h3>
+                <button class="modal-close" onclick="closeModal('vehicleDetailsModal')">×</button>
+            </div>
+            <div class="modal-body" id="vehicleDetailsContent">
+                <!-- Vehicle details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('vehicleDetailsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Confirmation Modal -->
+    <div id="reportConfirmationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Report Submitted</h3>
+                <button class="modal-close" onclick="closeModal('reportConfirmationModal')">×</button>
+            </div>
+            <div class="modal-body" id="reportConfirmationContent">
+                <!-- Report confirmation details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="closeModal('reportConfirmationModal')">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/police.js"></script>
+</body>
+</html>
+

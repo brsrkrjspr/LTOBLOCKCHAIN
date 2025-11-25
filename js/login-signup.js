@@ -54,13 +54,17 @@
     };
 
     // Fill demo credentials
-    window.fillCredentials = function(email, password) {
+    window.fillCredentials = function(email, password, role = '') {
         try {
-            console.log('Filling credentials:', email, password);
+            console.log('Filling credentials:', email, password, role);
             const emailInput = document.getElementById('loginEmail');
             const passwordInput = document.getElementById('loginPassword');
+            const roleSelect = document.getElementById('loginRole');
             if (emailInput) emailInput.value = email || '';
             if (passwordInput) passwordInput.value = password || '';
+            if (roleSelect && role) {
+                roleSelect.value = role;
+            }
             
             // Show a notification that credentials were filled
             if (typeof showNotification === 'function') {
@@ -147,10 +151,12 @@
 
             const email = emailInput.value.trim();
             const password = passwordInput.value;
+            const roleSelect = document.getElementById('loginRole');
+            const role = roleSelect ? roleSelect.value : '';
 
             // Basic validation
-            if (!email || !password) {
-                showNotification('Please fill in all fields', 'error');
+            if (!email || !password || !role) {
+                showNotification('Please fill in all fields including role', 'error');
                 return;
             }
 
@@ -161,53 +167,113 @@
                 return;
             }
 
-            console.log('Attempting login with:', email);
+            console.log('Attempting login with:', email, role);
             
-            // Call backend login API
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email, password })
-            });
+            // Test credentials check (frontend only for demo)
+            const testCredentials = {
+                'buyer@example.com': { password: 'buyer123', role: 'buyer_seller', name: 'John Buyer' },
+                'dealer@example.com': { password: 'dealer123', role: 'dealership', name: 'Auto Dealership' },
+                'police@example.com': { password: 'police123', role: 'police', name: 'Officer Smith' },
+                'bank@example.com': { password: 'bank123', role: 'bank', name: 'Bank Manager' }
+            };
 
-            const result = await response.json();
-            console.log('Login response:', result);
-
-            if (result.success) {
-                // Store user data and token
-                if (result.user) {
-                    localStorage.setItem('currentUser', JSON.stringify(result.user));
-                }
-                if (result.token) {
-                    localStorage.setItem('authToken', result.token);
-                    localStorage.setItem('token', result.token); // Also store as 'token' for compatibility
-                }
+            // Check if it's a test credential
+            if (testCredentials[email] && testCredentials[email].password === password && testCredentials[email].role === role) {
+                // Store user data
+                const userData = {
+                    email: email,
+                    role: role,
+                    name: testCredentials[email].name
+                };
+                localStorage.setItem('currentUser', JSON.stringify(userData));
+                localStorage.setItem('authToken', 'demo-token-' + Date.now());
                 
                 showNotification('Login successful! Redirecting to dashboard...', 'success');
                 
-                // Redirect based on user role
+                // Redirect based on role
                 setTimeout(() => {
-                    const role = result.user?.role || 'vehicle_owner';
                     switch(role) {
-                        case 'admin':
-                            window.location.href = 'admin-dashboard.html';
+                        case 'buyer_seller':
+                            window.location.href = 'dashboard_buyer_seller.html';
                             break;
-                        case 'insurance_verifier':
-                            window.location.href = 'insurance-verifier-dashboard.html';
+                        case 'dealership':
+                            window.location.href = 'dashboard_dealership.html';
                             break;
-                        case 'emission_verifier':
-                            window.location.href = 'emission-verifier-dashboard.html';
+                        case 'police':
+                            window.location.href = 'dashboard_police.html';
                             break;
-                        case 'vehicle_owner':
+                        case 'bank':
+                            window.location.href = 'dashboard_bank.html';
+                            break;
                         default:
-                            window.location.href = 'owner-dashboard.html';
-                            break;
+                            window.location.href = 'index.html';
                     }
                 }, 1500);
-            } else {
-                showNotification(result.error || 'Login failed. Please check your credentials.', 'error');
+                return;
+            }
+            
+            // Call backend login API for real credentials
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password, role })
+                });
+
+                const result = await response.json();
+                console.log('Login response:', result);
+
+                if (result.success) {
+                    // Store user data and token
+                    if (result.user) {
+                        localStorage.setItem('currentUser', JSON.stringify(result.user));
+                    }
+                    if (result.token) {
+                        localStorage.setItem('authToken', result.token);
+                        localStorage.setItem('token', result.token);
+                    }
+                    
+                    showNotification('Login successful! Redirecting to dashboard...', 'success');
+                    
+                    // Redirect based on user role
+                    setTimeout(() => {
+                        const userRole = result.user?.role || role;
+                        switch(userRole) {
+                            case 'buyer_seller':
+                                window.location.href = 'dashboard_buyer_seller.html';
+                                break;
+                            case 'dealership':
+                                window.location.href = 'dashboard_dealership.html';
+                                break;
+                            case 'police':
+                                window.location.href = 'dashboard_police.html';
+                                break;
+                            case 'bank':
+                                window.location.href = 'dashboard_bank.html';
+                                break;
+                            case 'admin':
+                                window.location.href = 'admin-dashboard.html';
+                                break;
+                            case 'insurance_verifier':
+                                window.location.href = 'insurance-verifier-dashboard.html';
+                                break;
+                            case 'emission_verifier':
+                                window.location.href = 'emission-verifier-dashboard.html';
+                                break;
+                            case 'vehicle_owner':
+                            default:
+                                window.location.href = 'owner-dashboard.html';
+                                break;
+                        }
+                    }, 1500);
+                } else {
+                    showNotification(result.error || 'Login failed. Please check your credentials.', 'error');
+                }
+            } catch (apiError) {
+                // If API fails, show error
+                showNotification('Login failed. Please check your credentials.', 'error');
             }
         } catch (error) {
             console.error('Login error:', error);

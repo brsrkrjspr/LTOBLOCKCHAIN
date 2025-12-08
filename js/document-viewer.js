@@ -46,7 +46,7 @@ async function loadDocumentData() {
                         // Load vehicle data
                         let vehicle = null;
                         if (data.document.vehicleId) {
-                            const vehicleResponse = await fetch(`/api/vehicles/${data.document.vehicleId}`, {
+                            const vehicleResponse = await fetch(`/api/vehicles/id/${data.document.vehicleId}`, {
                                 method: 'GET',
                                 headers: {
                                     'Authorization': `Bearer ${token}`,
@@ -84,7 +84,10 @@ async function loadDocumentData() {
                             }
                         });
                     } else if (vehicleId) {
-                        vehicleResponse = await fetch(`/api/vehicles/${vehicleId}`, {
+                        // Check if vehicleId is UUID format (has hyphens) or VIN format
+                        const isUUID = vehicleId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+                        const vehicleUrl = isUUID ? `/api/vehicles/id/${vehicleId}` : `/api/vehicles/${vehicleId}`;
+                        vehicleResponse = await fetch(vehicleUrl, {
                             method: 'GET',
                             headers: {
                                 'Authorization': `Bearer ${token}`,
@@ -279,23 +282,27 @@ function displayDocumentFromAPI(doc, vehicle, type) {
     
     // Build document URL - try multiple sources
     // IMPORTANT: Only use doc.id if it's actually a document ID (UUID format), not a vehicle/application ID
-    let documentUrl = doc.url || doc.file_path;
-    let needsAuth = false;
-    
     // Check if doc.id is a valid document ID (UUID format) vs vehicle/application ID
     const isValidDocumentId = doc.id && 
         typeof doc.id === 'string' && 
         doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
         !doc.id.startsWith('APP-'); // Application IDs start with APP-
     
-    if (!documentUrl && isValidDocumentId) {
-        documentUrl = `/api/documents/${doc.id}/view`; // Use view endpoint for inline display
-        needsAuth = true; // API endpoint requires authentication
-    } else if (!documentUrl && doc.filename) {
+    let documentUrl = null;
+    let needsAuth = false;
+    
+    // Always use API endpoint for valid document IDs (handles both IPFS and local storage)
+    if (isValidDocumentId) {
+        documentUrl = `/api/documents/${doc.id}/view`;
+        needsAuth = true;
+    } else if (doc.url || doc.file_path) {
+        // Fallback for documents without valid IDs
+        documentUrl = doc.url || doc.file_path;
+        needsAuth = doc.url && doc.url.startsWith('/api/');
+    } else if (doc.filename) {
+        // Last resort: try static file path
         documentUrl = `/uploads/${doc.filename}`;
-        needsAuth = false; // Static file doesn't need auth
-    } else if (documentUrl && documentUrl.startsWith('/api/')) {
-        needsAuth = true; // Any API endpoint needs auth
+        needsAuth = false;
     }
     
     // Display preview with actual document viewer
@@ -315,7 +322,7 @@ function displayDocumentFromAPI(doc, vehicle, type) {
                             <div class="loading-spinner" style="margin: 20px auto;"></div>
                             <p>Loading image...</p>
                         ` : `
-                            <img src="${documentUrl}" alt="${docTitle}" style="max-width: 100%; max-height: 80vh; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.parentElement.innerHTML='<p style=\'color:red;\'>Failed to load image. Please try again.</p>'" />
+                            <img src="${documentUrl}" alt="${docTitle}" style="max-width: 100%; max-height: 80vh; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="handleImageError(this)" />
                         `}
                     </div>
                 </div>
@@ -365,16 +372,18 @@ function displayDocumentFromAPI(doc, vehicle, type) {
             </div>
             ${documentUrl ? `
             <div class="document-actions-preview">
-                <a href="${documentUrl}" target="_blank" class="btn-primary" id="document-view-link">View Full Document</a>
+                <button class="btn-primary" onclick="viewFullDocument('${doc.id || documentId}', '${documentUrl}')">View Full Document</button>
                 <button class="btn-secondary" onclick="downloadDocument()">Download</button>
             </div>
             ` : ''}
         </div>
         `;
         
-        // If needs auth, load image via blob URL
-        if (needsAuth && isValidDocumentId) {
-            loadImageInViewer(doc.id, documentUrl);
+        // If needs auth, load image via blob URL using API endpoint
+        if (needsAuth && isValidDocumentId && isImage) {
+            // Use API endpoint instead of direct URL
+            const apiUrl = `/api/documents/${doc.id}/view`;
+            loadImageInViewer(doc.id, apiUrl);
         }
     } else {
         // For PDFs and other documents, use iframe
@@ -441,7 +450,7 @@ function displayDocumentFromAPI(doc, vehicle, type) {
             </div>
             ${documentUrl ? `
             <div class="document-actions-preview">
-                <a href="${documentUrl}" target="_blank" class="btn-primary" id="document-view-link">View Full Document</a>
+                <button class="btn-primary" onclick="viewFullDocument('${doc.id || documentId}', '${documentUrl}')">View Full Document</button>
                 <button class="btn-secondary" onclick="downloadDocument()">Download</button>
             </div>
             ` : ''}
@@ -620,6 +629,13 @@ async function loadImageInViewer(documentId, imageUrl) {
     }
 }
 
+// Helper function to handle image loading errors
+function handleImageError(img) {
+    if (img && img.parentElement) {
+        img.parentElement.innerHTML = '<p style="color:red;">Failed to load image. Please try again.</p>';
+    }
+}
+
 function displayDocumentPreview(application, type, filename) {
     const previewArea = document.getElementById('documentPreview');
     if (!previewArea) return;
@@ -794,6 +810,75 @@ function showNoDocumentsState(vehicle, type, filename) {
 
 function initializeDocumentActions() {
     // Actions are now handled by onclick attributes in HTML
+}
+
+// View full document in new window with authentication
+async function viewFullDocument(documentId, documentUrl) {
+    try {
+        showNotification('Opening document...', 'info');
+        
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token) {
+            showNotification('Please log in to view documents', 'error');
+            return;
+        }
+        
+        // Construct URL if not provided or if it's not an API endpoint
+        let url = documentUrl;
+        if (!url && documentId) {
+            url = `/api/documents/${documentId}/view`;
+        } else if (url && !url.startsWith('/api/') && documentId) {
+            // If URL is not an API endpoint, use the API endpoint instead
+            url = `/api/documents/${documentId}/view`;
+        }
+        
+        if (!url) {
+            throw new Error('Document URL or ID is required');
+        }
+        
+        // Fetch document with authentication
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to load document');
+        }
+        
+        // Convert to blob and open in new window
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        // Open in new window
+        const newWindow = window.open(blobUrl, '_blank');
+        if (!newWindow) {
+            // If popup blocked, show notification
+            showNotification('Please allow popups to view documents in a new window', 'warning');
+            // Fallback: download instead
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = 'document.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showNotification('Document downloaded instead (popup blocked)', 'info');
+        } else {
+            showNotification('Document opened in new window', 'success');
+        }
+        
+        // Clean up blob URL after a delay
+        setTimeout(() => {
+            window.URL.revokeObjectURL(blobUrl);
+        }, 1000);
+        
+    } catch (error) {
+        console.error('View full document error:', error);
+        showNotification('Failed to open document: ' + (error.message || 'Please try again.'), 'error');
+    }
 }
 
 async function downloadDocument() {
@@ -1070,6 +1155,7 @@ window.selectDocument = function(documentId, vehicleId) {
 window.DocumentViewer = {
     loadDocumentData,
     downloadDocument,
+    viewFullDocument,
     printDocument,
     verifyDocument,
     handleDownloadPDF,
@@ -1079,3 +1165,7 @@ window.DocumentViewer = {
     displayMultipleDocuments,
     selectDocument
 };
+
+// Make functions available globally for onclick handlers
+window.viewFullDocument = viewFullDocument;
+window.downloadDocument = downloadDocument;

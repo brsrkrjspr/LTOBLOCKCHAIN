@@ -1,1 +1,48 @@
 node_modules
+
+# Uploads and user-generated content
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+uploads/metadata/*
+uploads/temp/*
+uploads/documents/*
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Build outputs
+dist/
+build/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Wallet files (contain sensitive keys)
+wallet/*
+!wallet/.gitkeep

@@ -70,7 +70,7 @@ services:
   
   # IPFS Node (Single node for local deployment)
   ipfs:
-    image: ipfs/go-ipfs:latest
+    image: ipfs/kubo:latest
     container_name: ipfs
     environment:
       - IPFS_PROFILE=server

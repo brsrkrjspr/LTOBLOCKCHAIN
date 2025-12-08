@@ -22,7 +22,7 @@ class APIClient {
             if (Date.now() >= expiration) {
                 // Token expired
                 this.clearAuth();
-                window.location.href = 'login.html?expired=true';
+                window.location.href = 'login-signup.html?expired=true';
                 return null;
             }
             
@@ -51,7 +51,7 @@ class APIClient {
         
         // If token is required and not available, redirect to login
         if (!token && !options.public) {
-            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
+            window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
             throw new Error('Authentication required');
         }
 
@@ -90,7 +90,7 @@ class APIClient {
             // Handle 401 Unauthorized
             if (response.status === 401) {
                 this.clearAuth();
-                window.location.href = 'login.html?expired=true';
+                window.location.href = 'login-signup.html?expired=true';
                 throw new Error('Session expired. Please login again.');
             }
 
@@ -235,7 +235,7 @@ class APIClient {
         const token = this.getAuthToken();
         
         if (!token && !options.public) {
-            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
+            window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
             throw new Error('Authentication required');
         }
 
@@ -256,7 +256,7 @@ class APIClient {
 
             if (response.status === 401) {
                 this.clearAuth();
-                window.location.href = 'login.html?expired=true';
+                window.location.href = 'login-signup.html?expired=true';
                 throw new Error('Session expired. Please login again.');
             }
 

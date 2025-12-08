@@ -6,9 +6,8 @@
 
 ## ✅ **FRONTEND (Complete)**
 
-### **HTML Pages (11 pages)**
+### **HTML Pages (10 pages)**
 - ✅ `index.html` - Landing page
-- ✅ `login.html` - Role selection page
 - ✅ `login-signup.html` - Login and registration page
 - ✅ `registration-wizard.html` - Multi-step vehicle registration form
 - ✅ `owner-dashboard.html` - Vehicle owner dashboard

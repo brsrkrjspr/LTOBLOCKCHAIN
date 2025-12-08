@@ -346,12 +346,12 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
             });
         }
 
-        // Check permission
-        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+        // Check permission - Only vehicle owners can upload documents (admins have read-only access)
+        if (vehicle.owner_id !== req.user.userId) {
             fs.unlinkSync(req.file.path);
             return res.status(403).json({
                 success: false,
-                error: 'Access denied'
+                error: 'Access denied. Only vehicle owners can upload documents.'
             });
         }
 
@@ -528,8 +528,12 @@ router.get('/:documentId/download', authenticateToken, async (req, res) => {
             });
         }
 
-        // Check permission
-        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+        // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        
+        if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied'
@@ -788,8 +792,12 @@ router.get('/vehicle/:vin', authenticateToken, async (req, res) => {
             });
         }
 
-        // Check permission
-        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+        // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        
+        if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied'
@@ -861,11 +869,11 @@ router.delete('/:documentId', authenticateToken, async (req, res) => {
             });
         }
 
-        // Check permission (admin or owner)
-        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+        // Check permission - Only vehicle owners can delete documents (admins have read-only access)
+        if (vehicle.owner_id !== req.user.userId) {
             return res.status(403).json({
                 success: false,
-                error: 'Access denied'
+                error: 'Access denied. Only vehicle owners can delete documents.'
             });
         }
 

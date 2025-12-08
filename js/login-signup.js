@@ -171,7 +171,6 @@
             
             // Test credentials check (frontend only for demo)
             const testCredentials = {
-                'buyer@example.com': { password: 'buyer123', role: 'buyer_seller', name: 'John Buyer' },
                 'dealer@example.com': { password: 'dealer123', role: 'dealership', name: 'Auto Dealership' },
                 'police@example.com': { password: 'police123', role: 'police', name: 'Officer Smith' },
                 'bank@example.com': { password: 'bank123', role: 'bank', name: 'Bank Manager' }
@@ -193,9 +192,6 @@
                 // Redirect based on role
                 setTimeout(() => {
                     switch(role) {
-                        case 'buyer_seller':
-                            window.location.href = 'dashboard_buyer_seller.html';
-                            break;
                         case 'dealership':
                             window.location.href = 'dashboard_dealership.html';
                             break;
@@ -241,9 +237,6 @@
                     setTimeout(() => {
                         const userRole = result.user?.role || role;
                         switch(userRole) {
-                            case 'buyer_seller':
-                                window.location.href = 'dashboard_buyer_seller.html';
-                                break;
                             case 'dealership':
                                 window.location.href = 'dashboard_dealership.html';
                                 break;

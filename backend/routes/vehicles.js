@@ -693,6 +693,92 @@ router.post('/register', optionalAuth, async (req, res) => {
     }
 });
 
+// Update vehicle status (admin only) - MUST come before /:vin routes
+router.put('/id/:id/status', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, notes } = req.body;
+        
+        console.log(`[PUT /api/vehicles/id/${id}/status] Updating vehicle status to ${status}`);
+
+        // Validate status
+        const validStatuses = ['SUBMITTED', 'APPROVED', 'REJECTED', 'REGISTERED', 'PENDING_BLOCKCHAIN', 'PROCESSING'];
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
+            });
+        }
+
+        // Find vehicle
+        const vehicle = await db.getVehicleById(id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Update vehicle status
+        await db.updateVehicle(id, { 
+            status: status,
+            notes: notes || vehicle.notes || null
+        });
+
+        // Add to history
+        const historyEntry = await db.addVehicleHistory({
+            vehicleId: id,
+            action: `STATUS_${status}`,
+            description: notes || `Vehicle status changed to ${status} by admin`,
+            performedBy: req.user.userId,
+            transactionId: null,
+            metadata: { previousStatus: vehicle.status, newStatus: status, notes }
+        });
+
+        // Add transaction to blockchain ledger for viewing
+        try {
+            const blockchainLedger = require('../services/blockchainLedger');
+            blockchainLedger.addTransaction({
+                transactionId: 'tx_' + Date.now(),
+                type: status === 'APPROVED' ? 'VEHICLE_APPROVAL' : status === 'REJECTED' ? 'VEHICLE_REJECTION' : 'STATUS_UPDATE',
+                vin: vehicle.vin,
+                plateNumber: vehicle.plate_number,
+                owner: {
+                    id: vehicle.owner_id,
+                    email: vehicle.owner_email,
+                    firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null,
+                    lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null
+                },
+                status: status,
+                notes: notes
+            });
+            console.log(`✅ Status update transaction added to blockchain ledger: ${status}`);
+        } catch (ledgerError) {
+            console.warn('⚠️ Failed to add status update transaction to ledger:', ledgerError.message);
+            // Don't fail the status update if ledger update fails
+        }
+
+        // Get updated vehicle
+        const updatedVehicle = await db.getVehicleById(id);
+        updatedVehicle.verifications = await db.getVehicleVerifications(id);
+        updatedVehicle.documents = await db.getDocumentsByVehicle(id);
+        updatedVehicle.history = await db.getVehicleHistory(id);
+
+        res.json({
+            success: true,
+            message: 'Vehicle status updated successfully',
+            vehicle: formatVehicleResponse(updatedVehicle)
+        });
+
+    } catch (error) {
+        console.error('Update vehicle status error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
 // Update vehicle verification status
 router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'insurance_verifier', 'emission_verifier']), async (req, res) => {
     try {

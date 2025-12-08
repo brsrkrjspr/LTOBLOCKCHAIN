@@ -16,9 +16,9 @@
 
 ### **1. FRONTEND (100% Complete)**
 
-#### **HTML Pages (11 pages)**
+#### **HTML Pages (10 pages)**
 - ✅ `index.html` - Landing page with service information
-- ✅ `login.html` / `login-signup.html` - Authentication pages
+- ✅ `login-signup.html` - Login and registration page
 - ✅ `registration-wizard.html` - Multi-step vehicle registration form
 - ✅ `owner-dashboard.html` - Vehicle owner dashboard
 - ✅ `admin-dashboard.html` - System administrator dashboard

@@ -211,10 +211,20 @@ class BlockchainLedger {
         const transactions = this.getAllTransactions();
         const blocks = this.getAllBlocks();
         
+        // Get the highest block number from transactions or blocks
+        let latestBlockNumber = 0;
+        if (blocks.length > 0) {
+            latestBlockNumber = Math.max(...blocks.map(b => b.blockNumber || 0));
+        }
+        if (transactions.length > 0) {
+            const maxTxBlock = Math.max(...transactions.map(tx => tx.blockNumber || 0));
+            latestBlockNumber = Math.max(latestBlockNumber, maxTxBlock);
+        }
+        
         return {
             totalTransactions: transactions.length,
             totalBlocks: blocks.length,
-            latestBlockNumber: blocks.length - 1,
+            latestBlockNumber: latestBlockNumber,
             ledgerSize: this.getLedgerSize(),
             lastUpdated: new Date().toISOString()
         };

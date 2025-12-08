@@ -19,7 +19,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             scriptSrcAttr: ["'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"],
+            imgSrc: ["'self'", "data:", "https:", "http://localhost:8080", "blob:"],
             connectSrc: ["'self'"],
             fontSrc: ["'self'", "https:", "data:"],
             objectSrc: ["'none'"],
@@ -28,6 +28,23 @@ app.use(helmet({
         },
     },
 }));
+
+// Debug: Log CSP configuration on startup
+console.log('🔒 CSP Configuration:');
+console.log('   imgSrc includes: blob:');
+console.log('   frameSrc includes: blob:');
+
+// Test endpoint to verify CSP headers
+app.get('/api/test-csp', (req, res) => {
+    res.json({
+        message: 'CSP test endpoint',
+        headers: {
+            'Content-Security-Policy': res.getHeader('Content-Security-Policy') || 'Not set',
+            'imgSrc': 'Should include: blob:'
+        },
+        note: 'Check Response Headers in browser DevTools to see actual CSP'
+    });
+});
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3001',
     credentials: true
@@ -94,7 +111,7 @@ app.get('/admin-dashboard', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'login.html'));
+    res.sendFile(path.join(__dirname, 'login-signup.html'));
 });
 
 app.get('/search', (req, res) => {

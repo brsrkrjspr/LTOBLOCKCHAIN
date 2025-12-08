@@ -882,7 +882,7 @@ function getAuthToken() {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
         // Not authenticated, redirect to login
-        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
         return null;
     }
     

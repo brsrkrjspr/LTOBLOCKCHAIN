@@ -142,20 +142,40 @@ class OptimizedFabricService {
     // Register vehicle
     async registerVehicle(vehicleData) {
         try {
+            let result;
+            
             if (this.mode === 'mock') {
-                return await this.mockService.registerVehicle(vehicleData);
+                result = await this.mockService.registerVehicle(vehicleData);
+            } else {
+                // Real Fabric implementation
+                const vehicleJson = JSON.stringify(vehicleData);
+                const fabricResult = await this.contract.submitTransaction('RegisterVehicle', vehicleJson);
+                
+                result = {
+                    success: true,
+                    message: 'Vehicle registered successfully',
+                    transactionId: fabricResult.toString(),
+                    vin: vehicleData.vin
+                };
             }
 
-            // Real Fabric implementation
-            const vehicleJson = JSON.stringify(vehicleData);
-            const result = await this.contract.submitTransaction('RegisterVehicle', vehicleJson);
-            
-            return {
-                success: true,
-                message: 'Vehicle registered successfully',
-                transactionId: result.toString(),
-                vin: vehicleData.vin
-            };
+            // Add transaction to ledger for viewing
+            try {
+                const blockchainLedger = require('./blockchainLedger');
+                blockchainLedger.addTransaction({
+                    transactionId: result.transactionId || result.id || 'tx_' + Date.now(),
+                    type: 'VEHICLE_REGISTRATION',
+                    vin: vehicleData.vin,
+                    plateNumber: vehicleData.plateNumber,
+                    owner: vehicleData.owner
+                });
+                console.log('✅ Transaction added to blockchain ledger');
+            } catch (ledgerError) {
+                console.warn('⚠️ Failed to add transaction to ledger:', ledgerError.message);
+                // Don't fail the registration if ledger update fails
+            }
+
+            return result;
 
         } catch (error) {
             console.error('❌ Failed to register vehicle:', error);
@@ -188,27 +208,50 @@ class OptimizedFabricService {
     // Update verification status
     async updateVerificationStatus(vin, verificationType, status, notes) {
         try {
+            let result;
+            
             if (this.mode === 'mock') {
-                return await this.mockService.updateVerificationStatus(vin, verificationType, status, notes);
+                result = await this.mockService.updateVerificationStatus(vin, verificationType, status, notes);
+            } else {
+                // Real Fabric implementation
+                const fabricResult = await this.contract.submitTransaction(
+                    'UpdateVerificationStatus', 
+                    vin, 
+                    verificationType, 
+                    status, 
+                    notes || ''
+                );
+                
+                result = {
+                    success: true,
+                    message: 'Verification status updated successfully',
+                    transactionId: fabricResult.toString(),
+                    vin: vin,
+                    verificationType: verificationType,
+                    status: status
+                };
             }
 
-            // Real Fabric implementation
-            const result = await this.contract.submitTransaction(
-                'UpdateVerificationStatus', 
-                vin, 
-                verificationType, 
-                status, 
-                notes || ''
-            );
-            
-            return {
-                success: true,
-                message: 'Verification status updated successfully',
-                transactionId: result.toString(),
-                vin: vin,
-                verificationType: verificationType,
-                status: status
-            };
+            // Add transaction to ledger for viewing
+            try {
+                const blockchainLedger = require('./blockchainLedger');
+                const vehicle = await this.getVehicle(vin).catch(() => null);
+                blockchainLedger.addTransaction({
+                    transactionId: result.transactionId || result.id || 'tx_' + Date.now(),
+                    type: 'VERIFICATION_UPDATE',
+                    vin: vin,
+                    plateNumber: vehicle?.vehicle?.plateNumber || 'N/A',
+                    owner: vehicle?.vehicle?.owner || null,
+                    verificationType: verificationType,
+                    status: status
+                });
+                console.log('✅ Verification transaction added to blockchain ledger');
+            } catch (ledgerError) {
+                console.warn('⚠️ Failed to add verification transaction to ledger:', ledgerError.message);
+                // Don't fail the update if ledger update fails
+            }
+
+            return result;
 
         } catch (error) {
             console.error('❌ Failed to update verification status:', error);

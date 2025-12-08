@@ -484,7 +484,7 @@ function createApplicationRow(application) {
         </td>
         <td>${application.owner.firstName} ${application.owner.lastName}</td>
         <td>${new Date(application.submittedDate).toLocaleDateString()}</td>
-        <td><span class="status-badge status-${application.status}">${getStatusText(application.status)}</span></td>
+        <td><span class="status-badge status-${(application.status || '').toLowerCase()}">${getStatusText(application.status)}</span></td>
         <td><span class="priority-badge priority-${application.priority}">${application.priority}</span></td>
         <td>
             <button class="btn-secondary btn-sm" onclick="viewApplication('${application.id}')">View</button>
@@ -496,14 +496,18 @@ function createApplicationRow(application) {
 }
 
 function getStatusText(status) {
+    // Normalize status to lowercase for mapping
+    const normalizedStatus = (status || '').toLowerCase();
     const statusMap = {
         'submitted': 'Pending Review',
         'approved': 'Approved',
         'rejected': 'Rejected',
         'processing': 'Processing',
-        'completed': 'Completed'
+        'completed': 'Completed',
+        'registered': 'Registered',
+        'pending_blockchain': 'Pending Blockchain'
     };
-    return statusMap[status] || status;
+    return statusMap[normalizedStatus] || status;
 }
 
 async function viewApplication(applicationId) {
@@ -717,15 +721,44 @@ async function approveApplication(applicationId) {
         if (button) LoadingManager.show(button, 'Approving...');
         
         try {
-            updateApplicationStatus(applicationId, 'approved', 'Application approved by admin');
-            ToastNotification.show('Application approved successfully! User will be notified.', 'success');
-            
-            // Add notification for user
-            addUserNotification(applicationId, 'approved', 'Your application has been approved! You can now download your certificate.');
-            
-            loadSubmittedApplications(); // Refresh the table
+            // Call API to update vehicle status
+            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            if (token && typeof APIClient !== 'undefined') {
+                const apiClient = new APIClient();
+                const response = await apiClient.put(`/api/vehicles/id/${applicationId}/status`, {
+                    status: 'APPROVED',
+                    notes: 'Application approved by admin'
+                });
+                
+                if (response && response.success) {
+                    ToastNotification.show('Application approved successfully! User will be notified.', 'success');
+                    
+                    // Update local storage
+                    updateApplicationStatus(applicationId, 'approved', 'Application approved by admin');
+                    
+                    // Add notification for user
+                    addUserNotification(applicationId, 'approved', 'Your application has been approved! You can now download your certificate.');
+                    
+                    // Close any open modals
+                    const openModal = document.querySelector('.modal');
+                    if (openModal) {
+                        openModal.remove();
+                    }
+                    
+                    // Refresh the table
+                    await loadSubmittedApplications();
+                } else {
+                    throw new Error(response?.error || 'Failed to approve application');
+                }
+            } else {
+                // Fallback to localStorage only if no API client
+                updateApplicationStatus(applicationId, 'approved', 'Application approved by admin');
+                ToastNotification.show('Application approved (local only). Please refresh to sync with server.', 'warning');
+                await loadSubmittedApplications();
+            }
         } catch (error) {
-            ToastNotification.show('Failed to approve application. Please try again.', 'error');
+            console.error('Error approving application:', error);
+            ToastNotification.show('Failed to approve application: ' + (error.message || 'Please try again.'), 'error');
         } finally {
             if (button) LoadingManager.hide(button);
         }
@@ -767,17 +800,42 @@ async function rejectApplication(applicationId) {
             LoadingManager.show(button, 'Rejecting...');
             
             try {
-                updateApplicationStatus(applicationId, 'rejected', `Application rejected: ${reason}`);
-                ToastNotification.show('Application rejected successfully! User will be notified.', 'success');
-                
-                // Add notification for user
-                addUserNotification(applicationId, 'rejected', `Your application has been rejected. Reason: ${reason}. Please review and resubmit.`);
-                
-                loadSubmittedApplications(); // Refresh the table
-                modal.remove();
-                resolve();
+                // Call API to update vehicle status
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                if (token && typeof APIClient !== 'undefined') {
+                    const apiClient = new APIClient();
+                    const response = await apiClient.put(`/api/vehicles/id/${applicationId}/status`, {
+                        status: 'REJECTED',
+                        notes: `Application rejected: ${reason}`
+                    });
+                    
+                    if (response && response.success) {
+                        ToastNotification.show('Application rejected successfully! User will be notified.', 'success');
+                        
+                        // Update local storage
+                        updateApplicationStatus(applicationId, 'rejected', `Application rejected: ${reason}`);
+                        
+                        // Add notification for user
+                        addUserNotification(applicationId, 'rejected', `Your application has been rejected. Reason: ${reason}. Please review and resubmit.`);
+                        
+                        // Refresh the table
+                        await loadSubmittedApplications();
+                        modal.remove();
+                        resolve();
+                    } else {
+                        throw new Error(response?.error || 'Failed to reject application');
+                    }
+                } else {
+                    // Fallback to localStorage only if no API client
+                    updateApplicationStatus(applicationId, 'rejected', `Application rejected: ${reason}`);
+                    ToastNotification.show('Application rejected (local only). Please refresh to sync with server.', 'warning');
+                    await loadSubmittedApplications();
+                    modal.remove();
+                    resolve();
+                }
             } catch (error) {
-                ToastNotification.show('Failed to reject application. Please try again.', 'error');
+                console.error('Error rejecting application:', error);
+                ToastNotification.show('Failed to reject application: ' + (error.message || 'Please try again.'), 'error');
             } finally {
                 LoadingManager.hide(button);
             }

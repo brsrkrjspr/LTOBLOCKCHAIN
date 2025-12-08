@@ -70,7 +70,7 @@ class AuthUtils {
     static requireAuth() {
         if (!this.isAuthenticated()) {
             const currentPath = window.location.pathname;
-            window.location.href = `login.html?redirect=${encodeURIComponent(currentPath)}`;
+            window.location.href = `login-signup.html?redirect=${encodeURIComponent(currentPath)}`;
             return false;
         }
         return true;
@@ -125,7 +125,7 @@ class AuthUtils {
     static redirectByRole() {
         const user = this.getCurrentUser();
         if (!user) {
-            window.location.href = 'login.html';
+            window.location.href = 'login-signup.html';
             return;
         }
 

@@ -171,7 +171,8 @@ class VehicleRegistrationContract extends Contract {
             const authorizedMSPs = {
                 'insurance': ['InsuranceMSP', 'LTOMSP'], // Insurance companies or LTO can verify insurance
                 'emission': ['EmissionMSP', 'LTOMSP'],  // Emission centers or LTO can verify emission
-                'admin': ['LTOMSP']                      // Only LTO can perform admin verification
+                'admin': ['LTOMSP'],                      // Only LTO can perform admin verification
+                'hpg': ['HPGMSP', 'LTOMSP']              // HPG can report violations/stolen vehicles
             };
 
             if (!authorizedMSPs[verifierType] || !authorizedMSPs[verifierType].includes(clientMSPID)) {
@@ -573,6 +574,221 @@ class VehicleRegistrationContract extends Contract {
         } catch (error) {
             console.error('Error getting system stats:', error);
             throw new Error(`Failed to get system stats: ${error.message}`);
+        }
+    }
+
+    // Report traffic violation (HPG only)
+    async ReportViolation(ctx, vin, violationData) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            const violation = JSON.parse(violationData);
+            const txId = ctx.stub.getTxID();
+            const timestamp = new Date().toISOString();
+
+            // Organization-based authorization
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'HPGMSP' && clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only HPG or LTO can report violations. Current MSP: ${clientMSPID}`);
+            }
+
+            // Initialize violations array if it doesn't exist
+            if (!vehicle.violations) {
+                vehicle.violations = [];
+            }
+
+            // Add violation record
+            const violationRecord = {
+                violationType: violation.violationType,
+                description: violation.description || '',
+                location: violation.location || '',
+                officerId: violation.officerId || '',
+                fineAmount: violation.fineAmount || 0,
+                reportedBy: clientMSPID,
+                timestamp: timestamp,
+                transactionId: txId,
+                status: 'PENDING'
+            };
+
+            vehicle.violations.push(violationRecord);
+            vehicle.lastUpdated = timestamp;
+
+            // Add to history
+            vehicle.history.push({
+                action: 'VIOLATION_REPORTED',
+                timestamp: timestamp,
+                performedBy: clientMSPID,
+                details: `Traffic violation reported: ${violation.violationType}`,
+                transactionId: txId
+            });
+
+            // Store updated vehicle
+            await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
+
+            // Emit event
+            ctx.stub.setEvent('ViolationReported', {
+                vin: vin,
+                violationType: violation.violationType,
+                timestamp: timestamp,
+                transactionId: txId
+            });
+
+            console.log(`Violation reported for vehicle ${vin}`);
+            return JSON.stringify({
+                success: true,
+                message: 'Violation reported successfully',
+                vin: vin,
+                violation: violationRecord,
+                transactionId: txId,
+                timestamp: timestamp
+            });
+
+        } catch (error) {
+            console.error('Error reporting violation:', error);
+            throw new Error(`Failed to report violation: ${error.message}`);
+        }
+    }
+
+    // Report stolen vehicle (HPG only)
+    async ReportStolen(ctx, vin, reportData) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            const report = JSON.parse(reportData);
+            const txId = ctx.stub.getTxID();
+            const timestamp = new Date().toISOString();
+
+            // Organization-based authorization
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'HPGMSP' && clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only HPG or LTO can report stolen vehicles. Current MSP: ${clientMSPID}`);
+            }
+
+            // Mark vehicle as stolen
+            vehicle.status = 'STOLEN';
+            vehicle.stolenReport = {
+                reportedBy: clientMSPID,
+                reportDate: timestamp,
+                reportNumber: report.reportNumber || '',
+                officerId: report.officerId || '',
+                location: report.location || '',
+                description: report.description || '',
+                transactionId: txId
+            };
+            vehicle.lastUpdated = timestamp;
+
+            // Add to history
+            vehicle.history.push({
+                action: 'STOLEN_REPORTED',
+                timestamp: timestamp,
+                performedBy: clientMSPID,
+                details: `Vehicle reported as stolen. Report #: ${report.reportNumber || 'N/A'}`,
+                transactionId: txId
+            });
+
+            // Store updated vehicle
+            await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
+
+            // Emit event
+            ctx.stub.setEvent('VehicleStolen', {
+                vin: vin,
+                reportNumber: report.reportNumber,
+                timestamp: timestamp,
+                transactionId: txId
+            });
+
+            console.log(`Vehicle ${vin} reported as stolen`);
+            return JSON.stringify({
+                success: true,
+                message: 'Vehicle reported as stolen successfully',
+                vin: vin,
+                report: vehicle.stolenReport,
+                transactionId: txId,
+                timestamp: timestamp
+            });
+
+        } catch (error) {
+            console.error('Error reporting stolen vehicle:', error);
+            throw new Error(`Failed to report stolen vehicle: ${error.message}`);
+        }
+    }
+
+    // Mark vehicle as recovered (HPG only)
+    async MarkRecovered(ctx, vin, recoveryData) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            
+            if (vehicle.status !== 'STOLEN') {
+                throw new Error(`Vehicle ${vin} is not marked as stolen`);
+            }
+
+            const recovery = JSON.parse(recoveryData || '{}');
+            const txId = ctx.stub.getTxID();
+            const timestamp = new Date().toISOString();
+
+            // Organization-based authorization
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'HPGMSP' && clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only HPG or LTO can mark vehicles as recovered. Current MSP: ${clientMSPID}`);
+            }
+
+            // Mark vehicle as recovered
+            vehicle.status = vehicle.previousStatus || 'REGISTERED';
+            vehicle.recoveryReport = {
+                recoveredBy: clientMSPID,
+                recoveryDate: timestamp,
+                recoveryLocation: recovery.location || '',
+                officerId: recovery.officerId || '',
+                condition: recovery.condition || 'UNKNOWN',
+                transactionId: txId
+            };
+            vehicle.lastUpdated = timestamp;
+
+            // Add to history
+            vehicle.history.push({
+                action: 'VEHICLE_RECOVERED',
+                timestamp: timestamp,
+                performedBy: clientMSPID,
+                details: `Vehicle recovered. Location: ${recovery.location || 'N/A'}`,
+                transactionId: txId
+            });
+
+            // Store updated vehicle
+            await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
+
+            // Emit event
+            ctx.stub.setEvent('VehicleRecovered', {
+                vin: vin,
+                timestamp: timestamp,
+                transactionId: txId
+            });
+
+            console.log(`Vehicle ${vin} marked as recovered`);
+            return JSON.stringify({
+                success: true,
+                message: 'Vehicle marked as recovered successfully',
+                vin: vin,
+                recovery: vehicle.recoveryReport,
+                transactionId: txId,
+                timestamp: timestamp
+            });
+
+        } catch (error) {
+            console.error('Error marking vehicle as recovered:', error);
+            throw new Error(`Failed to mark vehicle as recovered: ${error.message}`);
         }
     }
 }

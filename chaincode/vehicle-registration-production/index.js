@@ -793,4 +793,6 @@ class VehicleRegistrationContract extends Contract {
     }
 }
 
-module.exports = VehicleRegistrationContract;
+// Export contracts in the format required by Hyperledger Fabric 2.x
+// The fabric-contract-api requires contracts to be exported as an array
+module.exports.contracts = [VehicleRegistrationContract];

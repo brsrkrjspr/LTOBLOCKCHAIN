@@ -55,15 +55,15 @@ function updateUserInfo() {
             userRoleElement.textContent = 'Vehicle Owner';
         }
     } else {
-        // Fallback to default values
+        // Fallback - show generic placeholder
         const userNameElement = document.querySelector('.user-name');
         if (userNameElement) {
-            userNameElement.textContent = 'John Owner';
+            userNameElement.textContent = 'User';
         }
         
         const userAvatarElement = document.querySelector('.user-avatar');
         if (userAvatarElement) {
-            userAvatarElement.textContent = 'JO';
+            userAvatarElement.textContent = 'U';
         }
     }
 }
@@ -74,17 +74,66 @@ async function updateOwnerStats() {
         card.textContent = '...';
     });
     
+    // Initialize stats with zeros
+    const stats = {
+        registeredVehicles: 0,
+        pendingApplications: 0,
+        approvedApplications: 0,
+        notifications: 0
+    };
+    
     try {
-        const signal = requestManager.createRequest('owner-stats');
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Get real stats from API
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (token) {
+            try {
+                const response = await fetch('/api/vehicles/my-vehicles', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.vehicles) {
+                        const vehicles = data.vehicles;
+                        stats.registeredVehicles = vehicles.filter(v => 
+                            v.status === 'REGISTERED' || v.status === 'APPROVED'
+                        ).length;
+                        stats.pendingApplications = vehicles.filter(v => 
+                            v.status === 'SUBMITTED' || v.status === 'PENDING_BLOCKCHAIN' || v.status === 'PROCESSING'
+                        ).length;
+                        stats.approvedApplications = vehicles.filter(v => 
+                            v.status === 'APPROVED' || v.status === 'REGISTERED'
+                        ).length;
+                    }
+                }
+            } catch (apiError) {
+                console.warn('Could not fetch vehicle stats:', apiError);
+            }
+            
+            // Get notifications count
+            try {
+                const notifResponse = await fetch('/api/notifications', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (notifResponse.ok) {
+                    const notifData = await notifResponse.json();
+                    if (notifData.success && Array.isArray(notifData.notifications)) {
+                        stats.notifications = notifData.notifications.filter(n => !n.read).length;
+                    }
+                }
+            } catch (notifError) {
+                console.warn('Could not fetch notifications:', notifError);
+                // Fallback to localStorage if available
+                const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
+                stats.notifications = localNotifs.filter(n => !n.read).length;
+            }
+        }
         
-        const stats = {
-            registeredVehicles: Math.floor(Math.random() * 2) + 3,
-            pendingApplications: Math.floor(Math.random() * 2) + 1,
-            approvedApplications: Math.floor(Math.random() * 2) + 2,
-            notifications: Math.floor(Math.random() * 3) + 5
-        };
-        
+        // Update stat cards
         if (statCards.length >= 4) {
             statCards[0].textContent = stats.registeredVehicles;
             statCards[1].textContent = stats.pendingApplications;
@@ -94,6 +143,13 @@ async function updateOwnerStats() {
     } catch (error) {
         if (error.name !== 'AbortError') {
             console.error('Failed to update stats:', error);
+        }
+        // Show zeros if API fails
+        if (statCards.length >= 4) {
+            statCards[0].textContent = '0';
+            statCards[1].textContent = '0';
+            statCards[2].textContent = '0';
+            statCards[3].textContent = '0';
         }
     }
 }

@@ -3,116 +3,24 @@ const express = require('express');
 const router = express.Router();
 const fabricService = require('../services/optimizedFabricService');
 
-// Initialize Fabric service (automatically uses mock mode for laptop deployment)
+// Initialize Fabric service - MANDATORY Fabric connection (no fallbacks)
 fabricService.initialize().then(result => {
     if (result && result.mode === 'fabric') {
         console.log('✅ Real Hyperledger Fabric integration active');
     } else {
-        console.log('🔄 Using mock blockchain service (laptop-optimized mode)');
-        console.log('💡 This mode requires no Hyperledger Fabric setup - perfect for development and testing');
+        throw new Error('Fabric initialization failed - no fallback mode allowed');
     }
 }).catch(err => {
-    console.log('🔄 Using mock blockchain service (fallback mode)');
-    console.log('⚠️  Fabric initialization failed:', err.message);
+    console.error('❌ CRITICAL: Fabric initialization failed:', err.message);
+    console.error('⚠️  System requires real Hyperledger Fabric network. Please ensure:');
+    console.error('   1. BLOCKCHAIN_MODE=fabric in .env file');
+    console.error('   2. Fabric network is running (docker-compose -f docker-compose.fabric.yml up -d)');
+    console.error('   3. network-config.json exists and is properly configured');
+    console.error('   4. Admin user is enrolled in wallet');
+    process.exit(1); // Exit if Fabric connection fails
 });
 
-// Legacy mock service for fallback
-class MockBlockchainService {
-    static async invokeChaincode(functionName, args) {
-        // Simulate blockchain transaction
-        console.log(`Invoking chaincode function: ${functionName} with args:`, args);
-        
-        // Mock response based on function name
-        switch (functionName) {
-            case 'RegisterVehicle':
-                return {
-                    success: true,
-                    transactionId: 'tx_' + Date.now(),
-                    result: {
-                        vin: args[0]?.vin || 'VIN' + Date.now(),
-                        plateNumber: args[0]?.plateNumber,
-                        status: 'REGISTERED'
-                    }
-                };
-            
-            case 'GetVehicle':
-                return {
-                    success: true,
-                    result: {
-                        vin: args[0],
-                        plateNumber: 'ABC-1234',
-                        make: 'Toyota',
-                        model: 'Vios',
-                        year: 2023,
-                        status: 'REGISTERED'
-                    }
-                };
-            
-            case 'UpdateVerificationStatus':
-                return {
-                    success: true,
-                    transactionId: 'tx_' + Date.now(),
-                    result: {
-                        vin: args[0],
-                        verificationType: args[1],
-                        status: args[2]
-                    }
-                };
-            
-            default:
-                return {
-                    success: true,
-                    result: 'Mock blockchain response'
-                };
-        }
-    }
-
-    static async queryChaincode(functionName, args) {
-        // Simulate blockchain query
-        console.log(`Querying chaincode function: ${functionName} with args:`, args);
-        
-        switch (functionName) {
-            case 'GetVehicle':
-                return {
-                    success: true,
-                    result: {
-                        vin: args[0],
-                        plateNumber: 'ABC-1234',
-                        make: 'Toyota',
-                        model: 'Vios',
-                        year: 2023,
-                        status: 'REGISTERED',
-                        verificationStatus: {
-                            insurance: 'APPROVED',
-                            emission: 'APPROVED',
-                            admin: 'PENDING'
-                        }
-                    }
-                };
-            
-            case 'GetVehiclesByOwner':
-                return {
-                    success: true,
-                    result: [
-                        {
-                            vin: 'VIN123456789',
-                            plateNumber: 'ABC-1234',
-                            make: 'Toyota',
-                            model: 'Vios',
-                            year: 2023,
-                            status: 'REGISTERED'
-                        }
-                    ]
-                };
-            
-            default:
-                return {
-                    success: true,
-                    result: 'Mock blockchain query response'
-                };
-        }
-    }
-}
+// NOTE: Mock service removed - system requires real Hyperledger Fabric only
 
 // Register vehicle on blockchain
 router.post('/vehicles/register', authenticateToken, async (req, res) => {
@@ -235,19 +143,19 @@ router.get('/vehicles/owner/:ownerId', authenticateToken, async (req, res) => {
             });
         }
 
-        // Query blockchain chaincode
-        const result = await MockBlockchainService.queryChaincode('GetVehiclesByOwner', [ownerId]);
+        // Query blockchain chaincode from Fabric
+        const result = await fabricService.getVehiclesByOwner(ownerId);
 
         if (result.success) {
             res.json({
                 success: true,
-                vehicles: result.result,
-                count: result.result.length
+                vehicles: result.vehicles || [],
+                count: result.vehicles ? result.vehicles.length : 0
             });
         } else {
             res.status(500).json({
                 success: false,
-                error: 'Failed to query vehicles from blockchain'
+                error: 'Failed to query vehicles from Fabric blockchain'
             });
         }
 
@@ -265,18 +173,18 @@ router.get('/vehicles/:vin/history', authenticateToken, async (req, res) => {
     try {
         const { vin } = req.params;
 
-        // Query blockchain chaincode
-        const result = await MockBlockchainService.queryChaincode('GetVehicleHistory', [vin]);
+        // Query blockchain chaincode from Fabric
+        const result = await fabricService.getVehicleHistory(vin);
 
         if (result.success) {
             res.json({
                 success: true,
-                history: result.result
+                history: result.history || []
             });
         } else {
             res.status(404).json({
                 success: false,
-                error: 'Vehicle history not found on blockchain'
+                error: 'Vehicle history not found on Fabric blockchain'
             });
         }
 
@@ -302,22 +210,26 @@ router.put('/vehicles/:vin/transfer', authenticateToken, async (req, res) => {
             });
         }
 
-        // Invoke blockchain chaincode
-        const result = await MockBlockchainService.invokeChaincode('TransferOwnership', [
-            vin, newOwnerId, newOwnerName, transferData
-        ]);
+        // Invoke blockchain chaincode on Fabric
+        const newOwnerData = {
+            id: newOwnerId,
+            email: newOwnerId, // Assuming ownerId is email
+            name: newOwnerName
+        };
+        const result = await fabricService.transferOwnership(vin, newOwnerData, transferData);
 
         if (result.success) {
             res.json({
                 success: true,
-                message: 'Ownership transferred on blockchain successfully',
+                message: 'Ownership transferred on Fabric blockchain successfully',
                 transactionId: result.transactionId,
-                result: result.result
+                vin: result.vin,
+                newOwner: result.newOwner
             });
         } else {
             res.status(500).json({
                 success: false,
-                error: 'Failed to transfer ownership on blockchain'
+                error: 'Failed to transfer ownership on Fabric blockchain'
             });
         }
 
@@ -340,7 +252,7 @@ router.get('/status', authenticateToken, (req, res) => {
             channelName: process.env.FABRIC_CHANNEL_NAME || 'trustchain-channel',
             chaincodeName: process.env.FABRIC_CHAINCODE_NAME || 'vehicle-registration',
             chaincodeVersion: process.env.FABRIC_CHAINCODE_VERSION || '1.0',
-            status: fabricStatus.connected ? 'CONNECTED' : 'MOCK_MODE',
+            status: fabricStatus.connected ? 'CONNECTED' : 'DISCONNECTED',
             network: fabricStatus.network,
             channel: fabricStatus.channel,
             contract: fabricStatus.contract,
@@ -348,23 +260,23 @@ router.get('/status', authenticateToken, (req, res) => {
             peers: [
                 {
                     name: 'peer0.lto.example.com',
-                    status: fabricStatus.connected ? 'UP' : 'MOCK',
+                    status: fabricStatus.connected ? 'UP' : 'DOWN',
                     port: 7051
                 },
                 {
                     name: 'peer0.insurance.example.com',
-                    status: fabricStatus.connected ? 'UP' : 'MOCK',
+                    status: fabricStatus.connected ? 'UP' : 'DOWN',
                     port: 8051
                 },
                 {
                     name: 'peer0.emission.example.com',
-                    status: fabricStatus.connected ? 'UP' : 'MOCK',
+                    status: fabricStatus.connected ? 'UP' : 'DOWN',
                     port: 9051
                 }
             ],
             orderer: {
                 name: 'orderer.example.com',
-                status: fabricStatus.connected ? 'UP' : 'MOCK',
+                status: fabricStatus.connected ? 'UP' : 'DOWN',
                 port: 7050
             }
         };
@@ -383,46 +295,36 @@ router.get('/status', authenticateToken, (req, res) => {
     }
 });
 
-// Get recent transactions
-router.get('/transactions', authenticateToken, authorizeRole(['admin']), (req, res) => {
+// Get recent transactions from Fabric
+router.get('/transactions', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { limit = 10, offset = 0 } = req.query;
 
-        // Mock recent transactions
-        const transactions = [
-            {
-                transactionId: 'tx_1705123456789',
-                type: 'RegisterVehicle',
-                vin: 'VIN123456789',
-                timestamp: new Date().toISOString(),
-                status: 'SUCCESS',
-                blockNumber: 12345
-            },
-            {
-                transactionId: 'tx_1705123456790',
-                type: 'UpdateVerificationStatus',
-                vin: 'VIN123456789',
-                timestamp: new Date().toISOString(),
-                status: 'SUCCESS',
-                blockNumber: 12346
-            }
-        ];
+        // Query transactions from Fabric
+        const allTransactions = await fabricService.getAllTransactions();
+        
+        // Apply pagination
+        const limitNum = parseInt(limit);
+        const offsetNum = parseInt(offset);
+        const paginatedTransactions = allTransactions.slice(offsetNum, offsetNum + limitNum);
 
         res.json({
             success: true,
-            transactions: transactions.slice(offset, offset + parseInt(limit)),
+            transactions: paginatedTransactions,
             pagination: {
-                total: transactions.length,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
-            }
+                total: allTransactions.length,
+                limit: limitNum,
+                offset: offsetNum,
+                hasMore: offsetNum + limitNum < allTransactions.length
+            },
+            source: 'Hyperledger Fabric'
         });
 
     } catch (error) {
-        console.error('Get transactions error:', error);
+        console.error('Get transactions from Fabric error:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to get transactions'
+            error: `Failed to get transactions from Fabric: ${error.message}`
         });
     }
 });

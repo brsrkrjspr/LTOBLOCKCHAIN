@@ -174,7 +174,7 @@ app.listen(PORT, () => {
     console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
     console.log(`🌐 Frontend URL: http://localhost:${PORT}`);
     console.log(`📦 Storage Mode: ${process.env.STORAGE_MODE || 'auto'}`);
-    console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'mock'}`);
+    console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'fabric'} (Fabric-only, no fallbacks)`);
 });
 
 module.exports = app;

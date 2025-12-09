@@ -1,10 +1,10 @@
-// TrustChain LTO - Optimized Fabric Service
-// Automatically falls back to mock blockchain for laptop deployment
+// TrustChain LTO - Real Hyperledger Fabric Service
+// NO FALLBACKS - Requires real Fabric network connection
 
 const { Gateway, Wallets } = require('fabric-network');
 const fs = require('fs');
 const path = require('path');
-const mockBlockchainService = require('./mockBlockchainService');
+const crypto = require('crypto');
 
 class OptimizedFabricService {
     constructor() {
@@ -13,184 +13,105 @@ class OptimizedFabricService {
         this.network = null;
         this.contract = null;
         this.isConnected = false;
-        this.mockService = mockBlockchainService;
-        this.mode = 'mock'; // Default to mock mode
+        this.mode = 'fabric'; // Always Fabric mode - no fallbacks
     }
 
-    // Initialize connection (automatically falls back to mock)
+    // Initialize connection - MANDATORY Fabric connection (no fallbacks)
     async initialize() {
-        try {
-            // Check environment variable first
-            if (process.env.BLOCKCHAIN_MODE === 'mock') {
-                console.log('🔧 Running in mock blockchain mode (environment setting)');
-                this.isConnected = true;
-                this.mode = 'mock';
-                return { success: true, mode: 'mock' };
-            }
+        // Enforce Fabric mode from environment
+        if (process.env.BLOCKCHAIN_MODE !== 'fabric') {
+            throw new Error('BLOCKCHAIN_MODE must be set to "fabric" in .env file. No fallbacks allowed.');
+        }
 
-            // Check if network configuration exists first (before attempting connection)
-            let connectionProfilePath = path.join(__dirname, '../../network-config.json');
-            let connectionProfile;
-            
+        // Check if network configuration exists
+        let connectionProfilePath = path.join(__dirname, '../../network-config.json');
+        
+        if (!fs.existsSync(connectionProfilePath)) {
+            // Try YAML file
+            connectionProfilePath = path.join(__dirname, '../../network-config.yaml');
             if (!fs.existsSync(connectionProfilePath)) {
-                // Try YAML file
-                connectionProfilePath = path.join(__dirname, '../../network-config.yaml');
-                if (!fs.existsSync(connectionProfilePath)) {
-                    // No config found - skip connection attempt entirely
-                    this.isConnected = true;
-                    this.mode = 'mock';
-                    return { success: true, mode: 'mock' };
-                }
-                // For YAML, we'd need a YAML parser, but for now, use JSON
-                this.isConnected = true;
-                this.mode = 'mock';
-                return { success: true, mode: 'mock' };
+                throw new Error('Network configuration file (network-config.json or network-config.yaml) not found. Cannot connect to Fabric.');
             }
-            
-            // Load JSON connection profile
+            throw new Error('YAML connection profile not supported. Please use network-config.json');
+        }
+        
+        // Load JSON connection profile
+        let connectionProfile;
+        try {
             connectionProfile = JSON.parse(fs.readFileSync(connectionProfilePath, 'utf8'));
-            
-            // Try to connect to real Fabric network (only if config exists)
-            console.log('🔗 Attempting to connect to Hyperledger Fabric...');
+        } catch (error) {
+            throw new Error(`Failed to parse network configuration: ${error.message}`);
+        }
+        
+        console.log('🔗 Connecting to Hyperledger Fabric network...');
 
-            // Create wallet
-            const walletPath = path.join(__dirname, '../../wallet');
-            this.wallet = await Wallets.newFileSystemWallet(walletPath);
-            
-            // Check if admin user exists in wallet
-            const userExists = await this.wallet.get('admin');
-            if (!userExists) {
-                console.log('⚠️ Admin user not found in wallet, using mock mode');
-                this.isConnected = true;
-                this.mode = 'mock';
-                return { success: true, mode: 'mock' };
-            }
+        // Create wallet
+        const walletPath = path.join(__dirname, '../../wallet');
+        this.wallet = await Wallets.newFileSystemWallet(walletPath);
+        
+        // Check if admin user exists in wallet
+        const userExists = await this.wallet.get('admin');
+        if (!userExists) {
+            throw new Error('Admin user not found in wallet. Please enroll admin user first.');
+        }
 
-            // Suppress gRPC error logs during connection attempt
-            const originalError = console.error;
-            const originalInfo = console.info;
-            const suppressedErrors = [];
-            
-            // Intercept console.error to filter gRPC connection errors
-            console.error = (...args) => {
-                const message = args.join(' ');
-                if (message.includes('ServiceEndpoint') || 
-                    message.includes('Failed to connect before the deadline') ||
-                    message.includes('waitForReady') ||
-                    message.includes('Unable to connect') ||
-                    message.includes('Endorser-') ||
-                    message.includes('Committer-') ||
-                    message.includes('buildPeer') ||
-                    message.includes('buildOrderer')) {
-                    suppressedErrors.push(message);
-                    return; // Suppress these errors
-                }
-                originalError(...args);
-            };
-            
-            // Also intercept console.info to filter connection attempts
-            console.info = (...args) => {
-                const message = args.join(' ');
-                if (message.includes('ServiceEndpoint') || 
-                    message.includes('Unable to connect')) {
-                    return; // Suppress these info messages
-                }
-                originalInfo(...args);
-            };
-
-            try {
-                // Connect to gateway with shorter timeout and disabled discovery to reduce connection attempts
-                const connectPromise = this.gateway.connect(connectionProfile, {
-                    wallet: this.wallet,
-                    identity: 'admin',
-                    discovery: { enabled: false, asLocalhost: true } // Disable discovery to reduce connection attempts
-                });
-
-                // Add timeout to connection attempt (reduced to 3 seconds)
-                const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Connection timeout')), 3000);
-                });
-
-                await Promise.race([connectPromise, timeoutPromise]);
-            } finally {
-                // Restore original console methods
-                console.error = originalError;
-                console.info = originalInfo;
-            }
+        try {
+            // Connect to gateway
+            await this.gateway.connect(connectionProfile, {
+                wallet: this.wallet,
+                identity: 'admin',
+                discovery: { enabled: true, asLocalhost: true }
+            });
 
             // Get network and contract
             this.network = await this.gateway.getNetwork('ltochannel');
             this.contract = this.network.getContract('vehicle-registration');
 
             this.isConnected = true;
-            this.mode = 'fabric';
-            console.log('✅ Connected to Hyperledger Fabric network');
+            console.log('✅ Connected to Hyperledger Fabric network successfully');
 
             return { success: true, mode: 'fabric' };
 
         } catch (error) {
-            // Only show error if it's not a connection timeout (expected in mock mode)
-            if (!error.message.includes('timeout') && !error.message.includes('Connection timeout')) {
-                console.error('❌ Failed to connect to Fabric network, using mock mode:', error.message);
-            }
-            this.isConnected = true;
-            this.mode = 'mock';
-            return { success: true, mode: 'mock' };
+            this.isConnected = false;
+            console.error('❌ Failed to connect to Fabric network:', error.message);
+            throw new Error(`Fabric connection failed: ${error.message}. Ensure Fabric network is running and properly configured.`);
         }
     }
 
-    // Register vehicle
+    // Register vehicle - Fabric only
     async registerVehicle(vehicleData) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot register vehicle.');
+        }
+
         try {
-            let result;
+            const vehicleJson = JSON.stringify(vehicleData);
+            const fabricResult = await this.contract.submitTransaction('RegisterVehicle', vehicleJson);
             
-            if (this.mode === 'mock') {
-                result = await this.mockService.registerVehicle(vehicleData);
-            } else {
-                // Real Fabric implementation
-                const vehicleJson = JSON.stringify(vehicleData);
-                const fabricResult = await this.contract.submitTransaction('RegisterVehicle', vehicleJson);
-                
-                result = {
-                    success: true,
-                    message: 'Vehicle registered successfully',
-                    transactionId: fabricResult.toString(),
-                    vin: vehicleData.vin
-                };
-            }
+            const result = {
+                success: true,
+                message: 'Vehicle registered successfully on Fabric',
+                transactionId: fabricResult.toString(),
+                vin: vehicleData.vin
+            };
 
-            // Add transaction to ledger for viewing
-            try {
-                const blockchainLedger = require('./blockchainLedger');
-                blockchainLedger.addTransaction({
-                    transactionId: result.transactionId || result.id || 'tx_' + Date.now(),
-                    type: 'VEHICLE_REGISTRATION',
-                    vin: vehicleData.vin,
-                    plateNumber: vehicleData.plateNumber,
-                    owner: vehicleData.owner
-                });
-                console.log('✅ Transaction added to blockchain ledger');
-            } catch (ledgerError) {
-                console.warn('⚠️ Failed to add transaction to ledger:', ledgerError.message);
-                // Don't fail the registration if ledger update fails
-            }
-
+            console.log(`✅ Vehicle registered on Fabric: ${result.transactionId}`);
             return result;
 
         } catch (error) {
-            console.error('❌ Failed to register vehicle:', error);
+            console.error('❌ Failed to register vehicle on Fabric:', error);
             throw new Error(`Vehicle registration failed: ${error.message}`);
         }
     }
 
-    // Get vehicle
+    // Get vehicle - Fabric only
     async getVehicle(vin) {
-        try {
-            if (this.mode === 'mock') {
-                return await this.mockService.getVehicle(vin);
-            }
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query vehicle.');
+        }
 
-            // Real Fabric implementation
+        try {
             const result = await this.contract.evaluateTransaction('GetVehicle', vin);
             const vehicle = JSON.parse(result.toString());
             
@@ -200,73 +121,51 @@ class OptimizedFabricService {
             };
 
         } catch (error) {
-            console.error('❌ Failed to get vehicle:', error);
+            console.error('❌ Failed to get vehicle from Fabric:', error);
             throw new Error(`Vehicle query failed: ${error.message}`);
         }
     }
 
-    // Update verification status
+    // Update verification status - Fabric only
     async updateVerificationStatus(vin, verificationType, status, notes) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot update verification status.');
+        }
+
         try {
-            let result;
+            const fabricResult = await this.contract.submitTransaction(
+                'UpdateVerificationStatus', 
+                vin, 
+                verificationType, 
+                status, 
+                notes || ''
+            );
             
-            if (this.mode === 'mock') {
-                result = await this.mockService.updateVerificationStatus(vin, verificationType, status, notes);
-            } else {
-                // Real Fabric implementation
-                const fabricResult = await this.contract.submitTransaction(
-                    'UpdateVerificationStatus', 
-                    vin, 
-                    verificationType, 
-                    status, 
-                    notes || ''
-                );
-                
-                result = {
-                    success: true,
-                    message: 'Verification status updated successfully',
-                    transactionId: fabricResult.toString(),
-                    vin: vin,
-                    verificationType: verificationType,
-                    status: status
-                };
-            }
+            const result = {
+                success: true,
+                message: 'Verification status updated successfully on Fabric',
+                transactionId: fabricResult.toString(),
+                vin: vin,
+                verificationType: verificationType,
+                status: status
+            };
 
-            // Add transaction to ledger for viewing
-            try {
-                const blockchainLedger = require('./blockchainLedger');
-                const vehicle = await this.getVehicle(vin).catch(() => null);
-                blockchainLedger.addTransaction({
-                    transactionId: result.transactionId || result.id || 'tx_' + Date.now(),
-                    type: 'VERIFICATION_UPDATE',
-                    vin: vin,
-                    plateNumber: vehicle?.vehicle?.plateNumber || 'N/A',
-                    owner: vehicle?.vehicle?.owner || null,
-                    verificationType: verificationType,
-                    status: status
-                });
-                console.log('✅ Verification transaction added to blockchain ledger');
-            } catch (ledgerError) {
-                console.warn('⚠️ Failed to add verification transaction to ledger:', ledgerError.message);
-                // Don't fail the update if ledger update fails
-            }
-
+            console.log(`✅ Verification updated on Fabric: ${result.transactionId}`);
             return result;
 
         } catch (error) {
-            console.error('❌ Failed to update verification status:', error);
+            console.error('❌ Failed to update verification status on Fabric:', error);
             throw new Error(`Verification update failed: ${error.message}`);
         }
     }
 
-    // Transfer ownership
+    // Transfer ownership - Fabric only
     async transferOwnership(vin, newOwnerData, transferData) {
-        try {
-            if (this.mode === 'mock') {
-                return await this.mockService.transferOwnership(vin, newOwnerData, transferData);
-            }
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot transfer ownership.');
+        }
 
-            // Real Fabric implementation
+        try {
             const newOwnerJson = JSON.stringify(newOwnerData);
             const transferJson = JSON.stringify(transferData);
             
@@ -279,26 +178,25 @@ class OptimizedFabricService {
             
             return {
                 success: true,
-                message: 'Ownership transferred successfully',
+                message: 'Ownership transferred successfully on Fabric',
                 transactionId: result.toString(),
                 vin: vin,
                 newOwner: newOwnerData.email
             };
 
         } catch (error) {
-            console.error('❌ Failed to transfer ownership:', error);
+            console.error('❌ Failed to transfer ownership on Fabric:', error);
             throw new Error(`Ownership transfer failed: ${error.message}`);
         }
     }
 
-    // Get vehicles by owner
+    // Get vehicles by owner - Fabric only
     async getVehiclesByOwner(ownerEmail) {
-        try {
-            if (this.mode === 'mock') {
-                return await this.mockService.getVehiclesByOwner(ownerEmail);
-            }
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query vehicles.');
+        }
 
-            // Real Fabric implementation
+        try {
             const result = await this.contract.evaluateTransaction('GetVehiclesByOwner', ownerEmail);
             const vehicles = JSON.parse(result.toString());
             
@@ -308,19 +206,18 @@ class OptimizedFabricService {
             };
 
         } catch (error) {
-            console.error('❌ Failed to get vehicles by owner:', error);
+            console.error('❌ Failed to get vehicles by owner from Fabric:', error);
             throw new Error(`Vehicle query failed: ${error.message}`);
         }
     }
 
-    // Get vehicle history
+    // Get vehicle history - Fabric only
     async getVehicleHistory(vin) {
-        try {
-            if (this.mode === 'mock') {
-                return await this.mockService.getVehicleHistory(vin);
-            }
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query vehicle history.');
+        }
 
-            // Real Fabric implementation
+        try {
             const result = await this.contract.evaluateTransaction('GetVehicleHistory', vin);
             const history = JSON.parse(result.toString());
             
@@ -330,19 +227,18 @@ class OptimizedFabricService {
             };
 
         } catch (error) {
-            console.error('❌ Failed to get vehicle history:', error);
+            console.error('❌ Failed to get vehicle history from Fabric:', error);
             throw new Error(`History query failed: ${error.message}`);
         }
     }
 
-    // Get system statistics
+    // Get system statistics - Fabric only
     async getSystemStats() {
-        try {
-            if (this.mode === 'mock') {
-                return await this.mockService.getSystemStats();
-            }
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query system stats.');
+        }
 
-            // Real Fabric implementation
+        try {
             const result = await this.contract.evaluateTransaction('GetSystemStats');
             const stats = JSON.parse(result.toString());
             
@@ -352,35 +248,24 @@ class OptimizedFabricService {
             };
 
         } catch (error) {
-            console.error('❌ Failed to get system stats:', error);
+            console.error('❌ Failed to get system stats from Fabric:', error);
             throw new Error(`Stats query failed: ${error.message}`);
         }
     }
 
-    // Get transaction status by polling the ledger
-    // This checks if a transaction has been committed by querying the vehicle
+    // Get transaction status by polling the ledger - Fabric only
     async getTransactionStatus(transactionId, vin, maxRetries = 10, retryDelay = 2000) {
-        try {
-            if (this.mode === 'mock') {
-                // In mock mode, assume transaction is immediately committed
-                return {
-                    status: 'committed',
-                    transactionId: transactionId,
-                    blockNumber: null,
-                    timestamp: new Date().toISOString(),
-                    mode: 'mock'
-                };
-            }
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot check transaction status.');
+        }
 
-            // Real Fabric implementation - poll by checking if vehicle exists on ledger
+        try {
+            // Poll by checking if vehicle exists on ledger
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    // Try to get the vehicle from the ledger
-                    // If it exists, the transaction was committed
                     const vehicleResult = await this.getVehicle(vin);
                     
                     if (vehicleResult.success && vehicleResult.vehicle) {
-                        // Vehicle exists on ledger - transaction is committed
                         const vehicle = vehicleResult.vehicle;
                         
                         // Check if this vehicle has the matching transaction ID
@@ -398,14 +283,11 @@ class OptimizedFabricService {
                         }
                     }
                     
-                    // If vehicle doesn't exist yet, transaction might still be pending
-                    // Wait and retry
                     if (attempt < maxRetries) {
                         await new Promise(resolve => setTimeout(resolve, retryDelay));
                         continue;
                     }
                     
-                    // After max retries, assume pending
                     return {
                         status: 'pending',
                         transactionId: transactionId,
@@ -416,14 +298,12 @@ class OptimizedFabricService {
                     };
                     
                 } catch (queryError) {
-                    // If vehicle not found, transaction might still be pending
                     if (queryError.message.includes('not found') || queryError.message.includes('does not exist')) {
                         if (attempt < maxRetries) {
                             await new Promise(resolve => setTimeout(resolve, retryDelay));
                             continue;
                         }
                         
-                        // After max retries, still not found
                         return {
                             status: 'pending',
                             transactionId: transactionId,
@@ -434,12 +314,10 @@ class OptimizedFabricService {
                         };
                     }
                     
-                    // Other error - might indicate transaction failed
                     throw queryError;
                 }
             }
             
-            // Should not reach here, but return pending status
             return {
                 status: 'pending',
                 transactionId: transactionId,
@@ -450,30 +328,148 @@ class OptimizedFabricService {
             };
             
         } catch (error) {
-            console.error('❌ Failed to get transaction status:', error);
+            console.error('❌ Failed to get transaction status from Fabric:', error);
             return {
                 status: 'unknown',
                 transactionId: transactionId,
                 vin: vin,
                 error: error.message,
-                mode: this.mode
+                mode: 'fabric'
             };
         }
     }
 
-    // Get network status
-    getStatus() {
-        if (this.mode === 'mock') {
-            const mockStatus = this.mockService.getStatus();
-            return {
-                isConnected: mockStatus.connected || this.isConnected,
-                mode: 'mock',
-                network: mockStatus.network || 'Mock Blockchain',
-                channel: null,
-                contract: null
-            };
+    // Get all transactions from Fabric (using chaincode queries)
+    async getAllTransactions() {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query transactions.');
         }
 
+        try {
+            // Query all vehicles from chaincode
+            const vehiclesResult = await this.contract.evaluateTransaction('GetAllVehicles');
+            const vehicles = JSON.parse(vehiclesResult.toString());
+            
+            // Build transactions from vehicle histories
+            const transactions = [];
+            
+            vehicles.forEach(vehicle => {
+                // Add registration transaction
+                if (vehicle.blockchainTxId) {
+                    transactions.push({
+                        id: vehicle.blockchainTxId,
+                        transactionId: vehicle.blockchainTxId,
+                        type: 'VEHICLE_REGISTRATION',
+                        vin: vehicle.vin,
+                        plateNumber: vehicle.plateNumber || '',
+                        owner: vehicle.owner || null,
+                        timestamp: vehicle.registrationDate || vehicle.createdAt || new Date().toISOString(),
+                        status: 'CONFIRMED',
+                        hash: vehicle.blockchainTxId,
+                        data: {
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            color: vehicle.color,
+                            vehicleType: vehicle.vehicleType
+                        }
+                    });
+                }
+                
+                // Add history entries as transactions
+                if (vehicle.history && Array.isArray(vehicle.history)) {
+                    vehicle.history.forEach(historyEntry => {
+                        transactions.push({
+                            id: historyEntry.transactionId || `tx_${vehicle.vin}_${historyEntry.timestamp}`,
+                            transactionId: historyEntry.transactionId || `tx_${vehicle.vin}_${historyEntry.timestamp}`,
+                            type: historyEntry.action || 'HISTORY_ENTRY',
+                            vin: vehicle.vin,
+                            plateNumber: vehicle.plateNumber || '',
+                            owner: vehicle.owner || null,
+                            timestamp: historyEntry.timestamp || new Date().toISOString(),
+                            status: 'CONFIRMED',
+                            hash: historyEntry.transactionId || `tx_${vehicle.vin}_${historyEntry.timestamp}`,
+                            data: {
+                                action: historyEntry.action,
+                                details: historyEntry.details,
+                                performedBy: historyEntry.performedBy,
+                                notes: historyEntry.notes
+                            }
+                        });
+                    });
+                }
+            });
+            
+            // Sort by timestamp (newest first)
+            return transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        } catch (error) {
+            console.error('❌ Failed to get transactions from Fabric:', error);
+            throw new Error(`Failed to query transactions: ${error.message}`);
+        }
+    }
+
+    // Helper method to generate block hash
+    generateBlockHash(blockNumber, transactions) {
+        const data = `${blockNumber}_${transactions.map(tx => tx.id || tx.transactionId).join('_')}`;
+        return '0x' + crypto.createHash('sha256').update(data).digest('hex');
+    }
+
+    // Get all blocks from Fabric (built from transactions)
+    async getAllBlocks() {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query blocks.');
+        }
+
+        try {
+            // Get all transactions
+            const transactions = await this.getAllTransactions();
+            
+            // Group transactions into blocks (simulate block structure)
+            const transactionsPerBlock = 10;
+            const blocks = [];
+            
+            // Genesis block
+            blocks.push({
+                blockNumber: 0,
+                blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                previousHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                timestamp: new Date().toISOString(),
+                transactions: [],
+                transactionCount: 0,
+                dataHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+            });
+            
+            // Group transactions into blocks
+            for (let i = 0; i < transactions.length; i += transactionsPerBlock) {
+                const blockTransactions = transactions.slice(i, i + transactionsPerBlock);
+                const blockNumber = Math.floor(i / transactionsPerBlock) + 1;
+                
+                const blockHash = this.generateBlockHash(blockNumber, blockTransactions);
+                const previousHash = blocks[blocks.length - 1].blockHash;
+                
+                blocks.push({
+                    blockNumber: blockNumber,
+                    blockHash: blockHash,
+                    previousHash: previousHash,
+                    timestamp: blockTransactions[0]?.timestamp || new Date().toISOString(),
+                    transactions: blockTransactions.map(tx => ({ 
+                        id: tx.id || tx.transactionId, 
+                        transactionId: tx.transactionId || tx.id 
+                    })),
+                    transactionCount: blockTransactions.length,
+                    dataHash: blockHash
+                });
+            }
+            
+            return blocks;
+        } catch (error) {
+            console.error('❌ Failed to get blocks from Fabric:', error);
+            throw new Error(`Failed to query blocks: ${error.message}`);
+        }
+    }
+
+    // Get network status - Fabric only
+    getStatus() {
         return {
             isConnected: this.isConnected,
             mode: 'fabric',
@@ -486,7 +482,7 @@ class OptimizedFabricService {
     // Disconnect from network
     async disconnect() {
         try {
-            if (this.mode === 'fabric' && this.gateway) {
+            if (this.gateway && this.isConnected) {
                 await this.gateway.disconnect();
                 console.log('✅ Disconnected from Fabric network');
             }

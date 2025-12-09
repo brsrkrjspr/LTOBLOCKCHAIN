@@ -633,12 +633,12 @@ router.post('/register', optionalAuth, async (req, res) => {
                     });
                 }
             } else {
-                // Mock mode or no transaction ID - update to REGISTERED immediately
+                // No transaction ID - update to REGISTERED (transaction was submitted)
                 await db.updateVehicle(newVehicle.id, { status: 'REGISTERED' });
                 await db.addVehicleHistory({
                     vehicleId: newVehicle.id,
                     action: 'BLOCKCHAIN_REGISTERED',
-                    description: 'Vehicle registered on blockchain (mock mode)',
+                    description: 'Vehicle registered on Fabric blockchain',
                     performedBy: ownerUser.id,
                     transactionId: blockchainTxId,
                     metadata: { blockchainResult }
@@ -647,18 +647,18 @@ router.post('/register', optionalAuth, async (req, res) => {
             
         } catch (blockchainError) {
             console.error('❌ Blockchain registration failed:', blockchainError);
-            // Continue with local registration even if blockchain fails
-            // Use SUBMITTED status when blockchain is unavailable
-            await db.updateVehicle(newVehicle.id, { status: 'SUBMITTED' });
+            // Rollback: Delete vehicle record since blockchain registration failed
+            try {
+                await db.deleteVehicle(newVehicle.id);
+            } catch (deleteError) {
+                console.error('Failed to rollback vehicle record:', deleteError);
+            }
             
-            // Add history note about blockchain failure
-            await db.addVehicleHistory({
-                vehicleId: newVehicle.id,
-                action: 'BLOCKCHAIN_FAILED',
-                description: 'Vehicle registered locally but blockchain registration failed',
-                performedBy: ownerUser.id,
-                transactionId: null,
-                metadata: { blockchainError: blockchainError.message }
+            // Return error - no fallback allowed
+            return res.status(500).json({
+                success: false,
+                error: `Vehicle registration failed: Blockchain registration required but failed: ${blockchainError.message}`,
+                details: 'System requires real Hyperledger Fabric. Ensure Fabric network is running and properly configured.'
             });
         }
 
@@ -735,28 +735,8 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin']), async 
             metadata: { previousStatus: vehicle.status, newStatus: status, notes }
         });
 
-        // Add transaction to blockchain ledger for viewing
-        try {
-            const blockchainLedger = require('../services/blockchainLedger');
-            blockchainLedger.addTransaction({
-                transactionId: 'tx_' + Date.now(),
-                type: status === 'APPROVED' ? 'VEHICLE_APPROVAL' : status === 'REJECTED' ? 'VEHICLE_REJECTION' : 'STATUS_UPDATE',
-                vin: vehicle.vin,
-                plateNumber: vehicle.plate_number,
-                owner: {
-                    id: vehicle.owner_id,
-                    email: vehicle.owner_email,
-                    firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null,
-                    lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null
-                },
-                status: status,
-                notes: notes
-            });
-            console.log(`✅ Status update transaction added to blockchain ledger: ${status}`);
-        } catch (ledgerError) {
-            console.warn('⚠️ Failed to add status update transaction to ledger:', ledgerError.message);
-            // Don't fail the status update if ledger update fails
-        }
+        // Note: If status update triggers blockchain transaction, it will be stored on Fabric automatically
+        // No local ledger writes - all blockchain data comes from Fabric
 
         // Get updated vehicle
         const updatedVehicle = await db.getVehicleById(id);

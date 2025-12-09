@@ -110,6 +110,6 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "⚠️  Chaincode test failed (may need initialization)" -ForegroundColor Yellow
 }
 
-Write-Host "🎉 Chaincode deployment complete!" -ForegroundColor Green
-Write-Host "💡 Your Fabric network is now ready to use!" -ForegroundColor Cyan
+Write-Host "Chaincode deployment complete!" -ForegroundColor Green
+Write-Host "Your Fabric network is now ready to use!" -ForegroundColor Cyan
 

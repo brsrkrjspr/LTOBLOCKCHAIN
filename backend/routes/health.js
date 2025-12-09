@@ -51,9 +51,9 @@ router.get('/blockchain', async (req, res) => {
         
         res.json({
             status: status.isConnected ? 'healthy' : 'unhealthy',
-            blockchain: status.mode === 'fabric' ? 'fabric' : 'mock',
+            blockchain: 'fabric',
             mode: status.isConnected ? 'connected' : 'disconnected',
-            type: status.mode === 'fabric' ? 'Hyperledger Fabric' : 'Mock Blockchain',
+            type: 'Hyperledger Fabric',
             timestamp: new Date().toISOString()
         });
     } catch (error) {
@@ -125,8 +125,8 @@ router.get('/detailed', async (req, res) => {
                 },
                 blockchain: {
                     status: fabricStatus.isConnected ? 'connected' : 'disconnected',
-                    type: fabricStatus.mode === 'fabric' ? 'Hyperledger Fabric' : 'Mock Blockchain',
-                    mode: fabricStatus.mode,
+                    type: 'Hyperledger Fabric',
+                    mode: 'fabric',
                     network: fabricStatus.network,
                     channel: fabricStatus.channel
                 },

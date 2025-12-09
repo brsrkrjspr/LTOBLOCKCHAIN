@@ -39,3 +39,13 @@ PeerOrgs:
       Count: 1
     Specs:
       - Hostname: peer0
+
+  - Name: HPG
+    Domain: hpg.gov.ph
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+    Specs:
+      - Hostname: peer0

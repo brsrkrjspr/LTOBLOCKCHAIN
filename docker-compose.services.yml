@@ -1,0 +1,111 @@
+# TrustChain LTO - Core Services Only
+# PostgreSQL, IPFS, and Redis
+# Use with docker-compose.fabric-simple.yml
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # POSTGRESQL DATABASE
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=lto_blockchain
+      - POSTGRES_USER=lto_user
+      - POSTGRES_PASSWORD=lto_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init-laptop.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lto_user -d lto_blockchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c max_connections=100
+
+  # ===========================================
+  # REDIS CACHE
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes --requirepass redis_password --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ===========================================
+  # IPFS STORAGE
+  # ===========================================
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: ipfs
+    environment:
+      - IPFS_PROFILE=server
+    ports:
+      - "4001:4001"   # Swarm port
+      - "5001:5001"   # API port
+      - "8080:8080"   # Gateway port
+    volumes:
+      - ipfs-data:/data/ipfs
+    networks:
+      - lto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:5001/api/v0/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /data/ipfs/config ]; then
+          ipfs init --profile=server
+        fi
+        ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
+        ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["PUT", "POST", "GET", "OPTIONS"]'
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Headers '["*"]'
+        ipfs config --json API.HTTPHeaders.Access-Control-Expose-Headers '["*"]'
+        ipfs config --json Gateway.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
+        ipfs config --json Gateway.HTTPHeaders.Access-Control-Allow-Methods '["PUT", "POST", "GET", "OPTIONS"]'
+        ipfs daemon --migrate=true
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  ipfs-data:
+    driver: local
+
+networks:
+  lto-network:
+    external: true
+    name: lto-network
+

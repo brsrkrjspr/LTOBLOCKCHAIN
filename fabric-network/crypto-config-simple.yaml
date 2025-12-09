@@ -1,0 +1,20 @@
+# TrustChain LTO - Simplified Cryptographic Configuration
+# Single orderer setup for development/testing
+
+OrdererOrgs:
+  - Name: Orderer
+    Domain: lto.gov.ph
+    Specs:
+      - Hostname: orderer
+
+PeerOrgs:
+  - Name: LTO
+    Domain: lto.gov.ph
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 2
+    Specs:
+      - Hostname: peer0
+

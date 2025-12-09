@@ -2,8 +2,6 @@
 # All open source components extracted and configured
 # This file contains ONLY the Fabric blockchain components
 
-version: '3.8'
-
 services:
   # ===========================================
   # CERTIFICATE AUTHORITY (CA)
@@ -234,6 +232,7 @@ volumes:
 
 networks:
   lto-network:
+    name: lto-network
     driver: bridge
     ipam:
       config:

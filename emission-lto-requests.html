@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTO → Emission Requests - Emission Verifier</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('emissionVerifierSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">EV</div>
+                    <div class="logo-text">
+                        <h2>Emission</h2>
+                        <p>Verifier Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="verifier-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="emission-lto-requests.html" class="nav-item active">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests by Org</span>
+                    <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
+                </a>
+                <a href="#emission" class="nav-item">
+                    <i class="fas fa-leaf"></i>
+                    <span>Emission Tests</span>
+                </a>
+                <a href="#reports" class="nav-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Emission Verifier Dashboard</p>
+                        </div>
+                    <div class="user-info">
+                        <div class="user-avatar" id="userAvatar">EV</div>
+                        <div class="user-details">
+                            <span class="user-name" id="userName">Loading...</span>
+                            <span class="user-role" id="userRole">Loading...</span>
+                        </div>
+                        <a href="settings.html" class="btn-secondary">Settings</a>
+                        <a href="index.html" class="btn-secondary">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <div class="container">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="page-title-section">
+                        <h2>Emission Test Requests from LTO</h2>
+                        <p>Review and process emission test requests sent by LTO Admin</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn-secondary" onclick="refreshRequests()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn-secondary" onclick="exportRequests()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="statusFilter" onchange="filterRequests()">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="received">Received</option>
+                            <option value="completed">Completed</option>
+                            <option value="sent">Sent to LTO</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Vehicle Type:</label>
+                        <select id="vehicleTypeFilter" onchange="filterRequests()">
+                            <option value="">All Types</option>
+                            <option value="car">Car</option>
+                            <option value="motorcycle">Motorcycle</option>
+                            <option value="truck">Truck</option>
+                            <option value="bus">Bus</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" id="searchInput" placeholder="Search by Request ID, Plate, or Owner..." onkeyup="filterRequests()">
+                    </div>
+                </div>
+
+                <!-- Requests Table -->
+                <div class="dashboard-card">
+                    <div class="table-container">
+                        <table class="table" id="requestsTable">
+                            <thead>
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th>Application ID</th>
+                                    <th>Owner Name</th>
+                                    <th>Plate Number</th>
+                                    <th>Vehicle Type</th>
+                                    <th>Request Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requestsTableBody">
+                                <!-- Data will be loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- LTO Requests Section -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">📥</span> Requests from LTO</h3>
+                    <div class="lto-requests-section">
+                        <div class="request-item" id="ltoRequestItem" style="display: none;">
+                            <div class="request-header">
+                                <i class="fas fa-envelope text-primary"></i>
+                                <div class="request-info">
+                                    <h4>New Request from LTO</h4>
+                                    <p>Application ID: <span id="requestAppId">-</span></p>
+                                    <p>Vehicle: <span id="requestVehicle">-</span></p>
+                                </div>
+                            </div>
+                            <div class="request-actions">
+                                <button class="btn-primary btn-sm" onclick="receiveLTORequest()" id="receiveRequestBtn">
+                                    <i class="fas fa-download"></i> Receive Request
+                                </button>
+                            </div>
+                        </div>
+                        <p id="noRequestsMsg" style="text-align: center; color: #7f8c8d; padding: 2rem;">
+                            No pending requests from LTO
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Upload Test Result Section -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">📤</span> Upload Test Result</h3>
+                    <div class="upload-section">
+                        <form id="emissionUploadForm" onsubmit="uploadEmissionResult(event)">
+                            <div class="form-group">
+                                <label for="testResultFile">Emission Test Result (PDF/Image)</label>
+                                <input type="file" id="testResultFile" name="testResult" accept=".pdf,.jpg,.jpeg,.png" required>
+                                <small class="hint">Upload the emission test result document</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="testResultNotes">Notes/Comments</label>
+                                <textarea id="testResultNotes" name="notes" rows="3" placeholder="Add any notes about the test result..."></textarea>
+                            </div>
+                            <button type="submit" class="btn-primary" id="uploadResultBtn">
+                                <i class="fas fa-upload"></i> Upload Test Result
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Send Result to LTO Section -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">📨</span> Send Result to LTO</h3>
+                    <div class="send-section">
+                        <div id="uploadedResultPreview" style="display: none;">
+                            <div class="result-preview">
+                                <i class="fas fa-file-pdf text-danger"></i>
+                                <div class="preview-info">
+                                    <h4 id="previewFileName">-</h4>
+                                    <p id="previewFileDate">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn-success" onclick="sendResultToLTO()" id="sendToLTOBtn" disabled>
+                            <i class="fas fa-paper-plane"></i> Send Result to LTO
+                        </button>
+                        <p id="sendStatusMsg" style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;"></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+        </div>
+    </div>
+
+    <!-- Request Details Modal -->
+    <div class="modal" id="requestDetailsModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Request Details</h2>
+                <button class="modal-close" onclick="closeModal('requestDetailsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="requestDetailsContent">
+                    <!-- Request details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('requestDetailsModal')">Close</button>
+                <button class="btn-primary" onclick="receiveRequest()">Receive Request</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/verifier-dashboard.js"></script>
+    <script>
+        // Initialize user data
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    
+                    if (userNameEl) {
+                        userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    if (userRoleEl) {
+                        const roleNames = {
+                            'vehicle_owner': 'Vehicle Owner',
+                            'admin': 'Administrator',
+                            'insurance_verifier': 'Insurance Verifier',
+                            'emission_verifier': 'Emission Verification Specialist'
+                        };
+                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (userAvatarEl) {
+                        userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    }
+                } else {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+
+            // Initialize workflow
+            if (typeof initEmissionWorkflow === 'function') {
+                initEmissionWorkflow();
+            }
+
+            // Load requests
+            loadEmissionRequests();
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('emissionVerifierSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('emissionVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+        });
+
+        function loadEmissionRequests() {
+            // Placeholder: Load requests from API or localStorage
+            const tbody = document.getElementById('requestsTableBody');
+            if (!tbody) return;
+
+            // Check for pending emission requests from LTO workflow
+            const emissionRequestPending = localStorage.getItem('emissionRequestPending') === 'true';
+            const currentRequest = JSON.parse(localStorage.getItem('currentEmissionRequest') || 'null');
+
+            tbody.innerHTML = '';
+
+            if (emissionRequestPending && currentRequest) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${currentRequest.requestId || 'REQ-' + Date.now()}</td>
+                    <td>${currentRequest.applicationId || 'APP-' + Date.now()}</td>
+                    <td>${currentRequest.ownerName || 'N/A'}</td>
+                    <td>${currentRequest.plateNumber || 'N/A'}</td>
+                    <td>${currentRequest.vehicleType || 'N/A'}</td>
+                    <td>${new Date().toLocaleDateString()}</td>
+                    <td><span class="badge badge-warning">Pending</span></td>
+                    <td>
+                        <button class="btn-primary btn-sm" onclick="viewRequestDetails('${currentRequest.requestId || 'REQ-' + Date.now()}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn-success btn-sm" onclick="receiveRequest('${currentRequest.requestId || 'REQ-' + Date.now()}')">
+                            <i class="fas fa-download"></i> Receive
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                            No pending requests from LTO
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function viewRequestDetails(requestId) {
+            // Load request details
+            const currentRequest = JSON.parse(localStorage.getItem('currentEmissionRequest') || 'null');
+            const detailsContent = document.getElementById('requestDetailsContent');
+            
+            if (detailsContent && currentRequest) {
+                detailsContent.innerHTML = `
+                    <div class="request-details">
+                        <h3>Request Information</h3>
+                        <div class="detail-row">
+                            <strong>Request ID:</strong> ${currentRequest.requestId || 'N/A'}
+                        </div>
+                        <div class="detail-row">
+                            <strong>Application ID:</strong> ${currentRequest.applicationId || 'N/A'}
+                        </div>
+                        <div class="detail-row">
+                            <strong>Owner Name:</strong> ${currentRequest.ownerName || 'N/A'}
+                        </div>
+                        <div class="detail-row">
+                            <strong>Plate Number:</strong> ${currentRequest.plateNumber || 'N/A'}
+                        </div>
+                        <div class="detail-row">
+                            <strong>Vehicle Type:</strong> ${currentRequest.vehicleType || 'N/A'}
+                        </div>
+                        <div class="detail-row">
+                            <strong>Request Date:</strong> ${new Date().toLocaleDateString()}
+                        </div>
+                        <div class="detail-row">
+                            <strong>Status:</strong> <span class="badge badge-warning">Pending</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('requestDetailsModal').classList.add('active');
+        }
+
+        function receiveRequest(requestId) {
+            // Call the receive function from verifier-dashboard.js
+            if (typeof receiveLTORequest === 'function') {
+                receiveLTORequest();
+            } else {
+                // Fallback: Update localStorage
+                localStorage.setItem('emissionRequestReceived', 'true');
+                localStorage.setItem('emissionRequestPending', 'false');
+                alert('Request received successfully! You can now upload the test result.');
+                loadEmissionRequests();
+            }
+            closeModal('requestDetailsModal');
+        }
+
+        function filterRequests() {
+            // Filter logic - placeholder
+            loadEmissionRequests();
+        }
+
+        function refreshRequests() {
+            loadEmissionRequests();
+        }
+
+        function exportRequests() {
+            alert('Export functionality will be implemented');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+    </script>
+</body>
+</html>
+

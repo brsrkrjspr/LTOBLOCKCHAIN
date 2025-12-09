@@ -59,12 +59,8 @@
             console.log('Filling credentials:', email, password, role);
             const emailInput = document.getElementById('loginEmail');
             const passwordInput = document.getElementById('loginPassword');
-            const roleSelect = document.getElementById('loginRole');
             if (emailInput) emailInput.value = email || '';
             if (passwordInput) passwordInput.value = password || '';
-            if (roleSelect && role) {
-                roleSelect.value = role;
-            }
             
             // Show a notification that credentials were filled
             if (typeof showNotification === 'function') {
@@ -151,13 +147,29 @@
 
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-            const roleSelect = document.getElementById('loginRole');
-            const role = roleSelect ? roleSelect.value : '';
 
             // Basic validation
-            if (!email || !password || !role) {
-                showNotification('Please fill in all fields including role', 'error');
+            if (!email || !password) {
+                showNotification('Please fill in all fields', 'error');
                 return;
+            }
+
+            // Determine role based on email address
+            let role = 'vehicle_owner'; // Default role
+            const testCredentials = {
+                'hpgadmin@hpg.gov.ph': { password: 'hpg123456', role: 'hpg_admin', name: 'HPG Administrator' },
+                'admin@lto.gov.ph': { password: 'admin123', role: 'admin', name: 'LTO Administrator' },
+                'insurance@example.com': { password: 'insurance123', role: 'insurance_verifier', name: 'Insurance Verifier' },
+                'emission@example.com': { password: 'emission123', role: 'emission_verifier', name: 'Emission Verifier' }
+            };
+
+            // Check if email matches test credentials to determine role
+            if (testCredentials[email]) {
+                role = testCredentials[email].role;
+            } else {
+                // For real API calls, role will be determined by backend based on email
+                // For now, default to vehicle_owner
+                role = 'vehicle_owner';
             }
 
             // Email format validation
@@ -169,15 +181,8 @@
 
             console.log('Attempting login with:', email, role);
             
-            // Test credentials check (frontend only for demo)
-            const testCredentials = {
-                'dealer@example.com': { password: 'dealer123', role: 'dealership', name: 'Auto Dealership' },
-                'police@example.com': { password: 'police123', role: 'police', name: 'Officer Smith' },
-                'bank@example.com': { password: 'bank123', role: 'bank', name: 'Bank Manager' }
-            };
-
             // Check if it's a test credential
-            if (testCredentials[email] && testCredentials[email].password === password && testCredentials[email].role === role) {
+            if (testCredentials[email] && testCredentials[email].password === password) {
                 // Store user data
                 const userData = {
                     email: email,
@@ -192,14 +197,17 @@
                 // Redirect based on role
                 setTimeout(() => {
                     switch(role) {
-                        case 'dealership':
-                            window.location.href = 'dashboard_dealership.html';
+                        case 'hpg_admin':
+                            window.location.href = 'hpg-admin-dashboard.html';
                             break;
-                        case 'police':
-                            window.location.href = 'dashboard_police.html';
+                        case 'admin':
+                            window.location.href = 'admin-dashboard.html';
                             break;
-                        case 'bank':
-                            window.location.href = 'dashboard_bank.html';
+                        case 'insurance_verifier':
+                            window.location.href = 'insurance-verifier-dashboard.html';
+                            break;
+                        case 'emission_verifier':
+                            window.location.href = 'verifier-dashboard.html';
                             break;
                         default:
                             window.location.href = 'index.html';
@@ -215,7 +223,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email, password, role })
+                    body: JSON.stringify({ email, password })
                 });
 
                 const result = await response.json();
@@ -237,14 +245,8 @@
                     setTimeout(() => {
                         const userRole = result.user?.role || role;
                         switch(userRole) {
-                            case 'dealership':
-                                window.location.href = 'dashboard_dealership.html';
-                                break;
-                            case 'police':
-                                window.location.href = 'dashboard_police.html';
-                                break;
-                            case 'bank':
-                                window.location.href = 'dashboard_bank.html';
+                            case 'hpg_admin':
+                                window.location.href = 'hpg-admin-dashboard.html';
                                 break;
                             case 'admin':
                                 window.location.href = 'admin-dashboard.html';
@@ -253,7 +255,7 @@
                                 window.location.href = 'insurance-verifier-dashboard.html';
                                 break;
                             case 'emission_verifier':
-                                window.location.href = 'emission-verifier-dashboard.html';
+                                window.location.href = 'verifier-dashboard.html';
                                 break;
                             case 'vehicle_owner':
                             default:
@@ -446,9 +448,45 @@
 
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeFormValidation);
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFormValidation();
+            handleURLParameters();
+        });
     } else {
         initializeFormValidation();
+        handleURLParameters();
+    }
+
+    // Handle URL parameters to auto-fill credentials
+    function handleURLParameters() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roleParam = urlParams.get('role');
+            
+            if (roleParam) {
+                // Map URL parameter to test credentials
+                const testCredentials = {
+                    'hpg_admin': { email: 'hpgadmin@hpg.gov.ph', password: 'hpg123456' },
+                    'hpg': { email: 'hpgadmin@hpg.gov.ph', password: 'hpg123456' },
+                    'admin': { email: 'admin@lto.gov.ph', password: 'admin123' },
+                    'lto': { email: 'admin@lto.gov.ph', password: 'admin123' },
+                    'insurance_verifier': { email: 'insurance@example.com', password: 'insurance123' },
+                    'insurance': { email: 'insurance@example.com', password: 'insurance123' },
+                    'emission_verifier': { email: 'emission@example.com', password: 'emission123' },
+                    'emission': { email: 'emission@example.com', password: 'emission123' }
+                };
+                
+                const mappedRole = roleParam.toLowerCase();
+                if (testCredentials[mappedRole]) {
+                    const emailInput = document.getElementById('loginEmail');
+                    const passwordInput = document.getElementById('loginPassword');
+                    if (emailInput) emailInput.value = testCredentials[mappedRole].email;
+                    if (passwordInput) passwordInput.value = testCredentials[mappedRole].password;
+                }
+            }
+        } catch (error) {
+            console.error('Error handling URL parameters:', error);
+        }
     }
 
     function initializeFormValidation() {

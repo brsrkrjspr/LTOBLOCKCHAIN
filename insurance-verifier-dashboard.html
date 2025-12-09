@@ -5,16 +5,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Insurance Verifier Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="dashboard">
-        <header class="dashboard-header">
-            <div class="container">
-                <div class="dashboard-nav">
-                    <div class="logo">
-                        <h1>LTO Blockchain</h1>
-                        <p>Insurance Verifier Dashboard</p>
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">IV</div>
+                    <div class="logo-text">
+                        <h2>Insurance</h2>
+                        <p>Verifier Dashboard</p>
                     </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="insurance-verifier-dashboard.html" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="insurance-lto-requests.html" class="nav-item">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests by Org</span>
+                    <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
+                </a>
+                <a href="#verification" class="nav-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Verification</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Insurance Verifier Dashboard</p>
+                        </div>
                     <div class="user-info">
                         <div class="user-profile">
                             <div class="user-avatar" id="userAvatar">IV</div>
@@ -61,6 +125,13 @@
                         <p>Review and verify insurance certificates</p>
                         <a href="#verification" class="btn-primary">View Tasks</a>
                     </div>
+                </div>
+
+                <!-- Insurance Certificate Verification -->
+                <div class="dashboard-card" id="verification">
+                    <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
+                    <p>Review and verify insurance certificates uploaded by users</p>
+                    <a href="#verification" class="btn-primary">View Tasks</a>
                 </div>
 
                 <!-- Insurance Certificate Verification -->
@@ -112,6 +183,7 @@
                 </div>
             </div>
         </main>
+        </div>
     </div>
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
@@ -146,6 +218,28 @@
                 } else {
                     window.location.href = 'login-signup.html';
                 }
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('insuranceVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
             }
         });
     </script>

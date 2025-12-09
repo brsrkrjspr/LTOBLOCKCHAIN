@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPG Activity Logs - HPG Admin</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('hpgSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">HPG</div>
+                    <div class="logo-text">
+                        <h2>HPG Admin</h2>
+                        <p>Highway Patrol Group</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="hpg-admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="hpg-requests-list.html" class="nav-item">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests</span>
+                </a>
+                <a href="hpg-verification-form.html" class="nav-item">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Vehicle Verification</span>
+                </a>
+                <a href="hpg-release-certificate.html" class="nav-item">
+                    <i class="fas fa-certificate"></i>
+                    <span>Release Certificate</span>
+                </a>
+                <a href="hpg-activity-logs.html" class="nav-item active">
+                    <i class="fas fa-history"></i>
+                    <span>Activity Logs</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <!-- Top Navigation -->
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h1>HPG Activity Logs</h1>
+                    </div>
+                    <div class="header-right">
+                        <div class="user-profile">
+                            <div class="user-avatar" id="userAvatar">HA</div>
+                            <div class="user-details">
+                                <span class="user-name" id="userName">HPG Admin</span>
+                                <span class="user-role" id="userRole">HPG Administrator</span>
+                            </div>
+                            <div class="user-menu">
+                                <button class="user-menu-btn">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="user-menu-dropdown">
+                                    <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
+                                    <a href="#" onclick="handleLogout(event); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Page Header -->
+                    <div class="page-header">
+                        <div class="page-title-section">
+                            <h2>Activity Logs</h2>
+                            <p>Complete history of all HPG Admin actions and activities</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn-secondary" onclick="refreshLogs()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <button class="btn-secondary" onclick="exportLogs()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="filters-section">
+                        <div class="filter-group">
+                            <label>Action Type:</label>
+                            <select id="actionFilter" onchange="filterLogs()">
+                                <option value="">All Actions</option>
+                                <option value="verified">Verified</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="released">Released Certificate</option>
+                                <option value="received">Received Request</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Date Range:</label>
+                            <input type="date" id="dateFrom" onchange="filterLogs()">
+                            <span>to</span>
+                            <input type="date" id="dateTo" onchange="filterLogs()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Search:</label>
+                            <input type="text" id="searchInput" placeholder="Search by Request ID, Admin Name..." onkeyup="filterLogs()">
+                        </div>
+                    </div>
+
+                    <!-- Activity Logs Table -->
+                    <div class="dashboard-card">
+                        <div class="table-container">
+                            <table class="table" id="activityLogsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>Action</th>
+                                        <th>Request ID</th>
+                                        <th>Admin Name</th>
+                                        <th>Details</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activityLogsTableBody">
+                                    <!-- Data will be loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="pagination">
+                            <button class="btn-secondary" onclick="previousPage()">
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </button>
+                            <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+                            <button class="btn-secondary" onclick="nextPage()">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Log Details Modal -->
+    <div class="modal" id="logDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Activity Log Details</h2>
+                <button class="modal-close" onclick="closeModal('logDetailsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="logDetailsContent">
+                    <!-- Log details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('logDetailsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/hpg-admin.js"></script>
+    <script>
+        // Initialize user data
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+
+            // Load activity logs
+            if (typeof HPGLogs !== 'undefined') {
+                HPGLogs.loadLogs();
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('hpgSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('hpgSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const userMenu = document.querySelector('.user-menu');
+                const dropdown = document.querySelector('.user-menu-dropdown');
+                if (userMenu && dropdown && !userMenu.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+            // Toggle user menu dropdown
+            const userMenuBtn = document.querySelector('.user-menu-btn');
+            const userMenuDropdown = document.querySelector('.user-menu-dropdown');
+            if (userMenuBtn && userMenuDropdown) {
+                userMenuBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (userMenuDropdown.style.display === 'block') {
+                        userMenuDropdown.style.display = 'none';
+                    } else {
+                        userMenuDropdown.style.display = 'block';
+                    }
+                });
+            }
+        });
+
+        function handleLogout(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to logout?')) {
+                if (typeof AuthUtils !== 'undefined') {
+                    AuthUtils.logout();
+                } else {
+                    // Fallback if AuthUtils is not available
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                }
+            }
+        }
+
+        function filterLogs() {
+            if (typeof HPGLogs !== 'undefined') {
+                HPGLogs.filterLogs();
+            }
+        }
+
+        function refreshLogs() {
+            if (typeof HPGLogs !== 'undefined') {
+                HPGLogs.loadLogs();
+            }
+        }
+
+        function exportLogs() {
+            // Export functionality
+            alert('Export functionality will be implemented');
+        }
+
+        function previousPage() {
+            if (typeof HPGLogs !== 'undefined') {
+                HPGLogs.previousPage();
+            }
+        }
+
+        function nextPage() {
+            if (typeof HPGLogs !== 'undefined') {
+                HPGLogs.nextPage();
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+    </script>
+</body>
+</html>
+

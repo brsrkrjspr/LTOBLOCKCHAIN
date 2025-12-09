@@ -824,6 +824,219 @@ async function resubmitApplication(applicationId) {
     }
 }
 
+// User Workflow Functions
+let userWorkflowState = {
+    registrationRequested: false,
+    documentsUploaded: false,
+    registrationCompleted: false
+};
+
+function checkUserWorkflowState() {
+    const savedState = localStorage.getItem('userWorkflowState');
+    if (savedState) {
+        userWorkflowState = JSON.parse(savedState);
+    }
+    updateUserWorkflowUI();
+    updateProgressTimeline();
+}
+
+function updateUserWorkflowUI() {
+    const downloadBtn = document.getElementById('downloadPapersBtn');
+    
+    if (userWorkflowState.registrationCompleted) {
+        if (downloadBtn) {
+            downloadBtn.disabled = false;
+            downloadBtn.classList.add('enabled');
+        }
+    } else {
+        if (downloadBtn) {
+            downloadBtn.disabled = true;
+            downloadBtn.classList.remove('enabled');
+        }
+    }
+}
+
+function saveUserWorkflowState() {
+    localStorage.setItem('userWorkflowState', JSON.stringify(userWorkflowState));
+    updateUserWorkflowUI();
+    updateProgressTimeline();
+}
+
+function requestRegistration() {
+    // Redirect to registration wizard
+    window.location.href = 'registration-wizard.html';
+}
+
+function uploadDocuments() {
+    // Show upload modal or redirect to document upload page
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Upload Required Documents</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="documentUploadForm" onsubmit="handleDocumentUpload(event)">
+                    <div class="form-group">
+                        <label for="documentType">Document Type</label>
+                        <select id="documentType" name="documentType" required>
+                            <option value="">Select document type...</option>
+                            <option value="owner_id">Owner ID</option>
+                            <option value="vehicle_registration">Vehicle Registration</option>
+                            <option value="insurance_cert">Insurance Certificate</option>
+                            <option value="emission_cert">Emission Certificate</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="documentFile">Upload Document (PDF/Image)</label>
+                        <input type="file" id="documentFile" name="documentFile" accept=".pdf,.jpg,.jpeg,.png" required>
+                        <small class="hint">Supported formats: PDF, JPG, PNG</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="documentNotes">Notes (Optional)</label>
+                        <textarea id="documentNotes" name="notes" rows="3" placeholder="Add any notes about this document..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                        <button type="submit" class="btn-primary">Upload Document</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.modal-close').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+function handleDocumentUpload(event) {
+    event.preventDefault();
+    const fileInput = document.getElementById('documentFile');
+    const documentType = document.getElementById('documentType').value;
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showNotification('Please select a file to upload', 'error');
+        return;
+    }
+    
+    userWorkflowState.documentsUploaded = true;
+    saveUserWorkflowState();
+    
+    showNotification('Document uploaded successfully', 'success');
+    event.target.closest('.modal').remove();
+}
+
+function downloadFinalPapers() {
+    if (!userWorkflowState.registrationCompleted) {
+        showNotification('Registration is not yet completed', 'error');
+        return;
+    }
+    
+    showNotification('Preparing final registration papers for download...', 'info');
+    
+    // Simulate download
+    setTimeout(() => {
+        showNotification('Final registration papers downloaded successfully!', 'success');
+        // In real app, this would trigger actual PDF download
+    }, 2000);
+}
+
+function updateProgressTimeline() {
+    const timelineItems = document.querySelectorAll('.timeline-item');
+    if (!timelineItems || timelineItems.length === 0) return;
+    
+    // Update timeline based on workflow state
+    timelineItems.forEach((item, index) => {
+        const icon = item.querySelector('.timeline-icon');
+        const content = item.querySelector('.timeline-content h4');
+        
+        if (!icon || !content) return;
+        
+        // Reset all to pending
+        icon.classList.remove('completed', 'pending', 'active');
+        icon.classList.add('pending');
+        
+        // Update based on progress
+        if (index === 0) {
+            // Application Submitted - always completed if registration requested
+            if (userWorkflowState.registrationRequested) {
+                icon.classList.remove('pending');
+                icon.classList.add('completed');
+                icon.innerHTML = '<i class="fas fa-check"></i>';
+                const dateEl = item.querySelector('.timeline-date');
+                if (dateEl) dateEl.textContent = new Date().toLocaleDateString();
+            }
+        } else if (index === 1) {
+            // Emission Test
+            content.textContent = 'Emission Test';
+            // Check if emission is received (from LTO workflow state)
+            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
+            if (ltoState.emissionReceived) {
+                icon.classList.remove('pending');
+                icon.classList.add('completed');
+                icon.innerHTML = '<i class="fas fa-check"></i>';
+            }
+        } else if (index === 2) {
+            // Insurance Verification
+            content.textContent = 'Insurance Verification';
+            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
+            if (ltoState.insuranceReceived) {
+                icon.classList.remove('pending');
+                icon.classList.add('completed');
+                icon.innerHTML = '<i class="fas fa-check"></i>';
+            }
+        } else if (index === 3) {
+            // HPG Clearance
+            content.textContent = 'HPG Clearance';
+            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
+            if (ltoState.hpgReceived) {
+                icon.classList.remove('pending');
+                icon.classList.add('completed');
+                icon.innerHTML = '<i class="fas fa-check"></i>';
+            }
+        } else if (index === 4) {
+            // Finalization
+            content.textContent = 'Finalization';
+            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
+            if (ltoState.emissionReceived && ltoState.insuranceReceived && ltoState.hpgReceived) {
+                icon.classList.remove('pending');
+                icon.classList.add('active');
+                icon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+        } else if (index === 5) {
+            // Completed
+            content.textContent = 'Completed';
+            if (userWorkflowState.registrationCompleted) {
+                icon.classList.remove('pending');
+                icon.classList.add('completed');
+                icon.innerHTML = '<i class="fas fa-certificate"></i>';
+                const dateEl = item.querySelector('.timeline-date');
+                if (dateEl) dateEl.textContent = new Date().toLocaleDateString();
+            }
+        }
+    });
+}
+
+// Initialize workflow state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkUserWorkflowState();
+    
+    // Check for registration completion periodically
+    setInterval(() => {
+        const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
+        if (ltoState.emissionReceived && ltoState.insuranceReceived && ltoState.hpgReceived && !userWorkflowState.registrationCompleted) {
+            userWorkflowState.registrationCompleted = true;
+            saveUserWorkflowState();
+        }
+        updateProgressTimeline();
+    }, 5000);
+});
+
 // Export functions for potential external use
 window.OwnerDashboard = {
     updateOwnerStats,
@@ -834,5 +1047,9 @@ window.OwnerDashboard = {
     viewAllNotifications,
     viewUserApplication,
     downloadCertificate,
-    resubmitApplication
+    resubmitApplication,
+    requestRegistration,
+    uploadDocuments,
+    downloadFinalPapers,
+    updateProgressTimeline
 };

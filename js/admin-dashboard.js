@@ -910,6 +910,276 @@ function addUserNotification(applicationId, type, message) {
     localStorage.setItem('userNotifications', JSON.stringify(notifications));
 }
 
+// LTO Workflow Functions
+let workflowState = {
+    emissionRequested: false,
+    emissionReceived: false,
+    insuranceRequested: false,
+    insuranceReceived: false,
+    hpgRequested: false,
+    hpgReceived: false
+};
+
+function checkWorkflowState() {
+    // Load workflow state from localStorage
+    const savedState = localStorage.getItem('ltoWorkflowState');
+    if (savedState) {
+        workflowState = JSON.parse(savedState);
+    }
+    updateWorkflowUI();
+}
+
+function updateWorkflowUI() {
+    // Update received documents visibility
+    const emissionDocItem = document.getElementById('emissionDocItem');
+    const insuranceDocItem = document.getElementById('insuranceDocItem');
+    const hpgDocItem = document.getElementById('hpgDocItem');
+    const finalizeBtn = document.getElementById('finalizeBtn');
+    
+    if (emissionDocItem) {
+        emissionDocItem.style.display = workflowState.emissionRequested ? 'flex' : 'none';
+        if (workflowState.emissionReceived) {
+            document.getElementById('emissionStatus').textContent = 'Test Result Received';
+            document.getElementById('emissionStatus').className = 'status-badge status-approved';
+            document.getElementById('viewEmissionBtn').style.display = 'inline-block';
+            document.getElementById('emissionLoadingBadge').style.display = 'none';
+        } else if (workflowState.emissionRequested) {
+            document.getElementById('emissionStatus').textContent = 'Awaiting Test Result';
+            document.getElementById('emissionStatus').className = 'status-badge status-pending';
+            document.getElementById('emissionLoadingBadge').style.display = 'inline-block';
+        }
+    }
+    
+    if (insuranceDocItem) {
+        insuranceDocItem.style.display = workflowState.insuranceRequested ? 'flex' : 'none';
+        if (workflowState.insuranceReceived) {
+            document.getElementById('insuranceStatus').textContent = 'Insurance Verification Pending';
+            document.getElementById('insuranceStatus').className = 'status-badge status-pending';
+            document.getElementById('approveInsuranceBtn').style.display = 'inline-block';
+            document.getElementById('rejectInsuranceBtn').style.display = 'inline-block';
+        }
+    }
+    
+    if (hpgDocItem) {
+        hpgDocItem.style.display = workflowState.hpgRequested ? 'flex' : 'none';
+        if (workflowState.hpgReceived) {
+            document.getElementById('hpgStatus').textContent = 'Clearance Approved';
+            document.getElementById('hpgStatus').className = 'status-badge status-approved';
+            document.getElementById('approveHPGBtn').style.display = 'none';
+        } else if (workflowState.hpgRequested) {
+            document.getElementById('hpgStatus').textContent = 'HPG Clearance Pending';
+            document.getElementById('hpgStatus').className = 'status-badge status-pending';
+        }
+    }
+    
+    // Enable finalize button only when all three are complete
+    if (finalizeBtn) {
+        const allComplete = workflowState.emissionReceived && 
+                           workflowState.insuranceReceived && 
+                           workflowState.hpgReceived;
+        finalizeBtn.disabled = !allComplete;
+        if (allComplete) {
+            finalizeBtn.classList.add('enabled');
+        } else {
+            finalizeBtn.classList.remove('enabled');
+        }
+    }
+}
+
+function saveWorkflowState() {
+    localStorage.setItem('ltoWorkflowState', JSON.stringify(workflowState));
+    updateWorkflowUI();
+}
+
+async function requestEmissionTest() {
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Request Emission Test Result',
+        message: 'Send request to Emission for test result?',
+        confirmText: 'Send Request',
+        cancelText: 'Cancel',
+        confirmColor: '#27ae60',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        workflowState.emissionRequested = true;
+        workflowState.emissionReceived = false;
+        saveWorkflowState();
+        
+        ToastNotification.show('Request sent to Emission. Status: Awaiting Test Result', 'success');
+        
+        // Simulate receiving result after delay (for demo)
+        // In real app, this would be triggered by Emission sending the result
+    }
+}
+
+async function requestInsuranceProof() {
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Request Proof of Insurance',
+        message: 'Send request to Insurance for proof of insurance?',
+        confirmText: 'Send Request',
+        cancelText: 'Cancel',
+        confirmColor: '#3498db',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        workflowState.insuranceRequested = true;
+        workflowState.insuranceReceived = false;
+        saveWorkflowState();
+        
+        ToastNotification.show('Request sent to Insurance. Status: Insurance Verification Pending', 'success');
+    }
+}
+
+async function requestHPGClearance() {
+    // Show vehicle info dialog before sending
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Request HPG MV Clearance</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Review vehicle information before sending clearance request to HPG:</p>
+                <div class="vehicle-preview" style="background: #f8f9fa; padding: 1rem; border-radius: 5px; margin: 1rem 0;">
+                    <p><strong>Vehicle:</strong> <span id="previewVehicle">-</span></p>
+                    <p><strong>Owner:</strong> <span id="previewOwner">-</span></p>
+                    <p><strong>Plate Number:</strong> <span id="previewPlate">-</span></p>
+                </div>
+                <p style="color: #666; font-size: 0.9rem;">Status will change to "HPG Clearance Pending" after sending.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button class="btn-primary" id="confirmHPGRequest">Send Request to HPG</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('#confirmHPGRequest').onclick = async function() {
+        workflowState.hpgRequested = true;
+        workflowState.hpgReceived = false;
+        saveWorkflowState();
+        
+        ToastNotification.show('Request sent to HPG. Status: HPG Clearance Pending', 'success');
+        modal.remove();
+    };
+    
+    modal.querySelector('.modal-close').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+function viewEmissionResult() {
+    ToastNotification.show('Opening Emission Test Result document...', 'info');
+    // In real app, this would open the PDF/image viewer
+    // window.open('document-viewer.html?type=emission', '_blank');
+}
+
+async function approveInsurance() {
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Approve Insurance Papers',
+        message: 'Approve the submitted insurance papers?',
+        confirmText: 'Approve',
+        cancelText: 'Cancel',
+        confirmColor: '#27ae60',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        ToastNotification.show('Insurance papers approved successfully', 'success');
+        // Update status
+        document.getElementById('insuranceStatus').textContent = 'Insurance Approved';
+        document.getElementById('insuranceStatus').className = 'status-badge status-approved';
+    }
+}
+
+async function requestInsuranceCorrection() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Request Insurance Correction</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Please specify what needs to be corrected:</p>
+                <textarea id="correctionReason" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter correction request..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button class="btn-danger" id="confirmCorrection">Send Correction Request</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('#confirmCorrection').onclick = function() {
+        const reason = document.getElementById('correctionReason').value.trim();
+        if (!reason) {
+            ToastNotification.show('Please provide a reason for correction', 'error');
+            return;
+        }
+        
+        ToastNotification.show('Correction request sent to Insurance', 'success');
+        workflowState.insuranceReceived = false;
+        saveWorkflowState();
+        modal.remove();
+    };
+    
+    modal.querySelector('.modal-close').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+async function approveHPGClearance() {
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Approve HPG MV Clearance',
+        message: 'Approve the HPG MV Clearance Certificate?',
+        confirmText: 'Approve',
+        cancelText: 'Cancel',
+        confirmColor: '#27ae60',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        workflowState.hpgReceived = true;
+        saveWorkflowState();
+        
+        ToastNotification.show('HPG MV Clearance approved. Status: Clearance Approved', 'success');
+    }
+}
+
+async function finalizeRegistration() {
+    if (!workflowState.emissionReceived || !workflowState.insuranceReceived || !workflowState.hpgReceived) {
+        ToastNotification.show('Cannot finalize: All verifications must be complete', 'error');
+        return;
+    }
+    
+    const confirmed = await ConfirmationDialog.show({
+        title: 'Finalize Registration',
+        message: 'Finalize this registration and send final output to User?',
+        confirmText: 'Finalize',
+        cancelText: 'Cancel',
+        confirmColor: '#27ae60',
+        type: 'question'
+    });
+    
+    if (confirmed) {
+        ToastNotification.show('Registration finalized successfully! Final output sent to User.', 'success');
+        // In real app, this would trigger sending final documents to user
+    }
+}
+
+// Initialize workflow state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkWorkflowState();
+});
+
 // Export functions for potential external use
 window.AdminDashboard = {
     updateSystemStats,
@@ -920,5 +1190,13 @@ window.AdminDashboard = {
     handleOrgEdit,
     viewApplication,
     approveApplication,
-    rejectApplication
+    rejectApplication,
+    requestEmissionTest,
+    requestInsuranceProof,
+    requestHPGClearance,
+    viewEmissionResult,
+    approveInsurance,
+    requestInsuranceCorrection,
+    approveHPGClearance,
+    finalizeRegistration
 };

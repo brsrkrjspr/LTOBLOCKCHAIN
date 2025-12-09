@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LTO Blockchain - Vehicle Registration System</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <header class="header">
@@ -89,6 +90,51 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Login Section -->
+        <section id="login" class="section bg-light">
+            <div class="container">
+                <h2>Access Your Dashboard</h2>
+                <p style="text-align: center; margin-bottom: 2rem; color: #7f8c8d;">Select your role to login to your dashboard</p>
+                <div class="login-buttons-grid">
+                    <a href="login-signup.html?role=admin" class="login-button">
+                        <div class="login-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>Login as LTO</h3>
+                        <p>LTO Admin Dashboard</p>
+                    </a>
+                    <a href="login-signup.html?role=insurance_verifier" class="login-button">
+                        <div class="login-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3>Login as Insurance</h3>
+                        <p>Insurance Verifier Dashboard</p>
+                    </a>
+                    <a href="login-signup.html?role=emission_verifier" class="login-button">
+                        <div class="login-icon">
+                            <i class="fas fa-leaf"></i>
+                        </div>
+                        <h3>Login as Emission</h3>
+                        <p>Emission Verifier Dashboard</p>
+                    </a>
+                    <a href="login-signup.html?role=vehicle_owner" class="login-button">
+                        <div class="login-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <h3>Login as User</h3>
+                        <p>Vehicle Owner Dashboard</p>
+                    </a>
+                    <a href="login-signup.html?role=hpg_admin" class="login-button login-button-hpg">
+                        <div class="login-icon">
+                            <i class="fas fa-shield"></i>
+                        </div>
+                        <h3>Login as HPG Admin</h3>
+                        <p>Highway Patrol Group Admin</p>
+                    </a>
                 </div>
             </div>
         </section>

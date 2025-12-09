@@ -368,35 +368,122 @@ function initializeSummaryUpdates() {
     updateInsuranceSummary(applicationsWithInsurance);
 }
 
+// Insurance Workflow Functions
+let insuranceWorkflowState = {
+    requestReceived: false,
+    papersUploaded: false,
+    papersSent: false
+};
+
+function checkInsuranceWorkflowState() {
+    const savedState = localStorage.getItem('insuranceWorkflowState');
+    if (savedState) {
+        insuranceWorkflowState = JSON.parse(savedState);
+    }
+    updateInsuranceWorkflowUI();
+}
+
+function updateInsuranceWorkflowUI() {
+    const requestItem = document.getElementById('ltoInsuranceRequestItem');
+    const noRequestsMsg = document.getElementById('noInsuranceRequestsMsg');
+    const uploadedPreview = document.getElementById('uploadedInsurancePreview');
+    const sendBtn = document.getElementById('sendInsuranceToLTOBtn');
+    
+    if (insuranceWorkflowState.requestReceived) {
+        if (requestItem) requestItem.style.display = 'flex';
+        if (noRequestsMsg) noRequestsMsg.style.display = 'none';
+    } else {
+        if (requestItem) requestItem.style.display = 'none';
+        if (noRequestsMsg) noRequestsMsg.style.display = 'block';
+    }
+    
+    if (insuranceWorkflowState.papersUploaded) {
+        if (uploadedPreview) uploadedPreview.style.display = 'flex';
+        if (sendBtn) sendBtn.disabled = false;
+    } else {
+        if (uploadedPreview) uploadedPreview.style.display = 'none';
+        if (sendBtn) sendBtn.disabled = true;
+    }
+}
+
+function saveInsuranceWorkflowState() {
+    localStorage.setItem('insuranceWorkflowState', JSON.stringify(insuranceWorkflowState));
+    updateInsuranceWorkflowUI();
+}
+
+function receiveInsuranceRequest() {
+    insuranceWorkflowState.requestReceived = true;
+    saveInsuranceWorkflowState();
+    
+    showNotification('Request received from LTO for Proof of Insurance', 'success');
+    const btn = document.getElementById('receiveInsuranceRequestBtn');
+    if (btn) {
+        btn.textContent = 'Request Received';
+        btn.disabled = true;
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+    }
+}
+
+function uploadInsurancePapers(event) {
+    event.preventDefault();
+    const fileInput = document.getElementById('insuranceFile');
+    const notes = document.getElementById('insuranceNotes').value;
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showNotification('Please select a file to upload', 'error');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    insuranceWorkflowState.papersUploaded = true;
+    insuranceWorkflowState.uploadedFileName = file.name;
+    insuranceWorkflowState.uploadedFileDate = new Date().toLocaleString();
+    saveInsuranceWorkflowState();
+    
+    // Update preview
+    const previewName = document.getElementById('previewInsuranceFileName');
+    const previewDate = document.getElementById('previewInsuranceFileDate');
+    if (previewName) previewName.textContent = file.name;
+    if (previewDate) previewDate.textContent = `Uploaded: ${insuranceWorkflowState.uploadedFileDate}`;
+    
+    showNotification('Insurance papers uploaded successfully', 'success');
+    document.getElementById('insuranceUploadForm').reset();
+}
+
+function sendInsuranceToLTO() {
+    if (!insuranceWorkflowState.papersUploaded) {
+        showNotification('Please upload insurance papers first', 'error');
+        return;
+    }
+    
+    insuranceWorkflowState.papersSent = true;
+    saveInsuranceWorkflowState();
+    
+    showNotification('Insurance papers sent to LTO successfully', 'success');
+    const statusMsg = document.getElementById('sendInsuranceStatusMsg');
+    const sendBtn = document.getElementById('sendInsuranceToLTOBtn');
+    if (statusMsg) statusMsg.textContent = 'Papers sent to LTO on ' + new Date().toLocaleString();
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sent to LTO';
+        sendBtn.classList.remove('btn-success');
+        sendBtn.classList.add('btn-secondary');
+    }
+}
+
+// Initialize workflow state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkInsuranceWorkflowState();
+});
+
 // Notification system
 function showNotification(message, type = 'info') {
-    // Remove existing notifications
-    const existingNotification = document.querySelector('.insurance-notification');
-    if (existingNotification) {
-        existingNotification.remove();
+    // Use ToastNotification if available, otherwise fallback
+    if (typeof ToastNotification !== 'undefined') {
+        ToastNotification.show(message, type);
+    } else {
+        // Fallback notification
+        alert(message);
     }
-
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `insurance-notification insurance-notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
-            <span class="notification-message">${message}</span>
-            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-    
-    // Insert notification at the top of the dashboard content
-    const dashboardContent = document.querySelector('.dashboard-content .container');
-    if (dashboardContent) {
-        dashboardContent.insertBefore(notification, dashboardContent.firstChild);
-    }
-
-    // Auto-remove notification after 5 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 5000);
 }

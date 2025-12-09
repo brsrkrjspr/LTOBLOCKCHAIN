@@ -130,6 +130,9 @@ class AuthUtils {
         }
 
         switch(user.role) {
+            case 'hpg_admin':
+                window.location.href = 'hpg-admin-dashboard.html';
+                break;
             case 'admin':
                 window.location.href = 'admin-dashboard.html';
                 break;
@@ -144,6 +147,14 @@ class AuthUtils {
                 window.location.href = 'owner-dashboard.html';
                 break;
         }
+    }
+
+    // Logout function
+    static logout() {
+        this.clearAuth();
+        // Also clear token if stored separately
+        localStorage.removeItem('token');
+        window.location.href = 'index.html';
     }
 }
 

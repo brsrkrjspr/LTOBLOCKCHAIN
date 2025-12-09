@@ -5,6 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('adminSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/error-handler.js"></script>
@@ -12,13 +43,61 @@
 </head>
 <body>
     <div class="dashboard">
-        <header class="dashboard-header">
-            <div class="container">
-                <div class="dashboard-nav">
-                    <div class="logo">
-                        <h1>LTO Blockchain</h1>
-                        <p>Admin Dashboard</p>
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">AD</div>
+                    <div class="logo-text">
+                        <h2>Admin</h2>
+                        <p>Dashboard</p>
                     </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="admin-dashboard.html" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#users" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="#orgs" class="nav-item">
+                    <i class="fas fa-building"></i>
+                    <span>Organizations</span>
+                </a>
+                <a href="admin-blockchain-viewer.html" class="nav-item">
+                    <i class="fas fa-link"></i>
+                    <span>Blockchain Ledger</span>
+                </a>
+                <a href="#audit" class="nav-item">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Audit Logs</span>
+                </a>
+                <a href="#reports" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="#documents" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Documents</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Admin Dashboard</p>
+                        </div>
                     <div class="user-info">
                         <div class="user-profile">
                             <div class="user-avatar" id="userAvatar">AD</div>
@@ -120,6 +199,93 @@
                     </div>
                 </div>
 
+                <!-- LTO Workflow Actions -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">🔄</span> Registration Workflow Actions</h3>
+                    <div class="workflow-actions-grid">
+                        <button class="workflow-btn workflow-btn-emission" onclick="requestEmissionTest()">
+                            <i class="fas fa-leaf"></i>
+                            <span>Request Emission Test Result</span>
+                            <small>Send request to Emission</small>
+                        </button>
+                        <button class="workflow-btn workflow-btn-insurance" onclick="requestInsuranceProof()">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Request Proof of Insurance</span>
+                            <small>Send request to Insurance</small>
+                        </button>
+                        <button class="workflow-btn workflow-btn-hpg" onclick="requestHPGClearance()">
+                            <i class="fas fa-certificate"></i>
+                            <span>Request HPG Clearance</span>
+                            <small>Send request to HPG</small>
+                        </button>
+                        <button class="workflow-btn workflow-btn-finalize" id="finalizeBtn" onclick="finalizeRegistration()" disabled>
+                            <i class="fas fa-check-double"></i>
+                            <span>Finalize Registration</span>
+                            <small>Complete registration process</small>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Received Documents Section -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">📥</span> Received Documents</h3>
+                    <div class="received-docs-section">
+                        <!-- Emission Test Result -->
+                        <div class="received-doc-item" id="emissionDocItem" style="display: none;">
+                            <div class="doc-header">
+                                <i class="fas fa-file-pdf text-success"></i>
+                                <div class="doc-info">
+                                    <h4>Emission Test Result</h4>
+                                    <p>Status: <span id="emissionStatus" class="status-badge status-pending">Awaiting Test Result</span></p>
+                                </div>
+                            </div>
+                            <div class="doc-actions">
+                                <button class="btn-secondary btn-sm" onclick="viewEmissionResult()" id="viewEmissionBtn" style="display: none;">
+                                    <i class="fas fa-eye"></i> View Test Result
+                                </button>
+                                <span class="loading-badge" id="emissionLoadingBadge" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Insurance Papers -->
+                        <div class="received-doc-item" id="insuranceDocItem" style="display: none;">
+                            <div class="doc-header">
+                                <i class="fas fa-file-alt text-primary"></i>
+                                <div class="doc-info">
+                                    <h4>Insurance Papers</h4>
+                                    <p>Status: <span id="insuranceStatus" class="status-badge status-pending">Insurance Verification Pending</span></p>
+                                </div>
+                            </div>
+                            <div class="doc-actions">
+                                <button class="btn-primary btn-sm" onclick="approveInsurance()" id="approveInsuranceBtn" style="display: none;">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                <button class="btn-danger btn-sm" onclick="requestInsuranceCorrection()" id="rejectInsuranceBtn" style="display: none;">
+                                    <i class="fas fa-times"></i> Request Correction
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- HPG MV Clearance Certificate -->
+                        <div class="received-doc-item" id="hpgDocItem" style="display: none;">
+                            <div class="doc-header">
+                                <i class="fas fa-certificate text-warning"></i>
+                                <div class="doc-info">
+                                    <h4>HPG MV Clearance Certificate</h4>
+                                    <p>Status: <span id="hpgStatus" class="status-badge status-pending">HPG Clearance Pending</span></p>
+                                </div>
+                            </div>
+                            <div class="doc-actions">
+                                <button class="btn-success btn-sm" onclick="approveHPGClearance()" id="approveHPGBtn" style="display: none;">
+                                    <i class="fas fa-check-circle"></i> Approve Clearance
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Submitted Applications -->
                 <div class="dashboard-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -180,6 +346,7 @@
                 </div>
             </div>
         </main>
+        </div>
     </div>
     <script src="js/admin-dashboard.js"></script>
     <script src="js/admin-modals.js"></script>
@@ -212,6 +379,28 @@
                     // Not authenticated, redirect to login
                     window.location.href = 'login-signup.html';
                 }
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('adminSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
             }
         });
     </script>

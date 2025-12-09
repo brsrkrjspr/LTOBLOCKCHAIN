@@ -5,16 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Owner Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('ownerSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="dashboard">
-        <header class="dashboard-header">
-            <div class="container">
-                <div class="dashboard-nav">
-                    <div class="logo">
-                        <h1>LTO Blockchain</h1>
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">VO</div>
+                    <div class="logo-text">
+                        <h2>Vehicle</h2>
                         <p>Owner Dashboard</p>
                     </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="owner-dashboard.html" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="registration-wizard.html" class="nav-item">
+                    <i class="fas fa-car"></i>
+                    <span>New Registration</span>
+                </a>
+                <a href="#applications" class="nav-item">
+                    <i class="fas fa-list"></i>
+                    <span>My Applications</span>
+                </a>
+                <a href="#notifications" class="nav-item">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Owner Dashboard</p>
+                        </div>
                     <div class="user-info">
                     <div class="user-profile">
                         <div class="user-avatar" id="userAvatar">GU</div>
@@ -57,9 +124,19 @@
                 <!-- Quick Actions -->
                 <div class="dashboard-grid">
                     <div class="dashboard-card">
-                        <h3><span class="card-icon">🚗</span> New Registration</h3>
-                        <p>Register a new vehicle in the system</p>
-                        <a href="registration-wizard.html" class="btn-primary">Start Registration</a>
+                        <h3><span class="card-icon">🚗</span> Request Transfer/Registration</h3>
+                        <p>Start a new vehicle registration or transfer request</p>
+                        <button class="btn-primary" onclick="requestRegistration()">
+                            <i class="fas fa-plus-circle"></i> Request Registration
+                        </button>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">📤</span> Upload Required Documents</h3>
+                        <p>Upload documents for your registration application</p>
+                        <button class="btn-secondary" onclick="uploadDocuments()">
+                            <i class="fas fa-upload"></i> Upload Documents
+                        </button>
                     </div>
                     
                     <div class="dashboard-card">
@@ -69,9 +146,78 @@
                     </div>
                     
                     <div class="dashboard-card">
-                        <h3><span class="card-icon">🔔</span> Notifications</h3>
-                        <p>Stay updated with your application status</p>
-                        <a href="#notifications" class="btn-secondary">View Notifications</a>
+                        <h3><span class="card-icon">📄</span> Download Final Papers</h3>
+                        <p>Download your completed registration documents</p>
+                        <button class="btn-success" onclick="downloadFinalPapers()" id="downloadPapersBtn" disabled>
+                            <i class="fas fa-download"></i> Download Papers
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Registration Status Progress Timeline -->
+                <div class="dashboard-card">
+                    <h3><span class="card-icon">📊</span> Registration Status Progress</h3>
+                    <div class="progress-timeline" id="progressTimeline">
+                        <div class="timeline-item">
+                            <div class="timeline-icon completed">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Application Submitted</h4>
+                                <p>Your registration request has been submitted</p>
+                                <span class="timeline-date">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon pending">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Emission Test</h4>
+                                <p>Awaiting emission test result</p>
+                                <span class="timeline-date">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon pending">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Insurance Verification</h4>
+                                <p>Awaiting insurance verification</p>
+                                <span class="timeline-date">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon pending">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>HPG Clearance</h4>
+                                <p>Awaiting HPG MV clearance certificate</p>
+                                <span class="timeline-date">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon pending">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Finalization</h4>
+                                <p>Registration finalization in progress</p>
+                                <span class="timeline-date">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon pending">
+                                <i class="fas fa-certificate"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Completed</h4>
+                                <p>Registration completed - Download papers</p>
+                                <span class="timeline-date">-</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -105,6 +251,7 @@
                 </div>
             </div>
         </main>
+        </div>
     </div>
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
@@ -141,6 +288,28 @@
                 }
             }
             
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('ownerSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
             // Handle anchor link smooth scrolling
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
                 anchor.addEventListener('click', function (e) {

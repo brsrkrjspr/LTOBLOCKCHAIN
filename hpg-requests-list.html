@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTO → HPG Requests - HPG Admin</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('hpgSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">HPG</div>
+                    <div class="logo-text">
+                        <h2>HPG Admin</h2>
+                        <p>Highway Patrol Group</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="hpg-admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="hpg-requests-list.html" class="nav-item active">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests by Org</span>
+                    <span class="badge" id="pendingRequestsBadge">0</span>
+                </a>
+                <a href="hpg-verification-form.html" class="nav-item">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Vehicle Verification</span>
+                </a>
+                <a href="hpg-release-certificate.html" class="nav-item">
+                    <i class="fas fa-certificate"></i>
+                    <span>Release Certificate</span>
+                </a>
+                <a href="hpg-activity-logs.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Activity Logs</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <!-- Top Navigation -->
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h1>LTO → HPG Requests</h1>
+                    </div>
+                    <div class="header-right">
+                        <div class="user-profile">
+                            <div class="user-avatar" id="userAvatar">HA</div>
+                            <div class="user-details">
+                                <span class="user-name" id="userName">HPG Admin</span>
+                                <span class="user-role" id="userRole">HPG Administrator</span>
+                            </div>
+                            <div class="user-menu">
+                                <button class="user-menu-btn">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="user-menu-dropdown">
+                                    <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
+                                    <a href="#" onclick="handleLogout(event); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Page Header -->
+                    <div class="page-header">
+                        <div class="page-title-section">
+                            <h2>Clearance Requests from LTO</h2>
+                            <p>Review and verify vehicle clearance requests sent by LTO Admin</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn-secondary" onclick="refreshRequests()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <button class="btn-secondary" onclick="exportRequests()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="filters-section">
+                        <div class="filter-group">
+                            <label>Status:</label>
+                            <select id="statusFilter" onchange="filterRequests()">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="verified">Verified</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Purpose:</label>
+                            <select id="purposeFilter" onchange="filterRequests()">
+                                <option value="">All Purposes</option>
+                                <option value="transfer">Transfer</option>
+                                <option value="engine_change">Engine Change</option>
+                                <option value="rebuilt">Rebuilt</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Search:</label>
+                            <input type="text" id="searchInput" placeholder="Search by Request ID, Plate, or Owner..." onkeyup="filterRequests()">
+                        </div>
+                    </div>
+
+                    <!-- Requests Table -->
+                    <div class="dashboard-card">
+                        <div class="table-container">
+                            <table class="table" id="requestsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Request ID</th>
+                                        <th>Owner Name</th>
+                                        <th>Plate Number</th>
+                                        <th>Vehicle Type</th>
+                                        <th>Purpose</th>
+                                        <th>Request Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="requestsTableBody">
+                                    <!-- Data will be loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- LTO Requests Section -->
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">📥</span> Requests from LTO</h3>
+                        <div class="lto-requests-section">
+                            <div class="request-item" id="ltoHPGRequestItem" style="display: none;">
+                                <div class="request-header">
+                                    <i class="fas fa-envelope text-warning"></i>
+                                    <div class="request-info">
+                                        <h4>New Clearance Request from LTO</h4>
+                                        <p>Application ID: <span id="hpgRequestAppId">-</span></p>
+                                        <p>Vehicle: <span id="hpgRequestVehicle">-</span></p>
+                                    </div>
+                                </div>
+                                <div class="request-actions">
+                                    <button class="btn-primary btn-sm" onclick="receiveHPGRequest()" id="receiveHPGRequestBtn">
+                                        <i class="fas fa-download"></i> Receive Request
+                                    </button>
+                                </div>
+                            </div>
+                            <p id="noHPGRequestsMsg" style="text-align: center; color: #7f8c8d; padding: 2rem;">
+                                No pending requests from LTO
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Upload Inspections Section -->
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">📤</span> Upload Inspection Documents</h3>
+                        <div class="upload-section">
+                            <form id="hpgUploadForm" onsubmit="uploadHPGInspections(event)">
+                                <div class="form-group">
+                                    <label for="engineInspectionFile">Engine Inspection (PDF/Image)</label>
+                                    <input type="file" id="engineInspectionFile" name="engineInspection" accept=".pdf,.jpg,.jpeg,.png">
+                                    <small class="hint">Upload engine inspection document</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="chassisInspectionFile">Chassis Inspection (PDF/Image)</label>
+                                    <input type="file" id="chassisInspectionFile" name="chassisInspection" accept=".pdf,.jpg,.jpeg,.png">
+                                    <small class="hint">Upload chassis inspection document</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="stencilFile">Stencil / Macro-etching Result (PDF/Image)</label>
+                                    <input type="file" id="stencilFile" name="stencil" accept=".pdf,.jpg,.jpeg,.png">
+                                    <small class="hint">Upload stencil or macro-etching result</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="hpgNotes">Inspection Notes</label>
+                                    <textarea id="hpgNotes" name="notes" rows="3" placeholder="Add inspection notes..."></textarea>
+                                </div>
+                                <button type="submit" class="btn-primary" id="uploadHPGBtn">
+                                    <i class="fas fa-upload"></i> Upload Inspections
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Approve & Send Section -->
+                    <div class="dashboard-card">
+                        <h3><span class="card-icon">✅</span> Approve & Send Clearance</h3>
+                        <div class="approve-section">
+                            <div id="uploadedHPGPreview" style="display: none;">
+                                <div class="result-preview">
+                                    <i class="fas fa-file-certificate text-warning"></i>
+                                    <div class="preview-info">
+                                        <h4 id="previewHPGFileName">-</h4>
+                                        <p id="previewHPGFileDate">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="approve-actions">
+                                <button class="btn-success" onclick="approveHPGClearance()" id="approveHPGClearanceBtn" disabled>
+                                    <i class="fas fa-check-circle"></i> Approve Clearance
+                                </button>
+                                <button class="btn-primary" onclick="sendHPGCertificateToLTO()" id="sendHPGCertificateBtn" disabled>
+                                    <i class="fas fa-paper-plane"></i> Send MV Clearance Certificate to LTO
+                                </button>
+                            </div>
+                            <p id="hpgStatusMsg" style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;"></p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Request Details Modal -->
+    <div class="modal" id="requestDetailsModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Request Details</h2>
+                <button class="modal-close" onclick="closeModal('requestDetailsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="requestDetailsContent">
+                    <!-- Request details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('requestDetailsModal')">Close</button>
+                <button class="btn-primary" onclick="proceedToVerification()">Start Verification</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/hpg-admin.js"></script>
+    <script>
+        // Initialize user data
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+
+            // Initialize workflow
+            if (typeof initHPGWorkflow === 'function') {
+                initHPGWorkflow();
+            }
+
+            // Load requests
+            if (typeof HPGRequests !== 'undefined') {
+                HPGRequests.loadRequests();
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('hpgSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('hpgSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const userMenu = document.querySelector('.user-menu');
+                const dropdown = document.querySelector('.user-menu-dropdown');
+                if (userMenu && dropdown && !userMenu.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+            // Toggle user menu dropdown
+            const userMenuBtn = document.querySelector('.user-menu-btn');
+            const userMenuDropdown = document.querySelector('.user-menu-dropdown');
+            if (userMenuBtn && userMenuDropdown) {
+                userMenuBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (userMenuDropdown.style.display === 'block') {
+                        userMenuDropdown.style.display = 'none';
+                    } else {
+                        userMenuDropdown.style.display = 'block';
+                    }
+                });
+            }
+        });
+
+        function handleLogout(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to logout?')) {
+                if (typeof AuthUtils !== 'undefined') {
+                    AuthUtils.logout();
+                } else {
+                    // Fallback if AuthUtils is not available
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                }
+            }
+        }
+
+        function startVerification(requestId) {
+            // Store request ID and redirect to verification form
+            sessionStorage.setItem('currentRequestId', requestId);
+            window.location.href = 'hpg-verification-form.html?requestId=' + requestId;
+        }
+
+        function viewDetails(requestId) {
+            // Load and display request details
+            if (typeof HPGRequests !== 'undefined') {
+                HPGRequests.loadRequestDetails(requestId);
+            }
+            document.getElementById('requestDetailsModal').classList.add('active');
+        }
+
+        function proceedToVerification() {
+            const requestId = sessionStorage.getItem('currentRequestId');
+            if (requestId) {
+                startVerification(requestId);
+            }
+        }
+
+        function filterRequests() {
+            // Filter logic will be implemented in hpg-admin.js
+            if (typeof HPGRequests !== 'undefined') {
+                HPGRequests.filterRequests();
+            }
+        }
+
+        function refreshRequests() {
+            if (typeof HPGRequests !== 'undefined') {
+                HPGRequests.loadRequests();
+            }
+        }
+
+        function exportRequests() {
+            // Export functionality
+            alert('Export functionality will be implemented');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+    </script>
+</body>
+</html>
+

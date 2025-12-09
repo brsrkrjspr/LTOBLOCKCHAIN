@@ -22,21 +22,24 @@ function initializeVerifierDashboard() {
 }
 
 function updateVerifierStats() {
-    // Simulate real-time updates for emission verifier stats
-    const stats = {
-        assignedTasks: Math.floor(Math.random() * 3) + 6,
-        completedToday: Math.floor(Math.random() * 5) + 12,
-        thisWeek: Math.floor(Math.random() * 8) + 88,
-        accuracyRate: (98 + Math.random() * 1).toFixed(1) + '%'
-    };
+    // Placeholder: Replace with actual API call
+    // Example: const response = await APIClient.get('/api/emission-verifier/stats');
+    // const stats = await response.json();
     
-    // Update stat cards
+    // Update stat cards - data will be loaded from API
     const statCards = document.querySelectorAll('.stat-card .stat-number');
     if (statCards.length >= 4) {
-        statCards[0].textContent = stats.assignedTasks;
-        statCards[1].textContent = stats.completedToday;
-        statCards[2].textContent = stats.thisWeek;
-        statCards[3].textContent = stats.accuracyRate;
+        // Set to "-" if no data available
+        statCards[0].textContent = '-';
+        statCards[1].textContent = '-';
+        statCards[2].textContent = '-';
+        statCards[3].textContent = '-';
+        
+        // If API call succeeds, populate with real data:
+        // statCards[0].textContent = stats.assignedTasks || '-';
+        // statCards[1].textContent = stats.completedToday || '-';
+        // statCards[2].textContent = stats.thisWeek || '-';
+        // statCards[3].textContent = stats.accuracyRate || '-';
     }
 }
 
@@ -239,19 +242,19 @@ function showReportModal() {
                 <div class="report-summary">
                     <div class="report-item">
                         <span class="report-label">Total Tests Reviewed:</span>
-                        <span class="report-value">127</span>
+                        <span class="report-value">-</span>
                     </div>
                     <div class="report-item">
                         <span class="report-label">Passed Tests:</span>
-                        <span class="report-value">118 (92.9%)</span>
+                        <span class="report-value">-</span>
                     </div>
                     <div class="report-item">
                         <span class="report-label">Failed Tests:</span>
-                        <span class="report-value">9 (7.1%)</span>
+                        <span class="report-value">-</span>
                     </div>
                     <div class="report-item">
                         <span class="report-label">Average CO2 Level:</span>
-                        <span class="report-value">2.1 g/km</span>
+                        <span class="report-value">-</span>
                     </div>
                 </div>
                 <div class="report-actions">
@@ -312,6 +315,106 @@ function initializeKeyboardShortcuts() {
     });
 }
 
+// Emission Workflow Functions
+let emissionWorkflowState = {
+    requestReceived: false,
+    resultUploaded: false,
+    resultSent: false
+};
+
+function checkEmissionWorkflowState() {
+    const savedState = localStorage.getItem('emissionWorkflowState');
+    if (savedState) {
+        emissionWorkflowState = JSON.parse(savedState);
+    }
+    updateEmissionWorkflowUI();
+}
+
+function updateEmissionWorkflowUI() {
+    const requestItem = document.getElementById('ltoRequestItem');
+    const noRequestsMsg = document.getElementById('noRequestsMsg');
+    const uploadedPreview = document.getElementById('uploadedResultPreview');
+    const sendBtn = document.getElementById('sendToLTOBtn');
+    
+    if (emissionWorkflowState.requestReceived) {
+        if (requestItem) requestItem.style.display = 'flex';
+        if (noRequestsMsg) noRequestsMsg.style.display = 'none';
+    } else {
+        if (requestItem) requestItem.style.display = 'none';
+        if (noRequestsMsg) noRequestsMsg.style.display = 'block';
+    }
+    
+    if (emissionWorkflowState.resultUploaded) {
+        if (uploadedPreview) uploadedPreview.style.display = 'flex';
+        if (sendBtn) sendBtn.disabled = false;
+    } else {
+        if (uploadedPreview) uploadedPreview.style.display = 'none';
+        if (sendBtn) sendBtn.disabled = true;
+    }
+}
+
+function saveEmissionWorkflowState() {
+    localStorage.setItem('emissionWorkflowState', JSON.stringify(emissionWorkflowState));
+    updateEmissionWorkflowUI();
+}
+
+function receiveLTORequest() {
+    emissionWorkflowState.requestReceived = true;
+    saveEmissionWorkflowState();
+    
+    ToastNotification.show('Request received from LTO', 'success');
+    document.getElementById('receiveRequestBtn').textContent = 'Request Received';
+    document.getElementById('receiveRequestBtn').disabled = true;
+    document.getElementById('receiveRequestBtn').classList.remove('btn-primary');
+    document.getElementById('receiveRequestBtn').classList.add('btn-success');
+}
+
+function uploadEmissionResult(event) {
+    event.preventDefault();
+    const fileInput = document.getElementById('testResultFile');
+    const notes = document.getElementById('testResultNotes').value;
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        ToastNotification.show('Please select a file to upload', 'error');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    emissionWorkflowState.resultUploaded = true;
+    emissionWorkflowState.uploadedFileName = file.name;
+    emissionWorkflowState.uploadedFileDate = new Date().toLocaleString();
+    saveEmissionWorkflowState();
+    
+    // Update preview
+    document.getElementById('previewFileName').textContent = file.name;
+    document.getElementById('previewFileDate').textContent = `Uploaded: ${emissionWorkflowState.uploadedFileDate}`;
+    
+    ToastNotification.show('Emission test result uploaded successfully', 'success');
+    document.getElementById('emissionUploadForm').reset();
+}
+
+function sendResultToLTO() {
+    if (!emissionWorkflowState.resultUploaded) {
+        ToastNotification.show('Please upload test result first', 'error');
+        return;
+    }
+    
+    emissionWorkflowState.resultSent = true;
+    saveEmissionWorkflowState();
+    
+    ToastNotification.show('Emission test result sent to LTO successfully', 'success');
+    document.getElementById('sendStatusMsg').textContent = 'Result sent to LTO on ' + new Date().toLocaleString();
+    document.getElementById('sendToLTOBtn').disabled = true;
+    document.getElementById('sendToLTOBtn').textContent = 'Sent to LTO';
+    document.getElementById('sendToLTOBtn').classList.remove('btn-success');
+    document.getElementById('sendToLTOBtn').classList.add('btn-secondary');
+}
+
+// Initialize workflow state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkEmissionWorkflowState();
+});
+
 // Export functions for potential external use
 window.VerifierDashboard = {
     updateVerifierStats,
@@ -320,5 +423,8 @@ window.VerifierDashboard = {
     handleEmissionReview,
     handleGenerateReport,
     updateTaskStats,
-    showNotification
+    showNotification,
+    receiveLTORequest,
+    uploadEmissionResult,
+    sendResultToLTO
 };

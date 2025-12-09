@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Verification - HPG Admin</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('hpgSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">HPG</div>
+                    <div class="logo-text">
+                        <h2>HPG Admin</h2>
+                        <p>Highway Patrol Group</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="hpg-admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="hpg-requests-list.html" class="nav-item">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests</span>
+                </a>
+                <a href="hpg-verification-form.html" class="nav-item active">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Vehicle Verification</span>
+                </a>
+                <a href="hpg-release-certificate.html" class="nav-item">
+                    <i class="fas fa-certificate"></i>
+                    <span>Release Certificate</span>
+                </a>
+                <a href="hpg-activity-logs.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Activity Logs</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <!-- Top Navigation -->
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h1>Vehicle Verification</h1>
+                    </div>
+                    <div class="header-right">
+                        <div class="user-profile">
+                            <div class="user-avatar" id="userAvatar">HA</div>
+                            <div class="user-details">
+                                <span class="user-name" id="userName">HPG Admin</span>
+                                <span class="user-role" id="userRole">HPG Administrator</span>
+                            </div>
+                            <div class="user-menu">
+                                <button class="user-menu-btn">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="user-menu-dropdown">
+                                    <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
+                                    <a href="#" onclick="handleLogout(event); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Request Info Banner -->
+                    <div class="info-banner">
+                        <div class="banner-content">
+                            <div class="banner-icon">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div class="banner-text">
+                                <h3>Request ID: <span id="currentRequestId">-</span></h3>
+                                <p>Complete the vehicle inspection and verification form below</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Verification Form -->
+                    <form id="verificationForm" class="verification-form" onsubmit="handleVerificationSubmit(event)">
+                        <!-- Vehicle Information Section (Auto-loaded) -->
+                        <div class="form-section">
+                            <div class="section-header">
+                                <h2><i class="fas fa-car"></i> Vehicle Information</h2>
+                                <span class="section-badge">Auto-loaded from LTO</span>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Owner Name</label>
+                                    <input type="text" id="ownerName" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Plate Number</label>
+                                    <input type="text" id="plateNumber" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Vehicle Type</label>
+                                    <input type="text" id="vehicleType" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Vehicle Model</label>
+                                    <input type="text" id="vehicleModel" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Year</label>
+                                    <input type="text" id="vehicleYear" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Purpose</label>
+                                    <input type="text" id="purpose" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inspection Details Section -->
+                        <div class="form-section">
+                            <div class="section-header">
+                                <h2><i class="fas fa-clipboard-list"></i> Inspection Details</h2>
+                                <span class="section-badge">Required</span>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="engineNumber">Engine Number <span class="required">*</span></label>
+                                    <input type="text" id="engineNumber" name="engineNumber" required placeholder="Enter engine number">
+                                </div>
+                                <div class="form-group">
+                                    <label for="chassisNumber">Chassis Number <span class="required">*</span></label>
+                                    <input type="text" id="chassisNumber" name="chassisNumber" required placeholder="Enter chassis number">
+                                </div>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="macroEtching" name="macroEtching">
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-text">
+                                        <strong>Macro-etching Verified</strong>
+                                        <small>Confirm that macro-etching inspection has been completed</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Image Upload Section -->
+                        <div class="form-section">
+                            <div class="section-header">
+                                <h2><i class="fas fa-images"></i> Inspection Images</h2>
+                                <span class="section-badge">Required</span>
+                            </div>
+                            
+                            <div class="upload-section">
+                                <div class="upload-group">
+                                    <label for="inspectionPhotos">Upload Inspection Photos <span class="required">*</span></label>
+                                    <div class="upload-area" id="inspectionPhotosArea">
+                                        <input type="file" id="inspectionPhotos" name="inspectionPhotos" multiple accept="image/*" onchange="handleFileUpload(this, 'inspectionPhotosArea')">
+                                        <div class="upload-content">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <p>Click to upload or drag and drop</p>
+                                            <small>Multiple images allowed (JPG, PNG, Max 5MB each)</small>
+                                        </div>
+                                    </div>
+                                    <div class="uploaded-files" id="inspectionPhotosList"></div>
+                                </div>
+
+                                <div class="upload-group">
+                                    <label for="stencilImage">Upload Stencil Image <span class="required">*</span></label>
+                                    <div class="upload-area" id="stencilImageArea">
+                                        <input type="file" id="stencilImage" name="stencilImage" accept="image/*" onchange="handleFileUpload(this, 'stencilImageArea')">
+                                        <div class="upload-content">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <p>Click to upload or drag and drop</p>
+                                            <small>Single image (JPG, PNG, Max 5MB)</small>
+                                        </div>
+                                    </div>
+                                    <div class="uploaded-files" id="stencilImageList"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Remarks Section -->
+                        <div class="form-section">
+                            <div class="section-header">
+                                <h2><i class="fas fa-comment-alt"></i> Remarks / Findings</h2>
+                            </div>
+                            <div class="form-group">
+                                <label for="remarks">Inspection Remarks</label>
+                                <textarea id="remarks" name="remarks" rows="5" placeholder="Enter any findings, observations, or remarks about the vehicle inspection..."></textarea>
+                                <small>Optional: Add any additional notes or findings from the inspection</small>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="cancelVerification()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="button" class="btn-danger" onclick="rejectVerification()">
+                                <i class="fas fa-times-circle"></i> Reject Verification
+                            </button>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-check-circle"></i> Approve Verification
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Reject Confirmation Modal -->
+    <div class="modal" id="rejectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Reject Verification</h2>
+                <button class="modal-close" onclick="closeModal('rejectModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="rejectReason">Reason for Rejection <span class="required">*</span></label>
+                    <textarea id="rejectReason" rows="4" placeholder="Please provide a reason for rejecting this verification..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('rejectModal')">Cancel</button>
+                <button class="btn-danger" onclick="confirmReject()">Confirm Rejection</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/hpg-admin.js"></script>
+    <script>
+        // Initialize user data
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+
+            // Load request data
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestId = urlParams.get('requestId') || sessionStorage.getItem('currentRequestId');
+            
+            if (requestId && typeof HPGVerification !== 'undefined') {
+                HPGVerification.loadRequestData(requestId);
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('hpgSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('hpgSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const userMenu = document.querySelector('.user-menu');
+                const dropdown = document.querySelector('.user-menu-dropdown');
+                if (userMenu && dropdown && !userMenu.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+            // Toggle user menu dropdown
+            const userMenuBtn = document.querySelector('.user-menu-btn');
+            const userMenuDropdown = document.querySelector('.user-menu-dropdown');
+            if (userMenuBtn && userMenuDropdown) {
+                userMenuBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (userMenuDropdown.style.display === 'block') {
+                        userMenuDropdown.style.display = 'none';
+                    } else {
+                        userMenuDropdown.style.display = 'block';
+                    }
+                });
+            }
+        });
+
+        function handleLogout(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to logout?')) {
+                if (typeof AuthUtils !== 'undefined') {
+                    AuthUtils.logout();
+                } else {
+                    // Fallback if AuthUtils is not available
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                }
+            }
+        }
+
+        function handleFileUpload(input, areaId) {
+            const files = input.files;
+            const listContainer = document.getElementById(areaId.replace('Area', 'List'));
+            
+            if (listContainer) {
+                listContainer.innerHTML = '';
+                Array.from(files).forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'uploaded-file-item';
+                    fileItem.innerHTML = `
+                        <i class="fas fa-file-image"></i>
+                        <span>${file.name}</span>
+                        <button type="button" class="remove-file" onclick="removeFile(${index}, '${input.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    listContainer.appendChild(fileItem);
+                });
+            }
+        }
+
+        function removeFile(index, inputId) {
+            const input = document.getElementById(inputId);
+            const dt = new DataTransfer();
+            const files = Array.from(input.files);
+            files.splice(index, 1);
+            files.forEach(file => dt.items.add(file));
+            input.files = dt.files;
+            handleFileUpload(input, inputId.replace('Photos', 'PhotosArea').replace('Image', 'ImageArea'));
+        }
+
+        function handleVerificationSubmit(event) {
+            event.preventDefault();
+            
+            if (typeof HPGVerification !== 'undefined') {
+                HPGVerification.approveVerification();
+            }
+        }
+
+        function rejectVerification() {
+            document.getElementById('rejectModal').classList.add('active');
+        }
+
+        function confirmReject() {
+            const reason = document.getElementById('rejectReason').value;
+            if (!reason.trim()) {
+                alert('Please provide a reason for rejection');
+                return;
+            }
+
+            if (typeof HPGVerification !== 'undefined') {
+                HPGVerification.rejectVerification(reason);
+            }
+        }
+
+        function cancelVerification() {
+            if (confirm('Are you sure you want to cancel? Unsaved changes will be lost.')) {
+                window.location.href = 'hpg-requests-list.html';
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+    </script>
+</body>
+</html>
+

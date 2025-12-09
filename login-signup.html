@@ -38,14 +38,17 @@
                     <!-- Demo Credentials -->
                     <div class="demo-credentials">
                         <h4>Test Login Credentials:</h4>
-                        <div class="demo-account" onclick="fillCredentials('dealer@example.com', 'dealer123', 'dealership'); return false;">
-                            <strong>Dealership:</strong> dealer@example.com / dealer123
+                        <div class="demo-account" onclick="fillCredentials('hpgadmin@hpg.gov.ph', 'hpg123456', 'hpg_admin'); return false;">
+                            <strong>HPG Admin:</strong> hpgadmin@hpg.gov.ph / hpg123456
                         </div>
-                        <div class="demo-account" onclick="fillCredentials('police@example.com', 'police123', 'police'); return false;">
-                            <strong>Police:</strong> police@example.com / police123
+                        <div class="demo-account" onclick="fillCredentials('admin@lto.gov.ph', 'admin123', 'admin'); return false;">
+                            <strong>LTO Admin:</strong> admin@lto.gov.ph / admin123
                         </div>
-                        <div class="demo-account" onclick="fillCredentials('bank@example.com', 'bank123', 'bank'); return false;">
-                            <strong>Bank:</strong> bank@example.com / bank123
+                        <div class="demo-account" onclick="fillCredentials('insurance@example.com', 'insurance123', 'insurance_verifier'); return false;">
+                            <strong>Insurance Verifier:</strong> insurance@example.com / insurance123
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('emission@example.com', 'emission123', 'emission_verifier'); return false;">
+                            <strong>Emission Verifier:</strong> emission@example.com / emission123
                         </div>
                     </div>
 
@@ -58,17 +61,6 @@
                         <div class="form-group">
                             <label for="loginPassword">Password</label>
                             <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="loginRole">Role</label>
-                            <select id="loginRole" name="role" required>
-                                <option value="">Select your role</option>
-                                <option value="vehicle_owner">Vehicle Owner</option>
-                                <option value="dealership">Car Dealership</option>
-                                <option value="police">Police & Law Enforcement</option>
-                                <option value="bank">Bank & Financing Institution</option>
-                            </select>
                         </div>
 
                         <div class="form-options">

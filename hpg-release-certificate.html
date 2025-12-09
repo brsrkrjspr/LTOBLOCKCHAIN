@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Release MV Clearance Certificate - HPG Admin</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('hpgSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">HPG</div>
+                    <div class="logo-text">
+                        <h2>HPG Admin</h2>
+                        <p>Highway Patrol Group</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="hpg-admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="hpg-requests-list.html" class="nav-item">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests</span>
+                </a>
+                <a href="hpg-verification-form.html" class="nav-item">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Vehicle Verification</span>
+                </a>
+                <a href="hpg-release-certificate.html" class="nav-item active">
+                    <i class="fas fa-certificate"></i>
+                    <span>Release Certificate</span>
+                </a>
+                <a href="hpg-activity-logs.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Activity Logs</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <!-- Top Navigation -->
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h1>Release MV Clearance Certificate</h1>
+                    </div>
+                    <div class="header-right">
+                        <div class="user-profile">
+                            <div class="user-avatar" id="userAvatar">HA</div>
+                            <div class="user-details">
+                                <span class="user-name" id="userName">HPG Admin</span>
+                                <span class="user-role" id="userRole">HPG Administrator</span>
+                            </div>
+                            <div class="user-menu">
+                                <button class="user-menu-btn">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="user-menu-dropdown">
+                                    <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
+                                    <a href="#" onclick="handleLogout(event); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Select Request Section -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-search"></i> Select Verified Request</h3>
+                        </div>
+                        <div class="form-group">
+                            <label for="requestSelect">Select Request to Release Certificate</label>
+                            <select id="requestSelect" onchange="loadRequestForCertificate()">
+                                <option value="">-- Select a verified request --</option>
+                                <!-- Options will be loaded dynamically -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Certificate Details Section -->
+                    <div id="certificateSection" class="certificate-section" style="display: none;">
+                        <!-- Request Header -->
+                        <div class="info-banner">
+                            <div class="banner-content">
+                                <div class="banner-icon">
+                                    <i class="fas fa-certificate"></i>
+                                </div>
+                                <div class="banner-text">
+                                    <h3>Request ID: <span id="certRequestId">-</span></h3>
+                                    <p>Review verified inspection details and release MV Clearance Certificate</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Verified Inspection Summary -->
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-clipboard-check"></i> Verified Inspection Summary</h3>
+                            </div>
+                            <div class="summary-grid">
+                                <div class="summary-item">
+                                    <label>Owner Name:</label>
+                                    <span id="certOwnerName">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <label>Plate Number:</label>
+                                    <span id="certPlateNumber">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <label>Vehicle Type:</label>
+                                    <span id="certVehicleType">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <label>Engine Number:</label>
+                                    <span id="certEngineNumber">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <label>Chassis Number:</label>
+                                    <span id="certChassisNumber">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <label>Verification Date:</label>
+                                    <span id="certVerificationDate">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <label>Verified By:</label>
+                                    <span id="certVerifiedBy">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <label>Macro-etching:</label>
+                                    <span id="certMacroEtching">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Certificate Template Section -->
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-file-certificate"></i> MV Clearance Certificate</h3>
+                            </div>
+                            
+                            <div class="certificate-options">
+                                <div class="option-group">
+                                    <label>
+                                        <input type="radio" name="certificateOption" value="generate" checked onchange="toggleCertificateOption()">
+                                        <span>Auto-generate Certificate</span>
+                                    </label>
+                                    <small>Generate certificate automatically from verified data</small>
+                                </div>
+                                <div class="option-group">
+                                    <label>
+                                        <input type="radio" name="certificateOption" value="upload" onchange="toggleCertificateOption()">
+                                        <span>Upload Certificate Template</span>
+                                    </label>
+                                    <small>Upload a pre-filled certificate document</small>
+                                </div>
+                            </div>
+
+                            <!-- Upload Certificate -->
+                            <div id="uploadCertificateSection" style="display: none;">
+                                <div class="upload-group">
+                                    <label for="certificateFile">Upload Certificate File</label>
+                                    <div class="upload-area" id="certificateUploadArea">
+                                        <input type="file" id="certificateFile" name="certificateFile" accept=".pdf,.jpg,.jpeg,.png" onchange="handleCertificateUpload(this)">
+                                        <div class="upload-content">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <p>Click to upload or drag and drop</p>
+                                            <small>PDF, JPG, PNG (Max 10MB)</small>
+                                        </div>
+                                    </div>
+                                    <div class="uploaded-files" id="certificateFileList"></div>
+                                </div>
+                            </div>
+
+                            <!-- Certificate Preview -->
+                            <div id="certificatePreviewSection">
+                                <div class="certificate-preview">
+                                    <div class="preview-header">
+                                        <h4>Certificate Preview</h4>
+                                        <button type="button" class="btn-secondary btn-sm" onclick="generatePreview()">
+                                            <i class="fas fa-sync"></i> Refresh Preview
+                                        </button>
+                                    </div>
+                                    <div class="preview-content" id="certificatePreview">
+                                        <div class="certificate-template">
+                                            <div class="cert-header">
+                                                <h2>MOTOR VEHICLE CLEARANCE CERTIFICATE</h2>
+                                                <p>Highway Patrol Group</p>
+                                            </div>
+                                            <div class="cert-body">
+                                                <div class="cert-field">
+                                                    <label>Certificate Number:</label>
+                                                    <span id="previewCertNumber">HPG-CERT-000</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Request ID:</label>
+                                                    <span id="previewRequestId">-</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Owner Name:</label>
+                                                    <span id="previewOwnerName">-</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Plate Number:</label>
+                                                    <span id="previewPlateNumber">-</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Vehicle Type:</label>
+                                                    <span id="previewVehicleType">-</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Engine Number:</label>
+                                                    <span id="previewEngineNumber">-</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Chassis Number:</label>
+                                                    <span id="previewChassisNumber">-</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Verification Date:</label>
+                                                    <span id="previewVerificationDate">-</span>
+                                                </div>
+                                                <div class="cert-field">
+                                                    <label>Status:</label>
+                                                    <span class="status-badge status-verified">VERIFIED</span>
+                                                </div>
+                                                <div class="cert-footer">
+                                                    <p>This certificate confirms that the above vehicle has been inspected and verified by the Highway Patrol Group.</p>
+                                                    <div class="cert-signature">
+                                                        <div class="signature-line"></div>
+                                                        <p>HPG Administrator</p>
+                                                        <p id="previewVerifiedBy">-</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Release Actions -->
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="cancelRelease()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="button" class="btn-primary" onclick="releaseCertificate()">
+                                <i class="fas fa-paper-plane"></i> Release and Send to LTO Admin
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Release Confirmation Modal -->
+    <div class="modal" id="releaseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirm Release</h2>
+                <button class="modal-close" onclick="closeModal('releaseModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to release this MV Clearance Certificate and send it to LTO Admin?</p>
+                <div class="confirmation-details">
+                    <p><strong>Request ID:</strong> <span id="confirmRequestId">-</span></p>
+                    <p><strong>Certificate Number:</strong> <span id="confirmCertNumber">-</span></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('releaseModal')">Cancel</button>
+                <button class="btn-primary" onclick="confirmRelease()">Confirm Release</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/hpg-admin.js"></script>
+    <script>
+        // Initialize user data
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+
+            // Load verified requests
+            if (typeof HPGCertificate !== 'undefined') {
+                HPGCertificate.loadVerifiedRequests();
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('hpgSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('hpgSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const userMenu = document.querySelector('.user-menu');
+                const dropdown = document.querySelector('.user-menu-dropdown');
+                if (userMenu && dropdown && !userMenu.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+            // Toggle user menu dropdown
+            const userMenuBtn = document.querySelector('.user-menu-btn');
+            const userMenuDropdown = document.querySelector('.user-menu-dropdown');
+            if (userMenuBtn && userMenuDropdown) {
+                userMenuBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (userMenuDropdown.style.display === 'block') {
+                        userMenuDropdown.style.display = 'none';
+                    } else {
+                        userMenuDropdown.style.display = 'block';
+                    }
+                });
+            }
+        });
+
+        function handleLogout(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to logout?')) {
+                if (typeof AuthUtils !== 'undefined') {
+                    AuthUtils.logout();
+                } else {
+                    // Fallback if AuthUtils is not available
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                }
+            }
+        }
+
+        function loadRequestForCertificate() {
+            const requestId = document.getElementById('requestSelect').value;
+            if (requestId && typeof HPGCertificate !== 'undefined') {
+                HPGCertificate.loadRequestData(requestId);
+                document.getElementById('certificateSection').style.display = 'block';
+            } else {
+                document.getElementById('certificateSection').style.display = 'none';
+            }
+        }
+
+        function toggleCertificateOption() {
+            const option = document.querySelector('input[name="certificateOption"]:checked').value;
+            const uploadSection = document.getElementById('uploadCertificateSection');
+            const previewSection = document.getElementById('certificatePreviewSection');
+            
+            if (option === 'upload') {
+                uploadSection.style.display = 'block';
+                previewSection.style.display = 'none';
+            } else {
+                uploadSection.style.display = 'none';
+                previewSection.style.display = 'block';
+                generatePreview();
+            }
+        }
+
+        function handleCertificateUpload(input) {
+            const file = input.files[0];
+            if (file) {
+                const listContainer = document.getElementById('certificateFileList');
+                listContainer.innerHTML = `
+                    <div class="uploaded-file-item">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>${file.name}</span>
+                        <button type="button" class="remove-file" onclick="removeCertificateFile()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function removeCertificateFile() {
+            document.getElementById('certificateFile').value = '';
+            document.getElementById('certificateFileList').innerHTML = '';
+        }
+
+        function generatePreview() {
+            if (typeof HPGCertificate !== 'undefined') {
+                HPGCertificate.generatePreview();
+            }
+        }
+
+        function releaseCertificate() {
+            document.getElementById('releaseModal').classList.add('active');
+        }
+
+        function confirmRelease() {
+            if (typeof HPGCertificate !== 'undefined') {
+                HPGCertificate.releaseCertificate();
+            }
+        }
+
+        function cancelRelease() {
+            if (confirm('Are you sure you want to cancel? Changes will be lost.')) {
+                window.location.href = 'hpg-admin-dashboard.html';
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+    </script>
+</body>
+</html>
+

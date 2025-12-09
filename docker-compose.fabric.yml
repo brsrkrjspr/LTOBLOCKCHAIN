@@ -379,7 +379,7 @@ services:
       - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
       - ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
-    command: /bin/bash
+    command: /bin/bash -c "apt-get update && apt-get install -y dnsutils && /bin/bash"
     volumes:
       - /var/run/:/host/var/run/
       - ./fabric-network/crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/

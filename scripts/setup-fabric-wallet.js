@@ -96,6 +96,53 @@ async function setupWallet() {
 
         await wallet.put('admin', identity);
         console.log('✅ Admin identity added to wallet successfully');
+        
+        // Ensure admincerts directory exists and has the certificate
+        const admincertsDir = path.join(
+            process.cwd(),
+            'fabric-network',
+            'crypto-config',
+            'peerOrganizations',
+            'lto.gov.ph',
+            'users',
+            'Admin@lto.gov.ph',
+            'msp',
+            'admincerts'
+        );
+        
+        if (!fs.existsSync(admincertsDir)) {
+            fs.mkdirSync(admincertsDir, { recursive: true });
+        }
+        
+        const admincertsFile = path.join(admincertsDir, 'Admin@lto.gov.ph-cert.pem');
+        if (!fs.existsSync(admincertsFile)) {
+            fs.copyFileSync(certPath, admincertsFile);
+            console.log('✅ Admin certificate copied to admincerts directory');
+        }
+        
+        // Also ensure peer's admincerts has it
+        const peerAdmincertsDir = path.join(
+            process.cwd(),
+            'fabric-network',
+            'crypto-config',
+            'peerOrganizations',
+            'lto.gov.ph',
+            'peers',
+            'peer0.lto.gov.ph',
+            'msp',
+            'admincerts'
+        );
+        
+        if (!fs.existsSync(peerAdmincertsDir)) {
+            fs.mkdirSync(peerAdmincertsDir, { recursive: true });
+        }
+        
+        const peerAdmincertsFile = path.join(peerAdmincertsDir, 'Admin@lto.gov.ph-cert.pem');
+        if (!fs.existsSync(peerAdmincertsFile)) {
+            fs.copyFileSync(certPath, peerAdmincertsFile);
+            console.log('✅ Admin certificate copied to peer admincerts directory');
+        }
+        
         console.log('🎉 Wallet setup complete!');
 
     } catch (error) {

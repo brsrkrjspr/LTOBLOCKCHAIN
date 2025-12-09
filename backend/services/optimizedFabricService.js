@@ -57,10 +57,15 @@ class OptimizedFabricService {
 
         try {
             // Connect to gateway
+            // Note: asLocalhost: true is correct for Codespace (app runs on host, containers accessible via localhost)
             await this.gateway.connect(connectionProfile, {
                 wallet: this.wallet,
                 identity: 'admin',
-                discovery: { enabled: true, asLocalhost: true }
+                discovery: { enabled: true, asLocalhost: true },
+                eventHandlerOptions: {
+                    commitTimeout: 300,
+                    strategy: null
+                }
             });
 
             // Get network and contract

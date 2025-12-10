@@ -121,12 +121,13 @@ else
     sleep 10
     
     # Get package ID
-    PACKAGE_ID=$(docker exec cli peer lifecycle chaincode queryinstalled \
-        --output json 2>/dev/null | \
-        grep -o '"package_id":"[^"]*"' | head -1 | cut -d'"' -f4)
+    PACKAGE_ID=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1 | \
+        grep "vehicle-registration_1.0" | \
+        sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
     
     if [ -z "$PACKAGE_ID" ]; then
-        print_error "Failed to get package ID"
+        print_error "Failed to get package ID. Showing installed chaincodes:"
+        docker exec cli peer lifecycle chaincode queryinstalled
         exit 1
     fi
     

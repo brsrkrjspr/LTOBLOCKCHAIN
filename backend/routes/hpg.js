@@ -4,7 +4,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/services');
-const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authorizeRole } = require('../middleware/authorize');
 const storageService = require('../services/storageService');
 
 // Get all HPG clearance requests

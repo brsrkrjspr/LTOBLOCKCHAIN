@@ -4,7 +4,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/services');
-const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authorizeRole } = require('../middleware/authorize');
 
 // Get all emission verification requests
 router.get('/requests', authenticateToken, authorizeRole(['admin', 'emission_verifier']), async (req, res) => {

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer of Ownership Requests - Admin Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    sidebar.classList.add('no-transition');
+                    const savedState = localStorage.getItem('adminSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">AD</div>
+                    <div class="logo-text">
+                        <h2>Admin</h2>
+                        <p>Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#users" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="#orgs" class="nav-item">
+                    <i class="fas fa-building"></i>
+                    <span>Organizations</span>
+                </a>
+                <a href="admin-blockchain-viewer.html" class="nav-item">
+                    <i class="fas fa-link"></i>
+                    <span>Blockchain Ledger</span>
+                </a>
+                <a href="admin-transfer-requests.html" class="nav-item active">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
+                    <span class="badge" id="transferBadge">3</span>
+                </a>
+                <a href="#audit" class="nav-item">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Audit Logs</span>
+                </a>
+                <a href="#reports" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="#documents" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Documents</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Admin Dashboard</p>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-profile">
+                                <div class="user-avatar" id="userAvatar">AD</div>
+                                <div class="user-details">
+                                    <span class="user-name" id="userName">Loading...</span>
+                                    <span class="user-role" id="userRole">Loading...</span>
+                                </div>
+                            </div>
+                            <div class="user-actions">
+                                <a href="settings.html" class="btn-secondary">Settings</a>
+                                <a href="index.html" class="btn-secondary">Logout</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Breadcrumb -->
+                    <div class="breadcrumb">
+                        <a href="admin-dashboard.html">Dashboard</a>
+                        <span class="breadcrumb-separator">></span>
+                        <a href="admin-transfer-requests.html">Transfer of Ownership</a>
+                        <span class="breadcrumb-separator">></span>
+                        <span class="breadcrumb-current">Requests</span>
+                    </div>
+
+                    <!-- Page Header -->
+                    <div class="page-header">
+                        <div>
+                            <h2>Transfer of Ownership Requests</h2>
+                            <p>Manage and review ownership transfer applications</p>
+                        </div>
+                        <div class="page-header-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="searchInput" placeholder="Search by ID, name, or plate number...">
+                            </div>
+                            <button class="btn-secondary" id="filterToggle">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filter Panel -->
+                    <div class="filter-panel" id="filterPanel" style="display: none;">
+                        <div class="filter-grid">
+                            <div class="filter-group">
+                                <label>Status</label>
+                                <select id="statusFilter" class="form-control">
+                                    <option value="">All Statuses</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="reviewing">Reviewing</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Date Range</label>
+                                <input type="date" id="dateFrom" class="form-control">
+                            </div>
+                            <div class="filter-group">
+                                <label>To</label>
+                                <input type="date" id="dateTo" class="form-control">
+                            </div>
+                            <div class="filter-group">
+                                <label>Plate Number</label>
+                                <input type="text" id="plateFilter" class="form-control" placeholder="ABC-1234">
+                            </div>
+                            <div class="filter-actions">
+                                <button class="btn-primary" onclick="applyFilters()">Apply Filters</button>
+                                <button class="btn-secondary" onclick="clearFilters()">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions" id="bulkActions" style="display: none;">
+                        <span id="selectedCount">0 selected</span>
+                        <div class="bulk-buttons">
+                            <button class="btn-success btn-sm" onclick="bulkApprove()">
+                                <i class="fas fa-check"></i> Approve Selected
+                            </button>
+                            <button class="btn-danger btn-sm" onclick="bulkReject()">
+                                <i class="fas fa-times"></i> Reject Selected
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="clearSelection()">
+                                <i class="fas fa-times-circle"></i> Clear Selection
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Requests Table -->
+                    <div class="dashboard-card">
+                        <div class="table-container">
+                            <table class="table" id="transferRequestsTable">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                        </th>
+                                        <th>Request ID</th>
+                                        <th>Applicant Name</th>
+                                        <th>Buyer Name</th>
+                                        <th>Plate Number</th>
+                                        <th>Date Submitted</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transferRequestsBody">
+                                    <!-- Rows will be loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="pagination">
+                            <button class="btn-secondary btn-sm" disabled>
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </button>
+                            <span class="pagination-info">Page 1 of 1</span>
+                            <button class="btn-secondary btn-sm" disabled>
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize user data
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    
+                    if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    if (userRoleEl) {
+                        const roleNames = {
+                            'admin': 'System Administrator',
+                            'vehicle_owner': 'Vehicle Owner'
+                        };
+                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials();
+                } else {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+
+            // Sidebar toggle
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                    localStorage.setItem('adminSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+                });
+            }
+
+            // Filter toggle
+            const filterToggle = document.getElementById('filterToggle');
+            const filterPanel = document.getElementById('filterPanel');
+            if (filterToggle && filterPanel) {
+                filterToggle.addEventListener('click', function() {
+                    filterPanel.style.display = filterPanel.style.display === 'none' ? 'block' : 'none';
+                });
+            }
+
+            // Search functionality
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    filterTable(this.value);
+                });
+            }
+        });
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const checked = document.querySelectorAll('.row-checkbox:checked');
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = document.getElementById('selectedCount');
+            if (checked.length > 0) {
+                bulkActions.style.display = 'flex';
+                selectedCount.textContent = checked.length + ' selected';
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateBulkActions();
+        }
+
+        function filterTable(searchTerm) {
+            const rows = document.querySelectorAll('#transferRequestsBody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm.toLowerCase()) ? '' : 'none';
+            });
+        }
+
+        function applyFilters() {
+            // Filter logic placeholder for integration with data source
+        }
+
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            document.getElementById('plateFilter').value = '';
+            applyFilters();
+        }
+
+        function bulkApprove() {
+            const checked = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.dataset.id);
+            if (checked.length === 0) return;
+            if (confirm(`Approve ${checked.length} request(s)?`)) {
+                // Integrate with backend to approve requests
+            }
+        }
+
+        function bulkReject() {
+            const checked = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.dataset.id);
+            if (checked.length === 0) return;
+            if (confirm(`Reject ${checked.length} request(s)?`)) {
+                // Integrate with backend to reject requests
+            }
+        }
+
+        // Add event listeners to checkboxes
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateBulkActions();
+            }
+        });
+    </script>
+</body>
+</html>
+

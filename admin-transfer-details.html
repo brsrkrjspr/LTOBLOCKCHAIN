@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer of Ownership Request Details - Admin Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    sidebar.classList.add('no-transition');
+                    const savedState = localStorage.getItem('adminSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">AD</div>
+                    <div class="logo-text">
+                        <h2>Admin</h2>
+                        <p>Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#users" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="#orgs" class="nav-item">
+                    <i class="fas fa-building"></i>
+                    <span>Organizations</span>
+                </a>
+                <a href="admin-blockchain-viewer.html" class="nav-item">
+                    <i class="fas fa-link"></i>
+                    <span>Blockchain Ledger</span>
+                </a>
+                <a href="admin-transfer-requests.html" class="nav-item active">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
+                </a>
+                <a href="#audit" class="nav-item">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Audit Logs</span>
+                </a>
+                <a href="#reports" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="#documents" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Documents</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Admin Dashboard</p>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-profile">
+                                <div class="user-avatar" id="userAvatar">AD</div>
+                                <div class="user-details">
+                                    <span class="user-name" id="userName">Loading...</span>
+                                    <span class="user-role" id="userRole">Loading...</span>
+                                </div>
+                            </div>
+                            <div class="user-actions">
+                                <a href="settings.html" class="btn-secondary">Settings</a>
+                                <a href="index.html" class="btn-secondary">Logout</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Breadcrumb -->
+                    <div class="breadcrumb">
+                        <a href="admin-dashboard.html">Dashboard</a>
+                        <span class="breadcrumb-separator">></span>
+                        <a href="admin-transfer-requests.html">Transfer of Ownership</a>
+                        <span class="breadcrumb-separator">></span>
+                        <span class="breadcrumb-current">Request #TO-2024-001</span>
+                    </div>
+
+                    <!-- Page Header with Status -->
+                    <div class="page-header">
+                        <div>
+                            <h2>Transfer of Ownership Request</h2>
+                            <p>Request ID: <strong>TO-2024-001</strong> | Last updated: <span id="lastUpdated">2024-01-15 10:30 AM</span></p>
+                        </div>
+                        <div>
+                            <span class="status-badge status-pending status-badge-large">Pending</span>
+                        </div>
+                    </div>
+
+                    <div class="details-layout">
+                        <!-- Main Content Area -->
+                        <div class="details-main">
+                            <!-- Section 1: Request Overview -->
+                            <div class="dashboard-card">
+                                <h3><span class="card-icon">📋</span> Request Overview</h3>
+                                <div class="info-grid-2col">
+                                    <div class="info-item">
+                                        <label>Request ID</label>
+                                        <p><strong>TO-2024-001</strong></p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Submission Date</label>
+                                        <p>January 15, 2024</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Current Status</label>
+                                        <p><span class="status-badge status-pending">Pending</span></p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Assigned Admin Reviewer</label>
+                                        <p>Admin User</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Forwarded to HPG</label>
+                                        <p><span class="status-badge status-rejected">No</span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 2: Seller Information -->
+                            <div class="dashboard-card">
+                                <h3><span class="card-icon">👤</span> Seller Information</h3>
+                                <div class="info-grid-2col">
+                                    <div class="info-item">
+                                        <label>Seller Name</label>
+                                        <p><strong>Juan Dela Cruz</strong></p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Seller Contact</label>
+                                        <p>+63 912 345 6789</p>
+                                    </div>
+                                    <div class="info-item full-width">
+                                        <label>Seller Address</label>
+                                        <p>123 Main Street, Barangay San Antonio, Quezon City, Metro Manila</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Seller Valid ID</label>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('seller-id')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('seller-id')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 3: Buyer Information -->
+                            <div class="dashboard-card">
+                                <h3><span class="card-icon">👥</span> Buyer Information</h3>
+                                <div class="info-grid-2col">
+                                    <div class="info-item">
+                                        <label>Buyer Name</label>
+                                        <p><strong>Maria Santos</strong></p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Buyer Contact</label>
+                                        <p>+63 987 654 3210</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Buyer Email</label>
+                                        <p>maria.santos@email.com</p>
+                                    </div>
+                                    <div class="info-item full-width">
+                                        <label>Buyer Address</label>
+                                        <p>456 Oak Avenue, Barangay San Jose, Makati City, Metro Manila</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Buyer Valid ID</label>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('buyer-id')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('buyer-id')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 4: Vehicle Information -->
+                            <div class="dashboard-card">
+                                <h3><span class="card-icon">🚗</span> Vehicle Information</h3>
+                                <div class="info-grid-2col">
+                                    <div class="info-item">
+                                        <label>Plate Number</label>
+                                        <p><strong>ABC-1234</strong></p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Engine Number</label>
+                                        <p>2NR-FE123456</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Chassis Number</label>
+                                        <p>JT1234567890</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Vehicle Type</label>
+                                        <p>Sedan</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Make/Model</label>
+                                        <p>Toyota Vios</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Year Model</label>
+                                        <p>2020</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>OR Documents</label>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('or-doc')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('or-doc')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>CR Documents</label>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('cr-doc')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('cr-doc')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 5: Uploaded Documents -->
+                            <div class="dashboard-card">
+                                <h3><span class="card-icon">📄</span> Uploaded Documents</h3>
+                                <div class="documents-grid">
+                                    <div class="document-card">
+                                        <div class="document-icon">
+                                            <i class="fas fa-file-contract"></i>
+                                        </div>
+                                        <div class="document-info">
+                                            <h4>Deed of Sale</h4>
+                                            <p class="document-type">Legal Document</p>
+                                        </div>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('deed-of-sale')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('deed-of-sale')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="document-card">
+                                        <div class="document-icon">
+                                            <i class="fas fa-id-card"></i>
+                                        </div>
+                                        <div class="document-info">
+                                            <h4>Seller Valid ID</h4>
+                                            <p class="document-type">Identification</p>
+                                        </div>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('seller-id')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('seller-id')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="document-card">
+                                        <div class="document-icon">
+                                            <i class="fas fa-id-card-clip"></i>
+                                        </div>
+                                        <div class="document-info">
+                                            <h4>Buyer Valid ID</h4>
+                                            <p class="document-type">Identification</p>
+                                        </div>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('buyer-id')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('buyer-id')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="document-card">
+                                        <div class="document-icon">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </div>
+                                        <div class="document-info">
+                                            <h4>Latest OR/CR</h4>
+                                            <p class="document-type">Vehicle Registration</p>
+                                        </div>
+                                        <div class="document-actions">
+                                            <button class="btn-secondary btn-sm" onclick="viewDocument('or-cr')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('or-cr')">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sticky Action Panel -->
+                        <div class="action-panel">
+                            <div class="dashboard-card">
+                                <h3><span class="card-icon">⚙️</span> Admin Actions</h3>
+                                <div class="action-buttons">
+                                    <button class="btn-success btn-block" onclick="approveRequest()">
+                                        <i class="fas fa-check-circle"></i> Approve Request
+                                    </button>
+                                    <button class="btn-danger btn-block" onclick="rejectRequest()">
+                                        <i class="fas fa-times-circle"></i> Reject Request
+                                    </button>
+                                    <button class="btn-secondary btn-block" onclick="requestAdditionalDocs()">
+                                        <i class="fas fa-file-plus"></i> Request Additional Documents
+                                    </button>
+                                    <button class="btn-primary btn-block" onclick="forwardToHPG()">
+                                        <i class="fas fa-forward"></i> Forward to HPG for Clearance Review
+                                    </button>
+                                    <button class="btn-secondary btn-block" onclick="viewVerification()">
+                                        <i class="fas fa-search"></i> Document Verification Workspace
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Approve Confirmation Modal -->
+    <div id="approveModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Approve Transfer Request</h3>
+                <button class="modal-close" onclick="closeModal('approveModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to approve this transfer of ownership request?</p>
+                <p><strong>Request ID:</strong> TO-2024-001</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('approveModal')">Cancel</button>
+                <button class="btn-success" onclick="confirmApprove()">Confirm Approval</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div id="rejectModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reject Transfer Request</h3>
+                <button class="modal-close" onclick="closeModal('rejectModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Please provide a reason for rejection:</p>
+                <textarea id="rejectReason" class="form-control" rows="4" placeholder="Enter rejection reason..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('rejectModal')">Cancel</button>
+                <button class="btn-danger" onclick="confirmReject()">Confirm Rejection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Additional Documents Modal -->
+    <div id="requestDocsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request Additional Documents</h3>
+                <button class="modal-close" onclick="closeModal('requestDocsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Select Required Documents:</label>
+                    <select id="requiredDocs" class="form-control" multiple>
+                        <option value="emission">Emission Test Certificate</option>
+                        <option value="insurance">Insurance Certificate</option>
+                        <option value="clearance">HPG Clearance</option>
+                        <option value="other">Other Documents</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Additional Notes:</label>
+                    <textarea id="docRequestNotes" class="form-control" rows="4" placeholder="Enter any additional notes or instructions..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('requestDocsModal')">Cancel</button>
+                <button class="btn-primary" onclick="confirmRequestDocs()">Send Request</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    
+                    if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    if (userRoleEl) {
+                        const roleNames = { 'admin': 'System Administrator' };
+                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials();
+                } else {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                    localStorage.setItem('adminSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+                });
+            }
+        });
+
+        function approveRequest() {
+            document.getElementById('approveModal').style.display = 'flex';
+        }
+
+        function rejectRequest() {
+            document.getElementById('rejectModal').style.display = 'flex';
+        }
+
+        function requestAdditionalDocs() {
+            document.getElementById('requestDocsModal').style.display = 'flex';
+        }
+
+        function forwardToHPG() {
+            if (confirm('Forward this request to HPG for clearance review? This will lock the request.')) {
+                console.log('Forwarding to HPG...');
+            }
+        }
+
+        function viewVerification() {
+            window.location.href = 'admin-transfer-verification.html?id=TO-2024-001';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function confirmApprove() {
+            console.log('Approving request...');
+            closeModal('approveModal');
+            alert('Request approved successfully!');
+        }
+
+        function confirmReject() {
+            const reason = document.getElementById('rejectReason').value;
+            if (!reason.trim()) {
+                alert('Please provide a rejection reason.');
+                return;
+            }
+            console.log('Rejecting request:', reason);
+            closeModal('rejectModal');
+            alert('Request rejected.');
+        }
+
+        function confirmRequestDocs() {
+            const docs = Array.from(document.getElementById('requiredDocs').selectedOptions).map(o => o.value);
+            const notes = document.getElementById('docRequestNotes').value;
+            console.log('Requesting documents:', docs, notes);
+            closeModal('requestDocsModal');
+            alert('Document request sent to applicant.');
+        }
+
+        function viewDocument(docId) {
+            console.log('Viewing document:', docId);
+            // Open document viewer
+        }
+
+        function downloadDocument(docId) {
+            console.log('Downloading document:', docId);
+            // Trigger download
+        }
+    </script>
+</body>
+</html>
+

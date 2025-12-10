@@ -85,7 +85,25 @@ async function updateOwnerStats() {
     try {
         // Get real stats from API
         const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-        if (token) {
+        
+        // Check if it's a demo token - if so, skip API calls and use localStorage data
+        if (token && token.startsWith('demo-token-')) {
+            console.log('Demo mode: Using localStorage data instead of API');
+            // Load from localStorage if available
+            const localApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+            if (localApplications.length > 0) {
+                stats.registeredVehicles = localApplications.filter(v => 
+                    v.status === 'approved' || v.status === 'APPROVED'
+                ).length;
+                stats.pendingApplications = localApplications.filter(v => 
+                    v.status === 'submitted' || v.status === 'SUBMITTED' || v.status === 'pending'
+                ).length;
+                stats.approvedApplications = localApplications.filter(v => 
+                    v.status === 'approved' || v.status === 'APPROVED'
+                ).length;
+            }
+        } else if (token) {
+            // Only make API call if it's not a demo token
             try {
                 const response = await fetch('/api/vehicles/my-vehicles', {
                     headers: {
@@ -111,29 +129,51 @@ async function updateOwnerStats() {
             } catch (apiError) {
                 console.warn('Could not fetch vehicle stats:', apiError);
             }
+        }
             
             // Get notifications count
-            try {
-                const notifResponse = await fetch('/api/notifications', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
+            if (token && token.startsWith('demo-token-')) {
+                // Demo mode: use localStorage
+                const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
+                stats.notifications = localNotifs.filter(n => !n.read).length;
+            } else if (token) {
+                try {
+                    const notifResponse = await fetch('/api/notifications', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    if (notifResponse.ok) {
+                        const notifData = await notifResponse.json();
+                        if (notifData.success && Array.isArray(notifData.notifications)) {
+                            stats.notifications = notifData.notifications.filter(n => !n.read).length;
+                        }
                     }
-                });
-                if (notifResponse.ok) {
-                    const notifData = await notifResponse.json();
-                    if (notifData.success && Array.isArray(notifData.notifications)) {
-                        stats.notifications = notifData.notifications.filter(n => !n.read).length;
-                    }
+                } catch (notifError) {
+                    console.warn('Could not fetch notifications:', notifError);
+                    // Fallback to localStorage if available
+                    const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
+                    stats.notifications = localNotifs.filter(n => !n.read).length;
                 }
-            } catch (notifError) {
-                console.warn('Could not fetch notifications:', notifError);
-                // Fallback to localStorage if available
+            } else {
+                // No token, use localStorage
                 const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
                 stats.notifications = localNotifs.filter(n => !n.read).length;
             }
         }
         
-        // Update stat cards
+        // Update stat cards (using new IDs)
+        const statVehiclesEl = document.getElementById('statVehicles');
+        const statPendingEl = document.getElementById('statPending');
+        const statApprovedEl = document.getElementById('statApproved');
+        const statNotificationsEl = document.getElementById('statNotifications');
+        
+        if (statVehiclesEl) statVehiclesEl.textContent = stats.registeredVehicles;
+        if (statPendingEl) statPendingEl.textContent = stats.pendingApplications;
+        if (statApprovedEl) statApprovedEl.textContent = stats.approvedApplications;
+        if (statNotificationsEl) statNotificationsEl.textContent = stats.notifications;
+        
+        // Fallback to old method if new IDs not found
         if (statCards.length >= 4) {
             statCards[0].textContent = stats.registeredVehicles;
             statCards[1].textContent = stats.pendingApplications;
@@ -145,6 +185,17 @@ async function updateOwnerStats() {
             console.error('Failed to update stats:', error);
         }
         // Show zeros if API fails
+        const statVehiclesEl = document.getElementById('statVehicles');
+        const statPendingEl = document.getElementById('statPending');
+        const statApprovedEl = document.getElementById('statApproved');
+        const statNotificationsEl = document.getElementById('statNotifications');
+        
+        if (statVehiclesEl) statVehiclesEl.textContent = '0';
+        if (statPendingEl) statPendingEl.textContent = '0';
+        if (statApprovedEl) statApprovedEl.textContent = '0';
+        if (statNotificationsEl) statNotificationsEl.textContent = '0';
+        
+        // Fallback to old method
         if (statCards.length >= 4) {
             statCards[0].textContent = '0';
             statCards[1].textContent = '0';
@@ -232,7 +283,11 @@ function handleNotificationClick(e) {
 
 function loadUserNotifications() {
     const notifications = JSON.parse(localStorage.getItem('userNotifications') || '[]');
-    const notificationsList = document.querySelector('.notifications-list');
+    // Try new selector first, fallback to old
+    let notificationsList = document.querySelector('.notifications-list-modern');
+    if (!notificationsList) {
+        notificationsList = document.querySelector('.notifications-list');
+    }
     
     if (!notificationsList) return;
     
@@ -306,9 +361,15 @@ function markNotificationAsRead(notificationId) {
 }
 
 function updateNotificationCount(count) {
-    const notificationStat = document.querySelector('.stat-card:nth-child(4) .stat-number');
+    const notificationStat = document.getElementById('statNotifications');
     if (notificationStat) {
         notificationStat.textContent = count;
+    } else {
+        // Fallback to old method
+        const oldStat = document.querySelector('.stat-card:nth-child(4) .stat-number');
+        if (oldStat) {
+            oldStat.textContent = count;
+        }
     }
 }
 
@@ -370,7 +431,14 @@ function initializeSubmittedApplications() {
 }
 
 async function loadUserApplications() {
-    const applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    // Try new selector first, fallback to old
+    let applicationsTable = document.querySelector('.table-modern tbody');
+    if (!applicationsTable) {
+        applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    }
+    if (!applicationsTable) {
+        applicationsTable = document.querySelector('.table tbody');
+    }
     if (!applicationsTable) return;
     
     // Show loading state
@@ -379,7 +447,12 @@ async function loadUserApplications() {
     try {
         // Try to load from API first
         const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-        if (token && typeof APIClient !== 'undefined') {
+        
+        // Check if it's a demo token - if so, skip API calls
+        if (token && token.startsWith('demo-token-')) {
+            console.log('Demo mode: Loading applications from localStorage only');
+            // Skip API call for demo tokens
+        } else if (token && typeof APIClient !== 'undefined') {
             try {
                 const apiClient = new APIClient();
                 const response = await apiClient.get('/api/vehicles/my-vehicles');
@@ -484,7 +557,14 @@ function applyFilters(applications) {
 }
 
 function renderApplications() {
-    const applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    // Try new selector first, fallback to old
+    let applicationsTable = document.querySelector('.table-modern tbody');
+    if (!applicationsTable) {
+        applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    }
+    if (!applicationsTable) {
+        applicationsTable = document.querySelector('.table tbody');
+    }
     if (!applicationsTable) return;
     
     applicationsTable.innerHTML = '';
@@ -511,7 +591,14 @@ function renderApplications() {
 }
 
 function initializePagination() {
-    const tableContainer = document.querySelector('.dashboard-card:nth-child(3)');
+    // Try new selector first, fallback to old
+    let tableContainer = document.querySelector('.table-card');
+    if (!tableContainer) {
+        tableContainer = document.querySelector('.dashboard-card:nth-child(3)');
+    }
+    if (!tableContainer) {
+        tableContainer = document.querySelector('[id="applications"]');
+    }
     if (tableContainer && !document.getElementById('applicationSearch')) {
         const toolbar = document.createElement('div');
         toolbar.className = 'management-toolbar';
@@ -618,7 +705,18 @@ function updateStatsFromApplications(applications) {
         notifications: applications.filter(app => app.status === 'submitted' || app.status === 'rejected').length
     };
     
-    // Update stat cards
+    // Update stat cards (using new IDs)
+    const statVehiclesEl = document.getElementById('statVehicles');
+    const statPendingEl = document.getElementById('statPending');
+    const statApprovedEl = document.getElementById('statApproved');
+    const statNotificationsEl = document.getElementById('statNotifications');
+    
+    if (statVehiclesEl) statVehiclesEl.textContent = stats.registeredVehicles;
+    if (statPendingEl) statPendingEl.textContent = stats.pendingApplications;
+    if (statApprovedEl) statApprovedEl.textContent = stats.approvedApplications;
+    if (statNotificationsEl) statNotificationsEl.textContent = stats.notifications;
+    
+    // Fallback to old method
     const statCards = document.querySelectorAll('.stat-card .stat-number');
     if (statCards.length >= 4) {
         statCards[0].textContent = stats.registeredVehicles;
@@ -947,17 +1045,30 @@ function downloadFinalPapers() {
 }
 
 function updateProgressTimeline() {
-    const timelineItems = document.querySelectorAll('.timeline-item');
+    // Try new selector first, fallback to old
+    let timelineItems = document.querySelectorAll('.timeline-item-modern');
+    if (!timelineItems || timelineItems.length === 0) {
+        timelineItems = document.querySelectorAll('.timeline-item');
+    }
     if (!timelineItems || timelineItems.length === 0) return;
     
     // Update timeline based on workflow state
     timelineItems.forEach((item, index) => {
-        const icon = item.querySelector('.timeline-icon');
-        const content = item.querySelector('.timeline-content h4');
+        // Try new selectors first
+        let icon = item.querySelector('.timeline-icon-modern');
+        if (!icon) {
+            icon = item.querySelector('.timeline-icon');
+        }
+        let content = item.querySelector('.timeline-content-modern h4');
+        if (!content) {
+            content = item.querySelector('.timeline-content h4');
+        }
         
         if (!icon || !content) return;
         
         // Reset all to pending
+        item.classList.remove('completed', 'pending', 'active');
+        item.classList.add('pending');
         icon.classList.remove('completed', 'pending', 'active');
         icon.classList.add('pending');
         
@@ -965,10 +1076,13 @@ function updateProgressTimeline() {
         if (index === 0) {
             // Application Submitted - always completed if registration requested
             if (userWorkflowState.registrationRequested) {
+                item.classList.remove('pending');
+                item.classList.add('completed');
                 icon.classList.remove('pending');
                 icon.classList.add('completed');
                 icon.innerHTML = '<i class="fas fa-check"></i>';
-                const dateEl = item.querySelector('.timeline-date');
+                let dateEl = item.querySelector('.timeline-date-modern');
+                if (!dateEl) dateEl = item.querySelector('.timeline-date');
                 if (dateEl) dateEl.textContent = new Date().toLocaleDateString();
             }
         } else if (index === 1) {
@@ -977,6 +1091,8 @@ function updateProgressTimeline() {
             // Check if emission is received (from LTO workflow state)
             const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
             if (ltoState.emissionReceived) {
+                item.classList.remove('pending');
+                item.classList.add('completed');
                 icon.classList.remove('pending');
                 icon.classList.add('completed');
                 icon.innerHTML = '<i class="fas fa-check"></i>';
@@ -986,6 +1102,8 @@ function updateProgressTimeline() {
             content.textContent = 'Insurance Verification';
             const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
             if (ltoState.insuranceReceived) {
+                item.classList.remove('pending');
+                item.classList.add('completed');
                 icon.classList.remove('pending');
                 icon.classList.add('completed');
                 icon.innerHTML = '<i class="fas fa-check"></i>';
@@ -995,6 +1113,8 @@ function updateProgressTimeline() {
             content.textContent = 'HPG Clearance';
             const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
             if (ltoState.hpgReceived) {
+                item.classList.remove('pending');
+                item.classList.add('completed');
                 icon.classList.remove('pending');
                 icon.classList.add('completed');
                 icon.innerHTML = '<i class="fas fa-check"></i>';
@@ -1004,6 +1124,8 @@ function updateProgressTimeline() {
             content.textContent = 'Finalization';
             const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
             if (ltoState.emissionReceived && ltoState.insuranceReceived && ltoState.hpgReceived) {
+                item.classList.remove('pending');
+                item.classList.add('active');
                 icon.classList.remove('pending');
                 icon.classList.add('active');
                 icon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -1012,10 +1134,13 @@ function updateProgressTimeline() {
             // Completed
             content.textContent = 'Completed';
             if (userWorkflowState.registrationCompleted) {
+                item.classList.remove('pending');
+                item.classList.add('completed');
                 icon.classList.remove('pending');
                 icon.classList.add('completed');
-                icon.innerHTML = '<i class="fas fa-certificate"></i>';
-                const dateEl = item.querySelector('.timeline-date');
+                icon.innerHTML = '<i class="fas fa-award"></i>';
+                let dateEl = item.querySelector('.timeline-date-modern');
+                if (!dateEl) dateEl = item.querySelector('.timeline-date');
                 if (dateEl) dateEl.textContent = new Date().toLocaleDateString();
             }
         }

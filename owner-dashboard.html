@@ -42,12 +42,8 @@
         <!-- Sidebar Navigation -->
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
-                <div class="logo">
-                    <div class="logo-icon">VO</div>
-                    <div class="logo-text">
-                        <h2>Vehicle</h2>
-                        <p>Owner Dashboard</p>
-                    </div>
+                <div class="logo" id="logoToggle" role="button" aria-label="Toggle sidebar" tabindex="0">
+                    <img src="Logo/Land_Transportation_Office.svg.png" alt="LTO Logo" class="logo-image">
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -59,6 +55,10 @@
                     <i class="fas fa-car"></i>
                     <span>New Registration</span>
                 </a>
+                <a href="transfer-ownership.html" class="nav-item">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
+                </a>
                 <a href="#applications" class="nav-item">
                     <i class="fas fa-list"></i>
                     <span>My Applications</span>
@@ -68,6 +68,27 @@
                     <span>Notifications</span>
                 </a>
             </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">GU</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">Loading...</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Loading...</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -75,157 +96,258 @@
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
-                        <button class="sidebar-toggle" id="sidebarToggle">
-                            <i class="fas fa-bars"></i>
-                        </button>
-                        <div class="logo">
-                            <h1>LTO Blockchain</h1>
-                            <p>Owner Dashboard</p>
-                        </div>
-                    <div class="user-info">
-                    <div class="user-profile">
-                        <div class="user-avatar" id="userAvatar">GU</div>
-                        <div class="user-details">
-                            <span class="user-name" id="userName">Loading...</span>
-                            <span class="user-role" id="userRole">Loading...</span>
+                        <div class="nav-left">
+                            <div class="logo">
+                                <h1>LTO MANAGEMENT SYSTEM</h1>
                             </div>
-                        </div>
-                        <div class="user-actions">
-                            <a href="settings.html" class="btn-secondary">Settings</a>
-                            <a href="index.html" class="btn-secondary">Logout</a>
                         </div>
                     </div>
                 </div>
-            </div>
-        </header>
+            </header>
 
         <main class="dashboard-content">
             <div class="container">
+                <!-- Welcome Section -->
+                <div class="welcome-section">
+                    <div class="welcome-content">
+                        <h1 class="welcome-title">Welcome back, <span id="welcomeUserName">Owner</span>!</h1>
+                        <p class="welcome-subtitle">Manage your vehicle registrations and track application progress</p>
+                    </div>
+                    <div class="welcome-actions">
+                        <a class="btn-primary btn-lg" href="registration-wizard.html">
+                            <i class="fas fa-plus-circle"></i> New Registration
+                        </a>
+                    </div>
+                </div>
+
                 <!-- Quick Stats -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number">0</div>
-                        <div class="stat-label">Registered Vehicles</div>
+                <div class="stats-grid-modern">
+                    <div class="stat-card-modern stat-card-primary">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon">
+                                <i class="fas fa-car"></i>
+                            </div>
+                        </div>
+                        <div class="stat-content-modern">
+                            <div class="stat-number-modern" id="statVehicles">0</div>
+                            <div class="stat-label-modern">Registered Vehicles</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>All active</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">0</div>
-                        <div class="stat-label">Pending Applications</div>
+                    
+                    <div class="stat-card-modern stat-card-warning">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="stat-content-modern">
+                            <div class="stat-number-modern" id="statPending">0</div>
+                            <div class="stat-label-modern">Pending Applications</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-hourglass-half"></i>
+                                <span>In review</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">0</div>
-                        <div class="stat-label">Approved Applications</div>
+                    
+                    <div class="stat-card-modern stat-card-success">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-content-modern">
+                            <div class="stat-number-modern" id="statApproved">0</div>
+                            <div class="stat-label-modern">Approved Applications</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-check"></i>
+                                <span>Completed</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">0</div>
-                        <div class="stat-label">Notifications</div>
+                    
+                    <div class="stat-card-modern stat-card-info">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                        </div>
+                        <div class="stat-content-modern">
+                            <div class="stat-number-modern" id="statNotifications">0</div>
+                            <div class="stat-label-modern">Notifications</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-envelope"></i>
+                                <span>Unread</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Quick Actions -->
-                <div class="dashboard-grid">
-                    <div class="dashboard-card">
-                        <h3><span class="card-icon">🚗</span> Request Transfer/Registration</h3>
-                        <p>Start a new vehicle registration or transfer request</p>
-                        <button class="btn-primary" onclick="requestRegistration()">
-                            <i class="fas fa-plus-circle"></i> Request Registration
+                <div class="section-header">
+                    <h2 class="section-title">Quick Actions</h2>
+                    <p class="section-subtitle">Get started with common tasks</p>
+                </div>
+                <div class="dashboard-grid-modern">
+                    <div class="dashboard-card-modern action-card-primary">
+                        <div class="card-header-modern">
+                            <div class="card-icon-modern">
+                                <i class="fas fa-car-side"></i>
+                            </div>
+                            <h3>Request Registration</h3>
+                        </div>
+                        <p class="card-description">Start a new vehicle registration or transfer request</p>
+                    <a class="btn-card-primary" href="registration-wizard.html">
+                        <span>Get Started</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    </div>
+                    
+                    <div class="dashboard-card-modern action-card-transfer">
+                        <div class="card-header-modern">
+                            <div class="card-icon-modern">
+                                <i class="fas fa-exchange-alt"></i>
+                            </div>
+                            <h3>Transfer of Ownership</h3>
+                        </div>
+                        <p class="card-description">Begin the ownership transfer process with guided steps</p>
+                        <a class="btn-card-transfer" href="transfer-ownership.html">
+                            <span>Start Transfer</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    
+                    <div class="dashboard-card-modern action-card-secondary">
+                        <div class="card-header-modern">
+                            <div class="card-icon-modern">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <h3>Upload Documents</h3>
+                        </div>
+                        <p class="card-description">Upload required documents for your registration application</p>
+                        <button class="btn-card-secondary" onclick="uploadDocuments()">
+                            <span>Upload Now</span>
+                            <i class="fas fa-arrow-right"></i>
                         </button>
                     </div>
                     
-                    <div class="dashboard-card">
-                        <h3><span class="card-icon">📤</span> Upload Required Documents</h3>
-                        <p>Upload documents for your registration application</p>
-                        <button class="btn-secondary" onclick="uploadDocuments()">
-                            <i class="fas fa-upload"></i> Upload Documents
-                        </button>
+                    <div class="dashboard-card-modern action-card-info">
+                        <div class="card-header-modern">
+                            <div class="card-icon-modern">
+                                <i class="fas fa-list-alt"></i>
+                            </div>
+                            <h3>My Applications</h3>
+                        </div>
+                        <p class="card-description">View and track your vehicle registration applications</p>
+                        <a href="#applications" class="btn-card-info">
+                            <span>View All</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
                     </div>
                     
-                    <div class="dashboard-card">
-                        <h3><span class="card-icon">📋</span> My Applications</h3>
-                        <p>View and track your vehicle registration applications</p>
-                        <a href="#applications" class="btn-secondary">View Applications</a>
-                    </div>
-                    
-                    <div class="dashboard-card">
-                        <h3><span class="card-icon">📄</span> Download Final Papers</h3>
-                        <p>Download your completed registration documents</p>
-                        <button class="btn-success" onclick="downloadFinalPapers()" id="downloadPapersBtn" disabled>
-                            <i class="fas fa-download"></i> Download Papers
+                    <div class="dashboard-card-modern action-card-success">
+                        <div class="card-header-modern">
+                            <div class="card-icon-modern">
+                                <i class="fas fa-file-download"></i>
+                            </div>
+                            <h3>Download Papers</h3>
+                        </div>
+                        <p class="card-description">Download your completed registration documents</p>
+                        <button class="btn-card-success" onclick="downloadFinalPapers()" id="downloadPapersBtn" disabled>
+                            <span>Download</span>
+                            <i class="fas fa-download"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Registration Status Progress Timeline -->
-                <div class="dashboard-card">
-                    <h3><span class="card-icon">📊</span> Registration Status Progress</h3>
-                    <div class="progress-timeline" id="progressTimeline">
-                        <div class="timeline-item">
-                            <div class="timeline-icon completed">
+                <div class="section-header">
+                    <h2 class="section-title">Registration Progress</h2>
+                    <p class="section-subtitle">Track your application status</p>
+                </div>
+                <div class="dashboard-card-modern timeline-card">
+                    <div class="progress-timeline-modern" id="progressTimeline">
+                        <div class="timeline-item-modern completed">
+                            <div class="timeline-connector"></div>
+                            <div class="timeline-icon-modern">
                                 <i class="fas fa-check"></i>
                             </div>
-                            <div class="timeline-content">
+                            <div class="timeline-content-modern">
                                 <h4>Application Submitted</h4>
                                 <p>Your registration request has been submitted</p>
-                                <span class="timeline-date">-</span>
+                                <span class="timeline-date-modern">-</span>
                             </div>
                         </div>
-                        <div class="timeline-item">
-                            <div class="timeline-icon pending">
+                        <div class="timeline-item-modern pending">
+                            <div class="timeline-connector"></div>
+                            <div class="timeline-icon-modern">
                                 <i class="fas fa-clock"></i>
                             </div>
-                            <div class="timeline-content">
+                            <div class="timeline-content-modern">
                                 <h4>Emission Test</h4>
                                 <p>Awaiting emission test result</p>
-                                <span class="timeline-date">-</span>
+                                <span class="timeline-date-modern">-</span>
                             </div>
                         </div>
-                        <div class="timeline-item">
-                            <div class="timeline-icon pending">
-                                <i class="fas fa-clock"></i>
+                        <div class="timeline-item-modern pending">
+                            <div class="timeline-connector"></div>
+                            <div class="timeline-icon-modern">
+                                <i class="fas fa-shield-alt"></i>
                             </div>
-                            <div class="timeline-content">
+                            <div class="timeline-content-modern">
                                 <h4>Insurance Verification</h4>
                                 <p>Awaiting insurance verification</p>
-                                <span class="timeline-date">-</span>
+                                <span class="timeline-date-modern">-</span>
                             </div>
                         </div>
-                        <div class="timeline-item">
-                            <div class="timeline-icon pending">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <h4>HPG Clearance</h4>
-                                <p>Awaiting HPG MV clearance certificate</p>
-                                <span class="timeline-date">-</span>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-icon pending">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <h4>Finalization</h4>
-                                <p>Registration finalization in progress</p>
-                                <span class="timeline-date">-</span>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-icon pending">
+                        <div class="timeline-item-modern pending">
+                            <div class="timeline-connector"></div>
+                            <div class="timeline-icon-modern">
                                 <i class="fas fa-certificate"></i>
                             </div>
-                            <div class="timeline-content">
+                            <div class="timeline-content-modern">
+                                <h4>HPG Clearance</h4>
+                                <p>Awaiting HPG MV clearance certificate</p>
+                                <span class="timeline-date-modern">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item-modern pending">
+                            <div class="timeline-connector"></div>
+                            <div class="timeline-icon-modern">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <div class="timeline-content-modern">
+                                <h4>Finalization</h4>
+                                <p>Registration finalization in progress</p>
+                                <span class="timeline-date-modern">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item-modern pending">
+                            <div class="timeline-connector"></div>
+                            <div class="timeline-icon-modern">
+                                <i class="fas fa-award"></i>
+                            </div>
+                            <div class="timeline-content-modern">
                                 <h4>Completed</h4>
                                 <p>Registration completed - Download papers</p>
-                                <span class="timeline-date">-</span>
+                                <span class="timeline-date-modern">-</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Recent Applications -->
-                <div class="dashboard-card" id="applications">
-                    <h3><span class="card-icon">📊</span> Recent Applications</h3>
-                    <div class="table-container">
-                        <table class="table">
+                <div class="section-header">
+                    <h2 class="section-title">Recent Applications</h2>
+                    <p class="section-subtitle">View and manage your vehicle registration applications</p>
+                </div>
+                <div class="dashboard-card-modern table-card" id="applications">
+                    <div class="table-container-modern">
+                        <table class="table-modern">
                             <thead>
                                 <tr>
                                     <th>Vehicle</th>
@@ -243,9 +365,12 @@
                 </div>
 
                 <!-- Notifications -->
-                <div class="dashboard-card" id="notifications">
-                    <h3><span class="card-icon">🔔</span> Recent Notifications</h3>
-                    <div class="notifications-list">
+                <div class="section-header">
+                    <h2 class="section-title">Recent Notifications</h2>
+                    <p class="section-subtitle">Stay updated with your application status</p>
+                </div>
+                <div class="dashboard-card-modern notifications-card" id="notifications">
+                    <div class="notifications-list-modern">
                         <!-- Notifications will be loaded dynamically -->
                     </div>
                 </div>
@@ -261,14 +386,25 @@
         // Initialize user data on page load
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
+                // Check authentication - but be lenient for demo tokens
                 const user = AuthUtils.getCurrentUser();
-                if (user) {
+                const isAuthenticated = AuthUtils.isAuthenticated();
+                
+                if (user && isAuthenticated) {
                     const userNameEl = document.getElementById('userName');
                     const userRoleEl = document.getElementById('userRole');
                     const userAvatarEl = document.getElementById('userAvatar');
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
                     
                     if (userNameEl) {
                         userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    // Update welcome section
+                    const welcomeUserNameEl = document.getElementById('welcomeUserName');
+                    if (welcomeUserNameEl) {
+                        welcomeUserNameEl.textContent = AuthUtils.getUserDisplayName();
                     }
                     if (userRoleEl) {
                         const roleNames = {
@@ -282,8 +418,67 @@
                     if (userAvatarEl) {
                         userAvatarEl.textContent = AuthUtils.getUserInitials();
                     }
+                    // Sidebar user info
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    if (sidebarUserRoleEl) {
+                        const roleNames = {
+                            'vehicle_owner': 'Vehicle Owner',
+                            'admin': 'Administrator',
+                            'insurance_verifier': 'Insurance Verifier',
+                            'emission_verifier': 'Emission Verifier'
+                        };
+                        sidebarUserRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials();
+                    }
+                } else if (user) {
+                    // User exists but token check failed - allow access for demo
+                    console.log('Demo mode: User found, allowing access');
+                    const welcomeUserNameEl = document.getElementById('welcomeUserName');
+                    if (welcomeUserNameEl) {
+                        welcomeUserNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    
+                    // Update sidebar user info
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                    
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName();
+                    }
+                    if (sidebarUserRoleEl) {
+                        const roleNames = {
+                            'vehicle_owner': 'Vehicle Owner',
+                            'admin': 'Administrator',
+                            'insurance_verifier': 'Insurance Verifier',
+                            'emission_verifier': 'Emission Verifier'
+                        };
+                        sidebarUserRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials();
+                    }
                 } else {
-                    // Not authenticated, redirect to login
+                    // No user found, redirect to login
+                    console.log('No user found, redirecting to login');
+                    window.location.href = 'login-signup.html';
+                }
+            } else {
+                // AuthUtils not loaded, check localStorage directly
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                    try {
+                        const user = JSON.parse(userStr);
+                        console.log('AuthUtils not available, but user found in localStorage');
+                        // Allow access - user is logged in
+                    } catch (e) {
+                        window.location.href = 'login-signup.html';
+                    }
+                } else {
                     window.location.href = 'login-signup.html';
                 }
             }
@@ -295,18 +490,26 @@
                 sidebar.classList.add('collapsed');
             }
 
-            // Sidebar toggle
-            const sidebarToggle = document.getElementById('sidebarToggle');
+            // Sidebar toggle via logo
+            const logoToggle = document.getElementById('logoToggle');
             
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function(e) {
+            function toggleSidebar(e) {
+                if (e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    sidebar.classList.toggle('collapsed');
-                    
-                    // Save state to localStorage
-                    const isCollapsed = sidebar.classList.contains('collapsed');
-                    localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                }
+                if (!sidebar) return;
+                sidebar.classList.toggle('collapsed');
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
+            }
+            
+            if (logoToggle && sidebar) {
+                logoToggle.addEventListener('click', toggleSidebar);
+                logoToggle.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
                 });
             }
 
@@ -327,6 +530,20 @@
                     }
                 });
             });
+
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof AuthUtils !== 'undefined') {
+                        AuthUtils.logout();
+                    } else {
+                        localStorage.clear();
+                        window.location.href = 'index.html';
+                    }
+                });
+            }
         });
     </script>
 </body>

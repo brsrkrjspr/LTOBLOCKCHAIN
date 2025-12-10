@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer of Ownership - LTO Management System</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo" id="logoToggle" role="button" aria-label="Toggle sidebar" tabindex="0">
+                    <img src="Logo/Land_Transportation_Office.svg.png" alt="LTO Logo" class="logo-image">
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="registration-wizard.html" class="nav-item">
+                    <i class="fas fa-car"></i>
+                    <span>New Registration</span>
+                </a>
+                <a href="transfer-ownership.html" class="nav-item active">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
+                </a>
+                <a href="#applications" class="nav-item">
+                    <i class="fas fa-list"></i>
+                    <span>My Applications</span>
+                </a>
+                <a href="#notifications" class="nav-item">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+            </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">GU</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">Loading...</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Loading...</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <div class="nav-left">
+                            <div class="logo">
+                                <h1>LTO MANAGEMENT SYSTEM</h1>
+                            </div>
+                        </div>
+                        <div class="user-info-spacer"></div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Progress Tracker -->
+                    <div class="wizard-progress transfer-progress">
+                        <div class="progress-step active" data-step="1">
+                            <div class="step-number"><i class="fas fa-user-shield"></i></div>
+                            <div class="step-label">Seller Info</div>
+                        </div>
+                        <div class="progress-step" data-step="2">
+                            <div class="step-number"><i class="fas fa-user-plus"></i></div>
+                            <div class="step-label">Buyer Info</div>
+                        </div>
+                        <div class="progress-step" data-step="3">
+                            <div class="step-number"><i class="fas fa-car-side"></i></div>
+                            <div class="step-label">Vehicle Info</div>
+                        </div>
+                        <div class="progress-step" data-step="4">
+                            <div class="step-number"><i class="fas fa-file-upload"></i></div>
+                            <div class="step-label">Upload Docs</div>
+                        </div>
+                        <div class="progress-step" data-step="5">
+                            <div class="step-number"><i class="fas fa-check-circle"></i></div>
+                            <div class="step-label">Submit</div>
+                        </div>
+                    </div>
+
+                    <!-- Wizard Steps -->
+                    <div class="wizard-steps">
+                        <!-- Step 1 -->
+                        <section id="to-step-1" class="wizard-step active">
+                            <div class="transfer-card">
+                                <div class="card-header">
+                                    <div class="card-title">
+                                        <div class="card-icon"><i class="fas fa-user-shield"></i></div>
+                                        <div>
+                                            <h2>Seller Information</h2>
+                                            <p>Pre-filled from your profile; update contact and address if needed.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="wizardError" class="wizard-error"></div>
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label>Seller Full Name</label>
+                                            <input type="text" id="sellerName" value="Auto-filled from profile" disabled>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Seller Address</label>
+                                            <input type="text" id="sellerAddress" placeholder="Street, City, Province">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Seller Contact Number</label>
+                                            <input type="tel" id="sellerContact" placeholder="+63 912 345 6789">
+                                        </div>
+                                    </div>
+                                    <div class="wizard-actions">
+                                        <button class="btn-primary" onclick="toNextStep(2)">Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Step 2 -->
+                        <section id="to-step-2" class="wizard-step">
+                            <div class="transfer-card">
+                                <div class="card-header">
+                                    <div class="card-title">
+                                        <div class="card-icon"><i class="fas fa-user-plus"></i></div>
+                                        <div>
+                                            <h2>Buyer Information</h2>
+                                            <p>Collect buyer contact details.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="wizardError2" class="wizard-error"></div>
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label>Buyer Full Name</label>
+                                            <input type="text" id="buyerName" placeholder="Juan Dela Cruz">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Buyer Address</label>
+                                            <input type="text" id="buyerAddress" placeholder="Street, City, Province">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Buyer Contact Number</label>
+                                            <input type="tel" id="buyerContact" placeholder="+63 912 345 6789">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Buyer Email</label>
+                                            <input type="email" id="buyerEmail" placeholder="buyer@email.com">
+                                        </div>
+                                    </div>
+                                    <div class="wizard-actions">
+                                        <button class="btn-secondary" onclick="toPrevStep(1)">Previous</button>
+                                        <button class="btn-primary" onclick="toNextStep(3)">Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Step 3 -->
+                        <section id="to-step-3" class="wizard-step">
+                            <div class="transfer-card">
+                                <div class="card-header">
+                                    <div class="card-title">
+                                        <div class="card-icon"><i class="fas fa-car-side"></i></div>
+                                        <div>
+                                            <h2>Vehicle Information</h2>
+                                            <p>Identify the vehicle being transferred.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="wizardError3" class="wizard-error"></div>
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label>Plate Number</label>
+                                            <input type="text" id="toPlateNumber" placeholder="ABC-1234">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Engine Number</label>
+                                            <input type="text" id="toEngineNumber" placeholder="e.g., 2NR-FE123456">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Chassis Number</label>
+                                            <input type="text" id="toChassisNumber" placeholder="e.g., JT1234567890">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Vehicle Type</label>
+                                            <select id="toVehicleType">
+                                                <option value="">Select Type</option>
+                                                <option>Passenger Car</option>
+                                                <option>Motorcycle</option>
+                                                <option>Utility Vehicle</option>
+                                                <option>Truck</option>
+                                                <option>Bus</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>OR/CR Number</label>
+                                            <input type="text" id="toOrCrNumber" placeholder="e.g., OR-123456 / CR-654321">
+                                        </div>
+                                    </div>
+                                    <div class="wizard-actions">
+                                        <button class="btn-secondary" onclick="toPrevStep(2)">Previous</button>
+                                        <button class="btn-primary" onclick="toNextStep(4)">Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Step 4 -->
+                        <section id="to-step-4" class="wizard-step">
+                            <div class="transfer-card">
+                                <div class="card-header">
+                                    <div class="card-title">
+                                        <div class="card-icon"><i class="fas fa-file-upload"></i></div>
+                                        <div>
+                                            <h2>Upload Required Documents</h2>
+                                            <p>Upload the required documents. PDFs, JPG, PNG are accepted.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="wizardError4" class="wizard-error"></div>
+                                    <div class="upload-grid">
+                                        <div class="upload-card">
+                                            <h4>Deed of Sale</h4>
+                                            <div class="file-drop">
+                                                <i class="fas fa-file-contract"></i>
+                                                <p>Drag & drop or <span>browse</span></p>
+                                                <small>PDF, JPG, PNG up to 10MB</small>
+                                            </div>
+                                            <div class="upload-meta">
+                                                <div class="upload-progress"><span style="width:0%"></span></div>
+                                                <div class="upload-actions">
+                                                    <button class="btn-secondary btn-sm">Replace file</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="upload-card">
+                                            <h4>Seller Valid ID</h4>
+                                            <div class="file-drop">
+                                                <i class="fas fa-id-card"></i>
+                                                <p>Drag & drop or <span>browse</span></p>
+                                                <small>PDF, JPG, PNG up to 10MB</small>
+                                            </div>
+                                            <div class="upload-meta">
+                                                <div class="upload-progress"><span style="width:0%"></span></div>
+                                                <div class="upload-actions">
+                                                    <button class="btn-secondary btn-sm">Replace file</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="upload-card">
+                                            <h4>Buyer Valid ID</h4>
+                                            <div class="file-drop">
+                                                <i class="fas fa-id-card-clip"></i>
+                                                <p>Drag & drop or <span>browse</span></p>
+                                                <small>PDF, JPG, PNG up to 10MB</small>
+                                            </div>
+                                            <div class="upload-meta">
+                                                <div class="upload-progress"><span style="width:0%"></span></div>
+                                                <div class="upload-actions">
+                                                    <button class="btn-secondary btn-sm">Replace file</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="upload-card">
+                                            <h4>Latest OR/CR</h4>
+                                            <div class="file-drop">
+                                                <i class="fas fa-file-invoice"></i>
+                                                <p>Drag & drop or <span>browse</span></p>
+                                                <small>PDF, JPG, PNG up to 10MB</small>
+                                            </div>
+                                            <div class="upload-meta">
+                                                <div class="upload-progress"><span style="width:0%"></span></div>
+                                                <div class="upload-actions">
+                                                    <button class="btn-secondary btn-sm">Replace file</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="upload-card">
+                                            <h4>Optional: Emission Test Certificate</h4>
+                                            <div class="file-drop">
+                                                <i class="fas fa-file-medical"></i>
+                                                <p>Drag & drop or <span>browse</span></p>
+                                                <small>PDF, JPG, PNG up to 10MB</small>
+                                            </div>
+                                            <div class="upload-meta">
+                                                <div class="upload-progress"><span style="width:0%"></span></div>
+                                                <div class="upload-actions">
+                                                    <button class="btn-secondary btn-sm">Replace file</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="wizard-actions">
+                                        <button class="btn-secondary" onclick="toPrevStep(3)">Previous</button>
+                                        <button class="btn-primary" onclick="toNextStep(5)">Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Step 5: Review & Submit -->
+                        <section id="to-step-5" class="wizard-step">
+                            <div class="transfer-card">
+                                <div class="card-header">
+                                    <div class="card-title">
+                                        <div class="card-icon"><i class="fas fa-clipboard-check"></i></div>
+                                        <div>
+                                            <h2>Review & Submit</h2>
+                                            <p>Confirm all details before submission.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="summary-grid">
+                                        <div class="summary-card">
+                                            <h4><i class="fas fa-user-shield"></i> Seller Details</h4>
+                                            <ul>
+                                                <li><strong>Name:</strong> <span id="summarySellerName">Auto-filled</span></li>
+                                                <li><strong>Address:</strong> <span id="summarySellerAddress">—</span></li>
+                                                <li><strong>Contact:</strong> <span id="summarySellerContact">—</span></li>
+                                            </ul>
+                                        </div>
+                                        <div class="summary-card">
+                                            <h4><i class="fas fa-user-plus"></i> Buyer Details</h4>
+                                            <ul>
+                                                <li><strong>Name:</strong> <span id="summaryBuyerName">—</span></li>
+                                                <li><strong>Address:</strong> <span id="summaryBuyerAddress">—</span></li>
+                                                <li><strong>Contact:</strong> <span id="summaryBuyerContact">—</span></li>
+                                                <li><strong>Email:</strong> <span id="summaryBuyerEmail">—</span></li>
+                                            </ul>
+                                        </div>
+                                        <div class="summary-card">
+                                            <h4><i class="fas fa-car"></i> Vehicle Details</h4>
+                                            <ul>
+                                                <li><strong>Plate No.:</strong> <span id="summaryPlate">—</span></li>
+                                                <li><strong>Engine No.:</strong> <span id="summaryEngine">—</span></li>
+                                                <li><strong>Chassis No.:</strong> <span id="summaryChassis">—</span></li>
+                                                <li><strong>Type:</strong> <span id="summaryType">—</span></li>
+                                                <li><strong>OR/CR No.:</strong> <span id="summaryOrCr">—</span></li>
+                                            </ul>
+                                        </div>
+                                        <div class="summary-card">
+                                            <h4><i class="fas fa-file-alt"></i> Uploaded Documents</h4>
+                                            <ul id="summaryUploads">
+                                                <li>Deed of Sale</li>
+                                                <li>Seller Valid ID</li>
+                                                <li>Buyer Valid ID</li>
+                                                <li>Latest OR/CR</li>
+                                                <li>Optional: Emission Test Certificate</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="wizard-actions">
+                                        <button class="btn-secondary" onclick="toPrevStep(4)">Previous</button>
+                                        <button class="btn-primary" onclick="submitTransfer()">Submit Request</button>
+                                        <button class="btn-secondary" onclick="cancelTransfer()">Cancel</button>
+                                    </div>
+                                    <div class="confirmation-message" id="confirmationMessage" style="display:none;">
+                                        <i class="fas fa-check-circle"></i>
+                                        <div>
+                                            <h4>Request Submitted</h4>
+                                            <p>Your Transfer of Ownership request has been successfully sent to LTO for review.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        // Sidebar toggle and state
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const logoToggle = document.getElementById('logoToggle');
+
+            const savedSidebarState = localStorage.getItem('ownerSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            function toggleSidebar(e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (!sidebar) return;
+                sidebar.classList.toggle('collapsed');
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
+            }
+
+            if (logoToggle && sidebar) {
+                logoToggle.addEventListener('click', toggleSidebar);
+                logoToggle.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
+                });
+            }
+        });
+
+        // Transfer wizard validation and navigation
+        let currentToStep = 1;
+
+        function showWizardError(step, message) {
+            const idMap = {1:'wizardError',2:'wizardError2',3:'wizardError3',4:'wizardError4'};
+            const errorEl = document.getElementById(idMap[step] || 'wizardError');
+            if (errorEl) {
+                errorEl.textContent = message;
+                errorEl.classList.add('show');
+            }
+        }
+
+        function clearWizardErrors() {
+            document.querySelectorAll('.wizard-error').forEach(el => {
+                el.textContent = '';
+                el.classList.remove('show');
+            });
+            document.querySelectorAll('.transfer-card input, .transfer-card select').forEach(el => {
+                el.classList.remove('invalid');
+            });
+        }
+
+        function validateToStep(step) {
+            clearWizardErrors();
+            let valid = true;
+            const markInvalid = (el) => { if (el) el.classList.add('invalid'); valid = false; };
+
+            if (step === 1) {
+                const addr = document.getElementById('sellerAddress');
+                const contact = document.getElementById('sellerContact');
+                if (!addr?.value.trim()) markInvalid(addr);
+                if (!contact?.value.trim()) markInvalid(contact);
+                if (!valid) showWizardError(1, 'Please complete seller address and contact before continuing.');
+            } else if (step === 2) {
+                const buyerName = document.getElementById('buyerName');
+                const buyerAddress = document.getElementById('buyerAddress');
+                const buyerContact = document.getElementById('buyerContact');
+                const buyerEmail = document.getElementById('buyerEmail');
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!buyerName?.value.trim()) markInvalid(buyerName);
+                if (!buyerAddress?.value.trim()) markInvalid(buyerAddress);
+                if (!buyerContact?.value.trim()) markInvalid(buyerContact);
+                if (!buyerEmail?.value.trim() || !emailRegex.test(buyerEmail.value.trim())) markInvalid(buyerEmail);
+                if (!valid) showWizardError(2, 'Please complete all buyer details with a valid email.');
+            } else if (step === 3) {
+                const plate = document.getElementById('toPlateNumber');
+                const engine = document.getElementById('toEngineNumber');
+                const chassis = document.getElementById('toChassisNumber');
+                const type = document.getElementById('toVehicleType');
+                const orcr = document.getElementById('toOrCrNumber');
+                if (!plate?.value.trim()) markInvalid(plate);
+                if (!engine?.value.trim()) markInvalid(engine);
+                if (!chassis?.value.trim()) markInvalid(chassis);
+                if (!type?.value.trim()) markInvalid(type);
+                if (!orcr?.value.trim()) markInvalid(orcr);
+                if (!valid) showWizardError(3, 'Please complete all vehicle details before continuing.');
+            } else if (step === 4) {
+                // Optional: enforce uploads in future; allow continue for now
+                valid = true;
+            }
+
+            return valid;
+        }
+
+        function setToStep(targetStep) {
+            document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.transfer-progress .progress-step').forEach(s => s.classList.remove('active'));
+            const stepEl = document.getElementById(`to-step-${targetStep}`);
+            const progressEl = document.querySelector(`.transfer-progress [data-step="${targetStep}"]`);
+            if (stepEl) stepEl.classList.add('active');
+            if (progressEl) progressEl.classList.add('active');
+            currentToStep = targetStep;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toNextStep(targetStep) {
+            const currentStep = targetStep - 1;
+            if (!validateToStep(currentStep)) return;
+            setToStep(targetStep);
+        }
+
+        function toPrevStep(targetStep) {
+            setToStep(targetStep);
+        }
+
+        function submitTransfer() {
+            const confirmation = document.getElementById('confirmationMessage');
+            if (confirmation) confirmation.style.display = 'flex';
+        }
+
+        function cancelTransfer() {
+            window.location.href = 'owner-dashboard.html';
+        }
+    </script>
+</body>
+</html>

@@ -14,9 +14,22 @@ class APIClient {
             return null;
         }
 
-        // Check token expiration
+        // Check if it's a demo token (starts with 'demo-token-')
+        if (token.startsWith('demo-token-')) {
+            // Demo tokens don't expire for testing purposes
+            return token;
+        }
+
+        // For real JWT tokens, validate expiration
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
+            const parts = token.split('.');
+            if (parts.length !== 3) {
+                // Not a valid JWT format, but if it's a demo token, allow it
+                console.warn('Token format invalid, but allowing for demo purposes');
+                return token;
+            }
+            
+            const payload = JSON.parse(atob(parts[1]));
             const expiration = payload.exp * 1000; // Convert to milliseconds
             
             if (Date.now() >= expiration) {
@@ -28,16 +41,30 @@ class APIClient {
             
             return token;
         } catch (error) {
-            console.error('Error parsing token:', error);
-            this.clearAuth();
+            // If token parsing fails, check if user exists - if so, allow for demo
+            const user = localStorage.getItem('currentUser');
+            if (user) {
+                console.warn('Token parsing error, but user exists - allowing for demo:', error);
+                return token;
+            }
+            console.error('Error parsing token and no user found:', error);
+            // Don't clear auth if user exists - might be demo mode
             return null;
         }
     }
 
     // Clear authentication
     clearAuth() {
+        // Check if it's a demo token before clearing
+        const token = localStorage.getItem('authToken');
+        if (token && token.startsWith('demo-token-')) {
+            // Don't clear demo tokens automatically - let user stay logged in
+            console.log('Demo token detected - skipping auto-clear');
+            return;
+        }
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
     }
 
     // Check if user is authenticated

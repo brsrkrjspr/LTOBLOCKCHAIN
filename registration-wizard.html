@@ -5,30 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Registration Wizard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="dashboard">
-        <header class="dashboard-header">
-            <div class="container">
-                <div class="dashboard-nav">
-                    <div class="logo">
-                        <h1>LTO Blockchain</h1>
-                        <p>Vehicle Registration</p>
-                    </div>
-                    <div class="user-info">
-                        <div class="user-avatar" id="userAvatar">GU</div>
-                        <div class="user-details">
-                            <span class="user-name" id="userName">Loading...</span>
-                            <span class="user-role" id="userRole">Loading...</span>
-                        </div>
-                        <a href="owner-dashboard.html" class="btn-secondary">Back to Dashboard</a>
-                    </div>
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo" id="logoToggle" role="button" aria-label="Toggle sidebar" tabindex="0">
+                    <img src="Logo/Land_Transportation_Office.svg.png" alt="LTO Logo" class="logo-image">
                 </div>
             </div>
-        </header>
+            <nav class="sidebar-nav">
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="registration-wizard.html" class="nav-item active">
+                    <i class="fas fa-car"></i>
+                    <span>New Registration</span>
+                </a>
+                <a href="transfer-ownership.html" class="nav-item">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
+                </a>
+                <a href="#applications" class="nav-item">
+                    <i class="fas fa-list"></i>
+                    <span>My Applications</span>
+                </a>
+                <a href="#notifications" class="nav-item">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+            </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">GU</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">Loading...</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Loading...</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
 
-        <main class="dashboard-content">
-            <div class="container">
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <div class="nav-left">
+                            <div class="logo">
+                                <h1>LTO MANAGEMENT SYSTEM</h1>
+                            </div>
+                        </div>
+                        <div class="user-info-spacer"></div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="container">
                 <!-- Progress Steps -->
                 <div class="wizard-progress">
                     <div class="progress-step active" data-step="1">
@@ -315,8 +363,9 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </main>
+                </div>
+            </main>
+        </div>
     </div>
 
     <script src="js/auth-utils.js"></script>
@@ -325,34 +374,80 @@
     <script src="js/utils.js"></script>
     <script src="js/registration-wizard.js"></script>
     <script>
-        // Initialize user data on page load
+        // Initialize user data and sidebar on page load
         document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
                 if (user) {
-                    const userNameEl = document.getElementById('userName');
-                    const userRoleEl = document.getElementById('userRole');
-                    const userAvatarEl = document.getElementById('userAvatar');
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
                     
-                    if (userNameEl) {
-                        userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName();
                     }
-                    if (userRoleEl) {
+                    if (sidebarUserRoleEl) {
                         const roleNames = {
                             'vehicle_owner': 'Vehicle Owner',
                             'admin': 'Administrator',
                             'insurance_verifier': 'Insurance Verifier',
                             'emission_verifier': 'Emission Verifier'
                         };
-                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                        sidebarUserRoleEl.textContent = roleNames[user.role] || user.role;
                     }
-                    if (userAvatarEl) {
-                        userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials();
                     }
                 } else {
                     // Not authenticated, redirect to login
                     window.location.href = 'login-signup.html';
+                    return;
                 }
+            }
+            
+            // Load sidebar state from localStorage
+            const savedSidebarState = localStorage.getItem('ownerSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle via logo
+            const logoToggle = document.getElementById('logoToggle');
+            
+            function toggleSidebar(e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (!sidebar) return;
+                sidebar.classList.toggle('collapsed');
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
+            }
+            
+            if (logoToggle && sidebar) {
+                logoToggle.addEventListener('click', toggleSidebar);
+                logoToggle.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
+                });
+            }
+            
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof AuthUtils !== 'undefined') {
+                        AuthUtils.logout();
+                    } else {
+                        localStorage.clear();
+                        window.location.href = 'index.html';
+                    }
+                });
             }
         });
     </script>

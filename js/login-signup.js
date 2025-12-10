@@ -157,10 +157,12 @@
             // Determine role based on email address
             let role = 'vehicle_owner'; // Default role
             const testCredentials = {
-                'hpgadmin@hpg.gov.ph': { password: 'hpg123456', role: 'hpg_admin', name: 'HPG Administrator' },
-                'admin@lto.gov.ph': { password: 'admin123', role: 'admin', name: 'LTO Administrator' },
-                'insurance@example.com': { password: 'insurance123', role: 'insurance_verifier', name: 'Insurance Verifier' },
-                'emission@example.com': { password: 'emission123', role: 'emission_verifier', name: 'Emission Verifier' }
+                'hpgadmin@hpg.gov.ph': { password: 'hpg123456', role: 'hpg_admin', name: 'HPG Administrator', firstName: 'HPG', lastName: 'Admin' },
+                'admin@lto.gov.ph': { password: 'admin123', role: 'admin', name: 'ADMIN', firstName: 'ADMIN', lastName: '' },
+                'insurance@example.com': { password: 'insurance123', role: 'insurance_verifier', name: 'Insurance Verifier', firstName: 'Insurance', lastName: 'Verifier' },
+                'emission@example.com': { password: 'emission123', role: 'emission_verifier', name: 'Emission Verifier', firstName: 'Emission', lastName: 'Verifier' },
+                'owner@example.com': { password: 'owner123', role: 'vehicle_owner', name: 'Vehicle Owner', firstName: 'John', lastName: 'Doe' },
+                'vehicle@example.com': { password: 'vehicle123', role: 'vehicle_owner', name: 'Vehicle Owner', firstName: 'Jane', lastName: 'Smith' }
             };
 
             // Check if email matches test credentials to determine role
@@ -184,13 +186,25 @@
             // Check if it's a test credential
             if (testCredentials[email] && testCredentials[email].password === password) {
                 // Store user data
+                const cred = testCredentials[email];
                 const userData = {
+                    id: 'demo-user-' + Date.now(),
                     email: email,
                     role: role,
-                    name: testCredentials[email].name
+                    firstName: cred.firstName || cred.name.split(' ')[0],
+                    lastName: cred.lastName || cred.name.split(' ')[1] || '',
+                    name: cred.name,
+                    organization: 'Individual',
+                    phone: '+63 912 345 6789',
+                    isActive: true,
+                    emailVerified: true
                 };
                 localStorage.setItem('currentUser', JSON.stringify(userData));
-                localStorage.setItem('authToken', 'demo-token-' + Date.now());
+                const demoToken = 'demo-token-' + Date.now();
+                localStorage.setItem('authToken', demoToken);
+                localStorage.setItem('token', demoToken); // Also store as 'token' for compatibility
+                
+                console.log('Demo credentials stored:', { user: userData, token: demoToken });
                 
                 showNotification('Login successful! Redirecting to dashboard...', 'success');
                 
@@ -209,8 +223,11 @@
                         case 'emission_verifier':
                             window.location.href = 'verifier-dashboard.html';
                             break;
+                        case 'vehicle_owner':
+                            window.location.href = 'owner-dashboard.html';
+                            break;
                         default:
-                            window.location.href = 'index.html';
+                            window.location.href = 'owner-dashboard.html';
                     }
                 }, 1500);
                 return;

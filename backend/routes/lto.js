@@ -64,10 +64,9 @@ router.post('/send-to-hpg', authenticateToken, authorizeRole(['admin']), async (
             assignedTo
         });
 
-        // Update vehicle status
-        await db.updateVehicle(vehicleId, {
-            status: 'HPG_CLEARANCE_PENDING'
-        });
+        // Don't update vehicle status - keep it as SUBMITTED
+        // The clearance request status is tracked separately in clearance_requests table
+        // Vehicle status will be updated when clearance is approved/rejected
 
         // Add to history
         await db.addVehicleHistory({

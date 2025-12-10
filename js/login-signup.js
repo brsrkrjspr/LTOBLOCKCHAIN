@@ -181,60 +181,9 @@
                 return;
             }
 
-            console.log('Attempting login with:', email, role);
+            console.log('Attempting login with:', email);
             
-            // IMPORTANT: Admin accounts MUST use real API, never demo tokens
-            // This ensures admin has proper JWT token with admin role
-            const isAdminAccount = email === 'admin@lto.gov.ph' || role === 'admin';
-            
-            // Check if it's a test credential (but skip for admin accounts)
-            if (!isAdminAccount && testCredentials[email] && testCredentials[email].password === password) {
-                // Store user data
-                const cred = testCredentials[email];
-                const userData = {
-                    id: 'demo-user-' + Date.now(),
-                    email: email,
-                    role: role,
-                    firstName: cred.firstName || cred.name.split(' ')[0],
-                    lastName: cred.lastName || cred.name.split(' ')[1] || '',
-                    name: cred.name,
-                    organization: 'Individual',
-                    phone: '+63 912 345 6789',
-                    isActive: true,
-                    emailVerified: true
-                };
-                localStorage.setItem('currentUser', JSON.stringify(userData));
-                const demoToken = 'demo-token-' + Date.now();
-                localStorage.setItem('authToken', demoToken);
-                localStorage.setItem('token', demoToken); // Also store as 'token' for compatibility
-                
-                console.log('Demo credentials stored:', { user: userData, token: demoToken });
-                
-                showNotification('Login successful! Redirecting to dashboard...', 'success');
-                
-                // Redirect based on role
-                setTimeout(() => {
-                    switch(role) {
-                        case 'hpg_admin':
-                            window.location.href = 'hpg-admin-dashboard.html';
-                            break;
-                        case 'insurance_verifier':
-                            window.location.href = 'insurance-verifier-dashboard.html';
-                            break;
-                        case 'emission_verifier':
-                            window.location.href = 'verifier-dashboard.html';
-                            break;
-                        case 'vehicle_owner':
-                            window.location.href = 'owner-dashboard.html';
-                            break;
-                        default:
-                            window.location.href = 'owner-dashboard.html';
-                    }
-                }, 1500);
-                return;
-            }
-            
-            // Call backend login API for real credentials (ALWAYS for admin, or if not in test credentials)
+            // ALWAYS call backend login API - no demo accounts, all accounts are real database accounts
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
@@ -272,13 +221,16 @@
                     
                     // Redirect based on user role
                     setTimeout(() => {
-                        const userRole = result.user?.role || role;
+                        const userRole = result.user?.role;
                         switch(userRole) {
-                            case 'hpg_admin':
-                                window.location.href = 'hpg-admin-dashboard.html';
-                                break;
                             case 'admin':
-                                window.location.href = 'admin-dashboard.html';
+                                // Check organization to determine if HPG admin
+                                const org = result.user?.organization || '';
+                                if (org.toLowerCase().includes('hpg') || email.toLowerCase().includes('hpg')) {
+                                    window.location.href = 'hpg-admin-dashboard.html';
+                                } else {
+                                    window.location.href = 'admin-dashboard.html';
+                                }
                                 break;
                             case 'insurance_verifier':
                                 window.location.href = 'insurance-verifier-dashboard.html';
@@ -493,24 +445,24 @@
             const roleParam = urlParams.get('role');
             
             if (roleParam) {
-                // Map URL parameter to test credentials
-                const testCredentials = {
-                    'hpg_admin': { email: 'hpgadmin@hpg.gov.ph', password: 'hpg123456' },
-                    'hpg': { email: 'hpgadmin@hpg.gov.ph', password: 'hpg123456' },
-                    'admin': { email: 'admin@lto.gov.ph', password: 'admin123' },
-                    'lto': { email: 'admin@lto.gov.ph', password: 'admin123' },
-                    'insurance_verifier': { email: 'insurance@example.com', password: 'insurance123' },
-                    'insurance': { email: 'insurance@example.com', password: 'insurance123' },
-                    'emission_verifier': { email: 'emission@example.com', password: 'emission123' },
-                    'emission': { email: 'emission@example.com', password: 'emission123' }
+                // Map URL parameter to real account emails (passwords not shown for security)
+                const accountEmails = {
+                    'hpg_admin': 'hpgadmin@hpg.gov.ph',
+                    'hpg': 'hpgadmin@hpg.gov.ph',
+                    'admin': 'admin@lto.gov.ph',
+                    'lto': 'admin@lto.gov.ph',
+                    'insurance_verifier': 'insurance@insurance.gov.ph',
+                    'insurance': 'insurance@insurance.gov.ph',
+                    'emission_verifier': 'emission@emission.gov.ph',
+                    'emission': 'emission@emission.gov.ph',
+                    'owner': 'owner@example.com',
+                    'vehicle_owner': 'owner@example.com'
                 };
                 
                 const mappedRole = roleParam.toLowerCase();
-                if (testCredentials[mappedRole]) {
+                if (accountEmails[mappedRole]) {
                     const emailInput = document.getElementById('loginEmail');
-                    const passwordInput = document.getElementById('loginPassword');
-                    if (emailInput) emailInput.value = testCredentials[mappedRole].email;
-                    if (passwordInput) passwordInput.value = testCredentials[mappedRole].password;
+                    if (emailInput) emailInput.value = accountEmails[mappedRole];
                 }
             }
         } catch (error) {

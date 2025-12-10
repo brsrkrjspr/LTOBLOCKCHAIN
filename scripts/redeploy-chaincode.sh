@@ -67,27 +67,42 @@ if [ $? -ne 0 ]; then
 fi
 print_success "Chaincode packaged with label: $LABEL"
 
-# Step 2: Install the new package
-print_status "Step 2/5: Installing chaincode on peer..."
-docker exec cli peer lifecycle chaincode install vehicle-registration-v${NEXT_SEQUENCE}.tar.gz 2>&1
+# Step 2: Check if chaincode is already installed, if not install it
+print_status "Step 2/5: Checking if chaincode is already installed..."
+INSTALLED_OUTPUT=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1)
 
-if [ $? -ne 0 ]; then
-    print_error "Failed to install chaincode"
-    exit 1
+if echo "$INSTALLED_OUTPUT" | grep -q "$LABEL"; then
+    print_success "Chaincode with label $LABEL already installed, getting package ID..."
+    PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | \
+        grep "$LABEL" | \
+        sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+else
+    print_status "Installing chaincode on peer..."
+    INSTALL_OUTPUT=$(docker exec cli peer lifecycle chaincode install vehicle-registration-v${NEXT_SEQUENCE}.tar.gz 2>&1)
+    
+    if [ $? -eq 0 ] || echo "$INSTALL_OUTPUT" | grep -q "already successfully installed"; then
+        print_success "Chaincode installed (or already installed)"
+    else
+        print_error "Failed to install chaincode"
+        echo "$INSTALL_OUTPUT"
+        exit 1
+    fi
+    
+    # Wait for installation
+    print_status "Waiting for installation to complete..."
+    sleep 10
+    
+    # Get package ID
+    INSTALLED_OUTPUT=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1)
+    PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | \
+        grep "$LABEL" | \
+        sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
 fi
 
-# Wait for installation
-print_status "Waiting for installation to complete..."
-sleep 10
-
-# Step 3: Get the new package ID
-print_status "Step 3/5: Getting new package ID..."
-PACKAGE_ID=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1 | \
-    grep "$LABEL" | \
-    sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
-
+# Step 3: Verify package ID
+print_status "Step 3/5: Verifying package ID..."
 if [ -z "$PACKAGE_ID" ]; then
-    print_error "Package ID not found. Let me show installed chaincodes:"
+    print_error "Package ID not found. Showing installed chaincodes:"
     docker exec cli peer lifecycle chaincode queryinstalled
     exit 1
 fi
@@ -95,7 +110,7 @@ fi
 print_success "Package ID: $PACKAGE_ID"
 
 # Step 4: Approve the new definition
-print_status "Step 4/5: Approving chaincode for organization..."
+print_status "Step 4/5: Approving chaincode for organization (sequence $NEXT_SEQUENCE)..."
 docker exec cli peer lifecycle chaincode approveformyorg \
     -o orderer.lto.gov.ph:7050 \
     --channelID ltochannel \

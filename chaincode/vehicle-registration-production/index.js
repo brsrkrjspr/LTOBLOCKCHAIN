@@ -412,17 +412,36 @@ class VehicleRegistrationContract extends Contract {
     // Get all vehicles (for admin)
     async GetAllVehicles(ctx) {
         try {
-            const queryString = {
-                selector: {}
-            };
-
-            const results = await ctx.stub.getQueryResult(JSON.stringify(queryString));
+            // Use getStateByRange to get all vehicles
+            // VINs are stored as keys, so we iterate through all keys
+            // Using empty string to high value to get all keys
+            const startKey = '';
+            const endKey = '\uffff'; // Unicode high value to get all keys
+            
+            const resultsIterator = await ctx.stub.getStateByRange(startKey, endKey);
             const vehicles = [];
 
-            for await (const result of results) {
-                const vehicle = JSON.parse(result.value.toString());
-                vehicles.push(vehicle);
+            // Iterate through all results
+            while (true) {
+                const result = await resultsIterator.next();
+                
+                if (result.value) {
+                    try {
+                        const vehicle = JSON.parse(result.value.value.toString());
+                        vehicles.push(vehicle);
+                    } catch (parseError) {
+                        // Skip non-vehicle entries (like composite keys)
+                        console.warn('Skipping non-vehicle entry:', result.value.key);
+                    }
+                }
+                
+                if (result.done) {
+                    break;
+                }
             }
+
+            // Close the iterator
+            await resultsIterator.close();
 
             return JSON.stringify(vehicles);
 

@@ -12,7 +12,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Trust proxy (needed for Codespace/GitHub forwarding)
-app.set('trust proxy', true);
+// Configure to trust only the first proxy (GitHub Codespace)
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet({
@@ -60,6 +61,12 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
+    // Use a custom key generator that works with trust proxy
+    keyGenerator: (req) => {
+        // Use X-Forwarded-For header if available (from GitHub Codespace)
+        // Otherwise fall back to IP address
+        return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress;
+    },
     skip: (req) => {
         // Skip rate limiting for health checks
         return req.path === '/api/health';

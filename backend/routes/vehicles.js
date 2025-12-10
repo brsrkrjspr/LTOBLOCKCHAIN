@@ -596,20 +596,21 @@ router.post('/register', optionalAuth, async (req, res) => {
                     blockchainStatus = txStatus.status;
                     
                     if (txStatus.status === 'committed') {
-                        // Update vehicle status to REGISTERED
-                        await db.updateVehicle(newVehicle.id, { status: 'REGISTERED' });
+                        // Keep status as SUBMITTED - admin needs to approve before REGISTERED
+                        // Blockchain registration is just for audit trail
+                        // Status will change to REGISTERED when admin approves via /api/lto/approve-clearance
                         
                         // Add blockchain history
                         await db.addVehicleHistory({
                             vehicleId: newVehicle.id,
                             action: 'BLOCKCHAIN_REGISTERED',
-                            description: 'Vehicle registered on blockchain',
+                            description: 'Vehicle registered on blockchain (awaiting admin approval)',
                             performedBy: ownerUser.id,
                             transactionId: blockchainTxId,
                             metadata: { blockchainResult, txStatus }
                         });
                     } else {
-                        // Transaction pending, keep PENDING_BLOCKCHAIN status
+                        // Transaction pending, keep SUBMITTED status
                         await db.addVehicleHistory({
                             vehicleId: newVehicle.id,
                             action: 'BLOCKCHAIN_PENDING',
@@ -621,27 +622,27 @@ router.post('/register', optionalAuth, async (req, res) => {
                     }
                 } catch (pollError) {
                     console.warn('⚠️ Transaction status polling failed, assuming committed:', pollError.message);
-                    // Assume committed if polling fails (transaction was submitted successfully)
-                    await db.updateVehicle(newVehicle.id, { status: 'REGISTERED' });
+                    // Assume committed if polling fails, but keep status as SUBMITTED
+                    // Admin will approve later via /api/lto/approve-clearance
                     await db.addVehicleHistory({
                         vehicleId: newVehicle.id,
                         action: 'BLOCKCHAIN_REGISTERED',
-                        description: 'Vehicle registered on blockchain (status polling unavailable)',
+                        description: 'Vehicle registered on blockchain (status polling unavailable, awaiting admin approval)',
                         performedBy: ownerUser.id,
                         transactionId: blockchainTxId,
                         metadata: { blockchainResult, pollingError: pollError.message }
                     });
                 }
             } else {
-                // No transaction ID - update to REGISTERED (transaction was submitted)
-                await db.updateVehicle(newVehicle.id, { status: 'REGISTERED' });
+                // No transaction ID - keep SUBMITTED status
+                // Blockchain registration failed or not attempted, admin can still review
                 await db.addVehicleHistory({
                     vehicleId: newVehicle.id,
-                    action: 'BLOCKCHAIN_REGISTERED',
-                    description: 'Vehicle registered on Fabric blockchain',
+                    action: 'REGISTRATION_SUBMITTED',
+                    description: 'Vehicle registration submitted (blockchain registration not attempted)',
                     performedBy: ownerUser.id,
-                    transactionId: blockchainTxId,
-                    metadata: { blockchainResult }
+                    transactionId: null,
+                    metadata: { registrationData }
                 });
             }
             

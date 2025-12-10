@@ -596,9 +596,10 @@ router.post('/register', optionalAuth, async (req, res) => {
                     blockchainStatus = txStatus.status;
                     
                     if (txStatus.status === 'committed') {
-                        // Keep status as SUBMITTED - admin needs to approve before REGISTERED
+                        // Change status back to SUBMITTED - admin needs to approve before REGISTERED
                         // Blockchain registration is just for audit trail
                         // Status will change to REGISTERED when admin approves via /api/lto/approve-clearance
+                        await db.updateVehicle(newVehicle.id, { status: 'SUBMITTED' });
                         
                         // Add blockchain history
                         await db.addVehicleHistory({
@@ -610,7 +611,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                             metadata: { blockchainResult, txStatus }
                         });
                     } else {
-                        // Transaction pending, keep SUBMITTED status
+                        // Transaction pending, keep PENDING_BLOCKCHAIN status
                         await db.addVehicleHistory({
                             vehicleId: newVehicle.id,
                             action: 'BLOCKCHAIN_PENDING',
@@ -622,8 +623,9 @@ router.post('/register', optionalAuth, async (req, res) => {
                     }
                 } catch (pollError) {
                     console.warn('⚠️ Transaction status polling failed, assuming committed:', pollError.message);
-                    // Assume committed if polling fails, but keep status as SUBMITTED
+                    // Assume committed if polling fails, change status back to SUBMITTED
                     // Admin will approve later via /api/lto/approve-clearance
+                    await db.updateVehicle(newVehicle.id, { status: 'SUBMITTED' });
                     await db.addVehicleHistory({
                         vehicleId: newVehicle.id,
                         action: 'BLOCKCHAIN_REGISTERED',

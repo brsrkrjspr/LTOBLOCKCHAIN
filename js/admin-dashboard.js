@@ -263,7 +263,28 @@ async function loadSubmittedApplications() {
         if (token && typeof APIClient !== 'undefined') {
             try {
                 const apiClient = new APIClient();
-                const response = await apiClient.get('/api/vehicles?status=SUBMITTED&limit=100');
+                // Query for both SUBMITTED and PENDING_BLOCKCHAIN statuses
+                // Try SUBMITTED first
+                let response = await apiClient.get('/api/vehicles?status=SUBMITTED&limit=100');
+                let allVehicles = response && response.success && response.vehicles ? response.vehicles : [];
+                
+                // Also get PENDING_BLOCKCHAIN vehicles
+                try {
+                    const pendingResponse = await apiClient.get('/api/vehicles?status=PENDING_BLOCKCHAIN&limit=100');
+                    if (pendingResponse && pendingResponse.success && pendingResponse.vehicles) {
+                        allVehicles = [...allVehicles, ...pendingResponse.vehicles];
+                    }
+                } catch (pendingError) {
+                    console.warn('Could not fetch PENDING_BLOCKCHAIN vehicles:', pendingError);
+                }
+                
+                // Update response with combined vehicles
+                if (allVehicles.length > 0) {
+                    response = {
+                        success: true,
+                        vehicles: allVehicles
+                    };
+                }
                 
                 if (response && response.success && response.vehicles) {
                     // Convert vehicles to application format

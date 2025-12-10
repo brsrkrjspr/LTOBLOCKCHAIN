@@ -176,32 +176,25 @@ async function updateOwnerStats() {
         const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
         stats.notifications = localNotifs.filter(n => !n.read).length;
     }
-        
-        // Update stat cards (using new IDs)
-        const statVehiclesEl = document.getElementById('statVehicles');
-        const statPendingEl = document.getElementById('statPending');
-        const statApprovedEl = document.getElementById('statApproved');
-        const statNotificationsEl = document.getElementById('statNotifications');
-        
-        if (statVehiclesEl) statVehiclesEl.textContent = stats.registeredVehicles;
-        if (statPendingEl) statPendingEl.textContent = stats.pendingApplications;
-        if (statApprovedEl) statApprovedEl.textContent = stats.approvedApplications;
-        if (statNotificationsEl) statNotificationsEl.textContent = stats.notifications;
-        
-        // Fallback to old method if new IDs not found
-        if (statCards.length >= 4) {
-            statCards[0].textContent = stats.registeredVehicles;
-            statCards[1].textContent = stats.pendingApplications;
-            statCards[2].textContent = stats.approvedApplications;
-            statCards[3].textContent = stats.notifications;
-        }
-    } catch (error) {
-        if (error.name !== 'AbortError') {
-            console.error('Failed to update stats:', error);
-        }
-        // Show zeros if API fails
-        const statVehiclesEl = document.getElementById('statVehicles');
-        const statPendingEl = document.getElementById('statPending');
+    
+    // Update stat cards (using new IDs)
+    const statVehiclesEl = document.getElementById('statVehicles');
+    const statPendingEl = document.getElementById('statPending');
+    const statApprovedEl = document.getElementById('statApproved');
+    const statNotificationsEl = document.getElementById('statNotifications');
+    
+    if (statVehiclesEl) statVehiclesEl.textContent = stats.registeredVehicles;
+    if (statPendingEl) statPendingEl.textContent = stats.pendingApplications;
+    if (statApprovedEl) statApprovedEl.textContent = stats.approvedApplications;
+    if (statNotificationsEl) statNotificationsEl.textContent = stats.notifications;
+    
+    // Fallback to old method if new IDs not found
+    if (statCards.length >= 4) {
+        statCards[0].textContent = stats.registeredVehicles;
+        statCards[1].textContent = stats.pendingApplications;
+        statCards[2].textContent = stats.approvedApplications;
+        statCards[3].textContent = stats.notifications;
+    }
         const statApprovedEl = document.getElementById('statApproved');
         const statNotificationsEl = document.getElementById('statNotifications');
         

@@ -23,6 +23,7 @@ This document chronicles all errors encountered during development and deploymen
 10. [Crypto Materials Not Persisted](#issue-10-crypto-materials-not-persisted-to-github)
 11. [Genesis Block Mounting Error](#issue-11-genesis-block-mounting-error-docker-volume-cache)
 12. [Root network-config.json Mismatch](#issue-12-root-network-configjson-mismatch)
+13. [Missing signcerts Directory](#issue-13-missing-signcerts-directory)
 
 ---
 
@@ -479,6 +480,67 @@ cp config/network-config.json network-config.json
 ```
 
 Or ensure they stay synchronized.
+
+---
+
+## Issue #13: Missing signcerts Directory
+
+### Symptoms
+```
+PANI [orderer.common.server] loadLocalMSP -> Failed to get local msp config: 
+could not load a valid signer certificate from directory /var/hyperledger/orderer/msp/signcerts: 
+stat /var/hyperledger/orderer/msp/signcerts: no such file or directory
+```
+
+### Root Cause
+The `signcerts` directory in the orderer's MSP was not included when crypto materials were committed to GitHub. This can happen when:
+1. The `cryptogen` command was interrupted
+2. Files were selectively committed
+3. Git ignored certain files
+
+### Solution
+Regenerate crypto materials completely and ensure all files are committed:
+
+```bash
+# Locally (with Docker Desktop running):
+docker run --rm -v ${PWD}:/workspace hyperledger/fabric-tools:2.5 \
+    cryptogen generate --config=/workspace/config/crypto-config.yaml \
+    --output=/workspace/fabric-network/crypto-config
+
+# Verify signcerts exists
+ls fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/signcerts/
+
+# Regenerate artifacts
+docker run --rm -v ${PWD}:/workspace -e FABRIC_CFG_PATH=/workspace/config \
+    hyperledger/fabric-tools:2.5 \
+    configtxgen -profile Genesis -channelID system-channel \
+    -outputBlock /workspace/fabric-network/channel-artifacts/genesis.block
+
+docker run --rm -v ${PWD}:/workspace -e FABRIC_CFG_PATH=/workspace/config \
+    hyperledger/fabric-tools:2.5 \
+    configtxgen -profile Channel -channelID ltochannel \
+    -outputCreateChannelTx /workspace/fabric-network/channel-artifacts/channel.tx
+
+# Commit all files
+git add fabric-network/
+git commit -m "Regenerate crypto materials with complete signcerts"
+git push origin main
+```
+
+### Expected MSP Structure
+```
+orderer.lto.gov.ph/msp/
+├── admincerts/
+│   └── Admin@lto.gov.ph-cert.pem
+├── cacerts/
+│   └── ca.lto.gov.ph-cert.pem
+├── keystore/
+│   └── priv_sk
+├── signcerts/                    ← REQUIRED
+│   └── orderer.lto.gov.ph-cert.pem
+└── tlscacerts/
+    └── tlsca.lto.gov.ph-cert.pem
+```
 
 ---
 

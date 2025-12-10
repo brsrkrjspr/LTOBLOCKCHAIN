@@ -660,7 +660,7 @@ function showApplicationModal(application) {
                     </div>
                     
                     <div class="detail-section">
-                        <h4>Documents</h4>
+                        <h4>Documents (${application.documents ? application.documents.length : 0})</h4>
                         <div class="document-list">
                             ${application.documents && application.documents.length > 0 ? 
                                 application.documents.map(doc => {
@@ -684,9 +684,9 @@ function showApplicationModal(application) {
                                         ? `document-viewer.html?documentId=${doc.id}`
                                         : `document-viewer.html?vin=${application.vehicle.vin || application.vehicle?.vin || ''}&type=${typeParam}`;
                                     
-                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0;" onclick="window.open('${viewerUrl}', '_blank')">
-                                        ${docName}
-                                        <span style="float: right; color: #3498db;">View →</span>
+                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('${viewerUrl}', '_blank')">
+                                        <span>${docName}</span>
+                                        <span style="color: #3498db;">View →</span>
                                     </div>`;
                                 }).join('') :
                                 '<p style="color: #999;">No documents uploaded yet</p>'
@@ -694,9 +694,27 @@ function showApplicationModal(application) {
                         </div>
                         ${application.vehicle && application.vehicle.vin ? `
                         <div style="margin-top: 15px;">
-                            <a href="document-viewer.html?vin=${application.vehicle.vin}" target="_blank" class="btn-secondary">View All Documents</a>
+                            <a href="document-viewer.html?vin=${application.vehicle.vin}" target="_blank" class="btn-secondary">View All Documents in Viewer</a>
                         </div>
                         ` : ''}
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>Verification Requests</h4>
+                        <div class="verification-actions" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                            <button class="btn-secondary" onclick="sendVerificationRequest('${application.id}', 'hpg')" style="flex: 1; min-width: 150px;">
+                                <i class="fas fa-shield-alt"></i> Request HPG Clearance
+                            </button>
+                            <button class="btn-secondary" onclick="sendVerificationRequest('${application.id}', 'insurance')" style="flex: 1; min-width: 150px;">
+                                <i class="fas fa-file-shield"></i> Request Insurance Verification
+                            </button>
+                            <button class="btn-secondary" onclick="sendVerificationRequest('${application.id}', 'emission')" style="flex: 1; min-width: 150px;">
+                                <i class="fas fa-leaf"></i> Request Emission Verification
+                            </button>
+                        </div>
+                        <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                            <i class="fas fa-info-circle"></i> Send verification requests to external organizations for document verification.
+                        </p>
                     </div>
                     
                     <div class="detail-section">
@@ -709,9 +727,11 @@ function showApplicationModal(application) {
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn-primary" onclick="approveApplication('${application.id}')">Approve</button>
-                <button class="btn-danger" onclick="rejectApplication('${application.id}')">Reject</button>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: space-between;">
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="approveApplication('${application.id}')">Approve</button>
+                    <button class="btn-danger" onclick="rejectApplication('${application.id}')">Reject</button>
+                </div>
                 <button class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
             </div>
         </div>
@@ -1196,6 +1216,76 @@ async function finalizeRegistration() {
     }
 }
 
+// Send verification request to external organization
+async function sendVerificationRequest(vehicleId, requestType) {
+    try {
+        const typeNames = {
+            'hpg': 'HPG Clearance',
+            'insurance': 'Insurance Verification',
+            'emission': 'Emission Verification'
+        };
+        
+        const confirmed = await ConfirmationDialog.show({
+            title: `Send ${typeNames[requestType]} Request`,
+            message: `Are you sure you want to send a ${typeNames[requestType]} request for this vehicle?`,
+            confirmText: 'Send Request',
+            cancelText: 'Cancel',
+            confirmColor: '#3498db',
+            type: 'question'
+        });
+        
+        if (!confirmed) return;
+        
+        const button = event?.target || document.querySelector(`[onclick*="sendVerificationRequest('${vehicleId}', '${requestType}')"]`);
+        if (button) LoadingManager.show(button, 'Sending...');
+        
+        const apiClient = new APIClient();
+        const endpoint = `/api/lto/send-to-${requestType}`;
+        
+        const response = await apiClient.post(endpoint, {
+            vehicleId: vehicleId,
+            purpose: `${typeNames[requestType]} verification request`,
+            notes: `Requested by LTO admin for vehicle verification`
+        });
+        
+        if (response && response.success) {
+            ToastNotification.show(`${typeNames[requestType]} request sent successfully!`, 'success');
+            
+            // Refresh application data
+            await loadSubmittedApplications();
+            
+            // Close modal if open
+            const modal = document.querySelector('.modal');
+            if (modal) {
+                const modalContent = modal.querySelector('.modal-content');
+                if (modalContent) {
+                    // Update the verification section to show request status
+                    const verificationSection = modalContent.querySelector('.verification-actions');
+                    if (verificationSection) {
+                        const requestButton = verificationSection.querySelector(`[onclick*="sendVerificationRequest('${vehicleId}', '${requestType}')"]`);
+                        if (requestButton) {
+                            requestButton.disabled = true;
+                            requestButton.innerHTML = `<i class="fas fa-check"></i> ${typeNames[requestType]} Requested`;
+                            requestButton.style.backgroundColor = '#27ae60';
+                        }
+                    }
+                }
+            }
+        } else {
+            throw new Error(response?.error || `Failed to send ${typeNames[requestType]} request`);
+        }
+    } catch (error) {
+        console.error(`Error sending ${requestType} request:`, error);
+        ToastNotification.show(`Failed to send ${typeNames[requestType]} request: ${error.message}`, 'error');
+    } finally {
+        const button = event?.target || document.querySelector(`[onclick*="sendVerificationRequest('${vehicleId}', '${requestType}')"]`);
+        if (button) LoadingManager.hide(button);
+    }
+}
+
+// Make function globally available
+window.sendVerificationRequest = sendVerificationRequest;
+
 // Initialize workflow state on page load
 document.addEventListener('DOMContentLoaded', function() {
     checkWorkflowState();
@@ -1219,5 +1309,6 @@ window.AdminDashboard = {
     approveInsurance,
     requestInsuranceCorrection,
     approveHPGClearance,
-    finalizeRegistration
+    finalizeRegistration,
+    sendVerificationRequest
 };

@@ -103,14 +103,14 @@ async function loadDocumentData() {
                             // Get documents for this vehicle
                             const documents = vehicle.documents || [];
                             
-                            // If multiple documents, show document selector
+                            // Always show document selector if multiple documents exist
                             if (documents.length > 1) {
                                 hideLoadingState();
                                 displayMultipleDocuments(documents, vehicle, type);
                                 return;
                             }
                             
-                            // Find specific document by type
+                            // If only one document, find specific document by type or use first
                             const doc = documents.find(d => 
                                 d.documentType === type || 
                                 d.document_type === type ||

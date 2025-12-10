@@ -159,12 +159,25 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
         // Allow: admins, vehicle owners, and verifiers (for verification purposes)
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
+        
+        // Debug logging in development
+        if (process.env.NODE_ENV === 'development') {
+            console.log('Vehicle view permission check:', {
+                userRole: req.user.role,
+                userId: req.user.userId,
+                vehicleOwnerId: vehicle.owner_id,
+                isAdmin,
+                isOwner,
+                isVerifier
+            });
+        }
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
                 success: false,
-                error: 'Access denied'
+                error: 'Access denied',
+                message: `You do not have permission to view this vehicle. Required: admin, owner, or verifier. Your role: ${req.user.role || 'none'}`
             });
         }
 

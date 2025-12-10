@@ -12,6 +12,11 @@ let allApplications = [];
 let filteredApplications = [];
 
 function initializeAdminDashboard() {
+    // Check and clear demo accounts first
+    if (!checkAndClearDemoAccount()) {
+        return; // Stop initialization if demo account detected
+    }
+    
     // Initialize real-time stats updates
     updateSystemStats();
     
@@ -32,6 +37,65 @@ function initializeAdminDashboard() {
     
     // Set up auto-refresh for data
     setInterval(updateSystemStats, 30000); // Update every 30 seconds
+}
+
+// Check if user is using a demo account and clear it
+function checkAndClearDemoAccount() {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const currentUser = localStorage.getItem('currentUser');
+    
+    // Check if it's a demo token
+    if (token && token.startsWith('demo-token-')) {
+        console.warn('❌ Demo account detected - clearing credentials');
+        localStorage.clear();
+        showNotification('Demo accounts cannot access admin features. Please login with a real admin account.', 'error');
+        setTimeout(() => {
+            window.location.href = 'login-signup.html?message=Please login as admin';
+        }, 2000);
+        return false;
+    }
+    
+    // Check if currentUser has demo role
+    if (currentUser) {
+        try {
+            const user = JSON.parse(currentUser);
+            if (user.role !== 'admin') {
+                console.warn('❌ Non-admin account detected - clearing credentials');
+                localStorage.clear();
+                showNotification(`Access denied. Admin role required. Your role: ${user.role || 'none'}. Please login as admin.`, 'error');
+                setTimeout(() => {
+                    window.location.href = 'login-signup.html?message=Admin access required';
+                }, 2000);
+                return false;
+            }
+        } catch (e) {
+            console.warn('Could not parse currentUser:', e);
+        }
+    }
+    
+    // Check JWT token role if it's a real token
+    if (token && !token.startsWith('demo-token-')) {
+        try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+                const payload = JSON.parse(atob(parts[1]));
+                if (payload.role !== 'admin') {
+                    console.warn('❌ Token does not have admin role - clearing credentials');
+                    localStorage.clear();
+                    showNotification(`Access denied. Admin role required. Your role: ${payload.role || 'none'}. Please login as admin.`, 'error');
+                    setTimeout(() => {
+                        window.location.href = 'login-signup.html?message=Admin access required';
+                    }, 2000);
+                    return false;
+                }
+                console.log('✅ Admin authentication verified:', { role: payload.role, email: payload.email });
+            }
+        } catch (e) {
+            console.warn('Could not decode token:', e);
+        }
+    }
+    
+    return true;
 }
 
 async function updateSystemStats() {
@@ -258,8 +322,20 @@ async function loadSubmittedApplications() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
     
     try {
-        // Try to load from API first
+        // Check for demo account first
         const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        
+        if (token && token.startsWith('demo-token-')) {
+            console.warn('Demo token detected - cannot load applications');
+            showNotification('Demo accounts cannot access admin features. Please login with a real admin account.', 'error');
+            localStorage.clear();
+            setTimeout(() => {
+                window.location.href = 'login-signup.html?message=Please login as admin';
+            }, 2000);
+            return;
+        }
+        
+        // Try to load from API first
         if (token && typeof APIClient !== 'undefined') {
             try {
                 const apiClient = new APIClient();
@@ -533,8 +609,26 @@ function getStatusText(status) {
 
 async function viewApplication(applicationId) {
     try {
-        // Try to load from API first
+        // Check authentication first
         const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        
+        if (!token) {
+            showNotification('Please login to view applications', 'error');
+            window.location.href = 'login-signup.html';
+            return;
+        }
+        
+        // Check if it's a demo token
+        if (token.startsWith('demo-token-')) {
+            showNotification('Demo accounts cannot access admin features. Please login with a real admin account.', 'error');
+            localStorage.clear();
+            setTimeout(() => {
+                window.location.href = 'login-signup.html?message=Please login as admin';
+            }, 2000);
+            return;
+        }
+        
+        // Try to load from API first
         let application = null;
         
         if (token && typeof APIClient !== 'undefined') {

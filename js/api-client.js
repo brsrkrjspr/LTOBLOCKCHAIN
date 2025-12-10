@@ -123,7 +123,33 @@ class APIClient {
 
             // Handle 403 Forbidden
             if (response.status === 403) {
-                throw new Error('You do not have permission to perform this action.');
+                // Try to get detailed error message from response
+                let errorMessage = 'You do not have permission to perform this action.';
+                try {
+                    const errorData = await response.json();
+                    if (errorData.message) {
+                        errorMessage = errorData.message;
+                    } else if (errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (e) {
+                    // If response is not JSON, use default message
+                }
+                
+                // Check if it's a demo token
+                const token = this.getAuthToken();
+                if (token && token.startsWith('demo-token-')) {
+                    errorMessage = 'Demo accounts cannot access admin features. Please login with a real admin account.';
+                    // Clear demo credentials
+                    this.clearAuth();
+                    setTimeout(() => {
+                        window.location.href = 'login-signup.html?message=Please login as admin';
+                    }, 2000);
+                }
+                
+                const error = new Error(errorMessage);
+                error.status = 403;
+                throw error;
             }
 
             // Handle 404 Not Found

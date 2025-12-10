@@ -290,16 +290,57 @@ function handleNotificationClick(e) {
 }
 
 function loadUserNotifications() {
-    const notifications = JSON.parse(localStorage.getItem('userNotifications') || '[]');
-    // Try new selector first, fallback to old
-    let notificationsList = document.querySelector('.notifications-list-modern');
-    if (!notificationsList) {
-        notificationsList = document.querySelector('.notifications-list');
+    // Try multiple selectors
+    let notificationsList = null;
+    const selectors = [
+        '.notifications-list-modern',
+        '#notifications .notifications-list-modern',
+        '.dashboard-card-modern.notifications-card .notifications-list-modern',
+        '.notifications-list'
+    ];
+    
+    for (const selector of selectors) {
+        notificationsList = document.querySelector(selector);
+        if (notificationsList) break;
     }
+    
+    if (!notificationsList) {
+        console.warn('⚠️ Could not find notifications list');
+        return;
+    }
+    
+    // Try to load from API first
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    if (token && !token.startsWith('demo-token-') && typeof APIClient !== 'undefined') {
+        try {
+            const apiClient = new APIClient();
+            apiClient.get('/api/notifications').then(response => {
+                if (response && response.success && response.notifications) {
+                    localStorage.setItem('userNotifications', JSON.stringify(response.notifications));
+                    renderNotifications(response.notifications);
+                } else {
+                    renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
+                }
+            }).catch(err => {
+                console.warn('Failed to load notifications from API:', err);
+                renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
+            });
+        } catch (error) {
+            console.warn('Error loading notifications:', error);
+            renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
+        }
+    } else {
+        renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
+    }
+}
+
+function renderNotifications(notifications) {
+    let notificationsList = document.querySelector('.notifications-list-modern') || 
+                           document.querySelector('.notifications-list');
     
     if (!notificationsList) return;
     
-    // Clear existing notifications
     notificationsList.innerHTML = '';
     
     if (notifications.length === 0) {
@@ -311,14 +352,14 @@ function loadUserNotifications() {
         return;
     }
     
-    // Display notifications
-    notifications.slice(0, 5).forEach(notification => { // Show only latest 5
+    // Display notifications (show only latest 5)
+    notifications.slice(0, 5).forEach(notification => {
         const notificationElement = createNotificationElement(notification);
         notificationsList.appendChild(notificationElement);
     });
     
     // Update notification count in stats
-    updateNotificationCount(notifications.length);
+    updateNotificationCount(notifications.filter(n => !n.read).length);
 }
 
 function createNotificationElement(notification) {
@@ -431,23 +472,62 @@ function viewAllNotifications() {
 }
 
 function initializeSubmittedApplications() {
-    // Load and display user's submitted applications
-    loadUserApplications();
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(loadUserApplications, 100);
+        });
+    } else {
+        // DOM is ready, but wait a bit for dynamic content
+        setTimeout(loadUserApplications, 100);
+    }
     
     // Set up auto-refresh for applications
-    setInterval(loadUserApplications, 10000); // Update every 10 seconds
+    setInterval(() => {
+        loadUserApplications();
+    }, 30000); // Update every 30 seconds
 }
 
 async function loadUserApplications() {
-    // Try new selector first, fallback to old
-    let applicationsTable = document.querySelector('.table-modern tbody');
-    if (!applicationsTable) {
-        applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    // Wait for DOM to be fully ready
+    if (document.readyState === 'loading') {
+        await new Promise(resolve => {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', resolve);
+            } else {
+                resolve();
+            }
+        });
     }
-    if (!applicationsTable) {
-        applicationsTable = document.querySelector('.table tbody');
+    
+    // Try multiple selectors with retry logic
+    let applicationsTable = null;
+    const selectors = [
+        '.table-modern tbody',
+        '#applications .table-modern tbody',
+        '.dashboard-card-modern.table-card .table-modern tbody',
+        '.dashboard-card:nth-child(3) .table tbody',
+        '.table tbody'
+    ];
+    
+    for (const selector of selectors) {
+        applicationsTable = document.querySelector(selector);
+        if (applicationsTable) {
+            console.log(`✅ Found applications table with selector: ${selector}`);
+            break;
+        }
     }
-    if (!applicationsTable) return;
+    
+    if (!applicationsTable) {
+        console.error('❌ Could not find applications table. Available selectors:', {
+            tableModern: document.querySelector('.table-modern'),
+            applicationsDiv: document.querySelector('#applications'),
+            allTables: document.querySelectorAll('table')
+        });
+        // Retry after a short delay
+        setTimeout(loadUserApplications, 500);
+        return;
+    }
     
     // Show loading state
     applicationsTable.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
@@ -455,6 +535,7 @@ async function loadUserApplications() {
     try {
         // Try to load from API first
         const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        console.log('🔍 Loading applications. Token exists:', !!token);
         
         // Check if it's a demo token - if so, skip API calls
         if (token && token.startsWith('demo-token-')) {
@@ -462,10 +543,15 @@ async function loadUserApplications() {
             // Skip API call for demo tokens
         } else if (token && typeof APIClient !== 'undefined') {
             try {
+                console.log('📡 Attempting API call to /api/vehicles/my-vehicles');
                 const apiClient = new APIClient();
                 const response = await apiClient.get('/api/vehicles/my-vehicles');
                 
+                console.log('📥 API Response:', response);
+                
                 if (response && response.success && response.vehicles) {
+                    console.log(`✅ Loaded ${response.vehicles.length} vehicles from API`);
+                    
                     // Convert vehicles to application format
                     allApplications = response.vehicles.map(vehicle => ({
                         id: vehicle.id,
@@ -474,15 +560,17 @@ async function loadUserApplications() {
                             model: vehicle.model,
                             year: vehicle.year,
                             plateNumber: vehicle.plateNumber || vehicle.plate_number,
-                            vin: vehicle.vin
+                            vin: vehicle.vin,
+                            color: vehicle.color
                         },
                         status: vehicle.status?.toLowerCase() || 'submitted',
-                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
+                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || vehicle.created_at || new Date().toISOString(),
                         documents: vehicle.documents || []
                     }));
                     
                     // Save to localStorage for offline access
                     localStorage.setItem('userApplications', JSON.stringify(allApplications));
+                    console.log(`💾 Saved ${allApplications.length} applications to localStorage`);
                     
                     // Sort applications by submission date (newest first)
                     allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
@@ -497,16 +585,26 @@ async function loadUserApplications() {
                     // Update stats based on all applications
                     updateStatsFromApplications(allApplications);
                     return;
+                } else {
+                    console.warn('⚠️ API response missing vehicles:', response);
                 }
             } catch (apiError) {
+                console.error('❌ API load failed:', apiError);
                 console.warn('API load failed, trying localStorage:', apiError);
             }
+        } else {
+            console.warn('⚠️ No valid token found. Token:', token ? 'exists but invalid' : 'missing');
         }
         
         // Fallback to localStorage
-        allApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+        console.log('📦 Loading from localStorage...');
+        const localApps = JSON.parse(localStorage.getItem('userApplications') || '[]');
+        console.log(`📦 Found ${localApps.length} applications in localStorage`);
+        
+        allApplications = localApps;
         
         if (allApplications.length === 0) {
+            console.log('ℹ️ No applications found in localStorage');
             applicationsTable.innerHTML = `
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
@@ -530,12 +628,14 @@ async function loadUserApplications() {
         // Update stats based on all applications
         updateStatsFromApplications(allApplications);
         
+        console.log(`✅ Rendered ${filteredApplications.length} applications`);
+        
     } catch (error) {
-        console.error('Error loading applications:', error);
+        console.error('❌ Error loading applications:', error);
         applicationsTable.innerHTML = `
             <tr>
                 <td colspan="5" style="text-align: center; padding: 20px; color: #dc3545;">
-                    Error loading applications. Please refresh the page.
+                    Error loading applications: ${error.message}. Please refresh the page.
                 </td>
             </tr>
         `;
@@ -565,15 +665,25 @@ function applyFilters(applications) {
 }
 
 function renderApplications() {
-    // Try new selector first, fallback to old
-    let applicationsTable = document.querySelector('.table-modern tbody');
-    if (!applicationsTable) {
-        applicationsTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    // Try multiple selectors
+    let applicationsTable = null;
+    const selectors = [
+        '.table-modern tbody',
+        '#applications .table-modern tbody',
+        '.dashboard-card-modern.table-card .table-modern tbody',
+        '.dashboard-card:nth-child(3) .table tbody',
+        '.table tbody'
+    ];
+    
+    for (const selector of selectors) {
+        applicationsTable = document.querySelector(selector);
+        if (applicationsTable) break;
     }
+    
     if (!applicationsTable) {
-        applicationsTable = document.querySelector('.table tbody');
+        console.error('❌ Could not find applications table for rendering');
+        return;
     }
-    if (!applicationsTable) return;
     
     applicationsTable.innerHTML = '';
     
@@ -591,6 +701,8 @@ function renderApplications() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const pageApplications = filteredApplications.slice(startIndex, endIndex);
+    
+    console.log(`📊 Rendering ${pageApplications.length} applications (page ${currentPage})`);
     
     pageApplications.forEach(app => {
         const row = createUserApplicationRow(app);

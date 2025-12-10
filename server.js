@@ -11,6 +11,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy (needed for Codespace/GitHub forwarding)
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet({
     contentSecurityPolicy: {

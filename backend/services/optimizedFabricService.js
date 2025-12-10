@@ -304,41 +304,11 @@ class OptimizedFabricService {
                     status: 'pending',
                     transactionId: transactionId,
                     vin: vin,
-                        message: 'Transaction submitted but not yet committed after polling',
-                        attempts: attempt,
-                        mode: 'fabric'
-                    };
-                    
-                } catch (queryError) {
-                    if (queryError.message.includes('not found') || queryError.message.includes('does not exist')) {
-                        if (attempt < maxRetries) {
-                            await new Promise(resolve => setTimeout(resolve, retryDelay));
-                            continue;
-                        }
-                        
-                        return {
-                            status: 'pending',
-                            transactionId: transactionId,
-                            vin: vin,
-                            message: 'Transaction submitted but vehicle not found on ledger after polling',
-                            attempts: attempt,
-                            mode: 'fabric'
-                        };
-                    }
-                    
-                    throw queryError;
-                }
+                    message: 'Transaction submitted but not yet committed after polling',
+                    attempts: attempt,
+                    mode: 'fabric'
+                };
             }
-            
-            return {
-                status: 'pending',
-                transactionId: transactionId,
-                vin: vin,
-                message: 'Transaction status unknown after polling',
-                attempts: maxRetries,
-                mode: 'fabric'
-            };
-            
         } catch (error) {
             console.error('❌ Failed to get transaction status from Fabric:', error);
             return {

@@ -4,7 +4,7 @@
   "description": "TrustChain LTO Vehicle Registration Smart Contract",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "fabric-chaincode-node start",
     "test": "npm run test:unit",
     "test:unit": "mocha --recursive test/unit",
     "test:integration": "mocha --recursive test/integration",

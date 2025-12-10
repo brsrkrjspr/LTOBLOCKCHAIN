@@ -7,6 +7,10 @@ Organizations:
     Name: OrdererOrg
     ID: OrdererMSP
     MSPDir: ../fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/msp
+    # CRITICAL: OrdererEndpoints required since Fabric v1.4.2
+    # This allows peers to discover orderer endpoints from channel config
+    OrdererEndpoints:
+      - orderer.lto.gov.ph:7050
     Policies:
       Readers:
         Type: Signature

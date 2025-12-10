@@ -97,14 +97,14 @@ print_success "Package ID: $PACKAGE_ID"
 # Step 4: Approve the new definition
 print_status "Step 4/5: Approving chaincode for organization..."
 docker exec cli peer lifecycle chaincode approveformyorg \
-    -o orderer1.lto.gov.ph:7050 \
+    -o orderer.lto.gov.ph:7050 \
     --channelID ltochannel \
     --name vehicle-registration \
     --version 1.0 \
     --package-id "$PACKAGE_ID" \
     --sequence $NEXT_SEQUENCE \
     --tls \
-    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
 
 if [ $? -ne 0 ]; then
     print_error "Failed to approve chaincode"
@@ -115,13 +115,13 @@ print_success "Chaincode approved"
 # Step 5: Commit the new definition
 print_status "Step 5/5: Committing chaincode to channel..."
 docker exec cli peer lifecycle chaincode commit \
-    -o orderer1.lto.gov.ph:7050 \
+    -o orderer.lto.gov.ph:7050 \
     --channelID ltochannel \
     --name vehicle-registration \
     --version 1.0 \
     --sequence $NEXT_SEQUENCE \
     --tls \
-    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
 
 if [ $? -ne 0 ]; then
     print_error "Failed to commit chaincode"

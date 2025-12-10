@@ -1042,6 +1042,17 @@ function formatVehicleResponse(vehicle) {
         });
     }
 
+    // Format owner information
+    const ownerInfo = {
+        id: vehicle.owner_id,
+        firstName: vehicle.owner_first_name || (vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null),
+        lastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
+        name: vehicle.owner_name,
+        email: vehicle.owner_email,
+        phone: vehicle.owner_phone,
+        organization: vehicle.owner_organization
+    };
+
     // Format documents to ensure they have required fields (id, documentType, etc.)
     const formattedDocuments = (vehicle.documents || []).map(doc => {
         // Ensure document has id field and both snake_case and camelCase versions
@@ -1091,6 +1102,12 @@ function formatVehicleResponse(vehicle) {
         ownerId: vehicle.owner_id,
         ownerName: vehicle.owner_name || (vehicle.owner_email ? 'Unknown' : null),
         ownerEmail: vehicle.owner_email,
+        ownerPhone: vehicle.owner_phone,
+        ownerFirstName: vehicle.owner_first_name || (vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null),
+        ownerLastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
+        ownerOrganization: vehicle.owner_organization,
+        // Include full owner object for convenience
+        owner: ownerInfo,
         status: vehicle.status,
         registrationDate: vehicle.registration_date,
         lastUpdated: vehicle.last_updated,

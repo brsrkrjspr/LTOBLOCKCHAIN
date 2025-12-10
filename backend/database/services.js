@@ -47,7 +47,14 @@ async function updateUserLastLogin(userId) {
 
 async function getVehicleByVin(vin) {
     const result = await db.query(
-        `SELECT v.*, u.first_name || ' ' || u.last_name as owner_name, u.email as owner_email
+        `SELECT v.*, 
+                u.id as owner_id,
+                u.first_name as owner_first_name,
+                u.last_name as owner_last_name,
+                u.first_name || ' ' || u.last_name as owner_name, 
+                u.email as owner_email,
+                u.phone as owner_phone,
+                u.organization as owner_organization
          FROM vehicles v
          LEFT JOIN users u ON v.owner_id = u.id
          WHERE v.vin = $1`,
@@ -58,7 +65,14 @@ async function getVehicleByVin(vin) {
 
 async function getVehicleById(id) {
     const result = await db.query(
-        `SELECT v.*, u.first_name || ' ' || u.last_name as owner_name, u.email as owner_email
+        `SELECT v.*, 
+                u.id as owner_id,
+                u.first_name as owner_first_name,
+                u.last_name as owner_last_name,
+                u.first_name || ' ' || u.last_name as owner_name, 
+                u.email as owner_email,
+                u.phone as owner_phone,
+                u.organization as owner_organization
          FROM vehicles v
          LEFT JOIN users u ON v.owner_id = u.id
          WHERE v.id = $1`,

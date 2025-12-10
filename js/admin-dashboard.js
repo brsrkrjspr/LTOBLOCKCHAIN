@@ -658,11 +658,13 @@ async function viewApplication(applicationId) {
                             engineNumber: vehicle.engineNumber || vehicle.engine_number,
                             chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
                         },
-                        owner: {
-                            firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
-                            lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
-                            email: vehicle.owner_email || 'unknown@example.com',
-                            phone: vehicle.owner_phone || 'N/A'
+                        owner: vehicle.owner || {
+                            firstName: vehicle.ownerFirstName || vehicle.owner_first_name || (vehicle.ownerName ? vehicle.ownerName.split(' ')[0] : 'Unknown'),
+                            lastName: vehicle.ownerLastName || vehicle.owner_last_name || (vehicle.ownerName ? vehicle.ownerName.split(' ').slice(1).join(' ') : 'User'),
+                            email: vehicle.ownerEmail || vehicle.owner_email || 'unknown@example.com',
+                            phone: vehicle.ownerPhone || vehicle.owner_phone || 'N/A',
+                            idType: vehicle.owner_id_type || undefined,
+                            idNumber: vehicle.owner_id_number || undefined
                         },
                         status: vehicle.status?.toLowerCase() || 'submitted',
                         submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),

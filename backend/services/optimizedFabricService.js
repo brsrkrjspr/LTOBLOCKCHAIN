@@ -287,16 +287,23 @@ class OptimizedFabricService {
                             };
                         }
                     }
-                    
-                    if (attempt < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, retryDelay));
-                        continue;
+                } catch (error) {
+                    // Vehicle not found yet - this is normal during retries
+                    // Only log if it's not a "not found" error or on last attempt
+                    if (attempt === maxRetries || !error.message.includes('not found')) {
+                        console.warn(`⚠️  Vehicle query attempt ${attempt}/${maxRetries}: ${error.message}`);
                     }
-                    
-                    return {
-                        status: 'pending',
-                        transactionId: transactionId,
-                        vin: vin,
+                }
+                
+                if (attempt < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    continue;
+                }
+                
+                return {
+                    status: 'pending',
+                    transactionId: transactionId,
+                    vin: vin,
                         message: 'Transaction submitted but not yet committed after polling',
                         attempts: attempt,
                         mode: 'fabric'

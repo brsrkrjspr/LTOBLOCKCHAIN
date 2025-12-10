@@ -160,7 +160,22 @@ async function updateOwnerStats() {
                 const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
                 stats.notifications = localNotifs.filter(n => !n.read).length;
             }
-        }
+    } catch (error) {
+        console.warn('Error loading dashboard stats:', error);
+        // Fallback to localStorage if API fails
+        const localApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+        stats.registeredVehicles = localApplications.filter(v => 
+            v.status === 'approved' || v.status === 'APPROVED'
+        ).length;
+        stats.pendingApplications = localApplications.filter(v => 
+            v.status === 'submitted' || v.status === 'SUBMITTED' || v.status === 'pending'
+        ).length;
+        stats.approvedApplications = localApplications.filter(v => 
+            v.status === 'approved' || v.status === 'APPROVED'
+        ).length;
+        const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
+        stats.notifications = localNotifs.filter(n => !n.read).length;
+    }
         
         // Update stat cards (using new IDs)
         const statVehiclesEl = document.getElementById('statVehicles');

@@ -24,6 +24,7 @@ This document chronicles all errors encountered during development and deploymen
 11. [Genesis Block Mounting Error](#issue-11-genesis-block-mounting-error-docker-volume-cache)
 12. [Root network-config.json Mismatch](#issue-12-root-network-configjson-mismatch)
 13. [Missing signcerts Directory](#issue-13-missing-signcerts-directory)
+14. [Incorrect Chaincode Path in Restart Script](#issue-14-incorrect-chaincode-path-in-restart-script)
 
 ---
 
@@ -541,6 +542,41 @@ orderer.lto.gov.ph/msp/
 └── tlscacerts/
     └── tlsca.lto.gov.ph-cert.pem
 ```
+
+---
+
+## Issue #14: Incorrect Chaincode Path in Restart Script
+
+### Symptoms
+```
+ERRO [chaincode.platform.util] func1 -> Visit /opt/gopath/src/github.com/hyperledger/fabric/peer/chaincode/vehicle-registration-production failed: 
+lstat /opt/gopath/src/github.com/hyperledger/fabric/peer/chaincode/vehicle-registration-production: no such file or directory
+```
+
+### Root Cause
+The `scripts/codespace-restart.sh` script was created later and used an **incorrect chaincode path** that doesn't match the Docker volume mount in `docker-compose.unified.yml`.
+
+**Wrong path:**
+```bash
+--path /opt/gopath/src/github.com/hyperledger/fabric/peer/chaincode/vehicle-registration-production
+```
+
+**Correct path** (matches Docker volume mount):
+```bash
+--path /opt/gopath/src/github.com/chaincode/vehicle-registration-production
+```
+
+### Solution
+Updated `scripts/codespace-restart.sh` line 110 to use the correct path that matches the Docker volume mount:
+
+```yaml
+# In docker-compose.unified.yml:
+volumes:
+  - ./chaincode:/opt/gopath/src/github.com/chaincode
+```
+
+### Note
+This issue was already fixed in other scripts (`unified-setup.sh`, `redeploy-chaincode.sh`, `complete-fabric-setup.sh`), but `codespace-restart.sh` was created later and missed the fix.
 
 ---
 

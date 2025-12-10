@@ -107,7 +107,7 @@ else
     
     # Package chaincode
     docker exec cli peer lifecycle chaincode package /opt/gopath/src/github.com/hyperledger/fabric/peer/vehicle-registration.tar.gz \
-        --path /opt/gopath/src/github.com/hyperledger/fabric/peer/chaincode/vehicle-registration-production \
+        --path /opt/gopath/src/github.com/chaincode/vehicle-registration-production \
         --lang node \
         --label vehicle-registration_1.0
     

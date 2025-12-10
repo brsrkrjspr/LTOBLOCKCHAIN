@@ -129,6 +129,12 @@ Profiles:
   Channel:
     Consortium: TrustChainConsortium
     <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities:
+        <<: *OrdererCapabilities
     Application:
       <<: *ApplicationDefaults
       Organizations:

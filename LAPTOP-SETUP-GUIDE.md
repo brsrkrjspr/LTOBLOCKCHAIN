@@ -38,7 +38,7 @@
 ### 1. Setup (One-time)
 ```powershell
 # Run as Administrator
-.\scripts\setup-laptop.ps1
+.\scripts\setup-laptop-fixed.ps1
 ```
 
 ### 2. Deploy
@@ -279,7 +279,7 @@ Your laptop is now optimized to run the TrustChain LTO system efficiently. The s
 - **Easy management** with automated scripts
 - **Comprehensive monitoring** and health checks
 
-**Next Step**: Run `.\scripts\setup-laptop.ps1` to begin!
+**Next Step**: Run `.\scripts\setup-laptop-fixed.ps1` to begin!
 
 ---
 

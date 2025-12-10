@@ -46,4 +46,8 @@ build/
 # Wallet files (contain sensitive keys)
 wallet/*
 !wallet/.gitkeep
+
+# Generated package files
+package-laptop.json
+
 fix.md

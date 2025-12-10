@@ -42,10 +42,10 @@ router.post('/send-to-hpg', authenticateToken, authorizeRole(['admin']), async (
         }
 
         // Find HPG admin user (or assign to first admin if no HPG user exists)
-        // For now, we'll leave assigned_to as null and let HPG admin pick it up
+        // Note: 'hpg_admin' role doesn't exist in enum, so we check by email pattern
         const dbModule = require('../database/db');
         const hpgAdmins = await dbModule.query(
-            "SELECT id FROM users WHERE role = 'hpg_admin' OR email LIKE '%hpg%' LIMIT 1"
+            "SELECT id FROM users WHERE email LIKE '%hpg%' OR (role = 'admin' AND email LIKE '%hpg%') LIMIT 1"
         );
         const assignedTo = hpgAdmins.rows[0]?.id || null;
 

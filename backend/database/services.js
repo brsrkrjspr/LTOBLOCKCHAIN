@@ -378,14 +378,16 @@ async function getClearanceRequestsByVehicle(vehicleId) {
 }
 
 async function getClearanceRequestsByType(requestType, status = null) {
-    let query = `SELECT cr.*, 
-                        v.vin, v.plate_number, v.make, v.model, v.year,
-                        u1.first_name || ' ' || u1.last_name as requested_by_name,
-                        u2.first_name || ' ' || u2.last_name as assigned_to_name
+    let query = `SELECT cr.*,
+                        v.id as vehicle_id, v.vin, v.plate_number, v.make, v.model, v.year, v.color, v.vehicle_type,
+                        u1.id as owner_id, u1.first_name as owner_first_name, u1.last_name as owner_last_name, u1.email as owner_email,
+                        u2.first_name || ' ' || u2.last_name as requested_by_name,
+                        u3.first_name || ' ' || u3.last_name as assigned_to_name
                  FROM clearance_requests cr
                  JOIN vehicles v ON cr.vehicle_id = v.id
-                 LEFT JOIN users u1 ON cr.requested_by = u1.id
-                 LEFT JOIN users u2 ON cr.assigned_to = u2.id
+                 LEFT JOIN users u1 ON v.owner_id = u1.id
+                 LEFT JOIN users u2 ON cr.requested_by = u2.id
+                 LEFT JOIN users u3 ON cr.assigned_to = u3.id
                  WHERE cr.request_type = $1`;
     const params = [requestType];
     
@@ -397,24 +399,66 @@ async function getClearanceRequestsByType(requestType, status = null) {
     query += ' ORDER BY cr.created_at DESC';
     
     const result = await db.query(query, params);
-    return result.rows;
+    
+    // Transform results to include nested vehicle and owner objects
+    return result.rows.map(row => ({
+        ...row,
+        vehicle: {
+            id: row.vehicle_id,
+            vin: row.vin,
+            plate_number: row.plate_number,
+            make: row.make,
+            model: row.model,
+            year: row.year,
+            color: row.color,
+            vehicle_type: row.vehicle_type
+        },
+        owner: {
+            id: row.owner_id,
+            first_name: row.owner_first_name,
+            last_name: row.owner_last_name,
+            email: row.owner_email
+        }
+    }));
 }
 
 async function getClearanceRequestsByStatus(status) {
     const result = await db.query(
-        `SELECT cr.*, 
-                v.vin, v.plate_number, v.make, v.model, v.year,
-                u1.first_name || ' ' || u1.last_name as requested_by_name,
-                u2.first_name || ' ' || u2.last_name as assigned_to_name
+        `SELECT cr.*,
+                v.id as vehicle_id, v.vin, v.plate_number, v.make, v.model, v.year, v.color, v.vehicle_type,
+                u1.id as owner_id, u1.first_name as owner_first_name, u1.last_name as owner_last_name, u1.email as owner_email,
+                u2.first_name || ' ' || u2.last_name as requested_by_name,
+                u3.first_name || ' ' || u3.last_name as assigned_to_name
          FROM clearance_requests cr
          JOIN vehicles v ON cr.vehicle_id = v.id
-         LEFT JOIN users u1 ON cr.requested_by = u1.id
-         LEFT JOIN users u2 ON cr.assigned_to = u2.id
+         LEFT JOIN users u1 ON v.owner_id = u1.id
+         LEFT JOIN users u2 ON cr.requested_by = u2.id
+         LEFT JOIN users u3 ON cr.assigned_to = u3.id
          WHERE cr.status = $1
          ORDER BY cr.created_at DESC`,
         [status]
     );
-    return result.rows;
+    
+    // Transform results to include nested vehicle and owner objects
+    return result.rows.map(row => ({
+        ...row,
+        vehicle: {
+            id: row.vehicle_id,
+            vin: row.vin,
+            plate_number: row.plate_number,
+            make: row.make,
+            model: row.model,
+            year: row.year,
+            color: row.color,
+            vehicle_type: row.vehicle_type
+        },
+        owner: {
+            id: row.owner_id,
+            first_name: row.owner_first_name,
+            last_name: row.owner_last_name,
+            email: row.owner_email
+        }
+    }));
 }
 
 async function updateClearanceRequestStatus(id, status, metadata = null) {

@@ -44,6 +44,9 @@ function updateVerifierStats() {
 }
 
 function initializeTaskManagement() {
+    // Load emission verification requests
+    loadEmissionVerificationTasks();
+    
     // Add event listeners for emission task actions
     const taskTable = document.querySelector('.table tbody');
     if (taskTable) {
@@ -57,6 +60,135 @@ function initializeTaskManagement() {
             }
         });
     }
+}
+
+async function loadEmissionVerificationTasks() {
+    const tbody = document.querySelector('.table tbody');
+    if (!tbody) return;
+    
+    // Show loading state
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading verification requests...</td></tr>';
+    
+    try {
+        // Call API to get emission verification requests
+        if (typeof APIClient !== 'undefined') {
+            const apiClient = new APIClient();
+            const response = await apiClient.get('/api/emission/requests?status=PENDING');
+            
+            if (response && response.success && response.requests) {
+                const requests = response.requests;
+                
+                if (requests.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
+                                No pending emission verification requests
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                // Clear existing rows
+                tbody.innerHTML = '';
+                
+                // Display requests
+                requests.forEach(req => {
+                    const row = createEmissionVerificationRow(req);
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Failed to load requests. Please try again.</td></tr>';
+            }
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">API client not available</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading emission verification tasks:', error);
+        const tbody = document.querySelector('.table tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Error: ${error.message || 'Failed to load requests'}</td></tr>`;
+        }
+    }
+}
+
+function createEmissionVerificationRow(request) {
+    const row = document.createElement('tr');
+    const vehicle = request.vehicle || {};
+    const owner = request.owner || {};
+    const requestDate = request.created_at ? new Date(request.created_at).toLocaleDateString() : 'N/A';
+    
+    row.innerHTML = `
+        <td>${request.id.substring(0, 8)}...</td>
+        <td>
+            <div class="vehicle-info">
+                <strong>${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</strong>
+            </div>
+        </td>
+        <td>${vehicle.plate_number || 'N/A'}</td>
+        <td>${owner.first_name || ''} ${owner.last_name || 'Unknown'}</td>
+        <td>${requestDate}</td>
+        <td><span class="status-badge status-${request.status?.toLowerCase() || 'pending'}">${request.status || 'PENDING'}</span></td>
+        <td>
+            <button class="btn-primary btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">Approve</button>
+            <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">Reject</button>
+            <button class="btn-secondary btn-sm" onclick="handleEmissionReviewFromRequest('${request.id}')">Review</button>
+        </td>
+    `;
+    return row;
+}
+
+// Wrapper functions for API-based approval/rejection
+async function handleEmissionApproveFromRequest(requestId) {
+    try {
+        if (typeof APIClient !== 'undefined') {
+            const apiClient = new APIClient();
+            const response = await apiClient.post('/api/emission/verify/approve', {
+                requestId: requestId,
+                notes: 'Emission test approved by verifier'
+            });
+            
+            if (response && response.success) {
+                ToastNotification.show('Emission test approved successfully!', 'success');
+                loadEmissionVerificationTasks(); // Reload tasks
+            } else {
+                throw new Error(response?.error || 'Failed to approve');
+            }
+        }
+    } catch (error) {
+        console.error('Error approving emission test:', error);
+        ToastNotification.show('Failed to approve emission test: ' + error.message, 'error');
+    }
+}
+
+async function handleEmissionRejectFromRequest(requestId) {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (!reason) return;
+    
+    try {
+        if (typeof APIClient !== 'undefined') {
+            const apiClient = new APIClient();
+            const response = await apiClient.post('/api/emission/verify/reject', {
+                requestId: requestId,
+                reason: reason,
+                notes: reason
+            });
+            
+            if (response && response.success) {
+                ToastNotification.show('Emission test rejected.', 'warning');
+                loadEmissionVerificationTasks(); // Reload tasks
+            } else {
+                throw new Error(response?.error || 'Failed to reject');
+            }
+        }
+    } catch (error) {
+        console.error('Error rejecting emission test:', error);
+        ToastNotification.show('Failed to reject emission test: ' + error.message, 'error');
+    }
+}
+
+function handleEmissionReviewFromRequest(requestId) {
+    window.location.href = `document-viewer.html?requestId=${requestId}&returnTo=verifier-dashboard.html`;
 }
 
 async function handleEmissionApprove(e) {

@@ -9,7 +9,8 @@ const { authorizeRole } = require('../middleware/authorize');
 const storageService = require('../services/storageService');
 
 // Get all HPG clearance requests
-router.get('/requests', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
+// Note: 'hpg_admin' role doesn't exist in enum, so we allow 'admin' role and check email pattern
+router.get('/requests', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { status } = req.query;
         

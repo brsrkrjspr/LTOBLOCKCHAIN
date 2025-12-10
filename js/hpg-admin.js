@@ -42,38 +42,61 @@ const HPGDashboard = {
 
     loadPendingRequests: async function() {
         try {
-            // Placeholder: Replace with actual API call
-            // Example: const response = await APIClient.get('/api/hpg/requests/pending');
-            const requests = [];
-
             const tbody = document.getElementById('pendingRequestsTableBody');
-            if (tbody) {
-                if (requests.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No pending requests</td></tr>';
+            if (!tbody) return;
+            
+            // Show loading state
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading requests...</td></tr>';
+            
+            // Call API to get HPG requests
+            if (typeof APIClient !== 'undefined') {
+                const apiClient = new APIClient();
+                const response = await apiClient.get('/api/hpg/requests?status=PENDING');
+                
+                if (response && response.success && response.requests) {
+                    const requests = response.requests;
+                    
+                    if (requests.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No pending requests</td></tr>';
+                    } else {
+                        tbody.innerHTML = requests.map(req => {
+                            const requestDate = req.created_at ? new Date(req.created_at).toLocaleDateString() : 'N/A';
+                            const vehicleInfo = req.vehicle || {};
+                            const ownerInfo = req.owner || {};
+                            
+                            return `
+                                <tr>
+                                    <td><strong>${req.id.substring(0, 8)}...</strong></td>
+                                    <td>${ownerInfo.first_name || ''} ${ownerInfo.last_name || 'Unknown'}</td>
+                                    <td><span class="badge badge-plate">${vehicleInfo.plate_number || 'N/A'}</span></td>
+                                    <td>${vehicleInfo.vehicle_type || 'N/A'}</td>
+                                    <td><span class="badge badge-purpose">${req.purpose || 'Verification'}</span></td>
+                                    <td>${requestDate}</td>
+                                    <td><span class="status-badge status-${req.status?.toLowerCase() || 'pending'}">${req.status || 'PENDING'}</span></td>
+                                    <td>
+                                        <a href="hpg-verification-form.html?requestId=${req.id}" class="btn-primary btn-sm">
+                                            <i class="fas fa-check"></i> Verify
+                                        </a>
+                                        <a href="hpg-requests-list.html?requestId=${req.id}" class="btn-secondary btn-sm">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
                 } else {
-                    tbody.innerHTML = requests.map(req => `
-                        <tr>
-                            <td><strong>${req.id}</strong></td>
-                            <td>${req.ownerName}</td>
-                            <td><span class="badge badge-plate">${req.plateNumber}</span></td>
-                            <td>${req.vehicleType}</td>
-                            <td><span class="badge badge-purpose">${req.purpose}</span></td>
-                            <td>${req.requestDate}</td>
-                            <td><span class="status-badge status-${req.status}">${req.status.charAt(0).toUpperCase() + req.status.slice(1)}</span></td>
-                            <td>
-                                <a href="hpg-verification-form.html?requestId=${req.id}" class="btn-primary btn-sm">
-                                    <i class="fas fa-check"></i> Verify
-                                </a>
-                                <a href="hpg-requests-list.html" class="btn-secondary btn-sm">
-                                    <i class="fas fa-eye"></i> View
-                                </a>
-                            </td>
-                        </tr>
-                    `).join('');
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #e74c3c;">Failed to load requests. Please try again.</td></tr>';
                 }
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">API client not available</td></tr>';
             }
         } catch (error) {
             console.error('Error loading pending requests:', error);
+            const tbody = document.getElementById('pendingRequestsTableBody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #e74c3c;">Error: ${error.message || 'Failed to load requests'}</td></tr>`;
+            }
         }
     },
 

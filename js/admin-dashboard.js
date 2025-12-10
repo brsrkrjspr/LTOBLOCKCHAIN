@@ -1435,7 +1435,12 @@ async function sendVerificationRequest(vehicleId, requestType) {
         }
     } catch (error) {
         console.error(`Error sending ${requestType} request:`, error);
-        ToastNotification.show(`Failed to send ${typeNames[requestType]} request: ${error.message}`, 'error');
+        const typeNames = {
+            'hpg': 'HPG Clearance',
+            'insurance': 'Insurance Verification',
+            'emission': 'Emission Verification'
+        };
+        ToastNotification.show(`Failed to send ${typeNames[requestType] || requestType} request: ${error.message}`, 'error');
     } finally {
         const button = event?.target || document.querySelector(`[onclick*="sendVerificationRequest('${vehicleId}', '${requestType}')"]`);
         if (button) LoadingManager.hide(button);

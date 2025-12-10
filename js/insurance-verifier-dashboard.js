@@ -34,53 +34,99 @@ function updateInsuranceStats() {
     }
 }
 
-function loadInsuranceVerificationTasks() {
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+async function loadInsuranceVerificationTasks() {
     const tbody = document.getElementById('insuranceVerificationTableBody');
     
     if (!tbody) return;
     
-    // Clear existing rows
-    tbody.innerHTML = '';
+    // Show loading state
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading verification requests...</td></tr>';
     
-    if (applications.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
-                    No applications with insurance certificates found
-                </td>
-            </tr>
-        `;
-        return;
+    try {
+        // Call API to get insurance verification requests
+        if (typeof APIClient !== 'undefined') {
+            const apiClient = new APIClient();
+            const response = await apiClient.get('/api/insurance/requests?status=PENDING');
+            
+            if (response && response.success && response.requests) {
+                const requests = response.requests;
+                
+                if (requests.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
+                                No pending insurance verification requests
+                            </td>
+                        </tr>
+                    `;
+                    updateInsuranceSummary([]);
+                    return;
+                }
+                
+                // Clear existing rows
+                tbody.innerHTML = '';
+                
+                // Display requests
+                requests.forEach(req => {
+                    const row = createInsuranceVerificationRowFromRequest(req);
+                    tbody.appendChild(row);
+                });
+                
+                // Update summary
+                updateInsuranceSummary(requests);
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Failed to load requests. Please try again.</td></tr>';
+            }
+        } else {
+            // Fallback to localStorage if API not available
+            const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            const applicationsWithInsurance = applications.filter(app => 
+                app.documents && app.documents.insuranceCert
+            );
+            
+            if (applicationsWithInsurance.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
+                            No applications with insurance certificates found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            applicationsWithInsurance.forEach(app => {
+                const row = createInsuranceVerificationRow(app);
+                tbody.appendChild(row);
+            });
+            updateInsuranceSummary(applicationsWithInsurance);
+        }
+    } catch (error) {
+        console.error('Error loading insurance verification tasks:', error);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Error: ${error.message || 'Failed to load requests'}</td></tr>`;
     }
+}
+
+function createInsuranceVerificationRowFromRequest(request) {
+    const row = document.createElement('tr');
+    const vehicle = request.vehicle || {};
+    const owner = request.owner || {};
+    const requestDate = request.created_at ? new Date(request.created_at).toLocaleDateString() : 'N/A';
     
-    // Filter applications that have insurance certificates
-    const applicationsWithInsurance = applications.filter(app => 
-        app.documents && app.documents.insuranceCert
-    );
-    
-    if (applicationsWithInsurance.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
-                    No applications with insurance certificates found
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    // Sort by submission date (newest first)
-    applicationsWithInsurance.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
-    
-    // Display applications
-    applicationsWithInsurance.forEach(app => {
-        const row = createInsuranceVerificationRow(app);
-        tbody.appendChild(row);
-    });
-        
-        // Update summary
-    updateInsuranceSummary(applicationsWithInsurance);
+    row.innerHTML = `
+        <td>${request.id.substring(0, 8)}...</td>
+        <td>${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</td>
+        <td>${vehicle.plate_number || 'N/A'}</td>
+        <td>${owner.first_name || ''} ${owner.last_name || 'Unknown'}</td>
+        <td>${requestDate}</td>
+        <td><span class="status-badge status-${request.status?.toLowerCase() || 'pending'}">${request.status || 'PENDING'}</span></td>
+        <td>
+            <button class="btn-primary btn-sm" onclick="approveInsurance('${request.id}')">Approve</button>
+            <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">Reject</button>
+        </td>
+    `;
+    return row;
 }
 
 function createInsuranceVerificationRow(application) {

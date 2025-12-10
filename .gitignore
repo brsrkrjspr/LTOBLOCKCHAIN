@@ -46,3 +46,4 @@ build/
 # Wallet files (contain sensitive keys)
 wallet/*
 !wallet/.gitkeep
+fix.md

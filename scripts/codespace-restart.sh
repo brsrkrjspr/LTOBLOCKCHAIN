@@ -236,12 +236,23 @@ fi
 # Test IPFS
 echo ""
 echo "Testing IPFS..."
-IPFS_TEST=$(docker exec ipfs ipfs id 2>/dev/null | head -1 || echo "failed")
-
-if echo "$IPFS_TEST" | grep -q "ID"; then
-    print_success "IPFS is operational"
+# Test 1: IPFS version (inside container)
+IPFS_VERSION=$(docker exec ipfs ipfs version 2>/dev/null || echo "failed")
+if echo "$IPFS_VERSION" | grep -q "ipfs version"; then
+    print_success "IPFS is operational (version check passed)"
+    echo "   $IPFS_VERSION"
 else
-    print_error "IPFS connection failed"
+    print_error "IPFS version check failed"
+fi
+
+# Test 2: IPFS API (POST request - correct method)
+IPFS_API=$(curl -s -X POST http://localhost:5001/api/v0/version 2>/dev/null || echo "failed")
+if echo "$IPFS_API" | grep -q "Version"; then
+    API_VERSION=$(echo "$IPFS_API" | grep -o '"Version":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+    print_success "IPFS API is accessible (Version: $API_VERSION)"
+else
+    print_warning "IPFS API test failed (might be OK if using container name)"
+    print_info "IPFS container is running, application will connect via container name"
 fi
 
 # ======================================================

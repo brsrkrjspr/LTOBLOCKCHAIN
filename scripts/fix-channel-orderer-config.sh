@@ -47,20 +47,31 @@ if [ ! -f "fabric-network/channel-artifacts/channel.tx" ]; then
 fi
 log_success "Channel transaction regenerated"
 
-# Step 2: Stop containers temporarily
-log_info "Step 2: Stopping peer to update channel..."
-docker-compose -f docker-compose.unified.yml stop peer0.lto.gov.ph
+# Step 2: Stop all containers
+log_info "Step 2: Stopping all containers..."
+docker-compose -f docker-compose.unified.yml down
 
-# Step 3: Delete old channel data from peer
-log_info "Step 3: Cleaning up old channel data..."
-docker volume rm ltoblockchain_peer-data 2>/dev/null || log_warn "Volume already removed or doesn't exist"
+# Step 3: Remove volumes to delete channel data
+log_info "Step 3: Removing volumes to delete channel data..."
+docker volume rm ltoblockchain_peer-data ltoblockchain_orderer-data 2>/dev/null || log_warn "Some volumes may not exist (this is OK)"
 
-# Step 4: Restart peer
-log_info "Step 4: Restarting peer..."
-docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph
+# Step 4: Restart all containers
+log_info "Step 4: Restarting all containers..."
+docker-compose -f docker-compose.unified.yml up -d
 
-log_info "Waiting for peer to start (20 seconds)..."
-sleep 20
+log_info "Waiting for containers to start (30 seconds)..."
+sleep 30
+
+# Verify containers are running
+if ! docker ps | grep -q "orderer.lto.gov.ph"; then
+    log_error "Orderer is not running!"
+    exit 1
+fi
+if ! docker ps | grep -q "peer0.lto.gov.ph"; then
+    log_error "Peer is not running!"
+    exit 1
+fi
+log_success "All containers are running"
 
 # Step 5: Delete old channel block if exists
 log_info "Step 5: Cleaning up old channel artifacts..."

@@ -360,7 +360,32 @@ class OptimizedFabricService {
         try {
             // Query all vehicles from chaincode
             const vehiclesResult = await this.contract.evaluateTransaction('GetAllVehicles');
-            const vehicles = JSON.parse(vehiclesResult.toString());
+            
+            if (!vehiclesResult || vehiclesResult.length === 0) {
+                console.log('⚠️  GetAllVehicles returned empty result');
+                return [];
+            }
+            
+            const vehiclesJson = vehiclesResult.toString();
+            if (!vehiclesJson || vehiclesJson.trim() === '') {
+                console.log('⚠️  GetAllVehicles returned empty string');
+                return [];
+            }
+            
+            let vehicles;
+            try {
+                vehicles = JSON.parse(vehiclesJson);
+            } catch (parseError) {
+                console.error('❌ Failed to parse vehicles JSON:', parseError);
+                console.error('Raw response:', vehiclesJson.substring(0, 200));
+                throw new Error(`Invalid JSON response from chaincode: ${parseError.message}`);
+            }
+            
+            // Ensure vehicles is an array
+            if (!Array.isArray(vehicles)) {
+                console.warn('⚠️  GetAllVehicles did not return an array, got:', typeof vehicles);
+                return [];
+            }
             
             // Build transactions from vehicle histories
             const transactions = [];
@@ -434,7 +459,27 @@ class OptimizedFabricService {
 
         try {
             // Get all transactions
-            const transactions = await this.getAllTransactions();
+            let transactions;
+            try {
+                transactions = await this.getAllTransactions();
+            } catch (txError) {
+                console.error('❌ Failed to get transactions for blocks:', txError);
+                // Return empty blocks array if transactions can't be retrieved
+                return [{
+                    blockNumber: 0,
+                    blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                    previousHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                    timestamp: new Date().toISOString(),
+                    transactions: [],
+                    transactionCount: 0,
+                    dataHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+                }];
+            }
+            
+            // Ensure transactions is an array
+            if (!Array.isArray(transactions)) {
+                transactions = [];
+            }
             
             // Group transactions into blocks (simulate block structure)
             const transactionsPerBlock = 10;

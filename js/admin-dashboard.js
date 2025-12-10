@@ -608,11 +608,13 @@ function getStatusText(status) {
 }
 
 async function viewApplication(applicationId) {
+    console.log('🔍 viewApplication called with ID:', applicationId);
     try {
         // Check authentication first
         const token = localStorage.getItem('token') || localStorage.getItem('authToken');
         
         if (!token) {
+            console.warn('❌ No token found');
             showNotification('Please login to view applications', 'error');
             window.location.href = 'login-signup.html';
             return;
@@ -620,6 +622,7 @@ async function viewApplication(applicationId) {
         
         // Check if it's a demo token
         if (token.startsWith('demo-token-')) {
+            console.warn('❌ Demo token detected');
             showNotification('Demo accounts cannot access admin features. Please login with a real admin account.', 'error');
             localStorage.clear();
             setTimeout(() => {
@@ -628,14 +631,18 @@ async function viewApplication(applicationId) {
             return;
         }
         
+        console.log('✅ Token valid, loading application...');
+        
         // Try to load from API first
         let application = null;
         
         if (token && typeof APIClient !== 'undefined') {
             try {
                 const apiClient = new APIClient();
+                console.log('📡 Calling API:', `/api/vehicles/id/${applicationId}`);
                 // Use /id/:id route for UUID vehicle IDs
                 const response = await apiClient.get(`/api/vehicles/id/${applicationId}`);
+                console.log('📡 API Response:', response);
                 
                 if (response && response.success && response.vehicle) {
                     const vehicle = response.vehicle;
@@ -654,7 +661,8 @@ async function viewApplication(applicationId) {
                         owner: {
                             firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
                             lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
-                            email: vehicle.owner_email || 'unknown@example.com'
+                            email: vehicle.owner_email || 'unknown@example.com',
+                            phone: vehicle.owner_phone || 'N/A'
                         },
                         status: vehicle.status?.toLowerCase() || 'submitted',
                         submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
@@ -662,33 +670,64 @@ async function viewApplication(applicationId) {
                         documents: vehicle.documents || [],
                         verifications: vehicle.verifications || []
                     };
+                    console.log('✅ Application loaded from API:', application);
                 }
             } catch (apiError) {
-                console.warn('API load failed, trying localStorage:', apiError);
+                console.warn('⚠️ API load failed, trying localStorage:', apiError);
+                console.error('API Error details:', apiError);
             }
         }
         
         // Fallback to localStorage
         if (!application) {
+            console.log('📦 Loading from localStorage...');
             const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
             application = applications.find(app => app.id === applicationId);
+            if (application) {
+                console.log('✅ Application found in localStorage:', application);
+            }
         }
         
         if (!application) {
+            console.error('❌ Application not found');
             showNotification('Application not found', 'error');
             return;
         }
         
+        console.log('📋 Showing modal for application:', application.id);
         showApplicationModal(application);
     } catch (error) {
-        console.error('Error viewing application:', error);
-        showNotification('Failed to load application details', 'error');
+        console.error('❌ Error viewing application:', error);
+        console.error('Error stack:', error.stack);
+        showNotification('Failed to load application details: ' + error.message, 'error');
     }
 }
 
+// Make viewApplication globally accessible
+window.viewApplication = viewApplication;
+
 function showApplicationModal(application) {
+    console.log('📋 showApplicationModal called with:', application);
+    
+    // Remove any existing modals first
+    const existingModal = document.querySelector('.modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.style.display = 'flex'; // Ensure modal is visible
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.zIndex = '10000';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
@@ -816,7 +855,7 @@ function showApplicationModal(application) {
                         <div class="status-info">
                             <p><strong>Status:</strong> <span class="status-badge status-${application.status}">${getStatusText(application.status)}</span></p>
                             <p><strong>Submitted:</strong> ${new Date(application.submittedDate).toLocaleString()}</p>
-                            <p><strong>Last Updated:</strong> ${new Date(application.lastUpdated).toLocaleString()}</p>
+                            ${application.lastUpdated ? `<p><strong>Last Updated:</strong> ${new Date(application.lastUpdated).toLocaleString()}</p>` : ''}
                         </div>
                     </div>
                 </div>
@@ -832,13 +871,39 @@ function showApplicationModal(application) {
     `;
     
     document.body.appendChild(modal);
+    console.log('✅ Modal appended to body');
+    
+    // Ensure modal content is styled properly
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.style.maxWidth = '90%';
+        modalContent.style.maxHeight = '90vh';
+        modalContent.style.overflowY = 'auto';
+        modalContent.style.backgroundColor = 'white';
+        modalContent.style.borderRadius = '8px';
+        modalContent.style.padding = '0';
+        modalContent.style.margin = '20px';
+    }
     
     // Close modal when clicking outside
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
+            console.log('Closing modal (clicked outside)');
             modal.remove();
         }
     });
+    
+    // Close modal with Escape key
+    const escapeHandler = function(e) {
+        if (e.key === 'Escape') {
+            console.log('Closing modal (Escape key)');
+            modal.remove();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
+    
+    console.log('✅ Modal setup complete');
 }
 
 async function approveApplication(applicationId) {

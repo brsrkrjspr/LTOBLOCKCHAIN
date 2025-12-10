@@ -183,8 +183,12 @@
 
             console.log('Attempting login with:', email, role);
             
-            // Check if it's a test credential
-            if (testCredentials[email] && testCredentials[email].password === password) {
+            // IMPORTANT: Admin accounts MUST use real API, never demo tokens
+            // This ensures admin has proper JWT token with admin role
+            const isAdminAccount = email === 'admin@lto.gov.ph' || role === 'admin';
+            
+            // Check if it's a test credential (but skip for admin accounts)
+            if (!isAdminAccount && testCredentials[email] && testCredentials[email].password === password) {
                 // Store user data
                 const cred = testCredentials[email];
                 const userData = {
@@ -214,9 +218,6 @@
                         case 'hpg_admin':
                             window.location.href = 'hpg-admin-dashboard.html';
                             break;
-                        case 'admin':
-                            window.location.href = 'admin-dashboard.html';
-                            break;
                         case 'insurance_verifier':
                             window.location.href = 'insurance-verifier-dashboard.html';
                             break;
@@ -233,7 +234,7 @@
                 return;
             }
             
-            // Call backend login API for real credentials
+            // Call backend login API for real credentials (ALWAYS for admin, or if not in test credentials)
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
@@ -252,9 +253,20 @@
                         localStorage.setItem('currentUser', JSON.stringify(result.user));
                     }
                     if (result.token) {
+                        // IMPORTANT: Clear any demo tokens first
+                        if (localStorage.getItem('authToken')?.startsWith('demo-token-')) {
+                            localStorage.removeItem('authToken');
+                            localStorage.removeItem('token');
+                        }
                         localStorage.setItem('authToken', result.token);
                         localStorage.setItem('token', result.token);
                     }
+                    
+                    console.log('✅ Real API login successful:', { 
+                        email: result.user?.email, 
+                        role: result.user?.role,
+                        tokenType: result.token?.startsWith('demo-token-') ? 'demo' : 'JWT'
+                    });
                     
                     showNotification('Login successful! Redirecting to dashboard...', 'success');
                     

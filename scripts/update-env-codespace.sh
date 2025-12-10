@@ -17,8 +17,8 @@ cat >> "$ENV_FILE" << 'EOF'
 DB_HOST=postgres
 DB_PORT=5432
 
-# IPFS - use container name
-IPFS_HOST=ipfs
+# IPFS - use localhost (app runs on host, IPFS port is exposed)
+IPFS_HOST=localhost
 IPFS_PORT=5001
 IPFS_PROTOCOL=http
 STORAGE_MODE=ipfs

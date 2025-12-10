@@ -62,12 +62,13 @@ sed -i '/^IPFS_PROTOCOL=/d' "$ENV_FILE" 2>/dev/null || true
 sed -i '/^STORAGE_MODE=/d' "$ENV_FILE" 2>/dev/null || true
 
 # Add correct IPFS configuration
+# Note: Use 'localhost' not 'ipfs' because app runs on host, not in container
 cat >> "$ENV_FILE" << 'EOF'
 
 # ============================================
 # IPFS Configuration (Real Service - No Fallbacks)
 # ============================================
-IPFS_HOST=ipfs
+IPFS_HOST=localhost
 IPFS_PORT=5001
 IPFS_PROTOCOL=http
 STORAGE_MODE=ipfs
@@ -103,7 +104,7 @@ echo ""
 print_success "IPFS is configured for real service (no fallbacks)"
 echo ""
 echo "Configuration Summary:"
-echo "  - IPFS_HOST: ipfs (container name for Codespace)"
+echo "  - IPFS_HOST: localhost (app runs on host, IPFS port exposed)"
 echo "  - IPFS_PORT: 5001"
 echo "  - STORAGE_MODE: ipfs (no fallbacks)"
 echo ""

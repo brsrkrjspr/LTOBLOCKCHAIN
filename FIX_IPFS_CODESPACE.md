@@ -45,15 +45,15 @@ Edit or create `.env` file:
 
 ```bash
 # Add or update these lines in .env:
-IPFS_HOST=ipfs
+IPFS_HOST=localhost
 IPFS_PORT=5001
 IPFS_PROTOCOL=http
 STORAGE_MODE=ipfs
 ```
 
 **Important:**
-- `IPFS_HOST=ipfs` (container name, not `localhost`) - for Codespace
-- `STORAGE_MODE=ipfs` (not `auto` or `local`) - no fallbacks
+- `IPFS_HOST=localhost` (app runs on host, IPFS port is exposed to host)
+- `STORAGE_MODE=ipfs` (not `auto` or `local`) - no fallbacks, real service only
 
 ### Step 4: Verify Configuration
 

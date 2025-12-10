@@ -99,14 +99,14 @@ class VehicleRegistrationContract extends Contract {
                 await ctx.stub.putState(plateKey, Buffer.from(vehicle.vin));
             }
 
-            // Emit event
-            ctx.stub.setEvent('VehicleRegistered', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('VehicleRegistered', Buffer.from(JSON.stringify({
                 vin: vehicle.vin,
                 plateNumber: vehicle.plateNumber,
                 owner: vehicle.owner.email,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Vehicle ${vehicle.vin} registered successfully`);
             return JSON.stringify({
@@ -210,14 +210,14 @@ class VehicleRegistrationContract extends Contract {
             // Store updated vehicle
             await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
 
-            // Emit event
-            ctx.stub.setEvent('VerificationUpdated', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('VerificationUpdated', Buffer.from(JSON.stringify({
                 vin: vin,
                 verifierType: verifierType,
                 status: status,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Verification status updated for vehicle ${vin}: ${verifierType} = ${status}`);
             return JSON.stringify({
@@ -287,14 +287,14 @@ class VehicleRegistrationContract extends Contract {
             // Store updated vehicle
             await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
 
-            // Emit event
-            ctx.stub.setEvent('OwnershipTransferred', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('OwnershipTransferred', Buffer.from(JSON.stringify({
                 vin: vin,
                 previousOwner: previousOwner.email,
                 newOwner: newOwner.email,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Ownership transferred for vehicle ${vin} from ${previousOwner.email} to ${newOwner.email}`);
             return JSON.stringify({
@@ -469,12 +469,12 @@ class VehicleRegistrationContract extends Contract {
             // Store updated vehicle
             await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
 
-            // Emit event
-            ctx.stub.setEvent('VehicleUpdated', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('VehicleUpdated', Buffer.from(JSON.stringify({
                 vin: vin,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Vehicle ${vin} updated successfully`);
             return JSON.stringify({
@@ -515,12 +515,12 @@ class VehicleRegistrationContract extends Contract {
                 await ctx.stub.deleteState(plateKey);
             }
 
-            // Emit event
-            ctx.stub.setEvent('VehicleDeleted', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('VehicleDeleted', Buffer.from(JSON.stringify({
                 vin: vin,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Vehicle ${vin} deleted successfully`);
             return JSON.stringify({
@@ -629,13 +629,13 @@ class VehicleRegistrationContract extends Contract {
             // Store updated vehicle
             await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
 
-            // Emit event
-            ctx.stub.setEvent('ViolationReported', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('ViolationReported', Buffer.from(JSON.stringify({
                 vin: vin,
                 violationType: violation.violationType,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Violation reported for vehicle ${vin}`);
             return JSON.stringify({
@@ -697,13 +697,13 @@ class VehicleRegistrationContract extends Contract {
             // Store updated vehicle
             await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
 
-            // Emit event
-            ctx.stub.setEvent('VehicleStolen', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('VehicleStolen', Buffer.from(JSON.stringify({
                 vin: vin,
                 reportNumber: report.reportNumber,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Vehicle ${vin} reported as stolen`);
             return JSON.stringify({
@@ -769,12 +769,12 @@ class VehicleRegistrationContract extends Contract {
             // Store updated vehicle
             await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
 
-            // Emit event
-            ctx.stub.setEvent('VehicleRecovered', {
+            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
+            ctx.stub.setEvent('VehicleRecovered', Buffer.from(JSON.stringify({
                 vin: vin,
                 timestamp: timestamp,
                 transactionId: txId
-            });
+            })));
 
             console.log(`Vehicle ${vin} marked as recovered`);
             return JSON.stringify({

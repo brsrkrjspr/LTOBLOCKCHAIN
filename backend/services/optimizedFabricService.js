@@ -126,8 +126,20 @@ class OptimizedFabricService {
             };
 
         } catch (error) {
+            // Check if it's a "not found" error
+            const errorMessage = error.message || error.toString();
+            const isNotFound = errorMessage.includes('not found') || 
+                              errorMessage.includes('Vehicle with VIN') ||
+                              errorMessage.includes('does not exist') ||
+                              (error.status === 500 && errorMessage.includes('Failed to get vehicle'));
+            
+            if (isNotFound) {
+                // Return a structured error that can be handled gracefully
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+            
             console.error('❌ Failed to get vehicle from Fabric:', error);
-            throw new Error(`Vehicle query failed: ${error.message}`);
+            throw new Error(`Vehicle query failed: ${errorMessage}`);
         }
     }
 
@@ -287,28 +299,46 @@ class OptimizedFabricService {
                             };
                         }
                     }
-                } catch (error) {
-                    // Vehicle not found yet - this is normal during retries
-                    // Only log if it's not a "not found" error or on last attempt
-                    if (attempt === maxRetries || !error.message.includes('not found')) {
-                        console.warn(`⚠️  Vehicle query attempt ${attempt}/${maxRetries}: ${error.message}`);
+                } catch (vehicleError) {
+                    // Vehicle not found yet - this is expected during propagation
+                    // Continue retrying
+                    if (attempt < maxRetries) {
+                        const isNotFoundError = vehicleError.message && (
+                            vehicleError.message.includes('not found') || 
+                            vehicleError.message.includes('Vehicle with VIN') ||
+                            vehicleError.message.includes('does not exist')
+                        );
+                        
+                        if (isNotFoundError) {
+                            console.log(`⏳ Vehicle ${vin} not yet available on ledger (attempt ${attempt}/${maxRetries}), retrying in ${retryDelay}ms...`);
+                        } else {
+                            console.warn(`⚠️  Vehicle query attempt ${attempt}/${maxRetries}: ${vehicleError.message}`);
+                        }
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                        continue;
+                    } else {
+                        // Max retries reached - vehicle still not found
+                        console.warn(`⚠️ Vehicle ${vin} not found on ledger after ${maxRetries} attempts. Transaction may still be propagating.`);
+                        return {
+                            status: 'pending',
+                            transactionId: transactionId,
+                            vin: vin,
+                            mode: 'fabric',
+                            message: 'Transaction submitted but vehicle not yet queryable on ledger'
+                        };
                     }
                 }
-                
-                if (attempt < maxRetries) {
-                    await new Promise(resolve => setTimeout(resolve, retryDelay));
-                    continue;
-                }
-                
-                return {
-                    status: 'pending',
-                    transactionId: transactionId,
-                    vin: vin,
-                    message: 'Transaction submitted but not yet committed after polling',
-                    attempts: attempt,
-                    mode: 'fabric'
-                };
             }
+            
+            // If we get here, all retries exhausted without finding vehicle
+            return {
+                status: 'pending',
+                transactionId: transactionId,
+                vin: vin,
+                message: 'Transaction submitted but not yet committed after polling',
+                attempts: maxRetries,
+                mode: 'fabric'
+            };
         } catch (error) {
             console.error('❌ Failed to get transaction status from Fabric:', error);
             return {

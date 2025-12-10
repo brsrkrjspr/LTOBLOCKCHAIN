@@ -195,22 +195,6 @@ async function updateOwnerStats() {
         statCards[2].textContent = stats.approvedApplications;
         statCards[3].textContent = stats.notifications;
     }
-        const statApprovedEl = document.getElementById('statApproved');
-        const statNotificationsEl = document.getElementById('statNotifications');
-        
-        if (statVehiclesEl) statVehiclesEl.textContent = '0';
-        if (statPendingEl) statPendingEl.textContent = '0';
-        if (statApprovedEl) statApprovedEl.textContent = '0';
-        if (statNotificationsEl) statNotificationsEl.textContent = '0';
-        
-        // Fallback to old method
-        if (statCards.length >= 4) {
-            statCards[0].textContent = '0';
-            statCards[1].textContent = '0';
-            statCards[2].textContent = '0';
-            statCards[3].textContent = '0';
-        }
-    }
 }
 
 function initializeApplicationTracking() {

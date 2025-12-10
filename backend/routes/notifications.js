@@ -358,6 +358,24 @@ LTO Lipa City Team
     }
 });
 
+// Get user notifications (for dashboard)
+router.get('/', authenticateToken, (req, res) => {
+    try {
+        // Return empty notifications array for now
+        // In production, fetch from database based on req.user.userId
+        res.json({
+            success: true,
+            notifications: []
+        });
+    } catch (error) {
+        console.error('Get notifications error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get notifications'
+        });
+    }
+});
+
 // Get notification history
 router.get('/history', authenticateToken, (req, res) => {
     try {

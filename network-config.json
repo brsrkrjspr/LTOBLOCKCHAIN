@@ -15,12 +15,8 @@
   "organizations": {
     "LTO": {
       "mspid": "LTOMSP",
-      "peers": [
-        "peer0.lto.gov.ph"
-      ],
-      "certificateAuthorities": [
-        "ca.lto.gov.ph"
-      ]
+      "peers": ["peer0.lto.gov.ph"],
+      "certificateAuthorities": []
     }
   },
   "peers": {
@@ -35,57 +31,21 @@
       }
     }
   },
-  "certificateAuthorities": {
-    "ca.lto.gov.ph": {
-      "url": "https://localhost:7054",
-      "caName": "ca.lto.gov.ph",
-      "tlsCACerts": {
-        "path": "fabric-network/crypto-config/peerOrganizations/lto.gov.ph/ca/ca.lto.gov.ph-cert.pem"
-      },
-      "httpOptions": {
-        "verify": false
-      }
-    }
-  },
   "orderers": {
-    "orderer1.lto.gov.ph": {
+    "orderer.lto.gov.ph": {
       "url": "grpcs://localhost:7050",
       "grpcOptions": {
-        "ssl-target-name-override": "orderer1.lto.gov.ph",
+        "ssl-target-name-override": "orderer.lto.gov.ph",
         "grpc.keepalive_time_ms": 600000
       },
       "tlsCACerts": {
-        "path": "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer1.lto.gov.ph/tls/ca.crt"
-      }
-    },
-    "orderer2.lto.gov.ph": {
-      "url": "grpcs://localhost:8050",
-      "grpcOptions": {
-        "ssl-target-name-override": "orderer2.lto.gov.ph",
-        "grpc.keepalive_time_ms": 600000
-      },
-      "tlsCACerts": {
-        "path": "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer2.lto.gov.ph/tls/ca.crt"
-      }
-    },
-    "orderer3.lto.gov.ph": {
-      "url": "grpcs://localhost:9050",
-      "grpcOptions": {
-        "ssl-target-name-override": "orderer3.lto.gov.ph",
-        "grpc.keepalive_time_ms": 600000
-      },
-      "tlsCACerts": {
-        "path": "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer3.lto.gov.ph/tls/ca.crt"
+        "path": "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/ca.crt"
       }
     }
   },
   "channels": {
     "ltochannel": {
-      "orderers": [
-        "orderer1.lto.gov.ph",
-        "orderer2.lto.gov.ph",
-        "orderer3.lto.gov.ph"
-      ],
+      "orderers": ["orderer.lto.gov.ph"],
       "peers": {
         "peer0.lto.gov.ph": {
           "endorsingPeer": true,
@@ -97,4 +57,3 @@
     }
   }
 }
-

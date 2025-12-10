@@ -20,6 +20,9 @@ This document chronicles all errors encountered during development and deploymen
 7. [Duplicate Plate Number Constraint](#issue-7-duplicate-plate-number-constraint-violation)
 8. [Transaction ID Too Long](#issue-8-transaction-id-too-long-for-database-column)
 9. [Network Configuration Mismatch](#issue-9-network-configuration-mismatch)
+10. [Crypto Materials Not Persisted](#issue-10-crypto-materials-not-persisted-to-github)
+11. [Genesis Block Mounting Error](#issue-11-genesis-block-mounting-error-docker-volume-cache)
+12. [Root network-config.json Mismatch](#issue-12-root-network-configjson-mismatch)
 
 ---
 
@@ -361,6 +364,121 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT * FROM vehicl
 docker exec ipfs ipfs id
 docker exec ipfs ipfs pin ls
 ```
+
+---
+
+## Issue #10: Crypto Materials Not Persisted to GitHub
+
+### Symptoms
+After Codespace restart:
+```
+❌ orderer.lto.gov.ph is NOT running
+```
+Or orderer container fails to start because crypto materials are from the old multi-orderer setup.
+
+### Root Cause
+Crypto materials were generated in Codespace (ephemeral) but **never committed to GitHub**. When Codespace restarts, it pulls from GitHub which has the OLD crypto materials with `orderer1/2/3.lto.gov.ph` instead of `orderer.lto.gov.ph`.
+
+The configuration files (`crypto-config.yaml`, `configtx.yaml`) were updated but the **generated** crypto materials were not regenerated locally and pushed.
+
+### Solution
+Generate crypto materials **locally** (where Docker Desktop is available) and push to GitHub:
+
+```bash
+# On local machine with Docker Desktop running:
+
+# 1. Remove old crypto
+rm -rf fabric-network/crypto-config
+
+# 2. Generate new crypto
+docker run --rm -v ${PWD}:/workspace hyperledger/fabric-tools:2.5 \
+    cryptogen generate --config=/workspace/config/crypto-config.yaml \
+    --output=/workspace/fabric-network/crypto-config
+
+# 3. Generate genesis block
+docker run --rm -v ${PWD}:/workspace -e FABRIC_CFG_PATH=/workspace/config \
+    hyperledger/fabric-tools:2.5 \
+    configtxgen -profile Genesis -channelID system-channel \
+    -outputBlock /workspace/fabric-network/channel-artifacts/genesis.block
+
+# 4. Generate channel transaction
+docker run --rm -v ${PWD}:/workspace -e FABRIC_CFG_PATH=/workspace/config \
+    hyperledger/fabric-tools:2.5 \
+    configtxgen -profile Channel -channelID ltochannel \
+    -outputCreateChannelTx /workspace/fabric-network/channel-artifacts/channel.tx
+
+# 5. Commit and push
+git add fabric-network/
+git commit -m "Regenerate crypto materials for single orderer"
+git push origin main
+```
+
+Then in Codespace:
+```bash
+sudo rm -rf fabric-network/crypto-config  # Remove root-owned files
+git pull origin main
+bash scripts/codespace-restart.sh
+```
+
+---
+
+## Issue #11: Genesis Block Mounting Error (Docker Volume Cache)
+
+### Symptoms
+```
+error mounting "genesis.block" to rootfs at "/var/hyperledger/orderer/orderer.genesis.block": 
+mount src=.../genesis.block, dst=...: not a directory
+```
+
+### Root Cause
+Docker previously created `genesis.block` as a **directory** (because the file didn't exist when the container first started). When you later try to mount a file, Docker sees a directory conflict.
+
+### Solution
+Clean up Docker volumes and restart:
+
+```bash
+# In Codespace:
+
+# Stop all containers and remove volumes
+docker-compose -f docker-compose.unified.yml down -v
+
+# Remove any orphan containers
+docker rm -f $(docker ps -aq) 2>/dev/null || true
+
+# Prune Docker system
+docker system prune -f
+
+# Restart
+bash scripts/codespace-restart.sh
+```
+
+### Prevention
+The restart script should check if containers need a full cleanup before starting.
+
+---
+
+## Issue #12: Root network-config.json Mismatch
+
+### Symptoms
+```
+ENOENT: no such file or directory, open 'fabric-network/crypto-config/ordererOrganizations/
+lto.gov.ph/orderers/orderer1.lto.gov.ph/tls/ca.crt'
+```
+
+### Root Cause
+Two `network-config.json` files existed:
+- `config/network-config.json` - Correct (single orderer)
+- `network-config.json` (root) - Wrong (referenced old orderer1/2/3)
+
+The application reads from the **root** file.
+
+### Solution
+Copy the correct config:
+```bash
+cp config/network-config.json network-config.json
+```
+
+Or ensure they stay synchronized.
 
 ---
 

@@ -105,25 +105,43 @@ if echo "$CC_COMMITTED" | grep -q "Version:"; then
 else
     print_info "Chaincode not committed, deploying..."
     
-    # Package chaincode
-    docker exec cli peer lifecycle chaincode package /opt/gopath/src/github.com/hyperledger/fabric/peer/vehicle-registration.tar.gz \
-        --path /opt/gopath/src/github.com/chaincode/vehicle-registration-production \
-        --lang node \
-        --label vehicle-registration_1.0
-    
-    print_success "Chaincode packaged"
-    
-    # Install chaincode
-    docker exec cli peer lifecycle chaincode install \
-        /opt/gopath/src/github.com/hyperledger/fabric/peer/vehicle-registration.tar.gz
-    
-    print_success "Chaincode installed"
-    sleep 10
-    
-    # Get package ID
-    PACKAGE_ID=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1 | \
-        grep "vehicle-registration_1.0" | \
-        sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+    # Check if chaincode is already installed
+    INSTALLED_OUTPUT=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1)
+    if echo "$INSTALLED_OUTPUT" | grep -q "vehicle-registration_1.0"; then
+        print_success "Chaincode already installed, getting package ID..."
+        PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | \
+            grep "vehicle-registration_1.0" | \
+            sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+    else
+        print_info "Installing chaincode..."
+        
+        # Package chaincode
+        docker exec cli peer lifecycle chaincode package /opt/gopath/src/github.com/hyperledger/fabric/peer/vehicle-registration.tar.gz \
+            --path /opt/gopath/src/github.com/chaincode/vehicle-registration-production \
+            --lang node \
+            --label vehicle-registration_1.0
+        
+        print_success "Chaincode packaged"
+        
+        # Install chaincode
+        INSTALL_OUTPUT=$(docker exec cli peer lifecycle chaincode install \
+            /opt/gopath/src/github.com/hyperledger/fabric/peer/vehicle-registration.tar.gz 2>&1)
+        
+        if [ $? -eq 0 ] || echo "$INSTALL_OUTPUT" | grep -q "already successfully installed"; then
+            print_success "Chaincode installed (or already installed)"
+        else
+            print_error "Chaincode installation failed"
+            echo "$INSTALL_OUTPUT"
+            exit 1
+        fi
+        
+        sleep 10
+        
+        # Get package ID
+        PACKAGE_ID=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1 | \
+            grep "vehicle-registration_1.0" | \
+            sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+    fi
     
     if [ -z "$PACKAGE_ID" ]; then
         print_error "Failed to get package ID. Showing installed chaincodes:"

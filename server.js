@@ -78,6 +78,10 @@ app.use('/api/documents', require('./backend/routes/documents'));
 app.use('/api/blockchain', require('./backend/routes/blockchain'));
 app.use('/api/ledger', require('./backend/routes/ledger'));
 app.use('/api/notifications', require('./backend/routes/notifications'));
+app.use('/api/lto', require('./backend/routes/lto'));
+app.use('/api/hpg', require('./backend/routes/hpg'));
+app.use('/api/insurance', require('./backend/routes/insurance'));
+app.use('/api/emission', require('./backend/routes/emission'));
 
 // Laptop-optimized routes
 app.use('/api/health', require('./backend/routes/health'));

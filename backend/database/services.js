@@ -330,6 +330,200 @@ async function markNotificationAsRead(notificationId, userId) {
     return result.rows[0] || null;
 }
 
+// ============================================
+// CLEARANCE REQUEST OPERATIONS
+// ============================================
+
+async function createClearanceRequest(requestData) {
+    const { vehicleId, requestType, requestedBy, purpose, notes, metadata, assignedTo } = requestData;
+    const result = await db.query(
+        `INSERT INTO clearance_requests 
+         (vehicle_id, request_type, requested_by, purpose, notes, metadata, assigned_to, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING')
+         RETURNING *`,
+        [vehicleId, requestType, requestedBy, purpose || null, notes || null, JSON.stringify(metadata || {}), assignedTo || null]
+    );
+    return result.rows[0];
+}
+
+async function getClearanceRequestById(id) {
+    const result = await db.query(
+        `SELECT cr.*, 
+                v.vin, v.plate_number, v.make, v.model, v.year,
+                u1.first_name || ' ' || u1.last_name as requested_by_name,
+                u2.first_name || ' ' || u2.last_name as assigned_to_name
+         FROM clearance_requests cr
+         JOIN vehicles v ON cr.vehicle_id = v.id
+         JOIN users u1 ON cr.requested_by = u1.id
+         LEFT JOIN users u2 ON cr.assigned_to = u2.id
+         WHERE cr.id = $1`,
+        [id]
+    );
+    return result.rows[0] || null;
+}
+
+async function getClearanceRequestsByVehicle(vehicleId) {
+    const result = await db.query(
+        `SELECT cr.*, 
+                u1.first_name || ' ' || u1.last_name as requested_by_name,
+                u2.first_name || ' ' || u2.last_name as assigned_to_name
+         FROM clearance_requests cr
+         LEFT JOIN users u1 ON cr.requested_by = u1.id
+         LEFT JOIN users u2 ON cr.assigned_to = u2.id
+         WHERE cr.vehicle_id = $1
+         ORDER BY cr.created_at DESC`,
+        [vehicleId]
+    );
+    return result.rows;
+}
+
+async function getClearanceRequestsByType(requestType, status = null) {
+    let query = `SELECT cr.*, 
+                        v.vin, v.plate_number, v.make, v.model, v.year,
+                        u1.first_name || ' ' || u1.last_name as requested_by_name,
+                        u2.first_name || ' ' || u2.last_name as assigned_to_name
+                 FROM clearance_requests cr
+                 JOIN vehicles v ON cr.vehicle_id = v.id
+                 LEFT JOIN users u1 ON cr.requested_by = u1.id
+                 LEFT JOIN users u2 ON cr.assigned_to = u2.id
+                 WHERE cr.request_type = $1`;
+    const params = [requestType];
+    
+    if (status) {
+        query += ' AND cr.status = $2';
+        params.push(status);
+    }
+    
+    query += ' ORDER BY cr.created_at DESC';
+    
+    const result = await db.query(query, params);
+    return result.rows;
+}
+
+async function getClearanceRequestsByStatus(status) {
+    const result = await db.query(
+        `SELECT cr.*, 
+                v.vin, v.plate_number, v.make, v.model, v.year,
+                u1.first_name || ' ' || u1.last_name as requested_by_name,
+                u2.first_name || ' ' || u2.last_name as assigned_to_name
+         FROM clearance_requests cr
+         JOIN vehicles v ON cr.vehicle_id = v.id
+         LEFT JOIN users u1 ON cr.requested_by = u1.id
+         LEFT JOIN users u2 ON cr.assigned_to = u2.id
+         WHERE cr.status = $1
+         ORDER BY cr.created_at DESC`,
+        [status]
+    );
+    return result.rows;
+}
+
+async function updateClearanceRequestStatus(id, status, metadata = null) {
+    let query = `UPDATE clearance_requests SET status = $1`;
+    const params = [status];
+    
+    if (status === 'COMPLETED' || status === 'APPROVED' || status === 'REJECTED') {
+        query += ', completed_at = CURRENT_TIMESTAMP';
+    }
+    
+    if (metadata) {
+        query += ', metadata = metadata || $2::jsonb';
+        params.push(JSON.stringify(metadata));
+    }
+    
+    query += ' WHERE id = $' + (params.length + 1) + ' RETURNING *';
+    params.push(id);
+    
+    const result = await db.query(query, params);
+    return result.rows[0] || null;
+}
+
+async function assignClearanceRequest(id, assignedTo) {
+    const result = await db.query(
+        `UPDATE clearance_requests 
+         SET assigned_to = $1, status = 'SENT', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [assignedTo, id]
+    );
+    return result.rows[0] || null;
+}
+
+// ============================================
+// CERTIFICATE OPERATIONS
+// ============================================
+
+async function createCertificate(certificateData) {
+    const { clearanceRequestId, vehicleId, certificateType, certificateNumber, filePath, ipfsCid, issuedBy, expiresAt, metadata } = certificateData;
+    const result = await db.query(
+        `INSERT INTO certificates 
+         (clearance_request_id, vehicle_id, certificate_type, certificate_number, file_path, ipfs_cid, issued_by, expires_at, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [clearanceRequestId || null, vehicleId, certificateType, certificateNumber, filePath || null, ipfsCid || null, issuedBy, expiresAt || null, JSON.stringify(metadata || {})]
+    );
+    
+    // Update clearance request with certificate_id
+    if (clearanceRequestId) {
+        await db.query(
+            'UPDATE clearance_requests SET certificate_id = $1 WHERE id = $2',
+            [result.rows[0].id, clearanceRequestId]
+        );
+    }
+    
+    return result.rows[0];
+}
+
+async function getCertificateById(id) {
+    const result = await db.query(
+        `SELECT c.*, 
+                v.vin, v.plate_number, v.make, v.model, v.year,
+                u.first_name || ' ' || u.last_name as issued_by_name
+         FROM certificates c
+         JOIN vehicles v ON c.vehicle_id = v.id
+         JOIN users u ON c.issued_by = u.id
+         WHERE c.id = $1`,
+        [id]
+    );
+    return result.rows[0] || null;
+}
+
+async function getCertificatesByVehicle(vehicleId) {
+    const result = await db.query(
+        `SELECT c.*, 
+                u.first_name || ' ' || u.last_name as issued_by_name
+         FROM certificates c
+         LEFT JOIN users u ON c.issued_by = u.id
+         WHERE c.vehicle_id = $1
+         ORDER BY c.issued_at DESC`,
+        [vehicleId]
+    );
+    return result.rows;
+}
+
+async function getCertificatesByRequest(clearanceRequestId) {
+    const result = await db.query(
+        `SELECT c.*, 
+                u.first_name || ' ' || u.last_name as issued_by_name
+         FROM certificates c
+         LEFT JOIN users u ON c.issued_by = u.id
+         WHERE c.clearance_request_id = $1
+         ORDER BY c.issued_at DESC`,
+        [clearanceRequestId]
+    );
+    return result.rows;
+}
+
+async function updateCertificateStatus(id, status) {
+    const result = await db.query(
+        `UPDATE certificates 
+         SET status = $1
+         WHERE id = $2
+         RETURNING *`,
+        [status, id]
+    );
+    return result.rows[0] || null;
+}
+
 module.exports = {
     // User operations
     getUserByEmail,
@@ -365,6 +559,22 @@ module.exports = {
     // Notification operations
     createNotification,
     getUserNotifications,
-    markNotificationAsRead
+    markNotificationAsRead,
+    
+    // Clearance request operations
+    createClearanceRequest,
+    getClearanceRequestById,
+    getClearanceRequestsByVehicle,
+    getClearanceRequestsByType,
+    getClearanceRequestsByStatus,
+    updateClearanceRequestStatus,
+    assignClearanceRequest,
+    
+    // Certificate operations
+    createCertificate,
+    getCertificateById,
+    getCertificatesByVehicle,
+    getCertificatesByRequest,
+    updateCertificateStatus
 };
 

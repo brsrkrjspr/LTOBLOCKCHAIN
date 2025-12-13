@@ -64,6 +64,18 @@ async function setupWallet() {
             'msp',
             'keystore'
         );
+        
+        if (!fs.existsSync(keyDir)) {
+            throw new Error(`Key directory not found: ${keyDir}`);
+        }
+        
+        // Find any key file (usually priv_sk or .pem)
+        const keyFiles = fs.readdirSync(keyDir).filter(f => f.endsWith('_sk') || f.endsWith('.pem'));
+        if (keyFiles.length === 0) {
+            throw new Error(`No key files found in: ${keyDir}`);
+        }
+        
+        const keyPath = path.join(keyDir, keyFiles[0]);
 
         // Check if certificate file exists
         if (!fs.existsSync(certPath)) {

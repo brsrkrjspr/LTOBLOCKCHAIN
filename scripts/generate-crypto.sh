@@ -44,10 +44,11 @@ WORKSPACE_PATH=$(pwd)/fabric-network
 
 echo "🔧 Generating certificates using Docker..."
 
-# Run cryptogen in Docker container
+# Run cryptogen in Docker container with user mapping to avoid permission issues
 docker run --rm \
     -v "$WORKSPACE_PATH:/workspace" \
     -w /workspace \
+    -u $(id -u):$(id -g) \
     hyperledger/fabric-tools:2.5 \
     cryptogen generate --config=./crypto-config.yaml --output=./crypto-config
 
@@ -58,6 +59,11 @@ else
     echo "❌ Failed to generate cryptographic materials"
     exit 1
 fi
+
+# Fix permissions (in case Docker still created files as root)
+echo "🔧 Fixing file permissions..."
+chmod -R 755 fabric-network/crypto-config 2>/dev/null || true
+chown -R $(whoami):$(whoami) fabric-network/crypto-config 2>/dev/null || true
 
 # Clean up temporary file
 rm -f fabric-network/crypto-config.yaml

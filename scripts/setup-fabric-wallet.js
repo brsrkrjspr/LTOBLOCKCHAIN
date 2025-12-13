@@ -74,11 +74,33 @@ async function setupWallet() {
 
         // Read certificate
         console.log('📄 Reading certificate from:', certPath);
-        const cert = fs.readFileSync(certPath).toString();
+        let cert;
+        try {
+            cert = fs.readFileSync(certPath).toString();
+        } catch (error) {
+            if (error.code === 'EACCES') {
+                console.error('❌ Permission denied reading certificate file');
+                console.error('💡 Run: sudo chmod -R 755 fabric-network/crypto-config');
+                console.error('💡 Or run: sudo chown -R $(whoami):$(whoami) fabric-network/crypto-config');
+                throw new Error('Permission denied. Please fix file permissions on crypto-config directory.');
+            }
+            throw error;
+        }
         
-        // Read private key (use the keyPath we found earlier)
+        // Read private key
         console.log('🔑 Reading private key from:', keyPath);
-        const key = fs.readFileSync(keyPath).toString();
+        let key;
+        try {
+            key = fs.readFileSync(keyPath).toString();
+        } catch (error) {
+            if (error.code === 'EACCES') {
+                console.error('❌ Permission denied reading private key file');
+                console.error('💡 Run: sudo chmod -R 755 fabric-network/crypto-config');
+                console.error('💡 Or run: sudo chown -R $(whoami):$(whoami) fabric-network/crypto-config');
+                throw new Error('Permission denied. Please fix file permissions on crypto-config directory.');
+            }
+            throw error;
+        }
 
         // Create identity
         console.log('👤 Creating identity...');

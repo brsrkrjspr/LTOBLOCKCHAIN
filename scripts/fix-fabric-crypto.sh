@@ -53,11 +53,12 @@ fi
 # Copy config to fabric-network
 cp crypto-config.yaml fabric-network/crypto-config.yaml 2>/dev/null || true
 
-# Generate using Docker
+# Generate using Docker with user mapping to avoid permission issues
 WORKSPACE_PATH=$(pwd)/fabric-network
 docker run --rm \
     -v "$WORKSPACE_PATH:/workspace" \
     -w /workspace \
+    -u $(id -u):$(id -g) \
     hyperledger/fabric-tools:2.5 \
     cryptogen generate --config=./crypto-config.yaml --output=./crypto-config
 
@@ -67,6 +68,11 @@ else
     print_error "Failed to generate crypto materials"
     exit 1
 fi
+
+# Fix permissions (in case Docker still created files as root)
+print_info "Fixing file permissions..."
+chmod -R 755 fabric-network/crypto-config 2>/dev/null || true
+chown -R $(whoami):$(whoami) fabric-network/crypto-config 2>/dev/null || true
 
 # Clean up
 rm -f fabric-network/crypto-config.yaml

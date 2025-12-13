@@ -62,6 +62,7 @@ print_status "Generating crypto materials with cryptogen..."
 docker run --rm \
     -v "${PROJECT_ROOT}/fabric-network:/fabric-network" \
     -w /fabric-network \
+    -u $(id -u):$(id -g) \
     hyperledger/fabric-tools:2.5 \
     cryptogen generate --config=crypto-config-simple.yaml --output=crypto-config
 

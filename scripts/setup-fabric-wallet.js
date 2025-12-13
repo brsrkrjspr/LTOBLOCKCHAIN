@@ -28,7 +28,8 @@ async function setupWallet() {
         }
 
         // Paths to certificate and key files
-        const certPath = path.join(
+        // Try to find the certificate file (name may vary)
+        const signcertsDir = path.join(
             process.cwd(),
             'fabric-network',
             'crypto-config',
@@ -37,9 +38,20 @@ async function setupWallet() {
             'users',
             'Admin@lto.gov.ph',
             'msp',
-            'signcerts',
-            'Admin@lto.gov.ph-cert.pem'
+            'signcerts'
         );
+        
+        if (!fs.existsSync(signcertsDir)) {
+            throw new Error(`Certificate directory not found: ${signcertsDir}`);
+        }
+        
+        // Find any .pem file in signcerts directory
+        const certFiles = fs.readdirSync(signcertsDir).filter(f => f.endsWith('.pem'));
+        if (certFiles.length === 0) {
+            throw new Error(`No certificate files found in: ${signcertsDir}`);
+        }
+        
+        const certPath = path.join(signcertsDir, certFiles[0]);
 
         const keyDir = path.join(
             process.cwd(),
@@ -60,28 +72,13 @@ async function setupWallet() {
             process.exit(1);
         }
 
-        // Check if key directory exists
-        if (!fs.existsSync(keyDir)) {
-            console.error('❌ Key directory not found:', keyDir);
-            console.error('💡 Make sure you have generated crypto material first');
-            process.exit(1);
-        }
-
         // Read certificate
-        console.log('📄 Reading certificate...');
+        console.log('📄 Reading certificate from:', certPath);
         const cert = fs.readFileSync(certPath).toString();
         
-        // Read private key (find the key file)
-        console.log('🔑 Reading private key...');
-        const keyFiles = fs.readdirSync(keyDir);
-        const keyFile = keyFiles.find(f => f.endsWith('_sk'));
-        
-        if (!keyFile) {
-            console.error('❌ Private key file not found in:', keyDir);
-            process.exit(1);
-        }
-
-        const key = fs.readFileSync(path.join(keyDir, keyFile)).toString();
+        // Read private key (use the keyPath we found earlier)
+        console.log('🔑 Reading private key from:', keyPath);
+        const key = fs.readFileSync(keyPath).toString();
 
         // Create identity
         console.log('👤 Creating identity...');

@@ -24,8 +24,20 @@ mkdir -p "$CRYPTO_DIR"
 echo "✅ Created crypto-config directory"
 
 # Copy crypto-config.yaml to fabric-network directory
-cp crypto-config.yaml fabric-network/crypto-config.yaml
-echo "✅ Copied crypto-config.yaml"
+# Check multiple possible locations
+if [ -f "crypto-config.yaml" ]; then
+    cp crypto-config.yaml fabric-network/crypto-config.yaml
+    echo "✅ Copied crypto-config.yaml from root"
+elif [ -f "config/crypto-config.yaml" ]; then
+    cp config/crypto-config.yaml fabric-network/crypto-config.yaml
+    echo "✅ Copied crypto-config.yaml from config/"
+elif [ -f "fabric-network/crypto-config-simple.yaml" ]; then
+    cp fabric-network/crypto-config-simple.yaml fabric-network/crypto-config.yaml
+    echo "✅ Copied crypto-config-simple.yaml"
+else
+    echo "❌ crypto-config.yaml not found in root, config/, or fabric-network/"
+    exit 1
+fi
 
 # Get absolute path for Docker volume mount
 WORKSPACE_PATH=$(pwd)/fabric-network

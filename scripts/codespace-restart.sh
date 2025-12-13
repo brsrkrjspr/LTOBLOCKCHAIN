@@ -31,6 +31,34 @@ cd /workspaces/LTOBLOCKCHAIN
 print_header "TrustChain LTO - Codespace Restart"
 
 # ======================================================
+# PHASE 0: Cleanup Old Fabric Data (Prevent Certificate Conflicts)
+# ======================================================
+print_header "Phase 0: Cleaning Up Old Fabric Data"
+
+print_info "Stopping containers and removing Fabric volumes..."
+print_info "This prevents certificate/blockchain state conflicts"
+
+# Stop containers first (don't remove volumes yet)
+docker-compose -f docker-compose.unified.yml down 2>/dev/null || true
+
+# Remove only Fabric volumes (orderer-data, peer-data, couchdb-data)
+# Keep data volumes (postgres-data, ipfs-data) for persistence
+print_info "Removing Fabric volumes (orderer-data, peer-data, couchdb-data)..."
+docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)$" | xargs -r docker volume rm 2>/dev/null || true
+
+print_success "Fabric volumes cleaned"
+
+# Remove old wallet to prevent "Access Denied" errors
+# (Wallet must match current crypto materials)
+print_info "Cleaning old wallet identities..."
+if [ -d "wallet" ]; then
+    rm -rf wallet/*
+    print_success "Old wallet identities removed"
+else
+    print_info "No existing wallet found"
+fi
+
+# ======================================================
 # PHASE 1: Start Docker Containers
 # ======================================================
 print_header "Phase 1: Starting Docker Containers"

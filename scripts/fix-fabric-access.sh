@@ -1,6 +1,9 @@
 #!/bin/bash
 # Quick fix for Fabric "access denied" error
 # Sets up admincerts and restarts peer
+# 
+# NOTE: If this doesn't work, the issue may be persistent volume conflicts.
+# Run: bash scripts/codespace-restart.sh (which now cleans volumes)
 
 set -e
 

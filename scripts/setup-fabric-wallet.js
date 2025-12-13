@@ -64,19 +64,24 @@ async function setupWallet() {
             'msp',
             'keystore'
         );
-
-        // Check if certificate file exists
-        if (!fs.existsSync(certPath)) {
-            console.error('❌ Certificate file not found:', certPath);
-            console.error('💡 Make sure you have generated crypto material first');
-            process.exit(1);
+        
+        if (!fs.existsSync(keyDir)) {
+            throw new Error(`Key directory not found: ${keyDir}`);
         }
+        
+        // Find any key file (usually priv_sk or .pem)
+        const keyFiles = fs.readdirSync(keyDir).filter(f => f.endsWith('_sk') || f.endsWith('.pem'));
+        if (keyFiles.length === 0) {
+            throw new Error(`No key files found in: ${keyDir}`);
+        }
+        
+        const keyPath = path.join(keyDir, keyFiles[0]);
 
         // Read certificate
         console.log('📄 Reading certificate from:', certPath);
         const cert = fs.readFileSync(certPath).toString();
         
-        // Read private key (use the keyPath we found earlier)
+        // Read private key
         console.log('🔑 Reading private key from:', keyPath);
         const key = fs.readFileSync(keyPath).toString();
 

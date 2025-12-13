@@ -65,6 +65,10 @@ echo "🔧 Fixing file permissions..."
 chmod -R 755 fabric-network/crypto-config 2>/dev/null || true
 chown -R $(whoami):$(whoami) fabric-network/crypto-config 2>/dev/null || true
 
+# Setup TLS certificates (required for Fabric 2.5 etcdraft)
+echo "🔐 Setting up TLS certificates..."
+bash scripts/setup-tls-certs.sh 2>/dev/null || echo "⚠️  TLS setup had issues, but continuing..."
+
 # Clean up temporary file
 rm -f fabric-network/crypto-config.yaml
 

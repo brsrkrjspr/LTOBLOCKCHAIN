@@ -74,6 +74,8 @@ Orderer: &OrdererDefaults
         Consenters:
             - Host: orderer.lto.gov.ph
               Port: 7050
+              ClientTLSCert: crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/server.crt
+              ServerTLSCert: crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/server.crt
     BatchTimeout: 2s
     BatchSize:
         MaxMessageCount: 10

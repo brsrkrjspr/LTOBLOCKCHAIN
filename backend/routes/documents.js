@@ -74,8 +74,8 @@ function mapDocumentType(type) {
     return mapping[type] || 'registration_cert';
 }
 
-// Upload document (for registration wizard - no auth required)
-router.post('/upload', upload.single('document'), async (req, res) => {
+// Upload document (requires authentication)
+router.post('/upload', authenticateToken, upload.single('document'), async (req, res) => {
     try {
         console.log('📤 Document upload request received');
         console.log('File info:', req.file ? {

@@ -4,9 +4,11 @@
 const express = require('express');
 const router = express.Router();
 const monitoringService = require('../services/monitoringService');
+const { authenticateToken } = require('../middleware/auth');
+const { authorizeRole } = require('../middleware/authorize');
 
-// Get system metrics
-router.get('/metrics', (req, res) => {
+// Get system metrics (admin only)
+router.get('/metrics', authenticateToken, authorizeRole(['admin']), (req, res) => {
     try {
         const metrics = monitoringService.getMetricsSummary();
         res.json({
@@ -23,8 +25,8 @@ router.get('/metrics', (req, res) => {
     }
 });
 
-// Get application statistics
-router.get('/stats', (req, res) => {
+// Get application statistics (admin only)
+router.get('/stats', authenticateToken, authorizeRole(['admin']), (req, res) => {
     try {
         const stats = monitoringService.getApplicationStats();
         res.json({
@@ -41,8 +43,8 @@ router.get('/stats', (req, res) => {
     }
 });
 
-// Get recent logs
-router.get('/logs', (req, res) => {
+// Get recent logs (admin only)
+router.get('/logs', authenticateToken, authorizeRole(['admin']), (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 100;
         const logs = monitoringService.getRecentLogs(limit);
@@ -62,8 +64,8 @@ router.get('/logs', (req, res) => {
     }
 });
 
-// Get health status
-router.get('/health', (req, res) => {
+// Get health status (admin only)
+router.get('/health', authenticateToken, authorizeRole(['admin']), (req, res) => {
     try {
         const health = monitoringService.getHealthStatus();
         res.json({
@@ -80,8 +82,8 @@ router.get('/health', (req, res) => {
     }
 });
 
-// Cleanup old logs
-router.post('/cleanup', (req, res) => {
+// Cleanup old logs (admin only)
+router.post('/cleanup', authenticateToken, authorizeRole(['admin']), (req, res) => {
     try {
         const daysToKeep = parseInt(req.body.daysToKeep) || 7;
         const result = monitoringService.cleanupOldLogs(daysToKeep);
@@ -100,8 +102,8 @@ router.post('/cleanup', (req, res) => {
     }
 });
 
-// Log custom event
-router.post('/log', (req, res) => {
+// Log custom event (admin only)
+router.post('/log', authenticateToken, authorizeRole(['admin']), (req, res) => {
     try {
         const { level, message, metadata } = req.body;
         

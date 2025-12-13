@@ -58,6 +58,28 @@ else
     print_info "No existing wallet found"
 fi
 
+# Verify crypto materials and channel artifacts exist
+print_info "Verifying crypto materials and channel artifacts..."
+if [ ! -d "fabric-network/crypto-config" ]; then
+    print_warning "Crypto materials not found! Regenerating..."
+    bash scripts/generate-crypto.sh
+    if [ $? -ne 0 ]; then
+        print_error "Failed to generate crypto materials"
+        exit 1
+    fi
+fi
+
+if [ ! -f "fabric-network/channel-artifacts/genesis.block" ]; then
+    print_warning "Genesis block not found! Regenerating channel artifacts..."
+    bash scripts/generate-channel-artifacts.sh
+    if [ $? -ne 0 ]; then
+        print_error "Failed to generate channel artifacts"
+        exit 1
+    fi
+fi
+
+print_success "Crypto materials and channel artifacts verified"
+
 # ======================================================
 # PHASE 1: Start Docker Containers
 # ======================================================

@@ -49,15 +49,56 @@ print_header "Step 2: Removing Fabric Volumes"
 docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)$" | xargs -r docker volume rm 2>/dev/null || true
 print_success "Fabric volumes removed"
 
-# Step 3: Clean wallet
-print_header "Step 3: Cleaning Wallet"
+# Step 3: Clean wallet and old artifacts
+print_header "Step 3: Cleaning Wallet and Old Artifacts"
 if [ -d "wallet" ]; then
     rm -rf wallet/*
     print_success "Wallet cleaned"
 fi
 
-# Step 4: Run full restart
-print_header "Step 4: Running Full Setup"
+# Remove old crypto and channel artifacts to force regeneration
+if [ -d "fabric-network/crypto-config" ]; then
+    print_info "Removing old crypto materials..."
+    rm -rf fabric-network/crypto-config
+    print_success "Old crypto materials removed"
+fi
+
+if [ -d "fabric-network/channel-artifacts" ]; then
+    print_info "Removing old channel artifacts..."
+    rm -rf fabric-network/channel-artifacts
+    print_success "Old channel artifacts removed"
+fi
+
+# Step 4: Regenerate Crypto Materials
+print_header "Step 4: Regenerating Cryptographic Materials"
+if [ ! -f "config/crypto-config.yaml" ] && [ ! -f "crypto-config.yaml" ]; then
+    print_error "crypto-config.yaml not found in config/ or root directory"
+    exit 1
+fi
+
+bash scripts/generate-crypto.sh
+if [ $? -ne 0 ]; then
+    print_error "Failed to generate crypto materials"
+    exit 1
+fi
+print_success "Crypto materials regenerated"
+
+# Step 5: Regenerate Channel Artifacts
+print_header "Step 5: Regenerating Channel Artifacts"
+if [ ! -f "config/configtx.yaml" ] && [ ! -f "configtx.yaml" ]; then
+    print_error "configtx.yaml not found in config/ or root directory"
+    exit 1
+fi
+
+bash scripts/generate-channel-artifacts.sh
+if [ $? -ne 0 ]; then
+    print_error "Failed to generate channel artifacts"
+    exit 1
+fi
+print_success "Channel artifacts regenerated"
+
+# Step 6: Run full restart
+print_header "Step 6: Running Full Setup"
 bash scripts/codespace-restart.sh
 
 print_header "Fresh Start Complete!"

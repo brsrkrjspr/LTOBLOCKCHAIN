@@ -31,8 +31,17 @@ mkdir -p "$CHANNEL_DIR"
 echo "✅ Created channel-artifacts directory"
 
 # Copy configtx.yaml to fabric-network directory
-cp configtx.yaml fabric-network/configtx.yaml
-echo "✅ Copied configtx.yaml"
+# Check multiple possible locations
+if [ -f "configtx.yaml" ]; then
+    cp configtx.yaml fabric-network/configtx.yaml
+    echo "✅ Copied configtx.yaml from root"
+elif [ -f "config/configtx.yaml" ]; then
+    cp config/configtx.yaml fabric-network/configtx.yaml
+    echo "✅ Copied configtx.yaml from config/"
+else
+    echo "❌ configtx.yaml not found in root or config/"
+    exit 1
+fi
 
 # Get absolute path for Docker volume mount
 WORKSPACE_PATH=$(pwd)/fabric-network

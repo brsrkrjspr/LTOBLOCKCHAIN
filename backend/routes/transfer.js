@@ -294,8 +294,7 @@ router.get('/requests/stats', authenticateToken, authorizeRole(['admin']), async
             reviewing: 0,
             approved: 0,
             rejected: 0,
-            completed: 0,
-            forwarded_to_hpg: 0
+            completed: 0
         };
         
         const result = await dbModule.query(
@@ -307,10 +306,7 @@ router.get('/requests/stats', authenticateToken, authorizeRole(['admin']), async
         result.rows.forEach(row => {
             stats.total += parseInt(row.count);
             const status = row.status.toLowerCase();
-            // Handle both snake_case and camelCase status values
-            if (status === 'forwarded_to_hpg' || status === 'forwardedtohpg') {
-                stats.forwarded_to_hpg = parseInt(row.count);
-            } else if (stats.hasOwnProperty(status)) {
+            if (stats.hasOwnProperty(status)) {
                 stats[status] = parseInt(row.count);
             }
         });
@@ -322,11 +318,9 @@ router.get('/requests/stats', authenticateToken, authorizeRole(['admin']), async
         
     } catch (error) {
         console.error('Get transfer stats error:', error);
-        console.error('Error details:', error.message, error.stack);
         res.status(500).json({
             success: false,
-            error: 'Internal server error',
-            message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to retrieve transfer statistics'
+            error: 'Internal server error'
         });
     }
 });

@@ -593,6 +593,39 @@
         .card-body {
             padding: 0;
         }
+        /* Fetch LTO Vehicle Details Button */
+        .btn-fetch-lto {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 8px rgba(41, 128, 185, 0.25);
+        }
+
+        .btn-fetch-lto:hover {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(41, 128, 185, 0.35);
+        }
+
+        .btn-fetch-lto:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(41, 128, 185, 0.3);
+        }
+
+        .btn-fetch-lto:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
     </style>
     <script>
         // Initialize user data
@@ -689,6 +722,92 @@
             window.location.href = 'hpg-verification-form.html?requestId=' + requestId;
         }
 
+        // Fetch LTO Vehicle Details - Navigate to verification form with request ID
+        function fetchLTOVehicleDetails(requestId) {
+            try {
+                // Find the request data from the current requests
+                let requestData = null;
+                
+                // Get from HPGRequests if available
+                if (typeof HPGRequests !== 'undefined') {
+                    requestData = HPGRequests.requests.find(r => r.id === requestId) || 
+                                 HPGRequests.filteredRequests.find(r => r.id === requestId);
+                }
+                
+                // If not found, try localStorage
+                if (!requestData) {
+                    const currentRequest = JSON.parse(localStorage.getItem('currentHPGRequest') || 'null');
+                    if (currentRequest && (currentRequest.requestId === requestId || currentRequest.id === requestId)) {
+                        requestData = currentRequest;
+                    }
+                }
+                
+                // If still not found, check submittedApplications
+                if (!requestData) {
+                    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+                    const app = applications.find(a => a.id === requestId);
+                    if (app) {
+                        requestData = {
+                            requestId: app.id,
+                            id: app.id,
+                            ownerName: app.owner?.name || app.owner?.email || 'N/A',
+                            plateNumber: app.vehicle?.plateNumber || 'N/A',
+                            vehicleType: app.vehicle?.type || 'N/A',
+                            vehicleModel: app.vehicle?.model || 'N/A',
+                            vehicleYear: app.vehicle?.year || 'N/A',
+                            vehicleMake: app.vehicle?.make || 'N/A',
+                            color: app.vehicle?.color || 'N/A',
+                            engineNumber: app.vehicle?.engineNumber || app.vehicle?.vin || 'N/A',
+                            chassisNumber: app.vehicle?.chassisNumber || 'N/A',
+                            vin: app.vehicle?.vin || 'N/A',
+                            purpose: app.purpose || 'N/A',
+                            registrationValidity: app.vehicle?.registrationValidity || 'Valid'
+                        };
+                    }
+                }
+                
+                // Store the request ID and data for the verification form
+                sessionStorage.setItem('currentRequestId', requestId);
+                
+                // Store request data if found
+                if (requestData) {
+                    localStorage.setItem('currentHPGRequest', JSON.stringify(requestData));
+                    
+                    // Also store in autoFillData format
+                    const vehicleDetails = {
+                        requestId: requestData.requestId || requestData.id || requestId,
+                        applicationId: requestData.applicationId || requestData.id || requestId,
+                        ownerName: requestData.ownerName || 'N/A',
+                        plateNumber: requestData.plateNumber || 'N/A',
+                        vehicleType: requestData.vehicleType || 'N/A',
+                        vehicleModel: requestData.vehicleModel || 'N/A',
+                        vehicleYear: requestData.vehicleYear || 'N/A',
+                        vehicleMake: requestData.vehicleMake || requestData.make || 'N/A',
+                        color: requestData.color || 'N/A',
+                        engineNumber: requestData.engineNumber || requestData.vin || 'N/A',
+                        chassisNumber: requestData.chassisNumber || 'N/A',
+                        vin: requestData.vin || 'N/A',
+                        purpose: requestData.purpose || 'N/A',
+                        registrationValidity: requestData.registrationValidity || 'Valid'
+                    };
+                    sessionStorage.setItem('autoFillData', JSON.stringify(vehicleDetails));
+                }
+                
+                // Set a flag to indicate we're coming from Fetch LTO Details button
+                sessionStorage.setItem('autoFetchLTOData', 'true');
+                
+                // Navigate to verification form
+                window.location.href = 'hpg-verification-form.html?requestId=' + requestId + '&fetchLTO=true';
+                
+            } catch (error) {
+                console.error('Error in fetchLTOVehicleDetails:', error);
+                // Fallback: just store ID and navigate
+                sessionStorage.setItem('currentRequestId', requestId);
+                sessionStorage.setItem('autoFetchLTOData', 'true');
+                window.location.href = 'hpg-verification-form.html?requestId=' + requestId + '&fetchLTO=true';
+            }
+        }
+
         function viewDetails(requestId) {
             // Load and display request details
             if (typeof HPGRequests !== 'undefined') {
@@ -722,8 +841,15 @@
             alert('Export functionality will be implemented');
         }
 
-        // Auto-Fill Verification - Fetch vehicle details from LTO request
+        // Auto-Fill Verification - Fetch vehicle details from LTO request and redirect to verification
         function autoFillVerification(requestId) {
+            // Find and disable the button
+            const buttons = document.querySelectorAll(`button[onclick*="autoFillVerification('${requestId}')"]`);
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('loading');
+            });
+
             try {
                 // Get current request data
                 const hpgRequestPending = localStorage.getItem('hpgRequestPending') === 'true';
@@ -771,12 +897,27 @@
                     localStorage.setItem('currentHPGRequest', JSON.stringify(vehicleDetails));
                     
                     // Show success notification
-                    showAutoFillNotification('Vehicle details loaded successfully! Ready for verification.');
+                    showAutoFillNotification('Vehicle details loaded! Redirecting to verification...');
+                    
+                    // Redirect to verification form after a short delay
+                    setTimeout(() => {
+                        window.location.href = 'hpg-verification-form.html?requestId=' + requestId + '&autoFill=true';
+                    }, 1000);
                 } else {
+                    // Re-enable buttons on error
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.classList.remove('loading');
+                    });
                     alert('Unable to fetch vehicle details. Please try receiving the request first.');
                 }
             } catch (error) {
                 console.error('Error in auto-fill:', error);
+                // Re-enable buttons on error
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                });
                 alert('Error loading vehicle details. Please try again.');
             }
         }

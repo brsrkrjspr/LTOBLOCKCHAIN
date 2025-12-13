@@ -130,9 +130,14 @@ function createEmissionVerificationRow(request) {
         <td>${requestDate}</td>
         <td><span class="status-badge status-${request.status?.toLowerCase() || 'pending'}">${request.status || 'PENDING'}</span></td>
         <td>
-            <button class="btn-primary btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">Approve</button>
-            <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">Reject</button>
-            <button class="btn-secondary btn-sm" onclick="handleEmissionReviewFromRequest('${request.id}')">Review</button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn-primary btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">Approve</button>
+                <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">Reject</button>
+                <button class="btn-secondary btn-sm" onclick="handleEmissionReviewFromRequest('${request.id}')">Review</button>
+                <button class="btn-auto-verify btn-sm" onclick="autoFillVerification('${request.id}')" title="Automatically fetch vehicle details from LTO request for verification">
+                    <i class="fas fa-bolt"></i> Auto Verify
+                </button>
+            </div>
         </td>
     `;
     return row;

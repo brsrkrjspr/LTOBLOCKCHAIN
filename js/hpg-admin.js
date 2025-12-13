@@ -197,9 +197,81 @@ const HPGRequests = {
 
     loadRequests: async function() {
         try {
-            // Placeholder: Replace with actual API call
-            // Example: const response = await APIClient.get('/api/hpg/requests');
+            // Try to load from API first
+            if (typeof APIClient !== 'undefined') {
+                try {
+                    const apiClient = new APIClient();
+                    const response = await apiClient.get('/api/hpg/requests');
+                    if (response && response.success && response.requests) {
+                        this.requests = response.requests;
+                        this.filteredRequests = [...this.requests];
+                        this.renderTable();
+                        return;
+                    }
+                } catch (apiError) {
+                    console.log('API not available, loading from localStorage');
+                }
+            }
+            
+            // Fallback: Load from localStorage or use sample data
+            const hpgRequestPending = localStorage.getItem('hpgRequestPending') === 'true';
+            const currentRequest = JSON.parse(localStorage.getItem('currentHPGRequest') || 'null');
+            const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            
+            // Build requests array from available sources
             this.requests = [];
+            
+            // Add current HPG request if available
+            if (currentRequest && hpgRequestPending) {
+                this.requests.push({
+                    id: currentRequest.requestId || currentRequest.id || 'REQ-HPG-001',
+                    ownerName: currentRequest.ownerName || 'N/A',
+                    plateNumber: currentRequest.plateNumber || 'N/A',
+                    vehicleType: currentRequest.vehicleType || 'N/A',
+                    purpose: currentRequest.purpose || 'Verification',
+                    requestDate: new Date().toLocaleDateString(),
+                    status: 'pending'
+                });
+            }
+            
+            // Add requests from submittedApplications that have hpgRequestPending flag
+            applications.forEach(app => {
+                if (app.hpgRequestPending === true) {
+                    this.requests.push({
+                        id: app.id,
+                        ownerName: app.owner?.name || app.owner?.email || 'N/A',
+                        plateNumber: app.vehicle?.plateNumber || 'N/A',
+                        vehicleType: app.vehicle?.type || 'N/A',
+                        purpose: app.purpose || 'Verification',
+                        requestDate: app.created_at ? new Date(app.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+                        status: 'pending'
+                    });
+                }
+            });
+            
+            // If still no requests, add sample data for testing
+            if (this.requests.length === 0) {
+                this.requests = [
+                    {
+                        id: 'REQ-HPG-001',
+                        ownerName: 'Juan Dela Cruz',
+                        plateNumber: 'ABC-1234',
+                        vehicleType: 'Car',
+                        purpose: 'Transfer of Ownership',
+                        requestDate: new Date().toLocaleDateString(),
+                        status: 'pending'
+                    },
+                    {
+                        id: 'REQ-HPG-002',
+                        ownerName: 'Maria Santos',
+                        plateNumber: 'XYZ-5678',
+                        vehicleType: 'Motorcycle',
+                        purpose: 'New Registration',
+                        requestDate: new Date().toLocaleDateString(),
+                        status: 'pending'
+                    }
+                ];
+            }
 
             this.filteredRequests = [...this.requests];
             this.renderTable();
@@ -262,8 +334,11 @@ const HPGRequests = {
                             <button class="btn-secondary btn-sm" onclick="viewDetails('${req.id}')">
                                 <i class="fas fa-eye"></i> View
                             </button>
-                            <button class="btn-info btn-sm" onclick="autoFillVerification('${req.id}')" title="Auto-fill vehicle details for verification">
-                                <i class="fas fa-magic"></i> Auto-Fill
+                            <button class="btn-auto-verify btn-sm" onclick="autoFillVerification('${req.id}')" title="Automatically fetch vehicle details from LTO request for verification">
+                                <i class="fas fa-bolt"></i> Auto Verify
+                            </button>
+                            <button class="btn-fetch-lto btn-sm" onclick="fetchLTOVehicleDetails('${req.id}')" title="Go to verification form and fetch LTO vehicle details">
+                                <i class="fas fa-download"></i> Fetch LTO Details
                             </button>
                         </div>
                     </td>

@@ -1037,6 +1037,93 @@ body {
     font-size: 0.8rem;
 }
 
+/* Auto Verify Button - Enhanced UI/UX */
+.btn-auto-verify {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.25);
+    white-space: nowrap;
+}
+
+.btn-auto-verify:hover {
+    background: linear-gradient(135deg, #229954 0%, #1e8449 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.35);
+}
+
+.btn-auto-verify:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+}
+
+.btn-auto-verify:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.7;
+}
+
+.btn-auto-verify.loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.btn-auto-verify.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Insurance-specific Auto Verify Button (Blue) */
+.insurance-verifier .btn-auto-verify,
+.insurance-dashboard .btn-auto-verify {
+    background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+    box-shadow: 0 2px 8px rgba(41, 128, 185, 0.25);
+}
+
+.insurance-verifier .btn-auto-verify:hover,
+.insurance-dashboard .btn-auto-verify:hover {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    box-shadow: 0 4px 12px rgba(41, 128, 185, 0.35);
+}
+
+/* Emission-specific Auto Verify Button (Teal) */
+.emission-verifier .btn-auto-verify,
+.emission-dashboard .btn-auto-verify {
+    background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+    box-shadow: 0 2px 8px rgba(22, 160, 133, 0.25);
+}
+
+.emission-verifier .btn-auto-verify:hover,
+.emission-dashboard .btn-auto-verify:hover {
+    background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%);
+    box-shadow: 0 4px 12px rgba(22, 160, 133, 0.35);
+}
+
 .vehicle-info {
     display: flex;
     flex-direction: column;

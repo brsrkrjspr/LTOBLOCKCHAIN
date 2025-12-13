@@ -3,29 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LTO → Insurance Requests - Insurance Verifier</title>
+    <title>Insurance LTO Requests - Admin Dashboard</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        // Apply sidebar state immediately to prevent flash
         (function() {
             function initSidebar() {
                 const sidebar = document.querySelector('.dashboard-sidebar');
                 if (sidebar) {
-                    // Disable transitions during page load
                     sidebar.classList.add('no-transition');
-                    
-                    const savedState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
+                    const savedState = localStorage.getItem('insuranceAdminSidebarCollapsed');
                     if (savedState === 'true') {
                         sidebar.classList.add('collapsed');
                     }
-                    
-                    // Re-enable transitions after page loads
                     setTimeout(function() {
                         sidebar.classList.remove('no-transition');
                     }, 100);
                 } else {
-                    // Retry if sidebar not found yet
                     setTimeout(initSidebar, 10);
                 }
             }
@@ -36,6 +31,537 @@
             }
         })();
     </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+    <style>
+        /* Insurance LTO Requests - Admin Dashboard Styles */
+        .fetch-lto-data-section {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(41, 128, 185, 0.25);
+            text-align: center;
+        }
+
+        .fetch-lto-data-section h3 {
+            color: white;
+            margin: 0 0 1rem 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .fetch-lto-data-section p {
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0 0 1.5rem 0;
+            font-size: 1rem;
+        }
+
+        .btn-fetch-lto-data {
+            background: white;
+            color: #2980b9;
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn-fetch-lto-data:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-fetch-lto-data:disabled {
+            background: rgba(255, 255, 255, 0.7);
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        .btn-fetch-lto-data.loading {
+            position: relative;
+        }
+
+        .btn-fetch-lto-data.loading .btn-text {
+            opacity: 0;
+        }
+
+        .btn-fetch-lto-data.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 3px solid rgba(41, 128, 185, 0.3);
+            border-top-color: #2980b9;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .btn-fetch-lto-data.success {
+            background: #27ae60;
+            color: white;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 2px solid #e9ecef;
+        }
+
+        .info-card.system-verified {
+            border-left: 4px solid #27ae60;
+            background: linear-gradient(to right, #f8fff9 0%, white 10%);
+        }
+
+        .info-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .info-card-header h4 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .info-card-header i {
+            color: #2980b9;
+            font-size: 1.25rem;
+        }
+
+        .info-card-header .verified-badge {
+            margin-left: auto;
+            background: #27ae60;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .info-field {
+            margin-bottom: 1rem;
+        }
+
+        .info-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-field-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-field-value {
+            font-size: 1rem;
+            color: #2c3e50;
+            font-weight: 500;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .info-field-value.system-data {
+            background: #e8f5e9;
+            border-color: #c8e6c9;
+            color: #2c3e50;
+        }
+
+        .documents-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .documents-section h3 {
+            margin: 0 0 1.5rem 0;
+            color: #2c3e50;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .documents-section h3 i {
+            color: #2980b9;
+        }
+
+        .document-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+            overflow-x: auto;
+        }
+
+        .document-tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #7f8c8d;
+            transition: all 0.3s;
+            margin-bottom: -2px;
+            white-space: nowrap;
+        }
+
+        .document-tab.active {
+            color: #2980b9;
+            border-bottom-color: #2980b9;
+        }
+
+        .document-tab:hover {
+            color: #2980b9;
+        }
+
+        .document-viewer-container {
+            min-height: 500px;
+            border: 2px dashed #e9ecef;
+            border-radius: 8px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .document-viewer-container.has-document {
+            border: none;
+            background: white;
+            padding: 1rem;
+        }
+
+        .pdf-viewer {
+            width: 100%;
+            height: 600px;
+            border: none;
+            border-radius: 8px;
+        }
+
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .image-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .image-item:hover {
+            transform: scale(1.05);
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .image-item-label {
+            padding: 0.75rem;
+            background: white;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 8px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .decision-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .decision-panel h3 {
+            margin: 0 0 1.5rem 0;
+            color: #2c3e50;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .decision-panel h3 i {
+            color: #2980b9;
+        }
+
+        .remarks-field {
+            width: 100%;
+            min-height: 120px;
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+            margin-bottom: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .remarks-field:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.1);
+        }
+
+        .remarks-field.error {
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+        }
+
+        .remarks-field.required {
+            border-color: #f39c12;
+        }
+
+        .decision-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn-approve {
+            flex: 1;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            border: none;
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-approve:hover {
+            background: linear-gradient(135deg, #229954 0%, #1e8449 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-reject {
+            flex: 1;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-reject:hover {
+            background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+
+        .insurance-upload-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .insurance-upload-section.active {
+            display: block;
+        }
+
+        .insurance-upload-section h3 {
+            margin: 0 0 1.5rem 0;
+            color: #2c3e50;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .insurance-upload-section h3 i {
+            color: #2980b9;
+        }
+
+        .upload-area {
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+        }
+
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: #e3f2fd;
+        }
+
+        .upload-area.dragover {
+            border-color: #2980b9;
+            background: #bbdefb;
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .upload-preview {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #e8f5e9;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .upload-preview.active {
+            display: block;
+        }
+
+        .upload-preview-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #bdc3c7;
+        }
+
+        .review-page {
+            display: none;
+        }
+
+        .review-page.active {
+            display: block;
+        }
+
+        @media (max-width: 1024px) {
+            .info-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard">
@@ -46,7 +572,7 @@
                     <div class="logo-icon">IV</div>
                     <div class="logo-text">
                         <h2>Insurance</h2>
-                        <p>Verifier Dashboard</p>
+                        <p>Admin Dashboard</p>
                     </div>
                 </div>
             </div>
@@ -57,7 +583,7 @@
                 </a>
                 <a href="insurance-lto-requests.html" class="nav-item active">
                     <i class="fas fa-list-alt"></i>
-                    <span>LTO Requests by Org</span>
+                    <span>LTO Requests</span>
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
                 <a href="insurance-document-viewer.html" class="nav-item">
@@ -70,13 +596,13 @@
                 </a>
             </nav>
             
-            <!-- Sidebar Footer with User Info -->
+            <!-- Sidebar Footer -->
             <div class="sidebar-footer">
                 <div class="sidebar-user-profile">
                     <div class="sidebar-user-avatar" id="sidebarUserAvatar">IV</div>
                     <div class="sidebar-user-details">
-                        <span class="sidebar-user-name" id="sidebarUserName">Insurance Verifier</span>
-                        <span class="sidebar-user-role" id="sidebarUserRole">Insurance Verification Specialist</span>
+                        <span class="sidebar-user-name" id="sidebarUserName">Insurance Admin</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Insurance Administrator</span>
                     </div>
                 </div>
                 <div class="sidebar-user-actions">
@@ -102,255 +628,310 @@
                         </button>
                         <div class="logo">
                             <h1>LTO Blockchain</h1>
-                            <p>Insurance Verifier Dashboard</p>
+                            <p>Insurance Admin Dashboard</p>
                         </div>
-                    <!-- User info moved to sidebar footer -->
-                </div>
-            </div>
-        </header>
-
-        <main class="dashboard-content">
-            <div class="container">
-                <!-- Page Header -->
-                <div class="page-header">
-                    <div class="page-title-section">
-                        <h2>Insurance Verification Requests from LTO</h2>
-                        <p>Review and process insurance verification requests sent by LTO Admin</p>
-                    </div>
-                    <div class="page-actions">
-                        <button class="btn-secondary" onclick="refreshRequests()">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                        <button class="btn-secondary" onclick="exportRequests()">
-                            <i class="fas fa-download"></i> Export
-                        </button>
                     </div>
                 </div>
+            </header>
 
-                <!-- Filters -->
-                <div class="filters-section">
-                    <div class="filter-group">
-                        <label>Status:</label>
-                        <select id="statusFilter" onchange="filterRequests()">
-                            <option value="">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="received">Received</option>
-                            <option value="completed">Completed</option>
-                            <option value="sent">Sent to LTO</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Vehicle Type:</label>
-                        <select id="vehicleTypeFilter" onchange="filterRequests()">
-                            <option value="">All Types</option>
-                            <option value="car">Car</option>
-                            <option value="motorcycle">Motorcycle</option>
-                            <option value="truck">Truck</option>
-                            <option value="bus">Bus</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Search:</label>
-                        <input type="text" id="searchInput" placeholder="Search by Request ID, Plate, or Owner..." onkeyup="filterRequests()">
-                    </div>
-                </div>
-
-                <!-- Requests Table -->
-                <div class="dashboard-card">
-                    <div class="table-container">
-                        <table class="table" id="requestsTable">
-                            <thead>
-                                <tr>
-                                    <th>Request ID</th>
-                                    <th>Application ID</th>
-                                    <th>Owner Name</th>
-                                    <th>Plate Number</th>
-                                    <th>Vehicle Type</th>
-                                    <th>Request Date</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="requestsTableBody">
-                                <!-- Data will be loaded dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- LTO Requests Section -->
-                <div class="dashboard-card">
-                    <h3><span class="card-icon">📥</span> Requests from LTO</h3>
-                    <div class="lto-requests-section">
-                        <div class="request-item" id="ltoInsuranceRequestItem" style="display: none;">
-                            <div class="request-header">
-                                <i class="fas fa-envelope text-primary"></i>
-                                <div class="request-info">
-                                    <h4>New Request for Proof of Insurance</h4>
-                                    <p>Application ID: <span id="insuranceRequestAppId">-</span></p>
-                                    <p>Vehicle: <span id="insuranceRequestVehicle">-</span></p>
-                                </div>
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Requests List View -->
+                    <div id="requestsListView">
+                        <!-- Page Header -->
+                        <div class="page-header">
+                            <div class="page-title-section">
+                                <h2>Insurance Verification Requests from LTO</h2>
+                                <p>Review and process insurance verification requests sent by LTO Admin</p>
                             </div>
-                            <div class="request-actions">
-                                <button class="btn-primary btn-sm" onclick="receiveInsuranceRequest()" id="receiveInsuranceRequestBtn">
-                                    <i class="fas fa-download"></i> Receive Request
+                            <div class="page-actions">
+                                <button class="btn-secondary" onclick="refreshRequests()">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                                <button class="btn-secondary" onclick="exportRequests()">
+                                    <i class="fas fa-download"></i> Export
                                 </button>
                             </div>
                         </div>
-                        <p id="noInsuranceRequestsMsg" style="text-align: center; color: #7f8c8d; padding: 2rem;">
-                            No pending requests from LTO
-                        </p>
-                    </div>
-                </div>
 
-                <!-- Upload Insurance Papers Section -->
-                <div class="dashboard-card">
-                    <h3><span class="card-icon">📤</span> Upload Insurance Papers</h3>
-                    <div class="upload-section">
-                        <form id="insuranceUploadForm" onsubmit="uploadInsurancePapers(event)">
-                            <div class="form-group">
-                                <label for="insuranceFile">Insurance Certificate (PDF/Image)</label>
-                                <input type="file" id="insuranceFile" name="insuranceFile" accept=".pdf,.jpg,.jpeg,.png" required>
-                                <small class="hint">Upload the insurance certificate document</small>
+                        <!-- Filters -->
+                        <div class="filters-section">
+                            <div class="filter-group">
+                                <label>Status:</label>
+                                <select id="statusFilter" onchange="filterRequests()">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="under_review">Under Review</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="completed">Completed</option>
+                                </select>
                             </div>
-                            <div class="form-group">
-                                <label for="insuranceNotes">Notes/Comments</label>
-                                <textarea id="insuranceNotes" name="notes" rows="3" placeholder="Add any notes about the insurance..."></textarea>
+                            <div class="filter-group">
+                                <label>Insurance Type:</label>
+                                <select id="insuranceTypeFilter" onchange="filterRequests()">
+                                    <option value="">All Types</option>
+                                    <option value="comprehensive">Comprehensive</option>
+                                    <option value="third_party">Third Party</option>
+                                    <option value="tpl">TPL</option>
+                                </select>
                             </div>
-                            <button type="submit" class="btn-primary" id="uploadInsuranceBtn">
-                                <i class="fas fa-upload"></i> Upload Insurance Papers
-                            </button>
-                        </form>
-                    </div>
-                </div>
+                            <div class="filter-group">
+                                <label>Search:</label>
+                                <input type="text" id="searchInput" placeholder="Search by Request ID, Plate, or Owner..." onkeyup="filterRequests()">
+                            </div>
+                        </div>
 
-                <!-- Send Papers to LTO Section -->
-                <div class="dashboard-card">
-                    <h3><span class="card-icon">📨</span> Send Papers to LTO</h3>
-                    <div class="send-section">
-                        <div id="uploadedInsurancePreview" style="display: none;">
-                            <div class="result-preview">
-                                <i class="fas fa-file-alt text-primary"></i>
-                                <div class="preview-info">
-                                    <h4 id="previewInsuranceFileName">-</h4>
-                                    <p id="previewInsuranceFileDate">-</p>
+                        <!-- Requests Table -->
+                        <div class="dashboard-card">
+                            <div class="table-container">
+                                <table class="table" id="requestsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Request ID</th>
+                                            <th>Owner Name</th>
+                                            <th>Vehicle Details</th>
+                                            <th>Insurance Type</th>
+                                            <th>Submission Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="requestsTableBody">
+                                        <!-- Data will be loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Review Request Page -->
+                    <div id="reviewPage" class="review-page">
+                        <!-- Page Header with Back Button -->
+                        <div class="page-header" style="margin-bottom: 2rem;">
+                            <div class="page-title-section">
+                                <button class="btn-secondary" onclick="backToListView()" style="margin-bottom: 1rem;">
+                                    <i class="fas fa-arrow-left"></i> Back to Requests List
+                                </button>
+                                <h2>Review Insurance Request</h2>
+                                <p>Review and process this insurance verification request from LTO</p>
+                            </div>
+                        </div>
+
+                        <!-- REQUIRED CORE FEATURE: Fetch LTO Request Data Button (MUST BE FIRST ELEMENT) -->
+                        <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                            <div class="fetch-lto-data-section">
+                                <h3><i class="fas fa-database"></i> LTO Request Data</h3>
+                                <p>Fetch and auto-populate owner and vehicle information from LTO system</p>
+                                <button class="btn-fetch-lto-data" id="fetchLTODataBtn" onclick="fetchLTORequestData()">
+                                    <span class="btn-text"><i class="fas fa-sync-alt"></i> Fetch LTO Request Data</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- LTO DATA DISPLAY: Auto-Filled Owner & Vehicle Information (Read-Only) -->
+                        <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                            <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-info-circle" style="color: #2980b9;"></i> Request Information
+                            </h3>
+                            <div class="info-cards-grid">
+                                <!-- Owner Information Card -->
+                                <div class="info-card" id="ownerInfoCard">
+                                    <div class="info-card-header">
+                                        <i class="fas fa-user"></i>
+                                        <h4>Owner Information</h4>
+                                        <span class="verified-badge" id="ownerVerifiedBadge" style="display: none;">
+                                            <i class="fas fa-check-circle"></i> System Verified
+                                        </span>
+                                    </div>
+                                    <div class="info-field">
+                                        <div class="info-field-label">Full Name</div>
+                                        <div class="info-field-value" id="ownerFullName" readonly>-</div>
+                                    </div>
+                                    <div class="info-field">
+                                        <div class="info-field-label">Contact Details</div>
+                                        <div class="info-field-value" id="ownerContactNumber" readonly>-</div>
+                                    </div>
+                                    <div class="info-field">
+                                        <div class="info-field-label">Address</div>
+                                        <div class="info-field-value" id="ownerAddress" readonly>-</div>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle Information Card -->
+                                <div class="info-card" id="vehicleInfoCard">
+                                    <div class="info-card-header">
+                                        <i class="fas fa-car"></i>
+                                        <h4>Vehicle Information</h4>
+                                        <span class="verified-badge" id="vehicleVerifiedBadge" style="display: none;">
+                                            <i class="fas fa-check-circle"></i> System Verified
+                                        </span>
+                                    </div>
+                                    <div class="info-field">
+                                        <div class="info-field-label">Plate Number</div>
+                                        <div class="info-field-value" id="vehiclePlateNumber" readonly>-</div>
+                                    </div>
+                                    <div class="info-field">
+                                        <div class="info-field-label">Vehicle Make and Model</div>
+                                        <div class="info-field-value" id="vehicleMakeModel" readonly>-</div>
+                                    </div>
+                                    <div class="info-field">
+                                        <div class="info-field-label">Engine Number</div>
+                                        <div class="info-field-value" id="vehicleEngineNumber" readonly>-</div>
+                                    </div>
+                                    <div class="info-field">
+                                        <div class="info-field-label">Chassis Number</div>
+                                        <div class="info-field-value" id="vehicleChassisNumber" readonly>-</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <button class="btn-success" onclick="sendInsuranceToLTO()" id="sendInsuranceToLTOBtn" disabled>
-                            <i class="fas fa-paper-plane"></i> Send Papers to LTO
-                        </button>
-                        <p id="sendInsuranceStatusMsg" style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;"></p>
+
+                        <!-- DOCUMENT & IMAGE VIEWING: Documents and Attachments Section (MANDATORY) -->
+                        <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                            <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-file-alt" style="color: #2980b9;"></i> Documents & Attachments
+                            </h3>
+                            
+                            <div class="document-tabs">
+                                <button class="document-tab active" onclick="switchDocumentTab('insurance')">
+                                    <i class="fas fa-shield-alt"></i> Insurance Requirement
+                                </button>
+                                <button class="document-tab" onclick="switchDocumentTab('orcr')">
+                                    <i class="fas fa-file-invoice"></i> OR/CR
+                                </button>
+                                <button class="document-tab" onclick="switchDocumentTab('id')">
+                                    <i class="fas fa-id-card"></i> Valid ID
+                                </button>
+                            </div>
+
+                            <div class="document-viewer-container" id="documentViewerContainer">
+                                <div class="empty-state">
+                                    <i class="fas fa-file-alt"></i>
+                                    <p>No document selected. Please select a document tab above.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DECISION WORKFLOW: Insurance Decision Panel (REQUIRED) -->
+                        <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                            <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-gavel" style="color: #2980b9;"></i> Decision Panel
+                            </h3>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <label for="rejectionRemarks" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2c3e50;">
+                                    Remarks <span style="color: #e74c3c;" id="remarksRequiredLabel" style="display: none;">(Required for rejection)</span>
+                                </label>
+                                <textarea 
+                                    id="rejectionRemarks" 
+                                    class="remarks-field" 
+                                    placeholder="Enter remarks or notes about this request (required if rejecting)..."
+                                    readonly
+                                ></textarea>
+                                <small style="color: #7f8c8d; font-size: 0.875rem; display: block; margin-top: 0.5rem;">
+                                    <i class="fas fa-info-circle"></i> Remarks are required when rejecting a request
+                                </small>
+                            </div>
+
+                            <div class="decision-actions">
+                                <button class="btn-approve" onclick="approveRequest()" id="approveBtn">
+                                    <i class="fas fa-check-circle"></i> Approve Request
+                                </button>
+                                <button class="btn-reject" onclick="rejectRequest()" id="rejectBtn">
+                                    <i class="fas fa-times-circle"></i> Reject Request
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- INSURANCE DOCUMENT SUBMISSION: Upload Area (Appears after approval) -->
+                        <div class="dashboard-card-modern insurance-upload-section" id="insuranceUploadSection" style="display: none;">
+                            <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-upload" style="color: #2980b9;"></i> Upload Official Insurance Document
+                            </h3>
+                            
+                            <div style="margin-bottom: 1rem;">
+                                <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                                    <i class="fas fa-info-circle"></i> Please upload the required insurance document (PDF format). This document will be submitted to LTO.
+                                </p>
+                            </div>
+                            
+                            <div class="upload-area" id="uploadArea" onclick="document.getElementById('insuranceFileInput').click()">
+                                <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: #2980b9; margin-bottom: 1rem;"></i>
+                                <p style="font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">Click to upload or drag and drop</p>
+                                <p style="color: #7f8c8d; font-size: 0.875rem;">PDF format only (Max 10MB)</p>
+                                <input type="file" id="insuranceFileInput" accept=".pdf" onchange="handleFileSelect(event)">
+                            </div>
+
+                            <div class="upload-preview" id="uploadPreview">
+                                <div class="upload-preview-item">
+                                    <i class="fas fa-file-pdf" style="font-size: 2rem; color: #e74c3c;"></i>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: #2c3e50;" id="uploadFileName">-</div>
+                                        <div style="font-size: 0.875rem; color: #7f8c8d;" id="uploadFileSize">-</div>
+                                    </div>
+                                    <button class="btn-secondary btn-sm" onclick="removeUploadedFile()">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e9ecef;">
+                                <button class="btn-primary" onclick="submitInsuranceDocument()" id="submitInsuranceBtn" style="display: none; width: 100%;">
+                                    <i class="fas fa-check"></i> Submit Insurance Document
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </main>
         </div>
     </div>
 
-    <!-- Request Details Modal -->
-    <div class="modal" id="requestDetailsModal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2>Request Details</h2>
-                <button class="modal-close" onclick="closeModal('requestDetailsModal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div id="requestDetailsContent">
-                    <!-- Request details will be loaded here -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('requestDetailsModal')">Close</button>
-                <button class="btn-primary" onclick="receiveRequest()">Receive Request</button>
-            </div>
+    <!-- Lightbox for Image Preview -->
+    <div class="lightbox" id="imageLightbox" onclick="closeLightbox()">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeLightbox()">
+                <i class="fas fa-times"></i>
+            </button>
+            <img id="lightboxImage" src="" alt="Document Preview">
         </div>
     </div>
 
-    <script src="js/auth-utils.js"></script>
-    <script src="js/api-client.js"></script>
-    <script src="js/error-handler.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/insurance-verifier-dashboard.js"></script>
     <script>
-        // Initialize user data
+        let currentRequestId = null;
+        let currentRequestData = null;
+        let uploadedFile = null;
+        let ltoDataFetched = false;
+        let isRejectMode = false;
+
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                
-                // Check if auth is disabled (dev mode)
-                if (user && user._devMode) {
-                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
-                }
-                
                 if (user) {
-                    // Sidebar user info elements
                     const sidebarUserNameEl = document.getElementById('sidebarUserName');
                     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
                     const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
                     
-                    const displayName = AuthUtils.getUserDisplayName() || 'Insurance Verifier';
-                    const userInitials = AuthUtils.getUserInitials() || 'IV';
-                    const roleNames = {
-                        'vehicle_owner': 'Vehicle Owner',
-                        'admin': 'Administrator',
-                        'insurance_verifier': 'Insurance Verification Specialist',
-                        'emission_verifier': 'Emission Verifier'
-                    };
-                    const userRole = roleNames[user.role] || user.role;
-                    
-                    // Update sidebar user info
-                    if (sidebarUserNameEl) {
-                        sidebarUserNameEl.textContent = displayName;
-                    }
-                    if (sidebarUserRoleEl) {
-                        sidebarUserRoleEl.textContent = userRole;
-                    }
-                    if (sidebarUserAvatarEl) {
-                        sidebarUserAvatarEl.textContent = userInitials;
-                    }
-                } else {
-                    // Not authenticated, redirect to login (only if auth is enabled)
-                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
-                    if (!user) {
-                        window.location.href = 'login-signup.html';
-                    }
+                    if (sidebarUserNameEl) sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName() || 'Insurance Admin';
+                    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Insurance Administrator';
+                    if (sidebarUserAvatarEl) sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials() || 'IV';
                 }
             }
 
-            // Initialize workflow
-            if (typeof initInsuranceWorkflow === 'function') {
-                initInsuranceWorkflow();
-            }
-
-            // Load requests
-            loadInsuranceRequests();
-
-            // Load sidebar state from localStorage
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            const savedSidebarState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
-            if (sidebar && savedSidebarState === 'true') {
-                sidebar.classList.add('collapsed');
-            }
-
             // Sidebar toggle
+            const sidebar = document.querySelector('.dashboard-sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
-            
             if (sidebarToggle && sidebar) {
                 sidebarToggle.addEventListener('click', function(e) {
                     e.preventDefault();
-                    e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
-                    
-                    // Save state to localStorage
-                    const isCollapsed = sidebar.classList.contains('collapsed');
-                    localStorage.setItem('insuranceVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                    localStorage.setItem('insuranceAdminSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
                 });
             }
 
-            // Handle sidebar logout button
+            // Logout
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
@@ -365,236 +946,499 @@
                     }
                 });
             }
+
+            // Setup drag and drop
+            setupDragAndDrop();
+
+            // Load requests
+            loadInsuranceRequests();
         });
 
+        function setupDragAndDrop() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('insuranceFileInput');
+
+            if (!uploadArea || !fileInput) return;
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => {
+                    uploadArea.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => {
+                    uploadArea.classList.remove('dragover');
+                }, false);
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelect({ target: fileInput });
+                }
+            }, false);
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
         function loadInsuranceRequests() {
-            // Placeholder: Load requests from API or localStorage
             const tbody = document.getElementById('requestsTableBody');
             if (!tbody) return;
 
-            // Check for pending insurance requests from LTO workflow
             const insuranceRequestPending = localStorage.getItem('insuranceRequestPending') === 'true';
             const currentRequest = JSON.parse(localStorage.getItem('currentInsuranceRequest') || 'null');
 
             tbody.innerHTML = '';
 
+            // Always show at least one sample request for testing, or use actual data if available
             if (insuranceRequestPending && currentRequest) {
+                const requestId = currentRequest.requestId || 'REQ-' + Date.now();
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${currentRequest.requestId || 'REQ-' + Date.now()}</td>
-                    <td>${currentRequest.applicationId || 'APP-' + Date.now()}</td>
-                    <td>${currentRequest.ownerName || 'N/A'}</td>
-                    <td>${currentRequest.plateNumber || 'N/A'}</td>
-                    <td>${currentRequest.vehicleType || 'N/A'}</td>
+                    <td><strong>${requestId}</strong></td>
+                    <td>${currentRequest.ownerName || 'John Doe'}</td>
+                    <td>
+                        <div><strong>${currentRequest.plateNumber || 'ABC-1234'}</strong></div>
+                        <small style="color: #7f8c8d;">${currentRequest.vehicleType || 'Car'} - ${currentRequest.vehicleModel || 'Toyota Vios'}</small>
+                    </td>
+                    <td><span class="badge badge-info">Comprehensive</span></td>
                     <td>${new Date().toLocaleDateString()}</td>
                     <td><span class="badge badge-warning">Pending</span></td>
                     <td>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <button class="btn-primary btn-sm" onclick="viewRequestDetails('${currentRequest.requestId || 'REQ-' + Date.now()}')">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <button class="btn-success btn-sm" onclick="receiveRequest('${currentRequest.requestId || 'REQ-' + Date.now()}')">
-                                <i class="fas fa-download"></i> Receive
-                            </button>
-                            <button class="btn-info btn-sm" onclick="autoFillVerification('${currentRequest.requestId || 'REQ-' + Date.now()}')" title="Auto-fill vehicle details for verification">
-                                <i class="fas fa-magic"></i> Auto-Fill
-                            </button>
-                        </div>
+                        <button class="btn-primary btn-sm" onclick="reviewRequest('${requestId}')">
+                            <i class="fas fa-eye"></i> Review Request
+                        </button>
                     </td>
                 `;
                 tbody.appendChild(row);
             } else {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                            No pending requests from LTO
-                        </td>
-                    </tr>
+                // Show sample data for testing/demo purposes
+                const sampleRequestId = 'REQ-INS-001';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${sampleRequestId}</strong></td>
+                    <td>John Doe</td>
+                    <td>
+                        <div><strong>ABC-1234</strong></div>
+                        <small style="color: #7f8c8d;">Car - Toyota Vios</small>
+                    </td>
+                    <td><span class="badge badge-info">Comprehensive</span></td>
+                    <td>${new Date().toLocaleDateString()}</td>
+                    <td><span class="badge badge-warning">Pending</span></td>
+                    <td>
+                        <button class="btn-primary btn-sm" onclick="reviewRequest('${sampleRequestId}')">
+                            <i class="fas fa-eye"></i> Review Request
+                        </button>
+                    </td>
                 `;
+                tbody.appendChild(row);
             }
         }
 
-        function viewRequestDetails(requestId) {
-            // Load request details
-            const currentRequest = JSON.parse(localStorage.getItem('currentInsuranceRequest') || 'null');
-            const detailsContent = document.getElementById('requestDetailsContent');
+        function reviewRequest(requestId) {
+            currentRequestId = requestId;
             
-            if (detailsContent && currentRequest) {
-                detailsContent.innerHTML = `
-                    <div class="request-details">
-                        <h3>Request Information</h3>
-                        <div class="detail-row">
-                            <strong>Request ID:</strong> ${currentRequest.requestId || 'N/A'}
+            // Get request data from localStorage or create sample data
+            let currentRequest = JSON.parse(localStorage.getItem('currentInsuranceRequest') || 'null');
+            
+            // If no request data, create sample data for demo
+            if (!currentRequest) {
+                currentRequest = {
+                    requestId: requestId,
+                    ownerName: 'John Doe',
+                    ownerPhone: '+63 912 345 6789',
+                    ownerEmail: 'john.doe@example.com',
+                    ownerAddress: '123 Main Street, Quezon City, Metro Manila',
+                    plateNumber: 'ABC-1234',
+                    vehicleType: 'Car',
+                    vehicleMake: 'Toyota',
+                    vehicleModel: 'Vios',
+                    vehicleYear: '2020',
+                    vin: 'CHASSIS123456789',
+                    engineNumber: 'ENGINE123456789',
+                    insuranceType: 'Comprehensive'
+                };
+            }
+
+            currentRequestData = currentRequest;
+            ltoDataFetched = false;
+            isRejectMode = false;
+
+            // Reset UI
+            resetReviewPage();
+
+            // Hide list view and show review page
+            document.getElementById('requestsListView').style.display = 'none';
+            document.getElementById('reviewPage').classList.add('active');
+            
+            // Scroll to top of review page to show the Fetch button
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            ToastNotification.show('Request loaded. Click "Fetch LTO Request Data" to begin.', 'info');
+        }
+
+        function resetReviewPage() {
+            // Reset fetch button
+            const fetchBtn = document.getElementById('fetchLTODataBtn');
+            fetchBtn.disabled = false;
+            fetchBtn.classList.remove('loading', 'success');
+            fetchBtn.querySelector('.btn-text').innerHTML = '<i class="fas fa-sync-alt"></i> Fetch LTO Request Data';
+
+            // Reset info cards
+            document.getElementById('ownerInfoCard').classList.remove('system-verified');
+            document.getElementById('vehicleInfoCard').classList.remove('system-verified');
+            document.getElementById('ownerVerifiedBadge').style.display = 'none';
+            document.getElementById('vehicleVerifiedBadge').style.display = 'none';
+
+            // Reset fields (all read-only)
+            document.getElementById('ownerFullName').textContent = '-';
+            document.getElementById('ownerContactNumber').textContent = '-';
+            document.getElementById('ownerAddress').textContent = '-';
+            document.getElementById('vehiclePlateNumber').textContent = '-';
+            document.getElementById('vehicleMakeModel').textContent = '-';
+            document.getElementById('vehicleChassisNumber').textContent = '-';
+            document.getElementById('vehicleEngineNumber').textContent = '-';
+
+            // Remove system-data class
+            document.querySelectorAll('.info-field-value').forEach(field => {
+                field.classList.remove('system-data');
+            });
+
+            // Reset remarks
+            document.getElementById('rejectionRemarks').value = '';
+            document.getElementById('rejectionRemarks').classList.remove('error', 'required');
+            document.getElementById('rejectionRemarks').readOnly = true;
+            document.getElementById('remarksRequiredLabel').style.display = 'none';
+
+            // Reset decision buttons
+            document.getElementById('approveBtn').disabled = false;
+            document.getElementById('rejectBtn').disabled = false;
+
+            // Hide upload section
+            document.getElementById('insuranceUploadSection').style.display = 'none';
+            removeUploadedFile();
+
+            // Reset document viewer
+            document.getElementById('documentViewerContainer').classList.remove('has-document');
+            document.getElementById('documentViewerContainer').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-file-alt"></i>
+                    <p>No document selected. Please select a document tab above.</p>
+                </div>
+            `;
+        }
+
+        async function fetchLTORequestData() {
+            const btn = document.getElementById('fetchLTODataBtn');
+            const btnText = btn.querySelector('.btn-text');
+            
+            // Disable and show loading
+            btn.disabled = true;
+            btn.classList.add('loading');
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Auto-fill data from currentRequestData
+                if (currentRequestData) {
+                    // Owner Information
+                    document.getElementById('ownerFullName').textContent = currentRequestData.ownerName || 'John Doe';
+                    document.getElementById('ownerContactNumber').textContent = currentRequestData.ownerPhone || '+63 912 345 6789';
+                    document.getElementById('ownerAddress').textContent = currentRequestData.ownerAddress || '123 Main Street, Quezon City, Metro Manila';
+
+                    // Vehicle Information
+                    document.getElementById('vehiclePlateNumber').textContent = currentRequestData.plateNumber || 'ABC-1234';
+                    document.getElementById('vehicleMakeModel').textContent = `${currentRequestData.vehicleMake || 'Toyota'} ${currentRequestData.vehicleModel || 'Vios'}`;
+                    document.getElementById('vehicleChassisNumber').textContent = currentRequestData.vin || 'CHASSIS123456789';
+                    document.getElementById('vehicleEngineNumber').textContent = currentRequestData.engineNumber || 'ENGINE123456789';
+
+                    // Mark as system verified
+                    document.getElementById('ownerInfoCard').classList.add('system-verified');
+                    document.getElementById('vehicleInfoCard').classList.add('system-verified');
+                    document.getElementById('ownerVerifiedBadge').style.display = 'flex';
+                    document.getElementById('vehicleVerifiedBadge').style.display = 'flex';
+
+                    // Add system-data class to fields (all remain read-only)
+                    document.querySelectorAll('#ownerInfoCard .info-field-value, #vehicleInfoCard .info-field-value').forEach(field => {
+                        field.classList.add('system-data');
+                    });
+
+                    ltoDataFetched = true;
+
+                    // Enable decision buttons and remarks field
+                    document.getElementById('approveBtn').disabled = false;
+                    document.getElementById('rejectBtn').disabled = false;
+                    document.getElementById('rejectionRemarks').readOnly = false;
+
+                    // Update button to success state and disable it
+                    btn.classList.remove('loading');
+                    btn.classList.add('success');
+                    btn.disabled = true;
+                    btnText.innerHTML = '<i class="fas fa-check-circle"></i> Data Fetched ✓';
+                    
+                    ToastNotification.show('LTO request data fetched and auto-filled successfully', 'success');
+                } else {
+                    throw new Error('No request data available');
+                }
+            } catch (error) {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+                ToastNotification.show('Failed to fetch LTO request data: ' + error.message, 'error');
+            }
+        }
+
+        function switchDocumentTab(tab) {
+            // Update active tab
+            document.querySelectorAll('.document-tab').forEach(t => t.classList.remove('active'));
+            event.target.closest('.document-tab').classList.add('active');
+
+            // Update viewer content
+            const viewerContainer = document.getElementById('documentViewerContainer');
+            viewerContainer.classList.add('has-document');
+
+            if (tab === 'insurance') {
+                viewerContainer.innerHTML = `
+                    <iframe class="pdf-viewer" src="https://mozilla.github.io/pdf.js/web/viewer.html?file=%2Ftest.pdf" type="application/pdf"></iframe>
+                `;
+            } else if (tab === 'orcr') {
+                viewerContainer.innerHTML = `
+                    <div class="image-gallery">
+                        <div class="image-item" onclick="openLightbox('https://via.placeholder.com/800x600?text=OR+Document')">
+                            <img src="https://via.placeholder.com/200x200?text=OR" alt="OR Document">
+                            <div class="image-item-label">Official Receipt</div>
                         </div>
-                        <div class="detail-row">
-                            <strong>Application ID:</strong> ${currentRequest.applicationId || 'N/A'}
+                        <div class="image-item" onclick="openLightbox('https://via.placeholder.com/800x600?text=CR+Document')">
+                            <img src="https://via.placeholder.com/200x200?text=CR" alt="CR Document">
+                            <div class="image-item-label">Certificate of Registration</div>
                         </div>
-                        <div class="detail-row">
-                            <strong>Owner Name:</strong> ${currentRequest.ownerName || 'N/A'}
+                    </div>
+                `;
+            } else {
+                viewerContainer.innerHTML = `
+                    <div class="image-gallery">
+                        <div class="image-item" onclick="openLightbox('https://via.placeholder.com/800x600?text=Valid+ID+Front')">
+                            <img src="https://via.placeholder.com/200x200?text=ID+Front" alt="ID Front">
+                            <div class="image-item-label">Valid ID (Front)</div>
                         </div>
-                        <div class="detail-row">
-                            <strong>Plate Number:</strong> ${currentRequest.plateNumber || 'N/A'}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Vehicle Type:</strong> ${currentRequest.vehicleType || 'N/A'}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Request Date:</strong> ${new Date().toLocaleDateString()}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Status:</strong> <span class="badge badge-warning">Pending</span>
+                        <div class="image-item" onclick="openLightbox('https://via.placeholder.com/800x600?text=Valid+ID+Back')">
+                            <img src="https://via.placeholder.com/200x200?text=ID+Back" alt="ID Back">
+                            <div class="image-item-label">Valid ID (Back)</div>
                         </div>
                     </div>
                 `;
             }
-            
-            document.getElementById('requestDetailsModal').classList.add('active');
         }
 
-        function receiveRequest(requestId) {
-            // Call the receive function from insurance-verifier-dashboard.js
-            if (typeof receiveInsuranceRequest === 'function') {
-                receiveInsuranceRequest();
-            } else {
-                // Fallback: Update localStorage
-                localStorage.setItem('insuranceRequestReceived', 'true');
-                localStorage.setItem('insuranceRequestPending', 'false');
-                alert('Request received successfully! You can now upload the insurance papers.');
-                loadInsuranceRequests();
+        function openLightbox(imageSrc) {
+            document.getElementById('lightboxImage').src = imageSrc;
+            document.getElementById('imageLightbox').classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('imageLightbox').classList.remove('active');
+        }
+
+        async function approveRequest() {
+            if (!currentRequestId) {
+                ToastNotification.show('No request selected', 'error');
+                return;
             }
-            closeModal('requestDetailsModal');
+
+            if (!ltoDataFetched) {
+                ToastNotification.show('Please fetch LTO request data first', 'warning');
+                return;
+            }
+
+            const confirmed = await ConfirmationDialog.show({
+                title: 'Approve Insurance Request',
+                message: 'Are you sure you want to approve this insurance verification request? You will need to upload the official insurance document.',
+                confirmText: 'Approve',
+                cancelText: 'Cancel',
+                confirmColor: '#27ae60',
+                type: 'question'
+            });
+
+            if (!confirmed) return;
+
+            try {
+                // Disable decision buttons
+                document.getElementById('approveBtn').disabled = true;
+                document.getElementById('rejectBtn').disabled = true;
+
+                // Show upload section
+                document.getElementById('insuranceUploadSection').style.display = 'block';
+                document.getElementById('insuranceUploadSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // Reset reject mode
+                isRejectMode = false;
+                document.getElementById('rejectionRemarks').classList.remove('required', 'error');
+                document.getElementById('rejectionRemarks').readOnly = true;
+                document.getElementById('remarksRequiredLabel').style.display = 'none';
+
+                ToastNotification.show('Request approved. Please upload the official insurance document (PDF).', 'success');
+            } catch (error) {
+                ToastNotification.show('Failed to approve request', 'error');
+            }
+        }
+
+        async function rejectRequest() {
+            if (!currentRequestId) {
+                ToastNotification.show('No request selected', 'error');
+                return;
+            }
+
+            if (!ltoDataFetched) {
+                ToastNotification.show('Please fetch LTO request data first', 'warning');
+                return;
+            }
+
+            // Enable reject mode - make remarks field editable and required
+            isRejectMode = true;
+            document.getElementById('rejectionRemarks').readOnly = false;
+            document.getElementById('rejectionRemarks').classList.add('required');
+            document.getElementById('rejectionRemarks').focus();
+            document.getElementById('remarksRequiredLabel').style.display = 'inline';
+
+            const remarks = document.getElementById('rejectionRemarks').value.trim();
+            if (!remarks) {
+                document.getElementById('rejectionRemarks').classList.add('error');
+                ToastNotification.show('Please provide remarks for rejection. Remarks are required.', 'error');
+                setTimeout(() => {
+                    document.getElementById('rejectionRemarks').classList.remove('error');
+                }, 3000);
+                return;
+            }
+
+            const confirmed = await ConfirmationDialog.show({
+                title: 'Reject Insurance Request',
+                message: `Are you sure you want to reject this insurance verification request?\n\nRemarks: ${remarks.substring(0, 100)}${remarks.length > 100 ? '...' : ''}`,
+                confirmText: 'Reject',
+                cancelText: 'Cancel',
+                confirmColor: '#e74c3c',
+                type: 'warning'
+            });
+
+            if (!confirmed) return;
+
+            try {
+                LoadingManager.showOverlay('Processing rejection...');
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                LoadingManager.hideOverlay();
+
+                ToastNotification.show('Request rejected successfully', 'success');
+                
+                // Reset and go back
+                resetReviewPage();
+                backToListView();
+                loadInsuranceRequests();
+            } catch (error) {
+                LoadingManager.hideOverlay();
+                ToastNotification.show('Failed to reject request', 'error');
+            }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type (PDF only)
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                ToastNotification.show('Only PDF files are allowed for insurance documents', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                ToastNotification.show('File size exceeds 10MB limit', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            uploadedFile = file;
+            const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            
+            document.getElementById('uploadFileName').textContent = file.name;
+            document.getElementById('uploadFileSize').textContent = fileSize;
+            document.getElementById('uploadPreview').classList.add('active');
+            document.getElementById('submitInsuranceBtn').style.display = 'block';
+
+            ToastNotification.show('Insurance document selected successfully. Click "Submit Insurance Document" to proceed.', 'success');
+        }
+
+        function removeUploadedFile() {
+            uploadedFile = null;
+            document.getElementById('insuranceFileInput').value = '';
+            document.getElementById('uploadPreview').classList.remove('active');
+            document.getElementById('submitInsuranceBtn').style.display = 'none';
+        }
+
+        async function submitInsuranceDocument() {
+            if (!uploadedFile) {
+                ToastNotification.show('Please upload the insurance document first', 'error');
+                return;
+            }
+
+            if (!currentRequestId) {
+                ToastNotification.show('No request selected', 'error');
+                return;
+            }
+
+            const confirmed = await ConfirmationDialog.show({
+                title: 'Submit Insurance Document',
+                message: `Are you sure you want to submit this insurance document?\n\nFile: ${uploadedFile.name}\n\nThis will complete the approval process and send the document to LTO. This action cannot be undone.`,
+                confirmText: 'Submit',
+                cancelText: 'Cancel',
+                confirmColor: '#2980b9',
+                type: 'question'
+            });
+
+            if (!confirmed) return;
+
+            try {
+                LoadingManager.showOverlay('Submitting insurance document to LTO...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                LoadingManager.hideOverlay();
+
+                ToastNotification.show('Insurance document submitted successfully. Request has been completed.', 'success');
+                
+                // Reset and go back
+                resetReviewPage();
+                backToListView();
+                loadInsuranceRequests();
+            } catch (error) {
+                LoadingManager.hideOverlay();
+                ToastNotification.show('Failed to submit insurance document: ' + error.message, 'error');
+            }
+        }
+
+        function backToListView() {
+            document.getElementById('reviewPage').classList.remove('active');
+            document.getElementById('requestsListView').style.display = 'block';
+            resetReviewPage();
         }
 
         function filterRequests() {
-            // Filter logic - placeholder
             loadInsuranceRequests();
         }
 
         function refreshRequests() {
             loadInsuranceRequests();
+            ToastNotification.show('Requests refreshed', 'success');
         }
 
         function exportRequests() {
-            alert('Export functionality will be implemented');
-        }
-
-        // Auto-Fill Verification - Fetch vehicle details from LTO request
-        function autoFillVerification(requestId) {
-            try {
-                // Get current request data
-                const currentRequest = JSON.parse(localStorage.getItem('currentInsuranceRequest') || 'null');
-                const insuranceRequestPending = localStorage.getItem('insuranceRequestPending') === 'true';
-                
-                let vehicleDetails = null;
-                
-                if (currentRequest && insuranceRequestPending) {
-                    // Use existing request data
-                    vehicleDetails = {
-                        requestId: currentRequest.requestId || requestId,
-                        applicationId: currentRequest.applicationId || currentRequest.requestId,
-                        ownerName: currentRequest.ownerName || 'N/A',
-                        plateNumber: currentRequest.plateNumber || 'N/A',
-                        vehicleType: currentRequest.vehicleType || 'N/A',
-                        vehicleModel: currentRequest.vehicleModel || 'N/A',
-                        vehicleYear: currentRequest.vehicleYear || 'N/A',
-                        vin: currentRequest.vin || 'N/A'
-                    };
-                } else {
-                    // Try to fetch from applications
-                    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-                    const insuranceRequest = applications.find(app => app.id === requestId || app.insuranceRequestPending === true);
-                    
-                    if (insuranceRequest) {
-                        vehicleDetails = {
-                            requestId: insuranceRequest.id || requestId,
-                            applicationId: insuranceRequest.id,
-                            ownerName: insuranceRequest.owner?.name || insuranceRequest.owner?.email || 'N/A',
-                            plateNumber: insuranceRequest.vehicle?.plateNumber || 'N/A',
-                            vehicleType: insuranceRequest.vehicle?.type || 'N/A',
-                            vehicleModel: insuranceRequest.vehicle?.model || 'N/A',
-                            vehicleYear: insuranceRequest.vehicle?.year || 'N/A',
-                            vin: insuranceRequest.vehicle?.vin || 'N/A'
-                        };
-                    }
-                }
-                
-                if (vehicleDetails) {
-                    // Store for verification form
-                    sessionStorage.setItem('autoFillData', JSON.stringify(vehicleDetails));
-                    localStorage.setItem('currentInsuranceRequest', JSON.stringify(vehicleDetails));
-                    
-                    // Show success notification
-                    showAutoFillNotification('Vehicle details loaded successfully! Ready for verification.');
-                } else {
-                    alert('Unable to fetch vehicle details. Please try receiving the request first.');
-                }
-            } catch (error) {
-                console.error('Error in auto-fill:', error);
-                alert('Error loading vehicle details. Please try again.');
-            }
-        }
-
-        // Show Auto-Fill notification
-        function showAutoFillNotification(message) {
-            // Remove existing notification if any
-            const existing = document.getElementById('autoFillNotification');
-            if (existing) existing.remove();
-            
-            const notification = document.createElement('div');
-            notification.id = 'autoFillNotification';
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
-                color: white;
-                padding: 1rem 1.5rem;
-                border-radius: 8px;
-                box-shadow: 0 4px 20px rgba(41, 128, 185, 0.3);
-                z-index: 10000;
-                animation: slideInRight 0.3s ease-out;
-                max-width: 400px;
-                display: flex;
-                align-items: center;
-                gap: 1rem;
-            `;
-            notification.innerHTML = `
-                <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
-                <div>
-                    <strong>Auto-Fill Activated!</strong>
-                    <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.95;">${message || 'Vehicle details have been auto-filled from LTO request.'}</p>
-                </div>
-                <button onclick="this.parentElement.remove()" style="background: rgba(255, 255, 255, 0.2); border: none; color: white; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; margin-left: auto;">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            
-            // Add animation
-            if (!document.getElementById('autoFillNotificationStyles')) {
-                const style = document.createElement('style');
-                style.id = 'autoFillNotificationStyles';
-                style.textContent = `
-                    @keyframes slideInRight {
-                        from { transform: translateX(100%); opacity: 0; }
-                        to { transform: translateX(0); opacity: 1; }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-            
-            document.body.appendChild(notification);
-            
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.style.animation = 'slideInRight 0.3s ease-out reverse';
-                    setTimeout(() => notification.remove(), 300);
-                }
-            }, 5000);
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
+            ToastNotification.show('Export functionality will be implemented', 'info');
         }
     </script>
 </body>

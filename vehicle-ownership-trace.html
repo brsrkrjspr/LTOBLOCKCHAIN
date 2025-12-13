@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Ownership Trace - LTO Admin</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    sidebar.classList.add('no-transition');
+                    const savedState = localStorage.getItem('adminSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+    <style>
+        /* Vehicle Ownership Trace - Admin Styles */
+        .search-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .search-form {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn-trace {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .btn-trace:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        /* Timeline Styles */
+        .timeline-container {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .timeline-header h3 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .timeline-header h3 i {
+            color: #3498db;
+        }
+
+        .vehicle-info-summary {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .vehicle-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .vehicle-info-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .vehicle-info-value {
+            font-size: 1rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 2rem;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #3498db, #2980b9, #3498db);
+            border-radius: 2px;
+        }
+
+        .timeline-node {
+            position: relative;
+            padding-left: 5rem;
+            margin-bottom: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .timeline-node:last-child {
+            margin-bottom: 0;
+        }
+
+        .timeline-node::before {
+            content: '';
+            position: absolute;
+            left: 1.5rem;
+            top: 0.5rem;
+            width: 1rem;
+            height: 1rem;
+            background: white;
+            border: 3px solid #3498db;
+            border-radius: 50%;
+            z-index: 2;
+            transition: all 0.3s;
+        }
+
+        .timeline-node.current::before {
+            background: #27ae60;
+            border-color: #27ae60;
+            box-shadow: 0 0 0 4px rgba(39, 174, 96, 0.2);
+        }
+
+        .timeline-node:hover::before {
+            transform: scale(1.3);
+            box-shadow: 0 0 0 6px rgba(52, 152, 219, 0.2);
+        }
+
+        .timeline-node-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .timeline-node:hover .timeline-node-card {
+            border-color: #3498db;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+            transform: translateX(5px);
+        }
+
+        .timeline-node.current .timeline-node-card {
+            border-color: #27ae60;
+            background: linear-gradient(to right, #f8fff9 0%, white 10%);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .node-owner-info {
+            flex: 1;
+        }
+
+        .node-owner-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+
+        .node-owner-details {
+            font-size: 0.875rem;
+            color: #7f8c8d;
+        }
+
+        .node-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .badge-verified {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .badge-current {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .badge-transfer-type {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .node-dates {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.75rem;
+            font-size: 0.875rem;
+            color: #7f8c8d;
+        }
+
+        .node-date-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .node-date-item i {
+            color: #3498db;
+        }
+
+        .node-expand-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #7f8c8d;
+            cursor: pointer;
+            font-size: 1.25rem;
+            transition: all 0.3s;
+            padding: 0.25rem;
+        }
+
+        .node-expand-btn:hover {
+            color: #3498db;
+            transform: rotate(90deg);
+        }
+
+        .node-expand-btn.expanded {
+            transform: rotate(180deg);
+        }
+
+        .transaction-details {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid #e9ecef;
+            display: none;
+        }
+
+        .transaction-details.expanded {
+            display: block;
+        }
+
+        .transaction-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .transaction-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .transaction-field-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .transaction-field-value {
+            font-size: 0.9rem;
+            color: #2c3e50;
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .btn-view-blockchain {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            white-space: nowrap;
+        }
+
+        .btn-view-blockchain:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-copy-tx {
+            background: #e9ecef;
+            color: #2c3e50;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            white-space: nowrap;
+        }
+
+        .btn-copy-tx:hover {
+            background: #dee2e6;
+            transform: translateY(-2px);
+        }
+
+        .btn-copy-tx.copied {
+            background: #27ae60;
+            color: white;
+        }
+
+        .trust-indicators {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .trust-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: #2c3e50;
+        }
+
+        .trust-indicator i {
+            color: #27ae60;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #7f8c8d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #bdc3c7;
+        }
+
+        .empty-state h3 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #7f8c8d;
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: #2c3e50;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #2c3e50;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+
+        @media (max-width: 768px) {
+            .search-form {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline::before {
+                left: 1rem;
+            }
+
+            .timeline-node {
+                padding-left: 3.5rem;
+            }
+
+            .timeline-node::before {
+                left: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">AD</div>
+                    <div class="logo-text">
+                        <h2>Admin</h2>
+                        <p>Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#users" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="#orgs" class="nav-item">
+                    <i class="fas fa-building"></i>
+                    <span>Organizations</span>
+                </a>
+                <a href="admin-blockchain-viewer.html" class="nav-item">
+                    <i class="fas fa-link"></i>
+                    <span>Blockchain Ledger</span>
+                </a>
+                <a href="admin-transfer-requests.html" class="nav-item">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
+                </a>
+                <a href="vehicle-ownership-trace.html" class="nav-item active">
+                    <i class="fas fa-history"></i>
+                    <span>Ownership Trace</span>
+                </a>
+                <a href="#audit" class="nav-item">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Audit Logs</span>
+                </a>
+                <a href="#reports" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="#documents" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="admin-document-viewer.html" class="nav-item">
+                    <i class="fas fa-eye"></i>
+                    <span>Document Viewer</span>
+                </a>
+            </nav>
+            
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">AD</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">LTO Admin</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">System Administrator</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Vehicle Ownership Trace</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Page Header -->
+                    <div class="page-header">
+                        <div class="page-title-section">
+                            <h2><i class="fas fa-history"></i> Vehicle Ownership Trace</h2>
+                            <p>View complete ownership history and blockchain-verified transaction records</p>
+                        </div>
+                    </div>
+
+                    <!-- Search & Entry Point -->
+                    <div class="search-section">
+                        <form class="search-form" onsubmit="searchVehicle(event)">
+                            <div class="form-group">
+                                <label for="searchInput">Search Vehicle</label>
+                                <input 
+                                    type="text" 
+                                    id="searchInput" 
+                                    placeholder="Enter Plate Number, VIN, or Vehicle ID"
+                                    required
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="statusFilter">Status</label>
+                                <select id="statusFilter">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="transferred">Transferred</option>
+                                    <option value="archived">Archived</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn-trace">
+                                    <i class="fas fa-search"></i> View Ownership Trace
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Timeline Container -->
+                    <div class="timeline-container" id="timelineContainer" style="display: none;">
+                        <div class="timeline-header">
+                            <h3><i class="fas fa-link"></i> Ownership Timeline</h3>
+                            <div class="vehicle-info-summary" id="vehicleInfoSummary"></div>
+                        </div>
+
+                        <div class="timeline" id="ownershipTimeline">
+                            <!-- Timeline nodes will be dynamically generated -->
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div class="empty-state" id="emptyState">
+                        <i class="fas fa-search"></i>
+                        <h3>Search for a Vehicle</h3>
+                        <p>Enter a plate number, VIN, or Vehicle ID above to view ownership trace</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Dummy ownership data
+        const ownershipData = {
+            'ABC-1234': {
+                plateNumber: 'ABC-1234',
+                vin: '4T1BF1FK5EU123456',
+                vehicleId: 'VEH-001',
+                make: 'Toyota',
+                model: 'Vios',
+                year: '2020',
+                status: 'active',
+                ownershipHistory: [
+                    {
+                        ownerName: 'Maria Santos',
+                        ownerId: 'OWN-001',
+                        startDate: '2020-01-15',
+                        endDate: null,
+                        transferType: 'Registration',
+                        transactionId: '0x7a3b9c2d4e5f6a1b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
+                        timestamp: '2020-01-15T10:30:00Z',
+                        eventType: 'Initial Registration',
+                        status: 'Verified',
+                        isCurrent: true
+                    },
+                    {
+                        ownerName: 'Juan Dela Cruz',
+                        ownerId: 'OWN-002',
+                        startDate: '2018-06-20',
+                        endDate: '2020-01-14',
+                        transferType: 'Transfer of Ownership',
+                        transactionId: '0x6b2a8d1c3e4f5a0b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1',
+                        timestamp: '2018-06-20T14:45:00Z',
+                        eventType: 'Transfer of Ownership',
+                        status: 'Verified',
+                        isCurrent: false
+                    },
+                    {
+                        ownerName: 'Robert Garcia',
+                        ownerId: 'OWN-003',
+                        startDate: '2015-03-10',
+                        endDate: '2018-06-19',
+                        transferType: 'Registration',
+                        transactionId: '0x5a1b7c0d2e3f4a9b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1',
+                        timestamp: '2015-03-10T09:15:00Z',
+                        eventType: 'Initial Registration',
+                        status: 'Verified',
+                        isCurrent: false
+                    }
+                ]
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const sidebarUserNameEl = document.getElementById('sidebarUserAvatar');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    if (sidebarUserNameEl) sidebarUserNameEl.textContent = AuthUtils.getUserInitials() || 'AD';
+                    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'LTO Administrator';
+                }
+            }
+
+            // Sidebar toggle
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    sidebar.classList.toggle('collapsed');
+                    localStorage.setItem('adminSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+                });
+            }
+
+            // Logout
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                        }
+                    }
+                });
+            }
+        });
+
+        function searchVehicle(event) {
+            event.preventDefault();
+            const searchInput = document.getElementById('searchInput').value.trim().toUpperCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            // Find vehicle data
+            let vehicleData = null;
+            for (const [key, data] of Object.entries(ownershipData)) {
+                if (key === searchInput || 
+                    data.vin === searchInput || 
+                    data.vehicleId === searchInput) {
+                    vehicleData = data;
+                    break;
+                }
+            }
+
+            if (!vehicleData) {
+                ToastNotification.show('Vehicle not found. Using sample data for demonstration.', 'info');
+                // Use sample data
+                vehicleData = ownershipData['ABC-1234'];
+            }
+
+            // Apply status filter if needed
+            if (statusFilter && vehicleData.status !== statusFilter) {
+                ToastNotification.show('Vehicle status does not match filter', 'warning');
+                return;
+            }
+
+            // Display timeline
+            displayOwnershipTimeline(vehicleData);
+        }
+
+        function displayOwnershipTimeline(vehicleData) {
+            const timelineContainer = document.getElementById('timelineContainer');
+            const emptyState = document.getElementById('emptyState');
+            const timeline = document.getElementById('ownershipTimeline');
+            const vehicleInfoSummary = document.getElementById('vehicleInfoSummary');
+
+            // Hide empty state, show timeline
+            emptyState.style.display = 'none';
+            timelineContainer.style.display = 'block';
+
+            // Update vehicle info summary
+            vehicleInfoSummary.innerHTML = `
+                <div class="vehicle-info-item">
+                    <div class="vehicle-info-label">Plate Number</div>
+                    <div class="vehicle-info-value">${vehicleData.plateNumber}</div>
+                </div>
+                <div class="vehicle-info-item">
+                    <div class="vehicle-info-label">VIN</div>
+                    <div class="vehicle-info-value">${vehicleData.vin}</div>
+                </div>
+                <div class="vehicle-info-item">
+                    <div class="vehicle-info-label">Vehicle</div>
+                    <div class="vehicle-info-value">${vehicleData.year} ${vehicleData.make} ${vehicleData.model}</div>
+                </div>
+            `;
+
+            // Clear timeline
+            timeline.innerHTML = '';
+
+            // Sort ownership history by start date (newest first)
+            const sortedHistory = [...vehicleData.ownershipHistory].sort((a, b) => 
+                new Date(b.startDate) - new Date(a.startDate)
+            );
+
+            // Create timeline nodes
+            sortedHistory.forEach((record, index) => {
+                const node = createTimelineNode(record, index);
+                timeline.appendChild(node);
+            });
+
+            // Scroll to timeline
+            timelineContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function createTimelineNode(record, index) {
+            const node = document.createElement('div');
+            node.className = `timeline-node ${record.isCurrent ? 'current' : ''}`;
+            
+            const startDate = new Date(record.startDate).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            const endDate = record.endDate ? 
+                new Date(record.endDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                }) : 'Present';
+
+            node.innerHTML = `
+                <div class="timeline-node-card">
+                    <button class="node-expand-btn" onclick="toggleTransactionDetails(this)">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="node-header">
+                        <div class="node-owner-info">
+                            <div class="node-owner-name">${record.ownerName}</div>
+                            <div class="node-owner-details">Owner ID: ${record.ownerId}</div>
+                        </div>
+                        <div class="node-badges">
+                            ${record.isCurrent ? '<span class="badge-current"><i class="fas fa-star"></i> Current Owner</span>' : ''}
+                            <span class="badge-verified">
+                                <i class="fas fa-shield-alt"></i> Verified
+                            </span>
+                            <span class="badge-transfer-type">${record.transferType}</span>
+                        </div>
+                    </div>
+                    <div class="node-dates">
+                        <div class="node-date-item">
+                            <i class="fas fa-calendar-check"></i>
+                            <span><strong>Start:</strong> ${startDate}</span>
+                        </div>
+                        <div class="node-date-item">
+                            <i class="fas fa-calendar-times"></i>
+                            <span><strong>End:</strong> ${endDate}</span>
+                        </div>
+                    </div>
+                    <div class="transaction-details">
+                        <div class="trust-indicators">
+                            <div class="trust-indicator" title="Blockchain-verified ownership record">
+                                <i class="fas fa-lock"></i>
+                                <span>Blockchain Verified</span>
+                            </div>
+                            <div class="trust-indicator" title="Tamper-proof transaction record">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Tamper-Proof</span>
+                            </div>
+                        </div>
+                        <div class="transaction-details-grid">
+                            <div class="transaction-field" style="grid-column: 1 / -1;">
+                                <div class="transaction-field-label">Transaction ID / Hash</div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                    <div class="transaction-field-value" style="flex: 1; min-width: 200px;">${record.transactionId}</div>
+                                    <button 
+                                        class="btn-view-blockchain" 
+                                        onclick="viewTransactionOnBlockchain('${record.transactionId}', '${record.ownerName}', '${record.eventType}')"
+                                        title="View transaction on blockchain explorer"
+                                    >
+                                        <i class="fas fa-external-link-alt"></i> View on Blockchain
+                                    </button>
+                                    <button 
+                                        class="btn-copy-tx" 
+                                        onclick="copyTransactionId('${record.transactionId}')"
+                                        title="Copy transaction ID to clipboard"
+                                    >
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="transaction-field">
+                                <div class="transaction-field-label">Timestamp</div>
+                                <div class="transaction-field-value">${new Date(record.timestamp).toLocaleString('en-US')}</div>
+                            </div>
+                            <div class="transaction-field">
+                                <div class="transaction-field-label">Event Type</div>
+                                <div class="transaction-field-value">${record.eventType}</div>
+                            </div>
+                            <div class="transaction-field">
+                                <div class="transaction-field-label">Status</div>
+                                <div class="transaction-field-value">
+                                    <span class="badge-verified" style="display: inline-flex; padding: 0.25rem 0.5rem;">
+                                        <i class="fas fa-check-circle"></i> ${record.status}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return node;
+        }
+
+        function toggleTransactionDetails(button) {
+            const node = button.closest('.timeline-node');
+            const details = node.querySelector('.transaction-details');
+            const isExpanded = details.classList.contains('expanded');
+
+            if (isExpanded) {
+                details.classList.remove('expanded');
+                button.classList.remove('expanded');
+            } else {
+                // Close all other expanded nodes
+                document.querySelectorAll('.transaction-details.expanded').forEach(d => {
+                    d.classList.remove('expanded');
+                    d.closest('.timeline-node').querySelector('.node-expand-btn').classList.remove('expanded');
+                });
+                details.classList.add('expanded');
+                button.classList.add('expanded');
+            }
+        }
+
+        function viewTransactionOnBlockchain(transactionId, ownerName, eventType) {
+            // Option 1: Open in blockchain viewer (if exists)
+            if (window.location.pathname.includes('vehicle-ownership-trace.html')) {
+                // Open blockchain viewer with transaction ID
+                const blockchainViewerUrl = `admin-blockchain-viewer.html?tx=${encodeURIComponent(transactionId)}`;
+                window.open(blockchainViewerUrl, '_blank');
+                
+                ToastNotification.show('Opening blockchain viewer...', 'info');
+            } else {
+                // Option 2: Show verification modal
+                showTransactionVerificationModal(transactionId, ownerName, eventType);
+            }
+        }
+
+        function showTransactionVerificationModal(transactionId, ownerName, eventType) {
+            // Create and show modal with transaction verification details
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'transactionVerificationModal';
+            modal.style.display = 'flex';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-shield-check"></i> Transaction Verification</h2>
+                        <button class="modal-close" onclick="closeTransactionModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.5rem;">Transaction ID</div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #2c3e50; word-break: break-all; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                                ${transactionId}
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.5rem;">Owner</div>
+                                <div style="font-weight: 600; color: #2c3e50;">${ownerName}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.5rem;">Event Type</div>
+                                <div style="font-weight: 600; color: #2c3e50;">${eventType}</div>
+                            </div>
+                        </div>
+                        <div style="padding: 1rem; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #27ae60;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                                <i class="fas fa-check-circle" style="color: #27ae60; font-size: 1.25rem;"></i>
+                                <span style="font-weight: 600; color: #2c3e50;">Transaction Verified on Blockchain</span>
+                            </div>
+                            <div style="font-size: 0.875rem; color: #7f8c8d;">
+                                This transaction has been confirmed and recorded on the blockchain ledger. The record is tamper-proof and immutable.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="closeTransactionModal()">Close</button>
+                        <button class="btn-primary" onclick="window.open('admin-blockchain-viewer.html?tx=${encodeURIComponent(transactionId)}', '_blank'); closeTransactionModal();">
+                            <i class="fas fa-external-link-alt"></i> View Full Details
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeTransactionModal() {
+            const modal = document.getElementById('transactionVerificationModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.remove();
+            }
+        }
+
+        function copyTransactionId(transactionId) {
+            navigator.clipboard.writeText(transactionId).then(() => {
+                const buttons = document.querySelectorAll('.btn-copy-tx');
+                buttons.forEach(btn => {
+                    if (btn.textContent.includes(transactionId.substring(0, 10))) {
+                        const originalText = btn.innerHTML;
+                        btn.classList.add('copied');
+                        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        setTimeout(() => {
+                            btn.classList.remove('copied');
+                            btn.innerHTML = originalText;
+                        }, 2000);
+                    }
+                });
+                ToastNotification.show('Transaction ID copied to clipboard', 'success');
+            }).catch(err => {
+                ToastNotification.show('Failed to copy transaction ID', 'error');
+            });
+        }
+    </script>
+</body>
+</html>
+

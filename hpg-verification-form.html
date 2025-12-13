@@ -137,13 +137,59 @@
                         </div>
                     </div>
 
+                    <!-- Fetch LTO Vehicle Details Button -->
+                    <div class="fetch-details-section">
+                        <button type="button" class="btn-fetch-details" id="fetchLTODetailsBtn" onclick="fetchLTOVehicleDetails()">
+                            <i class="fas fa-download"></i>
+                            <span>Fetch LTO Vehicle Details</span>
+                        </button>
+                        <div id="fetchStatus" class="fetch-status" style="display: none;"></div>
+                    </div>
+
                     <!-- Verification Form -->
-                    <form id="verificationForm" class="verification-form" onsubmit="handleVerificationSubmit(event)">
-                        <!-- Vehicle Information Section (Auto-loaded) -->
+                    <form id="verificationForm" class="verification-form" onsubmit="handleVerificationSubmit(event)" style="display: none;">
+                        <!-- Vehicle Verification Panel (Read-only) -->
+                        <div class="form-section verification-panel">
+                            <div class="section-header">
+                                <h2><i class="fas fa-shield-check"></i> Vehicle Verification Panel</h2>
+                                <span class="section-badge verified-badge">
+                                    <i class="fas fa-check-circle"></i> Verified from LTO
+                                </span>
+                            </div>
+                            <div class="verification-grid">
+                                <div class="verification-item">
+                                    <label>Engine Number</label>
+                                    <div class="verification-value" id="verificationEngineNumber">-</div>
+                                </div>
+                                <div class="verification-item">
+                                    <label>Chassis Number</label>
+                                    <div class="verification-value" id="verificationChassisNumber">-</div>
+                                </div>
+                                <div class="verification-item">
+                                    <label>Make</label>
+                                    <div class="verification-value" id="verificationMake">-</div>
+                                </div>
+                                <div class="verification-item">
+                                    <label>Model</label>
+                                    <div class="verification-value" id="verificationModel">-</div>
+                                </div>
+                                <div class="verification-item">
+                                    <label>Color</label>
+                                    <div class="verification-value" id="verificationColor">-</div>
+                                </div>
+                                <div class="verification-item">
+                                    <label>Registration Validity</label>
+                                    <div class="verification-value" id="verificationValidity">
+                                        <span class="validity-badge" id="validityBadge">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vehicle Information Section (Additional Details) -->
                         <div class="form-section">
                             <div class="section-header">
-                                <h2><i class="fas fa-car"></i> Vehicle Information</h2>
-                                <span class="section-badge">Auto-loaded from LTO</span>
+                                <h2><i class="fas fa-car"></i> Additional Vehicle Information</h2>
                             </div>
                             <div class="form-grid">
                                 <div class="form-group">
@@ -157,10 +203,6 @@
                                 <div class="form-group">
                                     <label>Vehicle Type</label>
                                     <input type="text" id="vehicleType" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Vehicle Model</label>
-                                    <input type="text" id="vehicleModel" readonly>
                                 </div>
                                 <div class="form-group">
                                     <label>Year</label>
@@ -255,11 +297,11 @@
                             <button type="button" class="btn-secondary" onclick="cancelVerification()">
                                 <i class="fas fa-times"></i> Cancel
                             </button>
-                            <button type="button" class="btn-danger" onclick="rejectVerification()">
-                                <i class="fas fa-times-circle"></i> Reject Verification
+                            <button type="button" class="btn-warning" onclick="returnForCorrection()" id="returnForCorrectionBtn">
+                                <i class="fas fa-undo"></i> Return for Correction
                             </button>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-check-circle"></i> Approve Verification
+                            <button type="button" class="btn-success" onclick="confirmVehicleVerification()" id="confirmVerificationBtn">
+                                <i class="fas fa-check-circle"></i> Confirm Vehicle Verification
                             </button>
                         </div>
                     </form>
@@ -268,25 +310,91 @@
         </div>
     </div>
 
-    <!-- Reject Confirmation Modal -->
-    <div class="modal" id="rejectModal">
+    <!-- Return for Correction Modal -->
+    <div class="modal" id="returnCorrectionModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Reject Verification</h2>
-                <button class="modal-close" onclick="closeModal('rejectModal')">
+                <h2>Return for Correction</h2>
+                <button class="modal-close" onclick="closeModal('returnCorrectionModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="rejectReason">Reason for Rejection <span class="required">*</span></label>
-                    <textarea id="rejectReason" rows="4" placeholder="Please provide a reason for rejecting this verification..." required></textarea>
+                    <label for="correctionReason">Reason for Return <span class="required">*</span></label>
+                    <textarea id="correctionReason" rows="4" placeholder="Please provide a reason for returning this request for correction..." required></textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('rejectModal')">Cancel</button>
-                <button class="btn-danger" onclick="confirmReject()">Confirm Rejection</button>
+                <button class="btn-secondary" onclick="closeModal('returnCorrectionModal')">Cancel</button>
+                <button class="btn-warning" onclick="confirmReturnForCorrection()">Confirm Return</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Send Clearance to LTO Confirmation Modal -->
+    <div class="modal" id="sendClearanceModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Send Clearance to LTO</h2>
+                <button class="modal-close" onclick="closeModal('sendClearanceModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="clearance-summary">
+                    <div class="summary-header">
+                        <i class="fas fa-check-circle text-success"></i>
+                        <h3>Vehicle Verification Confirmed</h3>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-item">
+                            <strong>Request ID:</strong> <span id="summaryRequestId">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Plate Number:</strong> <span id="summaryPlateNumber">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Owner Name:</strong> <span id="summaryOwnerName">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Vehicle:</strong> <span id="summaryVehicle">-</span>
+                        </div>
+                    </div>
+                    <div class="confirmation-message">
+                        <p>Are you sure you want to send the clearance certificate to LTO?</p>
+                        <small>This action will notify LTO Admin that the vehicle verification has been completed.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('sendClearanceModal')">Cancel</button>
+                <button class="btn-success" onclick="confirmSendClearance()" id="confirmSendClearanceBtn">
+                    <i class="fas fa-paper-plane"></i> Send Clearance to LTO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p id="loadingMessage">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Notification -->
+    <div class="notification-toast" id="notificationToast" style="display: none;">
+        <div class="toast-content">
+            <i class="toast-icon" id="toastIcon"></i>
+            <div class="toast-message">
+                <strong id="toastTitle"></strong>
+                <p id="toastMessage"></p>
+            </div>
+            <button class="toast-close" onclick="closeToast()">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     </div>
 
@@ -337,6 +445,23 @@
             
             if (requestId && typeof HPGVerification !== 'undefined') {
                 HPGVerification.loadRequestData(requestId);
+            }
+
+            // Check if we should auto-fetch LTO data (when coming from "Fetch LTO Details" button)
+            const shouldAutoFetch = urlParams.get('fetchLTO') === 'true' || 
+                                   sessionStorage.getItem('autoFetchLTOData') === 'true';
+            
+            if (shouldAutoFetch) {
+                // Clear the flag
+                sessionStorage.removeItem('autoFetchLTOData');
+                
+                // Auto-click the fetch button after a short delay to ensure page is fully loaded
+                setTimeout(() => {
+                    const fetchBtn = document.getElementById('fetchLTODetailsBtn');
+                    if (fetchBtn && !fetchBtn.disabled) {
+                        fetchBtn.click();
+                    }
+                }, 500);
             }
 
             // Load sidebar state from localStorage
@@ -443,7 +568,612 @@
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
         }
+
+        // Fetch LTO Vehicle Details
+        function fetchLTOVehicleDetails() {
+            const btn = document.getElementById('fetchLTODetailsBtn');
+            const statusDiv = document.getElementById('fetchStatus');
+            const form = document.getElementById('verificationForm');
+            
+            // Show loading state
+            btn.disabled = true;
+            btn.classList.add('loading');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'fetch-status loading';
+            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching vehicle details from LTO...';
+            
+            showLoading('Fetching vehicle details from LTO...');
+            
+            // Simulate API call - replace with actual API call
+            setTimeout(() => {
+                try {
+                    const requestId = new URLSearchParams(window.location.search).get('requestId') || 
+                                    sessionStorage.getItem('currentRequestId');
+                    
+                    // Get data from localStorage or sessionStorage
+                    const autoFillData = JSON.parse(sessionStorage.getItem('autoFillData') || 'null');
+                    const currentRequest = JSON.parse(localStorage.getItem('currentHPGRequest') || 'null');
+                    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+                    
+                    let vehicleData = null;
+                    
+                    if (autoFillData) {
+                        vehicleData = autoFillData;
+                    } else if (currentRequest) {
+                        vehicleData = currentRequest;
+                    } else if (requestId) {
+                        const app = applications.find(a => a.id === requestId);
+                        if (app) {
+                            vehicleData = {
+                                requestId: app.id,
+                                applicationId: app.id,
+                                ownerName: app.owner?.name || app.owner?.email || 'N/A',
+                                plateNumber: app.vehicle?.plateNumber || 'N/A',
+                                vehicleType: app.vehicle?.type || 'N/A',
+                                vehicleModel: app.vehicle?.model || 'N/A',
+                                vehicleYear: app.vehicle?.year || 'N/A',
+                                make: app.vehicle?.make || 'N/A',
+                                color: app.vehicle?.color || 'N/A',
+                                engineNumber: app.vehicle?.engineNumber || 'N/A',
+                                chassisNumber: app.vehicle?.chassisNumber || 'N/A',
+                                vin: app.vehicle?.vin || 'N/A',
+                                registrationValidity: app.vehicle?.registrationValidity || 'Valid'
+                            };
+                        }
+                    }
+                    
+                    // Use dummy data if no real data is found
+                    if (!vehicleData) {
+                        // Create dummy vehicle data for demonstration
+                        vehicleData = {
+                            requestId: requestId || 'REQ-HPG-001',
+                            applicationId: 'APP-001',
+                            ownerName: 'Juan Dela Cruz',
+                            plateNumber: 'ABC-1234',
+                            vehicleType: 'Car',
+                            vehicleMake: 'Toyota',
+                            vehicleModel: 'Vios 1.3 E',
+                            vehicleYear: '2020',
+                            color: 'White',
+                            engineNumber: 'ENG-2020-123456',
+                            chassisNumber: 'CHS-2020-789012',
+                            vin: '4T1BF1FK5EU123456',
+                            registrationValidity: 'Valid',
+                            purpose: 'Transfer of Ownership'
+                        };
+                    }
+                    
+                    // Populate verification panel
+                    document.getElementById('verificationEngineNumber').textContent = vehicleData.engineNumber || vehicleData.vin || 'ENG-2020-123456';
+                    document.getElementById('verificationChassisNumber').textContent = vehicleData.chassisNumber || 'CHS-2020-789012';
+                    document.getElementById('verificationMake').textContent = vehicleData.make || vehicleData.vehicleMake || 'Toyota';
+                    document.getElementById('verificationModel').textContent = vehicleData.vehicleModel || vehicleData.model || 'Vios 1.3 E';
+                    document.getElementById('verificationColor').textContent = vehicleData.color || 'White';
+                    
+                    const validity = vehicleData.registrationValidity || 'Valid';
+                    const validityBadge = document.getElementById('validityBadge');
+                    validityBadge.textContent = validity;
+                    validityBadge.className = 'validity-badge ' + (validity.toLowerCase() === 'valid' ? 'valid' : 'invalid');
+                    
+                    // Populate additional fields
+                    document.getElementById('ownerName').value = vehicleData.ownerName || 'Juan Dela Cruz';
+                    document.getElementById('plateNumber').value = vehicleData.plateNumber || 'ABC-1234';
+                    document.getElementById('vehicleType').value = vehicleData.vehicleType || 'Car';
+                    document.getElementById('vehicleYear').value = vehicleData.vehicleYear || '2020';
+                    document.getElementById('purpose').value = vehicleData.purpose || 'Transfer of Ownership';
+                    
+                    // Update request ID display
+                    if (requestId) {
+                        document.getElementById('currentRequestId').textContent = requestId;
+                    }
+                    
+                    // Auto-fill inspection fields with fetched data
+                    document.getElementById('engineNumber').value = vehicleData.engineNumber || vehicleData.vin || 'ENG-2020-123456';
+                    document.getElementById('chassisNumber').value = vehicleData.chassisNumber || 'CHS-2020-789012';
+                    
+                    // Show success state
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    btn.classList.add('success');
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> <span>Vehicle Details Loaded</span>';
+                    statusDiv.className = 'fetch-status success';
+                    statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Vehicle details fetched successfully!';
+                    
+                    // Show form
+                    form.style.display = 'block';
+                    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    showSuccess('Vehicle details fetched successfully!', 'The verification panel has been populated with LTO data.');
+                    hideLoading();
+                } catch (error) {
+                    console.error('Error fetching vehicle details:', error);
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    statusDiv.className = 'fetch-status error';
+                    statusDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to fetch vehicle details. Please try again.';
+                    showError('Failed to fetch vehicle details', error.message || 'Please ensure the request has been received from LTO.');
+                    hideLoading();
+                }
+            }, 1500);
+        }
+
+        // Confirm Vehicle Verification
+        function confirmVehicleVerification() {
+            // Validate required fields
+            const engineNumber = document.getElementById('verificationEngineNumber').textContent;
+            const chassisNumber = document.getElementById('verificationChassisNumber').textContent;
+            
+            if (engineNumber === '-' || chassisNumber === '-') {
+                showError('Verification Incomplete', 'Please fetch LTO vehicle details first.');
+                return;
+            }
+            
+            // Populate summary in modal
+            const requestId = new URLSearchParams(window.location.search).get('requestId') || 
+                            sessionStorage.getItem('currentRequestId') || '-';
+            document.getElementById('summaryRequestId').textContent = requestId;
+            document.getElementById('summaryPlateNumber').textContent = document.getElementById('plateNumber').value || '-';
+            document.getElementById('summaryOwnerName').textContent = document.getElementById('ownerName').value || '-';
+            document.getElementById('summaryVehicle').textContent = 
+                `${document.getElementById('verificationMake').textContent} ${document.getElementById('verificationModel').textContent} (${document.getElementById('vehicleYear').value})`;
+            
+            // Show send clearance modal
+            document.getElementById('sendClearanceModal').classList.add('active');
+        }
+
+        // Return for Correction
+        function returnForCorrection() {
+            document.getElementById('returnCorrectionModal').classList.add('active');
+        }
+
+        // Confirm Return for Correction
+        function confirmReturnForCorrection() {
+            const reason = document.getElementById('correctionReason').value;
+            if (!reason.trim()) {
+                showError('Reason Required', 'Please provide a reason for returning this request.');
+                return;
+            }
+            
+            showLoading('Returning request for correction...');
+            
+            // Simulate API call
+            setTimeout(() => {
+                hideLoading();
+                showSuccess('Request Returned', 'The request has been returned to LTO for correction.');
+                closeModal('returnCorrectionModal');
+                
+                // Redirect after delay
+                setTimeout(() => {
+                    window.location.href = 'hpg-requests-list.html';
+                }, 2000);
+            }, 1500);
+        }
+
+        // Confirm Send Clearance to LTO
+        function confirmSendClearance() {
+            const btn = document.getElementById('confirmSendClearanceBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            
+            showLoading('Sending clearance certificate to LTO...');
+            
+            // Simulate API call
+            setTimeout(() => {
+                hideLoading();
+                closeModal('sendClearanceModal');
+                showSuccess('Clearance Sent', 'The clearance certificate has been successfully sent to LTO Admin.');
+                
+                // Redirect after delay
+                setTimeout(() => {
+                    window.location.href = 'hpg-requests-list.html';
+                }, 2000);
+            }, 2000);
+        }
+
+        // Loading, Success, Error Feedback Functions
+        function showLoading(message) {
+            const overlay = document.getElementById('loadingOverlay');
+            const messageEl = document.getElementById('loadingMessage');
+            if (messageEl) messageEl.textContent = message || 'Processing...';
+            overlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'none';
+        }
+
+        function showSuccess(title, message) {
+            showToast('success', title, message);
+        }
+
+        function showError(title, message) {
+            showToast('error', title, message);
+        }
+
+        function showToast(type, title, message) {
+            const toast = document.getElementById('notificationToast');
+            const icon = document.getElementById('toastIcon');
+            const titleEl = document.getElementById('toastTitle');
+            const messageEl = document.getElementById('toastMessage');
+            
+            toast.className = `notification-toast ${type}`;
+            icon.className = `toast-icon fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}`;
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            toast.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                closeToast();
+            }, 5000);
+        }
+
+        function closeToast() {
+            const toast = document.getElementById('notificationToast');
+            toast.style.display = 'none';
+        }
     </script>
+    <style>
+        /* Fetch LTO Vehicle Details Button */
+        .fetch-details-section {
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .btn-fetch-details {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-fetch-details:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-fetch-details:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .btn-fetch-details.loading {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+        }
+
+        .btn-fetch-details.success {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+
+        .fetch-status {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            display: inline-block;
+        }
+
+        .fetch-status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .fetch-status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .fetch-status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        /* Verification Panel */
+        .verification-panel {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #3498db;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .verification-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .verification-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .verification-item label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .verification-value {
+            background: white;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #2c3e50;
+            border: 1px solid #dee2e6;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .verified-badge {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .validity-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .validity-badge.valid {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .validity-badge.invalid {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Action Buttons */
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-warning:hover {
+            background: #e67e22;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 2rem 3rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading-spinner i {
+            font-size: 3rem;
+            color: #3498db;
+            margin-bottom: 1rem;
+        }
+
+        .loading-spinner p {
+            margin: 0;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Notification Toast */
+        .notification-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10001;
+            min-width: 350px;
+            max-width: 500px;
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .toast-content {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            border-left: 4px solid;
+        }
+
+        .notification-toast.success .toast-content {
+            border-left-color: #27ae60;
+        }
+
+        .notification-toast.error .toast-content {
+            border-left-color: #e74c3c;
+        }
+
+        .toast-icon {
+            font-size: 1.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .notification-toast.success .toast-icon {
+            color: #27ae60;
+        }
+
+        .notification-toast.error .toast-icon {
+            color: #e74c3c;
+        }
+
+        .toast-message {
+            flex: 1;
+        }
+
+        .toast-message strong {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: #2c3e50;
+        }
+
+        .toast-message p {
+            margin: 0;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #95a5a6;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+        }
+
+        .toast-close:hover {
+            color: #2c3e50;
+        }
+
+        /* Clearance Summary */
+        .clearance-summary {
+            padding: 1rem 0;
+        }
+
+        .summary-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .summary-header i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .summary-header h3 {
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        .summary-content {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .confirmation-message {
+            text-align: center;
+            padding: 1rem;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+
+        .confirmation-message p {
+            margin: 0 0 0.5rem 0;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .confirmation-message small {
+            color: #7f8c8d;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .verification-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-fetch-details {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .notification-toast {
+                left: 20px;
+                right: 20px;
+                min-width: auto;
+            }
+        }
+    </style>
 </body>
 </html>
 

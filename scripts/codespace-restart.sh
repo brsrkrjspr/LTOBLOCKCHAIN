@@ -287,17 +287,45 @@ fi
 # ======================================================
 # PHASE 5: Setup Wallet (if needed)
 # ======================================================
-print_header "Phase 5: Checking Wallet"
+print_header "Phase 5: Setting Up Wallet"
 
-if [ -d "wallet/admin" ]; then
+# Check if wallet directory exists and has admin identity
+WALLET_EXISTS=false
+if [ -d "wallet" ]; then
+    # Check for admin identity (Fabric wallet creates different structures)
+    if [ -d "wallet/admin" ] || [ -f "wallet/admin" ] || [ -d "wallet/admin.id" ] || [ -f "wallet/admin.id" ]; then
+        WALLET_EXISTS=true
+    fi
+fi
+
+if [ "$WALLET_EXISTS" = true ]; then
     print_success "Wallet already exists"
 else
     print_info "Setting up wallet..."
-    node scripts/setup-fabric-wallet.js
-    if [ $? -eq 0 ]; then
-        print_success "Wallet created"
+    print_info "This may take a moment..."
+    
+    # Run wallet setup and capture output
+    WALLET_OUTPUT=$(node scripts/setup-fabric-wallet.js 2>&1)
+    WALLET_EXIT_CODE=$?
+    
+    if [ $WALLET_EXIT_CODE -eq 0 ]; then
+        print_success "Wallet created successfully"
+        echo "$WALLET_OUTPUT" | grep -E "✅|🎉" || true
     else
-        print_error "Wallet setup failed, but continuing..."
+        print_error "Wallet setup failed!"
+        echo "$WALLET_OUTPUT" | tail -10
+        print_info "Attempting to continue anyway..."
+        print_info "You may need to run manually: node scripts/setup-fabric-wallet.js"
+    fi
+    
+    # Verify wallet was actually created
+    if [ -d "wallet" ]; then
+        WALLET_FILES=$(find wallet -type f 2>/dev/null | wc -l)
+        if [ "$WALLET_FILES" -gt 0 ]; then
+            print_success "Wallet directory contains $WALLET_FILES file(s)"
+        else
+            print_warning "Wallet directory exists but appears empty"
+        fi
     fi
 fi
 

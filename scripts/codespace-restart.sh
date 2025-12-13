@@ -23,6 +23,7 @@ print_header() {
 print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ️  $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 
 # Change to project root
 cd /workspaces/LTOBLOCKCHAIN
@@ -170,7 +171,7 @@ else
     sleep 5
     
     # Commit chaincode
-    docker exec cli peer lifecycle chaincode commit \
+    COMMIT_OUTPUT=$(docker exec cli peer lifecycle chaincode commit \
         -o orderer.lto.gov.ph:7050 \
         --channelID ltochannel \
         --name vehicle-registration \
@@ -179,28 +180,81 @@ else
         --tls \
         --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem \
         --peerAddresses peer0.lto.gov.ph:7051 \
-        --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+        --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt 2>&1)
     
-    print_success "Chaincode committed"
+    if [ $? -eq 0 ] || echo "$COMMIT_OUTPUT" | grep -q "already committed\|already defined"; then
+        print_success "Chaincode committed (or already committed)"
+    else
+        print_error "Chaincode commit had issues, but continuing..."
+        echo "$COMMIT_OUTPUT" | tail -5
+        print_info "Chaincode may already be committed, verifying..."
+    fi
+    
+    # Verify chaincode is committed
+    sleep 5
+    if docker exec cli peer lifecycle chaincode querycommitted --channelID ltochannel --name vehicle-registration 2>/dev/null | grep -q "Version:"; then
+        print_success "Chaincode verified as committed"
+    else
+        print_warning "Chaincode commit verification failed, but continuing..."
+    fi
 fi
 
 # ======================================================
-# PHASE 4: Setup Wallet (if needed)
+# PHASE 4: Ensure Admincerts Are Set Up
 # ======================================================
-print_header "Phase 4: Checking Wallet"
+print_header "Phase 4: Setting Up Admin Certificates"
+
+ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
+ADMIN_CERT="${ADMIN_MSP}/signcerts/Admin@lto.gov.ph-cert.pem"
+
+if [ -f "$ADMIN_CERT" ]; then
+    # Find any .pem file if exact name doesn't exist
+    if [ ! -f "$ADMIN_CERT" ]; then
+        ADMIN_CERT=$(find "${ADMIN_MSP}/signcerts" -name "*.pem" | head -1)
+    fi
+    
+    # Setup user admincerts
+    mkdir -p "${ADMIN_MSP}/admincerts"
+    cp "$ADMIN_CERT" "${ADMIN_MSP}/admincerts/" 2>/dev/null || true
+    print_success "User admincerts configured"
+    
+    # Setup peer admincerts
+    PEER_ADMINCERTS="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp/admincerts"
+    mkdir -p "$PEER_ADMINCERTS"
+    cp "$ADMIN_CERT" "$PEER_ADMINCERTS/" 2>/dev/null || true
+    print_success "Peer admincerts configured"
+    
+    # Restart peer to pick up new admincerts
+    print_info "Restarting peer to apply admincerts..."
+    docker restart peer0.lto.gov.ph > /dev/null 2>&1
+    sleep 10
+    print_success "Peer restarted"
+else
+    print_error "Admin certificate not found: $ADMIN_CERT"
+    print_info "Continuing anyway..."
+fi
+
+# ======================================================
+# PHASE 5: Setup Wallet (if needed)
+# ======================================================
+print_header "Phase 5: Checking Wallet"
 
 if [ -d "wallet/admin" ]; then
     print_success "Wallet already exists"
 else
     print_info "Setting up wallet..."
     node scripts/setup-fabric-wallet.js
-    print_success "Wallet created"
+    if [ $? -eq 0 ]; then
+        print_success "Wallet created"
+    else
+        print_error "Wallet setup failed, but continuing..."
+    fi
 fi
 
 # ======================================================
-# PHASE 5: Verify Database Schema
+# PHASE 6: Verify Database Schema
 # ======================================================
-print_header "Phase 5: Verifying Database Schema"
+print_header "Phase 6: Verifying Database Schema"
 
 # Apply basic schema updates
 docker exec postgres psql -U lto_user -d lto_blockchain -c "
@@ -232,9 +286,9 @@ fi
 print_success "Database schema verified"
 
 # ======================================================
-# PHASE 6: Final Verification
+# PHASE 7: Final Verification
 # ======================================================
-print_header "Phase 6: Final Verification"
+print_header "Phase 7: Final Verification"
 
 # Test Fabric connection
 echo "Testing blockchain connection..."

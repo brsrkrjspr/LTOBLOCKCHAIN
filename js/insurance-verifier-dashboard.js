@@ -122,13 +122,8 @@ function createInsuranceVerificationRowFromRequest(request) {
         <td>${requestDate}</td>
         <td><span class="status-badge status-${request.status?.toLowerCase() || 'pending'}">${request.status || 'PENDING'}</span></td>
         <td>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button class="btn-primary btn-sm" onclick="approveInsurance('${request.id}')">Approve</button>
-                <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">Reject</button>
-                <button class="btn-auto-verify btn-sm" onclick="autoFillVerification('${request.id}')" title="Automatically fetch vehicle details from LTO request for verification">
-                    <i class="fas fa-bolt"></i> Auto Verify
-                </button>
-            </div>
+            <button class="btn-primary btn-sm" onclick="approveInsurance('${request.id}')">Approve</button>
+            <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">Reject</button>
         </td>
     `;
     return row;

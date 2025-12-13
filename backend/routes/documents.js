@@ -900,4 +900,140 @@ router.delete('/:documentId', authenticateToken, async (req, res) => {
     }
 });
 
+// Search documents
+router.get('/search', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { vin, applicationId, vehicleId, documentType, page = 1, limit = 50 } = req.query;
+        
+        let query = `
+            SELECT d.*,
+                   v.id as vehicle_id, v.vin, v.plate_number, v.make, v.model, v.year,
+                   u.first_name || ' ' || u.last_name as uploader_name
+            FROM documents d
+            JOIN vehicles v ON d.vehicle_id = v.id
+            LEFT JOIN users u ON d.uploaded_by = u.id
+            WHERE 1=1
+        `;
+        
+        const params = [];
+        let paramCount = 0;
+        
+        if (vin) {
+            paramCount++;
+            query += ` AND v.vin = $${paramCount}`;
+            params.push(vin);
+        }
+        
+        if (vehicleId) {
+            paramCount++;
+            query += ` AND v.id = $${paramCount}`;
+            params.push(vehicleId);
+        }
+        
+        if (applicationId) {
+            // applicationId is typically the vehicle ID
+            paramCount++;
+            query += ` AND v.id = $${paramCount}`;
+            params.push(applicationId);
+        }
+        
+        if (documentType) {
+            paramCount++;
+            query += ` AND d.document_type = $${paramCount}`;
+            params.push(documentType);
+        }
+        
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        query += ` ORDER BY d.uploaded_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+        params.push(parseInt(limit), offset);
+        
+        const result = await db.query(query, params);
+        
+        // Get total count
+        let countQuery = `
+            SELECT COUNT(*) 
+            FROM documents d
+            JOIN vehicles v ON d.vehicle_id = v.id
+            WHERE 1=1
+        `;
+        const countParams = [];
+        paramCount = 0;
+        
+        if (vin) {
+            paramCount++;
+            countQuery += ` AND v.vin = $${paramCount}`;
+            countParams.push(vin);
+        }
+        
+        if (vehicleId) {
+            paramCount++;
+            countQuery += ` AND v.id = $${paramCount}`;
+            countParams.push(vehicleId);
+        }
+        
+        if (applicationId) {
+            paramCount++;
+            countQuery += ` AND v.id = $${paramCount}`;
+            countParams.push(applicationId);
+        }
+        
+        if (documentType) {
+            paramCount++;
+            countQuery += ` AND d.document_type = $${paramCount}`;
+            countParams.push(documentType);
+        }
+        
+        const countResult = await db.query(countQuery, countParams);
+        const totalCount = parseInt(countResult.rows[0].count);
+        
+        const documents = result.rows.map(doc => ({
+            id: doc.id,
+            vehicleId: doc.vehicle_id,
+            vin: doc.vin,
+            plateNumber: doc.plate_number,
+            vehicle: {
+                id: doc.vehicle_id,
+                vin: doc.vin,
+                plateNumber: doc.plate_number,
+                make: doc.make,
+                model: doc.model,
+                year: doc.year
+            },
+            documentType: doc.document_type,
+            document_type: doc.document_type,
+            originalName: doc.original_name,
+            filename: doc.filename,
+            fileSize: doc.file_size,
+            mimeType: doc.mime_type,
+            uploadedBy: doc.uploaded_by,
+            uploaderName: doc.uploader_name,
+            uploadedAt: doc.uploaded_at,
+            verified: doc.verified,
+            verifiedAt: doc.verified_at,
+            ipfs_cid: doc.ipfs_cid,
+            cid: doc.ipfs_cid,
+            url: `/api/documents/${doc.id}/view`
+        }));
+        
+        res.json({
+            success: true,
+            documents,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(totalCount / parseInt(limit)),
+                totalDocuments: totalCount,
+                hasNext: offset + documents.length < totalCount,
+                hasPrev: parseInt(page) > 1
+            }
+        });
+        
+    } catch (error) {
+        console.error('Search documents error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
 module.exports = router;

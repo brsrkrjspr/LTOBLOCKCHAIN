@@ -890,6 +890,128 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
     }
 });
 
+// Get ownership history for a vehicle
+router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
+    try {
+        const { vin } = req.params;
+        const vehicle = await db.getVehicleByVin(vin);
+
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permissions
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        const ownershipHistory = await db.getOwnershipHistory(vehicle.id);
+
+        res.json({
+            success: true,
+            vehicle: {
+                id: vehicle.id,
+                vin: vehicle.vin,
+                plateNumber: vehicle.plate_number
+            },
+            ownershipHistory
+        });
+
+    } catch (error) {
+        console.error('Get ownership history error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Get registration progress for a vehicle
+router.get('/:vehicleId/registration-progress', authenticateToken, async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+        
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permissions
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        const progress = await db.getRegistrationProgress(vehicleId);
+
+        res.json({
+            success: true,
+            vehicleId,
+            progress
+        });
+
+    } catch (error) {
+        console.error('Get registration progress error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Get owner's ownership history (all vehicles owned by current user)
+router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const vehicles = await db.getVehiclesByOwner(userId);
+
+        const ownershipHistory = [];
+        for (const vehicle of vehicles) {
+            const history = await db.getOwnershipHistory(vehicle.id);
+            ownershipHistory.push({
+                vehicle: {
+                    id: vehicle.id,
+                    vin: vehicle.vin,
+                    plateNumber: vehicle.plate_number,
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    year: vehicle.year
+                },
+                history
+            });
+        }
+
+        res.json({
+            success: true,
+            ownershipHistory
+        });
+
+    } catch (error) {
+        console.error('Get my ownership history error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
 // Get vehicle history
 router.get('/:vin/history', authenticateToken, async (req, res) => {
     try {

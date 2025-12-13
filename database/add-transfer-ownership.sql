@@ -72,7 +72,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS trigger_update_transfer_requests_updated_at
+-- Drop trigger if exists, then create (PostgreSQL doesn't support CREATE TRIGGER IF NOT EXISTS)
+DROP TRIGGER IF EXISTS trigger_update_transfer_requests_updated_at ON transfer_requests;
+CREATE TRIGGER trigger_update_transfer_requests_updated_at
 BEFORE UPDATE ON transfer_requests
 FOR EACH ROW
 EXECUTE FUNCTION update_transfer_requests_updated_at();

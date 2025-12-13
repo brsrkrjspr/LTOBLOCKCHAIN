@@ -97,7 +97,7 @@ if [ $? -ne 0 ]; then
 fi
 print_success "Channel artifacts regenerated"
 
-# Step 6: Run full restart
+# Step 6: Run full restart (it will skip cleanup since volumes are already removed)
 print_header "Step 6: Running Full Setup"
 bash scripts/codespace-restart.sh
 

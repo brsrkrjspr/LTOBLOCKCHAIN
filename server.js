@@ -92,6 +92,8 @@ app.use('/api/lto', require('./backend/routes/lto'));
 app.use('/api/hpg', require('./backend/routes/hpg'));
 app.use('/api/insurance', require('./backend/routes/insurance'));
 app.use('/api/emission', require('./backend/routes/emission'));
+app.use('/api/vehicles/transfer', require('./backend/routes/transfer'));
+app.use('/api/admin', require('./backend/routes/admin'));
 
 // Laptop-optimized routes
 app.use('/api/health', require('./backend/routes/health'));

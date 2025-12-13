@@ -1,6 +1,19 @@
 // TrustChain LTO - Centralized API Client
 // Handles all API requests with authentication, error handling, and token management
 
+// Check if auth is disabled (from auth-utils.js)
+function isAuthDisabled() {
+    // Check if DISABLE_AUTH is defined globally (exposed by auth-utils.js)
+    if (typeof window !== 'undefined' && typeof window.DISABLE_AUTH !== 'undefined') {
+        return window.DISABLE_AUTH === true;
+    }
+    // Fallback: check if DISABLE_AUTH is defined in this scope
+    if (typeof DISABLE_AUTH !== 'undefined') {
+        return DISABLE_AUTH === true;
+    }
+    return false;
+}
+
 class APIClient {
     constructor() {
         this.baseURL = window.location.origin;
@@ -9,6 +22,11 @@ class APIClient {
 
     // Get authentication token
     getAuthToken() {
+        // If auth is disabled, return a mock token
+        if (isAuthDisabled()) {
+            return 'dev-token-bypass';
+        }
+        
         const token = localStorage.getItem('authToken');
         if (!token) {
             return null;
@@ -34,8 +52,11 @@ class APIClient {
             
             if (Date.now() >= expiration) {
                 // Token expired
-                this.clearAuth();
-                window.location.href = 'login-signup.html?expired=true';
+                // Only redirect if auth is not disabled
+                if (!isAuthDisabled()) {
+                    this.clearAuth();
+                    window.location.href = 'login-signup.html?expired=true';
+                }
                 return null;
             }
             
@@ -55,6 +76,12 @@ class APIClient {
 
     // Clear authentication
     clearAuth() {
+        // Don't clear auth if it's disabled (dev mode)
+        if (isAuthDisabled()) {
+            console.log('🔓 [DEV MODE] Skipping auth clear - authentication is disabled');
+            return;
+        }
+        
         // Check if it's a demo token before clearing
         const token = localStorage.getItem('authToken');
         if (token && token.startsWith('demo-token-')) {
@@ -76,10 +103,15 @@ class APIClient {
     async request(endpoint, options = {}) {
         const token = this.getAuthToken();
         
-        // If token is required and not available, redirect to login
-        if (!token && !options.public) {
+        // If token is required and not available, redirect to login (only if auth is enabled)
+        if (!token && !options.public && !isAuthDisabled()) {
             window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
             throw new Error('Authentication required');
+        }
+        
+        // If auth is disabled, log a warning but continue
+        if (isAuthDisabled() && !options.public) {
+            console.log('🔓 [DEV MODE] Making API request without authentication:', endpoint);
         }
 
         const url = `${this.baseURL}${endpoint}`;
@@ -116,9 +148,17 @@ class APIClient {
 
             // Handle 401 Unauthorized
             if (response.status === 401) {
-                this.clearAuth();
-                window.location.href = 'login-signup.html?expired=true';
-                throw new Error('Session expired. Please login again.');
+                // Only redirect if auth is not disabled
+                if (!isAuthDisabled()) {
+                    this.clearAuth();
+                    window.location.href = 'login-signup.html?expired=true';
+                    throw new Error('Session expired. Please login again.');
+                } else {
+                    // In dev mode, just log the error and continue
+                    console.warn('🔓 [DEV MODE] Received 401 but auth is disabled - continuing anyway');
+                    // Return a mock response for dev mode
+                    return { success: false, error: 'Backend not available (dev mode)' };
+                }
             }
 
             // Handle 403 Forbidden
@@ -136,9 +176,14 @@ class APIClient {
                     // If response is not JSON, use default message
                 }
                 
-                // Check if it's a demo token
+                // Check if it's a demo token or auth is disabled
                 const token = this.getAuthToken();
-                if (token && token.startsWith('demo-token-')) {
+                if (isAuthDisabled()) {
+                    // In dev mode, just log the error and continue
+                    console.warn('🔓 [DEV MODE] Received 403 but auth is disabled - continuing anyway');
+                    // Return a mock response for dev mode
+                    return { success: false, error: 'Backend not available (dev mode)' };
+                } else if (token && token.startsWith('demo-token-')) {
                     errorMessage = 'Demo accounts cannot access admin features. Please login with a real admin account.';
                     // Clear demo credentials
                     this.clearAuth();
@@ -230,10 +275,20 @@ class APIClient {
 
             // Handle network errors
             if (error.name === 'AbortError') {
+                // In dev mode, return a mock response instead of throwing
+                if (isAuthDisabled()) {
+                    console.warn('🔓 [DEV MODE] Request timeout (backend not available)');
+                    return { success: false, error: 'Backend not available (dev mode)' };
+                }
                 throw new Error('Request timeout. Please check your connection and try again.');
             }
 
             if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                // In dev mode, return a mock response instead of throwing
+                if (isAuthDisabled()) {
+                    console.warn('🔓 [DEV MODE] Network error (backend not available)');
+                    return { success: false, error: 'Backend not available (dev mode)' };
+                }
                 throw new Error('Network error. Please check your internet connection.');
             }
 
@@ -287,9 +342,14 @@ class APIClient {
     async upload(endpoint, formData, options = {}) {
         const token = this.getAuthToken();
         
-        if (!token && !options.public) {
+        if (!token && !options.public && !isAuthDisabled()) {
             window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
             throw new Error('Authentication required');
+        }
+        
+        // If auth is disabled, log a warning but continue
+        if (isAuthDisabled() && !options.public) {
+            console.log('🔓 [DEV MODE] Uploading file without authentication:', endpoint);
         }
 
         const url = `${this.baseURL}${endpoint}`;
@@ -308,9 +368,16 @@ class APIClient {
             clearTimeout(timeoutId);
 
             if (response.status === 401) {
-                this.clearAuth();
-                window.location.href = 'login-signup.html?expired=true';
-                throw new Error('Session expired. Please login again.');
+                // Only redirect if auth is not disabled
+                if (!isAuthDisabled()) {
+                    this.clearAuth();
+                    window.location.href = 'login-signup.html?expired=true';
+                    throw new Error('Session expired. Please login again.');
+                } else {
+                    // In dev mode, just log the error and continue
+                    console.warn('🔓 [DEV MODE] Upload received 401 but auth is disabled - continuing anyway');
+                    return { success: false, error: 'Backend not available (dev mode)' };
+                }
             }
 
             if (!response.ok) {

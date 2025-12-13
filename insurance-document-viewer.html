@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insurance Document Viewer - LTO Blockchain</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Modern Insurance Document Viewer Styles */
+        .insurance-viewer {
+            padding: 2rem;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        .viewer-header {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            color: white;
+            padding: 2.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 24px rgba(41, 128, 185, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .viewer-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.3; }
+        }
+
+        .viewer-header h2 {
+            color: white;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .viewer-header p {
+            color: rgba(255, 255, 255, 0.95);
+            margin: 0;
+            font-size: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Document Viewer Layout */
+        .document-viewer-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 1.5rem;
+            height: calc(100vh - 250px);
+            min-height: 600px;
+        }
+
+        /* Document List Panel */
+        .document-list-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        }
+
+        .panel-header h3 {
+            margin: 0 0 1rem 0;
+            color: #2c3e50;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-header h3 i {
+            color: #2980b9;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7f8c8d;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.1);
+        }
+
+        .document-filters {
+            padding: 1rem 1.5rem;
+            display: flex;
+            gap: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+
+        .filter-select {
+            flex: 1;
+            padding: 0.625rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #2980b9;
+        }
+
+        .document-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .document-item {
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .document-item:hover {
+            border-color: #2980b9;
+            background: #e3f2fd;
+            transform: translateX(4px);
+        }
+
+        .document-item.active {
+            border-color: #2980b9;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            box-shadow: 0 4px 12px rgba(41, 128, 185, 0.2);
+        }
+
+        .document-item-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .document-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .document-icon.policy {
+            background: #2980b9;
+            color: white;
+        }
+
+        .document-icon.certificate {
+            background: #27ae60;
+            color: white;
+        }
+
+        .document-icon.verification {
+            background: #f39c12;
+            color: white;
+        }
+
+        .document-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .document-item-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .document-item-meta {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .document-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            text-transform: capitalize;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+
+        .status-verified {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #28a745;
+        }
+
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #dc3545;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #7f8c8d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #bdc3c7;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        /* Document Viewer Panel */
+        .document-viewer-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .viewer-toolbar {
+            padding: 1rem 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .viewer-info h4 {
+            margin: 0 0 0.25rem 0;
+            color: #2c3e50;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .document-meta {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+        }
+
+        .viewer-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .toolbar-btn {
+            padding: 0.625rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            color: #2c3e50;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toolbar-btn:hover:not(:disabled) {
+            border-color: #2980b9;
+            background: #e3f2fd;
+            color: #2980b9;
+        }
+
+        .toolbar-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .document-preview-container {
+            flex: 1;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #dee2e6;
+            position: relative;
+            overflow: auto;
+        }
+
+        .document-preview-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.1) 10px,
+                rgba(255,255,255,0.1) 20px
+            );
+            opacity: 0.3;
+        }
+
+        .document-preview-container iframe,
+        .document-preview-container img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .document-preview-placeholder {
+            text-align: center;
+            color: #7f8c8d;
+            position: relative;
+            z-index: 1;
+        }
+
+        .document-preview-placeholder i {
+            font-size: 5rem;
+            color: #bdc3c7;
+            margin-bottom: 1.5rem;
+            display: block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .document-preview-placeholder h3 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .document-preview-placeholder p {
+            color: #7f8c8d;
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .insurance-document-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+            margin-top: 1.5rem;
+            border: 1px solid #e9ecef;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .insurance-document-card:hover {
+            box-shadow: 0 6px 30px rgba(0,0,0,0.12);
+        }
+
+        .insurance-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            padding: 1.5rem;
+            border-radius: 10px;
+            border-left: 4px solid #2980b9;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-left-width: 5px;
+        }
+
+        .info-card-label {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-card-value {
+            font-size: 1.15rem;
+            color: #2c3e50;
+            font-weight: 700;
+        }
+
+        .policy-details {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 1.5rem;
+            border: 1px solid #90caf9;
+            box-shadow: 0 2px 8px rgba(41, 128, 185, 0.1);
+        }
+
+        .policy-details h4 {
+            color: #2980b9;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(144, 202, 249, 0.5);
+            transition: background 0.2s;
+        }
+
+        .detail-row:hover {
+            background: rgba(255, 255, 255, 0.5);
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+            border-radius: 6px;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-row strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .detail-row span {
+            color: #2980b9;
+            font-weight: 600;
+        }
+
+        .verification-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e9ecef;
+            flex-wrap: wrap;
+        }
+
+        .btn-verify {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-verify:hover {
+            background: linear-gradient(135deg, #229954 0%, #1e8449 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-verify:active {
+            transform: translateY(0);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-reject:hover {
+            background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn-reject:active {
+            transform: translateY(0);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .document-viewer-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .document-list-panel {
+                max-height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .insurance-viewer {
+                padding: 1rem;
+            }
+
+            .viewer-header {
+                padding: 1.5rem;
+            }
+
+            .viewer-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .insurance-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .verification-actions {
+                flex-direction: column;
+            }
+
+            .verification-actions button {
+                width: 100%;
+            }
+
+            .viewer-toolbar {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+
+            .viewer-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .toolbar-btn {
+                flex: 1;
+            }
+        }
+    </style>
+    <script>
+        // Apply sidebar state immediately
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    sidebar.classList.add('no-transition');
+                    const savedState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">IV</div>
+                    <div class="logo-text">
+                        <h2>Insurance</h2>
+                        <p>Verifier Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="insurance-verifier-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="insurance-lto-requests.html" class="nav-item">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests by Org</span>
+                    <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
+                </a>
+                <a href="insurance-document-viewer.html" class="nav-item active">
+                    <i class="fas fa-file-shield"></i>
+                    <span>Document Viewer</span>
+                </a>
+                <a href="#verification" class="nav-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Verification</span>
+                </a>
+            </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">IV</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">Insurance Verifier</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Insurance Verification Specialist</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <button class="sidebar-toggle" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="logo">
+                            <h1>Insurance Document Viewer</h1>
+                            <p>Review and verify insurance certificates</p>
+                        </div>
+                        <!-- User info moved to sidebar footer -->
+                    </div>
+                </div>
+            </header>
+
+            <main class="insurance-viewer">
+                <div class="container">
+                    <div class="viewer-header">
+                        <div>
+                            <h2><i class="fas fa-shield-alt"></i> Insurance Certificate Viewer</h2>
+                            <p>Review insurance documents and verify policy validity</p>
+                        </div>
+                    </div>
+
+                    <!-- Document Viewer Layout -->
+                    <div class="document-viewer-layout">
+                        <!-- Document List Sidebar -->
+                        <div class="document-list-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-folder-open"></i> Insurance Documents</h3>
+                                <div class="search-box">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" id="documentSearch" placeholder="Search documents...">
+                                </div>
+                            </div>
+                            <div class="document-filters">
+                                <select id="documentTypeFilter" class="filter-select">
+                                    <option value="">All Types</option>
+                                    <option value="policy">Insurance Policy</option>
+                                    <option value="certificate">Certificate</option>
+                                    <option value="verification">Verification</option>
+                                </select>
+                                <select id="statusFilter" class="filter-select">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="verified">Verified</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
+                            <div class="document-list" id="documentList">
+                                <!-- Documents will be loaded here -->
+                                <div class="empty-state">
+                                    <i class="fas fa-file-shield"></i>
+                                    <p>No documents available</p>
+                                    <small>Documents will appear here when available</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Document Viewer Panel -->
+                        <div class="document-viewer-panel">
+                            <div class="viewer-toolbar">
+                                <div class="viewer-info">
+                                    <h4 id="viewerDocumentTitle">No Document Selected</h4>
+                                    <span id="viewerDocumentMeta" class="document-meta"></span>
+                                </div>
+                                <div class="viewer-actions">
+                                    <button class="toolbar-btn" id="downloadBtn" disabled>
+                                        <i class="fas fa-download"></i> Download
+                                    </button>
+                                    <button class="toolbar-btn" id="printBtn" disabled>
+                                        <i class="fas fa-print"></i> Print
+                                    </button>
+                                    <button class="toolbar-btn" id="fullscreenBtn" disabled>
+                                        <i class="fas fa-expand"></i> Fullscreen
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="document-preview-container" id="documentPreview">
+                                <div class="document-preview-placeholder">
+                                    <i class="fas fa-file-shield"></i>
+                                    <h3>No Document Selected</h3>
+                                    <p>Select a document from the list to view</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Insurance Information Card -->
+                    <div class="insurance-document-card" id="insuranceInfoCard" style="display: none;">
+
+                        <div class="insurance-info-grid" id="insuranceInfo" style="display: none;">
+                            <div class="info-card">
+                                <div class="info-card-label">Policy Number</div>
+                                <div class="info-card-value" id="policyNumber">-</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-card-label">Insurance Company</div>
+                                <div class="info-card-value" id="insuranceCompany">-</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-card-label">Coverage Amount</div>
+                                <div class="info-card-value" id="coverageAmount">-</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-card-label">Expiry Date</div>
+                                <div class="info-card-value" id="expiryDate">-</div>
+                            </div>
+                        </div>
+
+                        <div class="policy-details" id="policyDetails" style="display: none;">
+                            <h4><i class="fas fa-info-circle"></i> Policy Details</h4>
+                            <div class="detail-row">
+                                <span><strong>Vehicle Owner:</strong></span>
+                                <span id="policyOwner">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span><strong>Vehicle VIN:</strong></span>
+                                <span id="policyVIN">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span><strong>Plate Number:</strong></span>
+                                <span id="policyPlate">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span><strong>Policy Type:</strong></span>
+                                <span id="policyType">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span><strong>Status:</strong></span>
+                                <span id="policyStatus">-</span>
+                            </div>
+                        </div>
+
+                        <div class="verification-actions" id="verificationActions" style="display: none;">
+                            <button class="btn-verify" onclick="verifyInsurance()">
+                                <i class="fas fa-check-circle"></i> Verify & Approve
+                            </button>
+                            <button class="btn-reject" onclick="rejectInsurance()">
+                                <i class="fas fa-times-circle"></i> Reject
+                            </button>
+                            <button class="btn-secondary" onclick="requestMoreInfo()">
+                                <i class="fas fa-question-circle"></i> Request More Information
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize user data
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                
+                // Check if auth is disabled (dev mode)
+                if (user && user._devMode) {
+                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                }
+                
+                if (user) {
+                    // Sidebar user info elements
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                    
+                    const displayName = AuthUtils.getUserDisplayName() || 'Insurance Verifier';
+                    const userInitials = AuthUtils.getUserInitials() || 'IV';
+                    const roleNames = {
+                        'vehicle_owner': 'Vehicle Owner',
+                        'admin': 'Administrator',
+                        'insurance_verifier': 'Insurance Verification Specialist',
+                        'emission_verifier': 'Emission Verifier'
+                    };
+                    const userRole = roleNames[user.role] || user.role;
+                    
+                    // Update sidebar user info
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = displayName;
+                    }
+                    if (sidebarUserRoleEl) {
+                        sidebarUserRoleEl.textContent = userRole;
+                    }
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = userInitials;
+                    }
+                } else {
+                    // Not authenticated, redirect to login (only if auth is enabled)
+                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
+                    if (!user) {
+                        window.location.href = 'login-signup.html';
+                    }
+                }
+            }
+
+            // Initialize document viewer
+            initializeDocumentViewer();
+
+            // Load document from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const appId = urlParams.get('appId');
+            const documentId = urlParams.get('documentId');
+            
+            if (appId || documentId) {
+                loadInsuranceDocument(appId || documentId);
+            } else {
+                loadDocumentList();
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('insuranceVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                        }
+                    }
+                });
+            }
+        });
+
+        // Initialize document viewer
+        function initializeDocumentViewer() {
+            // Search functionality
+            const searchInput = document.getElementById('documentSearch');
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    filterDocuments();
+                });
+            }
+
+            // Filter functionality
+            const typeFilter = document.getElementById('documentTypeFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            
+            if (typeFilter) {
+                typeFilter.addEventListener('change', filterDocuments);
+            }
+            if (statusFilter) {
+                statusFilter.addEventListener('change', filterDocuments);
+            }
+
+            // Toolbar buttons
+            const downloadBtn = document.getElementById('downloadBtn');
+            const printBtn = document.getElementById('printBtn');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', downloadCurrentDocument);
+            }
+            if (printBtn) {
+                printBtn.addEventListener('click', printCurrentDocument);
+            }
+            if (fullscreenBtn) {
+                fullscreenBtn.addEventListener('click', toggleFullscreen);
+            }
+        }
+
+        // Load document list
+        async function loadDocumentList() {
+            const documentList = document.getElementById('documentList');
+            if (!documentList) return;
+
+            try {
+                // Try to load from localStorage first (for dev mode)
+                const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+                
+                if (applications.length === 0) {
+                    // Try API call
+                    const response = await fetch('/api/insurance/requests');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.requests) {
+                            renderDocumentList(data.requests);
+                            return;
+                        }
+                    }
+                } else {
+                    renderDocumentList(applications);
+                    return;
+                }
+
+                // Show empty state
+                documentList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-file-shield"></i>
+                        <p>No documents available</p>
+                        <small>Documents will appear here when available</small>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading document list:', error);
+                documentList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error loading documents</p>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Render document list
+        function renderDocumentList(applications) {
+            const documentList = document.getElementById('documentList');
+            if (!documentList) return;
+
+            if (!applications || applications.length === 0) {
+                documentList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-file-shield"></i>
+                        <p>No documents available</p>
+                        <small>Documents will appear here when available</small>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            applications.forEach((app, index) => {
+                if (!app.documents || !app.documents.insuranceCert) return;
+                
+                const docType = 'policy';
+                const status = app.insuranceStatus || 'pending';
+                const date = app.submittedAt || new Date().toLocaleDateString();
+                
+                html += `
+                    <div class="document-item" data-index="${index}" onclick="selectDocument(${index}, '${app.id || index}')">
+                        <div class="document-item-header">
+                            <div class="document-icon ${docType}">
+                                <i class="fas fa-file-shield"></i>
+                            </div>
+                            <div class="document-item-info">
+                                <div class="document-item-title">${app.vehicle?.plateNumber || app.owner?.email || 'Insurance Document'}</div>
+                                <div class="document-item-meta">
+                                    <span><i class="fas fa-calendar"></i> ${date}</span>
+                                </div>
+                                <span class="document-status status-${status}">${status}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            documentList.innerHTML = html;
+            window.documentListData = applications;
+        }
+
+        // Filter documents
+        function filterDocuments() {
+            const searchTerm = document.getElementById('documentSearch')?.value.toLowerCase() || '';
+            const typeFilter = document.getElementById('documentTypeFilter')?.value || '';
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            
+            const items = document.querySelectorAll('.document-item');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                const matchesSearch = !searchTerm || text.includes(searchTerm);
+                const matchesType = !typeFilter || item.dataset.type === typeFilter;
+                const matchesStatus = !statusFilter || item.querySelector('.document-status')?.textContent.toLowerCase() === statusFilter;
+                
+                if (matchesSearch && matchesType && matchesStatus) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Select document
+        function selectDocument(index, documentId) {
+            // Remove active class from all items
+            document.querySelectorAll('.document-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Add active class to selected item
+            const selectedItem = document.querySelector(`.document-item[data-index="${index}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+
+            // Load document
+            if (window.documentListData && window.documentListData[index]) {
+                loadInsuranceDocument(documentId);
+            }
+        }
+
+        // Download current document
+        function downloadCurrentDocument() {
+            console.log('Download document');
+        }
+
+        // Print current document
+        function printCurrentDocument() {
+            window.print();
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            const container = document.getElementById('documentPreview');
+            if (!container) return;
+
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        async function loadInsuranceDocument(appId) {
+            const previewArea = document.getElementById('documentPreview');
+            const viewerTitle = document.getElementById('viewerDocumentTitle');
+            const viewerMeta = document.getElementById('viewerDocumentMeta');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const printBtn = document.getElementById('printBtn');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+            try {
+                // Load application data
+                const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+                const application = applications.find(app => app.id === appId);
+                
+                if (application && application.documents && application.documents.insuranceCert) {
+                    // Update viewer title and meta
+                    if (viewerTitle) {
+                        viewerTitle.textContent = application.vehicle?.plateNumber || application.owner?.email || 'Insurance Document';
+                    }
+                    if (viewerMeta) {
+                        viewerMeta.textContent = `Application ID: ${application.id || appId} • ${new Date().toLocaleDateString()}`;
+                    }
+
+                    // Enable toolbar buttons
+                    if (downloadBtn) downloadBtn.disabled = false;
+                    if (printBtn) printBtn.disabled = false;
+                    if (fullscreenBtn) fullscreenBtn.disabled = false;
+
+                    // Display document
+                    previewArea.innerHTML = `
+                        <iframe src="${application.documents.insuranceCert}" style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>
+                    `;
+
+                    // Show info panels
+                    const infoCard = document.getElementById('insuranceInfoCard');
+                    if (infoCard) {
+                        infoCard.style.display = 'block';
+                        document.getElementById('insuranceInfo').style.display = 'grid';
+                        document.getElementById('policyDetails').style.display = 'block';
+                        document.getElementById('verificationActions').style.display = 'flex';
+                    }
+
+                    // Populate data (mock data - replace with actual API call)
+                    document.getElementById('policyNumber').textContent = 'POL-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                    document.getElementById('insuranceCompany').textContent = 'Sample Insurance Co.';
+                    document.getElementById('coverageAmount').textContent = '₱1,000,000';
+                    document.getElementById('expiryDate').textContent = new Date(Date.now() + 365*24*60*60*1000).toLocaleDateString();
+                    document.getElementById('policyOwner').textContent = application.owner?.email || 'N/A';
+                    document.getElementById('policyVIN').textContent = application.vehicle?.vin || 'N/A';
+                    document.getElementById('policyPlate').textContent = application.vehicle?.plateNumber || 'N/A';
+                    document.getElementById('policyType').textContent = 'Comprehensive';
+                    document.getElementById('policyStatus').textContent = 'Active';
+                } else {
+                    showNotification('Insurance document not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading insurance document:', error);
+                showNotification('Error loading document', 'error');
+            }
+        }
+
+        function verifyInsurance() {
+            if (confirm('Are you sure you want to verify and approve this insurance certificate?')) {
+                showNotification('Insurance certificate verified and approved', 'success');
+                setTimeout(() => {
+                    window.location.href = 'insurance-verifier-dashboard.html';
+                }, 1500);
+            }
+        }
+
+        function rejectInsurance() {
+            const reason = prompt('Please provide a reason for rejection:');
+            if (reason) {
+                showNotification('Insurance certificate rejected: ' + reason, 'info');
+                setTimeout(() => {
+                    window.location.href = 'insurance-verifier-dashboard.html';
+                }, 1500);
+            }
+        }
+
+        function requestMoreInfo() {
+            const info = prompt('What additional information do you need?');
+            if (info) {
+                showNotification('Information request sent: ' + info, 'info');
+            }
+        }
+
+        function showNotification(message, type) {
+            // Simple notification - replace with your notification system
+            alert(message);
+        }
+    </script>
+</body>
+</html>
+

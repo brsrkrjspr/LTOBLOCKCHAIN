@@ -60,6 +60,10 @@
                     <span>LTO Requests by Org</span>
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
+                <a href="emission-document-viewer.html" class="nav-item">
+                    <i class="fas fa-file-leaf"></i>
+                    <span>Document Viewer</span>
+                </a>
                 <a href="#emission" class="nav-item">
                     <i class="fas fa-leaf"></i>
                     <span>Emission Tests</span>
@@ -69,6 +73,27 @@
                     <span>Reports</span>
                 </a>
             </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">EV</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">Emission Verifier</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Emission Verification Specialist</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -83,15 +108,7 @@
                             <h1>LTO Blockchain</h1>
                             <p>Emission Verifier Dashboard</p>
                         </div>
-                    <div class="user-info">
-                        <div class="user-avatar" id="userAvatar">EV</div>
-                        <div class="user-details">
-                            <span class="user-name" id="userName">Loading...</span>
-                            <span class="user-role" id="userRole">Loading...</span>
-                        </div>
-                        <a href="settings.html" class="btn-secondary">Settings</a>
-                        <a href="index.html" class="btn-secondary">Logout</a>
-                    </div>
+                    <!-- User info moved to sidebar footer -->
                 </div>
             </div>
         </header>
@@ -178,28 +195,44 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
+                
+                // Check if auth is disabled (dev mode)
+                if (user && user._devMode) {
+                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                }
+                
                 if (user) {
-                    const userNameEl = document.getElementById('userName');
-                    const userRoleEl = document.getElementById('userRole');
-                    const userAvatarEl = document.getElementById('userAvatar');
+                    // Sidebar user info elements
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
                     
-                    if (userNameEl) {
-                        userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    const displayName = AuthUtils.getUserDisplayName() || 'Emission Verifier';
+                    const userInitials = AuthUtils.getUserInitials() || 'EV';
+                    const roleNames = {
+                        'vehicle_owner': 'Vehicle Owner',
+                        'admin': 'Administrator',
+                        'insurance_verifier': 'Insurance Verifier',
+                        'emission_verifier': 'Emission Verification Specialist'
+                    };
+                    const userRole = roleNames[user.role] || user.role;
+                    
+                    // Update sidebar user info
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = displayName;
                     }
-                    if (userRoleEl) {
-                        const roleNames = {
-                            'vehicle_owner': 'Vehicle Owner',
-                            'admin': 'Administrator',
-                            'insurance_verifier': 'Insurance Verifier',
-                            'emission_verifier': 'Emission Verification Specialist'
-                        };
-                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    if (sidebarUserRoleEl) {
+                        sidebarUserRoleEl.textContent = userRole;
                     }
-                    if (userAvatarEl) {
-                        userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = userInitials;
                     }
                 } else {
-                    window.location.href = 'login-signup.html';
+                    // Not authenticated, redirect to login (only if auth is enabled)
+                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
+                    if (!user) {
+                        window.location.href = 'login-signup.html';
+                    }
                 }
             }
 
@@ -222,6 +255,22 @@
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('emissionVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                        }
+                    }
                 });
             }
         });

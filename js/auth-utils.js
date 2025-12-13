@@ -1,9 +1,28 @@
 // TrustChain LTO - Authentication Utilities
 // Centralized authentication and token management
 
+// ============================================
+// UI DEVELOPMENT MODE - DISABLE AUTHENTICATION
+// Set to true to bypass all authentication checks for UI development
+// Set to false to re-enable authentication (when backend is available)
+// ============================================
+const DISABLE_AUTH = true; // 🔓 Change to false to re-enable authentication
+
+// Expose DISABLE_AUTH globally so other scripts can access it
+window.DISABLE_AUTH = DISABLE_AUTH;
+
+// Log when dev mode is active
+if (DISABLE_AUTH) {
+    console.log('%c🔓 AUTHENTICATION DISABLED - UI Development Mode', 'color: #f39c12; font-weight: bold; font-size: 14px;');
+    console.log('%cAll authentication checks are bypassed. Set DISABLE_AUTH = false in auth-utils.js to re-enable.', 'color: #7f8c8d; font-size: 12px;');
+}
+
 class AuthUtils {
     // Check if user is authenticated
     static isAuthenticated() {
+        // If auth is disabled, always return true
+        if (DISABLE_AUTH) return true;
+        
         // First check if user exists in localStorage
         const user = this.getCurrentUser();
         if (!user) return false;
@@ -47,6 +66,50 @@ class AuthUtils {
 
     // Get current user
     static getCurrentUser() {
+        // If auth is disabled, return a mock admin user for UI development
+        if (DISABLE_AUTH) {
+            // Check URL to determine which role to mock
+            const path = window.location.pathname;
+            let mockRole = 'admin';
+            let mockName = 'ADMIN';
+            let mockInitials = 'AD';
+            
+            if (path.includes('insurance')) {
+                mockRole = 'insurance_verifier';
+                mockName = 'Insurance Verifier';
+                mockInitials = 'IV';
+            } else if (path.includes('hpg')) {
+                mockRole = 'hpg_admin';
+                mockName = 'HPG Admin';
+                mockInitials = 'HPG';
+            } else if (path.includes('emission') || path.includes('verifier')) {
+                mockRole = 'emission_verifier';
+                mockName = 'Emission Verifier';
+                mockInitials = 'EV';
+            } else if (path.includes('owner')) {
+                mockRole = 'vehicle_owner';
+                mockName = 'Vehicle Owner';
+                mockInitials = 'VO';
+            }
+            
+            return {
+                id: 'dev-user',
+                email: 'dev@example.com',
+                role: mockRole,
+                firstName: mockName.split(' ')[0] || 'Dev',
+                lastName: mockName.split(' ')[1] || 'User',
+                name: mockName,
+                organization: mockRole === 'admin' ? 'Land Transportation Office' : 
+                            mockRole === 'insurance_verifier' ? 'Insurance Verification Office' :
+                            mockRole === 'hpg_admin' ? 'Highway Patrol Group' :
+                            mockRole === 'emission_verifier' ? 'Emission Testing Center' : 'Individual',
+                phone: '+63 912 345 6789',
+                isActive: true,
+                emailVerified: true,
+                _devMode: true // Flag to indicate this is a dev user
+            };
+        }
+        
         const userStr = localStorage.getItem('currentUser');
         if (!userStr) return null;
 
@@ -60,6 +123,11 @@ class AuthUtils {
 
     // Get auth token
     static getToken() {
+        // If auth is disabled, return a mock token
+        if (DISABLE_AUTH) {
+            return 'dev-token-bypass';
+        }
+        
         const token = localStorage.getItem('authToken');
         if (!token) return null;
 
@@ -100,6 +168,12 @@ class AuthUtils {
 
     // Require authentication (redirect if not authenticated)
     static requireAuth() {
+        // If auth is disabled, always return true
+        if (DISABLE_AUTH) {
+            console.log('[DEV MODE] Authentication bypassed');
+            return true;
+        }
+        
         if (!this.isAuthenticated()) {
             const currentPath = window.location.pathname;
             window.location.href = `login-signup.html?redirect=${encodeURIComponent(currentPath)}`;

@@ -88,6 +88,10 @@
                     <i class="fas fa-file-alt"></i>
                     <span>Documents</span>
                 </a>
+                <a href="admin-document-viewer.html" class="nav-item">
+                    <i class="fas fa-eye"></i>
+                    <span>Document Viewer</span>
+                </a>
             </nav>
             
             <!-- Sidebar Footer with User Info -->
@@ -253,6 +257,41 @@
                     </div>
                 </div>
 
+                <!-- Document Management Section -->
+                <div class="section-header">
+                    <h2 class="section-title">Document Management</h2>
+                    <p class="section-subtitle">View and manage all documents across the system</p>
+                </div>
+                <div class="dashboard-grid-modern">
+                    <div class="dashboard-card-modern action-card-primary">
+                        <div class="card-header-modern">
+                            <div class="card-icon-modern">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <h3>Document Viewer</h3>
+                        </div>
+                        <p class="card-description">View all documents from applications, verifications, and certificates</p>
+                        <a href="admin-document-viewer.html" class="btn-card-primary">
+                            <span>Open Document Viewer</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    
+                    <div class="dashboard-card-modern action-card-secondary">
+                        <div class="card-header-modern">
+                            <div class="card-icon-modern">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <h3>Search Documents</h3>
+                        </div>
+                        <p class="card-description">Search documents by VIN, application ID, or document type</p>
+                        <a href="admin-document-viewer.html?mode=search" class="btn-card-secondary">
+                            <span>Search Documents</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+
                 <!-- Recent Applications -->
                 <div class="section-header">
                     <h2 class="section-title">Recent Applications</h2>
@@ -288,6 +327,12 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
+                
+                // Check if auth is disabled (dev mode)
+                if (user && user._devMode) {
+                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                }
+                
                 if (user) {
                     const welcomeAdminNameEl = document.getElementById('welcomeAdminName');
                     if (welcomeAdminNameEl) {
@@ -319,8 +364,11 @@
                     // Load dashboard stats
                     loadDashboardStats();
                 } else {
-                    // Not authenticated, redirect to login
-                    window.location.href = 'login-signup.html';
+                    // Not authenticated, redirect to login (only if auth is enabled)
+                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
+                    if (!user) {
+                        window.location.href = 'login-signup.html';
+                    }
                 }
             }
 

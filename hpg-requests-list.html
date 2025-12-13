@@ -62,7 +62,11 @@
                 <a href="hpg-requests-list.html" class="nav-item active">
                     <i class="fas fa-list-alt"></i>
                     <span>LTO Requests by Org</span>
-                    <span class="badge" id="pendingRequestsBadge">0</span>
+                    <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
+                </a>
+                <a href="hpg-document-viewer.html" class="nav-item">
+                    <i class="fas fa-file-certificate"></i>
+                    <span>Document Viewer</span>
                 </a>
                 <a href="hpg-verification-form.html" class="nav-item">
                     <i class="fas fa-clipboard-check"></i>
@@ -77,6 +81,27 @@
                     <span>Activity Logs</span>
                 </a>
             </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">HPG</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">HPG Admin</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">HPG Administrator</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -91,22 +116,7 @@
                         <h1>LTO → HPG Requests</h1>
                     </div>
                     <div class="header-right">
-                        <div class="user-profile">
-                            <div class="user-avatar" id="userAvatar">HA</div>
-                            <div class="user-details">
-                                <span class="user-name" id="userName">HPG Admin</span>
-                                <span class="user-role" id="userRole">HPG Administrator</span>
-                            </div>
-                            <div class="user-menu">
-                                <button class="user-menu-btn">
-                                    <i class="fas fa-chevron-down"></i>
-                                </button>
-                                <div class="user-menu-dropdown">
-                                    <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
-                                    <a href="#" onclick="handleLogout(event); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- User info moved to sidebar footer -->
                     </div>
                 </div>
             </header>
@@ -207,31 +217,99 @@
 
                     <!-- Upload Inspections Section -->
                     <div class="dashboard-card">
-                        <h3><span class="card-icon">📤</span> Upload Inspection Documents</h3>
-                        <div class="upload-section">
-                            <form id="hpgUploadForm" onsubmit="uploadHPGInspections(event)">
-                                <div class="form-group">
-                                    <label for="engineInspectionFile">Engine Inspection (PDF/Image)</label>
-                                    <input type="file" id="engineInspectionFile" name="engineInspection" accept=".pdf,.jpg,.jpeg,.png">
-                                    <small class="hint">Upload engine inspection document</small>
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                Upload Inspection Documents
+                            </h3>
+                            <p class="card-subtitle">Upload required inspection documents for vehicle clearance</p>
+                        </div>
+                        <div class="card-body">
+                            <form id="hpgUploadForm" onsubmit="uploadHPGInspections(event)" class="modern-upload-form">
+                                <!-- Engine Inspection -->
+                                <div class="upload-group">
+                                    <label for="engineInspectionFile" class="upload-label">
+                                        <i class="fas fa-file-pdf"></i>
+                                        Engine Inspection (PDF/Image)
+                                    </label>
+                                    <div class="upload-area" id="engineInspectionArea">
+                                        <input type="file" 
+                                               id="engineInspectionFile" 
+                                               name="engineInspection" 
+                                               accept=".pdf,.jpg,.jpeg,.png"
+                                               onchange="handleFileSelect(this, 'engineInspectionArea', 'engineInspectionPreview')">
+                                        <div class="upload-content">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <p>Click to upload or drag and drop</p>
+                                            <small>PDF, JPG, PNG (Max 10MB)</small>
+                                        </div>
+                                    </div>
+                                    <div class="file-preview" id="engineInspectionPreview"></div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="chassisInspectionFile">Chassis Inspection (PDF/Image)</label>
-                                    <input type="file" id="chassisInspectionFile" name="chassisInspection" accept=".pdf,.jpg,.jpeg,.png">
-                                    <small class="hint">Upload chassis inspection document</small>
+
+                                <!-- Chassis Inspection -->
+                                <div class="upload-group">
+                                    <label for="chassisInspectionFile" class="upload-label">
+                                        <i class="fas fa-file-image"></i>
+                                        Chassis Inspection (PDF/Image)
+                                    </label>
+                                    <div class="upload-area" id="chassisInspectionArea">
+                                        <input type="file" 
+                                               id="chassisInspectionFile" 
+                                               name="chassisInspection" 
+                                               accept=".pdf,.jpg,.jpeg,.png"
+                                               onchange="handleFileSelect(this, 'chassisInspectionArea', 'chassisInspectionPreview')">
+                                        <div class="upload-content">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <p>Click to upload or drag and drop</p>
+                                            <small>PDF, JPG, PNG (Max 10MB)</small>
+                                        </div>
+                                    </div>
+                                    <div class="file-preview" id="chassisInspectionPreview"></div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="stencilFile">Stencil / Macro-etching Result (PDF/Image)</label>
-                                    <input type="file" id="stencilFile" name="stencil" accept=".pdf,.jpg,.jpeg,.png">
-                                    <small class="hint">Upload stencil or macro-etching result</small>
+
+                                <!-- Stencil / Macro-etching Result -->
+                                <div class="upload-group">
+                                    <label for="stencilFile" class="upload-label">
+                                        <i class="fas fa-file-alt"></i>
+                                        Stencil / Macro-etching Result (PDF/Image)
+                                    </label>
+                                    <div class="upload-area" id="stencilFileArea">
+                                        <input type="file" 
+                                               id="stencilFile" 
+                                               name="stencil" 
+                                               accept=".pdf,.jpg,.jpeg,.png"
+                                               onchange="handleFileSelect(this, 'stencilFileArea', 'stencilFilePreview')">
+                                        <div class="upload-content">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <p>Click to upload or drag and drop</p>
+                                            <small>PDF, JPG, PNG (Max 10MB)</small>
+                                        </div>
+                                    </div>
+                                    <div class="file-preview" id="stencilFilePreview"></div>
                                 </div>
+
+                                <!-- Inspection Notes -->
                                 <div class="form-group">
-                                    <label for="hpgNotes">Inspection Notes</label>
-                                    <textarea id="hpgNotes" name="notes" rows="3" placeholder="Add inspection notes..."></textarea>
+                                    <label for="hpgNotes" class="form-label">
+                                        <i class="fas fa-sticky-note"></i>
+                                        Inspection Notes
+                                    </label>
+                                    <textarea id="hpgNotes" 
+                                              name="notes" 
+                                              rows="4" 
+                                              class="modern-textarea"
+                                              placeholder="Add inspection notes, observations, or any additional information..."></textarea>
+                                    <small class="form-hint">Optional: Add any additional notes or findings from the inspection</small>
                                 </div>
-                                <button type="submit" class="btn-primary" id="uploadHPGBtn">
-                                    <i class="fas fa-upload"></i> Upload Inspections
-                                </button>
+
+                                <!-- Submit Button -->
+                                <div class="form-actions">
+                                    <button type="submit" class="btn-primary btn-lg" id="uploadHPGBtn">
+                                        <i class="fas fa-upload"></i>
+                                        <span>Upload Inspections</span>
+                                    </button>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -287,13 +365,272 @@
     </div>
 
     <script src="js/hpg-admin.js"></script>
+    <style>
+        /* Modern Upload Form Styles */
+        .modern-upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .card-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .card-header h3 i {
+            color: #3498db;
+            font-size: 1.5rem;
+        }
+
+        .card-subtitle {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        .upload-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .upload-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .upload-label i {
+            color: #3498db;
+            font-size: 1rem;
+        }
+
+        .upload-area {
+            position: relative;
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background: #e8f4f8;
+        }
+
+        .upload-area.dragover {
+            border-color: #2980b9;
+            background: #d6eaf8;
+            transform: scale(1.02);
+        }
+
+        .upload-area.has-file {
+            border-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        .upload-area.has-file .upload-content {
+            opacity: 0.6;
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-content {
+            pointer-events: none;
+        }
+
+        .upload-content i {
+            font-size: 3rem;
+            color: #3498db;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .upload-content p {
+            font-size: 1rem;
+            color: #2c3e50;
+            font-weight: 500;
+            margin: 0.5rem 0;
+        }
+
+        .upload-content small {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+        }
+
+        .file-preview {
+            margin-top: 0.5rem;
+            min-height: 0;
+        }
+
+        .file-preview-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #e8f5e9;
+            border-radius: 6px;
+            border: 1px solid #c8e6c9;
+            margin-top: 0.5rem;
+        }
+
+        .file-preview-item i {
+            color: #4caf50;
+            font-size: 1.25rem;
+        }
+
+        .file-preview-item .file-info {
+            flex: 1;
+        }
+
+        .file-preview-item .file-name {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .file-preview-item .file-size {
+            color: #7f8c8d;
+            font-size: 0.8rem;
+        }
+
+        .file-preview-item .file-remove {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .file-preview-item .file-remove:hover {
+            background: #ffebee;
+        }
+
+        .form-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .form-label i {
+            color: #3498db;
+            font-size: 1rem;
+        }
+
+        .modern-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+            background: #fff;
+        }
+
+        .modern-textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .form-hint {
+            display: block;
+            margin-top: 0.5rem;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+        }
+
+        .form-actions {
+            margin-top: 1rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .btn-lg {
+            padding: 0.875rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 0;
+        }
+    </style>
     <script>
         // Initialize user data
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                if (!user) {
-                    window.location.href = 'login-signup.html';
+                
+                // Check if auth is disabled (dev mode)
+                if (user && user._devMode) {
+                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                }
+                
+                if (user) {
+                    // Sidebar user info elements
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                    
+                    const displayName = AuthUtils.getUserDisplayName() || 'HPG Admin';
+                    const userInitials = AuthUtils.getUserInitials() || 'HPG';
+                    const userRole = 'HPG Administrator';
+                    
+                    // Update sidebar user info
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = displayName;
+                    }
+                    if (sidebarUserRoleEl) {
+                        sidebarUserRoleEl.textContent = userRole;
+                    }
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = userInitials;
+                    }
+                } else {
+                    // Not authenticated, redirect to login (only if auth is enabled)
+                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
+                    if (!user) {
+                        window.location.href = 'login-signup.html';
+                    }
                 }
             }
 
@@ -329,45 +666,22 @@
                 });
             }
 
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function(event) {
-                const userMenu = document.querySelector('.user-menu');
-                const dropdown = document.querySelector('.user-menu-dropdown');
-                if (userMenu && dropdown && !userMenu.contains(event.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
-
-            // Toggle user menu dropdown
-            const userMenuBtn = document.querySelector('.user-menu-btn');
-            const userMenuDropdown = document.querySelector('.user-menu-dropdown');
-            if (userMenuBtn && userMenuDropdown) {
-                userMenuBtn.addEventListener('click', function(e) {
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    e.stopPropagation();
-                    if (userMenuDropdown.style.display === 'block') {
-                        userMenuDropdown.style.display = 'none';
-                    } else {
-                        userMenuDropdown.style.display = 'block';
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                        }
                     }
                 });
             }
         });
-
-        function handleLogout(event) {
-            event.preventDefault();
-            if (confirm('Are you sure you want to logout?')) {
-                if (typeof AuthUtils !== 'undefined') {
-                    AuthUtils.logout();
-                } else {
-                    // Fallback if AuthUtils is not available
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('currentUser');
-                    localStorage.removeItem('token');
-                    window.location.href = 'index.html';
-                }
-            }
-        }
 
         function startVerification(requestId) {
             // Store request ID and redirect to verification form
@@ -408,8 +722,212 @@
             alert('Export functionality will be implemented');
         }
 
+        // Auto-Fill Verification - Fetch vehicle details from LTO request
+        function autoFillVerification(requestId) {
+            try {
+                // Get current request data
+                const hpgRequestPending = localStorage.getItem('hpgRequestPending') === 'true';
+                const currentRequest = JSON.parse(localStorage.getItem('currentHPGRequest') || 'null');
+                
+                let vehicleDetails = null;
+                
+                if (currentRequest && hpgRequestPending) {
+                    // Use existing request data
+                    vehicleDetails = {
+                        requestId: currentRequest.requestId || requestId,
+                        applicationId: currentRequest.applicationId || currentRequest.requestId,
+                        ownerName: currentRequest.ownerName || 'N/A',
+                        plateNumber: currentRequest.plateNumber || 'N/A',
+                        vehicleType: currentRequest.vehicleType || 'N/A',
+                        vehicleModel: currentRequest.vehicleModel || 'N/A',
+                        vehicleYear: currentRequest.vehicleYear || 'N/A',
+                        vin: currentRequest.vin || 'N/A',
+                        purpose: currentRequest.purpose || 'N/A'
+                    };
+                } else {
+                    // Try to fetch from applications
+                    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+                    const hpgRequest = applications.find(app => app.id === requestId || app.hpgRequestPending === true);
+                    
+                    if (hpgRequest) {
+                        vehicleDetails = {
+                            requestId: hpgRequest.id || requestId,
+                            applicationId: hpgRequest.id,
+                            ownerName: hpgRequest.owner?.name || hpgRequest.owner?.email || 'N/A',
+                            plateNumber: hpgRequest.vehicle?.plateNumber || 'N/A',
+                            vehicleType: hpgRequest.vehicle?.type || 'N/A',
+                            vehicleModel: hpgRequest.vehicle?.model || 'N/A',
+                            vehicleYear: hpgRequest.vehicle?.year || 'N/A',
+                            vin: hpgRequest.vehicle?.vin || 'N/A',
+                            purpose: hpgRequest.purpose || 'N/A'
+                        };
+                    }
+                }
+                
+                if (vehicleDetails) {
+                    // Store for verification form
+                    sessionStorage.setItem('autoFillData', JSON.stringify(vehicleDetails));
+                    sessionStorage.setItem('currentRequestId', requestId);
+                    localStorage.setItem('currentHPGRequest', JSON.stringify(vehicleDetails));
+                    
+                    // Show success notification
+                    showAutoFillNotification('Vehicle details loaded successfully! Ready for verification.');
+                } else {
+                    alert('Unable to fetch vehicle details. Please try receiving the request first.');
+                }
+            } catch (error) {
+                console.error('Error in auto-fill:', error);
+                alert('Error loading vehicle details. Please try again.');
+            }
+        }
+
+        // Show Auto-Fill notification
+        function showAutoFillNotification(message) {
+            // Remove existing notification if any
+            const existing = document.getElementById('autoFillNotification');
+            if (existing) existing.remove();
+            
+            const notification = document.createElement('div');
+            notification.id = 'autoFillNotification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(39, 174, 96, 0.3);
+                z-index: 10000;
+                animation: slideInRight 0.3s ease-out;
+                max-width: 400px;
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            `;
+            notification.innerHTML = `
+                <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>Auto-Fill Activated!</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.95;">${message || 'Vehicle details have been auto-filled from LTO request.'}</p>
+                </div>
+                <button onclick="this.parentElement.remove()" style="background: rgba(255, 255, 255, 0.2); border: none; color: white; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; margin-left: auto;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            // Add animation
+            if (!document.getElementById('autoFillNotificationStyles')) {
+                const style = document.createElement('style');
+                style.id = 'autoFillNotificationStyles';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+        }
+
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Handle file selection and preview
+        function handleFileSelect(input, areaId, previewId) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const area = document.getElementById(areaId);
+            const preview = document.getElementById(previewId);
+            
+            // Update upload area appearance
+            area.classList.add('has-file');
+            
+            // Show file preview
+            const fileName = file.name;
+            const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            const fileIcon = file.type.includes('pdf') ? 'fa-file-pdf' : 'fa-file-image';
+            
+            preview.innerHTML = `
+                <div class="file-preview-item">
+                    <i class="fas ${fileIcon}"></i>
+                    <div class="file-info">
+                        <div class="file-name">${fileName}</div>
+                        <div class="file-size">${fileSize}</div>
+                    </div>
+                    <button type="button" class="file-remove" onclick="removeFile('${input.id}', '${areaId}', '${previewId}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        // Remove file
+        function removeFile(inputId, areaId, previewId) {
+            const input = document.getElementById(inputId);
+            const area = document.getElementById(areaId);
+            const preview = document.getElementById(previewId);
+            
+            input.value = '';
+            area.classList.remove('has-file');
+            preview.innerHTML = '';
+        }
+
+        // Initialize drag and drop for upload areas
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadAreas = ['engineInspectionArea', 'chassisInspectionArea', 'stencilFileArea'];
+            
+            uploadAreas.forEach(areaId => {
+                const area = document.getElementById(areaId);
+                if (!area) return;
+                
+                const input = area.querySelector('input[type="file"]');
+                if (!input) return;
+                
+                // Prevent default drag behaviors
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    area.addEventListener(eventName, preventDefaults, false);
+                    document.body.addEventListener(eventName, preventDefaults, false);
+                });
+                
+                // Highlight drop area when item is dragged over it
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    area.addEventListener(eventName, () => area.classList.add('dragover'), false);
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    area.addEventListener(eventName, () => area.classList.remove('dragover'), false);
+                });
+                
+                // Handle dropped files
+                area.addEventListener('drop', (e) => {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    
+                    if (files.length > 0) {
+                        input.files = files;
+                        const previewId = areaId.replace('Area', 'Preview');
+                        handleFileSelect(input, areaId, previewId);
+                    }
+                }, false);
+            });
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
         }
     </script>
 </body>

@@ -60,6 +60,10 @@
                     <span>LTO Requests by Org</span>
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
+                <a href="emission-document-viewer.html" class="nav-item">
+                    <i class="fas fa-file-leaf"></i>
+                    <span>Document Viewer</span>
+                </a>
                 <a href="#emission" class="nav-item">
                     <i class="fas fa-leaf"></i>
                     <span>Emission Tests</span>
@@ -69,6 +73,27 @@
                     <span>Reports</span>
                 </a>
             </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">EV</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">Emission Verifier</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Emission Verification Specialist</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -83,15 +108,7 @@
                             <h1>LTO Blockchain</h1>
                             <p>Emission Verifier Dashboard</p>
                         </div>
-                    <div class="user-info">
-                        <div class="user-avatar" id="userAvatar">EV</div>
-                        <div class="user-details">
-                            <span class="user-name" id="userName">Loading...</span>
-                            <span class="user-role" id="userRole">Loading...</span>
-                        </div>
-                        <a href="settings.html" class="btn-secondary">Settings</a>
-                        <a href="index.html" class="btn-secondary">Logout</a>
-                    </div>
+                    <!-- User info moved to sidebar footer -->
                 </div>
             </div>
         </header>
@@ -266,28 +283,44 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
+                
+                // Check if auth is disabled (dev mode)
+                if (user && user._devMode) {
+                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                }
+                
                 if (user) {
-                    const userNameEl = document.getElementById('userName');
-                    const userRoleEl = document.getElementById('userRole');
-                    const userAvatarEl = document.getElementById('userAvatar');
+                    // Sidebar user info elements
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
                     
-                    if (userNameEl) {
-                        userNameEl.textContent = AuthUtils.getUserDisplayName();
+                    const displayName = AuthUtils.getUserDisplayName() || 'Emission Verifier';
+                    const userInitials = AuthUtils.getUserInitials() || 'EV';
+                    const roleNames = {
+                        'vehicle_owner': 'Vehicle Owner',
+                        'admin': 'Administrator',
+                        'insurance_verifier': 'Insurance Verifier',
+                        'emission_verifier': 'Emission Verification Specialist'
+                    };
+                    const userRole = roleNames[user.role] || user.role;
+                    
+                    // Update sidebar user info
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = displayName;
                     }
-                    if (userRoleEl) {
-                        const roleNames = {
-                            'vehicle_owner': 'Vehicle Owner',
-                            'admin': 'Administrator',
-                            'insurance_verifier': 'Insurance Verifier',
-                            'emission_verifier': 'Emission Verification Specialist'
-                        };
-                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    if (sidebarUserRoleEl) {
+                        sidebarUserRoleEl.textContent = userRole;
                     }
-                    if (userAvatarEl) {
-                        userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = userInitials;
                     }
                 } else {
-                    window.location.href = 'login-signup.html';
+                    // Not authenticated, redirect to login (only if auth is enabled)
+                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
+                    if (!user) {
+                        window.location.href = 'login-signup.html';
+                    }
                 }
             }
 
@@ -320,6 +353,22 @@
                     localStorage.setItem('emissionVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
                 });
             }
+
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                        }
+                    }
+                });
+            }
         });
 
         function loadEmissionRequests() {
@@ -344,12 +393,17 @@
                     <td>${new Date().toLocaleDateString()}</td>
                     <td><span class="badge badge-warning">Pending</span></td>
                     <td>
-                        <button class="btn-primary btn-sm" onclick="viewRequestDetails('${currentRequest.requestId || 'REQ-' + Date.now()}')">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn-success btn-sm" onclick="receiveRequest('${currentRequest.requestId || 'REQ-' + Date.now()}')">
-                            <i class="fas fa-download"></i> Receive
-                        </button>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn-primary btn-sm" onclick="viewRequestDetails('${currentRequest.requestId || 'REQ-' + Date.now()}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn-success btn-sm" onclick="receiveRequest('${currentRequest.requestId || 'REQ-' + Date.now()}')">
+                                <i class="fas fa-download"></i> Receive
+                            </button>
+                            <button class="btn-info btn-sm" onclick="autoFillVerification('${currentRequest.requestId || 'REQ-' + Date.now()}')" title="Auto-fill vehicle details for verification">
+                                <i class="fas fa-magic"></i> Auto-Fill
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -426,6 +480,121 @@
 
         function exportRequests() {
             alert('Export functionality will be implemented');
+        }
+
+        // Auto-Fill Verification - Fetch vehicle details from LTO request
+        function autoFillVerification(requestId) {
+            try {
+                // Get current request data
+                const currentRequest = JSON.parse(localStorage.getItem('currentEmissionRequest') || 'null');
+                const emissionRequestPending = localStorage.getItem('emissionRequestPending') === 'true';
+                
+                let vehicleDetails = null;
+                
+                if (currentRequest && emissionRequestPending) {
+                    // Use existing request data
+                    vehicleDetails = {
+                        requestId: currentRequest.requestId || requestId,
+                        applicationId: currentRequest.applicationId || currentRequest.requestId,
+                        ownerName: currentRequest.ownerName || 'N/A',
+                        plateNumber: currentRequest.plateNumber || 'N/A',
+                        vehicleType: currentRequest.vehicleType || 'N/A',
+                        vehicleModel: currentRequest.vehicleModel || 'N/A',
+                        vehicleYear: currentRequest.vehicleYear || 'N/A',
+                        vin: currentRequest.vin || 'N/A'
+                    };
+                } else {
+                    // Try to fetch from applications
+                    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+                    const emissionRequest = applications.find(app => app.id === requestId || app.emissionRequestPending === true);
+                    
+                    if (emissionRequest) {
+                        vehicleDetails = {
+                            requestId: emissionRequest.id || requestId,
+                            applicationId: emissionRequest.id,
+                            ownerName: emissionRequest.owner?.name || emissionRequest.owner?.email || 'N/A',
+                            plateNumber: emissionRequest.vehicle?.plateNumber || 'N/A',
+                            vehicleType: emissionRequest.vehicle?.type || 'N/A',
+                            vehicleModel: emissionRequest.vehicle?.model || 'N/A',
+                            vehicleYear: emissionRequest.vehicle?.year || 'N/A',
+                            vin: emissionRequest.vehicle?.vin || 'N/A'
+                        };
+                    }
+                }
+                
+                if (vehicleDetails) {
+                    // Store for verification form
+                    sessionStorage.setItem('autoFillData', JSON.stringify(vehicleDetails));
+                    localStorage.setItem('currentEmissionRequest', JSON.stringify(vehicleDetails));
+                    
+                    // Show success notification
+                    showAutoFillNotification('Vehicle details loaded successfully! Ready for verification.');
+                } else {
+                    alert('Unable to fetch vehicle details. Please try receiving the request first.');
+                }
+            } catch (error) {
+                console.error('Error in auto-fill:', error);
+                alert('Error loading vehicle details. Please try again.');
+            }
+        }
+
+        // Show Auto-Fill notification
+        function showAutoFillNotification(message) {
+            // Remove existing notification if any
+            const existing = document.getElementById('autoFillNotification');
+            if (existing) existing.remove();
+            
+            const notification = document.createElement('div');
+            notification.id = 'autoFillNotification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(22, 160, 133, 0.3);
+                z-index: 10000;
+                animation: slideInRight 0.3s ease-out;
+                max-width: 400px;
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            `;
+            notification.innerHTML = `
+                <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>Auto-Fill Activated!</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.95;">${message || 'Vehicle details have been auto-filled from LTO request.'}</p>
+                </div>
+                <button onclick="this.parentElement.remove()" style="background: rgba(255, 255, 255, 0.2); border: none; color: white; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; margin-left: auto;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            // Add animation
+            if (!document.getElementById('autoFillNotificationStyles')) {
+                const style = document.createElement('style');
+                style.id = 'autoFillNotificationStyles';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
         }
 
         function closeModal(modalId) {

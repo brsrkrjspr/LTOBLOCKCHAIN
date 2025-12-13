@@ -7,19 +7,25 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
         (function() {
             function initSidebar() {
                 const sidebar = document.querySelector('.dashboard-sidebar');
                 if (sidebar) {
+                    // Disable transitions during page load
                     sidebar.classList.add('no-transition');
+                    
                     const savedState = localStorage.getItem('adminSidebarCollapsed');
                     if (savedState === 'true') {
                         sidebar.classList.add('collapsed');
                     }
+                    
+                    // Re-enable transitions after page loads
                     setTimeout(function() {
                         sidebar.classList.remove('no-transition');
                     }, 100);
                 } else {
+                    // Retry if sidebar not found yet
                     setTimeout(initSidebar, 10);
                 }
             }
@@ -30,6 +36,10 @@
             }
         })();
     </script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -64,7 +74,7 @@
                 <a href="admin-transfer-requests.html" class="nav-item active">
                     <i class="fas fa-exchange-alt"></i>
                     <span>Transfer of Ownership</span>
-                    <span class="badge" id="transferBadge">3</span>
+                    <span class="badge" id="transferBadge" style="display: none;">3</span>
                 </a>
                 <a href="#audit" class="nav-item">
                     <i class="fas fa-clipboard-list"></i>
@@ -78,7 +88,32 @@
                     <i class="fas fa-file-alt"></i>
                     <span>Documents</span>
                 </a>
+                <a href="admin-document-viewer.html" class="nav-item">
+                    <i class="fas fa-eye"></i>
+                    <span>Document Viewer</span>
+                </a>
             </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">AD</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">ADMIN</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">System Administrator</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="settings.html" class="sidebar-action-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -90,21 +125,7 @@
                             <i class="fas fa-bars"></i>
                         </button>
                         <div class="logo">
-                            <h1>LTO Blockchain</h1>
-                            <p>Admin Dashboard</p>
-                        </div>
-                        <div class="user-info">
-                            <div class="user-profile">
-                                <div class="user-avatar" id="userAvatar">AD</div>
-                                <div class="user-details">
-                                    <span class="user-name" id="userName">Loading...</span>
-                                    <span class="user-role" id="userRole">Loading...</span>
-                                </div>
-                            </div>
-                            <div class="user-actions">
-                                <a href="settings.html" class="btn-secondary">Settings</a>
-                                <a href="index.html" class="btn-secondary">Logout</a>
-                            </div>
+                            <h1>LTO MANAGEMENT SYSTEM</h1>
                         </div>
                     </div>
                 </div>
@@ -226,40 +247,80 @@
         </div>
     </div>
 
-    <script src="js/auth-utils.js"></script>
-    <script src="js/api-client.js"></script>
-    <script src="js/utils.js"></script>
     <script>
+        // Initialize user data on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize user data
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
+                
+                // Check if auth is disabled (dev mode)
+                if (user && user._devMode) {
+                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                }
+                
                 if (user) {
-                    const userNameEl = document.getElementById('userName');
-                    const userRoleEl = document.getElementById('userRole');
-                    const userAvatarEl = document.getElementById('userAvatar');
+                    // Update sidebar user info
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
                     
-                    if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName();
-                    if (userRoleEl) {
-                        const roleNames = {
-                            'admin': 'System Administrator',
-                            'vehicle_owner': 'Vehicle Owner'
-                        };
-                        userRoleEl.textContent = roleNames[user.role] || user.role;
+                    if (sidebarUserNameEl) {
+                        sidebarUserNameEl.textContent = 'ADMIN';
                     }
-                    if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials();
+                    if (sidebarUserRoleEl) {
+                        const roleNames = {
+                            'vehicle_owner': 'Vehicle Owner',
+                            'admin': 'System Administrator',
+                            'insurance_verifier': 'Insurance Verifier',
+                            'emission_verifier': 'Emission Verifier'
+                        };
+                        sidebarUserRoleEl.textContent = roleNames[user.role] || user.role;
+                    }
+                    if (sidebarUserAvatarEl) {
+                        sidebarUserAvatarEl.textContent = 'AD';
+                    }
                 } else {
-                    window.location.href = 'login-signup.html';
+                    // Not authenticated, redirect to login (only if auth is enabled)
+                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
+                    if (!user) {
+                        window.location.href = 'login-signup.html';
+                    }
                 }
             }
 
-            // Sidebar toggle
+            // Load sidebar state from localStorage
             const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('adminSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle
             const sidebarToggle = document.getElementById('sidebarToggle');
+            
             if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function() {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
-                    localStorage.setItem('adminSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                });
+            }
+
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof AuthUtils !== 'undefined') {
+                        AuthUtils.logout();
+                    } else {
+                        localStorage.clear();
+                        window.location.href = 'index.html';
+                    }
                 });
             }
 

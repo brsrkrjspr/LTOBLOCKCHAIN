@@ -253,14 +253,19 @@ const HPGRequests = {
                     <td>${req.requestDate}</td>
                     <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                     <td>
-                        ${req.status === 'pending' ? `
-                            <button class="btn-primary btn-sm" onclick="startVerification('${req.id}')">
-                                <i class="fas fa-check"></i> Verify
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            ${req.status === 'pending' ? `
+                                <button class="btn-primary btn-sm" onclick="startVerification('${req.id}')">
+                                    <i class="fas fa-check"></i> Verify
+                                </button>
+                            ` : ''}
+                            <button class="btn-secondary btn-sm" onclick="viewDetails('${req.id}')">
+                                <i class="fas fa-eye"></i> View
                             </button>
-                        ` : ''}
-                        <button class="btn-secondary btn-sm" onclick="viewDetails('${req.id}')">
-                            <i class="fas fa-eye"></i> View
-                        </button>
+                            <button class="btn-info btn-sm" onclick="autoFillVerification('${req.id}')" title="Auto-fill vehicle details for verification">
+                                <i class="fas fa-magic"></i> Auto-Fill
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;

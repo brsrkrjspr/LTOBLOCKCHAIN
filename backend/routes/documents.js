@@ -8,6 +8,7 @@ const router = express.Router();
 const db = require('../database/services');
 const storageService = require('../services/storageService');
 const { authenticateToken } = require('../middleware/auth');
+const { authorizeRole } = require('../middleware/authorize');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

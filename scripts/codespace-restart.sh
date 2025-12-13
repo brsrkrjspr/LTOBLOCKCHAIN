@@ -198,11 +198,32 @@ fi
 # ======================================================
 print_header "Phase 5: Verifying Database Schema"
 
+# Apply basic schema updates
 docker exec postgres psql -U lto_user -d lto_blockchain -c "
     ALTER TABLE documents ADD COLUMN IF NOT EXISTS ipfs_cid VARCHAR(255);
     CREATE INDEX IF NOT EXISTS idx_documents_ipfs_cid ON documents(ipfs_cid);
     ALTER TABLE vehicle_history ALTER COLUMN transaction_id TYPE VARCHAR(255);
-" 2>/dev/null || print_info "Schema already up to date"
+" 2>/dev/null || print_info "Basic schema already up to date"
+
+# Apply transfer ownership schema if it exists
+if [ -f "database/add-transfer-ownership.sql" ]; then
+    print_info "Applying transfer ownership schema..."
+    docker exec -i postgres psql -U lto_user -d lto_blockchain < database/add-transfer-ownership.sql 2>/dev/null || print_info "Transfer schema already applied or has warnings"
+    
+    # Verify transfer tables exist
+    TRANSFER_TABLES=$(docker exec postgres psql -U lto_user -d lto_blockchain -tAc "
+        SELECT COUNT(*) FROM information_schema.tables 
+        WHERE table_name IN ('transfer_requests', 'transfer_documents', 'transfer_verifications')
+    " 2>/dev/null || echo "0")
+    
+    if [ "$TRANSFER_TABLES" = "3" ]; then
+        print_success "Transfer ownership tables verified"
+    else
+        print_info "Transfer ownership tables: $TRANSFER_TABLES/3 found"
+    fi
+else
+    print_info "Transfer ownership schema file not found (optional)"
+fi
 
 print_success "Database schema verified"
 

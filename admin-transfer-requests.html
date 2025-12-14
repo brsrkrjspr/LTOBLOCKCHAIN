@@ -251,8 +251,9 @@
         </div>
     </div>
 
+    <script src="js/admin-transfer-requests.js"></script>
     <script>
-        // Initialize user data on page load
+        // Legacy initialization (kept for fallback, will be replaced by external JS)
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();

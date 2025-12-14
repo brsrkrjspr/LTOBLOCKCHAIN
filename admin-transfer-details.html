@@ -451,7 +451,11 @@
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/admin-transfer-details.js"></script>
     <script>
+        // Legacy initialization (kept for fallback, will be replaced by external JS)
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();

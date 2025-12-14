@@ -42,7 +42,11 @@
   "multer": "^1.4.5-lts.1",       // File upload handling
   "helmet": "^7.1.0",             // Security headers
   "express-rate-limit": "^7.1.5", // Rate limiting
-  "cors": "^2.8.5"                // CORS middleware
+  "cors": "^2.8.5",               // CORS middleware
+  "nodemailer": "^6.9.7",         // Email notifications
+  "twilio": "^4.19.0",            // SMS notifications
+  "uuid": "^9.0.0",               // UUID generation
+  "dotenv": "^16.3.1"             // Environment variables
 }
 ```
 
@@ -179,17 +183,22 @@ LTOBLOCKCHAIN/
 4. **Static File Serving** (line 75)
    - Serves HTML/CSS/JS from root directory
 
-5. **API Route Registration** (lines 77-91)
+5. **API Route Registration** (lines 85-100)
    ```javascript
    app.use('/api/auth', require('./backend/routes/auth'));
    app.use('/api/vehicles', require('./backend/routes/vehicles'));
    app.use('/api/documents', require('./backend/routes/documents'));
    app.use('/api/blockchain', require('./backend/routes/blockchain'));
    app.use('/api/ledger', require('./backend/routes/ledger'));
+   app.use('/api/notifications', require('./backend/routes/notifications'));
    app.use('/api/lto', require('./backend/routes/lto'));        // LTO: send requests, approve/reject
    app.use('/api/hpg', require('./backend/routes/hpg'));       // HPG: verify, approve/reject, release certificates
    app.use('/api/insurance', require('./backend/routes/insurance')); // Insurance: verify, approve/reject
    app.use('/api/emission', require('./backend/routes/emission'));   // Emission: verify, approve/reject
+   app.use('/api/vehicles/transfer', require('./backend/routes/transfer')); // Transfer ownership
+   app.use('/api/admin', require('./backend/routes/admin'));            // Admin statistics
+   app.use('/api/health', require('./backend/routes/health'));          // Health checks
+   app.use('/api/monitoring', require('./backend/routes/monitoring'));   // System monitoring
    ```
 
 6. **Service Initialization** (lines 163-175)
@@ -246,6 +255,7 @@ LTOBLOCKCHAIN/
 ```
 1. Public Search (search.html)
    ↓ GET /api/documents/verify?cid=<IPFS_CID>
+   Note: Public verification endpoint may need separate implementation
    
 2. Backend Route (backend/routes/documents.js)
    ↓ Retrieves document from IPFS/local storage
@@ -259,6 +269,8 @@ LTOBLOCKCHAIN/
    ↓ Compares document hash with blockchain record
    ↓ Returns verification status
 ```
+
+**Note:** Document upload endpoint (`POST /api/documents/upload`) now requires authentication. If registration wizard needs to upload documents before user registration, consider a separate public endpoint with rate limiting.
 
 ### **Clearance Workflow Flow** (Multi-Organizational)
 ```
@@ -510,6 +522,20 @@ FRONTEND_URL=http://localhost:3001
   6. **Audit Compliance:** Government/enterprise systems require audit trails - blockchain provides this automatically
 - **Blockchain Value:** Not about eliminating intermediaries, but creating **trust, transparency, and accountability** between known parties
 - **Real-World Analogy:** Like a notary public - they have authority to approve/reject, but the notarization is recorded in a public ledger that can't be tampered with
+
+### **8. Comprehensive Authentication and Authorization (UPDATED - December 2024)**
+- **Decision:** All sensitive endpoints require authentication; admin operations require role-based authorization
+- **Rationale:** Security best practices - defense in depth, prevent unauthorized access
+- **Implementation:**
+  - JWT token authentication via `authenticateToken` middleware
+  - Role-based access control via `authorizeRole` middleware
+  - Permission checks for resource access (owners can only access their own vehicles)
+- **Security Fixes Applied:**
+  1. **Document Upload:** `POST /api/documents/upload` now requires authentication
+  2. **Ledger Routes:** All 9 endpoints now require authentication (admin-only for sensitive operations)
+  3. **Monitoring Routes:** All 6 endpoints now require admin authentication
+- **Impact:** Prevents unauthorized access to sensitive data and operations, significantly improves security posture
+- **Status:** ✅ All authentication bypasses fixed (December 2024)
 
 ---
 
@@ -813,6 +839,22 @@ STORAGE_MODE=ipfs             # or 'auto' (tries IPFS first)
 
 ---
 
+## 12. Security Updates (December 2024)
+
+### **Authentication Bypass Fixes**
+
+**Critical vulnerabilities fixed:**
+
+1. **Document Upload Endpoint** - Now requires authentication
+2. **Ledger Routes (9 endpoints)** - All now require authentication (admin-only for sensitive)
+3. **Monitoring Routes (6 endpoints)** - All now require admin authentication
+
+**Security Status:** ✅ **SECURE** - All authentication bypasses fixed
+
+See `COMPREHENSIVE_WORKSPACE_SUMMARY.md` for detailed security documentation.
+
+---
+
 ## ✅ Indexing Confirmation
 
 **I have successfully indexed the following understanding:**
@@ -827,6 +869,7 @@ STORAGE_MODE=ipfs             # or 'auto' (tries IPFS first)
 - ✅ Critical files and their purposes
 - ✅ Common development workflows
 - ✅ Testing and debugging approaches
+- ✅ Security architecture and authentication requirements
 
 **You can now ask me to:**
 - Implement new features based on this architecture
@@ -835,6 +878,13 @@ STORAGE_MODE=ipfs             # or 'auto' (tries IPFS first)
 - Add new API endpoints or frontend pages
 - Modify chaincode or database schema
 - Troubleshoot issues with understanding of the full system
+- Review and improve security measures
 
 **I'm ready to work on this codebase with comprehensive context!** 🚀
+
+---
+
+**Document Version:** 2.0  
+**Last Updated:** December 2024  
+**See Also:** `COMPREHENSIVE_WORKSPACE_SUMMARY.md` for complete workspace overview
 

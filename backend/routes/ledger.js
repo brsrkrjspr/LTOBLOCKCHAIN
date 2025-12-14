@@ -3,9 +3,11 @@
 const express = require('express');
 const router = express.Router();
 const fabricService = require('../services/optimizedFabricService');
+const { authenticateToken } = require('../middleware/auth');
+const { authorizeRole } = require('../middleware/authorize');
 
-// Get all transactions from Fabric
-router.get('/transactions', async (req, res) => {
+// Get all transactions from Fabric (admin only)
+router.get('/transactions', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const transactions = await fabricService.getAllTransactions();
         res.json({
@@ -23,8 +25,8 @@ router.get('/transactions', async (req, res) => {
     }
 });
 
-// Get transactions by VIN from Fabric
-router.get('/transactions/vin/:vin', async (req, res) => {
+// Get transactions by VIN from Fabric (authenticated users)
+router.get('/transactions/vin/:vin', authenticateToken, async (req, res) => {
     try {
         const { vin } = req.params;
         const allTransactions = await fabricService.getAllTransactions();
@@ -45,8 +47,8 @@ router.get('/transactions/vin/:vin', async (req, res) => {
     }
 });
 
-// Get transactions by owner from Fabric
-router.get('/transactions/owner/:ownerEmail', async (req, res) => {
+// Get transactions by owner from Fabric (authenticated users)
+router.get('/transactions/owner/:ownerEmail', authenticateToken, async (req, res) => {
     try {
         const { ownerEmail } = req.params;
         const allTransactions = await fabricService.getAllTransactions();
@@ -69,8 +71,8 @@ router.get('/transactions/owner/:ownerEmail', async (req, res) => {
     }
 });
 
-// Get transaction by ID from Fabric
-router.get('/transactions/id/:transactionId', async (req, res) => {
+// Get transaction by ID from Fabric (authenticated users)
+router.get('/transactions/id/:transactionId', authenticateToken, async (req, res) => {
     try {
         const { transactionId } = req.params;
         const allTransactions = await fabricService.getAllTransactions();
@@ -99,8 +101,8 @@ router.get('/transactions/id/:transactionId', async (req, res) => {
     }
 });
 
-// Get all blocks from Fabric
-router.get('/blocks', async (req, res) => {
+// Get all blocks from Fabric (admin only)
+router.get('/blocks', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const blocks = await fabricService.getAllBlocks();
         res.json({
@@ -118,8 +120,8 @@ router.get('/blocks', async (req, res) => {
     }
 });
 
-// Get block by number from Fabric
-router.get('/blocks/:blockNumber', async (req, res) => {
+// Get block by number from Fabric (admin only)
+router.get('/blocks/:blockNumber', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { blockNumber } = req.params;
         const allBlocks = await fabricService.getAllBlocks();
@@ -146,8 +148,8 @@ router.get('/blocks/:blockNumber', async (req, res) => {
     }
 });
 
-// Get latest block from Fabric
-router.get('/blocks/latest', async (req, res) => {
+// Get latest block from Fabric (admin only)
+router.get('/blocks/latest', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const allBlocks = await fabricService.getAllBlocks();
         const latestBlock = allBlocks.length > 0 ? allBlocks[allBlocks.length - 1] : null;
@@ -173,8 +175,8 @@ router.get('/blocks/latest', async (req, res) => {
     }
 });
 
-// Get ledger statistics from Fabric
-router.get('/stats', async (req, res) => {
+// Get ledger statistics from Fabric (admin only)
+router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const transactions = await fabricService.getAllTransactions();
         const blocks = await fabricService.getAllBlocks();
@@ -200,8 +202,8 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// Search transactions in Fabric
-router.get('/search', async (req, res) => {
+// Search transactions in Fabric (authenticated users)
+router.get('/search', authenticateToken, async (req, res) => {
     try {
         const { q } = req.query;
         

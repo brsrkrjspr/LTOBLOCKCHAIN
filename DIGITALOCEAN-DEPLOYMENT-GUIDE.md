@@ -1190,6 +1190,50 @@ curl http://localhost:3001/api/health
 
 ---
 
+## Stopping Services (Save Credits)
+
+To stop all services and prevent resource usage:
+
+### Quick Stop
+```bash
+# Stop all containers
+docker compose -f docker-compose.unified.yml down
+
+# Or use the convenience script
+bash scripts/stop-all-services.sh
+```
+
+### Verify Everything is Stopped
+```bash
+# Check running containers
+docker ps
+
+# Check resource usage
+bash scripts/check-resource-usage.sh
+```
+
+### Start Again Later
+```bash
+# Start all services
+docker compose -f docker-compose.unified.yml up -d
+
+# Check status
+docker compose -f docker-compose.unified.yml ps
+```
+
+### Complete Cleanup (WARNING: Deletes Data)
+```bash
+# Stop and remove all containers, networks, and volumes
+docker compose -f docker-compose.unified.yml down -v
+
+# Remove unused Docker resources
+docker system prune -a --volumes
+```
+
+**Note:** The `down -v` command will delete all data volumes (PostgreSQL, IPFS, Fabric data). Only use this if you want a completely fresh start.
+
+---
+
 **Deployment Complete!** 🎉
 
 Your TrustChain LTO system is now running on DigitalOcean.

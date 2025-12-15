@@ -40,14 +40,20 @@ echo "📦 Step 1: Creating channel..."
 TX_FILENAME=$(basename "$CHANNEL_TX")
 docker cp "$CHANNEL_TX" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/
 
+# Copy orderer TLS CA cert to peer container for channel creation
+docker cp fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/ca.crt \
+  peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt
+
 # Create channel using peer container
+# Use orderer's TLS CA cert (not peer's) for connecting to orderer
 docker exec peer0.lto.gov.ph peer channel create \
   -o orderer.lto.gov.ph:7050 \
   -c ltochannel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/$TX_FILENAME \
   --tls \
-  --cafile /etc/hyperledger/fabric/tls/ca.crt \
-  --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block
+  --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt \
+  --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
+  --timeout 60s
 
 if [ $? -eq 0 ]; then
     echo "✅ Channel created successfully"

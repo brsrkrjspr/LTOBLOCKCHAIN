@@ -19,6 +19,10 @@ if ! docker exec peer0.lto.gov.ph peer channel list | grep -q "ltochannel"; then
     exit 1
 fi
 
+# Copy orderer TLS CA cert to peer container (if not already there)
+docker cp fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/ca.crt \
+  peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt 2>/dev/null || true
+
 # Instantiate chaincode
 echo "🚀 Instantiating chaincode on channel..."
 docker exec peer0.lto.gov.ph peer chaincode instantiate \
@@ -29,7 +33,8 @@ docker exec peer0.lto.gov.ph peer chaincode instantiate \
   -c '{"Args":[]}' \
   -P "OR('LTOMSP.member')" \
   --tls \
-  --cafile /etc/hyperledger/fabric/tls/ca.crt
+  --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt \
+  --timeout 60s
 
 if [ $? -eq 0 ]; then
     echo "✅ Chaincode instantiated successfully"

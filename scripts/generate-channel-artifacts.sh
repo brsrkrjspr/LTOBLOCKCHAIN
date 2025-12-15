@@ -113,7 +113,7 @@ docker run --rm \
     -w /workspace \
     -e FABRIC_CFG_PATH=/workspace \
     hyperledger/fabric-tools:2.5 \
-    configtxgen -profile "$CHANNEL_PROFILE" -channelID ltochannel -outputAnchorPeersUpdate ./channel-artifacts/LTOMSPanchors.tx -asOrg LTO
+    configtxgen -profile "$CHANNEL_PROFILE" -channelID ltochannel -outputAnchorPeersUpdate ./channel-artifacts/LTOMSPanchors.tx -asOrg LTOMSP
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to generate anchor peer update"

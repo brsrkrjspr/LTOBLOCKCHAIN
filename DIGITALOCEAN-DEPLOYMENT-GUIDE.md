@@ -463,62 +463,143 @@ docker compose -f docker-compose.unified.yml logs peer0.lto.gov.ph
 
 ---
 
-## Step 9: Initialize Fabric Channel and Chaincode
+## Step 10: Initialize Fabric Channel and Chaincode
 
-### 9.1 Start CLI Container (if needed)
-The CLI container is commented out in `docker-compose.unified.yml` to save resources. Start it manually if needed:
+**⚠️ IMPORTANT:** The application cannot connect to Fabric until the channel is created and chaincode is deployed.
 
+### 10.1 Setup Channel (All-in-One Script)
 ```bash
-# Uncomment CLI service in docker-compose.unified.yml, or start manually:
-docker compose -f docker-compose.unified.yml run --rm cli bash
+cd ~/LTOBLOCKCHAIN
+
+# Make script executable
+chmod +x scripts/setup-fabric-channel.sh
+
+# Create channel and join peer (no CLI container needed)
+bash scripts/setup-fabric-channel.sh
 ```
 
-### 9.2 Create Channel
+**Expected Output:**
+```
+🔗 Setting up Fabric channel...
+📦 Step 1: Creating channel...
+✅ Channel created successfully
+🔗 Step 2: Joining peer to channel...
+✅ Peer joined channel successfully
+📋 Step 3: Verifying channel...
+🎉 Channel setup complete!
+```
+
+**Verification:**
 ```bash
+# Verify peer is in channel
+docker exec peer0.lto.gov.ph peer channel list
+# Should show: ltochannel
+```
+
+### 10.2 Install Chaincode
+```bash
+# Make script executable
+chmod +x scripts/install-chaincode.sh
+
+# Install chaincode
+bash scripts/install-chaincode.sh
+```
+
+**Expected Output:**
+```
+📦 Installing chaincode...
+📋 Copying chaincode to peer...
+📦 Installing chaincode...
+✅ Chaincode installed successfully
+🎉 Chaincode installation complete!
+```
+
+### 10.3 Instantiate Chaincode
+```bash
+# Make script executable
+chmod +x scripts/instantiate-chaincode.sh
+
+# Instantiate chaincode
+bash scripts/instantiate-chaincode.sh
+```
+
+**Expected Output:**
+```
+🚀 Instantiating chaincode...
+🚀 Instantiating chaincode on channel...
+✅ Chaincode instantiated successfully
+⏳ Waiting for chaincode to be ready...
+🎉 Chaincode instantiation complete!
+```
+
+**Note:** Chaincode instantiation may take 30-60 seconds. Wait for the success message.
+
+### 10.4 Restart Application
+After chaincode is instantiated, restart the application to connect to Fabric:
+
+```bash
+# Restart application
+docker compose -f docker-compose.unified.yml restart lto-app
+
+# Check logs (should see Fabric connection success)
+docker compose -f docker-compose.unified.yml logs lto-app --tail=30 | grep -i fabric
+```
+
+**Expected:** `✅ Connected to Hyperledger Fabric network successfully`
+
+---
+
+## Alternative: Manual Channel Setup (if scripts fail)
+
+If the scripts don't work, you can manually create the channel using the peer container directly:
+
+### Manual Channel Creation
+```bash
+# Copy channel transaction to peer
+docker cp fabric-network/channel-artifacts/ltochannel.tx peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/
+
 # Create channel
-docker exec cli peer channel create \
+docker exec peer0.lto.gov.ph peer channel create \
   -o orderer.lto.gov.ph:7050 \
   -c ltochannel \
-  -f ./channel-artifacts/channel.tx \
+  -f /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.tx \
   --tls \
-  --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
-```
+  --cafile /etc/hyperledger/fabric/tls/ca.crt \
+  --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block
 
-**Expected Output:**
-```
-2024-01-01 12:00:00.000 UTC [channelCmd] InitCmdFactory -> INFO 001 Endorser and orderer connections initialized
-2024-01-01 12:00:00.000 UTC [cli.common] readBlock -> INFO 002 Received block: 0
-```
-
-### 9.3 Join Peer to Channel
-```bash
 # Join peer to channel
-docker exec cli peer channel join -b ltochannel.block
+docker exec peer0.lto.gov.ph peer channel join \
+  -b /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block
+
+# Verify
+docker exec peer0.lto.gov.ph peer channel list
 ```
 
-**Expected Output:**
-```
-2024-01-01 12:00:00.000 UTC [channelCmd] InitCmdFactory -> INFO 001 Endorser and orderer connections initialized
-2024-01-01 12:00:00.000 UTC [channelCmd] execute -> INFO 002 Successfully submitted proposal to join channel
-```
-
-### 9.4 Install Chaincode
+### Manual Chaincode Installation
 ```bash
+# Copy chaincode to peer
+docker cp chaincode/vehicle-registration-production peer0.lto.gov.ph:/opt/gopath/src/github.com/chaincode/
+
 # Install chaincode
-docker exec cli peer chaincode install \
+docker exec peer0.lto.gov.ph peer chaincode install \
   -n vehicle-registration \
   -v 1.0 \
-  -p /opt/gopath/src/github.com/chaincode/vehicle-registration-production
+  -p github.com/chaincode/vehicle-registration-production \
+  -l node
+
+# Instantiate chaincode
+docker exec peer0.lto.gov.ph peer chaincode instantiate \
+  -o orderer.lto.gov.ph:7050 \
+  -C ltochannel \
+  -n vehicle-registration \
+  -v 1.0 \
+  -c '{"Args":[]}' \
+  -P "OR('LTOMSP.member')" \
+  --tls \
+  --cafile /etc/hyperledger/fabric/tls/ca.crt
 ```
 
-**Expected Output:**
-```
-2024-01-01 12:00:00.000 UTC [chaincodeCmd] checkChaincodeCmdParams -> INFO 001 Using default escc
-2024-01-01 12:00:00.000 UTC [chaincodeCmd] checkChaincodeCmdParams -> INFO 002 Using default vscc
-2024-01-01 12:00:00.000 UTC [chaincodeCmd] install -> INFO 003 Installed remotely response:<status:200 payload:"OK" >
-```
-
-### 9.5 Instantiate Chaincode
+### 10.5 Verify Fabric Connection
 ```bash
 # Instantiate chaincode
 docker exec cli peer chaincode instantiate \

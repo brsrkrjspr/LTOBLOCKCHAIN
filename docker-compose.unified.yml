@@ -2,8 +2,6 @@
 # Optimized for: DigitalOcean Droplet - 8GB RAM, 4 CPU
 # All essential services in ONE unified deployment file
 
-version: '3.8'
-
 services:
   # ============================================
   # HYPERLEDGER FABRIC - ORDERER
@@ -299,7 +297,9 @@ services:
       - ./network-config.json:/app/network-config.json:ro
       - ./wallet:/app/wallet
       - ./logs:/app/logs
+      - ./fabric-network/crypto-config:/app/fabric-network/crypto-config:ro
       - app-uploads:/app/uploads
+    user: "1001:1001"
     depends_on:
       postgres:
         condition: service_healthy

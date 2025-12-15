@@ -264,7 +264,24 @@ ls -la fabric-network/channel-artifacts/
 # Should see: genesis.block, channel.tx, ltochannel.tx
 ```
 
-### 7.3 Setup Fabric Wallet
+### 7.3 Install Node.js Dependencies
+```bash
+cd ~/LTOBLOCKCHAIN
+
+# Install Node.js dependencies (required for wallet setup)
+npm install
+
+# This will install all required packages including fabric-network
+```
+
+**Expected Output:**
+```
+added 234 packages, and audited 235 packages in 30s
+```
+
+**Note:** This step is required before running wallet setup scripts as they need the `fabric-network` module.
+
+### 7.4 Setup Fabric Wallet
 ```bash
 # Setup wallet for application
 bash scripts/setup-wallet-only.sh
@@ -285,11 +302,74 @@ ls -la wallet/
 
 ---
 
-## Step 8: Deploy Services
+## Step 8: Pre-Flight Checklist
 
-### 8.1 Start All Services
+**Before running Docker Compose, verify all prerequisites are complete:**
+
+### 8.1 Verify Required Files and Directories
+
 ```bash
-cd /opt/lto-blockchain
+cd ~/LTOBLOCKCHAIN
+
+# Check essential files exist
+echo "Checking files..."
+ls -la docker-compose.unified.yml && echo "✅ docker-compose.unified.yml"
+ls -la Dockerfile.production && echo "✅ Dockerfile.production"
+ls -la network-config.json && echo "✅ network-config.json"
+ls -la .env && echo "✅ .env file"
+ls -la package.json && echo "✅ package.json"
+
+# Check Fabric crypto materials
+echo "Checking Fabric crypto materials..."
+ls -la fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/ && echo "✅ Orderer MSP"
+ls -la fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/server.crt && echo "✅ Orderer TLS certs"
+ls -la fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp/ && echo "✅ Peer MSP"
+ls -la fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.crt && echo "✅ Peer TLS certs"
+
+# Check channel artifacts
+echo "Checking channel artifacts..."
+ls -la fabric-network/channel-artifacts/genesis.block && echo "✅ Genesis block"
+ls -la fabric-network/channel-artifacts/ltochannel.tx && echo "✅ Channel transaction"
+
+# Check wallet
+echo "Checking wallet..."
+ls -la wallet/ && echo "✅ Wallet directory exists"
+ls -la wallet/admin.id && echo "✅ Admin identity in wallet"
+
+# Check Node.js dependencies
+echo "Checking Node.js dependencies..."
+test -d node_modules && echo "✅ node_modules exists" || echo "❌ Run 'npm install' first"
+```
+
+### 8.2 Verify Environment Variables
+
+```bash
+# Check .env file has required secrets
+grep -q "JWT_SECRET=" .env && echo "✅ JWT_SECRET set" || echo "❌ JWT_SECRET missing"
+grep -q "ENCRYPTION_KEY=" .env && echo "✅ ENCRYPTION_KEY set" || echo "❌ ENCRYPTION_KEY missing"
+
+# Check they're not default values
+grep "JWT_SECRET=CHANGE-THIS" .env && echo "⚠️  JWT_SECRET is default value" || echo "✅ JWT_SECRET is custom"
+grep "ENCRYPTION_KEY=CHANGE-THIS" .env && echo "⚠️  ENCRYPTION_KEY is default value" || echo "✅ ENCRYPTION_KEY is custom"
+```
+
+### 8.3 Verify Docker is Running
+
+```bash
+# Check Docker daemon
+docker ps > /dev/null 2>&1 && echo "✅ Docker is running" || echo "❌ Docker is not running"
+
+# Check Docker Compose
+docker compose version > /dev/null 2>&1 && echo "✅ Docker Compose available" || echo "❌ Docker Compose not found"
+```
+
+---
+
+## Step 9: Deploy Services
+
+### 9.1 Start All Services
+```bash
+cd ~/LTOBLOCKCHAIN
 
 # Start all services in detached mode
 docker compose -f docker-compose.unified.yml up -d

@@ -14,8 +14,12 @@ class LocalStorageService {
         this.metadataPath = path.join(this.uploadsPath, 'metadata');
         this.encryptionKey = process.env.ENCRYPTION_KEY || 'default-encryption-key-32-chars';
         
-        this.initializeStorage();
-        this.setupMulter();
+        // Only initialize if storage mode is local
+        const storageMode = process.env.STORAGE_MODE || 'auto';
+        if (storageMode === 'local') {
+            this.initializeStorage();
+            this.setupMulter();
+        }
     }
 
     // Initialize storage directories
@@ -34,13 +38,18 @@ class LocalStorageService {
 
             directories.forEach(dir => {
                 if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir, { recursive: true });
+                    fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
                 }
             });
 
             console.log('✅ Local storage service initialized');
         } catch (error) {
-            console.error('❌ Failed to initialize local storage:', error);
+            // Only log error if storage mode is local (critical)
+            const storageMode = process.env.STORAGE_MODE || 'auto';
+            if (storageMode === 'local') {
+                console.error('❌ Failed to initialize local storage:', error);
+            }
+            // Silently skip for IPFS mode (non-critical)
         }
     }
 

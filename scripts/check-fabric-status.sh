@@ -30,6 +30,6 @@ fi
 echo ""
 echo "📋 Next Steps:"
 echo "  1. If containers not running: docker-compose -f docker-compose.unified.yml up -d"
-echo "  2. If containers running but not accessible: bash scripts/codespace-restart.sh"
+echo "  2. If containers running but not accessible: bash scripts/fresh-start-fabric.sh"
 echo "  3. Check logs: docker logs peer0.lto.gov.ph --tail 20"
 

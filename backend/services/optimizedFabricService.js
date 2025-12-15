@@ -57,11 +57,13 @@ class OptimizedFabricService {
 
         try {
             // Connect to gateway
-            // Note: asLocalhost: true is correct for Codespace (app runs on host, containers accessible via localhost)
+            // Note: asLocalhost setting - true for localhost access, false for Docker network names
+            // Set FABRIC_AS_LOCALHOST=false in .env to use Docker network names instead of localhost
+            const asLocalhost = process.env.FABRIC_AS_LOCALHOST !== 'false';
             await this.gateway.connect(connectionProfile, {
                 wallet: this.wallet,
                 identity: 'admin',
-                discovery: { enabled: true, asLocalhost: true },
+                discovery: { enabled: true, asLocalhost: asLocalhost },
                 eventHandlerOptions: {
                     commitTimeout: 300,
                     strategy: null

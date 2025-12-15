@@ -1,6 +1,6 @@
-# TrustChain LTO - Unified Docker Compose
-# ALL services in ONE file for Codespace deployment
-# Single orderer for reliability, all supporting services included
+# TrustChain LTO - Optimized Unified Docker Compose
+# Optimized for: DigitalOcean Droplet - 8GB RAM, 4 CPU
+# All essential services in ONE unified deployment file
 
 version: '3.8'
 
@@ -37,6 +37,15 @@ services:
       - "7050:7050"
     networks:
       - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 384M
+          cpus: '0.25'
 
   # ============================================
   # HYPERLEDGER FABRIC - COUCHDB (State DB)
@@ -47,12 +56,28 @@ services:
     environment:
       - COUCHDB_USER=admin
       - COUCHDB_PASSWORD=adminpw
+      - COUCHDB_MAX_DBS_OPEN=50
     ports:
       - "5984:5984"
     volumes:
       - couchdb-data:/opt/couchdb/data
     networks:
       - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 384M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5984/_up || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # ============================================
   # HYPERLEDGER FABRIC - PEER
@@ -91,42 +116,55 @@ services:
     ports:
       - "7051:7051"
     depends_on:
-      - orderer.lto.gov.ph
-      - couchdb
+      couchdb:
+        condition: service_healthy
+      orderer.lto.gov.ph:
+        condition: service_started
     networks:
       - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.5'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
 
   # ============================================
-  # HYPERLEDGER FABRIC - CLI
+  # HYPERLEDGER FABRIC - CLI (OPTIONAL)
+  # Comment out if not needed to save resources
+  # Start manually: docker-compose up -d cli
   # ============================================
-  cli:
-    image: hyperledger/fabric-tools:2.5
-    container_name: cli
-    tty: true
-    stdin_open: true
-    environment:
-      - GOPATH=/opt/gopath
-      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
-      - FABRIC_LOGGING_SPEC=INFO
-      - CORE_PEER_ID=cli
-      - CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
-      - CORE_PEER_LOCALMSPID=LTOMSP
-      - CORE_PEER_TLS_ENABLED=true
-      - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.crt
-      - CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.key
-      - CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
-      - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
-    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
-    command: /bin/bash
-    volumes:
-      - /var/run/:/host/var/run/
-      - ./fabric-network/crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
-      - ./fabric-network/channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
-      - ./chaincode:/opt/gopath/src/github.com/chaincode
-    depends_on:
-      - peer0.lto.gov.ph
-    networks:
-      - trustchain
+  # cli:
+  #   image: hyperledger/fabric-tools:2.5
+  #   container_name: cli
+  #   tty: true
+  #   stdin_open: true
+  #   environment:
+  #     - GOPATH=/opt/gopath
+  #     - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+  #     - FABRIC_LOGGING_SPEC=INFO
+  #     - CORE_PEER_ID=cli
+  #     - CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+  #     - CORE_PEER_LOCALMSPID=LTOMSP
+  #     - CORE_PEER_TLS_ENABLED=true
+  #     - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.crt
+  #     - CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.key
+  #     - CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+  #     - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
+  #   working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+  #   command: /bin/bash
+  #   volumes:
+  #     - /var/run/:/host/var/run/
+  #     - ./fabric-network/crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+  #     - ./fabric-network/channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
+  #     - ./chaincode:/opt/gopath/src/github.com/chaincode
+  #   depends_on:
+  #     - peer0.lto.gov.ph
+  #   networks:
+  #     - trustchain
 
   # ============================================
   # POSTGRESQL DATABASE
@@ -138,6 +176,7 @@ services:
       - POSTGRES_DB=lto_blockchain
       - POSTGRES_USER=lto_user
       - POSTGRES_PASSWORD=lto_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     ports:
       - "5432:5432"
     volumes:
@@ -145,17 +184,45 @@ services:
       - ./database/init-laptop.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - trustchain
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lto_user -d lto_blockchain"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    # Optimized PostgreSQL settings for 1.5GB allocation
+    command: >
+      postgres
+      -c shared_buffers=192MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=96MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=4MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=6MB
+      -c min_wal_size=256MB
+      -c max_wal_size=1GB
+      -c max_connections=75
+      -c max_worker_processes=4
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=4
 
   # ============================================
-  # IPFS STORAGE
+  # IPFS STORAGE (REQUIRED for blockchain system)
   # ============================================
   ipfs:
-    image: ipfs/kubo:latest
+    image: ipfs/kubo:v0.24.0
     container_name: ipfs
     environment:
       - IPFS_PROFILE=server
@@ -167,6 +234,15 @@ services:
       - ipfs-data:/data/ipfs
     networks:
       - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
     entrypoint:
       - /bin/sh
       - -c
@@ -179,21 +255,75 @@ services:
         ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
         ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["PUT", "POST", "GET", "OPTIONS"]'
         ipfs config --json API.HTTPHeaders.Access-Control-Allow-Headers '["*"]'
+        # Optimize IPFS for limited memory
+        ipfs config Datastore.StorageMax 10GB
+        ipfs config Datastore.StorageGCWatermark 90
         ipfs daemon --migrate=true
 
   # ============================================
-  # REDIS CACHE
+  # APPLICATION SERVICE
   # ============================================
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+  lto-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: lto-app
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # Database Configuration
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=lto_blockchain
+      - DB_USER=lto_user
+      - DB_PASSWORD=lto_password
+      # IPFS Configuration (REQUIRED for blockchain system)
+      - IPFS_HOST=ipfs
+      - IPFS_PORT=5001
+      - IPFS_PROTOCOL=http
+      - STORAGE_MODE=ipfs
+      # Fabric Configuration
+      - BLOCKCHAIN_MODE=fabric
+      - FABRIC_NETWORK_CONFIG=./network-config.json
+      - FABRIC_CHANNEL=ltochannel
+      - FABRIC_CHAINCODE=vehicle-registration
+      - FABRIC_AS_LOCALHOST=false
+      # Security (MUST be set in production via .env file)
+      - JWT_SECRET=${JWT_SECRET:-CHANGE-THIS-IN-PRODUCTION}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-CHANGE-THIS-IN-PRODUCTION}
+      # Server Configuration
+      - TRUST_PROXY=1
     ports:
-      - "6379:6379"
+      - "3001:3001"
     volumes:
-      - redis-data:/data
+      - ./network-config.json:/app/network-config.json:ro
+      - ./wallet:/app/wallet
+      - ./logs:/app/logs
+      - app-uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+      peer0.lto.gov.ph:
+        condition: service_started
     networks:
       - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   orderer-data:
@@ -201,10 +331,9 @@ volumes:
   peer-data:
   postgres-data:
   ipfs-data:
-  redis-data:
+  app-uploads:
 
 networks:
   trustchain:
     name: trustchain
     driver: bridge
-

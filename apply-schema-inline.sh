@@ -1,6 +1,6 @@
 #!/bin/bash
-# Quick inline schema application for Codespace
-# Copy-paste this entire script into Codespace terminal
+# Quick inline schema application
+# Run this script to apply transfer schema to PostgreSQL database
 
 docker exec -i postgres psql -U lto_user -d lto_blockchain << 'SQL'
 -- Create transfer_requests table

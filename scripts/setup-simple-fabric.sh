@@ -1,7 +1,7 @@
 #!/bin/bash
 # TrustChain LTO - Simplified Fabric Network Setup
 # This script sets up a single-orderer Fabric network that is more reliable
-# for development and testing environments like GitHub Codespace
+# for development and testing environments
 
 set -e
 

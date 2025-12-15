@@ -21,7 +21,7 @@
   },
   "peers": {
     "peer0.lto.gov.ph": {
-      "url": "grpcs://localhost:7051",
+      "url": "grpcs://peer0.lto.gov.ph:7051",
       "grpcOptions": {
         "ssl-target-name-override": "peer0.lto.gov.ph",
         "grpc.keepalive_time_ms": 600000
@@ -33,7 +33,7 @@
   },
   "orderers": {
     "orderer.lto.gov.ph": {
-      "url": "grpcs://localhost:7050",
+      "url": "grpcs://orderer.lto.gov.ph:7050",
       "grpcOptions": {
         "ssl-target-name-override": "orderer.lto.gov.ph",
         "grpc.keepalive_time_ms": 600000

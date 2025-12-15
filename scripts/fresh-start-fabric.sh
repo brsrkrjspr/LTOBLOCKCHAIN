@@ -23,7 +23,8 @@ print_error() { echo -e "${RED}❌ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ️  $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 
-cd /workspaces/LTOBLOCKCHAIN
+# Change to script directory's parent (project root)
+cd "$(dirname "$0")/.."
 
 print_header "Fresh Start - Fabric Network"
 print_warning "This will remove ALL Docker volumes and start from scratch!"
@@ -97,9 +98,21 @@ if [ $? -ne 0 ]; then
 fi
 print_success "Channel artifacts regenerated"
 
-# Step 6: Run full restart (it will skip cleanup since volumes are already removed)
-print_header "Step 6: Running Full Setup"
-bash scripts/codespace-restart.sh
+# Step 6: Start Docker services
+print_header "Step 6: Starting Docker Services"
+docker-compose -f docker-compose.unified.yml up -d
+
+# Wait for services to be ready
+print_info "Waiting for services to start..."
+sleep 10
+
+# Step 7: Setup wallet
+print_header "Step 7: Setting Up Fabric Wallet"
+if [ -f "scripts/setup-fabric-wallet.js" ]; then
+    node scripts/setup-fabric-wallet.js
+else
+    print_warning "Wallet setup script not found, skipping..."
+fi
 
 print_header "Fresh Start Complete!"
 print_success "Fabric network has been completely reset"

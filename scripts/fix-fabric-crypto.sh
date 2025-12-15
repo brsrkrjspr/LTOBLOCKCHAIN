@@ -24,8 +24,8 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ️  $1${NC}"; }
 
-# Change to project root
-cd /workspaces/LTOBLOCKCHAIN
+# Change to script directory's parent (project root)
+cd "$(dirname "$0")/.."
 
 print_header "Fixing Fabric Cryptographic Materials"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # TrustChain LTO - Generate Fabric Channel Artifacts
-# Bash version for Codespace deployment
+# Bash version for Linux/Unix deployment
 # Uses Docker to avoid installing Fabric binaries
 
 set -e

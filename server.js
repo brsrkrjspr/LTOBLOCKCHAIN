@@ -11,8 +11,8 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust proxy (needed for Codespace/GitHub forwarding)
-// Configure to trust only the first proxy (GitHub Codespace)
+// Trust proxy (needed for reverse proxy/load balancer forwarding)
+// Configure to trust only the first proxy (for correct IP detection)
 app.set('trust proxy', 1);
 
 // Security middleware
@@ -63,7 +63,7 @@ const limiter = rateLimit({
     legacyHeaders: false,
     // Use a custom key generator that works with trust proxy
     keyGenerator: (req) => {
-        // Use X-Forwarded-For header if available (from GitHub Codespace)
+        // Use X-Forwarded-For header if available (from reverse proxy/load balancer)
         // Otherwise fall back to IP address
         return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress;
     },

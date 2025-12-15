@@ -1,6 +1,6 @@
 #!/bin/bash
 # Quick script to setup wallet only
-# Use this if wallet setup failed during codespace-restart.sh
+# Use this if wallet setup failed during initial setup
 
 set -e
 

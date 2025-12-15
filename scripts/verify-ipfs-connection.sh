@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick IPFS verification script for Codespace
+# Quick IPFS verification script
 
 echo "🔍 Verifying IPFS Connection..."
 echo ""
@@ -61,7 +61,7 @@ if [ -f ".env" ]; then
     if [ "$IPFS_HOST" = "ipfs" ] || [ "$IPFS_HOST" = "localhost" ]; then
         echo "   ✅ IPFS_HOST is correctly configured"
     else
-        echo "   ⚠️  IPFS_HOST should be 'ipfs' for Codespace"
+        echo "   ⚠️  IPFS_HOST should be 'ipfs' for Docker network or 'localhost' for local access"
     fi
     
     if [ "$STORAGE_MODE" = "ipfs" ]; then
@@ -78,6 +78,6 @@ echo "✅ IPFS is fully operational!"
 echo ""
 echo "To ensure application uses IPFS:"
 echo "  1. Set STORAGE_MODE=ipfs in .env"
-echo "  2. Set IPFS_HOST=ipfs in .env (for Codespace)"
+echo "  2. Set IPFS_HOST=ipfs in .env (for Docker network) or IPFS_HOST=localhost (for local)"
 echo "  3. Restart application: npm start"
 

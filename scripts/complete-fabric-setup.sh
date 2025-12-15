@@ -1,5 +1,5 @@
 #!/bin/bash
-# Complete Fabric Setup Script for Codespace
+# Complete Fabric Setup Script
 # Handles chaincode deployment with proper error handling
 
 set -e
@@ -36,7 +36,7 @@ echo ""
 print_status "Checking CLI container..."
 if ! docker ps --format "{{.Names}}" | grep -q "^cli$"; then
     print_error "CLI container is not running!"
-    print_error "Please start the Fabric network first: bash scripts/start-codespace.sh"
+    print_error "Please start the Fabric network first: docker-compose -f docker-compose.unified.yml up -d"
     exit 1
 fi
 
@@ -44,7 +44,7 @@ fi
 print_status "Checking if peer is joined to channel..."
 if ! docker exec cli peer channel list 2>&1 | grep -q "ltochannel"; then
     print_error "Peer is not joined to channel 'ltochannel'!"
-    print_error "Please join the peer to the channel first: bash scripts/start-codespace.sh"
+    print_error "Please join the peer to the channel first: bash scripts/fresh-start-fabric.sh"
     exit 1
 fi
 print_success "Peer is joined to channel"

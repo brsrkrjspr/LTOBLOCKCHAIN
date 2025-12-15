@@ -47,5 +47,5 @@ fi
 echo ""
 echo "📋 Next Steps:"
 echo "  If containers not running: docker-compose -f docker-compose.unified.yml up -d"
-echo "  If containers running but not accessible: bash scripts/codespace-restart.sh"
+echo "  If containers running but not accessible: bash scripts/fresh-start-fabric.sh"
 

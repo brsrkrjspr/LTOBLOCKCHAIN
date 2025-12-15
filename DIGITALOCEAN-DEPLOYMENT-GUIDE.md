@@ -367,6 +367,21 @@ docker compose version > /dev/null 2>&1 && echo "✅ Docker Compose available" |
 
 ## Step 9: Deploy Services
 
+### 9.0 Quick Status Check (After SSH Reconnection)
+```bash
+cd ~/LTOBLOCKCHAIN
+
+# Run quick status check to see what's needed
+chmod +x scripts/quick-status-check.sh
+bash scripts/quick-status-check.sh
+```
+
+This will show you:
+- ✅ What's already set up
+- ❌ What's missing
+- ⚠️  What needs attention
+- 📋 Next steps to complete deployment
+
 ### 9.1 Start All Services
 ```bash
 cd ~/LTOBLOCKCHAIN
@@ -393,7 +408,7 @@ docker compose -f docker-compose.unified.yml up -d
  ✔ Container lto-app                    Started
 ```
 
-### 8.2 Verify Services Are Running
+### 9.2 Verify Services Are Running
 ```bash
 # Check service status
 docker compose -f docker-compose.unified.yml ps
@@ -406,11 +421,23 @@ orderer.lto.gov.ph    Up
 couchdb               Up (healthy)
 peer0.lto.gov.ph      Up
 postgres              Up (healthy)
-ipfs                  Up
+ipfs                  Up (healthy)
 lto-app               Up (healthy)
 ```
 
-### 8.3 Check Resource Usage
+**⚠️ If IPFS shows "Restarting":**
+```bash
+# Check IPFS logs for version mismatch
+docker compose -f docker-compose.unified.yml logs ipfs --tail=20
+
+# If you see "version (15) is lower than your repos (18)", fix it:
+bash scripts/fix-ipfs-volume.sh
+
+# Then restart IPFS
+docker compose -f docker-compose.unified.yml up -d ipfs
+```
+
+### 9.3 Check Resource Usage
 ```bash
 # Monitor resource usage
 docker stats --no-stream
@@ -418,7 +445,7 @@ docker stats --no-stream
 
 **Expected:** Total RAM usage should be ~5-6GB (fits 8GB droplet)
 
-### 8.4 Check Logs
+### 9.4 Check Logs
 ```bash
 # View all logs
 docker compose -f docker-compose.unified.yml logs
@@ -864,15 +891,38 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "\dt"
 ```
 
 ### IPFS Connection Issues
+
+#### IPFS Container Restarting (Version Mismatch)
+If IPFS shows "Restarting" status and logs show "version (15) is lower than your repos (18)":
+
+```bash
+# Fix IPFS volume version mismatch
+bash scripts/fix-ipfs-volume.sh
+
+# Or manually:
+docker compose -f docker-compose.unified.yml stop ipfs
+docker compose -f docker-compose.unified.yml rm -f ipfs
+docker volume rm lto-blockchain_ipfs-data
+docker compose -f docker-compose.unified.yml up -d ipfs
+
+# Verify IPFS is running
+docker compose -f docker-compose.unified.yml ps ipfs
+docker compose -f docker-compose.unified.yml logs ipfs --tail=20
+```
+
+#### IPFS Not Responding
 ```bash
 # Check IPFS logs
-docker compose -f docker-compose.unified.yml logs ipfs
+docker compose -f docker-compose.unified.yml logs ipfs --tail=50
 
 # Test IPFS connection
 docker exec ipfs ipfs id
 
 # Check IPFS API
 curl http://localhost:5001/api/v0/version
+
+# Restart IPFS if needed
+docker compose -f docker-compose.unified.yml restart ipfs
 ```
 
 ### Network Issues

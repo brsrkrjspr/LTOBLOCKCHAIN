@@ -53,7 +53,7 @@ services:
     container_name: couchdb
     environment:
       - COUCHDB_USER=admin
-      - COUCHDB_PASSWORD=adminpw
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
       - COUCHDB_MAX_DBS_OPEN=50
     ports:
       - "5984:5984"
@@ -173,7 +173,7 @@ services:
     environment:
       - POSTGRES_DB=lto_blockchain
       - POSTGRES_USER=lto_user
-      - POSTGRES_PASSWORD=lto_password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-lto_password}
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     ports:
       - "5432:5432"
@@ -220,7 +220,7 @@ services:
   # IPFS STORAGE (REQUIRED for blockchain system)
   # ============================================
   ipfs:
-    image: ipfs/kubo:v0.24.0
+    image: ipfs/kubo:latest
     container_name: ipfs
     environment:
       - IPFS_PROFILE=server
@@ -241,6 +241,12 @@ services:
         reservations:
           memory: 512M
           cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:5001/api/v0/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     entrypoint:
       - /bin/sh
       - -c

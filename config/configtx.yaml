@@ -6,7 +6,7 @@ Organizations:
   - &OrdererOrg
     Name: OrdererOrg
     ID: OrdererMSP
-    MSPDir: ../fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/msp
+    MSPDir: crypto-config/ordererOrganizations/lto.gov.ph/msp
     # CRITICAL: OrdererEndpoints required since Fabric v1.4.2
     # This allows peers to discover orderer endpoints from channel config
     OrdererEndpoints:
@@ -25,7 +25,7 @@ Organizations:
   - &LTO
     Name: LTOMSP
     ID: LTOMSP
-    MSPDir: ../fabric-network/crypto-config/peerOrganizations/lto.gov.ph/msp
+    MSPDir: crypto-config/peerOrganizations/lto.gov.ph/msp
     Policies:
       Readers:
         Type: Signature
@@ -78,8 +78,8 @@ Orderer: &OrdererDefaults
     Consenters:
       - Host: orderer.lto.gov.ph
         Port: 7050
-        ClientTLSCert: ../fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/server.crt
-        ServerTLSCert: ../fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/server.crt
+        ClientTLSCert: crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/server.crt
   BatchTimeout: 2s
   BatchSize:
     MaxMessageCount: 10

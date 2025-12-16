@@ -50,9 +50,9 @@ app.get('/api/test-csp', (req, res) => {
     });
 });
 app.use(cors({
-    origin: process.env.FRONTEND_URL || process.env.NODE_ENV === 'production' 
+    origin: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
         ? 'https://ltoblockchain.duckdns.org' 
-        : 'http://localhost:3001',
+        : 'http://localhost:3001'),
     credentials: true
 }));
 
@@ -190,9 +190,11 @@ app.listen(PORT, () => {
     const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
         ? 'https://ltoblockchain.duckdns.org' 
         : `http://localhost:${PORT}`);
-    const apiUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://ltoblockchain.duckdns.org/api'
-        : `http://localhost:${PORT}/api`;
+    const apiUrl = process.env.FRONTEND_URL 
+        ? `${process.env.FRONTEND_URL}/api`
+        : (process.env.NODE_ENV === 'production' 
+            ? 'https://ltoblockchain.duckdns.org/api'
+            : `http://localhost:${PORT}/api`);
     
     console.log(`🚀 TrustChain LTO System running on port ${PORT}`);
     console.log(`📁 Environment: ${process.env.NODE_ENV || 'development'}`);

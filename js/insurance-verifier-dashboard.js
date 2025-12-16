@@ -1,5 +1,27 @@
 // Insurance Verifier Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
+    // SECURITY: Require authentication before initializing dashboard
+    if (typeof AuthUtils !== 'undefined') {
+        const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
+        
+        if (!isAuthDisabled) {
+            // Production mode: Require authentication
+            if (!AuthUtils.requireAuth()) {
+                return; // Redirect to login page
+            }
+            
+            // Verify insurance_verifier role
+            if (!AuthUtils.hasRole('insurance_verifier')) {
+                console.warn('❌ Access denied: Insurance verifier role required');
+                showNotification('Access denied. Insurance verifier role required. Redirecting to login...', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login-signup.html?message=Insurance verifier access required';
+                }, 2000);
+                return;
+            }
+        }
+    }
+    
     initializeInsuranceVerifierDashboard();
 });
 

@@ -1,5 +1,27 @@
 // Emission Verifier Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
+    // SECURITY: Require authentication before initializing dashboard
+    if (typeof AuthUtils !== 'undefined') {
+        const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
+        
+        if (!isAuthDisabled) {
+            // Production mode: Require authentication
+            if (!AuthUtils.requireAuth()) {
+                return; // Redirect to login page
+            }
+            
+            // Verify emission_verifier role
+            if (!AuthUtils.hasRole('emission_verifier')) {
+                console.warn('❌ Access denied: Emission verifier role required');
+                showNotification('Access denied. Emission verifier role required. Redirecting to login...', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login-signup.html?message=Emission verifier access required';
+                }, 2000);
+                return;
+            }
+        }
+    }
+    
     initializeVerifierDashboard();
     initializeKeyboardShortcuts();
 });

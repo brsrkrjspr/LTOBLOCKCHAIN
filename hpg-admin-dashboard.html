@@ -291,6 +291,29 @@
     <script>
         // Initialize user data on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // SECURITY: Require authentication before initializing dashboard
+            if (typeof AuthUtils !== 'undefined') {
+                const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
+                
+                if (!isAuthDisabled) {
+                    // Production mode: Require authentication
+                    if (!AuthUtils.requireAuth()) {
+                        return; // Redirect to login page
+                    }
+                    
+                    // Verify admin or hpg_admin role
+                    const user = AuthUtils.getCurrentUser();
+                    if (!user || (!AuthUtils.hasRole('admin') && !AuthUtils.hasRole('hpg_admin'))) {
+                        console.warn('❌ Access denied: HPG admin role required');
+                        alert('Access denied. HPG admin role required. Redirecting to login...');
+                        setTimeout(() => {
+                            window.location.href = 'login-signup.html?message=HPG admin access required';
+                        }, 2000);
+                        return;
+                    }
+                }
+            }
+            
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
                 

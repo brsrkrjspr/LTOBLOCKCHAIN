@@ -1,5 +1,27 @@
 // Owner Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
+    // SECURITY: Require authentication before initializing dashboard
+    if (typeof AuthUtils !== 'undefined') {
+        const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
+        
+        if (!isAuthDisabled) {
+            // Production mode: Require authentication
+            if (!AuthUtils.requireAuth()) {
+                return; // Redirect to login page
+            }
+            
+            // Verify vehicle_owner role
+            if (!AuthUtils.hasRole('vehicle_owner')) {
+                console.warn('❌ Access denied: Vehicle owner role required');
+                showNotification('Access denied. Vehicle owner role required. Redirecting to login...', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login-signup.html?message=Vehicle owner access required';
+                }, 2000);
+                return;
+            }
+        }
+    }
+    
     initializeOwnerDashboard();
     initializeKeyboardShortcuts();
     initializePagination();

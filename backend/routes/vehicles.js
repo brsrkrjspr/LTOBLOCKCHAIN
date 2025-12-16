@@ -534,38 +534,77 @@ router.post('/register', optionalAuth, async (req, res) => {
                             }
                         }
                         
-                        // Method 3: Create new document record if not found
-                        if (!documentRecord) {
-                            documentRecord = await db.createDocument({
-                                vehicleId: newVehicle.id,
-                                documentType: dbDocType,
-                                filename: docData.filename,
-                                originalName: docData.filename,
-                                filePath: docData.url || `/uploads/${docData.filename}`,
-                                fileSize: 0, // Size not available from upload
-                                mimeType: 'application/pdf', // Default
-                                fileHash: null,
-                                uploadedBy: ownerUser.id, // Set owner as uploader
-                                ipfsCid: docData.cid || null
-                            });
-                            console.log(`✅ Created new document record for ${docType}: ${documentRecord.id}`);
+                        // Method 3: Try to find any unlinked document for this owner (fallback)
+                        if (!documentRecord && ownerUser.id) {
+                            // Look for recent unlinked documents uploaded by this owner (within last hour)
+                            const recentUnlinkedResult = await dbModule.query(
+                                `SELECT * FROM documents 
+                                 WHERE vehicle_id IS NULL 
+                                 AND uploaded_by = $1 
+                                 AND document_type = $2
+                                 AND uploaded_at > NOW() - INTERVAL '1 hour'
+                                 ORDER BY uploaded_at DESC 
+                                 LIMIT 1`,
+                                [ownerUser.id, dbDocType]
+                            );
+                            if (recentUnlinkedResult.rows.length > 0) {
+                                documentRecord = recentUnlinkedResult.rows[0];
+                                // Update to link to vehicle
+                                await dbModule.query(
+                                    'UPDATE documents SET vehicle_id = $1, document_type = $2 WHERE id = $3',
+                                    [newVehicle.id, dbDocType, documentRecord.id]
+                                );
+                                console.log(`✅ Linked document ${docType} by recent unlinked document: ${documentRecord.id}`);
+                            }
                         }
                         
-                        // Collect CID for blockchain
-                        if (documentRecord.ipfs_cid || docData.cid) {
+                        // Method 4: Create new document record if not found (with minimal data)
+                        if (!documentRecord) {
+                            // Only create if we have at least a filename or CID
+                            if (docData.filename || docData.cid) {
+                                documentRecord = await db.createDocument({
+                                    vehicleId: newVehicle.id,
+                                    documentType: dbDocType,
+                                    filename: docData.filename || `unknown_${docType}_${Date.now()}`,
+                                    originalName: docData.filename || `unknown_${docType}`,
+                                    filePath: docData.url || `/uploads/${docData.filename || 'unknown'}`,
+                                    fileSize: 0, // Size not available from upload
+                                    mimeType: 'application/pdf', // Default
+                                    fileHash: null,
+                                    uploadedBy: ownerUser.id, // Set owner as uploader
+                                    ipfsCid: docData.cid || null
+                                });
+                                console.log(`✅ Created new document record for ${docType}: ${documentRecord.id}`);
+                            } else {
+                                console.warn(`⚠️ Cannot link ${docType} document: No ID, filename, CID, or unlinked document found`);
+                            }
+                        }
+                        
+                        // Collect CID for blockchain (only if we have a valid document record with CID)
+                        if (documentRecord && (documentRecord.ipfs_cid || docData.cid)) {
                             documentCids[docType] = {
                                 cid: documentRecord.ipfs_cid || docData.cid,
                                 filename: documentRecord.filename || docData.filename,
                                 documentType: dbDocType
                             };
+                            console.log(`✅ Collected CID for blockchain: ${docType} = ${documentCids[docType].cid}`);
+                        } else {
+                            console.warn(`⚠️ No CID available for ${docType} document - will not be included in blockchain registration`);
                         }
                     } catch (docError) {
-                        console.error(`Error linking ${docType} document:`, docError);
-                        // Continue even if document linking fails
+                        console.error(`❌ Error linking ${docType} document:`, docError);
+                        console.error(`   Document data:`, docData);
+                        // Continue even if document linking fails - vehicle registration can proceed without documents
                     }
                 }
             }
+        } else {
+            console.warn('⚠️ No documents provided in registration data - vehicle will be registered without documents');
         }
+        
+        // Log document linking summary
+        const linkedCount = Object.keys(documentCids).length;
+        console.log(`📄 Document linking summary: ${linkedCount} document(s) linked with CIDs for blockchain registration`);
         
         // Register on blockchain
         let blockchainTxId = null;

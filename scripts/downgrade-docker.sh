@@ -148,28 +148,39 @@ install_docker_v28() {
     UBUNTU_CODENAME=$(lsb_release -cs)
     UBUNTU_VERSION_NUM=$(lsb_release -rs | sed 's/\.//')
     
-    # Install specific version: docker-ce=5:28.0.4-1~ubuntu.* docker-ce-cli=5:28.0.4-1~ubuntu.*
-    print_info "Installing Docker Engine v28.0.4..."
+    # Check available Docker versions
+    print_info "Checking available Docker Engine versions..."
+    AVAILABLE_VERSIONS=$(apt-cache madison docker-ce | grep "5:28\." | head -5 || echo "")
     
-    # Try to install with specific version matching
-    if apt-get install -y \
-        docker-ce=5:28.0.4-1~ubuntu.${UBUNTU_CODENAME} \
-        docker-ce-cli=5:28.0.4-1~ubuntu.${UBUNTU_CODENAME} \
+    if [ -z "$AVAILABLE_VERSIONS" ]; then
+        print_error "No Docker Engine v28.x versions found for Ubuntu ${UBUNTU_CODENAME}"
+        print_info "Checking all available versions..."
+        apt-cache madison docker-ce | head -10
+        print_error "Cannot proceed - Docker v28.x not available for this Ubuntu version"
+        print_info "You may need to use Ubuntu 22.04 (jammy) or wait for Docker v28.x support"
+        exit 1
+    fi
+    
+    print_info "Available v28.x versions:"
+    echo "$AVAILABLE_VERSIONS" | head -3
+    
+    # Try to install latest v28.x (most compatible)
+    print_info "Installing latest Docker Engine v28.x..."
+    
+    if ! apt-get install -y \
+        docker-ce=5:28.* \
+        docker-ce-cli=5:28.* \
         containerd.io \
         docker-buildx-plugin \
         docker-compose-plugin 2>&1 | tee /tmp/docker-install.log; then
-        print_success "Docker Engine v28.0.4 installed"
-    else
-        print_warning "Specific version install failed, trying alternative method..."
-        # Alternative: Install latest v28.x
-        apt-get install -y \
-            docker-ce=5:28.* \
-            docker-ce-cli=5:28.* \
-            containerd.io \
-            docker-buildx-plugin \
-            docker-compose-plugin
-        print_success "Docker Engine v28.x installed"
+        print_error "Failed to install Docker Engine v28.x"
+        print_info "Installation log saved to /tmp/docker-install.log"
+        cat /tmp/docker-install.log | tail -20
+        exit 1
     fi
+    
+    INSTALLED_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "unknown")
+    print_success "Docker Engine v28.x installed: $INSTALLED_VERSION"
 }
 
 # Pin Docker version to prevent upgrades
@@ -195,9 +206,16 @@ EOF
 start_docker() {
     print_header "Step 7: Starting Docker Service"
     
+    # Check if Docker is actually installed
+    if ! command -v docker &> /dev/null; then
+        print_error "Docker is not installed! Cannot start service."
+        print_info "Previous installation step must have failed."
+        exit 1
+    fi
+    
     print_info "Starting Docker daemon..."
-    systemctl start docker
-    systemctl enable docker
+    systemctl start docker || true
+    systemctl enable docker || true
     
     sleep 5
     

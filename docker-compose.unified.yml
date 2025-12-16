@@ -163,6 +163,15 @@ services:
       - peer0.lto.gov.ph
     networks:
       - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
   # ============================================
   # POSTGRESQL DATABASE

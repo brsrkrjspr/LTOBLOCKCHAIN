@@ -1000,6 +1000,18 @@
         }
 
         // Load document list
+        // Helper function to get auth headers
+        function getAuthHeaders() {
+            const token = AuthUtils ? AuthUtils.getToken() : (localStorage.getItem('authToken') || localStorage.getItem('token'));
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token && token !== 'dev-token-bypass' && !token.startsWith('demo-token-')) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return headers;
+        }
+
         async function loadDocumentList() {
             const documentList = document.getElementById('documentList');
             if (!documentList) return;
@@ -1010,7 +1022,9 @@
                 
                 if (applications.length === 0) {
                     // Try API call
-                    const response = await fetch('/api/insurance/requests');
+                    const response = await fetch('/api/insurance/requests', {
+                        headers: getAuthHeaders()
+                    });
                     if (response.ok) {
                         const data = await response.json();
                         if (data.success && data.requests) {

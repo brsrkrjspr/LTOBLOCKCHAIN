@@ -308,8 +308,8 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-CHANGE-THIS-IN-PRODUCTION}
       # Server Configuration
       - TRUST_PROXY=1
-    ports:
-      - "3001:3001"
+    # Port removed - Nginx will handle external access
+    # Internal access only via Docker network
     volumes:
       - ./network-config.json:/app/network-config.json:ro
       - ./wallet:/app/wallet
@@ -342,6 +342,34 @@ services:
       retries: 3
       start_period: 60s
 
+  # ============================================
+  # NGINX REVERSE PROXY WITH SSL
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-ssl.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/letsencrypt:/etc/letsencrypt:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      - lto-app
+    networks:
+      - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+
 volumes:
   orderer-data:
   couchdb-data:
@@ -349,6 +377,7 @@ volumes:
   postgres-data:
   ipfs-data:
   app-uploads:
+  nginx-logs:
 
 networks:
   trustchain:

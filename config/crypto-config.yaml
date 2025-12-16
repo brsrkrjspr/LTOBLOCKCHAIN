@@ -10,6 +10,7 @@ OrdererOrgs:
           - "orderer.lto.gov.ph"
           - "localhost"
           - "127.0.0.1"
+          - "::1"
 
 PeerOrgs:
   - Name: LTO
@@ -25,4 +26,5 @@ PeerOrgs:
           - "peer0.lto.gov.ph"
           - "localhost"
           - "127.0.0.1"
+          - "::1"
 

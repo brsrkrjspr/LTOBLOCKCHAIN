@@ -1,12 +1,59 @@
 // Admin Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // SECURITY: Require authentication before initializing dashboard
+    // Always check authentication in production (non-localhost)
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isProduction = !isLocalhost;
+    
     if (typeof AuthUtils !== 'undefined') {
         // Check if auth is disabled (dev mode)
         const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
         
-        if (!isAuthDisabled) {
-            // Production mode: Require authentication
+        // In production, always require authentication regardless of DISABLE_AUTH setting
+        if (isProduction) {
+            // Check for token directly
+            const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+            if (!token || token === 'dev-token-bypass' || token.startsWith('demo-token-')) {
+                console.warn('❌ No valid authentication token - redirecting to login');
+                window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
+                return;
+            }
+            
+            // Verify token is valid JWT
+            try {
+                const parts = token.split('.');
+                if (parts.length === 3) {
+                    const payload = JSON.parse(atob(parts[1]));
+                    
+                    // Check expiration
+                    if (payload.exp && payload.exp * 1000 < Date.now()) {
+                        console.warn('❌ Token expired - redirecting to login');
+                        localStorage.clear();
+                        window.location.href = 'login-signup.html?expired=true';
+                        return;
+                    }
+                    
+                    // Check admin role
+                    if (payload.role !== 'admin') {
+                        console.warn('❌ Access denied: Admin role required');
+                        localStorage.clear();
+                        window.location.href = 'login-signup.html?message=Admin access required';
+                        return;
+                    }
+                } else {
+                    console.warn('❌ Invalid token format - redirecting to login');
+                    localStorage.clear();
+                    window.location.href = 'login-signup.html?message=Invalid authentication';
+                    return;
+                }
+            } catch (e) {
+                console.warn('❌ Token validation failed - redirecting to login:', e);
+                localStorage.clear();
+                window.location.href = 'login-signup.html?message=Authentication error';
+                return;
+            }
+        } else if (!isAuthDisabled) {
+            // Development mode but auth enabled: Use AuthUtils
             if (!AuthUtils.requireAuth()) {
                 return; // Redirect to login page
             }
@@ -21,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
         }
+        // If localhost and DISABLE_AUTH = true, allow access (dev mode)
     }
     
     initializeAdminDashboard();

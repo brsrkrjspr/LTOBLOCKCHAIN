@@ -1,5 +1,28 @@
 // Admin Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
+    // SECURITY: Require authentication before initializing dashboard
+    if (typeof AuthUtils !== 'undefined') {
+        // Check if auth is disabled (dev mode)
+        const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
+        
+        if (!isAuthDisabled) {
+            // Production mode: Require authentication
+            if (!AuthUtils.requireAuth()) {
+                return; // Redirect to login page
+            }
+            
+            // Verify admin role
+            if (!AuthUtils.hasRole('admin')) {
+                console.warn('❌ Access denied: Admin role required');
+                showNotification('Access denied. Admin role required. Redirecting to login...', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login-signup.html?message=Admin access required';
+                }, 2000);
+                return;
+            }
+        }
+    }
+    
     initializeAdminDashboard();
     initializeKeyboardShortcuts();
     initializePagination();
@@ -41,11 +64,43 @@ function initializeAdminDashboard() {
 
 // Check if user is using a demo account and clear it
 function checkAndClearDemoAccount() {
+    const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     const currentUser = localStorage.getItem('currentUser');
     
+    // If auth is disabled (dev mode), allow access but still check for admin role
+    if (isAuthDisabled) {
+        // In dev mode, check if user has admin role
+        if (currentUser) {
+            try {
+                const user = JSON.parse(currentUser);
+                if (user.role !== 'admin') {
+                    console.warn('❌ Non-admin account in dev mode - redirecting');
+                    showNotification('Admin access required. Redirecting to login...', 'error');
+                    setTimeout(() => {
+                        window.location.href = 'login-signup.html?message=Admin access required';
+                    }, 2000);
+                    return false;
+                }
+            } catch (e) {
+                console.warn('Could not parse currentUser:', e);
+            }
+        }
+        return true; // Allow access in dev mode
+    }
+    
+    // Production mode: Require valid authentication
+    if (!token) {
+        console.warn('❌ No authentication token found - redirecting to login');
+        showNotification('Authentication required. Redirecting to login...', 'error');
+        setTimeout(() => {
+            window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }, 2000);
+        return false;
+    }
+    
     // Check if it's a demo token
-    if (token && token.startsWith('demo-token-')) {
+    if (token.startsWith('demo-token-')) {
         console.warn('❌ Demo account detected - clearing credentials');
         localStorage.clear();
         showNotification('Demo accounts cannot access admin features. Please login with a real admin account.', 'error');
@@ -55,7 +110,7 @@ function checkAndClearDemoAccount() {
         return false;
     }
     
-    // Check if currentUser has demo role
+    // Check if currentUser has admin role
     if (currentUser) {
         try {
             const user = JSON.parse(currentUser);
@@ -74,11 +129,24 @@ function checkAndClearDemoAccount() {
     }
     
     // Check JWT token role if it's a real token
-    if (token && !token.startsWith('demo-token-')) {
+    if (!token.startsWith('demo-token-')) {
         try {
             const parts = token.split('.');
             if (parts.length === 3) {
                 const payload = JSON.parse(atob(parts[1]));
+                
+                // Check token expiration
+                if (payload.exp && payload.exp * 1000 < Date.now()) {
+                    console.warn('❌ Token expired - redirecting to login');
+                    localStorage.clear();
+                    showNotification('Session expired. Please login again.', 'error');
+                    setTimeout(() => {
+                        window.location.href = 'login-signup.html?expired=true';
+                    }, 2000);
+                    return false;
+                }
+                
+                // Check admin role
                 if (payload.role !== 'admin') {
                     console.warn('❌ Token does not have admin role - clearing credentials');
                     localStorage.clear();
@@ -89,9 +157,24 @@ function checkAndClearDemoAccount() {
                     return false;
                 }
                 console.log('✅ Admin authentication verified:', { role: payload.role, email: payload.email });
+            } else {
+                console.warn('❌ Invalid token format - redirecting to login');
+                localStorage.clear();
+                showNotification('Invalid authentication. Please login again.', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login-signup.html?message=Invalid authentication';
+                }, 2000);
+                return false;
             }
         } catch (e) {
             console.warn('Could not decode token:', e);
+            // Invalid token - redirect to login
+            localStorage.clear();
+            showNotification('Authentication error. Please login again.', 'error');
+            setTimeout(() => {
+                window.location.href = 'login-signup.html?message=Authentication error';
+            }, 2000);
+            return false;
         }
     }
     

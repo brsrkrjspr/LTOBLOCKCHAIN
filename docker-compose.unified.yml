@@ -24,6 +24,7 @@ services:
       - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
       - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
       - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - GODEBUG=x509ignoreCN=0  # Workaround for legacy CN certificates (Fabric 2.5 compatibility)
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric
     command: orderer
     volumes:
@@ -104,7 +105,7 @@ services:
       - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
-      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
     volumes:
       - /var/run/:/host/var/run/
@@ -133,38 +134,46 @@ services:
           cpus: '1.0'
 
   # ============================================
-  # HYPERLEDGER FABRIC - CLI (OPTIONAL)
-  # Comment out if not needed to save resources
-  # Start manually: docker-compose up -d cli
+  # HYPERLEDGER FABRIC - CLI (REQUIRED for unified-setup.sh)
   # ============================================
-  # cli:
-  #   image: hyperledger/fabric-tools:2.5
-  #   container_name: cli
-  #   tty: true
-  #   stdin_open: true
-  #   environment:
-  #     - GOPATH=/opt/gopath
-  #     - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
-  #     - FABRIC_LOGGING_SPEC=INFO
-  #     - CORE_PEER_ID=cli
-  #     - CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
-  #     - CORE_PEER_LOCALMSPID=LTOMSP
-  #     - CORE_PEER_TLS_ENABLED=true
-  #     - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.crt
-  #     - CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.key
-  #     - CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
-  #     - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
-  #   working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
-  #   command: /bin/bash
-  #   volumes:
-  #     - /var/run/:/host/var/run/
-  #     - ./fabric-network/crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
-  #     - ./fabric-network/channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
-  #     - ./chaincode:/opt/gopath/src/github.com/chaincode
-  #   depends_on:
-  #     - peer0.lto.gov.ph
-  #   networks:
-  #     - trustchain
+  cli:
+    image: hyperledger/fabric-tools:2.5
+    container_name: cli
+    tty: true
+    stdin_open: true
+    environment:
+      - GOPATH=/opt/gopath
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=cli
+      - CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+      - CORE_PEER_LOCALMSPID=LTOMSP
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+      - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
+      - GODEBUG=x509ignoreCN=0  # Workaround for legacy CN certificates (Fabric 2.5 compatibility)
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./fabric-network/crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+      - ./fabric-network/channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
+      - ./chaincode:/opt/gopath/src/github.com/chaincode
+    depends_on:
+      - peer0.lto.gov.ph
+    networks:
+      - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
   # ============================================
   # POSTGRESQL DATABASE

@@ -6,6 +6,11 @@ OrdererOrgs:
     Domain: lto.gov.ph
     Specs:
       - Hostname: orderer
+        SANS:
+          - "orderer.lto.gov.ph"
+          - "localhost"
+          - "127.0.0.1"
+          - "::1"
 
 PeerOrgs:
   - Name: LTO
@@ -17,4 +22,9 @@ PeerOrgs:
       Count: 1
     Specs:
       - Hostname: peer0
+        SANS:
+          - "peer0.lto.gov.ph"
+          - "localhost"
+          - "127.0.0.1"
+          - "::1"
 

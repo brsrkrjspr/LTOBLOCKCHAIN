@@ -291,7 +291,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=lto_blockchain
       - DB_USER=lto_user
-      - DB_PASSWORD=lto_password
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-lto_password}
       # IPFS Configuration (REQUIRED for blockchain system)
       - IPFS_HOST=ipfs
       - IPFS_PORT=5001

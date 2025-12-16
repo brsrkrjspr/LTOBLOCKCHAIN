@@ -355,6 +355,7 @@ services:
       - ./nginx/nginx-ssl.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./nginx/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
       - nginx-logs:/var/log/nginx
     depends_on:
       - lto-app

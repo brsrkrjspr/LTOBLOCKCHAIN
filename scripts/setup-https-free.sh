@@ -42,7 +42,11 @@ echo ""
 echo -e "${BLUE}Step 2: Creating directories...${NC}"
 mkdir -p nginx/ssl
 mkdir -p nginx/letsencrypt
-mkdir -p /var/www/certbot
+mkdir -p /var/www/certbot/.well-known/acme-challenge
+
+# Set proper permissions for certbot directory
+chmod -R 755 /var/www/certbot
+echo -e "${GREEN}✓ Directories created${NC}"
 
 # Update Nginx config with domain
 echo ""
@@ -82,6 +86,19 @@ if ! docker compose -f docker-compose.unified.yml ps nginx | grep -q "Up"; then
 fi
 
 echo -e "${GREEN}✓ Nginx is running${NC}"
+
+# Test that Nginx can serve files from certbot directory
+echo ""
+echo -e "${BLUE}Testing certbot directory access...${NC}"
+echo "test-file" > /var/www/certbot/.well-known/acme-challenge/test
+sleep 2
+if curl -s http://localhost/.well-known/acme-challenge/test | grep -q "test-file"; then
+    echo -e "${GREEN}✓ Nginx can serve certbot files${NC}"
+    rm /var/www/certbot/.well-known/acme-challenge/test
+else
+    echo -e "${YELLOW}⚠️  Warning: Nginx may not be able to serve certbot files${NC}"
+    echo "This might still work, continuing..."
+fi
 
 # Get Let's Encrypt certificate using Certbot in Docker
 echo ""

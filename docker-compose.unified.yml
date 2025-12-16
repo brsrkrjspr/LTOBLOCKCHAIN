@@ -258,12 +258,6 @@ services:
         reservations:
           memory: 512M
           cpus: '0.25'
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:5001/api/v0/version"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     entrypoint:
       - /bin/sh
       - -c

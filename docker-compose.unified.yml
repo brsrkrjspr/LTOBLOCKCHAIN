@@ -296,7 +296,7 @@ services:
       - IPFS_HOST=ipfs
       - IPFS_PORT=5001
       - IPFS_PROTOCOL=http
-      - STORAGE_MODE=ipfs
+      - STORAGE_MODE=auto
       # Fabric Configuration
       - BLOCKCHAIN_MODE=fabric
       - FABRIC_NETWORK_CONFIG=./network-config.json

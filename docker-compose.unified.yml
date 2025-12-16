@@ -245,11 +245,11 @@ services:
       - trustchain
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:5001/api/v0/version || exit 1"]
+      test: ["CMD-SHELL", "ipfs id 2>&1 | head -1 | grep -q 'ID' || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
     deploy:
       resources:
         limits:

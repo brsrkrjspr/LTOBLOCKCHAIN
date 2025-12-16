@@ -77,7 +77,7 @@ check_service "postgres" \
 
 # Check IPFS
 check_service "ipfs" \
-    "docker exec ipfs curl -s -X POST http://localhost:5001/api/v0/version > /dev/null" \
+    "docker exec ipfs sh -c 'ipfs id > /dev/null 2>&1 || curl -f -s -X POST http://localhost:5001/api/v0/version > /dev/null'" \
     "IPFS Document Storage"
 
 # Check Application

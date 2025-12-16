@@ -24,7 +24,7 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'"],
             scriptSrcAttr: ["'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:", "http://localhost:8080", "blob:"],
-            connectSrc: ["'self'"],
+            connectSrc: ["'self'", "https://ltoblockchain.duckdns.org"],
             fontSrc: ["'self'", "https:", "data:"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
@@ -50,7 +50,9 @@ app.get('/api/test-csp', (req, res) => {
     });
 });
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: process.env.FRONTEND_URL || process.env.NODE_ENV === 'production' 
+        ? 'https://ltoblockchain.duckdns.org' 
+        : 'http://localhost:3001',
     credentials: true
 }));
 
@@ -185,10 +187,17 @@ storageService.initialize().then(result => {
 
 // Start server
 app.listen(PORT, () => {
+    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
+        ? 'https://ltoblockchain.duckdns.org' 
+        : `http://localhost:${PORT}`);
+    const apiUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://ltoblockchain.duckdns.org/api'
+        : `http://localhost:${PORT}/api`;
+    
     console.log(`🚀 TrustChain LTO System running on port ${PORT}`);
     console.log(`📁 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
-    console.log(`🌐 Frontend URL: http://localhost:${PORT}`);
+    console.log(`🔗 API Base URL: ${apiUrl}`);
+    console.log(`🌐 Frontend URL: ${frontendUrl}`);
     console.log(`📦 Storage Mode: ${process.env.STORAGE_MODE || 'auto'}`);
     console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'fabric'} (Fabric-only, no fallbacks)`);
 });

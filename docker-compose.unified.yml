@@ -308,6 +308,7 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-CHANGE-THIS-IN-PRODUCTION}
       # Server Configuration
       - TRUST_PROXY=1
+      - FRONTEND_URL=https://ltoblockchain.duckdns.org
     # Port removed - Nginx will handle external access
     # Internal access only via Docker network
     volumes:

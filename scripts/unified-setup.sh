@@ -34,20 +34,25 @@ echo ""
 log_info "Phase 1: Cleaning up..."
 
 # Stop all containers
-docker-compose -f docker-compose.unified.yml down -v 2>/dev/null || true
-docker-compose -f docker-compose.fabric.yml down -v 2>/dev/null || true
-docker-compose -f docker-compose.fabric-simple.yml down -v 2>/dev/null || true
-docker-compose -f docker-compose.core.yml down -v 2>/dev/null || true
-docker-compose -f docker-compose.services.yml down -v 2>/dev/null || true
+docker compose -f docker-compose.unified.yml down -v 2>/dev/null || true
+docker compose -f docker-compose.fabric.yml down -v 2>/dev/null || true
+docker compose -f docker-compose.fabric-simple.yml down -v 2>/dev/null || true
+docker compose -f docker-compose.core.yml down -v 2>/dev/null || true
+docker compose -f docker-compose.services.yml down -v 2>/dev/null || true
 
-# Remove old data (with sudo if needed)
-if [ -d "fabric-network/crypto-config" ]; then
-    sudo rm -rf fabric-network/crypto-config 2>/dev/null || rm -rf fabric-network/crypto-config
+# Remove old data (with sudo if needed) - Only if FORCE_CLEANUP is set
+if [ "${FORCE_CLEANUP:-false}" = "true" ]; then
+    if [ -d "fabric-network/crypto-config" ]; then
+        sudo rm -rf fabric-network/crypto-config 2>/dev/null || rm -rf fabric-network/crypto-config
+    fi
+    if [ -d "fabric-network/channel-artifacts" ]; then
+        sudo rm -rf fabric-network/channel-artifacts 2>/dev/null || rm -rf fabric-network/channel-artifacts
+    fi
+    rm -rf wallet 2>/dev/null || true
+    log_info "Force cleanup completed"
+else
+    log_info "Skipping cleanup (crypto materials exist). Set FORCE_CLEANUP=true to force cleanup."
 fi
-if [ -d "fabric-network/channel-artifacts" ]; then
-    sudo rm -rf fabric-network/channel-artifacts 2>/dev/null || rm -rf fabric-network/channel-artifacts
-fi
-rm -rf wallet 2>/dev/null || true
 
 # Create directories
 mkdir -p fabric-network/crypto-config
@@ -61,31 +66,38 @@ log_success "Cleanup complete"
 # ============================================
 log_info "Phase 2: Generating cryptographic materials..."
 
-# Run cryptogen with proper user mapping to avoid permission issues
-docker run --rm \
-    -v "${PROJECT_ROOT}/config:/config" \
-    -v "${PROJECT_ROOT}/fabric-network:/fabric-network" \
-    -u $(id -u):$(id -g) \
-    hyperledger/fabric-tools:2.5 \
-    cryptogen generate --config=/config/crypto-config.yaml --output=/fabric-network/crypto-config
+# Skip crypto generation if already exists
+if [ -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph" ] && \
+   [ -d "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph" ]; then
+    log_info "Crypto materials already exist, skipping generation..."
+    log_info "Set FORCE_CLEANUP=true to regenerate crypto materials"
+else
+    # Run cryptogen with proper user mapping to avoid permission issues
+    docker run --rm \
+        -v "${PROJECT_ROOT}/config:/config" \
+        -v "${PROJECT_ROOT}/fabric-network:/fabric-network" \
+        -u $(id -u):$(id -g) \
+        hyperledger/fabric-tools:2.5 \
+        cryptogen generate --config=/config/crypto-config.yaml --output=/fabric-network/crypto-config
 
-# Verify generation
-if [ ! -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph" ]; then
-    log_error "Failed to generate peer crypto materials"
-    exit 1
+    # Verify generation
+    if [ ! -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph" ]; then
+        log_error "Failed to generate peer crypto materials"
+        exit 1
+    fi
+
+    if [ ! -d "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph" ]; then
+        log_error "Failed to generate orderer crypto materials"
+        exit 1
+    fi
+
+    # Setup admincerts for NodeOUs
+    ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
+    mkdir -p "${ADMIN_MSP}/admincerts"
+    cp "${ADMIN_MSP}/signcerts/"*.pem "${ADMIN_MSP}/admincerts/"
+
+    log_success "Crypto materials generated"
 fi
-
-if [ ! -d "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph" ]; then
-    log_error "Failed to generate orderer crypto materials"
-    exit 1
-fi
-
-# Setup admincerts for NodeOUs
-ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
-mkdir -p "${ADMIN_MSP}/admincerts"
-cp "${ADMIN_MSP}/signcerts/"*.pem "${ADMIN_MSP}/admincerts/"
-
-log_success "Crypto materials generated"
 
 # ============================================
 # PHASE 3: GENERATE CHANNEL ARTIFACTS
@@ -127,13 +139,13 @@ log_success "Channel transaction generated"
 # ============================================
 log_info "Phase 4: Starting containers..."
 
-docker-compose -f docker-compose.unified.yml up -d
+docker compose -f docker-compose.unified.yml up -d
 
 log_info "Waiting for containers to initialize (30s)..."
 sleep 30
 
 # Check containers
-CONTAINERS=("orderer.lto.gov.ph" "peer0.lto.gov.ph" "couchdb" "cli" "postgres" "ipfs" "redis")
+CONTAINERS=("orderer.lto.gov.ph" "peer0.lto.gov.ph" "couchdb" "cli" "postgres" "ipfs")
 for container in "${CONTAINERS[@]}"; do
     if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
         log_success "$container is running"

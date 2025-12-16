@@ -157,19 +157,9 @@ class StorageService {
             } catch (error) {
                 console.error('❌ IPFS storage failed:', error.message);
                 
-                // If STORAGE_MODE=ipfs is required, don't fallback - throw error
-                if (this.storageMode === 'ipfs') {
-                    throw new Error(`IPFS storage is required (STORAGE_MODE=ipfs) but storage failed: ${error.message}`);
-                }
-                
-                // Only fallback to local storage if not in strict IPFS mode
-                console.warn('⚠️ Falling back to local storage (IPFS mode not strictly required)');
-                try {
-                    return await localStorageService.storeDocument(file, documentType, vehicleVin, ownerEmail);
-                } catch (localError) {
-                    console.error('❌ Local storage also failed:', localError.message);
-                    throw new Error(`Document storage failed: ${localError.message}`);
-                }
+                // STORAGE_MODE=ipfs is required - NO FALLBACKS
+                // Fail immediately if IPFS is unavailable
+                throw new Error(`IPFS storage is required (STORAGE_MODE=ipfs) but storage failed: ${error.message}. Ensure IPFS service is running and accessible.`);
             }
         } else {
             // Use local storage
@@ -207,7 +197,12 @@ class StorageService {
                 };
             } catch (error) {
                 console.error('❌ IPFS retrieval failed, trying local file:', error);
-                // Fallback to local file path from database
+                // If STORAGE_MODE=ipfs, don't fallback to local - fail if IPFS retrieval fails
+                if (this.storageMode === 'ipfs') {
+                    throw new Error(`IPFS storage is required (STORAGE_MODE=ipfs) but document retrieval from IPFS failed: ${error.message}`);
+                }
+                
+                // Only fallback to local file path if not in strict IPFS mode (for backward compatibility)
                 if (document.file_path && fs.existsSync(document.file_path)) {
                     return {
                         success: true,

@@ -140,7 +140,14 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
                     throw new Error('Document storage failed: IPFS storage is required but storage service returned failure.');
                 }
                 
-                // Only fallback to local if not in strict IPFS mode
+                // STORAGE_MODE=ipfs is required - NO FALLBACKS
+                // This code should never execute if STORAGE_MODE=ipfs because storageService will throw
+                // But keeping as safety check
+                if (requiredStorageMode === 'ipfs') {
+                    throw new Error('Document storage failed: IPFS storage is required but storage service returned failure. This should not happen - check storageService implementation.');
+                }
+                
+                // Only fallback to local if not in strict IPFS mode (should not happen in production)
                 let fileHash = null;
                 try {
                     fileHash = calculateFileHash(req.file.path);

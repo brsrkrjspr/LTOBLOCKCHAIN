@@ -281,11 +281,23 @@ async function verifyDocument(documentId, verifiedBy) {
 
 async function addVehicleHistory(historyData) {
     const { vehicleId, action, description, performedBy, transactionId, metadata } = historyData;
+    
+    // Truncate transactionId to 100 characters to fit VARCHAR(100) constraint
+    // Fabric transaction IDs can be longer, so we keep the last 100 chars (usually the most unique part)
+    const truncatedTransactionId = transactionId 
+        ? (transactionId.length > 100 ? transactionId.slice(-100) : transactionId)
+        : null;
+    
+    // Truncate description to reasonable length if needed (TEXT field, but good practice)
+    const truncatedDescription = description && description.length > 1000 
+        ? description.substring(0, 1000) + '...' 
+        : description;
+    
     const result = await db.query(
         `INSERT INTO vehicle_history (vehicle_id, action, description, performed_by, transaction_id, metadata)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
-        [vehicleId, action, description, performedBy, transactionId, metadata ? JSON.stringify(metadata) : null]
+        [vehicleId, action, truncatedDescription, performedBy, truncatedTransactionId, metadata ? JSON.stringify(metadata) : null]
     );
     return result.rows[0];
 }

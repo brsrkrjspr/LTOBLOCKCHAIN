@@ -87,31 +87,24 @@ fi
 
 echo -e "${GREEN}✓ Nginx is running${NC}"
 
-# Test that Nginx can serve files from certbot directory
+# Stop Nginx temporarily for standalone mode
 echo ""
-echo -e "${BLUE}Testing certbot directory access...${NC}"
-echo "test-file" > /var/www/certbot/.well-known/acme-challenge/test
+echo -e "${BLUE}Step 5: Stopping Nginx for standalone certificate verification...${NC}"
+docker compose -f docker-compose.unified.yml stop nginx
 sleep 2
-if curl -s http://localhost/.well-known/acme-challenge/test | grep -q "test-file"; then
-    echo -e "${GREEN}✓ Nginx can serve certbot files${NC}"
-    rm /var/www/certbot/.well-known/acme-challenge/test
-else
-    echo -e "${YELLOW}⚠️  Warning: Nginx may not be able to serve certbot files${NC}"
-    echo "This might still work, continuing..."
-fi
 
-# Get Let's Encrypt certificate using Certbot in Docker
+# Get Let's Encrypt certificate using Certbot in standalone mode
 echo ""
-echo -e "${BLUE}Step 5: Obtaining SSL certificate from Let's Encrypt...${NC}"
+echo -e "${BLUE}Step 6: Obtaining SSL certificate from Let's Encrypt (standalone mode)...${NC}"
 echo "This may take a minute..."
+echo -e "${YELLOW}Note: Certbot will temporarily use port 80 for verification${NC}"
 
 docker run -it --rm \
   -v "$(pwd)/nginx/letsencrypt:/etc/letsencrypt" \
-  -v "/var/www/certbot:/var/www/certbot" \
-  --network host \
+  -p 80:80 \
   certbot/certbot certonly \
-  --webroot \
-  --webroot-path=/var/www/certbot \
+  --standalone \
+  --preferred-challenges http \
   --email "${EMAIL}" \
   --agree-tos \
   --no-eff-email \
@@ -119,15 +112,40 @@ docker run -it --rm \
   -d "${DUCKDNS_DOMAIN}" || {
     echo -e "${RED}❌ Failed to obtain certificate${NC}"
     echo ""
-    echo "Common issues:"
-    echo "  1. DuckDNS domain not pointing to this server"
-    echo "  2. Port 80 not accessible from internet"
-    echo "  3. Firewall blocking port 80"
-    echo ""
-    echo "Check:"
-    echo "  - DNS: dig ${DUCKDNS_DOMAIN}"
-    echo "  - Firewall: ufw status"
-    exit 1
+    echo "Trying alternative method..."
+    
+    # Try webroot method as fallback
+    echo -e "${BLUE}Attempting webroot method...${NC}"
+    docker compose -f docker-compose.unified.yml up -d nginx
+    sleep 5
+    
+    docker run -it --rm \
+      -v "$(pwd)/nginx/letsencrypt:/etc/letsencrypt" \
+      -v "/var/www/certbot:/var/www/certbot" \
+      --network host \
+      certbot/certbot certonly \
+      --webroot \
+      --webroot-path=/var/www/certbot \
+      --email "${EMAIL}" \
+      --agree-tos \
+      --no-eff-email \
+      --non-interactive \
+      -d "${DUCKDNS_DOMAIN}" || {
+        echo -e "${RED}❌ Both methods failed${NC}"
+        echo ""
+        echo "Common issues:"
+        echo "  1. DuckDNS domain not pointing to this server"
+        echo "  2. Port 80 not accessible from internet"
+        echo "  3. Firewall blocking port 80"
+        echo "  4. DNS propagation delay (wait 5-10 minutes and retry)"
+        echo ""
+        echo "Check:"
+        echo "  - DNS: dig ${DUCKDNS_DOMAIN}"
+        echo "  - Firewall: ufw status"
+        echo "  - External test: curl -I http://${DUCKDNS_DOMAIN}"
+        docker compose -f docker-compose.unified.yml up -d nginx
+        exit 1
+      }
   }
 
 # Verify certificate
@@ -138,9 +156,15 @@ else
     exit 1
 fi
 
+# Restart Nginx (it was stopped for standalone mode)
+echo ""
+echo -e "${BLUE}Step 7: Restarting Nginx...${NC}"
+docker compose -f docker-compose.unified.yml up -d nginx
+sleep 3
+
 # Switch to SSL configuration
 echo ""
-echo -e "${BLUE}Step 6: Switching to HTTPS configuration...${NC}"
+echo -e "${BLUE}Step 8: Switching to HTTPS configuration...${NC}"
 
 # Restore the SSL config file from backup
 if [ -f "nginx/nginx-ssl.conf.original" ]; then
@@ -156,7 +180,7 @@ echo -e "${GREEN}✓ SSL configuration ready${NC}"
 
 # Restart Nginx with SSL configuration
 echo ""
-echo -e "${BLUE}Step 7: Restarting Nginx with SSL configuration...${NC}"
+echo -e "${BLUE}Step 9: Restarting Nginx with SSL configuration...${NC}"
 docker compose -f docker-compose.unified.yml restart nginx
 
 # Wait a moment
@@ -164,7 +188,7 @@ sleep 5
 
 # Test HTTPS
 echo ""
-echo -e "${BLUE}Step 8: Testing HTTPS connection...${NC}"
+echo -e "${BLUE}Step 10: Testing HTTPS connection...${NC}"
 if curl -k -s -o /dev/null -w "%{http_code}" "https://${DUCKDNS_DOMAIN}/health" | grep -q "200"; then
     echo -e "${GREEN}✅ HTTPS is working!${NC}"
 else

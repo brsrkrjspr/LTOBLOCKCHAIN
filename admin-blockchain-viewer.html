@@ -919,10 +919,24 @@
             }
         }
 
+        // Helper function to get auth headers
+        function getAuthHeaders() {
+            const token = AuthUtils ? AuthUtils.getToken() : (localStorage.getItem('authToken') || localStorage.getItem('token'));
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token && token !== 'dev-token-bypass' && !token.startsWith('demo-token-')) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return headers;
+        }
+
         // Load ledger statistics
         async function loadLedgerStats() {
             try {
-                const response = await fetch('/api/ledger/stats');
+                const response = await fetch('/api/ledger/stats', {
+                    headers: getAuthHeaders()
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -949,7 +963,9 @@
             container.innerHTML = '<div class="loading">Loading transactions...</div>';
 
             try {
-                const response = await fetch('/api/ledger/transactions');
+                const response = await fetch('/api/ledger/transactions', {
+                    headers: getAuthHeaders()
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -1161,7 +1177,9 @@
             container.innerHTML = '<div class="loading">Loading blocks...</div>';
 
             try {
-                const response = await fetch('/api/ledger/blocks');
+                const response = await fetch('/api/ledger/blocks', {
+                    headers: getAuthHeaders()
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -1342,7 +1360,9 @@
             container.innerHTML = '<div class="loading">Searching...</div>';
 
             try {
-                const response = await fetch(`/api/ledger/search?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/ledger/search?q=${encodeURIComponent(query)}`, {
+                    headers: getAuthHeaders()
+                });
                 const result = await response.json();
 
                 if (result.success) {
@@ -1415,7 +1435,9 @@
 
             try {
                 // Load transactions to analyze organization involvement
-                const response = await fetch('/api/ledger/transactions');
+                const response = await fetch('/api/ledger/transactions', {
+                    headers: getAuthHeaders()
+                });
                 const result = await response.json();
                 
                 if (result.success && result.transactions) {

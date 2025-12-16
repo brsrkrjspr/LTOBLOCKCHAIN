@@ -6,7 +6,7 @@
 // Set to true to bypass all authentication checks for UI development
 // Set to false to re-enable authentication (when backend is available)
 // ============================================
-const DISABLE_AUTH = true; // 🔓 Change to false to re-enable authentication
+const DISABLE_AUTH = false; // ✅ Authentication enabled for production
 
 // Expose DISABLE_AUTH globally so other scripts can access it
 window.DISABLE_AUTH = DISABLE_AUTH;

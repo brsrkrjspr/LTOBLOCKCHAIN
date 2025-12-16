@@ -46,19 +46,26 @@ mkdir -p /var/www/certbot
 
 # Update Nginx config with domain
 echo ""
-echo -e "${BLUE}Step 3: Updating Nginx configuration...${NC}"
-if [ ! -f "nginx/nginx-ssl.conf" ]; then
-    echo -e "${RED}❌ Error: nginx/nginx-ssl.conf not found${NC}"
+echo -e "${BLUE}Step 3: Preparing Nginx configuration...${NC}"
+
+# Backup the original SSL config (if it exists and hasn't been backed up)
+if [ ! -f "nginx/nginx-ssl.conf.original" ] && [ -f "nginx/nginx-ssl.conf" ]; then
+    cp nginx/nginx-ssl.conf nginx/nginx-ssl.conf.original
+    echo -e "${GREEN}✓ Backed up original SSL configuration${NC}"
+fi
+
+# Use HTTP-only config first (for Let's Encrypt verification)
+if [ ! -f "nginx/nginx-http-only.conf" ]; then
+    echo -e "${RED}❌ Error: nginx/nginx-http-only.conf not found${NC}"
     exit 1
 fi
 
-# Create temporary config with domain replaced
-sed "s/yourname.duckdns.org/${DUCKDNS_DOMAIN}/g" nginx/nginx-ssl.conf > nginx/nginx-ssl-temp.conf
-mv nginx/nginx-ssl-temp.conf nginx/nginx-ssl.conf
+# Temporarily use HTTP-only config for Let's Encrypt verification
+cp nginx/nginx-http-only.conf nginx/nginx-ssl.conf
 
-echo -e "${GREEN}✓ Nginx configuration updated${NC}"
+echo -e "${GREEN}✓ Using HTTP-only config for certificate verification${NC}"
 
-# Start Nginx temporarily for Let's Encrypt verification
+# Start Nginx with HTTP-only config for Let's Encrypt verification
 echo ""
 echo -e "${BLUE}Step 4: Starting Nginx for certificate verification...${NC}"
 docker compose -f docker-compose.unified.yml up -d nginx
@@ -114,9 +121,25 @@ else
     exit 1
 fi
 
-# Restart Nginx with SSL
+# Switch to SSL configuration
 echo ""
-echo -e "${BLUE}Step 6: Restarting Nginx with SSL configuration...${NC}"
+echo -e "${BLUE}Step 6: Switching to HTTPS configuration...${NC}"
+
+# Restore the SSL config file from backup
+if [ -f "nginx/nginx-ssl.conf.original" ]; then
+    cp nginx/nginx-ssl.conf.original nginx/nginx-ssl.conf
+    echo -e "${GREEN}✓ Restored SSL configuration${NC}"
+else
+    echo -e "${RED}❌ Error: SSL config backup not found${NC}"
+    echo "The original SSL config should have been backed up earlier."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ SSL configuration ready${NC}"
+
+# Restart Nginx with SSL configuration
+echo ""
+echo -e "${BLUE}Step 7: Restarting Nginx with SSL configuration...${NC}"
 docker compose -f docker-compose.unified.yml restart nginx
 
 # Wait a moment
@@ -124,7 +147,7 @@ sleep 5
 
 # Test HTTPS
 echo ""
-echo -e "${BLUE}Step 7: Testing HTTPS connection...${NC}"
+echo -e "${BLUE}Step 8: Testing HTTPS connection...${NC}"
 if curl -k -s -o /dev/null -w "%{http_code}" "https://${DUCKDNS_DOMAIN}/health" | grep -q "200"; then
     echo -e "${GREEN}✅ HTTPS is working!${NC}"
 else

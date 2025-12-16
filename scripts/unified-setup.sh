@@ -108,6 +108,7 @@ log_info "Phase 3: Generating channel artifacts..."
 docker run --rm \
     -v "${PROJECT_ROOT}/config:/config" \
     -v "${PROJECT_ROOT}/fabric-network:/fabric-network" \
+    -v "${PROJECT_ROOT}/fabric-network/crypto-config:/config/crypto-config" \
     -u $(id -u):$(id -g) \
     -e FABRIC_CFG_PATH=/config \
     hyperledger/fabric-tools:2.5 \
@@ -123,6 +124,7 @@ log_success "Genesis block generated"
 docker run --rm \
     -v "${PROJECT_ROOT}/config:/config" \
     -v "${PROJECT_ROOT}/fabric-network:/fabric-network" \
+    -v "${PROJECT_ROOT}/fabric-network/crypto-config:/config/crypto-config" \
     -u $(id -u):$(id -g) \
     -e FABRIC_CFG_PATH=/config \
     hyperledger/fabric-tools:2.5 \

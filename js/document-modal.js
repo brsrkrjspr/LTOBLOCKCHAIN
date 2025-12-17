@@ -571,25 +571,47 @@
         error.style.display = 'none';
         
         // Update title
-        title.textContent = doc.filename || doc.original_name || getDocTypeLabel(doc.type || doc.document_type);
+        title.textContent = doc.filename || doc.original_name || doc.label || getDocTypeLabel(doc.type || doc.document_type);
+        
+        console.log('DocumentModal loading:', doc);
         
         try {
             let url = null;
             const token = getAuthToken();
             
-            // Determine URL - check for data URL first
+            // Check for data URL first (base64)
             if (doc.url && typeof doc.url === 'string' && doc.url.startsWith('data:')) {
                 url = doc.url;
-            } else if (doc.id && typeof doc.id === 'string' && !doc.id.startsWith('APP-') && !doc.id.includes('_')) {
-                url = `/api/documents/${doc.id}/view`;
-            } else if (doc.cid || doc.ipfs_cid) {
-                // Try IPFS via API
+                console.log('Using data URL');
+            }
+            // Check for direct URL already set
+            else if (doc.url && typeof doc.url === 'string' && (doc.url.startsWith('http') || doc.url.startsWith('/api/') || doc.url.startsWith('/uploads/'))) {
+                url = doc.url;
+                console.log('Using provided URL:', url);
+            }
+            // Check for UUID-style document ID
+            else if (doc.id && typeof doc.id === 'string') {
+                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id);
+                if (isUUID) {
+                    url = `/api/documents/${doc.id}/view`;
+                    console.log('Using API URL from UUID:', url);
+                }
+            }
+            // Check for IPFS CID
+            if (!url && (doc.cid || doc.ipfs_cid)) {
                 const cid = doc.cid || doc.ipfs_cid;
                 url = `/api/documents/ipfs/${cid}`;
-            } else if (doc.url) {
-                url = doc.url;
-            } else if (doc.path || doc.file_path) {
+                console.log('Using IPFS URL:', url);
+            }
+            // Check for file path
+            if (!url && (doc.path || doc.file_path)) {
                 url = doc.path || doc.file_path;
+                console.log('Using file path:', url);
+            }
+            // Fallback to url property
+            if (!url && doc.url) {
+                url = doc.url;
+                console.log('Fallback to doc.url:', url);
             }
             
             if (!url) {
@@ -598,7 +620,7 @@
             
             // Check if it's an image based on URL pattern or filename
             const urlStr = url || '';
-            const filenameStr = doc.filename || doc.original_name || '';
+            const filenameStr = doc.filename || doc.original_name || doc.label || '';
             const isDataImage = urlStr.startsWith('data:image');
             const isFileImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(urlStr) || 
                                /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(filenameStr);
@@ -607,39 +629,43 @@
             
             // Handle data URLs directly
             if (url.startsWith('data:')) {
+                console.log('Rendering data URL');
                 if (isImage) {
-                    frame.innerHTML = `<img src="${url}" alt="${doc.filename || 'Document'}" />`;
+                    frame.innerHTML = `<img src="${url}" alt="${doc.filename || doc.label || 'Document'}" />`;
                 } else {
-                    // For non-image data URLs (like PDFs)
-                    frame.innerHTML = `<iframe src="${url}" title="${doc.filename || 'Document'}"></iframe>`;
+                    frame.innerHTML = `<iframe src="${url}" title="${doc.filename || doc.label || 'Document'}"></iframe>`;
                 }
             }
-            // For API endpoints, fetch with auth
-            else if (url.startsWith('/api/')) {
+            // For API/server endpoints, fetch with auth
+            else if (url.startsWith('/api/') || url.startsWith('/uploads/')) {
+                console.log('Fetching from server:', url);
                 const response = await fetch(url, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'image/*,application/pdf,*/*'
                     }
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Failed to load document (${response.status})`);
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                 }
                 
                 const blob = await response.blob();
                 const blobUrl = URL.createObjectURL(blob);
+                console.log('Blob loaded, type:', blob.type, 'size:', blob.size);
                 
                 if (isImage || blob.type.startsWith('image/')) {
-                    frame.innerHTML = `<img src="${blobUrl}" alt="${doc.filename || 'Document'}" />`;
+                    frame.innerHTML = `<img src="${blobUrl}" alt="${doc.filename || doc.label || 'Document'}" />`;
                 } else {
-                    frame.innerHTML = `<iframe src="${blobUrl}" title="${doc.filename || 'Document'}"></iframe>`;
+                    frame.innerHTML = `<iframe src="${blobUrl}" title="${doc.filename || doc.label || 'Document'}"></iframe>`;
                 }
             } else {
                 // Direct URL (http/https)
+                console.log('Using direct external URL');
                 if (isImage) {
-                    frame.innerHTML = `<img src="${url}" alt="${doc.filename || 'Document'}" />`;
+                    frame.innerHTML = `<img src="${url}" alt="${doc.filename || doc.label || 'Document'}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'color:#e74c3c;text-align:center;\\'>Image failed to load</div>';" />`;
                 } else {
-                    frame.innerHTML = `<iframe src="${url}" title="${doc.filename || 'Document'}"></iframe>`;
+                    frame.innerHTML = `<iframe src="${url}" title="${doc.filename || doc.label || 'Document'}"></iframe>`;
                 }
             }
             
@@ -649,6 +675,7 @@
             
         } catch (err) {
             console.error('Error loading document:', err);
+            console.error('Document was:', doc);
             loading.style.display = 'none';
             error.style.display = 'block';
             document.getElementById('docViewerErrorMsg').textContent = err.message;

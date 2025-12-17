@@ -322,6 +322,16 @@
                                 </div>
                                 <div class="card-body">
                                     <div id="wizardError4" class="wizard-error"></div>
+                                    
+                                    <!-- DEBUG: Test button to verify file input works -->
+                                    <div style="background: #fff3cd; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ffc107;">
+                                        <strong>🔧 Debug Test:</strong> 
+                                        <button type="button" onclick="testFileInput()" style="margin-left: 10px; padding: 5px 15px; cursor: pointer;">
+                                            Test File Dialog
+                                        </button>
+                                        <span id="debug-result" style="margin-left: 10px;"></span>
+                                    </div>
+                                    
                                     <div class="transfer-upload-section">
                                         <h3>Required Documents</h3>
                                         
@@ -489,6 +499,9 @@
     <script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
     <script>
+        // DEBUG: Log immediately when script loads
+        console.log('🚀 transfer-ownership.html script starting...');
+
         // Transfer data storage
         let transferData = {
             seller: {},
@@ -499,12 +512,15 @@
         };
         let userVehicles = [];
         let currentToStep = 1;
-        let apiClient = null;
+        // Note: apiClient is already declared globally in api-client.js
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async function() {
-            // Initialize API client
-            apiClient = window.apiClient || new APIClient();
+            console.log('📄 DOMContentLoaded fired');
+            
+            try {
+                // Use global apiClient from api-client.js (already loaded)
+                console.log('✅ Using global apiClient:', typeof window.apiClient);
             
             // Sidebar toggle and state
             const sidebar = document.querySelector('.dashboard-sidebar');
@@ -537,15 +553,23 @@
 
             // Update sidebar user info
             updateSidebarUserInfo();
+            console.log('✅ Sidebar user info updated');
             
             // Load seller info from profile
             await loadSellerInfo();
+            console.log('✅ Seller info loaded');
             
             // Load user's vehicles
             await loadUserVehicles();
+            console.log('✅ User vehicles loaded');
             
             // Initialize file upload handlers
             initializeFileUploads();
+            console.log('✅ All initialization complete');
+            
+            } catch (error) {
+                console.error('❌ Initialization error:', error);
+            }
         });
 
         function updateSidebarUserInfo() {
@@ -603,7 +627,7 @@
 
         async function loadUserVehicles() {
             try {
-                const response = await apiClient.get('/api/vehicles/my-vehicles');
+                const response = await window.apiClient.get('/api/vehicles/my-vehicles');
                 if (response.success && response.vehicles) {
                     userVehicles = response.vehicles.filter(v => v.status === 'REGISTERED' || v.status === 'approved');
                     populateVehicleSelector();
@@ -660,23 +684,88 @@
         }
 
         function initializeFileUploads() {
-            // File uploads are now handled directly via onchange on each input
-            // This function is kept for compatibility but no longer needed
-            console.log('File upload handlers ready');
+            console.log('🔧 Initializing file upload handlers...');
+            
+            // Add click listeners to debug and ensure they work
+            const docTypes = ['deedOfSale', 'sellerId', 'buyerId', 'orCr', 'emissionCert'];
+            
+            docTypes.forEach(docType => {
+                const input = document.getElementById(docType);
+                const label = document.getElementById(`label-${docType}`);
+                
+                console.log(`📁 ${docType}: input found = ${!!input}, label found = ${!!label}`);
+                
+                if (input) {
+                    console.log(`   Input ID: ${input.id}, type: ${input.type}, accept: ${input.accept}`);
+                }
+                
+                if (label) {
+                    console.log(`   Label for: ${label.getAttribute('for')}`);
+                    
+                    // WORKAROUND: Directly trigger file input on label click
+                    label.addEventListener('click', function(e) {
+                        console.log(`👆 Label clicked for: ${docType}`);
+                        e.preventDefault(); // Prevent default label behavior
+                        e.stopPropagation();
+                        
+                        // Programmatically click the file input
+                        if (input) {
+                            console.log(`🖱️ Programmatically clicking input: ${docType}`);
+                            input.click();
+                        } else {
+                            console.error(`❌ Input not found for: ${docType}`);
+                        }
+                    });
+                }
+                
+                if (input) {
+                    // Log when file input is clicked directly
+                    input.addEventListener('click', function(e) {
+                        console.log(`🖱️ File input click event: ${docType}`);
+                    });
+                    
+                    // Log when file dialog opens/closes
+                    input.addEventListener('change', function(e) {
+                        console.log(`📂 File input changed: ${docType}`, this.files);
+                    });
+                }
+            });
+            
+            console.log('✅ File upload handlers initialized');
         }
 
         // Handle file upload - same approach as registration-wizard.html
         async function handleTransferUpload(input, docType) {
-            if (!input.files || input.files.length === 0) return;
+            console.log(`📤 handleTransferUpload called for: ${docType}`);
+            console.log(`   Input:`, input);
+            console.log(`   Files:`, input?.files);
+            
+            if (!input.files || input.files.length === 0) {
+                console.log(`⚠️ No files selected for ${docType}`);
+                return;
+            }
             
             const file = input.files[0];
+            console.log(`📎 File selected:`, {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
+            
             const label = document.getElementById(`label-${docType}`);
             const filenameDiv = document.getElementById(`filename-${docType}`);
             const uploadItem = document.getElementById(`upload-item-${docType}`);
             
+            console.log(`🔍 UI elements found:`, {
+                label: !!label,
+                filenameDiv: !!filenameDiv,
+                uploadItem: !!uploadItem
+            });
+            
             // Validate file size (10MB)
             const maxSize = 10 * 1024 * 1024;
             if (file.size > maxSize) {
+                console.log(`❌ File too large: ${file.size} bytes`);
                 showNotification('File size exceeds 10MB limit', 'error');
                 if (filenameDiv) {
                     filenameDiv.innerHTML = '<span style="color: #e74c3c;">❌ File too large</span>';
@@ -685,6 +774,8 @@
             }
             
             try {
+                console.log(`⏳ Starting upload for ${docType}...`);
+                
                 // Show uploading state
                 if (label) {
                     label.innerHTML = `
@@ -932,7 +1023,7 @@
                 };
                 
                 // Submit to API
-                const response = await apiClient.post('/api/vehicles/transfer/requests', requestData);
+                const response = await window.apiClient.post('/api/vehicles/transfer/requests', requestData);
                 
                 if (response.success) {
                     const confirmation = document.getElementById('confirmationMessage');
@@ -977,6 +1068,43 @@
                 ToastNotification.show(message, type);
             } else {
                 alert(message);
+            }
+        }
+
+        // DEBUG: Test function for file input
+        function testFileInput() {
+            console.log('🧪 Test button clicked');
+            const resultSpan = document.getElementById('debug-result');
+            
+            // Create a temporary file input
+            const testInput = document.createElement('input');
+            testInput.type = 'file';
+            testInput.accept = '.pdf,.jpg,.jpeg,.png';
+            
+            testInput.onchange = function() {
+                console.log('🧪 Test file selected:', this.files[0]?.name);
+                if (resultSpan) {
+                    resultSpan.innerHTML = `<span style="color: green;">✅ File selected: ${this.files[0]?.name}</span>`;
+                }
+            };
+            
+            console.log('🧪 Triggering test file input click...');
+            testInput.click();
+            
+            if (resultSpan) {
+                resultSpan.innerHTML = '<span style="color: blue;">File dialog should be open...</span>';
+            }
+        }
+
+        // DEBUG: Also expose a manual trigger function
+        function manualTrigger(docType) {
+            console.log(`🔧 Manual trigger for: ${docType}`);
+            const input = document.getElementById(docType);
+            if (input) {
+                console.log(`   Found input, triggering click...`);
+                input.click();
+            } else {
+                console.error(`   Input not found: ${docType}`);
             }
         }
     </script>

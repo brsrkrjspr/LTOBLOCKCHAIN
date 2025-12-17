@@ -153,6 +153,31 @@
                 showNotification('Please fill in all fields', 'error');
                 return;
             }
+            
+            // Check for existing session (prevent multiple accounts)
+            if (typeof AuthUtils !== 'undefined') {
+                const existingSession = AuthUtils.checkExistingSession();
+                if (existingSession.hasExisting) {
+                    const existingEmail = existingSession.user.email;
+                    if (existingEmail !== email) {
+                        // Different account trying to login
+                        const confirmSwitch = confirm(
+                            `You are currently logged in as ${existingEmail}.\n\n` +
+                            `Do you want to logout and switch to ${email}?\n\n` +
+                            `Click OK to switch accounts, or Cancel to stay logged in.`
+                        );
+                        if (confirmSwitch) {
+                            AuthUtils.forceLogout();
+                            showNotification('Previous session cleared. Please login again.', 'info');
+                        } else {
+                            showNotification(`Continuing as ${existingEmail}`, 'info');
+                            // Redirect based on existing user role
+                            AuthUtils.redirectByRole();
+                            return;
+                        }
+                    }
+                }
+            }
 
             // Determine role based on email address
             let role = 'vehicle_owner'; // Default role

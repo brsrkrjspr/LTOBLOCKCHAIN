@@ -18,6 +18,57 @@ if (DISABLE_AUTH) {
 }
 
 class AuthUtils {
+    // Session ID for current tab (prevents multiple accounts in same browser)
+    static _sessionId = null;
+    
+    // Generate unique session ID for this tab
+    static getSessionId() {
+        if (!this._sessionId) {
+            // Check if we have a session ID in sessionStorage (tab-specific)
+            this._sessionId = sessionStorage.getItem('tabSessionId');
+            if (!this._sessionId) {
+                this._sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                sessionStorage.setItem('tabSessionId', this._sessionId);
+            }
+        }
+        return this._sessionId;
+    }
+    
+    // Validate that current session matches stored session
+    static validateSession() {
+        const storedSessionId = localStorage.getItem('activeSessionId');
+        const currentSessionId = this.getSessionId();
+        
+        // If there's already an active session from a different tab
+        if (storedSessionId && storedSessionId !== currentSessionId) {
+            // Check if that session is still active (within 30 seconds heartbeat)
+            const lastHeartbeat = parseInt(localStorage.getItem('sessionHeartbeat') || '0');
+            const now = Date.now();
+            
+            // If last heartbeat was within 5 seconds, another tab is active
+            if (now - lastHeartbeat < 5000) {
+                console.warn('⚠️ Another session is active in a different tab');
+                return false;
+            }
+        }
+        
+        // Claim this session
+        localStorage.setItem('activeSessionId', currentSessionId);
+        localStorage.setItem('sessionHeartbeat', Date.now().toString());
+        return true;
+    }
+    
+    // Start session heartbeat (call this on page load)
+    static startSessionHeartbeat() {
+        // Update heartbeat every 3 seconds
+        setInterval(() => {
+            if (this.isAuthenticated()) {
+                localStorage.setItem('sessionHeartbeat', Date.now().toString());
+                localStorage.setItem('activeSessionId', this.getSessionId());
+            }
+        }, 3000);
+    }
+    
     // Check if user is authenticated
     static isAuthenticated() {
         // If auth is disabled, always return true
@@ -260,7 +311,35 @@ class AuthUtils {
         this.clearAuth();
         // Also clear token if stored separately
         localStorage.removeItem('token');
+        // Clear session tracking
+        localStorage.removeItem('activeSessionId');
+        localStorage.removeItem('sessionHeartbeat');
+        sessionStorage.removeItem('tabSessionId');
+        this._sessionId = null;
         window.location.href = 'index.html';
+    }
+    
+    // Check if another account is logged in (call before login)
+    static checkExistingSession() {
+        const existingUser = this.getCurrentUser();
+        if (existingUser) {
+            return {
+                hasExisting: true,
+                user: existingUser,
+                message: `Already logged in as ${existingUser.email}. Please logout first or continue as this user.`
+            };
+        }
+        return { hasExisting: false };
+    }
+    
+    // Force logout (for switching accounts)
+    static forceLogout() {
+        this.clearAuth();
+        localStorage.removeItem('token');
+        localStorage.removeItem('activeSessionId');
+        localStorage.removeItem('sessionHeartbeat');
+        sessionStorage.removeItem('tabSessionId');
+        this._sessionId = null;
     }
 
     // Set demo credentials (for testing purposes)

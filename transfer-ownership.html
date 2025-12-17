@@ -518,6 +518,22 @@
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('📄 DOMContentLoaded fired');
             
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
+                }
+                console.log('✅ User authenticated:', user.email);
+            } else {
+                console.error('❌ AuthUtils not loaded');
+                window.location.href = 'login-signup.html';
+                return;
+            }
+            // ================================================
+            
             try {
                 // Use global apiClient from api-client.js (already loaded)
                 console.log('✅ Using global apiClient:', typeof window.apiClient);

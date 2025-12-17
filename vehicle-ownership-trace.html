@@ -799,14 +799,23 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                if (user) {
-                    const sidebarUserNameEl = document.getElementById('sidebarUserAvatar');
-                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
-                    if (sidebarUserNameEl) sidebarUserNameEl.textContent = AuthUtils.getUserInitials() || 'AD';
-                    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'LTO Administrator';
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
                 }
+                // ================================================
+                
+                const sidebarUserNameEl = document.getElementById('sidebarUserAvatar');
+                const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                if (sidebarUserNameEl) sidebarUserNameEl.textContent = AuthUtils.getUserInitials() || 'AD';
+                if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'LTO Administrator';
+            } else {
+                window.location.href = 'login-signup.html';
+                return;
             }
 
             // Sidebar toggle

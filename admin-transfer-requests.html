@@ -251,42 +251,39 @@
     <script>
         // Legacy initialization (kept for fallback, will be replaced by external JS)
         document.addEventListener('DOMContentLoaded', function() {
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                
-                // Check if auth is disabled (dev mode)
-                if (user && user._devMode) {
-                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
                 }
+                // ================================================
                 
-                if (user) {
-                    // Update sidebar user info
-                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
-                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
-                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    
-                    if (sidebarUserNameEl) {
-                        sidebarUserNameEl.textContent = 'ADMIN';
-                    }
-                    if (sidebarUserRoleEl) {
-                        const roleNames = {
-                            'vehicle_owner': 'Vehicle Owner',
-                            'admin': 'System Administrator',
-                            'insurance_verifier': 'Insurance Verifier',
-                            'emission_verifier': 'Emission Verifier'
-                        };
-                        sidebarUserRoleEl.textContent = roleNames[user.role] || user.role;
-                    }
-                    if (sidebarUserAvatarEl) {
-                        sidebarUserAvatarEl.textContent = 'AD';
-                    }
-                } else {
-                    // Not authenticated, redirect to login (only if auth is enabled)
-                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
-                    if (!user) {
-                        window.location.href = 'login-signup.html';
-                    }
+                // Update sidebar user info
+                const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                
+                if (sidebarUserNameEl) {
+                    sidebarUserNameEl.textContent = 'ADMIN';
                 }
+                if (sidebarUserRoleEl) {
+                    const roleNames = {
+                        'vehicle_owner': 'Vehicle Owner',
+                        'admin': 'System Administrator',
+                        'insurance_verifier': 'Insurance Verifier',
+                        'emission_verifier': 'Emission Verifier'
+                    };
+                    sidebarUserRoleEl.textContent = roleNames[user.role] || user.role;
+                }
+                if (sidebarUserAvatarEl) {
+                    sidebarUserAvatarEl.textContent = 'AD';
+                }
+            } else {
+                window.location.href = 'login-signup.html';
+                return;
             }
 
             // Load sidebar state from localStorage

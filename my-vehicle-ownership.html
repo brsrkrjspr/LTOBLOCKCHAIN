@@ -749,14 +749,23 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                if (user) {
-                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
-                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    if (sidebarUserNameEl) sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName() || 'Vehicle Owner';
-                    if (sidebarUserAvatarEl) sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials() || 'VO';
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
                 }
+                // ================================================
+                
+                const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                if (sidebarUserNameEl) sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName() || 'Vehicle Owner';
+                if (sidebarUserAvatarEl) sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials() || 'VO';
+            } else {
+                window.location.href = 'login-signup.html';
+                return;
             }
 
             // Sidebar toggle

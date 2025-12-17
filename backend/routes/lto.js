@@ -49,7 +49,19 @@ router.post('/send-to-hpg', authenticateToken, authorizeRole(['admin']), async (
         );
         const assignedTo = hpgAdmins.rows[0]?.id || null;
 
-        // Create clearance request
+        // Get the vehicle's documents (owner ID, registration cert, etc.)
+        const documents = await db.getDocumentsByVehicle(vehicleId);
+        const ownerIdDoc = documents.find(d => 
+            d.document_type === 'owner_id' || 
+            (d.original_name && d.original_name.toLowerCase().includes('id'))
+        );
+        const registrationDoc = documents.find(d => 
+            d.document_type === 'registration_cert' || 
+            d.document_type === 'registration' ||
+            (d.original_name && d.original_name.toLowerCase().includes('registration'))
+        );
+
+        // Create clearance request with document references
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId,
             requestType: 'hpg',
@@ -59,7 +71,28 @@ router.post('/send-to-hpg', authenticateToken, authorizeRole(['admin']), async (
             metadata: {
                 vehicleVin: vehicle.vin,
                 vehiclePlate: vehicle.plate_number,
-                ownerName: vehicle.owner_name
+                vehicleMake: vehicle.make,
+                vehicleModel: vehicle.model,
+                vehicleYear: vehicle.year,
+                vehicleColor: vehicle.color,
+                engineNumber: vehicle.engine_number,
+                chassisNumber: vehicle.chassis_number,
+                ownerName: vehicle.owner_name,
+                ownerEmail: vehicle.owner_email,
+                // Include document references for HPG verifier
+                ownerIdDocId: ownerIdDoc?.id || null,
+                ownerIdDocCid: ownerIdDoc?.ipfs_cid || null,
+                ownerIdDocPath: ownerIdDoc?.file_path || null,
+                registrationDocId: registrationDoc?.id || null,
+                registrationDocCid: registrationDoc?.ipfs_cid || null,
+                registrationDocPath: registrationDoc?.file_path || null,
+                allDocuments: documents.map(d => ({
+                    id: d.id,
+                    type: d.document_type,
+                    cid: d.ipfs_cid,
+                    path: d.file_path,
+                    filename: d.original_name
+                }))
             },
             assignedTo
         });
@@ -143,7 +176,15 @@ router.post('/send-to-insurance', authenticateToken, authorizeRole(['admin']), a
         );
         const assignedTo = insuranceVerifiers.rows[0]?.id || null;
 
-        // Create clearance request
+        // Get the insurance document from the vehicle's documents
+        const documents = await db.getDocumentsByVehicle(vehicleId);
+        const insuranceDoc = documents.find(d => 
+            d.document_type === 'insurance_cert' || 
+            d.document_type === 'insurance' ||
+            (d.original_name && d.original_name.toLowerCase().includes('insurance'))
+        );
+
+        // Create clearance request with document reference
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId,
             requestType: 'insurance',
@@ -152,7 +193,18 @@ router.post('/send-to-insurance', authenticateToken, authorizeRole(['admin']), a
             notes: notes || null,
             metadata: {
                 vehicleVin: vehicle.vin,
-                vehiclePlate: vehicle.plate_number
+                vehiclePlate: vehicle.plate_number,
+                vehicleMake: vehicle.make,
+                vehicleModel: vehicle.model,
+                vehicleYear: vehicle.year,
+                ownerName: vehicle.owner_name,
+                ownerEmail: vehicle.owner_email,
+                // Include document reference for verifier to view
+                documentId: insuranceDoc?.id || null,
+                documentCid: insuranceDoc?.ipfs_cid || null,
+                documentPath: insuranceDoc?.file_path || null,
+                documentType: insuranceDoc?.document_type || null,
+                documentFilename: insuranceDoc?.original_name || null
             },
             assignedTo
         });
@@ -167,7 +219,7 @@ router.post('/send-to-insurance', authenticateToken, authorizeRole(['admin']), a
             description: `Insurance verification requested by ${req.user.email}`,
             performedBy: req.user.userId,
             transactionId: null,
-            metadata: { clearanceRequestId: clearanceRequest.id }
+            metadata: { clearanceRequestId: clearanceRequest.id, documentId: insuranceDoc?.id }
         });
 
         // Create notification
@@ -184,7 +236,8 @@ router.post('/send-to-insurance', authenticateToken, authorizeRole(['admin']), a
             success: true,
             message: 'Insurance verification request sent successfully',
             requestId: clearanceRequest.id,
-            clearanceRequest
+            clearanceRequest,
+            documentIncluded: !!insuranceDoc
         });
 
     } catch (error) {
@@ -235,7 +288,15 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
         );
         const assignedTo = emissionVerifiers.rows[0]?.id || null;
 
-        // Create clearance request
+        // Get the emission document from the vehicle's documents
+        const documents = await db.getDocumentsByVehicle(vehicleId);
+        const emissionDoc = documents.find(d => 
+            d.document_type === 'emission_cert' || 
+            d.document_type === 'emission' ||
+            (d.original_name && d.original_name.toLowerCase().includes('emission'))
+        );
+
+        // Create clearance request with document reference
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId,
             requestType: 'emission',
@@ -244,7 +305,18 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
             notes: notes || null,
             metadata: {
                 vehicleVin: vehicle.vin,
-                vehiclePlate: vehicle.plate_number
+                vehiclePlate: vehicle.plate_number,
+                vehicleMake: vehicle.make,
+                vehicleModel: vehicle.model,
+                vehicleYear: vehicle.year,
+                ownerName: vehicle.owner_name,
+                ownerEmail: vehicle.owner_email,
+                // Include document reference for verifier to view
+                documentId: emissionDoc?.id || null,
+                documentCid: emissionDoc?.ipfs_cid || null,
+                documentPath: emissionDoc?.file_path || null,
+                documentType: emissionDoc?.document_type || null,
+                documentFilename: emissionDoc?.original_name || null
             },
             assignedTo
         });
@@ -259,7 +331,7 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
             description: `Emission verification requested by ${req.user.email}`,
             performedBy: req.user.userId,
             transactionId: null,
-            metadata: { clearanceRequestId: clearanceRequest.id }
+            metadata: { clearanceRequestId: clearanceRequest.id, documentId: emissionDoc?.id }
         });
 
         // Create notification
@@ -276,7 +348,8 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
             success: true,
             message: 'Emission verification request sent successfully',
             requestId: clearanceRequest.id,
-            clearanceRequest
+            clearanceRequest,
+            documentIncluded: !!emissionDoc
         });
 
     } catch (error) {

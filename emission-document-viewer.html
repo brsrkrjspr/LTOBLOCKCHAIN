@@ -949,48 +949,44 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize user data
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                
-                // Check if auth is disabled (dev mode)
-                if (user && user._devMode) {
-                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
                 }
+                // ================================================
                 
-                if (user) {
-                    // Sidebar user info elements
-                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
-                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
-                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    
-                    const displayName = AuthUtils.getUserDisplayName() || 'Emission Verifier';
-                    const userInitials = AuthUtils.getUserInitials() || 'EV';
-                    const roleNames = {
-                        'vehicle_owner': 'Vehicle Owner',
-                        'admin': 'Administrator',
-                        'insurance_verifier': 'Insurance Verifier',
-                        'emission_verifier': 'Emission Verification Specialist'
-                    };
-                    const userRole = roleNames[user.role] || user.role;
-                    
-                    // Update sidebar user info
-                    if (sidebarUserNameEl) {
-                        sidebarUserNameEl.textContent = displayName;
-                    }
-                    if (sidebarUserRoleEl) {
-                        sidebarUserRoleEl.textContent = userRole;
-                    }
-                    if (sidebarUserAvatarEl) {
-                        sidebarUserAvatarEl.textContent = userInitials;
-                    }
-                } else {
-                    // Not authenticated, redirect to login (only if auth is enabled)
-                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
-                    if (!user) {
-                        window.location.href = 'login-signup.html';
-                    }
+                // Sidebar user info elements
+                const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                
+                const displayName = AuthUtils.getUserDisplayName() || 'Emission Verifier';
+                const userInitials = AuthUtils.getUserInitials() || 'EV';
+                const roleNames = {
+                    'vehicle_owner': 'Vehicle Owner',
+                    'admin': 'Administrator',
+                    'insurance_verifier': 'Insurance Verifier',
+                    'emission_verifier': 'Emission Verification Specialist'
+                };
+                const userRole = roleNames[user.role] || user.role;
+                
+                // Update sidebar user info
+                if (sidebarUserNameEl) {
+                    sidebarUserNameEl.textContent = displayName;
                 }
+                if (sidebarUserRoleEl) {
+                    sidebarUserRoleEl.textContent = userRole;
+                }
+                if (sidebarUserAvatarEl) {
+                    sidebarUserAvatarEl.textContent = userInitials;
+                }
+            } else {
+                window.location.href = 'login-signup.html';
+                return;
             }
 
             // Load document from URL parameters

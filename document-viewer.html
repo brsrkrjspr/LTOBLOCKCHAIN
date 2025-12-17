@@ -99,8 +99,16 @@
     <script>
         // Initialize user data on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
+                }
+                // ================================================
+                
                 if (user) {
                     const userNameEl = document.getElementById('userName');
                     const userRoleEl = document.getElementById('userRole');

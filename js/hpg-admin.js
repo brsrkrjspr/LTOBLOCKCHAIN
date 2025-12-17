@@ -197,14 +197,63 @@ const HPGRequests = {
 
     loadRequests: async function() {
         try {
-            // Placeholder: Replace with actual API call
-            // Example: const response = await APIClient.get('/api/hpg/requests');
-            this.requests = [];
+            const tbody = document.getElementById('requestsTableBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading requests...</td></tr>';
+            }
+            
+            // Call API to get HPG requests
+            if (typeof window.apiClient !== 'undefined') {
+                const response = await window.apiClient.get('/api/hpg/requests');
+                
+                if (response && response.success && response.requests) {
+                    this.requests = response.requests.map(req => {
+                        const metadata = typeof req.metadata === 'string' ? JSON.parse(req.metadata) : (req.metadata || {});
+                        return {
+                            id: req.id,
+                            ownerName: metadata.ownerName || (req.owner ? `${req.owner.first_name || ''} ${req.owner.last_name || ''}` : 'N/A'),
+                            ownerEmail: metadata.ownerEmail || req.owner?.email || 'N/A',
+                            plateNumber: metadata.vehiclePlate || req.plate_number || 'N/A',
+                            vehicleType: req.vehicle?.vehicle_type || metadata.vehicleType || 'N/A',
+                            vehicleMake: metadata.vehicleMake || req.vehicle?.make || 'N/A',
+                            vehicleModel: metadata.vehicleModel || req.vehicle?.model || 'N/A',
+                            vehicleYear: metadata.vehicleYear || req.vehicle?.year || 'N/A',
+                            vin: metadata.vehicleVin || req.vin || 'N/A',
+                            engineNumber: metadata.engineNumber || req.vehicle?.engine_number || 'N/A',
+                            chassisNumber: metadata.chassisNumber || req.vehicle?.chassis_number || 'N/A',
+                            purpose: req.purpose || 'Vehicle Clearance',
+                            requestDate: req.created_at ? new Date(req.created_at).toLocaleDateString() : 'N/A',
+                            status: (req.status || 'PENDING').toLowerCase(),
+                            vehicleId: req.vehicle_id,
+                            // Document references for viewing
+                            documentId: metadata.ownerIdDocId || metadata.registrationDocId || null,
+                            documentCid: metadata.ownerIdDocCid || metadata.registrationDocCid || null,
+                            allDocuments: metadata.allDocuments || []
+                        };
+                    });
+                    
+                    // Update pending badge
+                    const pendingCount = this.requests.filter(r => r.status === 'pending').length;
+                    const badge = document.getElementById('pendingRequestsBadge');
+                    if (badge) {
+                        badge.textContent = pendingCount;
+                        badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+                    }
+                } else {
+                    this.requests = [];
+                }
+            } else {
+                console.warn('API client not available');
+                this.requests = [];
+            }
 
             this.filteredRequests = [...this.requests];
             this.renderTable();
         } catch (error) {
             console.error('Error loading requests:', error);
+            this.requests = [];
+            this.filteredRequests = [];
+            this.renderTable();
             if (typeof ErrorHandler !== 'undefined') {
                 ErrorHandler.handleError(error);
             }
@@ -242,10 +291,11 @@ const HPGRequests = {
         tbody.innerHTML = this.filteredRequests.map(req => {
             const statusClass = `status-${req.status}`;
             const statusText = req.status.charAt(0).toUpperCase() + req.status.slice(1);
+            const reqId = typeof req.id === 'string' && req.id.length > 10 ? req.id.substring(0, 10) + '...' : req.id;
             
             return `
                 <tr>
-                    <td><strong>${req.id}</strong></td>
+                    <td><strong title="${req.id}">${reqId}</strong></td>
                     <td>${req.ownerName}</td>
                     <td><span class="badge badge-plate">${req.plateNumber}</span></td>
                     <td>${req.vehicleType}</td>
@@ -262,19 +312,62 @@ const HPGRequests = {
                             <button class="btn-secondary btn-sm" onclick="viewDetails('${req.id}')">
                                 <i class="fas fa-eye"></i> View
                             </button>
-                            <button class="btn-info btn-sm" onclick="autoFillVerification('${req.id}')" title="Auto-fill vehicle details for verification">
-                                <i class="fas fa-magic"></i> Auto-Fill
-                            </button>
+                            ${req.documentCid || req.allDocuments?.length > 0 ? `
+                                <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${req.id}')" title="View attached documents">
+                                    <i class="fas fa-file-image"></i> Docs
+                                </button>
+                            ` : ''}
                         </div>
                     </td>
                 </tr>
             `;
         }).join('');
     },
+    
+    viewDocument: function(requestId) {
+        const request = this.requests.find(r => r.id === requestId);
+        if (!request) {
+            alert('Request not found');
+            return;
+        }
+        
+        if (request.allDocuments && request.allDocuments.length > 0) {
+            // Show modal with all documents
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;';
+            modal.innerHTML = `
+                <div class="modal-content" style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%;">
+                    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Vehicle Documents</h3>
+                        <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Vehicle:</strong> ${request.vehicleMake} ${request.vehicleModel} ${request.vehicleYear}</p>
+                        <p><strong>Plate:</strong> ${request.plateNumber}</p>
+                        <hr style="margin: 1rem 0;">
+                        <h4>Attached Documents:</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                            ${request.allDocuments.map(doc => `
+                                <button class="btn-secondary" onclick="window.open('${doc.cid ? '/ipfs/' + doc.cid : doc.path || '#'}', '_blank')" style="text-align: left;">
+                                    <i class="fas fa-file"></i> ${doc.type || doc.filename || 'Document'}
+                                    ${doc.cid ? ' (IPFS)' : ''}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        } else if (request.documentCid) {
+            window.open('/ipfs/' + request.documentCid, '_blank');
+        } else {
+            alert('No documents attached to this request');
+        }
+    },
 
     loadRequestDetails: async function(requestId) {
         try {
-            // Placeholder: Replace with actual API call
             const request = this.requests.find(r => r.id === requestId);
             if (!request) {
                 alert('Request not found');
@@ -294,12 +387,28 @@ const HPGRequests = {
                             <span>${request.ownerName}</span>
                         </div>
                         <div class="detail-row">
+                            <label>Owner Email:</label>
+                            <span>${request.ownerEmail || 'N/A'}</span>
+                        </div>
+                        <div class="detail-row">
                             <label>Plate Number:</label>
                             <span>${request.plateNumber}</span>
                         </div>
                         <div class="detail-row">
-                            <label>Vehicle Type:</label>
-                            <span>${request.vehicleType}</span>
+                            <label>VIN:</label>
+                            <span>${request.vin || 'N/A'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Vehicle:</label>
+                            <span>${request.vehicleMake || ''} ${request.vehicleModel || ''} ${request.vehicleYear || ''}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Engine Number:</label>
+                            <span>${request.engineNumber || 'N/A'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Chassis Number:</label>
+                            <span>${request.chassisNumber || 'N/A'}</span>
                         </div>
                         <div class="detail-row">
                             <label>Purpose:</label>
@@ -313,7 +422,22 @@ const HPGRequests = {
                             <label>Status:</label>
                             <span class="status-badge status-${request.status}">${request.status.charAt(0).toUpperCase() + request.status.slice(1)}</span>
                         </div>
+                        ${request.allDocuments && request.allDocuments.length > 0 ? `
+                            <div class="detail-row" style="margin-top: 1rem;">
+                                <label>Documents:</label>
+                                <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${request.id}')" style="margin-left: 10px;">
+                                    <i class="fas fa-file-image"></i> View ${request.allDocuments.length} Document(s)
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
+                    ${request.status === 'pending' ? `
+                        <div style="margin-top: 1.5rem; display: flex; gap: 10px;">
+                            <button class="btn-primary" onclick="startVerification('${request.id}'); closeModal('requestDetailsModal');">
+                                <i class="fas fa-check"></i> Start Verification
+                            </button>
+                        </div>
+                    ` : ''}
                 `;
             }
         } catch (error) {
@@ -330,39 +454,61 @@ const HPGVerification = {
     loadRequestData: async function(requestId) {
         try {
             this.currentRequestId = requestId;
-            document.getElementById('currentRequestId').textContent = requestId;
+            const requestIdEl = document.getElementById('currentRequestId');
+            if (requestIdEl) requestIdEl.textContent = requestId;
 
-            // Placeholder: Replace with actual API call
-            // Example: const response = await APIClient.get(`/api/hpg/requests/${requestId}`);
-            // const data = await response.json();
-            this.requestData = null;
-
-            // Clear form fields - data will be loaded from API
-            const ownerNameEl = document.getElementById('ownerName');
-            const plateNumberEl = document.getElementById('plateNumber');
-            const vehicleTypeEl = document.getElementById('vehicleType');
-            const vehicleModelEl = document.getElementById('vehicleModel');
-            const vehicleYearEl = document.getElementById('vehicleYear');
-            const purposeEl = document.getElementById('purpose');
-            
-            if (ownerNameEl) ownerNameEl.value = '';
-            if (plateNumberEl) plateNumberEl.value = '';
-            if (vehicleTypeEl) vehicleTypeEl.value = '';
-            if (vehicleModelEl) vehicleModelEl.value = '';
-            if (vehicleYearEl) vehicleYearEl.value = '';
-            if (purposeEl) purposeEl.value = '';
-            
-            // If API call succeeds, populate fields:
-            // if (this.requestData) {
-            //     if (ownerNameEl) ownerNameEl.value = this.requestData.ownerName || '';
-            //     if (plateNumberEl) plateNumberEl.value = this.requestData.plateNumber || '';
-            //     if (vehicleTypeEl) vehicleTypeEl.value = this.requestData.vehicleType || '';
-            //     if (vehicleModelEl) vehicleModelEl.value = this.requestData.vehicleModel || '';
-            //     if (vehicleYearEl) vehicleYearEl.value = this.requestData.vehicleYear || '';
-            //     if (purposeEl) purposeEl.value = this.requestData.purpose || '';
-            // }
+            // Fetch request details from API
+            if (typeof window.apiClient !== 'undefined') {
+                const response = await window.apiClient.get(`/api/hpg/requests/${requestId}`);
+                
+                if (response && response.success && response.request) {
+                    const req = response.request;
+                    const metadata = typeof req.metadata === 'string' ? JSON.parse(req.metadata) : (req.metadata || {});
+                    
+                    this.requestData = {
+                        id: req.id,
+                        ownerName: metadata.ownerName || (req.vehicle?.owner_name) || 'N/A',
+                        ownerEmail: metadata.ownerEmail || 'N/A',
+                        plateNumber: metadata.vehiclePlate || req.vehicle?.plate_number || 'N/A',
+                        vehicleType: req.vehicle?.vehicle_type || 'N/A',
+                        vehicleMake: metadata.vehicleMake || req.vehicle?.make || 'N/A',
+                        vehicleModel: metadata.vehicleModel || req.vehicle?.model || 'N/A',
+                        vehicleYear: metadata.vehicleYear || req.vehicle?.year || 'N/A',
+                        vin: metadata.vehicleVin || req.vehicle?.vin || 'N/A',
+                        engineNumber: metadata.engineNumber || req.vehicle?.engine_number || 'N/A',
+                        chassisNumber: metadata.chassisNumber || req.vehicle?.chassis_number || 'N/A',
+                        purpose: req.purpose || 'Vehicle Clearance',
+                        allDocuments: metadata.allDocuments || []
+                    };
+                    
+                    // Populate form fields
+                    const ownerNameEl = document.getElementById('ownerName');
+                    const plateNumberEl = document.getElementById('plateNumber');
+                    const vehicleTypeEl = document.getElementById('vehicleType');
+                    const vehicleModelEl = document.getElementById('vehicleModel');
+                    const vehicleYearEl = document.getElementById('vehicleYear');
+                    const purposeEl = document.getElementById('purpose');
+                    const vinEl = document.getElementById('vin');
+                    const engineNumberEl = document.getElementById('engineNumber');
+                    const chassisNumberEl = document.getElementById('chassisNumber');
+                    
+                    if (ownerNameEl) ownerNameEl.value = this.requestData.ownerName;
+                    if (plateNumberEl) plateNumberEl.value = this.requestData.plateNumber;
+                    if (vehicleTypeEl) vehicleTypeEl.value = this.requestData.vehicleType;
+                    if (vehicleModelEl) vehicleModelEl.value = `${this.requestData.vehicleMake} ${this.requestData.vehicleModel}`;
+                    if (vehicleYearEl) vehicleYearEl.value = this.requestData.vehicleYear;
+                    if (purposeEl) purposeEl.value = this.requestData.purpose;
+                    if (vinEl) vinEl.value = this.requestData.vin;
+                    if (engineNumberEl) engineNumberEl.value = this.requestData.engineNumber;
+                    if (chassisNumberEl) chassisNumberEl.value = this.requestData.chassisNumber;
+                } else {
+                    this.requestData = null;
+                    console.error('Failed to load request data');
+                }
+            }
         } catch (error) {
             console.error('Error loading request data:', error);
+            this.requestData = null;
             if (typeof ErrorHandler !== 'undefined') {
                 ErrorHandler.handleError(error);
             }

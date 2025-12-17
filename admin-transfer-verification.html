@@ -282,22 +282,29 @@
         let currentZoom = 100;
 
         document.addEventListener('DOMContentLoaded', function() {
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                if (user) {
-                    const userNameEl = document.getElementById('userName');
-                    const userRoleEl = document.getElementById('userRole');
-                    const userAvatarEl = document.getElementById('userAvatar');
-                    
-                    if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName();
-                    if (userRoleEl) {
-                        const roleNames = { 'admin': 'System Administrator' };
-                        userRoleEl.textContent = roleNames[user.role] || user.role;
-                    }
-                    if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials();
-                } else {
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
                     window.location.href = 'login-signup.html';
+                    return;
                 }
+                // ================================================
+                
+                const userNameEl = document.getElementById('userName');
+                const userRoleEl = document.getElementById('userRole');
+                const userAvatarEl = document.getElementById('userAvatar');
+                
+                if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName();
+                if (userRoleEl) {
+                    const roleNames = { 'admin': 'System Administrator' };
+                    userRoleEl.textContent = roleNames[user.role] || user.role;
+                }
+                if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials();
+            } else {
+                window.location.href = 'login-signup.html';
+                return;
             }
 
             const sidebar = document.querySelector('.dashboard-sidebar');

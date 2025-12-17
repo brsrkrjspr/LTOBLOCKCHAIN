@@ -277,47 +277,44 @@
     <script>
         // Initialize user data
         document.addEventListener('DOMContentLoaded', function() {
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                
-                // Check if auth is disabled (dev mode)
-                if (user && user._devMode) {
-                    console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
                 }
+                // ================================================
                 
-                if (user) {
-                    // Sidebar user info elements
-                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
-                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
-                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    
-                    const displayName = AuthUtils.getUserDisplayName() || 'Insurance Verifier';
-                    const userInitials = AuthUtils.getUserInitials() || 'IV';
-                    const roleNames = {
-                        'vehicle_owner': 'Vehicle Owner',
-                        'admin': 'Administrator',
-                        'insurance_verifier': 'Insurance Verification Specialist',
-                        'emission_verifier': 'Emission Verifier'
-                    };
-                    const userRole = roleNames[user.role] || user.role;
-                    
-                    // Update sidebar user info
-                    if (sidebarUserNameEl) {
-                        sidebarUserNameEl.textContent = displayName;
-                    }
-                    if (sidebarUserRoleEl) {
-                        sidebarUserRoleEl.textContent = userRole;
-                    }
-                    if (sidebarUserAvatarEl) {
-                        sidebarUserAvatarEl.textContent = userInitials;
-                    }
-                } else {
-                    // Not authenticated, redirect to login (only if auth is enabled)
-                    // This check is now handled by AuthUtils.getCurrentUser() when DISABLE_AUTH is true
-                    if (!user) {
-                        window.location.href = 'login-signup.html';
-                    }
+                // Sidebar user info elements
+                const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                
+                const displayName = AuthUtils.getUserDisplayName() || 'Insurance Verifier';
+                const userInitials = AuthUtils.getUserInitials() || 'IV';
+                const roleNames = {
+                    'vehicle_owner': 'Vehicle Owner',
+                    'admin': 'Administrator',
+                    'insurance_verifier': 'Insurance Verification Specialist',
+                    'emission_verifier': 'Emission Verifier'
+                };
+                const userRole = roleNames[user.role] || user.role;
+                
+                // Update sidebar user info
+                if (sidebarUserNameEl) {
+                    sidebarUserNameEl.textContent = displayName;
                 }
+                if (sidebarUserRoleEl) {
+                    sidebarUserRoleEl.textContent = userRole;
+                }
+                if (sidebarUserAvatarEl) {
+                    sidebarUserAvatarEl.textContent = userInitials;
+                }
+            } else {
+                window.location.href = 'login-signup.html';
+                return;
             }
 
             // Initialize workflow
@@ -367,106 +364,243 @@
             }
         });
 
-        function loadInsuranceRequests() {
-            // Placeholder: Load requests from API or localStorage
+        async function loadInsuranceRequests() {
             const tbody = document.getElementById('requestsTableBody');
             if (!tbody) return;
 
-            // Check for pending insurance requests from LTO workflow
-            const insuranceRequestPending = localStorage.getItem('insuranceRequestPending') === 'true';
-            const currentRequest = JSON.parse(localStorage.getItem('currentInsuranceRequest') || 'null');
-
-            tbody.innerHTML = '';
-
-            if (insuranceRequestPending && currentRequest) {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${currentRequest.requestId || 'REQ-' + Date.now()}</td>
-                    <td>${currentRequest.applicationId || 'APP-' + Date.now()}</td>
-                    <td>${currentRequest.ownerName || 'N/A'}</td>
-                    <td>${currentRequest.plateNumber || 'N/A'}</td>
-                    <td>${currentRequest.vehicleType || 'N/A'}</td>
-                    <td>${new Date().toLocaleDateString()}</td>
-                    <td><span class="badge badge-warning">Pending</span></td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <button class="btn-primary btn-sm" onclick="viewRequestDetails('${currentRequest.requestId || 'REQ-' + Date.now()}')">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <button class="btn-success btn-sm" onclick="receiveRequest('${currentRequest.requestId || 'REQ-' + Date.now()}')">
-                                <i class="fas fa-download"></i> Receive
-                            </button>
-                            <button class="btn-info btn-sm" onclick="autoFillVerification('${currentRequest.requestId || 'REQ-' + Date.now()}')" title="Auto-fill vehicle details for verification">
-                                <i class="fas fa-magic"></i> Auto-Fill
-                            </button>
-                        </div>
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <i class="fas fa-spinner fa-spin"></i> Loading requests...
                     </td>
-                `;
-                tbody.appendChild(row);
-            } else {
+                </tr>
+            `;
+
+            try {
+                // Load requests from API
+                const response = await window.apiClient.get('/api/insurance/requests');
+                
+                if (response.success && response.requests && response.requests.length > 0) {
+                    tbody.innerHTML = '';
+                    
+                    response.requests.forEach(request => {
+                        const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${request.id}</td>
+                            <td>${request.vehicle_id || 'N/A'}</td>
+                            <td>${metadata.ownerName || request.owner?.first_name + ' ' + request.owner?.last_name || 'N/A'}</td>
+                            <td>${metadata.vehiclePlate || request.plate_number || 'N/A'}</td>
+                            <td>${request.vehicle?.vehicle_type || metadata.vehicleType || 'N/A'}</td>
+                            <td>${new Date(request.created_at).toLocaleDateString()}</td>
+                            <td><span class="badge badge-${getStatusBadgeClass(request.status)}">${request.status}</span></td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button class="btn-primary btn-sm" onclick="viewRequestDetails('${request.id}')">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    ${metadata.documentCid || metadata.documentPath ? `
+                                        <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')">
+                                            <i class="fas fa-file-image"></i> View Doc
+                                        </button>
+                                    ` : ''}
+                                    ${request.status === 'PENDING' ? `
+                                        <button class="btn-success btn-sm" onclick="approveInsurance('${request.id}')">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
+                                        <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">
+                                            <i class="fas fa-times"></i> Reject
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+
+                    // Update badge count
+                    const pendingCount = response.requests.filter(r => r.status === 'PENDING').length;
+                    const badge = document.getElementById('pendingRequestsBadge');
+                    if (badge) {
+                        badge.textContent = pendingCount;
+                        badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+                    }
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                No pending requests from LTO
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading insurance requests:', error);
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                            No pending requests from LTO
+                        <td colspan="8" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                            <i class="fas fa-exclamation-triangle"></i> Error loading requests: ${error.message}
                         </td>
                     </tr>
                 `;
             }
         }
+        
+        function getStatusBadgeClass(status) {
+            const statusMap = {
+                'PENDING': 'warning',
+                'APPROVED': 'success',
+                'REJECTED': 'danger',
+                'COMPLETED': 'success'
+            };
+            return statusMap[status] || 'secondary';
+        }
+        
+        function viewDocument(requestId, documentId, documentCid) {
+            if (documentCid) {
+                // Open IPFS document
+                window.open(`/ipfs/${documentCid}`, '_blank');
+            } else if (documentId) {
+                // Open document viewer
+                window.location.href = `insurance-document-viewer.html?documentId=${documentId}&requestId=${requestId}`;
+            } else {
+                alert('No document attached to this request');
+            }
+        }
+        
+        async function approveInsurance(requestId) {
+            if (!confirm('Are you sure you want to approve this insurance verification?')) return;
+            
+            try {
+                const response = await window.apiClient.post('/api/insurance/verify/approve', {
+                    requestId: requestId,
+                    notes: 'Insurance document verified'
+                });
+                
+                if (response.success) {
+                    alert('Insurance verification approved successfully!');
+                    loadInsuranceRequests();
+                } else {
+                    alert('Error: ' + (response.error || 'Failed to approve'));
+                }
+            } catch (error) {
+                console.error('Error approving insurance:', error);
+                alert('Error approving insurance: ' + error.message);
+            }
+        }
+        
+        async function rejectInsurance(requestId) {
+            const reason = prompt('Please provide a reason for rejection:');
+            if (!reason) return;
+            
+            try {
+                const response = await window.apiClient.post('/api/insurance/verify/reject', {
+                    requestId: requestId,
+                    reason: reason
+                });
+                
+                if (response.success) {
+                    alert('Insurance verification rejected.');
+                    loadInsuranceRequests();
+                } else {
+                    alert('Error: ' + (response.error || 'Failed to reject'));
+                }
+            } catch (error) {
+                console.error('Error rejecting insurance:', error);
+                alert('Error rejecting insurance: ' + error.message);
+            }
+        }
 
-        function viewRequestDetails(requestId) {
-            // Load request details
-            const currentRequest = JSON.parse(localStorage.getItem('currentInsuranceRequest') || 'null');
+        async function viewRequestDetails(requestId) {
             const detailsContent = document.getElementById('requestDetailsContent');
             
-            if (detailsContent && currentRequest) {
-                detailsContent.innerHTML = `
-                    <div class="request-details">
-                        <h3>Request Information</h3>
-                        <div class="detail-row">
-                            <strong>Request ID:</strong> ${currentRequest.requestId || 'N/A'}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Application ID:</strong> ${currentRequest.applicationId || 'N/A'}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Owner Name:</strong> ${currentRequest.ownerName || 'N/A'}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Plate Number:</strong> ${currentRequest.plateNumber || 'N/A'}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Vehicle Type:</strong> ${currentRequest.vehicleType || 'N/A'}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Request Date:</strong> ${new Date().toLocaleDateString()}
-                        </div>
-                        <div class="detail-row">
-                            <strong>Status:</strong> <span class="badge badge-warning">Pending</span>
-                        </div>
-                    </div>
-                `;
-            }
+            if (!detailsContent) return;
             
+            detailsContent.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
             document.getElementById('requestDetailsModal').classList.add('active');
+            
+            try {
+                // Fetch request details from API
+                const response = await window.apiClient.get('/api/insurance/requests');
+                const request = response.requests?.find(r => r.id == requestId);
+                
+                if (request) {
+                    const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+                    
+                    detailsContent.innerHTML = `
+                        <div class="request-details">
+                            <h3>Request Information</h3>
+                            <div class="detail-row">
+                                <strong>Request ID:</strong> ${request.id}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Vehicle ID:</strong> ${request.vehicle_id || 'N/A'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>VIN:</strong> ${metadata.vehicleVin || request.vin || 'N/A'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Owner Name:</strong> ${metadata.ownerName || 'N/A'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Owner Email:</strong> ${metadata.ownerEmail || 'N/A'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Plate Number:</strong> ${metadata.vehiclePlate || request.plate_number || 'N/A'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Vehicle:</strong> ${metadata.vehicleMake || ''} ${metadata.vehicleModel || ''} ${metadata.vehicleYear || ''}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Purpose:</strong> ${request.purpose || 'Insurance verification'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Request Date:</strong> ${new Date(request.created_at).toLocaleString()}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Status:</strong> <span class="badge badge-${getStatusBadgeClass(request.status)}">${request.status}</span>
+                            </div>
+                            ${metadata.documentCid || metadata.documentPath ? `
+                                <div class="detail-row" style="margin-top: 1rem;">
+                                    <strong>Attached Document:</strong>
+                                    <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')" style="margin-left: 10px;">
+                                        <i class="fas fa-file-image"></i> View Document
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="detail-row" style="margin-top: 1rem; color: #e67e22;">
+                                    <i class="fas fa-exclamation-triangle"></i> No document attached to this request
+                                </div>
+                            `}
+                        </div>
+                        ${request.status === 'PENDING' ? `
+                            <div style="margin-top: 1.5rem; display: flex; gap: 10px;">
+                                <button class="btn-success" onclick="approveInsurance('${request.id}'); closeModal('requestDetailsModal');">
+                                    <i class="fas fa-check"></i> Approve Verification
+                                </button>
+                                <button class="btn-danger" onclick="rejectInsurance('${request.id}'); closeModal('requestDetailsModal');">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            </div>
+                        ` : ''}
+                    `;
+                } else {
+                    detailsContent.innerHTML = '<p style="color: #e74c3c;">Request not found</p>';
+                }
+            } catch (error) {
+                console.error('Error loading request details:', error);
+                detailsContent.innerHTML = `<p style="color: #e74c3c;">Error: ${error.message}</p>`;
+            }
         }
 
         function receiveRequest(requestId) {
-            // Call the receive function from insurance-verifier-dashboard.js
-            if (typeof receiveInsuranceRequest === 'function') {
-                receiveInsuranceRequest();
-            } else {
-                // Fallback: Update localStorage
-                localStorage.setItem('insuranceRequestReceived', 'true');
-                localStorage.setItem('insuranceRequestPending', 'false');
-                alert('Request received successfully! You can now upload the insurance papers.');
-                loadInsuranceRequests();
-            }
+            alert('Request received. You can now verify the insurance document.');
+            loadInsuranceRequests();
             closeModal('requestDetailsModal');
         }
 
         function filterRequests() {
-            // Filter logic - placeholder
+            // Filter logic - TODO: implement client-side filtering
             loadInsuranceRequests();
         }
 

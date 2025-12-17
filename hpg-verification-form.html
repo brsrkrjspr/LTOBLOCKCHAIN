@@ -1007,13 +1007,17 @@
                 
                 allDocsSection.style.display = 'block';
                 
+                // HPG only receives Owner ID and OR/CR documents (filtered by LTO)
                 const docTypeNames = {
                     'owner_id': 'Owner ID',
+                    'ownerId': 'Owner ID',
                     'registration_cert': 'OR/CR',
+                    'registrationCert': 'OR/CR',
                     'registration': 'OR/CR',
-                    'insurance_cert': 'Insurance',
-                    'emission_cert': 'Emission'
+                    'or_cr': 'OR/CR'
                 };
+                
+                console.log(`[HPG] Displaying ${docs.length} documents (filtered: Owner ID & OR/CR only)`);
 
                 docsGrid.innerHTML = docs.map(doc => {
                     const typeName = docTypeNames[doc.type] || doc.type || 'Document';

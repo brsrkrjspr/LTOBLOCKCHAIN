@@ -225,10 +225,10 @@ const HPGRequests = {
                             requestDate: req.created_at ? new Date(req.created_at).toLocaleDateString() : 'N/A',
                             status: (req.status || 'PENDING').toLowerCase(),
                             vehicleId: req.vehicle_id,
-                            // Document references for viewing
-                            documentId: metadata.ownerIdDocId || metadata.registrationDocId || null,
-                            documentCid: metadata.ownerIdDocCid || metadata.registrationDocCid || null,
-                            allDocuments: metadata.allDocuments || []
+                            // Document references for viewing (HPG receives only OR/CR and Owner ID)
+                            documentId: metadata.ownerIdDocId || metadata.orCrDocId || null,
+                            documentCid: metadata.ownerIdDocCid || metadata.orCrDocCid || null,
+                            documents: metadata.documents || metadata.allDocuments || []
                         };
                     });
                     
@@ -292,7 +292,7 @@ const HPGRequests = {
             const statusClass = `status-${req.status}`;
             const statusText = req.status.charAt(0).toUpperCase() + req.status.slice(1);
             const reqId = typeof req.id === 'string' && req.id.length > 10 ? req.id.substring(0, 10) + '...' : req.id;
-            const docCount = req.allDocuments?.length || 0;
+            const docCount = req.documents?.length || 0;
             
             return `
                 <tr>
@@ -332,29 +332,47 @@ const HPGRequests = {
             return;
         }
         
-        if (request.allDocuments && request.allDocuments.length > 0) {
-            // Show modal with all documents
+        if (request.documents && request.documents.length > 0) {
+            // Document type labels (HPG only receives OR/CR and Owner ID)
+            const docTypeLabels = {
+                'owner_id': 'Owner ID',
+                'ownerId': 'Owner ID',
+                'registration_cert': 'OR/CR',
+                'registrationCert': 'OR/CR',
+                'registration': 'OR/CR',
+                'or_cr': 'OR/CR'
+            };
+            
+            // Show modal with HPG-relevant documents only
             const modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;';
             modal.innerHTML = `
                 <div class="modal-content" style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%;">
                     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3>Vehicle Documents</h3>
+                        <h3><i class="fas fa-file-alt" style="color: #3498db;"></i> HPG Verification Documents</h3>
                         <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
                     </div>
                     <div class="modal-body">
                         <p><strong>Vehicle:</strong> ${request.vehicleMake} ${request.vehicleModel} ${request.vehicleYear}</p>
                         <p><strong>Plate:</strong> ${request.plateNumber}</p>
+                        <p style="color: #7f8c8d; font-size: 0.9rem; margin-top: 0.5rem;">
+                            <i class="fas fa-info-circle"></i> HPG receives only Owner ID and OR/CR for verification
+                        </p>
                         <hr style="margin: 1rem 0;">
-                        <h4>Attached Documents:</h4>
+                        <h4>Attached Documents (${request.documents.length}):</h4>
                         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
-                            ${request.allDocuments.map(doc => `
-                                <button class="btn-secondary" onclick="window.open('${doc.cid ? '/ipfs/' + doc.cid : doc.path || '#'}', '_blank')" style="text-align: left;">
-                                    <i class="fas fa-file"></i> ${doc.type || doc.filename || 'Document'}
-                                    ${doc.cid ? ' (IPFS)' : ''}
-                                </button>
-                            `).join('')}
+                            ${request.documents.map(doc => {
+                                const label = docTypeLabels[doc.type] || doc.type || doc.filename || 'Document';
+                                const url = doc.cid ? `/api/documents/ipfs/${doc.cid}` : (doc.path ? `/api/documents/file/${encodeURIComponent(doc.path)}` : '#');
+                                return `
+                                    <button class="btn-secondary" onclick="window.open('${url}', '_blank')" style="text-align: left; display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fas fa-file-image" style="color: #3498db;"></i>
+                                        <span>${label}</span>
+                                        ${doc.cid ? '<span style="font-size: 0.75rem; color: #27ae60;">(IPFS)</span>' : ''}
+                                    </button>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 </div>
@@ -423,11 +441,11 @@ const HPGRequests = {
                             <label>Status:</label>
                             <span class="status-badge status-${request.status}">${request.status.charAt(0).toUpperCase() + request.status.slice(1)}</span>
                         </div>
-                        ${request.allDocuments && request.allDocuments.length > 0 ? `
+                        ${request.documents && request.documents.length > 0 ? `
                             <div class="detail-row" style="margin-top: 1rem;">
-                                <label>Documents:</label>
+                                <label>HPG Documents:</label>
                                 <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${request.id}')" style="margin-left: 10px;">
-                                    <i class="fas fa-file-image"></i> View ${request.allDocuments.length} Document(s)
+                                    <i class="fas fa-file-image"></i> View ${request.documents.length} Document(s) (OR/CR & ID)
                                 </button>
                             </div>
                         ` : ''}
@@ -470,6 +488,10 @@ const HPGVerification = {
                     const req = response.request;
                     const metadata = typeof req.metadata === 'string' ? JSON.parse(req.metadata) : (req.metadata || {});
                     
+                    // HPG receives only OR/CR and Owner ID documents (filtered by backend)
+                    const hpgDocuments = metadata.documents || metadata.allDocuments || [];
+                    console.log(`[HPG] Received ${hpgDocuments.length} documents for verification`);
+                    
                     this.requestData = {
                         id: req.id,
                         ownerName: metadata.ownerName || (req.vehicle?.owner_name) || 'N/A',
@@ -483,7 +505,8 @@ const HPGVerification = {
                         engineNumber: metadata.engineNumber || req.vehicle?.engine_number || '',
                         chassisNumber: metadata.chassisNumber || req.vehicle?.chassis_number || '',
                         purpose: req.purpose || 'Vehicle Clearance',
-                        allDocuments: metadata.allDocuments || []
+                        // Only OR/CR and Owner ID documents (filtered by LTO before sending)
+                        documents: hpgDocuments
                     };
                     
                     // Populate form fields
@@ -514,8 +537,8 @@ const HPGVerification = {
                     }
                     
                     // Load OR/CR document (if loadORCRDocument function exists)
-                    if (typeof loadORCRDocument === 'function' && this.requestData.allDocuments.length > 0) {
-                        loadORCRDocument(this.requestData.allDocuments);
+                    if (typeof loadORCRDocument === 'function' && this.requestData.documents.length > 0) {
+                        loadORCRDocument(this.requestData.documents);
                     }
                     
                     // Show success notification
@@ -540,7 +563,7 @@ const HPGVerification = {
         if (existing) existing.remove();
         
         const hasData = this.requestData?.plateNumber || this.requestData?.engineNumber;
-        const hasDocuments = this.requestData?.allDocuments && this.requestData.allDocuments.length > 0;
+        const hasDocuments = this.requestData?.documents && this.requestData.documents.length > 0;
         
         if (!hasData && !hasDocuments) return;
         
@@ -563,7 +586,7 @@ const HPGVerification = {
         let message = '<strong>🚔 HPG Clearance Verification</strong><br>';
         message += `Vehicle: ${this.requestData.plateNumber || 'N/A'}<br>`;
         if (hasDocuments) {
-            message += `<span style="color: #27ae60;">✓ ${this.requestData.allDocuments.length} document(s) loaded</span>`;
+            message += `<span style="color: #27ae60;">✓ ${this.requestData.documents.length} document(s) loaded (OR/CR & Owner ID)</span>`;
         }
         
         notification.innerHTML = `

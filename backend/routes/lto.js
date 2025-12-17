@@ -49,19 +49,54 @@ router.post('/send-to-hpg', authenticateToken, authorizeRole(['admin']), async (
         );
         const assignedTo = hpgAdmins.rows[0]?.id || null;
 
-        // Get the vehicle's documents (owner ID, registration cert, etc.)
+        // Get the vehicle's documents (owner ID, OR/CR only - HPG specific)
         const documents = await db.getDocumentsByVehicle(vehicleId);
+        
+        // Find Owner ID document
         const ownerIdDoc = documents.find(d => 
             d.document_type === 'owner_id' || 
+            d.document_type === 'ownerId' ||
             (d.original_name && d.original_name.toLowerCase().includes('id'))
         );
-        const registrationDoc = documents.find(d => 
+        
+        // Find OR/CR (Official Receipt / Certificate of Registration) document
+        const orCrDoc = documents.find(d => 
+            d.document_type === 'or_cr' || 
             d.document_type === 'registration_cert' || 
+            d.document_type === 'registrationCert' ||
             d.document_type === 'registration' ||
-            (d.original_name && d.original_name.toLowerCase().includes('registration'))
+            (d.original_name && (
+                d.original_name.toLowerCase().includes('or_cr') ||
+                d.original_name.toLowerCase().includes('or-cr') ||
+                d.original_name.toLowerCase().includes('orcr') ||
+                d.original_name.toLowerCase().includes('registration')
+            ))
         );
 
-        // Create clearance request with document references
+        // HPG only receives: Owner ID and OR/CR documents
+        // Filter to include ONLY documents relevant to HPG (not emission, insurance, etc.)
+        const hpgRelevantDocTypes = ['owner_id', 'ownerId', 'or_cr', 'registration_cert', 'registrationCert', 'registration'];
+        const hpgDocuments = documents.filter(d => {
+            // Include if document type matches HPG-relevant types
+            if (hpgRelevantDocTypes.includes(d.document_type)) {
+                return true;
+            }
+            // Also check filename for OR/CR or ID
+            if (d.original_name) {
+                const filename = d.original_name.toLowerCase();
+                return filename.includes('id') || 
+                       filename.includes('or_cr') || 
+                       filename.includes('or-cr') || 
+                       filename.includes('orcr') ||
+                       filename.includes('registration');
+            }
+            return false;
+        });
+
+        console.log(`[LTO→HPG] Sending ${hpgDocuments.length} documents to HPG (filtered from ${documents.length} total)`);
+        console.log(`[LTO→HPG] Document types sent: ${hpgDocuments.map(d => d.document_type).join(', ')}`);
+
+        // Create clearance request with ONLY HPG-relevant document references
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId,
             requestType: 'hpg',
@@ -79,14 +114,17 @@ router.post('/send-to-hpg', authenticateToken, authorizeRole(['admin']), async (
                 chassisNumber: vehicle.chassis_number,
                 ownerName: vehicle.owner_name,
                 ownerEmail: vehicle.owner_email,
-                // Include document references for HPG verifier
+                // Include ONLY HPG-relevant document references
                 ownerIdDocId: ownerIdDoc?.id || null,
                 ownerIdDocCid: ownerIdDoc?.ipfs_cid || null,
                 ownerIdDocPath: ownerIdDoc?.file_path || null,
-                registrationDocId: registrationDoc?.id || null,
-                registrationDocCid: registrationDoc?.ipfs_cid || null,
-                registrationDocPath: registrationDoc?.file_path || null,
-                allDocuments: documents.map(d => ({
+                ownerIdDocFilename: ownerIdDoc?.original_name || null,
+                orCrDocId: orCrDoc?.id || null,
+                orCrDocCid: orCrDoc?.ipfs_cid || null,
+                orCrDocPath: orCrDoc?.file_path || null,
+                orCrDocFilename: orCrDoc?.original_name || null,
+                // ONLY include HPG-relevant documents (Owner ID and OR/CR)
+                documents: hpgDocuments.map(d => ({
                     id: d.id,
                     type: d.document_type,
                     cid: d.ipfs_cid,

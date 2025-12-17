@@ -243,6 +243,140 @@
                         <p id="sendInsuranceStatusMsg" style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;"></p>
                     </div>
                 </div>
+
+                <!-- Create Test Request Section -->
+                <div class="dashboard-card">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-plus-circle" style="color: #3498db;"></i> Create Test Insurance Request</h3>
+                        <button class="btn-primary btn-sm" onclick="toggleTestRequestForm()">
+                            <i class="fas fa-plus"></i> New Test Request
+                        </button>
+                    </div>
+                    
+                    <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                        <i class="fas fa-info-circle"></i> Create mock insurance verification requests for testing.
+                    </p>
+                    
+                    <div id="createTestRequestForm" style="display: none; background: #eaf2f8; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #3498db;">
+                        <h4 style="margin: 0 0 1rem 0; color: #2c3e50;">
+                            <i class="fas fa-car"></i> Vehicle Information
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div class="form-group">
+                                <label>Owner Name <span style="color: #e74c3c;">*</span></label>
+                                <input type="text" id="testOwnerName" placeholder="e.g., Juan Dela Cruz" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Plate Number <span style="color: #e74c3c;">*</span></label>
+                                <input type="text" id="testPlateNumber" placeholder="e.g., ABC 1234" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Engine Number</label>
+                                <input type="text" id="testEngineNumber" placeholder="e.g., ENG123456789">
+                            </div>
+                            <div class="form-group">
+                                <label>Policy Number</label>
+                                <input type="text" id="testPolicyNumber" placeholder="e.g., POL-2024-001">
+                            </div>
+                            <div class="form-group">
+                                <label>Vehicle Make</label>
+                                <input type="text" id="testVehicleMake" placeholder="e.g., Toyota">
+                            </div>
+                            <div class="form-group">
+                                <label>Vehicle Model</label>
+                                <input type="text" id="testVehicleModel" placeholder="e.g., Vios">
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn-primary" onclick="createTestInsuranceRequest()">
+                                <i class="fas fa-plus-circle"></i> Create Test Request
+                            </button>
+                            <button class="btn-secondary" onclick="fillSampleData()">
+                                <i class="fas fa-magic"></i> Fill Sample Data
+                            </button>
+                            <button class="btn-secondary" onclick="fillFlaggedSampleData()" style="background: #e74c3c;">
+                                <i class="fas fa-exclamation-triangle"></i> Fill Fraudulent Data
+                            </button>
+                            <button class="btn-secondary" onclick="toggleTestRequestForm()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insurance Database Management Section -->
+                <div class="dashboard-card">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-database" style="color: #2980b9;"></i> Insurance Policy Records Database</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn-secondary btn-sm" onclick="toggleDatabaseSection()">
+                                <i class="fas fa-eye"></i> Show/Hide
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="addInsuranceRecord()">
+                                <i class="fas fa-plus"></i> Add Record
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                        <i class="fas fa-info-circle"></i> Mock database for testing. Compare incoming requests against these records.
+                    </p>
+                    
+                    <div id="databaseSection" style="display: none;">
+                        <!-- Database Verification Tool -->
+                        <div style="background: #eaf2f8; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #3498db;">
+                            <h4 style="margin: 0 0 1rem 0;"><i class="fas fa-search"></i> Quick Policy Check</h4>
+                            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
+                                <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
+                                    <label>Plate Number or Policy Number</label>
+                                    <input type="text" id="checkPlateNumber" placeholder="Enter plate or policy to check">
+                                </div>
+                                <button class="btn-primary" onclick="checkInsuranceDatabase()">
+                                    <i class="fas fa-search"></i> Check Database
+                                </button>
+                            </div>
+                            <div id="checkResult" style="margin-top: 1rem; display: none;"></div>
+                        </div>
+                        
+                        <!-- Problem Records -->
+                        <h4 style="color: #e74c3c; margin: 1rem 0;"><i class="fas fa-times-circle"></i> Problem Records (Fraudulent/Expired/Cancelled)</h4>
+                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table" id="problemRecordsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Plate</th>
+                                        <th>Policy #</th>
+                                        <th>Status</th>
+                                        <th>Company</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="problemRecordsBody">
+                                    <!-- Data loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Valid Records -->
+                        <h4 style="color: #27ae60; margin: 1rem 0;"><i class="fas fa-check-circle"></i> Active/Valid Policies</h4>
+                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table" id="validRecordsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Plate</th>
+                                        <th>Policy #</th>
+                                        <th>Company</th>
+                                        <th>Expiry</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="validRecordsBody">
+                                    <!-- Data loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
         </div>
@@ -273,6 +407,7 @@
     <script src="js/api-client.js"></script>
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/insurance-database.js"></script>
     <script src="js/insurance-verifier-dashboard.js"></script>
     <script>
         // Initialize user data
@@ -385,6 +520,8 @@
                     
                     response.requests.forEach(request => {
                         const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+                        // Insurance receives only Insurance Certificate document
+                        const docCount = metadata.documents?.length || (metadata.documentId ? 1 : 0);
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${request.id}</td>
@@ -400,10 +537,10 @@
                                         <i class="fas fa-eye"></i> View
                                     </button>
                                     ${metadata.documentCid || metadata.documentPath ? `
-                                        <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')">
-                                            <i class="fas fa-file-image"></i> View Doc
+                                        <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')" title="View Insurance Certificate">
+                                            <i class="fas fa-shield-alt"></i> Insurance Cert
                                         </button>
-                                    ` : ''}
+                                    ` : '<span style="color: #e67e22; font-size: 0.8rem;"><i class="fas fa-exclamation-triangle"></i> No doc</span>'}
                                     ${request.status === 'PENDING' ? `
                                         <button class="btn-success btn-sm" onclick="approveInsurance('${request.id}')">
                                             <i class="fas fa-check"></i> Approve
@@ -417,6 +554,8 @@
                         `;
                         tbody.appendChild(row);
                     });
+                    
+                    console.log(`[Insurance] Loaded ${response.requests.length} requests (Insurance receives only Insurance Certificate)`);
 
                     // Update badge count
                     const pendingCount = response.requests.filter(r => r.status === 'PENDING').length;
@@ -457,14 +596,15 @@
         }
         
         function viewDocument(requestId, documentId, documentCid) {
+            // Insurance receives only Insurance Certificate
             if (documentCid) {
-                // Open IPFS document
-                window.open(`/ipfs/${documentCid}`, '_blank');
+                // Open IPFS document via API
+                window.open(`/api/documents/ipfs/${documentCid}`, '_blank');
             } else if (documentId) {
                 // Open document viewer
                 window.location.href = `insurance-document-viewer.html?documentId=${documentId}&requestId=${requestId}`;
             } else {
-                alert('No document attached to this request');
+                alert('No Insurance Certificate attached to this request');
             }
         }
         
@@ -560,16 +700,22 @@
                             <div class="detail-row">
                                 <strong>Status:</strong> <span class="badge badge-${getStatusBadgeClass(request.status)}">${request.status}</span>
                             </div>
+                            <div class="detail-row" style="margin-top: 1rem; padding: 0.75rem; background: #eaf2f8; border-radius: 8px; border-left: 4px solid #3498db;">
+                                <i class="fas fa-info-circle" style="color: #3498db;"></i>
+                                <span style="margin-left: 0.5rem; color: #2c3e50;">
+                                    <strong>Insurance receives only:</strong> Insurance Certificate
+                                </span>
+                            </div>
                             ${metadata.documentCid || metadata.documentPath ? `
                                 <div class="detail-row" style="margin-top: 1rem;">
                                     <strong>Attached Document:</strong>
                                     <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')" style="margin-left: 10px;">
-                                        <i class="fas fa-file-image"></i> View Document
+                                        <i class="fas fa-shield-alt"></i> View Insurance Certificate
                                     </button>
                                 </div>
                             ` : `
                                 <div class="detail-row" style="margin-top: 1rem; color: #e67e22;">
-                                    <i class="fas fa-exclamation-triangle"></i> No document attached to this request
+                                    <i class="fas fa-exclamation-triangle"></i> No Insurance Certificate attached to this request
                                 </div>
                             `}
                         </div>
@@ -729,6 +875,208 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+        }
+
+        // ========== TEST REQUEST FUNCTIONS ==========
+        function toggleTestRequestForm() {
+            const form = document.getElementById('createTestRequestForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function fillSampleData() {
+            document.getElementById('testOwnerName').value = 'Maria Santos';
+            document.getElementById('testPlateNumber').value = 'NCR ' + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('testEngineNumber').value = 'ENG' + Date.now().toString().slice(-8);
+            document.getElementById('testPolicyNumber').value = 'POL-' + Date.now().toString().slice(-6);
+            document.getElementById('testVehicleMake').value = 'Honda';
+            document.getElementById('testVehicleModel').value = 'City';
+        }
+
+        function fillFlaggedSampleData() {
+            // Fill with data that matches the fraudulent records for testing
+            document.getElementById('testOwnerName').value = 'Test Fraud Owner';
+            document.getElementById('testPlateNumber').value = 'TEST 999';
+            document.getElementById('testEngineNumber').value = 'TESTENGINE123';
+            document.getElementById('testPolicyNumber').value = 'POL-TEST-FRAUD';
+            document.getElementById('testVehicleMake').value = 'Fake';
+            document.getElementById('testVehicleModel').value = 'Vehicle';
+        }
+
+        async function createTestInsuranceRequest() {
+            const ownerName = document.getElementById('testOwnerName').value.trim();
+            const plateNumber = document.getElementById('testPlateNumber').value.trim();
+            const engineNumber = document.getElementById('testEngineNumber').value.trim();
+            const policyNumber = document.getElementById('testPolicyNumber').value.trim();
+            const vehicleMake = document.getElementById('testVehicleMake').value.trim();
+            const vehicleModel = document.getElementById('testVehicleModel').value.trim();
+
+            if (!ownerName || !plateNumber) {
+                alert('Please fill in Owner Name and Plate Number');
+                return;
+            }
+
+            try {
+                const response = await window.apiClient.post('/api/insurance/test-request', {
+                    ownerName,
+                    plateNumber,
+                    engineNumber,
+                    policyNumber,
+                    vehicleMake,
+                    vehicleModel
+                });
+
+                if (response.success) {
+                    alert('✅ Test insurance request created!\n\nRequest ID: ' + response.requestId);
+                    toggleTestRequestForm();
+                    loadInsuranceRequests();
+                    
+                    // Clear form
+                    document.getElementById('testOwnerName').value = '';
+                    document.getElementById('testPlateNumber').value = '';
+                    document.getElementById('testEngineNumber').value = '';
+                    document.getElementById('testPolicyNumber').value = '';
+                    document.getElementById('testVehicleMake').value = '';
+                    document.getElementById('testVehicleModel').value = '';
+                } else {
+                    alert('Error: ' + (response.error || 'Failed to create test request'));
+                }
+            } catch (error) {
+                console.error('Error creating test request:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // ========== DATABASE MANAGEMENT FUNCTIONS ==========
+        function toggleDatabaseSection() {
+            const section = document.getElementById('databaseSection');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+            if (section.style.display === 'block') {
+                loadDatabaseRecords();
+            }
+        }
+
+        function loadDatabaseRecords() {
+            if (typeof InsuranceDatabase === 'undefined') {
+                console.error('InsuranceDatabase not loaded');
+                return;
+            }
+
+            const records = InsuranceDatabase.getAllRecords();
+            
+            // Render problem records
+            const problemBody = document.getElementById('problemRecordsBody');
+            if (problemBody) {
+                problemBody.innerHTML = records.problem.map(r => `
+                    <tr>
+                        <td><strong>${r.plateNumber}</strong></td>
+                        <td>${r.policyNumber}</td>
+                        <td><span class="badge badge-danger">${r.status}</span></td>
+                        <td>${r.insuranceCompany}</td>
+                        <td>
+                            <button class="btn-danger btn-sm" onclick="removeInsuranceRecord('${r.plateNumber}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" style="text-align:center;color:#7f8c8d;">No problem records</td></tr>';
+            }
+            
+            // Render valid records
+            const validBody = document.getElementById('validRecordsBody');
+            if (validBody) {
+                validBody.innerHTML = records.valid.map(r => `
+                    <tr>
+                        <td><strong>${r.plateNumber}</strong></td>
+                        <td>${r.policyNumber}</td>
+                        <td>${r.insuranceCompany}</td>
+                        <td>${r.expiryDate}</td>
+                        <td>
+                            <button class="btn-danger btn-sm" onclick="removeInsuranceRecord('${r.plateNumber}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" style="text-align:center;color:#7f8c8d;">No valid records</td></tr>';
+            }
+        }
+
+        function checkInsuranceDatabase() {
+            const input = document.getElementById('checkPlateNumber').value.trim();
+            if (!input) {
+                alert('Please enter a plate number or policy number');
+                return;
+            }
+
+            const result = InsuranceDatabase.lookupVehicle({ 
+                plateNumber: input,
+                policyNumber: input 
+            });
+            const resultDiv = document.getElementById('checkResult');
+            resultDiv.style.display = 'block';
+            
+            let bgColor = '#f8f9fa';
+            let borderColor = '#6c757d';
+            
+            if (result.status === 'VALID') {
+                bgColor = '#d4edda';
+                borderColor = '#28a745';
+            } else if (result.status === 'FLAGGED' || result.status === 'EXPIRED') {
+                bgColor = '#f8d7da';
+                borderColor = '#dc3545';
+            }
+            
+            resultDiv.innerHTML = `
+                <div style="background: ${bgColor}; border: 1px solid ${borderColor}; padding: 1rem; border-radius: 8px;">
+                    <strong>${result.message}</strong>
+                    ${result.details ? `
+                        <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                            ${result.details.policyNumber ? `<div>Policy: ${result.details.policyNumber}</div>` : ''}
+                            ${result.details.insuranceCompany ? `<div>Company: ${result.details.insuranceCompany}</div>` : ''}
+                            ${result.details.expiryDate ? `<div>Expiry: ${result.details.expiryDate}</div>` : ''}
+                            ${result.details.policyType ? `<div>Type: ${result.details.policyType}</div>` : ''}
+                            ${result.details.flagReason ? `<div style="color: #dc3545;">Reason: ${result.details.flagReason}</div>` : ''}
+                            ${result.details.note ? `<div style="color: #6c757d;">${result.details.note}</div>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function addInsuranceRecord() {
+            const plateNumber = prompt('Enter Plate Number:');
+            if (!plateNumber) return;
+            
+            const policyNumber = prompt('Enter Policy Number:') || 'POL-' + Date.now();
+            const status = prompt('Enter Status (ACTIVE, EXPIRED, CANCELLED, FRAUDULENT):') || 'ACTIVE';
+            const company = prompt('Enter Insurance Company:') || 'Test Insurance Co.';
+            const reason = ['EXPIRED', 'CANCELLED', 'FRAUDULENT'].includes(status.toUpperCase()) 
+                ? prompt('Enter reason:') : '';
+            
+            const record = InsuranceDatabase.addRecord({
+                plateNumber: plateNumber.toUpperCase(),
+                policyNumber: policyNumber.toUpperCase(),
+                status: status.toUpperCase(),
+                insuranceCompany: company,
+                flagReason: reason,
+                issueDate: new Date().toISOString().split('T')[0],
+                expiryDate: status.toUpperCase() === 'ACTIVE' 
+                    ? new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0] 
+                    : new Date().toISOString().split('T')[0]
+            });
+            
+            alert(`Record added: ${record.plateNumber} - ${record.status}`);
+            loadDatabaseRecords();
+        }
+
+        function removeInsuranceRecord(plateNumber) {
+            if (!confirm(`Remove record for ${plateNumber}?`)) return;
+            
+            if (InsuranceDatabase.removeRecord(plateNumber)) {
+                alert('Record removed');
+                loadDatabaseRecords();
+            } else {
+                alert('Record not found');
+            }
         }
     </script>
 </body>

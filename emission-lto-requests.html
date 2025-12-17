@@ -247,6 +247,140 @@
                         <p id="sendStatusMsg" style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;"></p>
                     </div>
                 </div>
+
+                <!-- Create Test Request Section -->
+                <div class="dashboard-card">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-plus-circle" style="color: #27ae60;"></i> Create Test Emission Request</h3>
+                        <button class="btn-primary btn-sm" onclick="toggleTestRequestForm()">
+                            <i class="fas fa-plus"></i> New Test Request
+                        </button>
+                    </div>
+                    
+                    <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                        <i class="fas fa-info-circle"></i> Create mock emission verification requests for testing.
+                    </p>
+                    
+                    <div id="createTestRequestForm" style="display: none; background: #e8f8f5; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #27ae60;">
+                        <h4 style="margin: 0 0 1rem 0; color: #2c3e50;">
+                            <i class="fas fa-car"></i> Vehicle Information
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div class="form-group">
+                                <label>Owner Name <span style="color: #e74c3c;">*</span></label>
+                                <input type="text" id="testOwnerName" placeholder="e.g., Juan Dela Cruz" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Plate Number <span style="color: #e74c3c;">*</span></label>
+                                <input type="text" id="testPlateNumber" placeholder="e.g., ABC 1234" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Engine Number</label>
+                                <input type="text" id="testEngineNumber" placeholder="e.g., ENG123456789">
+                            </div>
+                            <div class="form-group">
+                                <label>Vehicle Make</label>
+                                <input type="text" id="testVehicleMake" placeholder="e.g., Toyota">
+                            </div>
+                            <div class="form-group">
+                                <label>Vehicle Model</label>
+                                <input type="text" id="testVehicleModel" placeholder="e.g., Vios">
+                            </div>
+                            <div class="form-group">
+                                <label>Year</label>
+                                <input type="number" id="testVehicleYear" placeholder="e.g., 2023" min="1990" max="2030">
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn-primary" onclick="createTestEmissionRequest()">
+                                <i class="fas fa-plus-circle"></i> Create Test Request
+                            </button>
+                            <button class="btn-secondary" onclick="fillSampleData()">
+                                <i class="fas fa-magic"></i> Fill Sample Data
+                            </button>
+                            <button class="btn-secondary" onclick="fillFlaggedSampleData()" style="background: #e74c3c;">
+                                <i class="fas fa-exclamation-triangle"></i> Fill Failed Vehicle Data
+                            </button>
+                            <button class="btn-secondary" onclick="toggleTestRequestForm()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emission Database Management Section -->
+                <div class="dashboard-card">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-database" style="color: #16a085;"></i> Emission Test Records Database</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn-secondary btn-sm" onclick="toggleDatabaseSection()">
+                                <i class="fas fa-eye"></i> Show/Hide
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="addEmissionTestRecord()">
+                                <i class="fas fa-plus"></i> Add Record
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                        <i class="fas fa-info-circle"></i> Mock database for testing. Compare incoming requests against these records.
+                    </p>
+                    
+                    <div id="databaseSection" style="display: none;">
+                        <!-- Database Verification Tool -->
+                        <div style="background: #eafaf1; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #27ae60;">
+                            <h4 style="margin: 0 0 1rem 0;"><i class="fas fa-search"></i> Quick Database Check</h4>
+                            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
+                                <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
+                                    <label>Plate Number</label>
+                                    <input type="text" id="checkPlateNumber" placeholder="Enter plate to check">
+                                </div>
+                                <button class="btn-primary" onclick="checkEmissionDatabase()">
+                                    <i class="fas fa-search"></i> Check Database
+                                </button>
+                            </div>
+                            <div id="checkResult" style="margin-top: 1rem; display: none;"></div>
+                        </div>
+                        
+                        <!-- Failed/Problem Records -->
+                        <h4 style="color: #e74c3c; margin: 1rem 0;"><i class="fas fa-times-circle"></i> Failed/Problem Records</h4>
+                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table" id="failedRecordsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Plate</th>
+                                        <th>Status</th>
+                                        <th>Test Date</th>
+                                        <th>Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="failedRecordsBody">
+                                    <!-- Data loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Valid Records -->
+                        <h4 style="color: #27ae60; margin: 1rem 0;"><i class="fas fa-check-circle"></i> Valid/Passed Records</h4>
+                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table" id="validRecordsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Plate</th>
+                                        <th>Status</th>
+                                        <th>Test Date</th>
+                                        <th>Expiry</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="validRecordsBody">
+                                    <!-- Data loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
         </div>
@@ -277,6 +411,7 @@
     <script src="js/api-client.js"></script>
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/emission-database.js"></script>
     <script src="js/verifier-dashboard.js"></script>
     <script>
         // Initialize user data
@@ -389,6 +524,8 @@
                     
                     response.requests.forEach(request => {
                         const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+                        // Emission receives only Emission Certificate document
+                        const docCount = metadata.documents?.length || (metadata.documentId ? 1 : 0);
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${request.id}</td>
@@ -404,10 +541,10 @@
                                         <i class="fas fa-eye"></i> View
                                     </button>
                                     ${metadata.documentCid || metadata.documentPath ? `
-                                        <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')">
-                                            <i class="fas fa-file-image"></i> View Doc
+                                        <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')" title="View Emission Certificate">
+                                            <i class="fas fa-leaf"></i> Emission Cert
                                         </button>
-                                    ` : ''}
+                                    ` : '<span style="color: #e67e22; font-size: 0.8rem;"><i class="fas fa-exclamation-triangle"></i> No doc</span>'}
                                     ${request.status === 'PENDING' ? `
                                         <button class="btn-success btn-sm" onclick="approveEmission('${request.id}')">
                                             <i class="fas fa-check"></i> Approve
@@ -421,6 +558,8 @@
                         `;
                         tbody.appendChild(row);
                     });
+                    
+                    console.log(`[Emission] Loaded ${response.requests.length} requests (Emission receives only Emission Certificate)`);
 
                     // Update badge count
                     const pendingCount = response.requests.filter(r => r.status === 'PENDING').length;
@@ -461,14 +600,15 @@
         }
         
         function viewDocument(requestId, documentId, documentCid) {
+            // Emission receives only Emission Certificate
             if (documentCid) {
-                // Open IPFS document
-                window.open(`/ipfs/${documentCid}`, '_blank');
+                // Open IPFS document via API
+                window.open(`/api/documents/ipfs/${documentCid}`, '_blank');
             } else if (documentId) {
                 // Open document viewer
                 window.location.href = `emission-document-viewer.html?documentId=${documentId}&requestId=${requestId}`;
             } else {
-                alert('No document attached to this request');
+                alert('No Emission Certificate attached to this request');
             }
         }
         
@@ -564,16 +704,22 @@
                             <div class="detail-row">
                                 <strong>Status:</strong> <span class="badge badge-${getStatusBadgeClass(request.status)}">${request.status}</span>
                             </div>
+                            <div class="detail-row" style="margin-top: 1rem; padding: 0.75rem; background: #e8f8f5; border-radius: 8px; border-left: 4px solid #27ae60;">
+                                <i class="fas fa-info-circle" style="color: #27ae60;"></i>
+                                <span style="margin-left: 0.5rem; color: #2c3e50;">
+                                    <strong>Emission receives only:</strong> Emission Certificate
+                                </span>
+                            </div>
                             ${metadata.documentCid || metadata.documentPath ? `
                                 <div class="detail-row" style="margin-top: 1rem;">
                                     <strong>Attached Document:</strong>
                                     <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')" style="margin-left: 10px;">
-                                        <i class="fas fa-file-image"></i> View Document
+                                        <i class="fas fa-leaf"></i> View Emission Certificate
                                     </button>
                                 </div>
                             ` : `
                                 <div class="detail-row" style="margin-top: 1rem; color: #e67e22;">
-                                    <i class="fas fa-exclamation-triangle"></i> No document attached to this request
+                                    <i class="fas fa-exclamation-triangle"></i> No Emission Certificate attached to this request
                                 </div>
                             `}
                         </div>
@@ -748,6 +894,197 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+        }
+
+        // ========== TEST REQUEST FUNCTIONS ==========
+        function toggleTestRequestForm() {
+            const form = document.getElementById('createTestRequestForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function fillSampleData() {
+            document.getElementById('testOwnerName').value = 'Juan Dela Cruz';
+            document.getElementById('testPlateNumber').value = 'NCR ' + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('testEngineNumber').value = 'ENG' + Date.now().toString().slice(-8);
+            document.getElementById('testVehicleMake').value = 'Toyota';
+            document.getElementById('testVehicleModel').value = 'Vios';
+            document.getElementById('testVehicleYear').value = '2023';
+        }
+
+        function fillFlaggedSampleData() {
+            // Fill with data that matches the failed records for testing
+            document.getElementById('testOwnerName').value = 'Test Failed Owner';
+            document.getElementById('testPlateNumber').value = 'TEST 999';
+            document.getElementById('testEngineNumber').value = 'TESTENGINE123';
+            document.getElementById('testVehicleMake').value = 'Failed';
+            document.getElementById('testVehicleModel').value = 'Vehicle';
+            document.getElementById('testVehicleYear').value = '2020';
+        }
+
+        async function createTestEmissionRequest() {
+            const ownerName = document.getElementById('testOwnerName').value.trim();
+            const plateNumber = document.getElementById('testPlateNumber').value.trim();
+            const engineNumber = document.getElementById('testEngineNumber').value.trim();
+            const vehicleMake = document.getElementById('testVehicleMake').value.trim();
+            const vehicleModel = document.getElementById('testVehicleModel').value.trim();
+            const vehicleYear = document.getElementById('testVehicleYear').value.trim();
+
+            if (!ownerName || !plateNumber) {
+                alert('Please fill in Owner Name and Plate Number');
+                return;
+            }
+
+            try {
+                const response = await window.apiClient.post('/api/emission/test-request', {
+                    ownerName,
+                    plateNumber,
+                    engineNumber,
+                    vehicleMake,
+                    vehicleModel,
+                    vehicleYear: parseInt(vehicleYear) || 2023
+                });
+
+                if (response.success) {
+                    alert('✅ Test emission request created!\n\nRequest ID: ' + response.requestId);
+                    toggleTestRequestForm();
+                    loadEmissionRequests();
+                    
+                    // Clear form
+                    document.getElementById('testOwnerName').value = '';
+                    document.getElementById('testPlateNumber').value = '';
+                    document.getElementById('testEngineNumber').value = '';
+                    document.getElementById('testVehicleMake').value = '';
+                    document.getElementById('testVehicleModel').value = '';
+                    document.getElementById('testVehicleYear').value = '';
+                } else {
+                    alert('Error: ' + (response.error || 'Failed to create test request'));
+                }
+            } catch (error) {
+                console.error('Error creating test request:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // ========== DATABASE MANAGEMENT FUNCTIONS ==========
+        function toggleDatabaseSection() {
+            const section = document.getElementById('databaseSection');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+            if (section.style.display === 'block') {
+                loadDatabaseRecords();
+            }
+        }
+
+        function loadDatabaseRecords() {
+            if (typeof EmissionDatabase === 'undefined') {
+                console.error('EmissionDatabase not loaded');
+                return;
+            }
+
+            const records = EmissionDatabase.getAllRecords();
+            
+            // Render failed records
+            const failedBody = document.getElementById('failedRecordsBody');
+            if (failedBody) {
+                failedBody.innerHTML = records.failed.map(r => `
+                    <tr>
+                        <td><strong>${r.plateNumber}</strong></td>
+                        <td><span class="badge badge-danger">${r.status}</span></td>
+                        <td>${r.testDate}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${r.failureReason || '-'}</td>
+                        <td>
+                            <button class="btn-danger btn-sm" onclick="removeEmissionRecord('${r.plateNumber}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" style="text-align:center;color:#7f8c8d;">No failed records</td></tr>';
+            }
+            
+            // Render valid records
+            const validBody = document.getElementById('validRecordsBody');
+            if (validBody) {
+                validBody.innerHTML = records.valid.map(r => `
+                    <tr>
+                        <td><strong>${r.plateNumber}</strong></td>
+                        <td><span class="badge badge-success">${r.status}</span></td>
+                        <td>${r.testDate}</td>
+                        <td>${r.expiryDate}</td>
+                        <td>
+                            <button class="btn-danger btn-sm" onclick="removeEmissionRecord('${r.plateNumber}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" style="text-align:center;color:#7f8c8d;">No valid records</td></tr>';
+            }
+        }
+
+        function checkEmissionDatabase() {
+            const plateNumber = document.getElementById('checkPlateNumber').value.trim();
+            if (!plateNumber) {
+                alert('Please enter a plate number');
+                return;
+            }
+
+            const result = EmissionDatabase.lookupVehicle({ plateNumber });
+            const resultDiv = document.getElementById('checkResult');
+            resultDiv.style.display = 'block';
+            
+            let bgColor = '#f8f9fa';
+            let borderColor = '#6c757d';
+            
+            if (result.status === 'VALID') {
+                bgColor = '#d4edda';
+                borderColor = '#28a745';
+            } else if (result.status === 'FLAGGED' || result.status === 'EXPIRED') {
+                bgColor = '#f8d7da';
+                borderColor = '#dc3545';
+            }
+            
+            resultDiv.innerHTML = `
+                <div style="background: ${bgColor}; border: 1px solid ${borderColor}; padding: 1rem; border-radius: 8px;">
+                    <strong>${result.message}</strong>
+                    ${result.details ? `
+                        <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                            ${result.details.testDate ? `<div>Test Date: ${result.details.testDate}</div>` : ''}
+                            ${result.details.expiryDate ? `<div>Expiry: ${result.details.expiryDate}</div>` : ''}
+                            ${result.details.testCenter ? `<div>Test Center: ${result.details.testCenter}</div>` : ''}
+                            ${result.details.failureReason ? `<div style="color: #dc3545;">Reason: ${result.details.failureReason}</div>` : ''}
+                            ${result.details.note ? `<div style="color: #6c757d;">${result.details.note}</div>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function addEmissionTestRecord() {
+            const plateNumber = prompt('Enter Plate Number:');
+            if (!plateNumber) return;
+            
+            const status = prompt('Enter Status (PASSED, FAILED, EXPIRED, TAMPERED):') || 'FAILED';
+            const reason = status !== 'PASSED' ? prompt('Enter reason for failure/issue:') : '';
+            
+            const record = EmissionDatabase.addTestRecord({
+                plateNumber: plateNumber.toUpperCase(),
+                status: status.toUpperCase(),
+                failureReason: reason,
+                testDate: new Date().toISOString().split('T')[0],
+                expiryDate: status === 'PASSED' ? new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0] : null
+            });
+            
+            alert(`Record added: ${record.plateNumber} - ${record.status}`);
+            loadDatabaseRecords();
+        }
+
+        function removeEmissionRecord(plateNumber) {
+            if (!confirm(`Remove record for ${plateNumber}?`)) return;
+            
+            if (EmissionDatabase.removeRecord(plateNumber)) {
+                alert('Record removed');
+                loadDatabaseRecords();
+            } else {
+                alert('Record not found');
+            }
         }
     </script>
 </body>

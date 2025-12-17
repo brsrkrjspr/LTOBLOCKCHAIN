@@ -96,5 +96,87 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
     }
 });
 
+// Create test insurance request (for testing purposes)
+router.post('/test-request', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
+    try {
+        const { 
+            ownerName, 
+            plateNumber, 
+            engineNumber,
+            policyNumber,
+            vehicleMake,
+            vehicleModel
+        } = req.body;
+
+        if (!ownerName || !plateNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Owner name and plate number are required'
+            });
+        }
+
+        const dbModule = require('../database/db');
+        const crypto = require('crypto');
+
+        // Create a test vehicle
+        const vehicleId = crypto.randomUUID();
+        const vin = 'INSTEST' + Date.now().toString(36).toUpperCase();
+        
+        await dbModule.query(`
+            INSERT INTO vehicles (id, vin, plate_number, engine_number, make, model, year, vehicle_type, status, current_owner_id)
+            VALUES ($1, $2, $3, $4, $5, $6, 2023, 'Sedan', 'pending', $7)
+            ON CONFLICT (vin) DO UPDATE SET 
+                plate_number = EXCLUDED.plate_number,
+                engine_number = EXCLUDED.engine_number
+        `, [
+            vehicleId,
+            vin,
+            plateNumber,
+            engineNumber || 'ENG' + Date.now(),
+            vehicleMake || 'Test Make',
+            vehicleModel || 'Test Model',
+            req.user.userId
+        ]);
+
+        // Create insurance clearance request
+        const clearanceRequest = await db.createClearanceRequest({
+            vehicleId: vehicleId,
+            requestType: 'insurance',
+            requestedBy: req.user.userId,
+            assignedTo: req.user.userId,
+            purpose: 'Insurance verification',
+            notes: 'Test request created from Insurance dashboard',
+            metadata: {
+                ownerName,
+                plateNumber,
+                engineNumber: engineNumber || 'ENG' + Date.now(),
+                policyNumber: policyNumber || 'POL-TEST-' + Date.now(),
+                vehicleMake: vehicleMake || 'Test Make',
+                vehicleModel: vehicleModel || 'Test Model',
+                isTestRequest: true,
+                testCreatedBy: req.user.email,
+                testCreatedAt: new Date().toISOString()
+            }
+        });
+
+        console.log(`[Insurance] Test request created: ${clearanceRequest.id} for plate ${plateNumber}`);
+
+        res.json({
+            success: true,
+            message: 'Test insurance request created successfully',
+            requestId: clearanceRequest.id,
+            vehicleId: vehicleId,
+            vin: vin
+        });
+
+    } catch (error) {
+        console.error('Error creating test insurance request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create test insurance request: ' + error.message
+        });
+    }
+});
+
 module.exports = router;
 

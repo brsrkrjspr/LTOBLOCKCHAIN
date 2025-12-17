@@ -215,14 +215,28 @@ router.post('/send-to-insurance', authenticateToken, authorizeRole(['admin']), a
         const assignedTo = insuranceVerifiers.rows[0]?.id || null;
 
         // Get the insurance document from the vehicle's documents
-        const documents = await db.getDocumentsByVehicle(vehicleId);
-        const insuranceDoc = documents.find(d => 
+        // Insurance verifier ONLY receives Insurance Certificate - nothing else
+        const allDocuments = await db.getDocumentsByVehicle(vehicleId);
+        const insuranceDoc = allDocuments.find(d => 
             d.document_type === 'insurance_cert' || 
+            d.document_type === 'insuranceCert' ||
             d.document_type === 'insurance' ||
             (d.original_name && d.original_name.toLowerCase().includes('insurance'))
         );
 
-        // Create clearance request with document reference
+        // Filter to include ONLY insurance document (not OR/CR, emission, owner ID, etc.)
+        const insuranceDocuments = insuranceDoc ? [{
+            id: insuranceDoc.id,
+            type: insuranceDoc.document_type,
+            cid: insuranceDoc.ipfs_cid,
+            path: insuranceDoc.file_path,
+            filename: insuranceDoc.original_name
+        }] : [];
+
+        console.log(`[LTO→Insurance] Sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${allDocuments.length} total)`);
+        console.log(`[LTO→Insurance] Document type sent: ${insuranceDoc?.document_type || 'none'}`);
+
+        // Create clearance request with ONLY insurance document reference
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId,
             requestType: 'insurance',
@@ -237,12 +251,14 @@ router.post('/send-to-insurance', authenticateToken, authorizeRole(['admin']), a
                 vehicleYear: vehicle.year,
                 ownerName: vehicle.owner_name,
                 ownerEmail: vehicle.owner_email,
-                // Include document reference for verifier to view
+                // Include ONLY insurance document reference for verifier
                 documentId: insuranceDoc?.id || null,
                 documentCid: insuranceDoc?.ipfs_cid || null,
                 documentPath: insuranceDoc?.file_path || null,
                 documentType: insuranceDoc?.document_type || null,
-                documentFilename: insuranceDoc?.original_name || null
+                documentFilename: insuranceDoc?.original_name || null,
+                // Documents array for consistency with HPG structure
+                documents: insuranceDocuments
             },
             assignedTo
         });
@@ -327,14 +343,28 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
         const assignedTo = emissionVerifiers.rows[0]?.id || null;
 
         // Get the emission document from the vehicle's documents
-        const documents = await db.getDocumentsByVehicle(vehicleId);
-        const emissionDoc = documents.find(d => 
+        // Emission verifier ONLY receives Emission Certificate - nothing else
+        const allDocuments = await db.getDocumentsByVehicle(vehicleId);
+        const emissionDoc = allDocuments.find(d => 
             d.document_type === 'emission_cert' || 
+            d.document_type === 'emissionCert' ||
             d.document_type === 'emission' ||
             (d.original_name && d.original_name.toLowerCase().includes('emission'))
         );
 
-        // Create clearance request with document reference
+        // Filter to include ONLY emission document (not OR/CR, insurance, owner ID, etc.)
+        const emissionDocuments = emissionDoc ? [{
+            id: emissionDoc.id,
+            type: emissionDoc.document_type,
+            cid: emissionDoc.ipfs_cid,
+            path: emissionDoc.file_path,
+            filename: emissionDoc.original_name
+        }] : [];
+
+        console.log(`[LTO→Emission] Sending ${emissionDocuments.length} document(s) to Emission (filtered from ${allDocuments.length} total)`);
+        console.log(`[LTO→Emission] Document type sent: ${emissionDoc?.document_type || 'none'}`);
+
+        // Create clearance request with ONLY emission document reference
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId,
             requestType: 'emission',
@@ -349,12 +379,14 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
                 vehicleYear: vehicle.year,
                 ownerName: vehicle.owner_name,
                 ownerEmail: vehicle.owner_email,
-                // Include document reference for verifier to view
+                // Include ONLY emission document reference for verifier
                 documentId: emissionDoc?.id || null,
                 documentCid: emissionDoc?.ipfs_cid || null,
                 documentPath: emissionDoc?.file_path || null,
                 documentType: emissionDoc?.document_type || null,
-                documentFilename: emissionDoc?.original_name || null
+                documentFilename: emissionDoc?.original_name || null,
+                // Documents array for consistency with HPG structure
+                documents: emissionDocuments
             },
             assignedTo
         });

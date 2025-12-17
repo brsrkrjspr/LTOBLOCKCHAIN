@@ -255,7 +255,7 @@ const HPGRequests = {
             this.filteredRequests = [];
             this.renderTable();
             if (typeof ErrorHandler !== 'undefined') {
-                ErrorHandler.handleError(error);
+                ErrorHandler.handleAPIError(error);
             }
         }
     },
@@ -529,7 +529,7 @@ const HPGVerification = {
             console.error('Error loading request data:', error);
             this.requestData = null;
             if (typeof ErrorHandler !== 'undefined') {
-                ErrorHandler.handleError(error);
+                ErrorHandler.handleAPIError(error);
             }
         }
     },
@@ -629,7 +629,7 @@ const HPGVerification = {
         } catch (error) {
             console.error('Error approving verification:', error);
             if (typeof ErrorHandler !== 'undefined') {
-                ErrorHandler.handleError(error);
+                ErrorHandler.handleAPIError(error);
             }
         }
     },
@@ -660,7 +660,7 @@ const HPGVerification = {
         } catch (error) {
             console.error('Error rejecting verification:', error);
             if (typeof ErrorHandler !== 'undefined') {
-                ErrorHandler.handleError(error);
+                ErrorHandler.handleAPIError(error);
             }
         }
     },
@@ -809,7 +809,7 @@ const HPGCertificate = {
         } catch (error) {
             console.error('Error releasing certificate:', error);
             if (typeof ErrorHandler !== 'undefined') {
-                ErrorHandler.handleError(error);
+                ErrorHandler.handleAPIError(error);
             }
         }
     },

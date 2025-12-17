@@ -873,6 +873,10 @@ function viewUserApplication(applicationId) {
     showApplicationDetailsModal(application);
 }
 
+// Store current application documents for modal access
+let currentModalDocuments = {};
+let currentModalApplication = null;
+
 // Show application details modal with document chooser
 function showApplicationDetailsModal(application) {
     // Remove existing modal if any
@@ -883,25 +887,32 @@ function showApplicationDetailsModal(application) {
     const documents = application.documents || {};
     const status = application.status || 'submitted';
     
+    // Store for access by click handlers
+    currentModalDocuments = documents;
+    currentModalApplication = application;
+    
     // Build document list
     const documentTypes = [
-        { key: 'registrationCert', label: 'Registration Certificate (OR/CR)', icon: 'fa-car' },
-        { key: 'insuranceCert', label: 'Insurance Certificate', icon: 'fa-shield-alt' },
-        { key: 'emissionCert', label: 'Emission Certificate', icon: 'fa-leaf' },
-        { key: 'ownerId', label: 'Owner ID', icon: 'fa-id-card' },
-        { key: 'deedOfSale', label: 'Deed of Sale', icon: 'fa-file-contract' },
-        { key: 'validId', label: 'Valid ID', icon: 'fa-id-badge' }
+        { key: 'registrationCert', label: 'Registration Certificate (OR/CR)', icon: 'fa-car', type: 'registration' },
+        { key: 'insuranceCert', label: 'Insurance Certificate', icon: 'fa-shield-alt', type: 'insurance' },
+        { key: 'emissionCert', label: 'Emission Certificate', icon: 'fa-leaf', type: 'emission' },
+        { key: 'ownerId', label: 'Owner ID', icon: 'fa-id-card', type: 'id' },
+        { key: 'deedOfSale', label: 'Deed of Sale', icon: 'fa-file-contract', type: 'other' },
+        { key: 'validId', label: 'Valid ID', icon: 'fa-id-badge', type: 'id' }
     ];
     
     let documentListHTML = '';
     let hasDocuments = false;
+    let docCount = 0;
     
     documentTypes.forEach(docType => {
         const docUrl = documents[docType.key];
         if (docUrl) {
             hasDocuments = true;
+            docCount++;
+            // Use data attribute instead of passing URL directly in onclick
             documentListHTML += `
-                <div class="doc-select-item" onclick="openDocumentFromModal('${docUrl}', '${docType.label}')">
+                <div class="doc-select-item" data-doc-key="${docType.key}" onclick="openDocumentByKey('${docType.key}')">
                     <div class="doc-select-icon">
                         <i class="fas ${docType.icon}"></i>
                     </div>
@@ -912,7 +923,7 @@ function showApplicationDetailsModal(application) {
                         </div>
                     </div>
                     <div class="doc-select-action">
-                        <i class="fas fa-external-link-alt"></i>
+                        <i class="fas fa-eye"></i>
                     </div>
                 </div>
             `;
@@ -922,7 +933,7 @@ function showApplicationDetailsModal(application) {
     if (!hasDocuments) {
         documentListHTML = `
             <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                 <p>No documents uploaded yet</p>
             </div>
         `;
@@ -1027,8 +1038,11 @@ function showApplicationDetailsModal(application) {
             
             <div class="owner-modal-footer">
                 ${hasDocuments ? `
-                    <button class="btn-primary" onclick="viewAllDocuments('${application.id}', '${vehicle.vin || ''}')">
-                        <i class="fas fa-folder-open"></i> View All Documents
+                    <button class="btn-primary" onclick="viewAllDocumentsFullPage()">
+                        <i class="fas fa-expand"></i> Open Document Viewer (${docCount} docs)
+                    </button>
+                    <button class="btn-info" onclick="viewAllDocsInModal()">
+                        <i class="fas fa-images"></i> Quick View
                     </button>
                 ` : ''}
                 <button class="btn-secondary" onclick="closeApplicationDetailsModal()">
@@ -1312,6 +1326,33 @@ function showApplicationDetailsModal(application) {
                 font-weight: 600;
                 cursor: pointer;
                 transition: all 0.2s;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .owner-modal-footer .btn-primary {
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                color: white;
+            }
+            .owner-modal-footer .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+            }
+            .owner-modal-footer .btn-info {
+                background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+                color: white;
+            }
+            .owner-modal-footer .btn-info:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+            }
+            .owner-modal-footer .btn-secondary {
+                background: #e9ecef;
+                color: #2c3e50;
+            }
+            .owner-modal-footer .btn-secondary:hover {
+                background: #dee2e6;
             }
             @media (max-width: 480px) {
                 .detail-grid {
@@ -1352,7 +1393,25 @@ function getStatusIcon(status) {
     return icons[status] || 'fa-question-circle';
 }
 
-function openDocumentFromModal(docUrl, docLabel) {
+// Open a specific document by key from the stored modal documents
+function openDocumentByKey(docKey) {
+    const docTypeLabels = {
+        'registrationCert': 'Registration Certificate (OR/CR)',
+        'insuranceCert': 'Insurance Certificate',
+        'emissionCert': 'Emission Certificate',
+        'ownerId': 'Owner ID',
+        'deedOfSale': 'Deed of Sale',
+        'validId': 'Valid ID'
+    };
+    
+    const docUrl = currentModalDocuments[docKey];
+    const docLabel = docTypeLabels[docKey] || docKey;
+    
+    if (!docUrl) {
+        showNotification('Document not found', 'error');
+        return;
+    }
+    
     closeApplicationDetailsModal();
     
     // Use the document modal if available
@@ -1360,10 +1419,90 @@ function openDocumentFromModal(docUrl, docLabel) {
         DocumentModal.view({
             url: docUrl,
             filename: docLabel,
+            type: docKey
+        });
+    } else {
+        // Fallback to opening in new tab/window
+        if (docUrl.startsWith('data:')) {
+            // For data URLs, open in a new window
+            const win = window.open();
+            if (win) {
+                win.document.write(`<html><head><title>${docLabel}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1a1a2e;"><img src="${docUrl}" style="max-width:100%;max-height:100vh;object-fit:contain;"></body></html>`);
+            }
+        } else {
+            window.open(docUrl, '_blank');
+        }
+    }
+}
+
+// View all documents in full page document viewer
+function viewAllDocumentsFullPage() {
+    closeApplicationDetailsModal();
+    
+    if (currentModalApplication) {
+        const vin = currentModalApplication.vehicle?.vin;
+        const appId = currentModalApplication.id;
+        
+        if (vin) {
+            window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&appId=${encodeURIComponent(appId)}`;
+        } else {
+            window.location.href = `document-viewer.html?appId=${encodeURIComponent(appId)}`;
+        }
+    }
+}
+
+// View all documents in the DocumentModal (quick view)
+function viewAllDocsInModal() {
+    if (!currentModalDocuments || Object.keys(currentModalDocuments).length === 0) {
+        showNotification('No documents to view', 'error');
+        return;
+    }
+    
+    const docTypeLabels = {
+        'registrationCert': { label: 'Registration Certificate (OR/CR)', type: 'registration' },
+        'insuranceCert': { label: 'Insurance Certificate', type: 'insurance' },
+        'emissionCert': { label: 'Emission Certificate', type: 'emission' },
+        'ownerId': { label: 'Owner ID', type: 'id' },
+        'deedOfSale': { label: 'Deed of Sale', type: 'other' },
+        'validId': { label: 'Valid ID', type: 'id' }
+    };
+    
+    // Build document array for DocumentModal
+    const docs = [];
+    Object.entries(currentModalDocuments).forEach(([key, url]) => {
+        if (url) {
+            const info = docTypeLabels[key] || { label: key, type: 'other' };
+            docs.push({
+                id: `${currentModalApplication?.id || 'doc'}_${key}`,
+                url: url,
+                filename: info.label,
+                type: info.type,
+                document_type: key
+            });
+        }
+    });
+    
+    closeApplicationDetailsModal();
+    
+    if (docs.length > 0 && typeof DocumentModal !== 'undefined') {
+        DocumentModal.viewMultiple(docs, 0);
+    } else if (docs.length > 0) {
+        // Fallback - open first document
+        openDocumentByKey(Object.keys(currentModalDocuments)[0]);
+    }
+}
+
+// Legacy function for backward compatibility
+function openDocumentFromModal(docUrl, docLabel) {
+    closeApplicationDetailsModal();
+    
+    if (typeof DocumentModal !== 'undefined') {
+        DocumentModal.view({
+            url: docUrl,
+            filename: docLabel,
             type: docLabel
         });
     } else {
-        // Fallback to opening in new tab
         window.open(docUrl, '_blank');
     }
 }
@@ -1372,7 +1511,7 @@ function viewAllDocuments(applicationId, vin) {
     closeApplicationDetailsModal();
     
     if (vin) {
-        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}`;
+        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&appId=${encodeURIComponent(applicationId)}`;
     } else {
         window.location.href = `document-viewer.html?appId=${applicationId}`;
     }

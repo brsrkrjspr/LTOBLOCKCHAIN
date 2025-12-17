@@ -791,19 +791,27 @@
             `;
             
             try {
-                let url = doc.url || doc.file_path;
+                let url = doc.url || doc.file_path || null;
                 const token = localStorage.getItem('token') || localStorage.getItem('authToken');
                 
-                // If it's an API endpoint
-                if (doc.id && !doc.id.includes('_')) {
+                // If it's an API endpoint with a real ID (not local ID like "APP-xxx_key")
+                if (doc.id && typeof doc.id === 'string' && !doc.id.includes('_') && !doc.id.startsWith('APP-')) {
                     url = `/api/documents/${doc.id}/view`;
                 }
                 
-                // Check if image
-                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url) || 
-                               /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.filename || '');
+                // If no URL but has CID, use IPFS
+                if (!url && (doc.cid || doc.ipfs_cid)) {
+                    url = `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}`;
+                }
                 
-                if (url && url.startsWith('/api/')) {
+                // Check if image based on URL or filename
+                const urlStr = url || '';
+                const filenameStr = doc.filename || '';
+                const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(urlStr) || 
+                               /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(filenameStr) ||
+                               (doc.mime_type && doc.mime_type.startsWith('image/'));
+                
+                if (url && typeof url === 'string' && url.startsWith('/api/')) {
                     // Fetch with auth
                     const response = await fetch(url, {
                         headers: { 'Authorization': `Bearer ${token}` }
@@ -819,10 +827,13 @@
                     } else {
                         frame.innerHTML = `<iframe src="${blobUrl}" style="width: 100%; height: 100%; border: none;"></iframe>`;
                     }
-                } else if (url) {
-                    // Direct URL
-                    if (isImage) {
+                } else if (url && typeof url === 'string') {
+                    // Direct URL (e.g., data URL or external URL)
+                    if (url.startsWith('data:image') || isImage) {
                         frame.innerHTML = `<img src="${url}" alt="Document" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+                    } else if (url.startsWith('data:')) {
+                        // Other data URL (PDF, etc.)
+                        frame.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
                     } else {
                         frame.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
                     }

@@ -577,13 +577,15 @@
             let url = null;
             const token = getAuthToken();
             
-            // Determine URL
-            if (doc.id && !doc.id.startsWith('APP-')) {
+            // Determine URL - check for data URL first
+            if (doc.url && typeof doc.url === 'string' && doc.url.startsWith('data:')) {
+                url = doc.url;
+            } else if (doc.id && typeof doc.id === 'string' && !doc.id.startsWith('APP-') && !doc.id.includes('_')) {
                 url = `/api/documents/${doc.id}/view`;
             } else if (doc.cid || doc.ipfs_cid) {
-                // Try IPFS gateway
+                // Try IPFS via API
                 const cid = doc.cid || doc.ipfs_cid;
-                url = `https://ipfs.io/ipfs/${cid}`;
+                url = `/api/documents/ipfs/${cid}`;
             } else if (doc.url) {
                 url = doc.url;
             } else if (doc.path || doc.file_path) {
@@ -594,13 +596,26 @@
                 throw new Error('No document URL available');
             }
             
-            // Check if it's an image
-            const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url) || 
-                           /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(doc.filename || doc.original_name || '') ||
-                           (doc.mime_type && doc.mime_type.startsWith('image/'));
+            // Check if it's an image based on URL pattern or filename
+            const urlStr = url || '';
+            const filenameStr = doc.filename || doc.original_name || '';
+            const isDataImage = urlStr.startsWith('data:image');
+            const isFileImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(urlStr) || 
+                               /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(filenameStr);
+            const isMimeImage = doc.mime_type && doc.mime_type.startsWith('image/');
+            const isImage = isDataImage || isFileImage || isMimeImage;
             
+            // Handle data URLs directly
+            if (url.startsWith('data:')) {
+                if (isImage) {
+                    frame.innerHTML = `<img src="${url}" alt="${doc.filename || 'Document'}" />`;
+                } else {
+                    // For non-image data URLs (like PDFs)
+                    frame.innerHTML = `<iframe src="${url}" title="${doc.filename || 'Document'}"></iframe>`;
+                }
+            }
             // For API endpoints, fetch with auth
-            if (url.startsWith('/api/')) {
+            else if (url.startsWith('/api/')) {
                 const response = await fetch(url, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -620,7 +635,7 @@
                     frame.innerHTML = `<iframe src="${blobUrl}" title="${doc.filename || 'Document'}"></iframe>`;
                 }
             } else {
-                // Direct URL
+                // Direct URL (http/https)
                 if (isImage) {
                     frame.innerHTML = `<img src="${url}" alt="${doc.filename || 'Document'}" />`;
                 } else {

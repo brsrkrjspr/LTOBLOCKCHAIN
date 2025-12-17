@@ -399,8 +399,24 @@
     <script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
     <script>
-        // Sidebar toggle and state
-        document.addEventListener('DOMContentLoaded', function() {
+        // Transfer data storage
+        let transferData = {
+            seller: {},
+            buyer: {},
+            vehicle: null,
+            vehicleId: null,
+            documents: {}
+        };
+        let userVehicles = [];
+        let currentToStep = 1;
+        let apiClient = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize API client
+            apiClient = window.apiClient || new APIClient();
+            
+            // Sidebar toggle and state
             const sidebar = document.querySelector('.dashboard-sidebar');
             const logoToggle = document.getElementById('logoToggle');
 
@@ -428,10 +444,249 @@
                     }
                 });
             }
+
+            // Update sidebar user info
+            updateSidebarUserInfo();
+            
+            // Load seller info from profile
+            await loadSellerInfo();
+            
+            // Load user's vehicles
+            await loadUserVehicles();
+            
+            // Initialize file upload handlers
+            initializeFileUploads();
         });
 
-        // Transfer wizard validation and navigation
-        let currentToStep = 1;
+        function updateSidebarUserInfo() {
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                    
+                    if (sidebarUserNameEl) sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName();
+                    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Vehicle Owner';
+                    if (sidebarUserAvatarEl) sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials();
+                } else {
+                    window.location.href = 'login-signup.html';
+                }
+            }
+            
+            // Logout handler
+            const logoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof AuthUtils !== 'undefined') {
+                        AuthUtils.logout();
+                    }
+                    window.location.href = 'login-signup.html';
+                });
+            }
+        }
+
+        async function loadSellerInfo() {
+            try {
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const sellerNameEl = document.getElementById('sellerName');
+                    const sellerAddressEl = document.getElementById('sellerAddress');
+                    const sellerContactEl = document.getElementById('sellerContact');
+                    
+                    // Set seller name from profile
+                    const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+                    if (sellerNameEl) sellerNameEl.value = displayName;
+                    
+                    // Store seller data
+                    transferData.seller = {
+                        id: user.userId,
+                        name: displayName,
+                        email: user.email
+                    };
+                }
+            } catch (error) {
+                console.error('Error loading seller info:', error);
+            }
+        }
+
+        async function loadUserVehicles() {
+            try {
+                const response = await apiClient.get('/api/vehicles/my-vehicles');
+                if (response.success && response.vehicles) {
+                    userVehicles = response.vehicles.filter(v => v.status === 'REGISTERED' || v.status === 'approved');
+                    populateVehicleSelector();
+                }
+            } catch (error) {
+                console.error('Error loading vehicles:', error);
+            }
+        }
+
+        function populateVehicleSelector() {
+            // Add vehicle selector to step 3
+            const vehicleContainer = document.querySelector('#to-step-3 .form-grid');
+            if (!vehicleContainer) return;
+            
+            // Check if selector already exists
+            if (document.getElementById('vehicleSelector')) return;
+            
+            // Create vehicle selector
+            const selectorHTML = `
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Select Your Vehicle</label>
+                    <select id="vehicleSelector" onchange="selectVehicle(this.value)">
+                        <option value="">-- Select a registered vehicle --</option>
+                        ${userVehicles.map(v => `
+                            <option value="${v.id}">
+                                ${v.plate_number || v.plateNumber || 'N/A'} - ${v.make} ${v.model} ${v.year}
+                            </option>
+                        `).join('')}
+                    </select>
+                    ${userVehicles.length === 0 ? '<small style="color: #e74c3c;">No registered vehicles found. You can only transfer registered vehicles.</small>' : ''}
+                </div>
+            `;
+            
+            vehicleContainer.insertAdjacentHTML('afterbegin', selectorHTML);
+        }
+
+        function selectVehicle(vehicleId) {
+            const vehicle = userVehicles.find(v => v.id === vehicleId);
+            if (vehicle) {
+                transferData.vehicleId = vehicleId;
+                transferData.vehicle = vehicle;
+                
+                // Auto-fill vehicle fields
+                document.getElementById('toPlateNumber').value = vehicle.plate_number || vehicle.plateNumber || '';
+                document.getElementById('toEngineNumber').value = vehicle.engine_number || vehicle.engineNumber || '';
+                document.getElementById('toChassisNumber').value = vehicle.chassis_number || vehicle.chassisNumber || vehicle.vin || '';
+                document.getElementById('toVehicleType').value = vehicle.vehicle_type || vehicle.vehicleType || '';
+                
+                // Make fields readonly since they come from the system
+                document.getElementById('toPlateNumber').readOnly = true;
+                document.getElementById('toEngineNumber').readOnly = true;
+                document.getElementById('toChassisNumber').readOnly = true;
+            }
+        }
+
+        function initializeFileUploads() {
+            const uploadCards = document.querySelectorAll('.upload-card');
+            const documentTypes = ['deedOfSale', 'sellerId', 'buyerId', 'orCr', 'emissionCert'];
+            
+            uploadCards.forEach((card, index) => {
+                const dropZone = card.querySelector('.file-drop');
+                const docType = documentTypes[index];
+                
+                // Create hidden file input
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.pdf,.jpg,.jpeg,.png';
+                fileInput.style.display = 'none';
+                fileInput.id = `file-${docType}`;
+                fileInput.dataset.docType = docType;
+                card.appendChild(fileInput);
+                
+                // Click to upload
+                dropZone.addEventListener('click', () => fileInput.click());
+                
+                // File selected
+                fileInput.addEventListener('change', async (e) => {
+                    if (e.target.files.length > 0) {
+                        await handleFileUpload(e.target.files[0], docType, card);
+                    }
+                });
+                
+                // Drag and drop
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('drag-over');
+                });
+                
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('drag-over');
+                });
+                
+                dropZone.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length > 0) {
+                        await handleFileUpload(e.dataTransfer.files[0], docType, card);
+                    }
+                });
+                
+                // Replace button
+                const replaceBtn = card.querySelector('.btn-sm');
+                if (replaceBtn) {
+                    replaceBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        fileInput.click();
+                    });
+                }
+            });
+        }
+
+        async function handleFileUpload(file, docType, card) {
+            const progressBar = card.querySelector('.upload-progress span');
+            const dropZone = card.querySelector('.file-drop');
+            
+            // Validate file
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                showNotification('File size exceeds 10MB limit', 'error');
+                return;
+            }
+            
+            try {
+                // Show upload progress
+                if (progressBar) progressBar.style.width = '30%';
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('document', file);
+                formData.append('type', docType);
+                formData.append('documentType', docType);
+                
+                // Upload to server
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const response = await fetch('/api/documents/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                if (progressBar) progressBar.style.width = '70%';
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (progressBar) progressBar.style.width = '100%';
+                    
+                    // Store document info
+                    transferData.documents[docType] = {
+                        id: result.document?.id || result.id,
+                        filename: result.filename || file.name,
+                        cid: result.cid || result.document?.cid
+                    };
+                    
+                    // Update UI
+                    dropZone.innerHTML = `
+                        <i class="fas fa-check-circle" style="color: #27ae60;"></i>
+                        <p style="color: #27ae60;">${file.name}</p>
+                        <small>Uploaded successfully</small>
+                    `;
+                    
+                    showNotification(`${file.name} uploaded successfully`, 'success');
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                if (progressBar) progressBar.style.width = '0%';
+                showNotification(`Upload failed: ${error.message}`, 'error');
+            }
+        }
 
         function showWizardError(step, message) {
             const idMap = {1:'wizardError',2:'wizardError2',3:'wizardError3',4:'wizardError4'};
@@ -463,6 +718,10 @@
                 if (!addr?.value.trim()) markInvalid(addr);
                 if (!contact?.value.trim()) markInvalid(contact);
                 if (!valid) showWizardError(1, 'Please complete seller address and contact before continuing.');
+                
+                // Store seller data
+                transferData.seller.address = addr?.value.trim();
+                transferData.seller.phone = contact?.value.trim();
             } else if (step === 2) {
                 const buyerName = document.getElementById('buyerName');
                 const buyerAddress = document.getElementById('buyerAddress');
@@ -474,21 +733,40 @@
                 if (!buyerContact?.value.trim()) markInvalid(buyerContact);
                 if (!buyerEmail?.value.trim() || !emailRegex.test(buyerEmail.value.trim())) markInvalid(buyerEmail);
                 if (!valid) showWizardError(2, 'Please complete all buyer details with a valid email.');
+                
+                // Parse buyer name
+                const nameParts = buyerName?.value.trim().split(' ') || [];
+                transferData.buyer = {
+                    firstName: nameParts[0] || '',
+                    lastName: nameParts.slice(1).join(' ') || '',
+                    name: buyerName?.value.trim(),
+                    address: buyerAddress?.value.trim(),
+                    phone: buyerContact?.value.trim(),
+                    email: buyerEmail?.value.trim()
+                };
             } else if (step === 3) {
+                const vehicleSelector = document.getElementById('vehicleSelector');
+                if (!vehicleSelector?.value) {
+                    showWizardError(3, 'Please select a vehicle to transfer.');
+                    valid = false;
+                }
+                
                 const plate = document.getElementById('toPlateNumber');
                 const engine = document.getElementById('toEngineNumber');
                 const chassis = document.getElementById('toChassisNumber');
                 const type = document.getElementById('toVehicleType');
                 const orcr = document.getElementById('toOrCrNumber');
                 if (!plate?.value.trim()) markInvalid(plate);
-                if (!engine?.value.trim()) markInvalid(engine);
                 if (!chassis?.value.trim()) markInvalid(chassis);
-                if (!type?.value.trim()) markInvalid(type);
-                if (!orcr?.value.trim()) markInvalid(orcr);
-                if (!valid) showWizardError(3, 'Please complete all vehicle details before continuing.');
+                if (!valid) showWizardError(3, 'Please select a vehicle and complete all details.');
             } else if (step === 4) {
-                // Optional: enforce uploads in future; allow continue for now
-                valid = true;
+                // Check required documents
+                const requiredDocs = ['deedOfSale', 'sellerId', 'buyerId', 'orCr'];
+                const missingDocs = requiredDocs.filter(doc => !transferData.documents[doc]);
+                if (missingDocs.length > 0) {
+                    showWizardError(4, `Please upload required documents: ${missingDocs.join(', ')}`);
+                    valid = false;
+                }
             }
 
             return valid;
@@ -503,6 +781,47 @@
             if (progressEl) progressEl.classList.add('active');
             currentToStep = targetStep;
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Update summary on step 5
+            if (targetStep === 5) {
+                updateSummary();
+            }
+        }
+
+        function updateSummary() {
+            // Seller
+            document.getElementById('summarySellerName').textContent = transferData.seller.name || 'N/A';
+            document.getElementById('summarySellerAddress').textContent = transferData.seller.address || 'N/A';
+            document.getElementById('summarySellerContact').textContent = transferData.seller.phone || 'N/A';
+            
+            // Buyer
+            document.getElementById('summaryBuyerName').textContent = transferData.buyer.name || 'N/A';
+            document.getElementById('summaryBuyerAddress').textContent = transferData.buyer.address || 'N/A';
+            document.getElementById('summaryBuyerContact').textContent = transferData.buyer.phone || 'N/A';
+            document.getElementById('summaryBuyerEmail').textContent = transferData.buyer.email || 'N/A';
+            
+            // Vehicle
+            const vehicle = transferData.vehicle;
+            document.getElementById('summaryPlate').textContent = vehicle?.plate_number || vehicle?.plateNumber || 'N/A';
+            document.getElementById('summaryEngine').textContent = vehicle?.engine_number || vehicle?.engineNumber || 'N/A';
+            document.getElementById('summaryChassis').textContent = vehicle?.chassis_number || vehicle?.chassisNumber || vehicle?.vin || 'N/A';
+            document.getElementById('summaryType').textContent = vehicle?.vehicle_type || vehicle?.vehicleType || 'N/A';
+            document.getElementById('summaryOrCr').textContent = document.getElementById('toOrCrNumber')?.value || 'N/A';
+            
+            // Documents
+            const uploadsList = document.getElementById('summaryUploads');
+            if (uploadsList) {
+                const docNames = {
+                    'deedOfSale': 'Deed of Sale',
+                    'sellerId': 'Seller Valid ID',
+                    'buyerId': 'Buyer Valid ID',
+                    'orCr': 'Latest OR/CR',
+                    'emissionCert': 'Emission Test Certificate'
+                };
+                uploadsList.innerHTML = Object.entries(transferData.documents)
+                    .map(([type, doc]) => `<li>✅ ${docNames[type] || type}: ${doc.filename}</li>`)
+                    .join('') || '<li>No documents uploaded</li>';
+            }
         }
 
         function toNextStep(targetStep) {
@@ -515,13 +834,81 @@
             setToStep(targetStep);
         }
 
-        function submitTransfer() {
-            const confirmation = document.getElementById('confirmationMessage');
-            if (confirmation) confirmation.style.display = 'flex';
+        async function submitTransfer() {
+            try {
+                // Validate we have required data
+                if (!transferData.vehicleId) {
+                    showNotification('Please select a vehicle to transfer', 'error');
+                    return;
+                }
+                
+                if (!transferData.buyer.email) {
+                    showNotification('Buyer information is incomplete', 'error');
+                    return;
+                }
+                
+                // Prepare request data
+                const requestData = {
+                    vehicleId: transferData.vehicleId,
+                    buyerInfo: {
+                        firstName: transferData.buyer.firstName,
+                        lastName: transferData.buyer.lastName,
+                        email: transferData.buyer.email,
+                        phone: transferData.buyer.phone,
+                        address: transferData.buyer.address
+                    },
+                    documentIds: Object.values(transferData.documents)
+                        .filter(d => d.id)
+                        .map(d => d.id)
+                };
+                
+                // Submit to API
+                const response = await apiClient.post('/api/vehicles/transfer/requests', requestData);
+                
+                if (response.success) {
+                    const confirmation = document.getElementById('confirmationMessage');
+                    if (confirmation) {
+                        confirmation.style.display = 'flex';
+                        confirmation.innerHTML = `
+                            <i class="fas fa-check-circle" style="color: #27ae60; font-size: 3rem;"></i>
+                            <div>
+                                <h4>Request Submitted Successfully!</h4>
+                                <p>Your Transfer of Ownership request has been submitted for review.</p>
+                                <p><strong>Request ID:</strong> ${response.transferRequest?.id?.substring(0, 8) || 'N/A'}</p>
+                                <p>You will be notified when the request is processed.</p>
+                                <button class="btn-primary" onclick="window.location.href='owner-dashboard.html'" style="margin-top: 15px;">
+                                    Return to Dashboard
+                                </button>
+                            </div>
+                        `;
+                    }
+                    
+                    // Hide action buttons
+                    const actions = document.querySelector('#to-step-5 .wizard-actions');
+                    if (actions) actions.style.display = 'none';
+                    
+                    showNotification('Transfer request submitted successfully!', 'success');
+                } else {
+                    throw new Error(response.error || 'Failed to submit transfer request');
+                }
+            } catch (error) {
+                console.error('Submit transfer error:', error);
+                showNotification(`Error: ${error.message}`, 'error');
+            }
         }
 
         function cancelTransfer() {
-            window.location.href = 'owner-dashboard.html';
+            if (confirm('Are you sure you want to cancel? All entered data will be lost.')) {
+                window.location.href = 'owner-dashboard.html';
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show(message, type);
+            } else {
+                alert(message);
+            }
         }
     </script>
 </body>

@@ -106,8 +106,217 @@ function initializeAdminDashboard() {
     // Initialize submitted applications
     initializeSubmittedApplications();
     
+    // Initialize organization verification tracker
+    loadOrgVerificationStatus();
+    
     // Set up auto-refresh for data
     setInterval(updateSystemStats, 30000); // Update every 30 seconds
+    setInterval(loadOrgVerificationStatus, 60000); // Update verification status every 60 seconds
+}
+
+// Load organization verification statuses from API
+async function loadOrgVerificationStatus() {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Try consolidated endpoint first, fallback to individual endpoints
+        let response;
+        try {
+            response = await apiClient.get('/api/admin/clearance-requests');
+        } catch (e) {
+            console.log('Consolidated endpoint not available, using individual endpoints');
+            response = null;
+        }
+        
+        let hpgRequests = [], insuranceRequests = [], emissionRequests = [];
+        let stats = null;
+        
+        if (response && response.success) {
+            // Use consolidated response
+            hpgRequests = response.grouped?.hpg || [];
+            insuranceRequests = response.grouped?.insurance || [];
+            emissionRequests = response.grouped?.emission || [];
+            stats = response.stats;
+        } else {
+            // Fallback to individual endpoints
+            const [hpgResponse, insuranceResponse, emissionResponse] = await Promise.all([
+                apiClient.get('/api/hpg/requests').catch(e => ({ success: false, requests: [] })),
+                apiClient.get('/api/insurance/requests').catch(e => ({ success: false, requests: [] })),
+                apiClient.get('/api/emission/requests').catch(e => ({ success: false, requests: [] }))
+            ]);
+            
+            hpgRequests = hpgResponse.requests || [];
+            insuranceRequests = insuranceResponse.requests || [];
+            emissionRequests = emissionResponse.requests || [];
+        }
+        
+        // Calculate stats if not provided
+        if (!stats) {
+            stats = {
+                hpg: {
+                    pending: hpgRequests.filter(r => r.status === 'PENDING').length,
+                    approved: hpgRequests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED').length,
+                    rejected: hpgRequests.filter(r => r.status === 'REJECTED').length
+                },
+                insurance: {
+                    pending: insuranceRequests.filter(r => r.status === 'PENDING').length,
+                    approved: insuranceRequests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED').length,
+                    rejected: insuranceRequests.filter(r => r.status === 'REJECTED').length
+                },
+                emission: {
+                    pending: emissionRequests.filter(r => r.status === 'PENDING').length,
+                    approved: emissionRequests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED').length,
+                    rejected: emissionRequests.filter(r => r.status === 'REJECTED').length
+                }
+            };
+        }
+        
+        // Update HPG counts
+        document.getElementById('hpgPendingCount').textContent = stats.hpg.pending;
+        document.getElementById('hpgApprovedCount').textContent = stats.hpg.approved + (stats.hpg.completed || 0);
+        document.getElementById('hpgRejectedCount').textContent = stats.hpg.rejected;
+        
+        // Update Insurance counts
+        document.getElementById('insurancePendingCount').textContent = stats.insurance.pending;
+        document.getElementById('insuranceApprovedCount').textContent = stats.insurance.approved + (stats.insurance.completed || 0);
+        document.getElementById('insuranceRejectedCount').textContent = stats.insurance.rejected;
+        
+        // Update Emission counts
+        document.getElementById('emissionPendingCount').textContent = stats.emission.pending;
+        document.getElementById('emissionApprovedCount').textContent = stats.emission.approved + (stats.emission.completed || 0);
+        document.getElementById('emissionRejectedCount').textContent = stats.emission.rejected;
+        
+        // Combine all requests and sort by date for the table
+        const allRequests = [
+            ...hpgRequests.map(r => ({ ...r, orgType: 'HPG', orgIcon: 'fa-shield-alt', orgColor: '#2c3e50' })),
+            ...insuranceRequests.map(r => ({ ...r, orgType: 'Insurance', orgIcon: 'fa-file-shield', orgColor: '#3498db' })),
+            ...emissionRequests.map(r => ({ ...r, orgType: 'Emission', orgIcon: 'fa-leaf', orgColor: '#16a085' }))
+        ].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+        
+        // Render the verification responses table
+        renderVerificationResponsesTable(allRequests.slice(0, 20)); // Show latest 20
+        
+        console.log('📊 Organization verification status loaded:', stats);
+        
+    } catch (error) {
+        console.error('Error loading organization verification status:', error);
+        document.getElementById('verification-responses-tbody').innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                    <i class="fas fa-exclamation-triangle"></i> Error loading verification statuses
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Render verification responses table
+function renderVerificationResponsesTable(requests) {
+    const tbody = document.getElementById('verification-responses-tbody');
+    if (!tbody) return;
+    
+    if (requests.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <i class="fas fa-inbox"></i> No verification requests yet
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = requests.map(req => {
+        const metadata = typeof req.metadata === 'string' ? JSON.parse(req.metadata) : (req.metadata || {});
+        const vehicleInfo = metadata.vehiclePlate || req.plate_number || req.vin || 'N/A';
+        const statusClass = getVerificationStatusClass(req.status);
+        const statusIcon = getVerificationStatusIcon(req.status);
+        const responseDate = req.updated_at || req.created_at;
+        
+        return `
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong>${vehicleInfo}</strong>
+                        ${metadata.vehicleMake ? `<small style="color: #7f8c8d;">${metadata.vehicleMake} ${metadata.vehicleModel || ''}</small>` : ''}
+                    </div>
+                </td>
+                <td>
+                    <span style="display: inline-flex; align-items: center; gap: 0.5rem; color: ${req.orgColor};">
+                        <i class="fas ${req.orgIcon}"></i>
+                        ${req.orgType}
+                    </span>
+                </td>
+                <td>
+                    <span class="status-badge ${statusClass}">
+                        <i class="fas ${statusIcon}"></i> ${req.status}
+                    </span>
+                </td>
+                <td>${new Date(responseDate).toLocaleString()}</td>
+                <td>
+                    <button class="btn-secondary btn-sm" onclick="viewVerificationDetails('${req.id}', '${req.orgType.toLowerCase()}')" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${req.status === 'APPROVED' || req.status === 'COMPLETED' ? `
+                        <button class="btn-success btn-sm" onclick="acknowledgeVerification('${req.id}', '${req.orgType.toLowerCase()}')" title="Acknowledge">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function getVerificationStatusClass(status) {
+    const statusMap = {
+        'PENDING': 'status-pending',
+        'APPROVED': 'status-approved',
+        'COMPLETED': 'status-approved',
+        'REJECTED': 'status-rejected'
+    };
+    return statusMap[status] || 'status-pending';
+}
+
+function getVerificationStatusIcon(status) {
+    const iconMap = {
+        'PENDING': 'fa-clock',
+        'APPROVED': 'fa-check-circle',
+        'COMPLETED': 'fa-check-double',
+        'REJECTED': 'fa-times-circle'
+    };
+    return iconMap[status] || 'fa-question-circle';
+}
+
+// View verification details
+function viewVerificationDetails(requestId, orgType) {
+    const pageMap = {
+        'hpg': 'hpg-requests-list.html',
+        'insurance': 'insurance-lto-requests.html',
+        'emission': 'emission-lto-requests.html'
+    };
+    
+    const page = pageMap[orgType];
+    if (page) {
+        // Open in new tab or redirect
+        window.open(`${page}?requestId=${requestId}`, '_blank');
+    }
+}
+
+// Acknowledge verification (mark as seen by LTO)
+async function acknowledgeVerification(requestId, orgType) {
+    try {
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`${orgType.toUpperCase()} verification acknowledged`, 'success');
+        } else {
+            alert(`${orgType.toUpperCase()} verification acknowledged`);
+        }
+        
+        // Refresh the table
+        loadOrgVerificationStatus();
+    } catch (error) {
+        console.error('Error acknowledging verification:', error);
+    }
 }
 
 // Check if user is using a demo account and clear it

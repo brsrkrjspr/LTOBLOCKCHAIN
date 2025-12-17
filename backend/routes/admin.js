@@ -155,5 +155,92 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
     }
 });
 
+// Get all clearance requests (for verification tracker)
+router.get('/clearance-requests', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const dbModule = require('../database/db');
+        
+        // Get all clearance requests with vehicle info
+        const result = await dbModule.query(`
+            SELECT 
+                cr.*,
+                v.vin,
+                v.plate_number,
+                v.make,
+                v.model,
+                v.year,
+                v.engine_number,
+                v.chassis_number,
+                u1.email as requested_by_email,
+                u1.first_name || ' ' || u1.last_name as requested_by_name,
+                u2.email as assigned_to_email
+            FROM clearance_requests cr
+            LEFT JOIN vehicles v ON cr.vehicle_id = v.id
+            LEFT JOIN users u1 ON cr.requested_by = u1.id
+            LEFT JOIN users u2 ON cr.assigned_to = u2.id
+            ORDER BY cr.updated_at DESC, cr.created_at DESC
+            LIMIT 100
+        `);
+        
+        // Group by type
+        const requests = result.rows;
+        const grouped = {
+            hpg: requests.filter(r => r.request_type === 'hpg'),
+            insurance: requests.filter(r => r.request_type === 'insurance'),
+            emission: requests.filter(r => r.request_type === 'emission')
+        };
+        
+        // Count by status for each type
+        const stats = {
+            hpg: { pending: 0, approved: 0, rejected: 0, completed: 0 },
+            insurance: { pending: 0, approved: 0, rejected: 0, completed: 0 },
+            emission: { pending: 0, approved: 0, rejected: 0, completed: 0 }
+        };
+        
+        requests.forEach(r => {
+            const type = r.request_type;
+            const status = (r.status || 'PENDING').toLowerCase();
+            if (stats[type] && stats[type].hasOwnProperty(status)) {
+                stats[type][status]++;
+            }
+        });
+        
+        res.json({
+            success: true,
+            requests: requests,
+            grouped: grouped,
+            stats: stats,
+            total: requests.length
+        });
+        
+    } catch (error) {
+        console.error('Get clearance requests error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get clearance requests: ' + error.message
+        });
+    }
+});
+
+// Get notifications for admin
+router.get('/notifications', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const notifications = await db.getNotificationsByUser(req.user.userId);
+        
+        res.json({
+            success: true,
+            notifications: notifications || [],
+            unreadCount: (notifications || []).filter(n => !n.read).length
+        });
+        
+    } catch (error) {
+        console.error('Get admin notifications error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get notifications'
+        });
+    }
+});
+
 module.exports = router;
 

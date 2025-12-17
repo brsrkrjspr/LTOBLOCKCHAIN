@@ -65,6 +65,10 @@
                     <i class="fas fa-exchange-alt"></i>
                     <span>Transfer of Ownership</span>
                 </a>
+                <a href="vehicle-ownership-trace.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Ownership Trace</span>
+                </a>
                 <a href="#audit" class="nav-item">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Audit Logs</span>
@@ -359,6 +363,9 @@
                             <div class="dashboard-card">
                                 <h3><span class="card-icon">⚙️</span> Admin Actions</h3>
                                 <div class="action-buttons">
+                                    <button class="btn-info btn-block" onclick="viewOwnershipHistory()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); border: none;">
+                                        <i class="fas fa-history"></i> View Ownership History
+                                    </button>
                                     <button class="btn-success btn-block" onclick="approveRequest()">
                                         <i class="fas fa-check-circle"></i> Approve Request
                                     </button>
@@ -512,6 +519,30 @@
 
         function viewVerification() {
             window.location.href = 'admin-transfer-verification.html?id=TO-2024-001';
+        }
+
+        function viewOwnershipHistory() {
+            // Get vehicle plate number from the page (normally would come from URL params or API)
+            const plateElement = document.querySelector('.info-grid-2col .info-item p strong');
+            let plateNumber = plateElement ? plateElement.textContent : null;
+            
+            // Try to get from URL params if available
+            const urlParams = new URLSearchParams(window.location.search);
+            const vehicleId = urlParams.get('vehicleId') || urlParams.get('vin') || urlParams.get('plate');
+            
+            if (vehicleId) {
+                window.open(`vehicle-ownership-trace.html?plate=${encodeURIComponent(vehicleId)}`, '_blank');
+            } else if (plateNumber && plateNumber !== 'TO-2024-001') {
+                // Use plate number from the page content
+                window.open(`vehicle-ownership-trace.html?plate=${encodeURIComponent(plateNumber)}`, '_blank');
+            } else {
+                // Fallback - just open the trace page
+                window.open('vehicle-ownership-trace.html', '_blank');
+            }
+            
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Opening ownership history...', 'info');
+            }
         }
 
         function closeModal(modalId) {

@@ -76,6 +76,10 @@
                     <span>Transfer of Ownership</span>
                     <span class="badge" id="transferBadge" style="display: none;">3</span>
                 </a>
+                <a href="vehicle-ownership-trace.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Ownership Trace</span>
+                </a>
                 <a href="#audit" class="nav-item">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Audit Logs</span>
@@ -289,6 +293,127 @@
                             <span>Search Documents</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>
+                    </div>
+                </div>
+
+                <!-- Organization Verification Tracker -->
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fas fa-tasks" style="color: #3498db;"></i> Organization Verification Tracker</h2>
+                    <p class="section-subtitle">Track verification request statuses from HPG, Insurance, and Emission</p>
+                </div>
+                <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0;"><i class="fas fa-clipboard-check"></i> Pending Verification Requests</h3>
+                        <button class="btn-secondary btn-sm" onclick="loadOrgVerificationStatus()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    
+                    <!-- Organization Status Cards -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <!-- HPG Status Card -->
+                        <div class="org-status-card" id="hpgStatusCard" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); padding: 1.5rem; border-radius: 12px; color: white;">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                <div style="background: rgba(255,255,255,0.2); padding: 0.75rem; border-radius: 50%;">
+                                    <i class="fas fa-shield-alt" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0; font-size: 1.1rem;">HPG Clearance</h4>
+                                    <small style="opacity: 0.8;">Highway Patrol Group</small>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 2rem; font-weight: bold;" id="hpgPendingCount">0</div>
+                                    <small>Pending</small>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #2ecc71;" id="hpgApprovedCount">0</div>
+                                    <small>Approved</small>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #e74c3c;" id="hpgRejectedCount">0</div>
+                                    <small>Rejected</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Insurance Status Card -->
+                        <div class="org-status-card" id="insuranceStatusCard" style="background: linear-gradient(135deg, #2980b9 0%, #3498db 100%); padding: 1.5rem; border-radius: 12px; color: white;">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                <div style="background: rgba(255,255,255,0.2); padding: 0.75rem; border-radius: 50%;">
+                                    <i class="fas fa-file-shield" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0; font-size: 1.1rem;">Insurance Verification</h4>
+                                    <small style="opacity: 0.8;">Insurance Provider</small>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 2rem; font-weight: bold;" id="insurancePendingCount">0</div>
+                                    <small>Pending</small>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #2ecc71;" id="insuranceApprovedCount">0</div>
+                                    <small>Approved</small>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #e74c3c;" id="insuranceRejectedCount">0</div>
+                                    <small>Rejected</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Emission Status Card -->
+                        <div class="org-status-card" id="emissionStatusCard" style="background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%); padding: 1.5rem; border-radius: 12px; color: white;">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                <div style="background: rgba(255,255,255,0.2); padding: 0.75rem; border-radius: 50%;">
+                                    <i class="fas fa-leaf" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0; font-size: 1.1rem;">Emission Verification</h4>
+                                    <small style="opacity: 0.8;">Emission Testing Center</small>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 2rem; font-weight: bold;" id="emissionPendingCount">0</div>
+                                    <small>Pending</small>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #2ecc71;" id="emissionApprovedCount">0</div>
+                                    <small>Approved</small>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #e74c3c;" id="emissionRejectedCount">0</div>
+                                    <small>Rejected</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Verification Responses Table -->
+                    <h4 style="margin: 1.5rem 0 1rem 0;"><i class="fas fa-bell"></i> Recent Verification Responses</h4>
+                    <div class="table-container-modern" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table-modern" id="verification-responses-table">
+                            <thead>
+                                <tr>
+                                    <th>Vehicle</th>
+                                    <th>Organization</th>
+                                    <th>Status</th>
+                                    <th>Response Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="verification-responses-tbody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading verification statuses...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

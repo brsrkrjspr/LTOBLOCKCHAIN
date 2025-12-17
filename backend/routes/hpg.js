@@ -339,5 +339,100 @@ router.post('/certificate/release', authenticateToken, authorizeRole(['admin', '
     }
 });
 
+// Create test HPG request (for testing purposes)
+router.post('/test-request', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { 
+            ownerName, 
+            ownerEmail,
+            plateNumber, 
+            engineNumber, 
+            chassisNumber,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            vehicleType,
+            purpose
+        } = req.body;
+
+        // Validation
+        if (!ownerName || !plateNumber || !engineNumber || !chassisNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Owner name, plate number, engine number, and chassis number are required'
+            });
+        }
+
+        const dbModule = require('../database/db');
+        const crypto = require('crypto');
+
+        // Create a test vehicle
+        const vehicleId = crypto.randomUUID();
+        const vin = 'TEST' + Date.now().toString(36).toUpperCase();
+        
+        await dbModule.query(`
+            INSERT INTO vehicles (id, vin, plate_number, engine_number, chassis_number, make, model, year, vehicle_type, status, current_owner_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
+            ON CONFLICT (vin) DO UPDATE SET 
+                plate_number = EXCLUDED.plate_number,
+                engine_number = EXCLUDED.engine_number,
+                chassis_number = EXCLUDED.chassis_number
+        `, [
+            vehicleId,
+            vin,
+            plateNumber,
+            engineNumber,
+            chassisNumber,
+            vehicleMake || 'Test Make',
+            vehicleModel || 'Test Model',
+            vehicleYear || 2023,
+            vehicleType || 'Sedan',
+            req.user.userId
+        ]);
+
+        // Create a clearance request
+        const clearanceRequest = await db.createClearanceRequest({
+            vehicleId: vehicleId,
+            requestType: 'hpg',
+            requestedBy: req.user.userId,
+            assignedTo: req.user.userId, // Assign to self for testing
+            purpose: purpose || 'Vehicle Clearance',
+            notes: 'Test request created from HPG admin dashboard',
+            metadata: {
+                ownerName,
+                ownerEmail: ownerEmail || 'test@example.com',
+                plateNumber,
+                engine_number: engineNumber,
+                chassis_number: chassisNumber,
+                vehicleMake: vehicleMake || 'Test Make',
+                vehicleModel: vehicleModel || 'Test Model',
+                vehicleYear: vehicleYear || 2023,
+                vehicleType: vehicleType || 'Sedan',
+                purpose: purpose || 'Vehicle Clearance',
+                isTestRequest: true,
+                testCreatedBy: req.user.email,
+                testCreatedAt: new Date().toISOString()
+            }
+        });
+
+        console.log(`[HPG] Test request created: ${clearanceRequest.id} for plate ${plateNumber}`);
+
+        res.json({
+            success: true,
+            message: 'Test HPG request created successfully',
+            requestId: clearanceRequest.id,
+            vehicleId: vehicleId,
+            vin: vin
+        });
+
+    } catch (error) {
+        console.error('Error creating test HPG request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create test HPG request: ' + error.message
+        });
+    }
+});
+
 module.exports = router;
 

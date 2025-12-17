@@ -314,6 +314,96 @@
                         </div>
                     </div>
 
+                    <!-- Create Test Request -->
+                    <div class="dashboard-card" id="createTestRequestCard">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3><i class="fas fa-plus-circle" style="color: #3498db;"></i> Create Test HPG Request</h3>
+                            <button class="btn-primary btn-sm" onclick="toggleTestRequestForm()">
+                                <i class="fas fa-plus"></i> New Test Request
+                            </button>
+                        </div>
+                        
+                        <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                            <i class="fas fa-info-circle"></i> Create mock HPG clearance requests for testing the verification workflow.
+                        </p>
+                        
+                        <!-- Create Test Request Form (Hidden by default) -->
+                        <div id="createTestRequestForm" style="display: none; background: #e8f4f8; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #3498db;">
+                            <h4 style="margin: 0 0 1rem 0; color: #2c3e50;">
+                                <i class="fas fa-car"></i> Vehicle & Owner Information
+                            </h4>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <div class="form-group">
+                                    <label>Owner Name <span style="color: #e74c3c;">*</span></label>
+                                    <input type="text" id="testOwnerName" placeholder="e.g., Juan Dela Cruz" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Owner Email</label>
+                                    <input type="email" id="testOwnerEmail" placeholder="e.g., juan@email.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>Plate Number <span style="color: #e74c3c;">*</span></label>
+                                    <input type="text" id="testPlateNumber" placeholder="e.g., ABC 1234" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Engine Number <span style="color: #e74c3c;">*</span></label>
+                                    <input type="text" id="testEngineNumber" placeholder="e.g., ENG123456789" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Chassis Number <span style="color: #e74c3c;">*</span></label>
+                                    <input type="text" id="testChassisNumber" placeholder="e.g., CHS987654321" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Vehicle Make</label>
+                                    <input type="text" id="testVehicleMake" placeholder="e.g., Toyota">
+                                </div>
+                                <div class="form-group">
+                                    <label>Vehicle Model</label>
+                                    <input type="text" id="testVehicleModel" placeholder="e.g., Vios">
+                                </div>
+                                <div class="form-group">
+                                    <label>Year</label>
+                                    <input type="number" id="testVehicleYear" placeholder="e.g., 2023" min="1990" max="2030">
+                                </div>
+                                <div class="form-group">
+                                    <label>Vehicle Type</label>
+                                    <select id="testVehicleType">
+                                        <option value="Sedan">Sedan</option>
+                                        <option value="SUV">SUV</option>
+                                        <option value="Pickup">Pickup</option>
+                                        <option value="Van">Van</option>
+                                        <option value="Motorcycle">Motorcycle</option>
+                                        <option value="Truck">Truck</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Purpose</label>
+                                    <select id="testPurpose">
+                                        <option value="Vehicle Clearance">Vehicle Clearance</option>
+                                        <option value="Transfer of Ownership">Transfer of Ownership</option>
+                                        <option value="New Registration">New Registration</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="btn-primary" onclick="createTestHPGRequest()">
+                                    <i class="fas fa-plus-circle"></i> Create Test Request
+                                </button>
+                                <button class="btn-secondary" onclick="fillSampleData()">
+                                    <i class="fas fa-magic"></i> Fill Sample Data
+                                </button>
+                                <button class="btn-secondary" onclick="fillFlaggedSampleData()">
+                                    <i class="fas fa-exclamation-triangle"></i> Fill Flagged Vehicle Data
+                                </button>
+                                <button class="btn-secondary" onclick="toggleTestRequestForm()">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- HPG Hot List Management -->
                     <div class="dashboard-card" id="hotListCard">
                         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -413,6 +503,60 @@
     <script src="js/hpg-database.js"></script>
     <script src="js/hpg-admin.js"></script>
     <style>
+        /* Test Request Form Styles */
+        #createTestRequestForm .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        #createTestRequestForm label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        #createTestRequestForm input,
+        #createTestRequestForm select {
+            padding: 0.75rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: white;
+        }
+
+        #createTestRequestForm input:focus,
+        #createTestRequestForm select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+        }
+
+        #createTestRequestForm input::placeholder {
+            color: #adb5bd;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
         /* Modern Upload Form Styles */
         .modern-upload-form {
             display: flex;
@@ -886,6 +1030,100 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Test Request Management Functions
+        function toggleTestRequestForm() {
+            const form = document.getElementById('createTestRequestForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function fillSampleData() {
+            document.getElementById('testOwnerName').value = 'Juan Dela Cruz';
+            document.getElementById('testOwnerEmail').value = 'juan@example.com';
+            document.getElementById('testPlateNumber').value = 'NCR ' + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('testEngineNumber').value = 'ENG' + Date.now().toString().slice(-8);
+            document.getElementById('testChassisNumber').value = 'CHS' + Date.now().toString().slice(-8);
+            document.getElementById('testVehicleMake').value = 'Toyota';
+            document.getElementById('testVehicleModel').value = 'Vios';
+            document.getElementById('testVehicleYear').value = '2023';
+            document.getElementById('testVehicleType').value = 'Sedan';
+            document.getElementById('testPurpose').value = 'Vehicle Clearance';
+        }
+
+        function fillFlaggedSampleData() {
+            // Fill with data that matches the hot list for testing
+            document.getElementById('testOwnerName').value = 'Test Flagged Owner';
+            document.getElementById('testOwnerEmail').value = 'flagged@test.com';
+            document.getElementById('testPlateNumber').value = 'TEST 999'; // This is in the hot list
+            document.getElementById('testEngineNumber').value = 'TESTENGINE123';
+            document.getElementById('testChassisNumber').value = 'TESTCHASSIS456';
+            document.getElementById('testVehicleMake').value = 'Suspicious';
+            document.getElementById('testVehicleModel').value = 'Vehicle';
+            document.getElementById('testVehicleYear').value = '2020';
+            document.getElementById('testVehicleType').value = 'Sedan';
+            document.getElementById('testPurpose').value = 'Vehicle Clearance';
+        }
+
+        async function createTestHPGRequest() {
+            const ownerName = document.getElementById('testOwnerName').value.trim();
+            const ownerEmail = document.getElementById('testOwnerEmail').value.trim();
+            const plateNumber = document.getElementById('testPlateNumber').value.trim();
+            const engineNumber = document.getElementById('testEngineNumber').value.trim();
+            const chassisNumber = document.getElementById('testChassisNumber').value.trim();
+            const vehicleMake = document.getElementById('testVehicleMake').value.trim();
+            const vehicleModel = document.getElementById('testVehicleModel').value.trim();
+            const vehicleYear = document.getElementById('testVehicleYear').value.trim();
+            const vehicleType = document.getElementById('testVehicleType').value;
+            const purpose = document.getElementById('testPurpose').value;
+
+            // Validation
+            if (!ownerName || !plateNumber || !engineNumber || !chassisNumber) {
+                alert('Please fill in all required fields (Owner Name, Plate Number, Engine Number, Chassis Number)');
+                return;
+            }
+
+            try {
+                // Create test request via API
+                const response = await window.apiClient.post('/api/hpg/test-request', {
+                    ownerName,
+                    ownerEmail,
+                    plateNumber,
+                    engineNumber,
+                    chassisNumber,
+                    vehicleMake,
+                    vehicleModel,
+                    vehicleYear: parseInt(vehicleYear) || 2023,
+                    vehicleType,
+                    purpose
+                });
+
+                if (response.success) {
+                    alert('✅ Test HPG request created successfully!\n\nRequest ID: ' + response.requestId);
+                    
+                    // Clear form
+                    document.getElementById('testOwnerName').value = '';
+                    document.getElementById('testOwnerEmail').value = '';
+                    document.getElementById('testPlateNumber').value = '';
+                    document.getElementById('testEngineNumber').value = '';
+                    document.getElementById('testChassisNumber').value = '';
+                    document.getElementById('testVehicleMake').value = '';
+                    document.getElementById('testVehicleModel').value = '';
+                    document.getElementById('testVehicleYear').value = '';
+                    
+                    toggleTestRequestForm();
+                    
+                    // Reload requests
+                    if (typeof HPGRequests !== 'undefined') {
+                        HPGRequests.loadRequests();
+                    }
+                } else {
+                    alert('Error creating test request: ' + (response.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error creating test request:', error);
+                alert('Error creating test request: ' + error.message);
+            }
         }
 
         // Hot List Management Functions

@@ -90,6 +90,11 @@
             }
             .doc-viewer-modal.active {
                 display: flex;
+                animation: docModalFadeIn 0.3s ease;
+            }
+            @keyframes docModalFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
             }
             .doc-viewer-overlay {
                 position: absolute;
@@ -97,8 +102,8 @@
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.8);
-                backdrop-filter: blur(4px);
+                background: rgba(0, 0, 0, 0.85);
+                backdrop-filter: blur(8px);
             }
             .doc-viewer-content {
                 position: relative;
@@ -106,37 +111,58 @@
                 max-width: 1400px;
                 height: 90%;
                 margin: auto;
-                background: #1a1a2e;
-                border-radius: 16px;
+                background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+                border-radius: 20px;
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.1);
+                animation: docModalSlideUp 0.3s ease;
+            }
+            @keyframes docModalSlideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
             }
             .doc-viewer-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 1rem 1.5rem;
-                background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
-                border-bottom: 1px solid rgba(255,255,255,0.1);
+                padding: 1.25rem 1.5rem;
+                background: rgba(0,0,0,0.3);
+                border-bottom: 1px solid rgba(255,255,255,0.08);
             }
             .doc-viewer-title {
                 display: flex;
                 align-items: center;
                 gap: 0.75rem;
                 color: #fff;
-                font-size: 1.1rem;
+                font-size: 1.15rem;
                 font-weight: 600;
+                max-width: 300px;
             }
             .doc-viewer-title i {
-                color: #3498db;
+                width: 40px;
+                height: 40px;
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1rem;
+            }
+            .doc-viewer-title span {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .doc-viewer-nav {
                 display: flex;
                 align-items: center;
-                gap: 1rem;
+                gap: 0.75rem;
                 color: #fff;
+                background: rgba(255,255,255,0.05);
+                padding: 0.5rem 1rem;
+                border-radius: 12px;
             }
             .doc-nav-btn {
                 background: rgba(255,255,255,0.1);
@@ -144,38 +170,51 @@
                 color: #fff;
                 width: 36px;
                 height: 36px;
-                border-radius: 8px;
+                border-radius: 10px;
                 cursor: pointer;
                 transition: all 0.2s;
+                font-size: 0.9rem;
             }
             .doc-nav-btn:hover {
-                background: rgba(52, 152, 219, 0.5);
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                transform: scale(1.05);
+            }
+            #docViewerCounter {
+                font-weight: 600;
+                font-size: 0.9rem;
+                min-width: 60px;
+                text-align: center;
             }
             .doc-viewer-actions {
                 display: flex;
                 gap: 0.5rem;
             }
             .doc-action-btn {
-                background: rgba(255,255,255,0.1);
-                border: none;
+                background: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.1);
                 color: #fff;
-                width: 40px;
-                height: 40px;
-                border-radius: 8px;
+                width: 42px;
+                height: 42px;
+                border-radius: 10px;
                 cursor: pointer;
                 transition: all 0.2s;
+                font-size: 1rem;
             }
             .doc-action-btn:hover {
-                background: rgba(52, 152, 219, 0.5);
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                border-color: transparent;
+                transform: scale(1.05);
             }
             .doc-close-btn:hover {
-                background: rgba(231, 76, 60, 0.5);
+                background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                border-color: transparent;
             }
             .doc-viewer-body {
                 flex: 1;
                 display: flex;
                 position: relative;
-                background: #0f0f23;
+                background: linear-gradient(180deg, #0d0d1a 0%, #0f0f23 100%);
+                min-height: 0;
             }
             .doc-viewer-loading,
             .doc-viewer-error {
@@ -185,109 +224,163 @@
                 transform: translate(-50%, -50%);
                 text-align: center;
                 color: #fff;
+                z-index: 5;
             }
-            .doc-viewer-loading i,
-            .doc-viewer-error i {
+            .doc-viewer-loading i {
                 font-size: 3rem;
                 margin-bottom: 1rem;
                 display: block;
+                color: #3498db;
             }
             .doc-viewer-error i {
+                font-size: 3.5rem;
+                margin-bottom: 1rem;
+                display: block;
                 color: #e74c3c;
             }
+            .doc-viewer-loading span,
+            .doc-viewer-error span {
+                font-size: 1rem;
+                color: rgba(255,255,255,0.7);
+            }
             .btn-retry {
-                margin-top: 1rem;
-                background: #3498db;
+                margin-top: 1.5rem;
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
                 color: #fff;
                 border: none;
-                padding: 0.75rem 1.5rem;
-                border-radius: 8px;
+                padding: 0.875rem 2rem;
+                border-radius: 10px;
                 cursor: pointer;
                 font-weight: 600;
+                font-size: 0.9rem;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s;
+            }
+            .btn-retry:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
             }
             .doc-viewer-frame {
                 flex: 1;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 1rem;
+                padding: 1.5rem;
+                min-height: 0;
             }
             .doc-viewer-frame iframe {
                 width: 100%;
                 height: 100%;
                 border: none;
-                border-radius: 8px;
+                border-radius: 12px;
                 background: #fff;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             }
             .doc-viewer-frame img {
                 max-width: 100%;
                 max-height: 100%;
                 object-fit: contain;
-                border-radius: 8px;
+                border-radius: 12px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             }
             .doc-viewer-sidebar {
-                width: 280px;
-                background: #16213e;
-                border-left: 1px solid rgba(255,255,255,0.1);
+                width: 300px;
+                background: rgba(0,0,0,0.2);
+                border-left: 1px solid rgba(255,255,255,0.08);
                 display: flex;
                 flex-direction: column;
-                transition: width 0.3s;
+                transition: width 0.3s ease;
             }
             .doc-viewer-sidebar.collapsed {
-                width: 48px;
+                width: 52px;
             }
             .doc-viewer-sidebar.collapsed .doc-sidebar-list,
             .doc-viewer-sidebar.collapsed .doc-sidebar-header h4 {
                 display: none;
             }
+            .doc-viewer-sidebar.collapsed .sidebar-toggle-btn i {
+                transform: rotate(180deg);
+            }
             .doc-sidebar-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 1rem;
-                border-bottom: 1px solid rgba(255,255,255,0.1);
+                padding: 1.25rem 1rem;
+                border-bottom: 1px solid rgba(255,255,255,0.08);
             }
             .doc-sidebar-header h4 {
                 margin: 0;
                 color: #fff;
-                font-size: 0.9rem;
+                font-size: 0.95rem;
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
+                font-weight: 600;
+            }
+            .doc-sidebar-header h4 i {
+                color: #3498db;
             }
             .sidebar-toggle-btn {
-                background: none;
+                background: rgba(255,255,255,0.1);
                 border: none;
                 color: #fff;
                 cursor: pointer;
-                padding: 0.25rem;
+                padding: 0.5rem;
+                border-radius: 8px;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+            }
+            .sidebar-toggle-btn:hover {
+                background: rgba(255,255,255,0.2);
+            }
+            .sidebar-toggle-btn i {
+                transition: transform 0.3s;
             }
             .doc-sidebar-list {
                 flex: 1;
                 overflow-y: auto;
-                padding: 0.5rem;
+                padding: 0.75rem;
             }
             .doc-sidebar-item {
                 display: flex;
                 align-items: center;
-                gap: 0.75rem;
-                padding: 0.75rem 1rem;
-                border-radius: 8px;
+                gap: 0.875rem;
+                padding: 0.875rem 1rem;
+                border-radius: 12px;
                 cursor: pointer;
                 transition: all 0.2s;
                 color: rgba(255,255,255,0.7);
-                margin-bottom: 0.25rem;
+                margin-bottom: 0.5rem;
+                border: 2px solid transparent;
             }
             .doc-sidebar-item:hover {
-                background: rgba(52, 152, 219, 0.2);
+                background: rgba(52, 152, 219, 0.15);
                 color: #fff;
+                border-color: rgba(52, 152, 219, 0.3);
             }
             .doc-sidebar-item.active {
-                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                background: linear-gradient(135deg, rgba(52, 152, 219, 0.25) 0%, rgba(41, 128, 185, 0.25) 100%);
+                border-color: #3498db;
                 color: #fff;
             }
             .doc-sidebar-item i {
                 font-size: 1.25rem;
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 10px;
+                background: rgba(255,255,255,0.1);
+            }
+            .doc-sidebar-item.active i {
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
             }
             .doc-sidebar-item-info {
                 flex: 1;
@@ -295,7 +388,7 @@
             }
             .doc-sidebar-item-title {
                 font-weight: 500;
-                font-size: 0.875rem;
+                font-size: 0.9rem;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -303,16 +396,77 @@
             .doc-sidebar-item-type {
                 font-size: 0.75rem;
                 opacity: 0.7;
+                margin-top: 0.125rem;
             }
             
-            @media (max-width: 768px) {
+            /* Custom scrollbar for sidebar */
+            .doc-sidebar-list::-webkit-scrollbar {
+                width: 6px;
+            }
+            .doc-sidebar-list::-webkit-scrollbar-track {
+                background: rgba(255,255,255,0.05);
+                border-radius: 3px;
+            }
+            .doc-sidebar-list::-webkit-scrollbar-thumb {
+                background: rgba(255,255,255,0.2);
+                border-radius: 3px;
+            }
+            .doc-sidebar-list::-webkit-scrollbar-thumb:hover {
+                background: rgba(255,255,255,0.3);
+            }
+            
+            @media (max-width: 900px) {
                 .doc-viewer-sidebar {
-                    display: none;
+                    position: absolute;
+                    right: 0;
+                    top: 0;
+                    bottom: 0;
+                    width: 280px;
+                    z-index: 10;
+                    transform: translateX(100%);
+                    transition: transform 0.3s ease;
+                }
+                .doc-viewer-sidebar.mobile-open {
+                    transform: translateX(0);
                 }
                 .doc-viewer-content {
                     width: 100%;
                     height: 100%;
                     border-radius: 0;
+                }
+                .doc-viewer-title {
+                    max-width: 180px;
+                }
+                .doc-viewer-nav {
+                    padding: 0.375rem 0.75rem;
+                }
+            }
+            @media (max-width: 480px) {
+                .doc-viewer-header {
+                    padding: 0.75rem 1rem;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+                .doc-viewer-title {
+                    max-width: calc(100% - 100px);
+                    font-size: 1rem;
+                }
+                .doc-viewer-title i {
+                    width: 36px;
+                    height: 36px;
+                    font-size: 0.9rem;
+                }
+                .doc-action-btn {
+                    width: 36px;
+                    height: 36px;
+                }
+                .doc-viewer-nav {
+                    order: 3;
+                    width: 100%;
+                    justify-content: center;
+                }
+                .doc-viewer-frame {
+                    padding: 0.75rem;
                 }
             }
         `;

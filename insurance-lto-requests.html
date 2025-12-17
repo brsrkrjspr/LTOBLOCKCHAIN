@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LTO → Insurance Requests - Insurance Verifier</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
@@ -409,6 +410,7 @@
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
     <script src="js/insurance-database.js"></script>
+    <script src="js/mobile-nav.js"></script>
     <script src="js/insurance-verifier-dashboard.js"></script>
     <script>
         // Initialize user data
@@ -598,12 +600,21 @@
         
         function viewDocument(requestId, documentId, documentCid) {
             // Insurance receives only Insurance Certificate
-            if (documentCid) {
-                // Open IPFS document via API
+            const doc = {
+                id: documentId,
+                cid: documentCid,
+                filename: 'Insurance Certificate',
+                type: 'insurance_cert',
+                document_type: 'insurance_cert'
+            };
+            
+            // Use DocumentModal if available for better viewing
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.view(doc);
+            } else if (documentCid) {
                 window.open(`/api/documents/ipfs/${documentCid}`, '_blank');
             } else if (documentId) {
-                // Open document viewer
-                window.location.href = `insurance-document-viewer.html?documentId=${documentId}&requestId=${requestId}`;
+                window.location.href = `document-viewer.html?documentId=${documentId}&requestId=${requestId}`;
             } else {
                 alert('No Insurance Certificate attached to this request');
             }

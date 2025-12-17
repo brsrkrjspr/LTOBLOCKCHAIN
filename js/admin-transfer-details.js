@@ -341,19 +341,13 @@ function updateActionButtons(request) {
 
 async function viewDocument(docId) {
     try {
-        // Get apiClient instance
-        const apiClient = window.apiClient || new APIClient();
-
-        // Get document details
-        const response = await apiClient.get(`/api/documents/${docId}`);
-        
-        if (!response.success) {
-            throw new Error(response.error || 'Failed to load document');
+        // Use DocumentModal if available for better in-page viewing
+        if (typeof DocumentModal !== 'undefined') {
+            DocumentModal.view({ id: docId });
+            return;
         }
-
-        const doc = response.document;
         
-        // Open document viewer
+        // Fallback: Open document viewer in new tab
         window.open(`document-viewer.html?id=${docId}`, '_blank');
 
     } catch (error) {

@@ -343,43 +343,54 @@ const HPGRequests = {
                 'or_cr': 'OR/CR'
             };
             
-            // Show modal with HPG-relevant documents only
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;';
-            modal.innerHTML = `
-                <div class="modal-content" style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%;">
-                    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3><i class="fas fa-file-alt" style="color: #3498db;"></i> HPG Verification Documents</h3>
-                        <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p><strong>Vehicle:</strong> ${request.vehicleMake} ${request.vehicleModel} ${request.vehicleYear}</p>
-                        <p><strong>Plate:</strong> ${request.plateNumber}</p>
-                        <p style="color: #7f8c8d; font-size: 0.9rem; margin-top: 0.5rem;">
-                            <i class="fas fa-info-circle"></i> HPG receives only Owner ID and OR/CR for verification
-                        </p>
-                        <hr style="margin: 1rem 0;">
-                        <h4>Attached Documents (${request.documents.length}):</h4>
-                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
-                            ${request.documents.map(doc => {
-                                const label = docTypeLabels[doc.type] || doc.type || doc.filename || 'Document';
-                                const url = doc.cid ? `/api/documents/ipfs/${doc.cid}` : (doc.path ? `/api/documents/file/${encodeURIComponent(doc.path)}` : '#');
-                                return `
-                                    <button class="btn-secondary" onclick="window.open('${url}', '_blank')" style="text-align: left; display: flex; align-items: center; gap: 0.5rem;">
+            // Prepare documents for DocumentModal
+            const docs = request.documents.map(doc => ({
+                id: doc.id,
+                filename: docTypeLabels[doc.type] || doc.type || doc.filename || 'Document',
+                type: doc.type,
+                document_type: doc.type,
+                cid: doc.cid,
+                path: doc.path,
+                url: doc.cid ? `/api/documents/ipfs/${doc.cid}` : (doc.path ? `/api/documents/file/${encodeURIComponent(doc.path)}` : null)
+            }));
+            
+            // Use DocumentModal if available
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.viewMultiple(docs, 0);
+            } else {
+                // Fallback to old modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;';
+                modal.innerHTML = `
+                    <div class="modal-content" style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%;">
+                        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3><i class="fas fa-file-alt" style="color: #3498db;"></i> HPG Verification Documents</h3>
+                            <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Vehicle:</strong> ${request.vehicleMake} ${request.vehicleModel} ${request.vehicleYear}</p>
+                            <p><strong>Plate:</strong> ${request.plateNumber}</p>
+                            <h4>Attached Documents:</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                                ${docs.map(doc => `
+                                    <button class="btn-secondary" onclick="window.open('${doc.url}', '_blank')" style="text-align: left; display: flex; align-items: center; gap: 0.5rem;">
                                         <i class="fas fa-file-image" style="color: #3498db;"></i>
-                                        <span>${label}</span>
-                                        ${doc.cid ? '<span style="font-size: 0.75rem; color: #27ae60;">(IPFS)</span>' : ''}
+                                        <span>${doc.filename}</span>
                                     </button>
-                                `;
-                            }).join('')}
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
+                `;
+                document.body.appendChild(modal);
+            }
         } else if (request.documentCid) {
-            window.open('/ipfs/' + request.documentCid, '_blank');
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.view({ cid: request.documentCid, filename: 'Document' });
+            } else {
+                window.open('/ipfs/' + request.documentCid, '_blank');
+            }
         } else {
             alert('No documents attached to this request');
         }

@@ -854,16 +854,526 @@ function updateStatsFromApplications(applications) {
 
 function viewUserApplication(applicationId) {
     // Find the application to get vehicle details
-    const application = allApplications.find(app => app.id === applicationId);
-    if (application && application.vehicle) {
-        const vin = application.vehicle.vin;
-        const vehicleId = application.vehicle.id || application.id;
-        
-        // Always show all documents via VIN - let document viewer handle the display
-        // This allows owners to see all their documents, just like admin
-        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&vehicleId=${encodeURIComponent(vehicleId)}`;
+    let application = allApplications.find(app => app.id === applicationId);
+    
+    // Also check localStorage
+    if (!application) {
+        const storedApps = JSON.parse(localStorage.getItem('userApplications') || '[]');
+        const storedSubmitted = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+        application = storedApps.find(app => app.id === applicationId) || 
+                     storedSubmitted.find(app => app.id === applicationId);
+    }
+    
+    if (!application) {
+        showNotification('Application not found', 'error');
+        return;
+    }
+    
+    // Show application details modal with document selection
+    showApplicationDetailsModal(application);
+}
+
+// Show application details modal with document chooser
+function showApplicationDetailsModal(application) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('applicationDetailsModal');
+    if (existingModal) existingModal.remove();
+    
+    const vehicle = application.vehicle || {};
+    const documents = application.documents || {};
+    const status = application.status || 'submitted';
+    
+    // Build document list
+    const documentTypes = [
+        { key: 'registrationCert', label: 'Registration Certificate (OR/CR)', icon: 'fa-car' },
+        { key: 'insuranceCert', label: 'Insurance Certificate', icon: 'fa-shield-alt' },
+        { key: 'emissionCert', label: 'Emission Certificate', icon: 'fa-leaf' },
+        { key: 'ownerId', label: 'Owner ID', icon: 'fa-id-card' },
+        { key: 'deedOfSale', label: 'Deed of Sale', icon: 'fa-file-contract' },
+        { key: 'validId', label: 'Valid ID', icon: 'fa-id-badge' }
+    ];
+    
+    let documentListHTML = '';
+    let hasDocuments = false;
+    
+    documentTypes.forEach(docType => {
+        const docUrl = documents[docType.key];
+        if (docUrl) {
+            hasDocuments = true;
+            documentListHTML += `
+                <div class="doc-select-item" onclick="openDocumentFromModal('${docUrl}', '${docType.label}')">
+                    <div class="doc-select-icon">
+                        <i class="fas ${docType.icon}"></i>
+                    </div>
+                    <div class="doc-select-info">
+                        <div class="doc-select-title">${docType.label}</div>
+                        <div class="doc-select-status">
+                            <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
+                        </div>
+                    </div>
+                    <div class="doc-select-action">
+                        <i class="fas fa-external-link-alt"></i>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    if (!hasDocuments) {
+        documentListHTML = `
+            <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                <p>No documents uploaded yet</p>
+            </div>
+        `;
+    }
+    
+    const modal = document.createElement('div');
+    modal.id = 'applicationDetailsModal';
+    modal.className = 'owner-details-modal';
+    modal.innerHTML = `
+        <div class="owner-modal-overlay" onclick="closeApplicationDetailsModal()"></div>
+        <div class="owner-modal-content">
+            <div class="owner-modal-header">
+                <div class="owner-modal-title">
+                    <div class="owner-modal-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div>
+                        <h3>Application Details</h3>
+                        <small>ID: ${application.id}</small>
+                    </div>
+                </div>
+                <button class="owner-modal-close" onclick="closeApplicationDetailsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="owner-modal-body">
+                <!-- Status Banner -->
+                <div class="status-banner status-banner-${status}">
+                    <i class="fas ${getStatusIcon(status)}"></i>
+                    <span>${getStatusText(status)}</span>
+                </div>
+                
+                <!-- Vehicle Info Section -->
+                <div class="detail-section">
+                    <h4><i class="fas fa-car"></i> Vehicle Information</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Make</span>
+                            <span class="detail-value">${vehicle.make || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Model</span>
+                            <span class="detail-value">${vehicle.model || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Year</span>
+                            <span class="detail-value">${vehicle.year || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Plate Number</span>
+                            <span class="detail-value">${vehicle.plateNumber || 'Pending'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">VIN</span>
+                            <span class="detail-value">${vehicle.vin || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Color</span>
+                            <span class="detail-value">${vehicle.color || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Documents Section -->
+                <div class="detail-section">
+                    <h4><i class="fas fa-folder-open"></i> Documents</h4>
+                    <p style="color: #7f8c8d; font-size: 0.875rem; margin-bottom: 1rem;">Click on a document to view it</p>
+                    <div class="doc-select-list">
+                        ${documentListHTML}
+                    </div>
+                </div>
+                
+                <!-- Timeline Section -->
+                <div class="detail-section">
+                    <h4><i class="fas fa-history"></i> Application Timeline</h4>
+                    <div class="mini-timeline">
+                        <div class="mini-timeline-item ${status !== 'rejected' ? 'completed' : ''}">
+                            <div class="mini-timeline-dot"></div>
+                            <div class="mini-timeline-content">
+                                <strong>Submitted</strong>
+                                <small>${application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A'}</small>
+                            </div>
+                        </div>
+                        <div class="mini-timeline-item ${status === 'processing' || status === 'approved' || status === 'completed' ? 'completed' : ''}">
+                            <div class="mini-timeline-dot"></div>
+                            <div class="mini-timeline-content">
+                                <strong>Under Review</strong>
+                                <small>${status === 'processing' ? 'In Progress' : status === 'submitted' ? 'Pending' : 'Completed'}</small>
+                            </div>
+                        </div>
+                        <div class="mini-timeline-item ${status === 'approved' || status === 'completed' ? 'completed' : status === 'rejected' ? 'rejected' : ''}">
+                            <div class="mini-timeline-dot"></div>
+                            <div class="mini-timeline-content">
+                                <strong>${status === 'rejected' ? 'Rejected' : 'Approved'}</strong>
+                                <small>${status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : 'Pending'}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="owner-modal-footer">
+                ${hasDocuments ? `
+                    <button class="btn-primary" onclick="viewAllDocuments('${application.id}', '${vehicle.vin || ''}')">
+                        <i class="fas fa-folder-open"></i> View All Documents
+                    </button>
+                ` : ''}
+                <button class="btn-secondary" onclick="closeApplicationDetailsModal()">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add styles
+    if (!document.getElementById('owner-modal-styles')) {
+        const styles = document.createElement('style');
+        styles.id = 'owner-modal-styles';
+        styles.textContent = `
+            .owner-details-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .owner-modal-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(4px);
+            }
+            .owner-modal-content {
+                position: relative;
+                background: white;
+                border-radius: 16px;
+                max-width: 600px;
+                width: 95%;
+                max-height: 90vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                animation: modalSlideIn 0.3s ease;
+            }
+            @keyframes modalSlideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            .owner-modal-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1.5rem;
+                background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                color: white;
+            }
+            .owner-modal-title {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .owner-modal-icon {
+                width: 48px;
+                height: 48px;
+                background: rgba(255,255,255,0.2);
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.25rem;
+            }
+            .owner-modal-title h3 {
+                margin: 0;
+                font-size: 1.25rem;
+            }
+            .owner-modal-title small {
+                opacity: 0.8;
+                font-size: 0.75rem;
+            }
+            .owner-modal-close {
+                background: rgba(255,255,255,0.1);
+                border: none;
+                color: white;
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 1.25rem;
+                transition: background 0.2s;
+            }
+            .owner-modal-close:hover {
+                background: rgba(255,255,255,0.2);
+            }
+            .owner-modal-body {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1.5rem;
+            }
+            .status-banner {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 1rem;
+                border-radius: 12px;
+                margin-bottom: 1.5rem;
+                font-weight: 600;
+            }
+            .status-banner-submitted, .status-banner-pending {
+                background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+                color: white;
+            }
+            .status-banner-approved, .status-banner-completed {
+                background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+                color: white;
+            }
+            .status-banner-rejected {
+                background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                color: white;
+            }
+            .status-banner-processing {
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                color: white;
+            }
+            .detail-section {
+                margin-bottom: 1.5rem;
+            }
+            .detail-section h4 {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin: 0 0 1rem 0;
+                color: #2c3e50;
+                font-size: 1rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 2px solid #e9ecef;
+            }
+            .detail-section h4 i {
+                color: #3498db;
+            }
+            .detail-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+            .detail-item {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .detail-label {
+                font-size: 0.75rem;
+                color: #7f8c8d;
+                text-transform: uppercase;
+                font-weight: 600;
+            }
+            .detail-value {
+                font-size: 1rem;
+                color: #2c3e50;
+                font-weight: 500;
+            }
+            .doc-select-list {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .doc-select-item {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                padding: 1rem;
+                background: #f8f9fa;
+                border: 2px solid #e9ecef;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .doc-select-item:hover {
+                border-color: #3498db;
+                background: #e3f2fd;
+                transform: translateX(4px);
+            }
+            .doc-select-icon {
+                width: 44px;
+                height: 44px;
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                color: white;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.25rem;
+            }
+            .doc-select-info {
+                flex: 1;
+            }
+            .doc-select-title {
+                font-weight: 600;
+                color: #2c3e50;
+            }
+            .doc-select-status {
+                font-size: 0.75rem;
+                color: #7f8c8d;
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+            }
+            .doc-select-action {
+                color: #3498db;
+                font-size: 1rem;
+            }
+            .mini-timeline {
+                display: flex;
+                flex-direction: column;
+                gap: 0;
+                position: relative;
+                padding-left: 1.5rem;
+            }
+            .mini-timeline::before {
+                content: '';
+                position: absolute;
+                left: 6px;
+                top: 8px;
+                bottom: 8px;
+                width: 2px;
+                background: #e9ecef;
+            }
+            .mini-timeline-item {
+                display: flex;
+                align-items: flex-start;
+                gap: 1rem;
+                padding: 0.5rem 0;
+                position: relative;
+            }
+            .mini-timeline-dot {
+                width: 14px;
+                height: 14px;
+                background: #e9ecef;
+                border-radius: 50%;
+                position: absolute;
+                left: -1.5rem;
+                top: 0.6rem;
+                z-index: 1;
+            }
+            .mini-timeline-item.completed .mini-timeline-dot {
+                background: #27ae60;
+            }
+            .mini-timeline-item.rejected .mini-timeline-dot {
+                background: #e74c3c;
+            }
+            .mini-timeline-content {
+                display: flex;
+                flex-direction: column;
+            }
+            .mini-timeline-content strong {
+                color: #2c3e50;
+                font-size: 0.9rem;
+            }
+            .mini-timeline-content small {
+                color: #7f8c8d;
+                font-size: 0.75rem;
+            }
+            .owner-modal-footer {
+                display: flex;
+                gap: 1rem;
+                padding: 1rem 1.5rem;
+                border-top: 2px solid #e9ecef;
+                justify-content: flex-end;
+            }
+            .owner-modal-footer button {
+                padding: 0.75rem 1.5rem;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            @media (max-width: 480px) {
+                .detail-grid {
+                    grid-template-columns: 1fr;
+                }
+                .owner-modal-footer {
+                    flex-direction: column;
+                }
+                .owner-modal-footer button {
+                    width: 100%;
+                }
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+function closeApplicationDetailsModal() {
+    const modal = document.getElementById('applicationDetailsModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+function getStatusIcon(status) {
+    const icons = {
+        'submitted': 'fa-clock',
+        'pending': 'fa-clock',
+        'processing': 'fa-spinner fa-spin',
+        'approved': 'fa-check-circle',
+        'completed': 'fa-check-double',
+        'rejected': 'fa-times-circle'
+    };
+    return icons[status] || 'fa-question-circle';
+}
+
+function openDocumentFromModal(docUrl, docLabel) {
+    closeApplicationDetailsModal();
+    
+    // Use the document modal if available
+    if (typeof DocumentModal !== 'undefined') {
+        DocumentModal.view({
+            url: docUrl,
+            filename: docLabel,
+            type: docLabel
+        });
     } else {
-        // Fallback to appId
+        // Fallback to opening in new tab
+        window.open(docUrl, '_blank');
+    }
+}
+
+function viewAllDocuments(applicationId, vin) {
+    closeApplicationDetailsModal();
+    
+    if (vin) {
+        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}`;
+    } else {
         window.location.href = `document-viewer.html?appId=${applicationId}`;
     }
 }

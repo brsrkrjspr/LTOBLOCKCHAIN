@@ -1,0 +1,552 @@
+/* TrustChain LTO - Mobile Responsive Styles */
+/* Comprehensive mobile-first responsive design */
+
+/* ============================================
+   BASE MOBILE STYLES (up to 768px)
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Root adjustments */
+    html {
+        font-size: 14px;
+    }
+    
+    body {
+        -webkit-text-size-adjust: 100%;
+    }
+    
+    /* Sidebar - Mobile Overlay */
+    .dashboard-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1000;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .dashboard-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    .dashboard-sidebar.collapsed {
+        transform: translateX(-100%);
+    }
+    
+    /* Mobile overlay when sidebar is open */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
+    
+    /* Main content full width on mobile */
+    .dashboard-main {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    /* Header adjustments */
+    .dashboard-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .dashboard-header .container {
+        padding: 0;
+    }
+    
+    .dashboard-nav {
+        gap: 0.5rem;
+    }
+    
+    .dashboard-nav .logo h1 {
+        font-size: 1rem;
+        white-space: nowrap;
+    }
+    
+    /* Mobile menu toggle button */
+    .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1.25rem;
+    }
+    
+    /* Welcome section */
+    .welcome-section {
+        flex-direction: column;
+        padding: 1.5rem;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .welcome-title {
+        font-size: 1.5rem;
+    }
+    
+    .welcome-actions {
+        width: 100%;
+    }
+    
+    .welcome-actions .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Stats grid - 2 columns on mobile */
+    .stats-grid-modern {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem;
+    }
+    
+    .stat-card-modern {
+        padding: 1rem;
+    }
+    
+    .stat-number-modern {
+        font-size: 1.5rem;
+    }
+    
+    .stat-label-modern {
+        font-size: 0.7rem;
+    }
+    
+    /* Dashboard grid - single column */
+    .dashboard-grid-modern {
+        grid-template-columns: 1fr !important;
+        gap: 1rem;
+    }
+    
+    .dashboard-card-modern {
+        padding: 1.25rem;
+    }
+    
+    /* Section headers */
+    .section-header {
+        margin: 1.5rem 0 1rem;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+    }
+    
+    .section-subtitle {
+        font-size: 0.85rem;
+    }
+    
+    /* Tables - Responsive */
+    .table-container-modern {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .table-modern {
+        min-width: 600px;
+        font-size: 0.8rem;
+    }
+    
+    .table-modern th,
+    .table-modern td {
+        padding: 0.75rem 0.5rem;
+        white-space: nowrap;
+    }
+    
+    /* Action buttons */
+    .btn-sm {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    /* Form elements */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 0.75rem;
+        font-size: 16px; /* Prevents iOS zoom */
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    /* Buttons */
+    .btn-primary,
+    .btn-secondary,
+    .btn-success,
+    .btn-danger {
+        padding: 0.875rem 1.25rem;
+        font-size: 0.9rem;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .btn-block {
+        display: block;
+        width: 100%;
+    }
+    
+    /* Modal adjustments */
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+        margin: 1rem;
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 1rem;
+    }
+    
+    /* Organization status cards */
+    .org-status-card {
+        padding: 1rem !important;
+    }
+    
+    .org-status-card h4 {
+        font-size: 0.9rem !important;
+    }
+    
+    /* Wizard progress */
+    .wizard-progress {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+    
+    .progress-step {
+        flex: 1 1 calc(33.333% - 0.5rem);
+        min-width: 80px;
+    }
+    
+    .step-number {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+    }
+    
+    .step-label {
+        font-size: 0.65rem;
+    }
+    
+    /* Card actions */
+    .card-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .card-actions button,
+    .card-actions a {
+        width: 100%;
+    }
+    
+    /* Timeline */
+    .progress-timeline-modern {
+        padding-left: 1rem;
+    }
+    
+    .timeline-item-modern {
+        padding-left: 2rem;
+    }
+    
+    .timeline-content-modern h4 {
+        font-size: 0.9rem;
+    }
+    
+    .timeline-content-modern p {
+        font-size: 0.75rem;
+    }
+    
+    /* Document viewer modal */
+    .doc-viewer-content {
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 0 !important;
+    }
+    
+    .doc-viewer-sidebar {
+        display: none !important;
+    }
+    
+    /* Notifications */
+    .notifications-list-modern {
+        padding: 0.5rem;
+    }
+    
+    .notification-item {
+        padding: 1rem;
+    }
+    
+    /* Page header */
+    .page-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        font-size: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    /* Info grid */
+    .info-grid-2col {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Document cards */
+    .documents-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .document-card {
+        padding: 1rem;
+    }
+    
+    /* Action panel */
+    .action-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        padding: 1rem;
+        background: white;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+        border-radius: 16px 16px 0 0;
+    }
+    
+    .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .action-buttons button {
+        flex: 1 1 calc(50% - 0.5rem);
+        padding: 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    /* HPG Database section */
+    #databaseSection {
+        overflow-x: auto;
+    }
+    
+    #hotListTable {
+        min-width: 500px;
+    }
+}
+
+/* ============================================
+   SMALL MOBILE (up to 480px)
+   ============================================ */
+
+@media (max-width: 480px) {
+    html {
+        font-size: 13px;
+    }
+    
+    /* Stats grid - single column on very small screens */
+    .stats-grid-modern {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Wizard steps - 2 columns */
+    .progress-step {
+        flex: 1 1 calc(50% - 0.5rem);
+    }
+    
+    /* Action buttons - stack */
+    .action-buttons button {
+        flex: 1 1 100%;
+    }
+    
+    /* Welcome section */
+    .welcome-title {
+        font-size: 1.25rem;
+    }
+    
+    .welcome-subtitle {
+        font-size: 0.85rem;
+    }
+    
+    /* Cards */
+    .dashboard-card-modern {
+        padding: 1rem;
+    }
+    
+    .card-header-modern h3 {
+        font-size: 1rem;
+    }
+    
+    .card-description {
+        font-size: 0.8rem;
+    }
+    
+    /* Sidebar footer */
+    .sidebar-footer {
+        padding: 0.75rem;
+    }
+    
+    .sidebar-user-name {
+        font-size: 0.85rem;
+    }
+}
+
+/* ============================================
+   TABLET (769px - 1024px)
+   ============================================ */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .dashboard-sidebar {
+        width: 70px;
+    }
+    
+    .dashboard-sidebar:not(.collapsed) {
+        width: 240px;
+    }
+    
+    .dashboard-main {
+        margin-left: 70px;
+    }
+    
+    .dashboard-sidebar:not(.collapsed) + .dashboard-main {
+        margin-left: 240px;
+    }
+    
+    .stats-grid-modern {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .dashboard-grid-modern {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ============================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .btn-sm {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    .nav-item {
+        min-height: 48px;
+    }
+    
+    /* Remove hover effects that don't work well on touch */
+    .dashboard-card-modern:hover {
+        transform: none;
+    }
+    
+    .btn-primary:hover,
+    .btn-secondary:hover {
+        transform: none;
+    }
+    
+    /* Add active states instead */
+    .btn-primary:active,
+    .btn-secondary:active {
+        transform: scale(0.98);
+    }
+    
+    .dashboard-card-modern:active {
+        transform: scale(0.99);
+    }
+}
+
+/* ============================================
+   LANDSCAPE MOBILE
+   ============================================ */
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .dashboard-sidebar {
+        overflow-y: auto;
+    }
+    
+    .sidebar-nav {
+        padding: 0.5rem 0;
+    }
+    
+    .nav-item {
+        padding: 0.5rem 1rem;
+    }
+    
+    .modal-content {
+        max-height: 95vh;
+    }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+    .dashboard-sidebar,
+    .mobile-menu-toggle,
+    .btn-primary,
+    .btn-secondary,
+    .action-buttons {
+        display: none !important;
+    }
+    
+    .dashboard-main {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .dashboard-card-modern {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+
+/* ============================================
+   SAFE AREA (iPhone X and newer)
+   ============================================ */
+
+@supports (padding-top: env(safe-area-inset-top)) {
+    .dashboard-header {
+        padding-top: calc(0.75rem + env(safe-area-inset-top));
+    }
+    
+    .dashboard-sidebar {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    .action-panel {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+}
+

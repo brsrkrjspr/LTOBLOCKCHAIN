@@ -254,8 +254,8 @@ function renderVerificationResponsesTable(requests) {
                 </td>
                 <td>${new Date(responseDate).toLocaleString()}</td>
                 <td>
-                    <button class="btn-secondary btn-sm" onclick="viewVerificationDetails('${req.id}', '${req.orgType.toLowerCase()}')" title="View Details">
-                        <i class="fas fa-eye"></i>
+                    <button class="btn-secondary btn-sm" onclick="viewVerificationDetails('${req.id}', '${req.orgType.toLowerCase()}')" title="View Status Details">
+                        <i class="fas fa-info-circle"></i>
                     </button>
                     ${req.status === 'APPROVED' || req.status === 'COMPLETED' ? `
                         <button class="btn-success btn-sm" onclick="acknowledgeVerification('${req.id}', '${req.orgType.toLowerCase()}')" title="Acknowledge">
@@ -288,19 +288,98 @@ function getVerificationStatusIcon(status) {
     return iconMap[status] || 'fa-question-circle';
 }
 
-// View verification details
+// View verification details - Shows modal with verification info (LTO cannot access org interfaces)
 function viewVerificationDetails(requestId, orgType) {
-    const pageMap = {
-        'hpg': 'hpg-requests-list.html',
-        'insurance': 'insurance-lto-requests.html',
-        'emission': 'emission-lto-requests.html'
+    // LTO admin should NOT access org interfaces directly
+    // Instead, show a modal with the verification details
+    
+    const orgLabels = {
+        'hpg': 'HPG Clearance',
+        'insurance': 'Insurance Verification',
+        'emission': 'Emission Verification'
     };
     
-    const page = pageMap[orgType];
-    if (page) {
-        // Open in new tab or redirect
-        window.open(`${page}?requestId=${requestId}`, '_blank');
-    }
+    const orgIcons = {
+        'hpg': 'fa-shield-alt',
+        'insurance': 'fa-file-shield',
+        'emission': 'fa-leaf'
+    };
+    
+    const orgColors = {
+        'hpg': '#2c3e50',
+        'insurance': '#3498db',
+        'emission': '#16a085'
+    };
+    
+    // Create and show modal
+    const existingModal = document.getElementById('verificationDetailsModal');
+    if (existingModal) existingModal.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'verificationDetailsModal';
+    modal.className = 'modal';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; gap: 1rem;">
+                <div style="background: ${orgColors[orgType]}; color: white; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas ${orgIcons[orgType]}" style="font-size: 1.25rem;"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="margin: 0; font-size: 1.25rem; color: #2c3e50;">${orgLabels[orgType]} Details</h3>
+                    <small style="color: #7f8c8d;">Request ID: ${requestId.substring(0, 8)}...</small>
+                </div>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; color: #7f8c8d; cursor: pointer; padding: 0.25rem;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <p style="margin: 0; color: #7f8c8d; font-size: 0.875rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        This verification request was sent to <strong>${orgLabels[orgType]}</strong> for processing. 
+                        LTO can only view the status - the organization handles the verification process independently.
+                    </p>
+                </div>
+                
+                <div style="display: grid; gap: 1rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Request ID</label>
+                        <span style="font-weight: 600; color: #2c3e50;">${requestId}</span>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Organization</label>
+                        <span style="font-weight: 600; color: ${orgColors[orgType]};">
+                            <i class="fas ${orgIcons[orgType]}"></i> ${orgLabels[orgType]}
+                        </span>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Status</label>
+                        <span class="status-badge status-pending" style="font-weight: 600;">Awaiting Response</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e9ecef;">
+                    <p style="margin: 0; color: #7f8c8d; font-size: 0.875rem;">
+                        <i class="fas fa-lock"></i> 
+                        <strong>Note:</strong> LTO does not have access to organization interfaces. 
+                        Verification decisions are made independently by each organization.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 2px solid #e9ecef; display: flex; justify-content: flex-end;">
+                <button onclick="this.closest('.modal').remove()" class="btn-secondary" style="padding: 0.75rem 1.5rem;">Close</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close on backdrop click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 // Acknowledge verification (mark as seen by LTO)

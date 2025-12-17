@@ -620,17 +620,69 @@
         
         async function loadDocuments() {
             const params = new URLSearchParams(window.location.search);
+            const documentId = params.get('documentId');
             const vin = params.get('vin');
             const vehicleId = params.get('vehicleId');
             const appId = params.get('appId');
             
+            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            
             try {
-                // Try API first
-                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                // Case 1: Single document by ID
+                if (documentId) {
+                    console.log('Loading single document by ID:', documentId);
+                    try {
+                        const response = await fetch(`/api/documents/${documentId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.document) {
+                                const doc = data.document;
+                                documents = [{
+                                    id: doc.id,
+                                    type: doc.document_type || 'other',
+                                    label: doc.original_name || doc.filename || 'Document',
+                                    filename: doc.original_name || doc.filename,
+                                    url: `/api/documents/${doc.id}/view`,
+                                    cid: doc.ipfs_cid,
+                                    uploadDate: doc.created_at,
+                                    verified: true
+                                }];
+                                
+                                // Try to get vehicle info
+                                if (doc.vehicle_id) {
+                                    try {
+                                        const vehResponse = await fetch(`/api/vehicles/${doc.vehicle_id}`, {
+                                            headers: { 'Authorization': `Bearer ${token}` }
+                                        });
+                                        if (vehResponse.ok) {
+                                            const vehData = await vehResponse.json();
+                                            if (vehData.vehicle) {
+                                                document.getElementById('vehicleInfo').textContent = 
+                                                    `${vehData.vehicle.make || ''} ${vehData.vehicle.model || ''} ${vehData.vehicle.year || ''} • ${vehData.vehicle.plate_number || ''}`;
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.log('Could not load vehicle info');
+                                    }
+                                }
+                            }
+                        } else {
+                            throw new Error(`Document not found (${response.status})`);
+                        }
+                    } catch (apiError) {
+                        console.error('Error loading document:', apiError);
+                        showEmptyState('Document not found or access denied');
+                        return;
+                    }
+                }
                 
-                if (vin || vehicleId) {
-                    // Load from API
-                    let url = vehicleId ? `/api/vehicles/${vehicleId}/documents` : `/api/vehicles/vin/${vin}/documents`;
+                // Case 2: Load documents by vehicle ID or VIN
+                if (documents.length === 0 && (vin || vehicleId)) {
+                    console.log('Loading documents by vehicle:', vehicleId || vin);
+                    let url = vehicleId ? `/api/documents/vehicle-id/${vehicleId}` : `/api/documents/vehicle/${vin}`;
                     
                     try {
                         const response = await fetch(url, {
@@ -639,7 +691,19 @@
                         
                         if (response.ok) {
                             const data = await response.json();
-                            documents = data.documents || data.data || [];
+                            const rawDocs = data.documents || data.data || [];
+                            
+                            // Map to standard format
+                            documents = rawDocs.map(doc => ({
+                                id: doc.id,
+                                type: getDocTypeCategory(doc.document_type),
+                                label: getDocTypeLabel(doc.document_type) || doc.original_name || doc.filename || 'Document',
+                                filename: doc.original_name || doc.filename,
+                                url: `/api/documents/${doc.id}/view`,
+                                cid: doc.ipfs_cid,
+                                uploadDate: doc.created_at,
+                                verified: true
+                            }));
                             
                             // Update vehicle info
                             if (data.vehicle) {
@@ -648,137 +712,49 @@
                             }
                         }
                     } catch (apiError) {
-                        console.log('API not available, trying localStorage');
+                        console.error('Error loading vehicle documents:', apiError);
                     }
                 }
                 
-                // Fallback to localStorage
+                // Case 3: Load documents by application ID (which is usually a vehicle ID)
+                if (documents.length === 0 && appId) {
+                    console.log('Loading documents by application ID:', appId);
+                    try {
+                        // Application ID is typically the vehicle ID in this system
+                        const response = await fetch(`/api/documents/vehicle-id/${appId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            const rawDocs = data.documents || data.data || [];
+                            
+                            documents = rawDocs.map(doc => ({
+                                id: doc.id,
+                                type: getDocTypeCategory(doc.document_type),
+                                label: getDocTypeLabel(doc.document_type) || doc.original_name || 'Document',
+                                filename: doc.original_name || doc.filename,
+                                url: `/api/documents/${doc.id}/view`,
+                                cid: doc.ipfs_cid,
+                                uploadDate: doc.created_at,
+                                verified: true
+                            }));
+                            
+                            if (data.vehicle) {
+                                document.getElementById('vehicleInfo').textContent = 
+                                    `${data.vehicle.make || ''} ${data.vehicle.model || ''} • ${data.vehicle.plate_number || ''}`;
+                            }
+                        }
+                    } catch (apiError) {
+                        console.error('Error loading application documents:', apiError);
+                    }
+                }
+                
+                // If still no documents, show error
                 if (documents.length === 0) {
-                    console.log('API not available, trying localStorage');
-                    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-                    const userApps = JSON.parse(localStorage.getItem('userApplications') || '[]');
-                    const allApps = [...applications, ...userApps];
-                    
-                    console.log('Found applications:', allApps.length);
-                    console.log('Looking for VIN:', vin, 'or appId:', appId);
-                    
-                    let app = null;
-                    if (appId) {
-                        app = allApps.find(a => a.id === appId);
-                        console.log('Found by appId:', app ? 'yes' : 'no');
-                    }
-                    if (!app && vin) {
-                        app = allApps.find(a => a.vehicle?.vin === vin);
-                        console.log('Found by VIN:', app ? 'yes' : 'no');
-                    }
-                    
-                    if (app) {
-                        console.log('Application found:', app);
-                        console.log('Application documents:', app.documents);
-                        
-                        // Document type mappings
-                        const docTypeInfo = {
-                            registrationCert: { type: 'registration', label: 'Registration Certificate (OR/CR)' },
-                            registration_cert: { type: 'registration', label: 'Registration Certificate (OR/CR)' },
-                            insuranceCert: { type: 'insurance', label: 'Insurance Certificate' },
-                            insurance_cert: { type: 'insurance', label: 'Insurance Certificate' },
-                            emissionCert: { type: 'emission', label: 'Emission Certificate' },
-                            emission_cert: { type: 'emission', label: 'Emission Certificate' },
-                            ownerId: { type: 'id', label: 'Owner ID' },
-                            owner_id: { type: 'id', label: 'Owner ID' },
-                            validId: { type: 'id', label: 'Valid ID' },
-                            valid_id: { type: 'id', label: 'Valid ID' },
-                            deedOfSale: { type: 'other', label: 'Deed of Sale' },
-                            deed_of_sale: { type: 'other', label: 'Deed of Sale' }
-                        };
-                        
-                        const appDocs = app.documents;
-                        
-                        // Handle documents as an array (from API)
-                        if (Array.isArray(appDocs)) {
-                            console.log('Documents is an array with', appDocs.length, 'items');
-                            appDocs.forEach((doc, idx) => {
-                                console.log(`Doc ${idx}:`, doc);
-                                const docType = doc.type || doc.document_type || 'other';
-                                const info = docTypeInfo[docType] || { type: 'other', label: docType };
-                                
-                                // Get URL from various possible properties
-                                const docUrl = doc.url || doc.path || doc.file_path || 
-                                             (doc.cid ? `/api/documents/ipfs/${doc.cid}` : null) ||
-                                             (doc.id ? `/api/documents/${doc.id}/view` : null);
-                                
-                                documents.push({
-                                    id: doc.id || `${app.id}_${idx}`,
-                                    type: info.type,
-                                    label: doc.filename || doc.original_name || info.label,
-                                    url: docUrl,
-                                    cid: doc.cid || doc.ipfs_cid,
-                                    filename: doc.filename || doc.original_name || info.label,
-                                    uploadDate: doc.created_at || doc.uploadDate || app.submittedDate || new Date().toISOString(),
-                                    verified: app.status === 'approved'
-                                });
-                            });
-                        }
-                        // Handle documents as an object with keys (legacy format or new upload format)
-                        else if (appDocs && typeof appDocs === 'object') {
-                            console.log('Documents is an object with keys:', Object.keys(appDocs));
-                            Object.entries(appDocs).forEach(([key, docData]) => {
-                                if (!docData) return;
-                                
-                                const info = docTypeInfo[key] || { type: 'other', label: key };
-                                let docUrl = null;
-                                let docCid = null;
-                                let docId = null;
-                                let docFilename = info.label;
-                                
-                                // Handle different document formats
-                                if (typeof docData === 'string') {
-                                    // Simple string URL or data URL
-                                    docUrl = docData;
-                                    console.log(`Doc ${key}: string URL (length: ${docData.length})`);
-                                } else if (typeof docData === 'object') {
-                                    // Object with url/cid/id properties (from server upload)
-                                    docUrl = docData.url || docData.path || docData.file_path;
-                                    docCid = docData.cid || docData.ipfs_cid;
-                                    docId = docData.id;
-                                    docFilename = docData.filename || docData.original_name || info.label;
-                                    
-                                    // If we have an ID or CID but no URL, construct the API URL
-                                    if (!docUrl && docCid) {
-                                        docUrl = `/api/documents/ipfs/${docCid}`;
-                                    } else if (!docUrl && docId) {
-                                        docUrl = `/api/documents/${docId}/view`;
-                                    }
-                                    
-                                    console.log(`Doc ${key}: object with url=${!!docUrl}, cid=${docCid}, id=${docId}`);
-                                }
-                                
-                                if (docUrl || docCid || docId) {
-                                    documents.push({
-                                        id: docId || `${app.id}_${key}`,
-                                        type: info.type,
-                                        label: docFilename,
-                                        url: docUrl,
-                                        cid: docCid,
-                                        filename: docFilename,
-                                        uploadDate: app.submittedDate || new Date().toISOString(),
-                                        verified: app.status === 'approved'
-                                    });
-                                }
-                            });
-                        }
-                        
-                        console.log('Total documents loaded:', documents.length);
-                        console.log('Loaded documents:', documents);
-                        
-                        // Update vehicle info
-                        if (app.vehicle) {
-                            document.getElementById('vehicleInfo').textContent = 
-                                `${app.vehicle.make || ''} ${app.vehicle.model || ''} ${app.vehicle.year || ''} • ${app.vehicle.plateNumber || app.vehicle.vin}`;
-                        }
-                    } else {
-                        console.log('No application found');
-                    }
+                    console.log('No documents found');
+                    showEmptyState('No documents found. Please ensure documents were uploaded properly.');
+                    return;
                 }
                 
                 renderDocumentList();
@@ -1076,15 +1052,60 @@
             }
         }
         
-        function showEmptyState() {
+        function showEmptyState(message) {
             const main = document.getElementById('viewerMain');
             main.innerHTML = `
                 <div class="empty-doc-state">
                     <i class="fas fa-folder-open"></i>
                     <h2>No Documents Found</h2>
-                    <p>There are no documents available to view.</p>
+                    <p>${message || 'There are no documents available to view.'}</p>
+                    <button class="btn-primary" onclick="goBack()" style="margin-top: 1rem;">
+                        <i class="fas fa-arrow-left"></i> Go Back
+                    </button>
                 </div>
             `;
+        }
+        
+        // Helper function to get document type category for styling
+        function getDocTypeCategory(docType) {
+            const categories = {
+                'registration_cert': 'registration',
+                'registrationCert': 'registration',
+                'or_cr': 'registration',
+                'insurance_cert': 'insurance',
+                'insuranceCert': 'insurance',
+                'emission_cert': 'emission',
+                'emissionCert': 'emission',
+                'owner_id': 'id',
+                'ownerId': 'id',
+                'valid_id': 'id',
+                'validId': 'id',
+                'deed_of_sale': 'other',
+                'deedOfSale': 'other'
+            };
+            return categories[docType] || 'other';
+        }
+        
+        // Helper function to get human-readable document type label
+        function getDocTypeLabel(docType) {
+            const labels = {
+                'registration_cert': 'Registration Certificate (OR/CR)',
+                'registrationCert': 'Registration Certificate (OR/CR)',
+                'or_cr': 'OR/CR',
+                'insurance_cert': 'Insurance Certificate',
+                'insuranceCert': 'Insurance Certificate',
+                'emission_cert': 'Emission Certificate',
+                'emissionCert': 'Emission Certificate',
+                'owner_id': 'Owner ID',
+                'ownerId': 'Owner ID',
+                'valid_id': 'Valid ID',
+                'validId': 'Valid ID',
+                'deed_of_sale': 'Deed of Sale',
+                'deedOfSale': 'Deed of Sale',
+                'hpg_clearance': 'HPG Clearance',
+                'hpgClearance': 'HPG Clearance'
+            };
+            return labels[docType] || docType;
         }
     </script>
 </body>

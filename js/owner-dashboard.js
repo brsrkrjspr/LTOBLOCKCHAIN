@@ -852,7 +852,10 @@ function updateStatsFromApplications(applications) {
     }
 }
 
-function viewUserApplication(applicationId) {
+async function viewUserApplication(applicationId) {
+    // Show loading state
+    showNotification('Loading application details...', 'info');
+    
     // Find the application to get vehicle details
     let application = allApplications.find(app => app.id === applicationId);
     
@@ -869,8 +872,60 @@ function viewUserApplication(applicationId) {
         return;
     }
     
+    // Check if the application ID looks like a real UUID (from API)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(applicationId);
+    
+    // Try to load documents from API if it's a real vehicle
+    if (isUUID) {
+        try {
+            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            const response = await fetch(`/api/documents/vehicle-id/${applicationId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.documents && data.documents.length > 0) {
+                    console.log('Loaded documents from API:', data.documents);
+                    
+                    // Convert array format to object format for the modal
+                    const docsMap = {};
+                    data.documents.forEach(doc => {
+                        const key = mapDocTypeToKey(doc.document_type);
+                        docsMap[key] = {
+                            id: doc.id,
+                            url: `/api/documents/${doc.id}/view`,
+                            cid: doc.ipfs_cid,
+                            filename: doc.original_name || doc.filename,
+                            type: doc.document_type
+                        };
+                    });
+                    application.documents = docsMap;
+                }
+            }
+        } catch (apiError) {
+            console.log('Could not load documents from API:', apiError);
+            // Continue with existing documents
+        }
+    }
+    
     // Show application details modal with document selection
     showApplicationDetailsModal(application);
+}
+
+// Map API document types to modal keys
+function mapDocTypeToKey(docType) {
+    const typeMap = {
+        'registration_cert': 'registrationCert',
+        'or_cr': 'registrationCert',
+        'insurance_cert': 'insuranceCert',
+        'emission_cert': 'emissionCert',
+        'owner_id': 'ownerId',
+        'valid_id': 'validId',
+        'deed_of_sale': 'deedOfSale',
+        'hpg_clearance': 'hpgClearance'
+    };
+    return typeMap[docType] || docType;
 }
 
 // Store current application documents for modal access
@@ -884,8 +939,24 @@ function showApplicationDetailsModal(application) {
     if (existingModal) existingModal.remove();
     
     const vehicle = application.vehicle || {};
-    const documents = application.documents || {};
+    let documents = application.documents || {};
     const status = application.status || 'submitted';
+    
+    // Handle documents if they're in array format (from API)
+    if (Array.isArray(documents)) {
+        const docsMap = {};
+        documents.forEach(doc => {
+            const key = mapDocTypeToKey(doc.document_type || doc.type);
+            docsMap[key] = {
+                id: doc.id,
+                url: doc.url || (doc.id ? `/api/documents/${doc.id}/view` : null),
+                cid: doc.cid || doc.ipfs_cid,
+                filename: doc.original_name || doc.filename,
+                type: doc.document_type || doc.type
+            };
+        });
+        documents = docsMap;
+    }
     
     // Store for access by click handlers
     currentModalDocuments = documents;
@@ -906,11 +977,13 @@ function showApplicationDetailsModal(application) {
     let docCount = 0;
     
     documentTypes.forEach(docType => {
-        const docUrl = documents[docType.key];
-        if (docUrl) {
+        const docData = documents[docType.key];
+        if (docData) {
             hasDocuments = true;
             docCount++;
-            // Use data attribute instead of passing URL directly in onclick
+            // Get filename for display
+            const filename = typeof docData === 'object' ? (docData.filename || docType.label) : docType.label;
+            
             documentListHTML += `
                 <div class="doc-select-item" data-doc-key="${docType.key}" onclick="openDocumentByKey('${docType.key}')">
                     <div class="doc-select-icon">
@@ -918,6 +991,7 @@ function showApplicationDetailsModal(application) {
                     </div>
                     <div class="doc-select-info">
                         <div class="doc-select-title">${docType.label}</div>
+                        <div class="doc-select-subtitle">${filename !== docType.label ? filename : ''}</div>
                         <div class="doc-select-status">
                             <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
                         </div>
@@ -1404,11 +1478,31 @@ function openDocumentByKey(docKey) {
         'validId': 'Valid ID'
     };
     
-    const docUrl = currentModalDocuments[docKey];
+    const docData = currentModalDocuments[docKey];
     const docLabel = docTypeLabels[docKey] || docKey;
     
-    if (!docUrl) {
+    if (!docData) {
         showNotification('Document not found', 'error');
+        return;
+    }
+    
+    // Handle both string URL format and object format
+    let docUrl, docId, docCid, filename;
+    
+    if (typeof docData === 'string') {
+        // Simple string URL (or data URL)
+        docUrl = docData;
+        filename = docLabel;
+    } else if (typeof docData === 'object') {
+        // Object format with id, url, cid, etc.
+        docId = docData.id;
+        docCid = docData.cid || docData.ipfs_cid;
+        docUrl = docData.url || (docId ? `/api/documents/${docId}/view` : null) || (docCid ? `/api/documents/ipfs/${docCid}` : null);
+        filename = docData.filename || docData.original_name || docLabel;
+    }
+    
+    if (!docUrl && !docId && !docCid) {
+        showNotification('Document URL not available', 'error');
         return;
     }
     
@@ -1417,20 +1511,25 @@ function openDocumentByKey(docKey) {
     // Use the document modal if available
     if (typeof DocumentModal !== 'undefined') {
         DocumentModal.view({
+            id: docId,
             url: docUrl,
-            filename: docLabel,
+            cid: docCid,
+            filename: filename,
             type: docKey
         });
     } else {
         // Fallback to opening in new tab/window
-        if (docUrl.startsWith('data:')) {
+        const finalUrl = docUrl || (docId ? `/api/documents/${docId}/view` : null) || (docCid ? `/api/documents/ipfs/${docCid}` : null);
+        if (finalUrl && typeof finalUrl === 'string' && finalUrl.startsWith('data:')) {
             // For data URLs, open in a new window
             const win = window.open();
             if (win) {
-                win.document.write(`<html><head><title>${docLabel}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1a1a2e;"><img src="${docUrl}" style="max-width:100%;max-height:100vh;object-fit:contain;"></body></html>`);
+                win.document.write(`<html><head><title>${docLabel}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1a1a2e;"><img src="${finalUrl}" style="max-width:100%;max-height:100vh;object-fit:contain;"></body></html>`);
             }
+        } else if (finalUrl) {
+            window.open(finalUrl, '_blank');
         } else {
-            window.open(docUrl, '_blank');
+            showNotification('Cannot open document', 'error');
         }
     }
 }
@@ -1443,7 +1542,13 @@ function viewAllDocumentsFullPage() {
         const vin = currentModalApplication.vehicle?.vin;
         const appId = currentModalApplication.id;
         
-        if (vin) {
+        // Check if appId is a UUID (real vehicle from API)
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appId);
+        
+        if (isUUID) {
+            // Use vehicleId for API-based document loading
+            window.location.href = `document-viewer.html?vehicleId=${encodeURIComponent(appId)}`;
+        } else if (vin) {
             window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&appId=${encodeURIComponent(appId)}`;
         } else {
             window.location.href = `document-viewer.html?appId=${encodeURIComponent(appId)}`;
@@ -1469,16 +1574,34 @@ function viewAllDocsInModal() {
     
     // Build document array for DocumentModal
     const docs = [];
-    Object.entries(currentModalDocuments).forEach(([key, url]) => {
-        if (url) {
+    Object.entries(currentModalDocuments).forEach(([key, docData]) => {
+        if (docData) {
             const info = docTypeLabels[key] || { label: key, type: 'other' };
-            docs.push({
-                id: `${currentModalApplication?.id || 'doc'}_${key}`,
-                url: url,
-                filename: info.label,
-                type: info.type,
-                document_type: key
-            });
+            
+            // Handle both string URL format and object format
+            let docObj;
+            if (typeof docData === 'string') {
+                docObj = {
+                    id: `${currentModalApplication?.id || 'doc'}_${key}`,
+                    url: docData,
+                    filename: info.label,
+                    type: info.type,
+                    document_type: key
+                };
+            } else if (typeof docData === 'object') {
+                docObj = {
+                    id: docData.id || `${currentModalApplication?.id || 'doc'}_${key}`,
+                    url: docData.url || (docData.id ? `/api/documents/${docData.id}/view` : null) || (docData.cid ? `/api/documents/ipfs/${docData.cid}` : null),
+                    cid: docData.cid || docData.ipfs_cid,
+                    filename: docData.filename || docData.original_name || info.label,
+                    type: info.type,
+                    document_type: key
+                };
+            }
+            
+            if (docObj) {
+                docs.push(docObj);
+            }
         }
     });
     

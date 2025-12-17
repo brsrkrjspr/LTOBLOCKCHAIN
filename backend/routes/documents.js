@@ -855,6 +855,81 @@ router.get('/vehicle/:vin', authenticateToken, async (req, res) => {
     }
 });
 
+// Get documents by vehicle ID
+router.get('/vehicle-id/:vehicleId', authenticateToken, async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        
+        if (!isAdmin && !isOwner && !isVerifier) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        const documents = await db.getDocumentsByVehicle(vehicle.id);
+
+        res.json({
+            success: true,
+            vehicle: {
+                id: vehicle.id,
+                vin: vehicle.vin,
+                plate_number: vehicle.plate_number,
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year
+            },
+            documents: documents.map(doc => ({
+                id: doc.id,
+                vehicleId: doc.vehicle_id,
+                documentType: doc.document_type,
+                document_type: doc.document_type,
+                originalName: doc.original_name,
+                original_name: doc.original_name,
+                filename: doc.filename,
+                fileSize: doc.file_size,
+                file_size: doc.file_size,
+                fileHash: doc.file_hash,
+                file_hash: doc.file_hash,
+                mimeType: doc.mime_type,
+                mime_type: doc.mime_type,
+                uploadedBy: doc.uploaded_by,
+                uploaded_by: doc.uploaded_by,
+                uploadedAt: doc.uploaded_at,
+                uploaded_at: doc.uploaded_at,
+                verified: doc.verified,
+                verifiedAt: doc.verified_at,
+                verified_at: doc.verified_at,
+                uploaderName: doc.uploader_name,
+                ipfs_cid: doc.ipfs_cid,
+                cid: doc.ipfs_cid,
+                url: doc.url || `/uploads/${doc.filename}`,
+                file_path: doc.file_path
+            }))
+        });
+
+    } catch (error) {
+        console.error('Get documents by vehicle ID error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve documents'
+        });
+    }
+});
+
 // Delete document
 router.delete('/:documentId', authenticateToken, async (req, res) => {
     try {

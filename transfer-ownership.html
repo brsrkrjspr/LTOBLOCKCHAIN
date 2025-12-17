@@ -7,76 +7,82 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Upload card styles */
-        .upload-card {
+        /* Transfer Upload Section - Using same structure as registration-wizard.html */
+        .transfer-upload-section {
+            margin-bottom: 2rem;
+        }
+        .transfer-upload-section h3 {
+            margin-bottom: 1.5rem;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+        .transfer-upload-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            transition: border-color 0.3s;
             background: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            transition: box-shadow 0.3s;
         }
-        .upload-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        .transfer-upload-item:hover {
+            border-color: #3498db;
         }
-        .upload-card h4 {
-            margin: 0 0 10px 0;
-            font-size: 0.95rem;
-            color: #333;
+        .transfer-upload-item.uploaded {
+            border-color: #27ae60;
+            background: #f0fff4;
         }
-        .file-drop {
+        .transfer-upload-info h4 {
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        .transfer-upload-info p {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        .transfer-upload-area {
             position: relative;
+            min-width: 150px;
+        }
+        .transfer-upload-area input[type="file"] {
+            display: none;
+        }
+        .transfer-upload-label {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 25px 15px;
-            border: 2px dashed #ccc;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            border: 2px dashed #3498db;
             border-radius: 8px;
-            background: #fafafa;
+            background: #f8f9fa;
             cursor: pointer;
             transition: all 0.3s;
-            min-height: 120px;
-            text-align: center;
         }
-        .file-drop:hover {
-            border-color: #3498db;
-            background: rgba(52, 152, 219, 0.05);
+        .transfer-upload-label:hover {
+            background: #e3f2fd;
+            border-color: #2980b9;
         }
-        /* Make the file input cover the entire drop zone and be clickable */
-        .file-drop input[type="file"] {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-            z-index: 10;
+        .transfer-upload-label.uploaded {
+            border-color: #27ae60;
+            border-style: solid;
+            background: #d4edda;
         }
-        .file-drop i {
-            font-size: 2rem;
-            color: #7f8c8d;
-            margin-bottom: 10px;
+        .transfer-upload-icon {
+            font-size: 1.5rem;
         }
-        .file-drop p {
-            margin: 5px 0;
-            color: #555;
+        .transfer-upload-text {
             font-size: 0.9rem;
+            color: #555;
         }
-        .file-drop small {
-            color: #999;
-            font-size: 0.8rem;
-        }
-        .upload-status {
-            margin-top: 8px;
+        .transfer-file-name {
+            margin-top: 0.5rem;
             font-size: 0.85rem;
-            min-height: 20px;
-        }
-        .upload-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+            color: #27ae60;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -302,7 +308,7 @@
                             </div>
                         </section>
 
-                        <!-- Step 4 -->
+                        <!-- Step 4: Document Upload (Same structure as registration-wizard.html) -->
                         <section id="to-step-4" class="wizard-step">
                             <div class="transfer-card">
                                 <div class="card-header">
@@ -310,62 +316,93 @@
                                         <div class="card-icon"><i class="fas fa-file-upload"></i></div>
                                         <div>
                                             <h2>Upload Required Documents</h2>
-                                            <p>Upload the required documents. PDFs, JPG, PNG are accepted.</p>
+                                            <p>Upload the required documents. PDFs, JPG, PNG are accepted (max 10MB each).</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="card-body">
                                     <div id="wizardError4" class="wizard-error"></div>
-                                    <div class="upload-grid">
-                                        <div class="upload-card" data-doc-type="deedOfSale">
-                                            <h4>Deed of Sale <span style="color: #e74c3c;">*</span></h4>
-                                            <label class="file-drop" for="file-deedOfSale">
-                                                <i class="fas fa-file-contract"></i>
-                                                <p>Click to browse or drag & drop</p>
-                                                <small>PDF, JPG, PNG up to 10MB</small>
-                                                <input type="file" id="file-deedOfSale" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'deedOfSale')">
-                                            </label>
-                                            <div class="upload-status" id="status-deedOfSale"></div>
+                                    <div class="transfer-upload-section">
+                                        <h3>Required Documents</h3>
+                                        
+                                        <!-- Deed of Sale -->
+                                        <div class="transfer-upload-item" id="upload-item-deedOfSale">
+                                            <div class="transfer-upload-info">
+                                                <h4>📝 Deed of Sale <span style="color: #e74c3c;">*</span></h4>
+                                                <p>Notarized deed of sale document</p>
+                                            </div>
+                                            <div class="transfer-upload-area">
+                                                <input type="file" id="deedOfSale" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'deedOfSale')">
+                                                <label for="deedOfSale" class="transfer-upload-label" id="label-deedOfSale">
+                                                    <span class="transfer-upload-icon">📄</span>
+                                                    <span class="transfer-upload-text">Choose File</span>
+                                                </label>
+                                                <div class="transfer-file-name" id="filename-deedOfSale"></div>
+                                            </div>
                                         </div>
-                                        <div class="upload-card" data-doc-type="sellerId">
-                                            <h4>Seller Valid ID <span style="color: #e74c3c;">*</span></h4>
-                                            <label class="file-drop" for="file-sellerId">
-                                                <i class="fas fa-id-card"></i>
-                                                <p>Click to browse or drag & drop</p>
-                                                <small>PDF, JPG, PNG up to 10MB</small>
-                                                <input type="file" id="file-sellerId" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'sellerId')">
-                                            </label>
-                                            <div class="upload-status" id="status-sellerId"></div>
+
+                                        <!-- Seller Valid ID -->
+                                        <div class="transfer-upload-item" id="upload-item-sellerId">
+                                            <div class="transfer-upload-info">
+                                                <h4>🪪 Seller Valid ID <span style="color: #e74c3c;">*</span></h4>
+                                                <p>Government-issued ID of the seller</p>
+                                            </div>
+                                            <div class="transfer-upload-area">
+                                                <input type="file" id="sellerId" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'sellerId')">
+                                                <label for="sellerId" class="transfer-upload-label" id="label-sellerId">
+                                                    <span class="transfer-upload-icon">🆔</span>
+                                                    <span class="transfer-upload-text">Choose File</span>
+                                                </label>
+                                                <div class="transfer-file-name" id="filename-sellerId"></div>
+                                            </div>
                                         </div>
-                                        <div class="upload-card" data-doc-type="buyerId">
-                                            <h4>Buyer Valid ID <span style="color: #e74c3c;">*</span></h4>
-                                            <label class="file-drop" for="file-buyerId">
-                                                <i class="fas fa-id-card-clip"></i>
-                                                <p>Click to browse or drag & drop</p>
-                                                <small>PDF, JPG, PNG up to 10MB</small>
-                                                <input type="file" id="file-buyerId" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'buyerId')">
-                                            </label>
-                                            <div class="upload-status" id="status-buyerId"></div>
+
+                                        <!-- Buyer Valid ID -->
+                                        <div class="transfer-upload-item" id="upload-item-buyerId">
+                                            <div class="transfer-upload-info">
+                                                <h4>🪪 Buyer Valid ID <span style="color: #e74c3c;">*</span></h4>
+                                                <p>Government-issued ID of the buyer</p>
+                                            </div>
+                                            <div class="transfer-upload-area">
+                                                <input type="file" id="buyerId" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'buyerId')">
+                                                <label for="buyerId" class="transfer-upload-label" id="label-buyerId">
+                                                    <span class="transfer-upload-icon">🆔</span>
+                                                    <span class="transfer-upload-text">Choose File</span>
+                                                </label>
+                                                <div class="transfer-file-name" id="filename-buyerId"></div>
+                                            </div>
                                         </div>
-                                        <div class="upload-card" data-doc-type="orCr">
-                                            <h4>Latest OR/CR <span style="color: #e74c3c;">*</span></h4>
-                                            <label class="file-drop" for="file-orCr">
-                                                <i class="fas fa-file-invoice"></i>
-                                                <p>Click to browse or drag & drop</p>
-                                                <small>PDF, JPG, PNG up to 10MB</small>
-                                                <input type="file" id="file-orCr" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'orCr')">
-                                            </label>
-                                            <div class="upload-status" id="status-orCr"></div>
+
+                                        <!-- OR/CR -->
+                                        <div class="transfer-upload-item" id="upload-item-orCr">
+                                            <div class="transfer-upload-info">
+                                                <h4>📋 Latest OR/CR <span style="color: #e74c3c;">*</span></h4>
+                                                <p>Official Receipt / Certificate of Registration</p>
+                                            </div>
+                                            <div class="transfer-upload-area">
+                                                <input type="file" id="orCr" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'orCr')">
+                                                <label for="orCr" class="transfer-upload-label" id="label-orCr">
+                                                    <span class="transfer-upload-icon">📄</span>
+                                                    <span class="transfer-upload-text">Choose File</span>
+                                                </label>
+                                                <div class="transfer-file-name" id="filename-orCr"></div>
+                                            </div>
                                         </div>
-                                        <div class="upload-card" data-doc-type="emissionCert">
-                                            <h4>Emission Test Certificate <span style="color: #7f8c8d;">(Optional)</span></h4>
-                                            <label class="file-drop" for="file-emissionCert">
-                                                <i class="fas fa-file-medical"></i>
-                                                <p>Click to browse or drag & drop</p>
-                                                <small>PDF, JPG, PNG up to 10MB</small>
-                                                <input type="file" id="file-emissionCert" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'emissionCert')">
-                                            </label>
-                                            <div class="upload-status" id="status-emissionCert"></div>
+
+                                        <!-- Emission Certificate (Optional) -->
+                                        <div class="transfer-upload-item" id="upload-item-emissionCert">
+                                            <div class="transfer-upload-info">
+                                                <h4>🌱 Emission Test Certificate <span style="color: #7f8c8d;">(Optional)</span></h4>
+                                                <p>If available, upload emission test certificate</p>
+                                            </div>
+                                            <div class="transfer-upload-area">
+                                                <input type="file" id="emissionCert" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'emissionCert')">
+                                                <label for="emissionCert" class="transfer-upload-label" id="label-emissionCert">
+                                                    <span class="transfer-upload-icon">📄</span>
+                                                    <span class="transfer-upload-text">Choose File</span>
+                                                </label>
+                                                <div class="transfer-file-name" id="filename-emissionCert"></div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="wizard-actions">
@@ -623,74 +660,37 @@
         }
 
         function initializeFileUploads() {
-            // Add drag and drop support to all upload cards
-            const uploadCards = document.querySelectorAll('.upload-card');
-            
-            uploadCards.forEach(card => {
-                const dropZone = card.querySelector('.file-drop');
-                const docType = card.dataset.docType;
-                
-                if (!dropZone || !docType) return;
-                
-                // Drag and drop events
-                dropZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropZone.style.borderColor = '#3498db';
-                    dropZone.style.background = 'rgba(52, 152, 219, 0.1)';
-                });
-                
-                dropZone.addEventListener('dragleave', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropZone.style.borderColor = '';
-                    dropZone.style.background = '';
-                });
-                
-                dropZone.addEventListener('drop', async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropZone.style.borderColor = '';
-                    dropZone.style.background = '';
-                    
-                    if (e.dataTransfer.files.length > 0) {
-                        const fileInput = document.getElementById(`file-${docType}`);
-                        if (fileInput) {
-                            // Create a new DataTransfer to set files
-                            const dt = new DataTransfer();
-                            dt.items.add(e.dataTransfer.files[0]);
-                            fileInput.files = dt.files;
-                            // Trigger change event
-                            handleFileSelect(fileInput, docType);
-                        }
-                    }
-                });
-            });
+            // File uploads are now handled directly via onchange on each input
+            // This function is kept for compatibility but no longer needed
+            console.log('File upload handlers ready');
         }
 
-        // Handle file selection from input
-        async function handleFileSelect(input, docType) {
+        // Handle file upload - same approach as registration-wizard.html
+        async function handleTransferUpload(input, docType) {
             if (!input.files || input.files.length === 0) return;
             
             const file = input.files[0];
-            const card = document.querySelector(`.upload-card[data-doc-type="${docType}"]`);
-            const statusDiv = document.getElementById(`status-${docType}`);
-            const dropZone = card?.querySelector('.file-drop');
+            const label = document.getElementById(`label-${docType}`);
+            const filenameDiv = document.getElementById(`filename-${docType}`);
+            const uploadItem = document.getElementById(`upload-item-${docType}`);
             
-            // Validate file size
-            const maxSize = 10 * 1024 * 1024; // 10MB
+            // Validate file size (10MB)
+            const maxSize = 10 * 1024 * 1024;
             if (file.size > maxSize) {
                 showNotification('File size exceeds 10MB limit', 'error');
-                if (statusDiv) {
-                    statusDiv.innerHTML = '<span style="color: #e74c3c;">❌ File too large (max 10MB)</span>';
+                if (filenameDiv) {
+                    filenameDiv.innerHTML = '<span style="color: #e74c3c;">❌ File too large</span>';
                 }
                 return;
             }
             
             try {
-                // Show uploading status
-                if (statusDiv) {
-                    statusDiv.innerHTML = '<span style="color: #3498db;">⏳ Uploading...</span>';
+                // Show uploading state
+                if (label) {
+                    label.innerHTML = `
+                        <span class="transfer-upload-icon">⏳</span>
+                        <span class="transfer-upload-text">Uploading...</span>
+                    `;
                 }
                 
                 // Create form data
@@ -719,18 +719,19 @@
                         cid: result.cid || result.document?.cid
                     };
                     
-                    // Update UI - show success
-                    if (dropZone) {
-                        dropZone.innerHTML = `
-                            <i class="fas fa-check-circle" style="color: #27ae60; font-size: 2rem;"></i>
-                            <p style="color: #27ae60; font-weight: bold;">${file.name}</p>
-                            <small style="color: #27ae60;">✓ Uploaded successfully</small>
-                            <input type="file" id="file-${docType}" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect(this, '${docType}')">
+                    // Update UI to show success
+                    if (label) {
+                        label.classList.add('uploaded');
+                        label.innerHTML = `
+                            <span class="transfer-upload-icon">✅</span>
+                            <span class="transfer-upload-text">Uploaded</span>
                         `;
                     }
-                    
-                    if (statusDiv) {
-                        statusDiv.innerHTML = `<span style="color: #27ae60;">✅ ${file.name}</span>`;
+                    if (uploadItem) {
+                        uploadItem.classList.add('uploaded');
+                    }
+                    if (filenameDiv) {
+                        filenameDiv.textContent = file.name;
                     }
                     
                     showNotification(`${file.name} uploaded successfully`, 'success');
@@ -739,9 +740,19 @@
                 }
             } catch (error) {
                 console.error('Upload error:', error);
-                if (statusDiv) {
-                    statusDiv.innerHTML = `<span style="color: #e74c3c;">❌ Upload failed: ${error.message}</span>`;
+                
+                // Reset label on error
+                if (label) {
+                    label.classList.remove('uploaded');
+                    label.innerHTML = `
+                        <span class="transfer-upload-icon">📄</span>
+                        <span class="transfer-upload-text">Choose File</span>
+                    `;
                 }
+                if (filenameDiv) {
+                    filenameDiv.innerHTML = `<span style="color: #e74c3c;">❌ ${error.message}</span>`;
+                }
+                
                 showNotification(`Upload failed: ${error.message}`, 'error');
             }
         }

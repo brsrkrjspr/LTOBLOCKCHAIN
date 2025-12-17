@@ -219,6 +219,11 @@ class LocalStorageService {
     // Get documents by vehicle VIN
     async getDocumentsByVehicle(vehicleVin) {
         try {
+            // Guard: return empty if metadata directory doesn't exist
+            if (!fs.existsSync(this.metadataPath)) {
+                return { success: true, documents: [], count: 0 };
+            }
+
             const metadataFiles = fs.readdirSync(this.metadataPath);
             const documents = [];
 
@@ -249,6 +254,11 @@ class LocalStorageService {
     // Get documents by owner email
     async getDocumentsByOwner(ownerEmail) {
         try {
+            // Guard: return empty if metadata directory doesn't exist
+            if (!fs.existsSync(this.metadataPath)) {
+                return { success: true, documents: [], count: 0 };
+            }
+
             const metadataFiles = fs.readdirSync(this.metadataPath);
             const documents = [];
 
@@ -383,6 +393,11 @@ class LocalStorageService {
     // Save metadata
     async saveMetadata(metadata) {
         try {
+            // Ensure metadata directory exists (critical for IPFS mode)
+            if (!fs.existsSync(this.metadataPath)) {
+                fs.mkdirSync(this.metadataPath, { recursive: true, mode: 0o755 });
+                console.log(`📁 Created metadata directory: ${this.metadataPath}`);
+            }
             const metadataPath = path.join(this.metadataPath, `${metadata.id}.json`);
             fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
         } catch (error) {
@@ -415,6 +430,11 @@ class LocalStorageService {
                 verifiedDocuments: 0,
                 encryptedDocuments: 0
             };
+
+            // Guard: return empty stats if metadata directory doesn't exist
+            if (!fs.existsSync(this.metadataPath)) {
+                return { success: true, stats: stats };
+            }
 
             const metadataFiles = fs.readdirSync(this.metadataPath);
             
@@ -457,6 +477,11 @@ class LocalStorageService {
     // Cleanup old files
     async cleanupOldFiles(daysOld = 30) {
         try {
+            // Guard: return if metadata directory doesn't exist
+            if (!fs.existsSync(this.metadataPath)) {
+                return { success: true, cleanedCount: 0 };
+            }
+
             const cutoffDate = new Date();
             cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 

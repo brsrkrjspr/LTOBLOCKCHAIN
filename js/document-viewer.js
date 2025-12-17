@@ -3,6 +3,51 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeDocumentViewer();
 });
 
+// Go back to the appropriate dashboard based on user role
+function goBack() {
+    // Try to get user info to determine the correct dashboard
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    if (token) {
+        try {
+            // Try to decode JWT to get user role
+            const user = typeof AuthUtils !== 'undefined' ? AuthUtils.getCurrentUser() : null;
+            
+            if (user && user.role) {
+                switch (user.role) {
+                    case 'admin':
+                        window.location.href = 'admin-dashboard.html';
+                        return;
+                    case 'vehicle_owner':
+                        window.location.href = 'owner-dashboard.html';
+                        return;
+                    case 'insurance_verifier':
+                        window.location.href = 'insurance-verifier-dashboard.html';
+                        return;
+                    case 'emission_verifier':
+                        window.location.href = 'emission-verifier-dashboard.html';
+                        return;
+                    case 'hpg_admin':
+                        window.location.href = 'hpg-dashboard.html';
+                        return;
+                }
+            }
+        } catch (e) {
+            console.error('Error getting user role:', e);
+        }
+    }
+    
+    // Fallback: use browser history or go to index
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = 'index.html';
+    }
+}
+
+// Make goBack available globally
+window.goBack = goBack;
+
 function initializeDocumentViewer() {
     // Initialize document viewer functionality
     loadDocumentData();

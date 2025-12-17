@@ -857,34 +857,14 @@ function viewUserApplication(applicationId) {
     const application = allApplications.find(app => app.id === applicationId);
     if (application && application.vehicle) {
         const vin = application.vehicle.vin;
-        // Check if we have specific documents to view
-        if (application.documents && application.documents.length > 0) {
-            // If only one document, view it directly
-            if (application.documents.length === 1) {
-                const doc = application.documents[0];
-                const docType = doc.documentType || doc.document_type || 'registration';
-                const typeParam = docType.replace('_cert', '').replace('_', '');
-                // Check if document has valid ID
-                const isValidDocumentId = doc.id && 
-                    typeof doc.id === 'string' && 
-                    doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
-                    !doc.id.startsWith('TEMP_');
-                if (isValidDocumentId) {
-                    window.location.href = `document-viewer.html?documentId=${doc.id}`;
-                } else {
-                    window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=${typeParam}`;
-                }
-            } else {
-                // Multiple documents - show all via VIN
-                window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=registration`;
-            }
-        } else {
-            // No documents - still try to view by VIN
-            window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=registration`;
-        }
+        const vehicleId = application.vehicle.id || application.id;
+        
+        // Always show all documents via VIN - let document viewer handle the display
+        // This allows owners to see all their documents, just like admin
+        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&vehicleId=${encodeURIComponent(vehicleId)}`;
     } else {
         // Fallback to appId
-        window.location.href = `document-viewer.html?appId=${applicationId}&type=registration`;
+        window.location.href = `document-viewer.html?appId=${applicationId}`;
     }
 }
 

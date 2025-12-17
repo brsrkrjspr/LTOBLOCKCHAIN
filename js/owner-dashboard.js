@@ -856,6 +856,8 @@ async function viewUserApplication(applicationId) {
     // Show loading state
     showNotification('Loading application details...', 'info');
     
+    console.log('📂 viewUserApplication called with ID:', applicationId);
+    
     // Find the application to get vehicle details
     let application = allApplications.find(app => app.id === applicationId);
     
@@ -872,42 +874,72 @@ async function viewUserApplication(applicationId) {
         return;
     }
     
+    console.log('📂 Found application:', application);
+    console.log('📂 Existing documents:', application.documents);
+    
     // Check if the application ID looks like a real UUID (from API)
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(applicationId);
+    console.log('📂 Is UUID:', isUUID);
     
     // Try to load documents from API if it's a real vehicle
     if (isUUID) {
         try {
             const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            console.log('📂 Fetching documents from API for vehicle:', applicationId);
+            
             const response = await fetch(`/api/documents/vehicle-id/${applicationId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
+            console.log('📂 API response status:', response.status);
+            
             if (response.ok) {
                 const data = await response.json();
+                console.log('📂 API response data:', data);
+                
                 if (data.documents && data.documents.length > 0) {
-                    console.log('Loaded documents from API:', data.documents);
+                    console.log('📂 Found', data.documents.length, 'documents from API');
                     
                     // Convert array format to object format for the modal
                     const docsMap = {};
                     data.documents.forEach(doc => {
+                        console.log('📂 Processing doc:', doc.document_type, doc.id);
                         const key = mapDocTypeToKey(doc.document_type);
+                        console.log('📂 Mapped key:', key);
                         docsMap[key] = {
                             id: doc.id,
                             url: `/api/documents/${doc.id}/view`,
-                            cid: doc.ipfs_cid,
+                            cid: doc.ipfs_cid || doc.cid,
                             filename: doc.original_name || doc.filename,
                             type: doc.document_type
                         };
                     });
+                    console.log('📂 Final docsMap:', docsMap);
                     application.documents = docsMap;
+                } else {
+                    console.log('📂 No documents returned from API');
                 }
+            } else {
+                console.log('📂 API response not OK:', response.status, response.statusText);
             }
         } catch (apiError) {
-            console.log('Could not load documents from API:', apiError);
+            console.error('📂 Error loading documents from API:', apiError);
             // Continue with existing documents
         }
     }
+    
+    // If documents is still empty and we have existing documents in localStorage format, try to use them
+    if ((!application.documents || Object.keys(application.documents).length === 0)) {
+        // Check if there are documents stored in submittedApplications
+        const submittedApps = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+        const submittedApp = submittedApps.find(app => app.id === applicationId || app.vehicle?.vin === application.vehicle?.vin);
+        if (submittedApp && submittedApp.documents && Object.keys(submittedApp.documents).length > 0) {
+            console.log('📂 Found documents in submittedApplications:', submittedApp.documents);
+            application.documents = submittedApp.documents;
+        }
+    }
+    
+    console.log('📂 Final application documents:', application.documents);
     
     // Show application details modal with document selection
     showApplicationDetailsModal(application);
@@ -923,9 +955,23 @@ function mapDocTypeToKey(docType) {
         'owner_id': 'ownerId',
         'valid_id': 'validId',
         'deed_of_sale': 'deedOfSale',
-        'hpg_clearance': 'hpgClearance'
+        'hpg_clearance': 'hpgClearance',
+        // Also handle camelCase versions
+        'registrationCert': 'registrationCert',
+        'insuranceCert': 'insuranceCert',
+        'emissionCert': 'emissionCert',
+        'ownerId': 'ownerId',
+        'validId': 'validId',
+        'deedOfSale': 'deedOfSale'
     };
     return typeMap[docType] || docType;
+}
+
+// Retry loading documents for an application
+async function retryLoadDocuments(applicationId) {
+    console.log('📂 Retrying document load for:', applicationId);
+    closeApplicationDetailsModal();
+    await viewUserApplication(applicationId);
 }
 
 // Store current application documents for modal access
@@ -934,6 +980,8 @@ let currentModalApplication = null;
 
 // Show application details modal with document chooser
 function showApplicationDetailsModal(application) {
+    console.log('📂 showApplicationDetailsModal called with:', application);
+    
     // Remove existing modal if any
     const existingModal = document.getElementById('applicationDetailsModal');
     if (existingModal) existingModal.remove();
@@ -942,8 +990,11 @@ function showApplicationDetailsModal(application) {
     let documents = application.documents || {};
     const status = application.status || 'submitted';
     
+    console.log('📂 Initial documents:', documents, 'Type:', typeof documents, 'IsArray:', Array.isArray(documents));
+    
     // Handle documents if they're in array format (from API)
     if (Array.isArray(documents)) {
+        console.log('📂 Converting array format to object format');
         const docsMap = {};
         documents.forEach(doc => {
             const key = mapDocTypeToKey(doc.document_type || doc.type);
@@ -957,6 +1008,30 @@ function showApplicationDetailsModal(application) {
         });
         documents = docsMap;
     }
+    // Handle case where documents might have nested structure or different keys
+    else if (documents && typeof documents === 'object') {
+        // Check if any key has a string value (direct URL) and needs normalization
+        const normalizedDocs = {};
+        Object.entries(documents).forEach(([key, value]) => {
+            const normalizedKey = mapDocTypeToKey(key);
+            if (typeof value === 'string') {
+                // Direct URL or data URL
+                normalizedDocs[normalizedKey] = {
+                    url: value,
+                    filename: key,
+                    type: key
+                };
+            } else if (typeof value === 'object' && value !== null) {
+                // Already an object
+                normalizedDocs[normalizedKey] = value;
+            }
+        });
+        if (Object.keys(normalizedDocs).length > 0) {
+            documents = normalizedDocs;
+        }
+    }
+    
+    console.log('📂 Final documents object:', documents);
     
     // Store for access by click handlers
     currentModalDocuments = documents;
@@ -1005,12 +1080,19 @@ function showApplicationDetailsModal(application) {
     });
     
     if (!hasDocuments) {
+        console.log('📂 No documents found. Documents object:', documents);
         documentListHTML = `
             <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
                 <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-                <p>No documents uploaded yet</p>
+                <p>No documents found</p>
+                <p style="font-size: 0.8rem; margin-top: 0.5rem;">Documents may not have been uploaded yet, or are still being processed.</p>
+                <button class="btn-secondary btn-sm" onclick="retryLoadDocuments('${application.id}')" style="margin-top: 1rem;">
+                    <i class="fas fa-sync"></i> Retry Loading
+                </button>
             </div>
         `;
+    } else {
+        console.log('📂 Found', docCount, 'documents to display');
     }
     
     const modal = document.createElement('div');
@@ -2054,5 +2136,20 @@ window.OwnerDashboard = {
     requestRegistration,
     uploadDocuments,
     downloadFinalPapers,
-    updateProgressTimeline
+    updateProgressTimeline,
+    retryLoadDocuments,
+    showApplicationDetailsModal,
+    closeApplicationDetailsModal,
+    openDocumentByKey,
+    viewAllDocumentsFullPage,
+    viewAllDocsInModal
 };
+
+// Make functions globally available for inline onclick handlers
+window.retryLoadDocuments = retryLoadDocuments;
+window.viewUserApplication = viewUserApplication;
+window.showApplicationDetailsModal = showApplicationDetailsModal;
+window.closeApplicationDetailsModal = closeApplicationDetailsModal;
+window.openDocumentByKey = openDocumentByKey;
+window.viewAllDocumentsFullPage = viewAllDocumentsFullPage;
+window.viewAllDocsInModal = viewAllDocsInModal;

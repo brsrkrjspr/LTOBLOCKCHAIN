@@ -654,48 +654,130 @@
                 
                 // Fallback to localStorage
                 if (documents.length === 0) {
+                    console.log('API not available, trying localStorage');
                     const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
                     const userApps = JSON.parse(localStorage.getItem('userApplications') || '[]');
                     const allApps = [...applications, ...userApps];
                     
+                    console.log('Found applications:', allApps.length);
+                    console.log('Looking for VIN:', vin, 'or appId:', appId);
+                    
                     let app = null;
                     if (appId) {
                         app = allApps.find(a => a.id === appId);
-                    } else if (vin) {
+                        console.log('Found by appId:', app ? 'yes' : 'no');
+                    }
+                    if (!app && vin) {
                         app = allApps.find(a => a.vehicle?.vin === vin);
+                        console.log('Found by VIN:', app ? 'yes' : 'no');
                     }
                     
                     if (app) {
-                        // Convert document URLs to document objects
-                        const docTypes = {
-                            registrationCert: { type: 'registration', label: 'Registration Certificate' },
+                        console.log('Application found:', app);
+                        console.log('Application documents:', app.documents);
+                        
+                        // Document type mappings
+                        const docTypeInfo = {
+                            registrationCert: { type: 'registration', label: 'Registration Certificate (OR/CR)' },
+                            registration_cert: { type: 'registration', label: 'Registration Certificate (OR/CR)' },
                             insuranceCert: { type: 'insurance', label: 'Insurance Certificate' },
+                            insurance_cert: { type: 'insurance', label: 'Insurance Certificate' },
                             emissionCert: { type: 'emission', label: 'Emission Certificate' },
+                            emission_cert: { type: 'emission', label: 'Emission Certificate' },
                             ownerId: { type: 'id', label: 'Owner ID' },
+                            owner_id: { type: 'id', label: 'Owner ID' },
                             validId: { type: 'id', label: 'Valid ID' },
-                            deedOfSale: { type: 'other', label: 'Deed of Sale' }
+                            valid_id: { type: 'id', label: 'Valid ID' },
+                            deedOfSale: { type: 'other', label: 'Deed of Sale' },
+                            deed_of_sale: { type: 'other', label: 'Deed of Sale' }
                         };
                         
-                        Object.entries(app.documents || {}).forEach(([key, url]) => {
-                            if (url) {
-                                const docInfo = docTypes[key] || { type: 'other', label: key };
+                        const appDocs = app.documents;
+                        
+                        // Handle documents as an array (from API)
+                        if (Array.isArray(appDocs)) {
+                            console.log('Documents is an array with', appDocs.length, 'items');
+                            appDocs.forEach((doc, idx) => {
+                                console.log(`Doc ${idx}:`, doc);
+                                const docType = doc.type || doc.document_type || 'other';
+                                const info = docTypeInfo[docType] || { type: 'other', label: docType };
+                                
+                                // Get URL from various possible properties
+                                const docUrl = doc.url || doc.path || doc.file_path || 
+                                             (doc.cid ? `/api/documents/ipfs/${doc.cid}` : null) ||
+                                             (doc.id ? `/api/documents/${doc.id}/view` : null);
+                                
                                 documents.push({
-                                    id: `${app.id}_${key}`,
-                                    type: docInfo.type,
-                                    label: docInfo.label,
-                                    url: url,
-                                    filename: docInfo.label,
-                                    uploadDate: app.submittedDate || new Date().toISOString(),
+                                    id: doc.id || `${app.id}_${idx}`,
+                                    type: info.type,
+                                    label: doc.filename || doc.original_name || info.label,
+                                    url: docUrl,
+                                    cid: doc.cid || doc.ipfs_cid,
+                                    filename: doc.filename || doc.original_name || info.label,
+                                    uploadDate: doc.created_at || doc.uploadDate || app.submittedDate || new Date().toISOString(),
                                     verified: app.status === 'approved'
                                 });
-                            }
-                        });
+                            });
+                        }
+                        // Handle documents as an object with keys (legacy format or new upload format)
+                        else if (appDocs && typeof appDocs === 'object') {
+                            console.log('Documents is an object with keys:', Object.keys(appDocs));
+                            Object.entries(appDocs).forEach(([key, docData]) => {
+                                if (!docData) return;
+                                
+                                const info = docTypeInfo[key] || { type: 'other', label: key };
+                                let docUrl = null;
+                                let docCid = null;
+                                let docId = null;
+                                let docFilename = info.label;
+                                
+                                // Handle different document formats
+                                if (typeof docData === 'string') {
+                                    // Simple string URL or data URL
+                                    docUrl = docData;
+                                    console.log(`Doc ${key}: string URL (length: ${docData.length})`);
+                                } else if (typeof docData === 'object') {
+                                    // Object with url/cid/id properties (from server upload)
+                                    docUrl = docData.url || docData.path || docData.file_path;
+                                    docCid = docData.cid || docData.ipfs_cid;
+                                    docId = docData.id;
+                                    docFilename = docData.filename || docData.original_name || info.label;
+                                    
+                                    // If we have an ID or CID but no URL, construct the API URL
+                                    if (!docUrl && docCid) {
+                                        docUrl = `/api/documents/ipfs/${docCid}`;
+                                    } else if (!docUrl && docId) {
+                                        docUrl = `/api/documents/${docId}/view`;
+                                    }
+                                    
+                                    console.log(`Doc ${key}: object with url=${!!docUrl}, cid=${docCid}, id=${docId}`);
+                                }
+                                
+                                if (docUrl || docCid || docId) {
+                                    documents.push({
+                                        id: docId || `${app.id}_${key}`,
+                                        type: info.type,
+                                        label: docFilename,
+                                        url: docUrl,
+                                        cid: docCid,
+                                        filename: docFilename,
+                                        uploadDate: app.submittedDate || new Date().toISOString(),
+                                        verified: app.status === 'approved'
+                                    });
+                                }
+                            });
+                        }
+                        
+                        console.log('Total documents loaded:', documents.length);
+                        console.log('Loaded documents:', documents);
                         
                         // Update vehicle info
                         if (app.vehicle) {
                             document.getElementById('vehicleInfo').textContent = 
                                 `${app.vehicle.make || ''} ${app.vehicle.model || ''} ${app.vehicle.year || ''} • ${app.vehicle.plateNumber || app.vehicle.vin}`;
                         }
+                    } else {
+                        console.log('No application found');
                     }
                 }
                 
@@ -782,6 +864,9 @@
         async function loadDocumentPreview(doc) {
             const frame = document.getElementById('docPreviewFrame');
             
+            // Debug: Log the document object
+            console.log('Loading document:', doc);
+            
             // Show loading
             frame.innerHTML = `
                 <div class="doc-preview-loading">
@@ -791,63 +876,104 @@
             `;
             
             try {
-                let url = doc.url || doc.file_path || null;
                 const token = localStorage.getItem('token') || localStorage.getItem('authToken');
                 
-                // If it's an API endpoint with a real ID (not local ID like "APP-xxx_key")
-                if (doc.id && typeof doc.id === 'string' && !doc.id.includes('_') && !doc.id.startsWith('APP-')) {
-                    url = `/api/documents/${doc.id}/view`;
+                // Build URL from various sources
+                let url = doc.url || doc.file_path || doc.path || doc.src || null;
+                
+                // If we have an ID that looks like a UUID (not local ID), use API
+                if (!url && doc.id && typeof doc.id === 'string') {
+                    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id);
+                    if (isUUID) {
+                        url = `/api/documents/${doc.id}/view`;
+                        console.log('Using API URL from UUID:', url);
+                    }
                 }
                 
-                // If no URL but has CID, use IPFS
+                // If we have a CID but no URL, use IPFS endpoint
                 if (!url && (doc.cid || doc.ipfs_cid)) {
-                    url = `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}`;
+                    const cid = doc.cid || doc.ipfs_cid;
+                    url = `/api/documents/ipfs/${cid}`;
+                    console.log('Using IPFS URL:', url);
                 }
                 
-                // Check if image based on URL or filename
-                const urlStr = url || '';
-                const filenameStr = doc.filename || '';
-                const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(urlStr) || 
-                               /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(filenameStr) ||
-                               (doc.mime_type && doc.mime_type.startsWith('image/'));
+                console.log('Final URL:', url ? (url.length > 100 ? url.substring(0, 100) + '...' : url) : 'null');
                 
-                if (url && typeof url === 'string' && url.startsWith('/api/')) {
-                    // Fetch with auth
+                if (!url) {
+                    throw new Error('No document URL available. Document may not have been uploaded properly.');
+                }
+                
+                // Check if the URL is a data URL (base64)
+                const isDataUrl = typeof url === 'string' && url.startsWith('data:');
+                
+                // Check if image based on URL pattern, data URL type, or filename
+                const urlStr = url || '';
+                const filenameStr = doc.filename || doc.label || '';
+                const isDataImage = isDataUrl && urlStr.startsWith('data:image');
+                const isFileImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(urlStr) || 
+                                   /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(filenameStr);
+                const isMimeImage = doc.mime_type && doc.mime_type.startsWith('image/');
+                const isImage = isDataImage || isFileImage || isMimeImage;
+                
+                // Handle data URLs directly (base64 encoded)
+                if (isDataUrl) {
+                    console.log('Rendering data URL (base64)');
+                    if (isImage) {
+                        frame.innerHTML = `<img src="${url}" alt="${doc.label || 'Document'}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+                    } else {
+                        frame.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
+                    }
+                }
+                // Handle API endpoints
+                else if (url.startsWith('/api/') || url.startsWith('/uploads/')) {
+                    console.log('Fetching from server:', url);
                     const response = await fetch(url, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'image/*,application/pdf,*/*'
+                        }
                     });
                     
-                    if (!response.ok) throw new Error('Failed to load document');
+                    if (!response.ok) {
+                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                    }
                     
                     const blob = await response.blob();
                     const blobUrl = URL.createObjectURL(blob);
+                    console.log('Blob type:', blob.type, 'Size:', blob.size);
                     
                     if (isImage || blob.type.startsWith('image/')) {
-                        frame.innerHTML = `<img src="${blobUrl}" alt="Document" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+                        frame.innerHTML = `<img src="${blobUrl}" alt="${doc.label || 'Document'}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
                     } else {
                         frame.innerHTML = `<iframe src="${blobUrl}" style="width: 100%; height: 100%; border: none;"></iframe>`;
                     }
-                } else if (url && typeof url === 'string') {
-                    // Direct URL (e.g., data URL or external URL)
-                    if (url.startsWith('data:image') || isImage) {
-                        frame.innerHTML = `<img src="${url}" alt="Document" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
-                    } else if (url.startsWith('data:')) {
-                        // Other data URL (PDF, etc.)
-                        frame.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
+                }
+                // Handle regular URLs (http/https)
+                else {
+                    console.log('Using direct URL');
+                    if (isImage) {
+                        frame.innerHTML = `<img src="${url}" alt="${doc.label || 'Document'}" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'doc-preview-placeholder\\' style=\\'color: #e74c3c;\\'><i class=\\'fas fa-exclamation-triangle\\'></i><p>Image failed to load</p></div>';">`;
                     } else {
                         frame.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
                     }
-                } else {
-                    throw new Error('No document URL available');
                 }
                 
             } catch (error) {
                 console.error('Error loading preview:', error);
+                console.error('Document details:', {
+                    id: doc.id,
+                    url: doc.url ? (doc.url.length > 50 ? doc.url.substring(0, 50) + '...' : doc.url) : null,
+                    cid: doc.cid,
+                    label: doc.label
+                });
                 frame.innerHTML = `
                     <div class="doc-preview-placeholder" style="color: #e74c3c;">
                         <i class="fas fa-exclamation-triangle"></i>
                         <p>Failed to load document</p>
                         <small>${error.message}</small>
+                        <div style="margin-top: 1rem;">
+                            <small style="color: rgba(255,255,255,0.5);">Document ID: ${doc.id || 'N/A'}</small>
+                        </div>
                     </div>
                 `;
             }

@@ -314,28 +314,74 @@
                         </div>
                     </div>
 
-                    <!-- Approve & Send Section -->
-                    <div class="dashboard-card">
-                        <h3><span class="card-icon">✅</span> Approve & Send Clearance</h3>
-                        <div class="approve-section">
-                            <div id="uploadedHPGPreview" style="display: none;">
-                                <div class="result-preview">
-                                    <i class="fas fa-file-certificate text-warning"></i>
-                                    <div class="preview-info">
-                                        <h4 id="previewHPGFileName">-</h4>
-                                        <p id="previewHPGFileDate">-</p>
-                                    </div>
+                    <!-- HPG Hot List Management -->
+                    <div class="dashboard-card" id="hotListCard">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> HPG Hot List Database</h3>
+                            <button class="btn-secondary btn-sm" onclick="toggleHotListForm()">
+                                <i class="fas fa-plus"></i> Add Test Entry
+                            </button>
+                        </div>
+                        
+                        <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                            <i class="fas fa-info-circle"></i> This is a mock database for demonstration. In production, this connects to HPG's actual hot list system.
+                        </p>
+                        
+                        <!-- Add New Entry Form (Hidden by default) -->
+                        <div id="addHotListForm" style="display: none; background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <h4 style="margin: 0 0 1rem 0;">Add Vehicle to Hot List (Test Data)</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <div class="form-group">
+                                    <label>Plate Number</label>
+                                    <input type="text" id="newHotPlate" placeholder="e.g., ABC 123">
+                                </div>
+                                <div class="form-group">
+                                    <label>Engine Number</label>
+                                    <input type="text" id="newHotEngine" placeholder="e.g., ENG123456">
+                                </div>
+                                <div class="form-group">
+                                    <label>Chassis Number</label>
+                                    <input type="text" id="newHotChassis" placeholder="e.g., CHS789012">
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select id="newHotStatus">
+                                        <option value="CARNAPPED">Carnapped</option>
+                                        <option value="STOLEN">Stolen</option>
+                                        <option value="UNDER_INVESTIGATION">Under Investigation</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div class="approve-actions">
-                                <button class="btn-success" onclick="approveHPGClearance()" id="approveHPGClearanceBtn" disabled>
-                                    <i class="fas fa-check-circle"></i> Approve Clearance
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label>Description</label>
+                                <input type="text" id="newHotDescription" placeholder="Brief description of the case">
+                            </div>
+                            <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                                <button class="btn-primary btn-sm" onclick="addToHotList()">
+                                    <i class="fas fa-plus"></i> Add to Hot List
                                 </button>
-                                <button class="btn-primary" onclick="sendHPGCertificateToLTO()" id="sendHPGCertificateBtn" disabled>
-                                    <i class="fas fa-paper-plane"></i> Send MV Clearance Certificate to LTO
+                                <button class="btn-secondary btn-sm" onclick="toggleHotListForm()">
+                                    Cancel
                                 </button>
                             </div>
-                            <p id="hpgStatusMsg" style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;"></p>
+                        </div>
+                        
+                        <!-- Hot List Table -->
+                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table" id="hotListTable">
+                                <thead>
+                                    <tr>
+                                        <th>Plate Number</th>
+                                        <th>Engine #</th>
+                                        <th>Status</th>
+                                        <th>Report Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hotListTableBody">
+                                    <!-- Data will be loaded dynamically -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -364,6 +410,7 @@
         </div>
     </div>
 
+    <script src="js/hpg-database.js"></script>
     <script src="js/hpg-admin.js"></script>
     <style>
         /* Modern Upload Form Styles */
@@ -840,6 +887,122 @@
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
         }
+
+        // Hot List Management Functions
+        function loadHotList() {
+            const tbody = document.getElementById('hotListTableBody');
+            if (!tbody || typeof HPGDatabase === 'undefined') return;
+            
+            const hotList = HPGDatabase.getHotList();
+            
+            if (hotList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #7f8c8d; padding: 1rem;">No entries in hot list</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = hotList.map((entry, index) => {
+                const statusColors = {
+                    'CARNAPPED': '#e74c3c',
+                    'STOLEN': '#c0392b',
+                    'UNDER_INVESTIGATION': '#f39c12'
+                };
+                const statusColor = statusColors[entry.status] || '#7f8c8d';
+                
+                return `
+                    <tr>
+                        <td><strong>${entry.plateNumber || 'N/A'}</strong></td>
+                        <td>${entry.engineNumber ? entry.engineNumber.substring(0, 10) + '...' : 'N/A'}</td>
+                        <td><span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${entry.status}</span></td>
+                        <td>${entry.reportDate || 'N/A'}</td>
+                        <td>
+                            <button class="btn-secondary btn-sm" onclick="viewHotListEntry(${index})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-danger btn-sm" onclick="removeFromHotList('${entry.plateNumber}')" title="Remove">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function toggleHotListForm() {
+            const form = document.getElementById('addHotListForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function addToHotList() {
+            const plateNumber = document.getElementById('newHotPlate').value.trim();
+            const engineNumber = document.getElementById('newHotEngine').value.trim();
+            const chassisNumber = document.getElementById('newHotChassis').value.trim();
+            const status = document.getElementById('newHotStatus').value;
+            const description = document.getElementById('newHotDescription').value.trim();
+            
+            if (!plateNumber && !engineNumber) {
+                alert('Please enter at least a Plate Number or Engine Number');
+                return;
+            }
+            
+            if (typeof HPGDatabase !== 'undefined') {
+                HPGDatabase.addToHotList({
+                    plateNumber,
+                    engineNumber,
+                    chassisNumber,
+                    status,
+                    description,
+                    reportedBy: 'HPG Admin (Test)',
+                    caseNumber: 'TEST-' + Date.now()
+                });
+                
+                // Clear form
+                document.getElementById('newHotPlate').value = '';
+                document.getElementById('newHotEngine').value = '';
+                document.getElementById('newHotChassis').value = '';
+                document.getElementById('newHotDescription').value = '';
+                toggleHotListForm();
+                
+                // Reload table
+                loadHotList();
+                
+                alert('Vehicle added to hot list successfully!');
+            }
+        }
+
+        function removeFromHotList(plateNumber) {
+            if (confirm('Are you sure you want to remove this entry from the hot list?')) {
+                if (typeof HPGDatabase !== 'undefined') {
+                    HPGDatabase.removeFromHotList(plateNumber);
+                    loadHotList();
+                }
+            }
+        }
+
+        function viewHotListEntry(index) {
+            if (typeof HPGDatabase === 'undefined') return;
+            
+            const entry = HPGDatabase.getHotList()[index];
+            if (!entry) return;
+            
+            alert(`
+Hot List Entry Details:
+-----------------------
+Plate Number: ${entry.plateNumber || 'N/A'}
+Engine Number: ${entry.engineNumber || 'N/A'}
+Chassis Number: ${entry.chassisNumber || 'N/A'}
+Status: ${entry.status}
+Report Date: ${entry.reportDate}
+Reported By: ${entry.reportedBy}
+Case Number: ${entry.caseNumber}
+Description: ${entry.description || 'N/A'}
+            `.trim());
+        }
+
+        // Load hot list on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load after a short delay to ensure HPGDatabase is ready
+            setTimeout(loadHotList, 500);
+        });
 
         // Handle file selection and preview
         function handleFileSelect(input, areaId, previewId) {

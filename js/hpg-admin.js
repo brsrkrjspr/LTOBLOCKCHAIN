@@ -292,6 +292,7 @@ const HPGRequests = {
             const statusClass = `status-${req.status}`;
             const statusText = req.status.charAt(0).toUpperCase() + req.status.slice(1);
             const reqId = typeof req.id === 'string' && req.id.length > 10 ? req.id.substring(0, 10) + '...' : req.id;
+            const docCount = req.allDocuments?.length || 0;
             
             return `
                 <tr>
@@ -305,16 +306,16 @@ const HPGRequests = {
                     <td>
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             ${req.status === 'pending' ? `
-                                <button class="btn-primary btn-sm" onclick="startVerification('${req.id}')">
-                                    <i class="fas fa-check"></i> Verify
+                                <button class="btn-success btn-sm" onclick="startVerification('${req.id}')" title="Auto-fill form with vehicle data and start verification">
+                                    <i class="fas fa-clipboard-check"></i> Start Verification
                                 </button>
                             ` : ''}
                             <button class="btn-secondary btn-sm" onclick="viewDetails('${req.id}')">
-                                <i class="fas fa-eye"></i> View
+                                <i class="fas fa-eye"></i> Details
                             </button>
-                            ${req.documentCid || req.allDocuments?.length > 0 ? `
-                                <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${req.id}')" title="View attached documents">
-                                    <i class="fas fa-file-image"></i> Docs
+                            ${docCount > 0 ? `
+                                <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${req.id}')" title="View ${docCount} attached document(s)">
+                                    <i class="fas fa-file-image"></i> ${docCount} Doc${docCount > 1 ? 's' : ''}
                                 </button>
                             ` : ''}
                         </div>
@@ -455,7 +456,11 @@ const HPGVerification = {
         try {
             this.currentRequestId = requestId;
             const requestIdEl = document.getElementById('currentRequestId');
-            if (requestIdEl) requestIdEl.textContent = requestId;
+            if (requestIdEl) requestIdEl.textContent = requestId.substring(0, 12) + '...';
+            
+            // Also set hidden form field
+            const requestIdHidden = document.getElementById('requestId');
+            if (requestIdHidden) requestIdHidden.value = requestId;
 
             // Fetch request details from API
             if (typeof window.apiClient !== 'undefined') {
@@ -475,8 +480,8 @@ const HPGVerification = {
                         vehicleModel: metadata.vehicleModel || req.vehicle?.model || 'N/A',
                         vehicleYear: metadata.vehicleYear || req.vehicle?.year || 'N/A',
                         vin: metadata.vehicleVin || req.vehicle?.vin || 'N/A',
-                        engineNumber: metadata.engineNumber || req.vehicle?.engine_number || 'N/A',
-                        chassisNumber: metadata.chassisNumber || req.vehicle?.chassis_number || 'N/A',
+                        engineNumber: metadata.engineNumber || req.vehicle?.engine_number || '',
+                        chassisNumber: metadata.chassisNumber || req.vehicle?.chassis_number || '',
                         purpose: req.purpose || 'Vehicle Clearance',
                         allDocuments: metadata.allDocuments || []
                     };
@@ -499,8 +504,22 @@ const HPGVerification = {
                     if (vehicleYearEl) vehicleYearEl.value = this.requestData.vehicleYear;
                     if (purposeEl) purposeEl.value = this.requestData.purpose;
                     if (vinEl) vinEl.value = this.requestData.vin;
-                    if (engineNumberEl) engineNumberEl.value = this.requestData.engineNumber;
-                    if (chassisNumberEl) chassisNumberEl.value = this.requestData.chassisNumber;
+                    
+                    // Auto-fill engine and chassis numbers
+                    if (engineNumberEl) {
+                        engineNumberEl.value = this.requestData.engineNumber || '';
+                    }
+                    if (chassisNumberEl) {
+                        chassisNumberEl.value = this.requestData.chassisNumber || '';
+                    }
+                    
+                    // Load OR/CR document (if loadORCRDocument function exists)
+                    if (typeof loadORCRDocument === 'function' && this.requestData.allDocuments.length > 0) {
+                        loadORCRDocument(this.requestData.allDocuments);
+                    }
+                    
+                    // Show success notification
+                    this.showAutoFillNotification();
                 } else {
                     this.requestData = null;
                     console.error('Failed to load request data');
@@ -513,6 +532,69 @@ const HPGVerification = {
                 ErrorHandler.handleError(error);
             }
         }
+    },
+    
+    showAutoFillNotification: function() {
+        // Remove existing notification if any
+        const existing = document.getElementById('hpgAutoFillNotification');
+        if (existing) existing.remove();
+        
+        const hasData = this.requestData?.plateNumber || this.requestData?.engineNumber;
+        const hasDocuments = this.requestData?.allDocuments && this.requestData.allDocuments.length > 0;
+        
+        if (!hasData && !hasDocuments) return;
+        
+        const notification = document.createElement('div');
+        notification.id = 'hpgAutoFillNotification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            animation: slideInRight 0.3s ease-out;
+            max-width: 400px;
+        `;
+        
+        let message = '<strong>🚔 HPG Clearance Verification</strong><br>';
+        message += `Vehicle: ${this.requestData.plateNumber || 'N/A'}<br>`;
+        if (hasDocuments) {
+            message += `<span style="color: #27ae60;">✓ ${this.requestData.allDocuments.length} document(s) loaded</span>`;
+        }
+        
+        notification.innerHTML = `
+            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div style="flex: 1;">${message}</div>
+                <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 24px; height: 24px; border-radius: 50%; cursor: pointer;">×</button>
+            </div>
+        `;
+        
+        // Add animation
+        if (!document.getElementById('hpgAutoFillStyles')) {
+            const style = document.createElement('style');
+            style.id = 'hpgAutoFillStyles';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 5000);
     },
 
     approveVerification: async function() {

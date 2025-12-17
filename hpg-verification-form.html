@@ -128,140 +128,160 @@
                     <div class="info-banner">
                         <div class="banner-content">
                             <div class="banner-icon">
-                                <i class="fas fa-info-circle"></i>
+                                <i class="fas fa-shield-alt"></i>
                             </div>
                             <div class="banner-text">
-                                <h3>Request ID: <span id="currentRequestId">-</span></h3>
-                                <p>Complete the vehicle inspection and verification form below</p>
+                                <h3>HPG Clearance Verification</h3>
+                                <p>Request ID: <span id="currentRequestId">-</span></p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Verification Form -->
-                    <form id="verificationForm" class="verification-form" onsubmit="handleVerificationSubmit(event)">
-                        <!-- Vehicle Information Section (Auto-loaded) -->
-                        <div class="form-section">
-                            <div class="section-header">
-                                <h2><i class="fas fa-car"></i> Vehicle Information</h2>
-                                <span class="section-badge">Auto-loaded from LTO</span>
-                            </div>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label>Owner Name</label>
-                                    <input type="text" id="ownerName" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Plate Number</label>
-                                    <input type="text" id="plateNumber" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Vehicle Type</label>
-                                    <input type="text" id="vehicleType" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Vehicle Model</label>
-                                    <input type="text" id="vehicleModel" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Year</label>
-                                    <input type="text" id="vehicleYear" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Purpose</label>
-                                    <input type="text" id="purpose" readonly>
-                                </div>
-                            </div>
+                    <!-- STEP 1: OR/CR Document Review -->
+                    <div class="dashboard-card verification-step" id="step1Card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-file-alt"></i> Step 1: Review OR/CR Document</h3>
+                            <span class="step-badge">From LTO Request</span>
                         </div>
-
-                        <!-- Inspection Details Section -->
-                        <div class="form-section">
-                            <div class="section-header">
-                                <h2><i class="fas fa-clipboard-list"></i> Inspection Details</h2>
-                                <span class="section-badge">Required</span>
-                            </div>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="engineNumber">Engine Number <span class="required">*</span></label>
-                                    <input type="text" id="engineNumber" name="engineNumber" required placeholder="Enter engine number">
+                        <div class="card-body">
+                            <p class="step-description">Review the Official Receipt/Certificate of Registration (OR/CR) submitted by the vehicle owner through LTO.</p>
+                            
+                            <div class="document-preview-section" id="orcrPreviewSection">
+                                <div class="no-document-message" id="noOrcrMessage">
+                                    <i class="fas fa-file-alt"></i>
+                                    <p>OR/CR document will appear here</p>
+                                    <small>Loading from LTO request...</small>
                                 </div>
-                                <div class="form-group">
-                                    <label for="chassisNumber">Chassis Number <span class="required">*</span></label>
-                                    <input type="text" id="chassisNumber" name="chassisNumber" required placeholder="Enter chassis number">
+                                <div class="orcr-document-container" id="orcrDocContainer" style="display: none;">
+                                    <div class="orcr-preview">
+                                        <img id="orcrDocImage" src="" alt="OR/CR Document" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="openDocumentFullscreen(this.src)">
+                                    </div>
+                                    <div class="orcr-actions">
+                                        <button type="button" class="btn-secondary btn-sm" onclick="openDocumentFullscreen(document.getElementById('orcrDocImage').src)">
+                                            <i class="fas fa-expand"></i> View Full Size
+                                        </button>
+                                        <button type="button" class="btn-secondary btn-sm" onclick="window.open(document.getElementById('orcrDocImage').src, '_blank')">
+                                            <i class="fas fa-external-link-alt"></i> Open in New Tab
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div class="form-group checkbox-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="macroEtching" name="macroEtching">
-                                    <span class="checkmark"></span>
-                                    <span class="checkbox-text">
-                                        <strong>Macro-etching Verified</strong>
-                                        <small>Confirm that macro-etching inspection has been completed</small>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Image Upload Section -->
-                        <div class="form-section">
-                            <div class="section-header">
-                                <h2><i class="fas fa-images"></i> Inspection Images</h2>
-                                <span class="section-badge">Required</span>
                             </div>
                             
-                            <div class="upload-section">
-                                <div class="upload-group">
-                                    <label for="inspectionPhotos">Upload Inspection Photos <span class="required">*</span></label>
-                                    <div class="upload-area" id="inspectionPhotosArea">
-                                        <input type="file" id="inspectionPhotos" name="inspectionPhotos" multiple accept="image/*" onchange="handleFileUpload(this, 'inspectionPhotosArea')">
-                                        <div class="upload-content">
-                                            <i class="fas fa-cloud-upload-alt"></i>
-                                            <p>Click to upload or drag and drop</p>
-                                            <small>Multiple images allowed (JPG, PNG, Max 5MB each)</small>
-                                        </div>
-                                    </div>
-                                    <div class="uploaded-files" id="inspectionPhotosList"></div>
-                                </div>
-
-                                <div class="upload-group">
-                                    <label for="stencilImage">Upload Stencil Image <span class="required">*</span></label>
-                                    <div class="upload-area" id="stencilImageArea">
-                                        <input type="file" id="stencilImage" name="stencilImage" accept="image/*" onchange="handleFileUpload(this, 'stencilImageArea')">
-                                        <div class="upload-content">
-                                            <i class="fas fa-cloud-upload-alt"></i>
-                                            <p>Click to upload or drag and drop</p>
-                                            <small>Single image (JPG, PNG, Max 5MB)</small>
-                                        </div>
-                                    </div>
-                                    <div class="uploaded-files" id="stencilImageList"></div>
+                            <!-- All Documents Grid -->
+                            <div class="all-documents-section" id="allDocsSection" style="margin-top: 1.5rem; display: none;">
+                                <h4 style="margin-bottom: 1rem;"><i class="fas fa-folder-open"></i> All Submitted Documents</h4>
+                                <div class="attached-docs-grid" id="attachedDocsGrid">
+                                    <!-- Documents will be loaded here -->
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Remarks Section -->
-                        <div class="form-section">
-                            <div class="section-header">
-                                <h2><i class="fas fa-comment-alt"></i> Remarks / Findings</h2>
+                    <!-- STEP 2: Vehicle Details from OR/CR -->
+                    <div class="dashboard-card verification-step" id="step2Card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-car"></i> Step 2: Vehicle Details from OR/CR</h3>
+                            <span class="step-badge">Auto-loaded</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="step-description">These details are extracted from the LTO request. Verify they match the OR/CR document above.</p>
+                            
+                            <div class="vehicle-details-grid">
+                                <div class="detail-item">
+                                    <label>Owner Name</label>
+                                    <input type="text" id="ownerName" readonly class="readonly-field">
+                                </div>
+                                <div class="detail-item highlight">
+                                    <label><i class="fas fa-car-side"></i> Plate Number</label>
+                                    <input type="text" id="plateNumber" readonly class="readonly-field highlight-field">
+                                </div>
+                                <div class="detail-item highlight">
+                                    <label><i class="fas fa-cog"></i> Engine Number</label>
+                                    <input type="text" id="engineNumber" readonly class="readonly-field highlight-field">
+                                </div>
+                                <div class="detail-item highlight">
+                                    <label><i class="fas fa-barcode"></i> Chassis Number</label>
+                                    <input type="text" id="chassisNumber" readonly class="readonly-field highlight-field">
+                                </div>
+                                <div class="detail-item">
+                                    <label>Vehicle Make/Model</label>
+                                    <input type="text" id="vehicleModel" readonly class="readonly-field">
+                                </div>
+                                <div class="detail-item">
+                                    <label>Year</label>
+                                    <input type="text" id="vehicleYear" readonly class="readonly-field">
+                                </div>
+                                <div class="detail-item">
+                                    <label>Vehicle Type</label>
+                                    <input type="text" id="vehicleType" readonly class="readonly-field">
+                                </div>
+                                <div class="detail-item">
+                                    <label>Purpose</label>
+                                    <input type="text" id="purpose" readonly class="readonly-field">
+                                </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: HPG Database Check -->
+                    <div class="dashboard-card verification-step" id="step3Card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-database"></i> Step 3: HPG Database Verification</h3>
+                            <span class="step-badge step-badge-important">Critical</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="step-description">Check the vehicle against HPG's Hot List database for any carnapped, stolen, or flagged records.</p>
+                            
+                            <div class="database-check-section">
+                                <button type="button" class="btn-primary btn-lg" id="checkDatabaseBtn" onclick="runHPGDatabaseCheck()">
+                                    <i class="fas fa-search"></i> Check HPG Database
+                                </button>
+                                
+                                <!-- Database Result -->
+                                <div class="database-result" id="databaseResult" style="display: none;">
+                                    <div class="result-header" id="resultHeader">
+                                        <!-- Result icon and title will be inserted here -->
+                                    </div>
+                                    <div class="result-details" id="resultDetails">
+                                        <!-- Result details will be inserted here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 4: Issue Clearance -->
+                    <div class="dashboard-card verification-step" id="step4Card" style="display: none;">
+                        <div class="card-header">
+                            <h3><i class="fas fa-certificate"></i> Step 4: Issue Clearance</h3>
+                            <span class="step-badge step-badge-success">Final Step</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="step-description">Based on the database check, you can now issue or deny the MV Clearance.</p>
+                            
                             <div class="form-group">
-                                <label for="remarks">Inspection Remarks</label>
-                                <textarea id="remarks" name="remarks" rows="5" placeholder="Enter any findings, observations, or remarks about the vehicle inspection..."></textarea>
-                                <small>Optional: Add any additional notes or findings from the inspection</small>
+                                <label for="remarks">Verification Remarks (Optional)</label>
+                                <textarea id="remarks" name="remarks" rows="3" placeholder="Add any remarks or notes about this verification..."></textarea>
+                            </div>
+                            
+                            <div class="clearance-actions">
+                                <button type="button" class="btn-secondary" onclick="cancelVerification()">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                <button type="button" class="btn-danger" id="rejectClearanceBtn" onclick="rejectVerification()">
+                                    <i class="fas fa-ban"></i> Deny Clearance
+                                </button>
+                                <button type="button" class="btn-success btn-lg" id="issueClearanceBtn" onclick="issueClearance()">
+                                    <i class="fas fa-check-circle"></i> Issue MV Clearance
+                                </button>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Action Buttons -->
-                        <div class="form-actions">
-                            <button type="button" class="btn-secondary" onclick="cancelVerification()">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
-                            <button type="button" class="btn-danger" onclick="rejectVerification()">
-                                <i class="fas fa-times-circle"></i> Reject Verification
-                            </button>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-check-circle"></i> Approve Verification
-                            </button>
-                        </div>
+                    <!-- Hidden form for data -->
+                    <form id="verificationForm" style="display: none;">
+                        <input type="hidden" id="requestId" name="requestId">
+                        <input type="hidden" id="databaseCheckResult" name="databaseCheckResult">
                     </form>
                 </div>
             </main>
@@ -290,7 +310,360 @@
         </div>
     </div>
 
+    <script src="js/hpg-database.js"></script>
     <script src="js/hpg-admin.js"></script>
+    <style>
+        /* Verification Steps */
+        .verification-step {
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #3498db;
+        }
+        
+        .verification-step .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .verification-step .card-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+        
+        .step-badge {
+            background: #3498db;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .step-badge-important {
+            background: #e74c3c;
+        }
+        
+        .step-badge-success {
+            background: #27ae60;
+        }
+        
+        .step-description {
+            color: #7f8c8d;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        /* Document Preview */
+        .document-preview-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 2px dashed #dee2e6;
+        }
+        
+        .no-document-message {
+            color: #7f8c8d;
+        }
+        
+        .no-document-message i {
+            font-size: 4rem;
+            color: #bdc3c7;
+            margin-bottom: 1rem;
+        }
+        
+        .orcr-document-container {
+            text-align: center;
+        }
+        
+        .orcr-preview {
+            margin-bottom: 1rem;
+        }
+        
+        .orcr-preview img {
+            max-height: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .orcr-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        
+        /* Vehicle Details Grid */
+        .vehicle-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .detail-item label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .detail-item label i {
+            color: #3498db;
+        }
+        
+        .detail-item.highlight {
+            background: #e8f4f8;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .readonly-field {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 0.75rem;
+            border-radius: 6px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .highlight-field {
+            background: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        /* Database Check Section */
+        .database-check-section {
+            text-align: center;
+        }
+        
+        #checkDatabaseBtn {
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        #checkDatabaseBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        /* Database Result */
+        .database-result {
+            margin-top: 2rem;
+            border-radius: 12px;
+            overflow: hidden;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .result-header.clean {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+        }
+        
+        .result-header.flagged {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        
+        .result-header.not-found {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+        }
+        
+        .result-header i {
+            font-size: 2.5rem;
+        }
+        
+        .result-header .result-title {
+            flex: 1;
+        }
+        
+        .result-header h4 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        
+        .result-header p {
+            margin: 0.25rem 0 0 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        
+        .result-details {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-top: none;
+        }
+        
+        .result-details.flagged-details {
+            background: #fdf2f2;
+            border-color: #f8d7da;
+        }
+        
+        .result-details h5 {
+            color: #e74c3c;
+            margin: 0 0 1rem 0;
+            font-size: 1rem;
+        }
+        
+        .flagged-info {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .flagged-info-item {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .flagged-info-item strong {
+            min-width: 120px;
+            color: #7f8c8d;
+        }
+        
+        .flagged-info-item span {
+            color: #2c3e50;
+        }
+        
+        /* Clearance Actions */
+        .clearance-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        #issueClearanceBtn {
+            padding: 1rem 2rem;
+        }
+        
+        #issueClearanceBtn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        /* Attached Documents Grid */
+        .attached-docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        
+        .doc-preview-card {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .doc-preview-card:hover {
+            border-color: #3498db;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.15);
+        }
+        
+        .doc-preview-card.orcr {
+            border-color: #27ae60;
+            background: #e8f5e9;
+        }
+        
+        .doc-preview-card .doc-icon {
+            font-size: 2.5rem;
+            color: #3498db;
+            margin-bottom: 0.5rem;
+        }
+        
+        .doc-preview-card.orcr .doc-icon {
+            color: #27ae60;
+        }
+        
+        .doc-preview-card .doc-type {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .doc-preview-card .doc-filename {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* Info banner */
+        .info-banner {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .info-banner .banner-icon {
+            background: rgba(255,255,255,0.15);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .info-banner .banner-icon i {
+            font-size: 1.5rem;
+        }
+        
+        .info-banner h3 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        
+        .info-banner p {
+            margin: 0.25rem 0 0 0;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+    </style>
     <script>
         // Initialize user data
         document.addEventListener('DOMContentLoaded', function() {
@@ -376,45 +749,186 @@
         });
 
 
-        function handleFileUpload(input, areaId) {
-            const files = input.files;
-            const listContainer = document.getElementById(areaId.replace('Area', 'List'));
-            
-            if (listContainer) {
-                listContainer.innerHTML = '';
-                Array.from(files).forEach((file, index) => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'uploaded-file-item';
-                    fileItem.innerHTML = `
-                        <i class="fas fa-file-image"></i>
-                        <span>${file.name}</span>
-                        <button type="button" class="remove-file" onclick="removeFile(${index}, '${input.id}')">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    `;
-                    listContainer.appendChild(fileItem);
+        // Global state for verification
+        let currentVerificationData = null;
+        let databaseCheckCompleted = false;
+        let canIssueClearance = false;
+
+        // Run HPG Database Check
+        function runHPGDatabaseCheck() {
+            const plateNumber = document.getElementById('plateNumber').value;
+            const engineNumber = document.getElementById('engineNumber').value;
+            const chassisNumber = document.getElementById('chassisNumber').value;
+
+            if (!plateNumber && !engineNumber && !chassisNumber) {
+                alert('No vehicle data available for lookup. Please wait for data to load.');
+                return;
+            }
+
+            // Show loading
+            const btn = document.getElementById('checkDatabaseBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking Database...';
+            btn.disabled = true;
+
+            // Simulate database lookup delay
+            setTimeout(() => {
+                // Perform the lookup
+                const result = HPGDatabase.lookupVehicle({
+                    plateNumber,
+                    engineNumber,
+                    chassisNumber
                 });
+
+                // Display result
+                displayDatabaseResult(result);
+
+                // Reset button
+                btn.innerHTML = '<i class="fas fa-search"></i> Re-check Database';
+                btn.disabled = false;
+
+                // Show step 4
+                document.getElementById('step4Card').style.display = 'block';
+                
+                // Enable/disable clearance button based on result
+                canIssueClearance = result.canIssueClearance;
+                const issueBtn = document.getElementById('issueClearanceBtn');
+                if (issueBtn) {
+                    issueBtn.disabled = !canIssueClearance;
+                    if (!canIssueClearance) {
+                        issueBtn.innerHTML = '<i class="fas fa-ban"></i> Cannot Issue - Vehicle Flagged';
+                        issueBtn.classList.remove('btn-success');
+                        issueBtn.classList.add('btn-secondary');
+                    }
+                }
+
+                databaseCheckCompleted = true;
+                
+                // Store result
+                document.getElementById('databaseCheckResult').value = JSON.stringify(result);
+                
+                // Scroll to result
+                document.getElementById('databaseResult').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 1500);
+        }
+
+        // Display database result
+        function displayDatabaseResult(result) {
+            const resultDiv = document.getElementById('databaseResult');
+            const headerDiv = document.getElementById('resultHeader');
+            const detailsDiv = document.getElementById('resultDetails');
+
+            resultDiv.style.display = 'block';
+
+            if (result.status === 'FLAGGED') {
+                // Vehicle is in hot list
+                headerDiv.className = 'result-header flagged';
+                headerDiv.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div class="result-title">
+                        <h4>⚠️ ALERT: Vehicle Flagged - ${result.statusType}</h4>
+                        <p>${result.message}</p>
+                    </div>
+                `;
+
+                detailsDiv.className = 'result-details flagged-details';
+                detailsDiv.innerHTML = `
+                    <h5><i class="fas fa-file-alt"></i> Hot List Record Details</h5>
+                    <div class="flagged-info">
+                        <div class="flagged-info-item">
+                            <strong>Case Number:</strong>
+                            <span>${result.details.caseNumber || 'N/A'}</span>
+                        </div>
+                        <div class="flagged-info-item">
+                            <strong>Report Date:</strong>
+                            <span>${result.details.reportDate || 'N/A'}</span>
+                        </div>
+                        <div class="flagged-info-item">
+                            <strong>Reported By:</strong>
+                            <span>${result.details.reportedBy || 'N/A'}</span>
+                        </div>
+                        <div class="flagged-info-item">
+                            <strong>Description:</strong>
+                            <span>${result.details.description || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem; padding: 1rem; background: #fff; border-radius: 6px; border-left: 4px solid #e74c3c;">
+                        <p style="margin: 0; color: #e74c3c; font-weight: 600;">
+                            <i class="fas fa-ban"></i> MV Clearance CANNOT be issued. Please deny this request.
+                        </p>
+                    </div>
+                `;
+            } else if (result.status === 'CLEAN') {
+                // Vehicle is verified clean
+                headerDiv.className = 'result-header clean';
+                headerDiv.innerHTML = `
+                    <i class="fas fa-check-circle"></i>
+                    <div class="result-title">
+                        <h4>✅ Vehicle Verified CLEAN</h4>
+                        <p>${result.message}</p>
+                    </div>
+                `;
+
+                detailsDiv.className = 'result-details';
+                detailsDiv.innerHTML = `
+                    <div style="text-align: center; padding: 1rem;">
+                        <i class="fas fa-shield-alt" style="font-size: 3rem; color: #27ae60; margin-bottom: 1rem;"></i>
+                        <h4 style="color: #27ae60; margin: 0;">No Records Found in HPG Hot List</h4>
+                        <p style="color: #7f8c8d; margin-top: 0.5rem;">Vehicle is clear for MV Clearance issuance.</p>
+                        ${result.details.lastVerified ? `<small>Last verified: ${result.details.lastVerified} by ${result.details.verifiedBy}</small>` : ''}
+                    </div>
+                `;
+            } else {
+                // Vehicle not found in database
+                headerDiv.className = 'result-header not-found';
+                headerDiv.innerHTML = `
+                    <i class="fas fa-question-circle"></i>
+                    <div class="result-title">
+                        <h4>📋 No Prior Records</h4>
+                        <p>${result.message}</p>
+                    </div>
+                `;
+
+                detailsDiv.className = 'result-details';
+                detailsDiv.innerHTML = `
+                    <div style="text-align: center; padding: 1rem;">
+                        <i class="fas fa-file-alt" style="font-size: 3rem; color: #f39c12; margin-bottom: 1rem;"></i>
+                        <h4 style="color: #2c3e50; margin: 0;">Vehicle Not in HPG Database</h4>
+                        <p style="color: #7f8c8d; margin-top: 0.5rem;">${result.details.note}</p>
+                        <p style="color: #27ae60; margin-top: 1rem; font-weight: 600;">
+                            <i class="fas fa-check"></i> You may proceed to issue MV Clearance if manual verification is satisfactory.
+                        </p>
+                    </div>
+                `;
             }
         }
 
-        function removeFile(index, inputId) {
-            const input = document.getElementById(inputId);
-            const dt = new DataTransfer();
-            const files = Array.from(input.files);
-            files.splice(index, 1);
-            files.forEach(file => dt.items.add(file));
-            input.files = dt.files;
-            handleFileUpload(input, inputId.replace('Photos', 'PhotosArea').replace('Image', 'ImageArea'));
-        }
+        // Issue Clearance
+        function issueClearance() {
+            if (!databaseCheckCompleted) {
+                alert('Please complete the HPG Database check first.');
+                return;
+            }
 
-        function handleVerificationSubmit(event) {
-            event.preventDefault();
-            
-            if (typeof HPGVerification !== 'undefined') {
-                HPGVerification.approveVerification();
+            if (!canIssueClearance) {
+                alert('Cannot issue clearance. Vehicle is flagged in the HPG Hot List.');
+                return;
+            }
+
+            if (confirm('Are you sure you want to issue MV Clearance for this vehicle?')) {
+                const remarks = document.getElementById('remarks').value;
+                
+                // Call approval
+                if (typeof HPGVerification !== 'undefined') {
+                    HPGVerification.approveVerification();
+                } else {
+                    alert('MV Clearance issued successfully!');
+                    window.location.href = 'hpg-requests-list.html';
+                }
             }
         }
 
+        // Reject/Deny Clearance
         function rejectVerification() {
             document.getElementById('rejectModal').classList.add('active');
         }
@@ -422,17 +936,19 @@
         function confirmReject() {
             const reason = document.getElementById('rejectReason').value;
             if (!reason.trim()) {
-                alert('Please provide a reason for rejection');
+                alert('Please provide a reason for denial');
                 return;
             }
 
             if (typeof HPGVerification !== 'undefined') {
                 HPGVerification.rejectVerification(reason);
             }
+            
+            closeModal('rejectModal');
         }
 
         function cancelVerification() {
-            if (confirm('Are you sure you want to cancel? Unsaved changes will be lost.')) {
+            if (confirm('Are you sure you want to cancel? Changes will be lost.')) {
                 window.location.href = 'hpg-requests-list.html';
             }
         }
@@ -440,7 +956,94 @@
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
         }
+
+        // Open document fullscreen
+        function openDocumentFullscreen(src) {
+            if (!src) return;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.9); z-index: 10000;
+                display: flex; align-items: center; justify-content: center;
+                cursor: pointer;
+            `;
+            modal.onclick = () => modal.remove();
+            modal.innerHTML = `
+                <img src="${src}" style="max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 8px;">
+                <button style="position: absolute; top: 20px; right: 20px; background: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.5rem;">×</button>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Load OR/CR document
+        function loadORCRDocument(docs) {
+            const orcrDoc = docs.find(d => 
+                d.type === 'registration_cert' || 
+                d.type === 'registration' ||
+                (d.filename && d.filename.toLowerCase().includes('registration')) ||
+                (d.filename && d.filename.toLowerCase().includes('or')) ||
+                (d.filename && d.filename.toLowerCase().includes('cr'))
+            );
+
+            const orcrContainer = document.getElementById('orcrDocContainer');
+            const noOrcrMessage = document.getElementById('noOrcrMessage');
+            const orcrImage = document.getElementById('orcrDocImage');
+
+            if (orcrDoc) {
+                const url = orcrDoc.cid ? `/api/documents/ipfs/${orcrDoc.cid}` : (orcrDoc.path ? `/api/documents/file/${encodeURIComponent(orcrDoc.path)}` : null);
+                
+                if (url) {
+                    orcrImage.src = url;
+                    orcrContainer.style.display = 'block';
+                    noOrcrMessage.style.display = 'none';
+                }
+            }
+
+            // Also show all documents
+            if (docs.length > 0) {
+                const allDocsSection = document.getElementById('allDocsSection');
+                const docsGrid = document.getElementById('attachedDocsGrid');
+                
+                allDocsSection.style.display = 'block';
+                
+                const docTypeNames = {
+                    'owner_id': 'Owner ID',
+                    'registration_cert': 'OR/CR',
+                    'registration': 'OR/CR',
+                    'insurance_cert': 'Insurance',
+                    'emission_cert': 'Emission'
+                };
+
+                docsGrid.innerHTML = docs.map(doc => {
+                    const typeName = docTypeNames[doc.type] || doc.type || 'Document';
+                    const url = doc.cid ? `/api/documents/ipfs/${doc.cid}` : (doc.path ? `/api/documents/file/${encodeURIComponent(doc.path)}` : '#');
+                    const isOrcr = doc.type === 'registration_cert' || doc.type === 'registration';
+                    
+                    return `
+                        <div class="doc-preview-card ${isOrcr ? 'orcr' : ''}" onclick="window.open('${url}', '_blank')">
+                            <i class="fas fa-file-image doc-icon"></i>
+                            <div class="doc-type">${typeName}${isOrcr ? ' ★' : ''}</div>
+                            <div class="doc-filename">${doc.filename || 'document'}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load request data
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestId = urlParams.get('requestId') || sessionStorage.getItem('currentRequestId');
+            
+            if (requestId && typeof HPGVerification !== 'undefined') {
+                HPGVerification.loadRequestData(requestId);
+            }
+        });
     </script>
 </body>
 </html>
+
+
 

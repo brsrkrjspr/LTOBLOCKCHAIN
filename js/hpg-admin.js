@@ -633,37 +633,76 @@ const HPGVerification = {
 
     approveVerification: async function() {
         try {
-            const form = document.getElementById('verificationForm');
-            if (!form.checkValidity()) {
-                form.reportValidity();
+            // Validate required fields exist
+            if (!this.currentRequestId) {
+                alert('No request selected. Please select a request first.');
                 return;
             }
 
-            const formData = new FormData(form);
+            // Get values directly from input elements (not from FormData)
+            // Use optional chaining to safely access elements that may not exist
+            const engineNumberEl = document.getElementById('engineNumber');
+            const chassisNumberEl = document.getElementById('chassisNumber');
+            const remarksEl = document.getElementById('remarks');
+            const macroEtchingEl = document.getElementById('macroEtching'); // May not exist
+            
+            // Build verification data with safe property access
             const verificationData = {
                 requestId: this.currentRequestId,
-                engineNumber: formData.get('engineNumber'),
-                chassisNumber: formData.get('chassisNumber'),
-                macroEtching: document.getElementById('macroEtching').checked,
-                remarks: formData.get('remarks'),
-                inspectionPhotos: formData.getAll('inspectionPhotos'),
-                stencilImage: formData.get('stencilImage')
+                engineNumber: engineNumberEl?.value || '',
+                chassisNumber: chassisNumberEl?.value || '',
+                macroEtching: macroEtchingEl?.checked || false, // Safe access with optional chaining
+                remarks: remarksEl?.value || '',
+                // Note: inspectionPhotos and stencilImage are not in the current form
+                // If needed, add file input fields to the HTML form
+                photos: [], // Placeholder - add file upload if needed
+                stencil: null // Placeholder - add file upload if needed
             };
 
-            // Placeholder: Replace with actual API call
-            // Example: await APIClient.post('/api/hpg/verify/approve', verificationData);
+            // Validate required fields
+            if (!verificationData.engineNumber || !verificationData.chassisNumber) {
+                alert('Engine number and chassis number are required.');
+                return;
+            }
 
-            alert('Verification approved successfully!');
-            
-            // Log activity
-            this.logActivity('verified', 'Vehicle verification approved');
+            // Make actual API call
+            try {
+                const apiClient = typeof APIClient !== 'undefined' ? new APIClient() : window.apiClient;
+                if (!apiClient) {
+                    throw new Error('API client not available');
+                }
 
-            // Redirect to requests list
-            window.location.href = 'hpg-requests-list.html';
+                const response = await apiClient.post('/api/hpg/verify/approve', verificationData);
+                
+                if (response && response.success) {
+                    // Show success notification
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show('HPG verification approved successfully!', 'success');
+                    } else {
+                        alert('Verification approved successfully!');
+                    }
+                    
+                    // Log activity
+                    this.logActivity('verified', 'Vehicle verification approved');
+                    
+                    // Redirect to requests list
+                    setTimeout(() => {
+                        window.location.href = 'hpg-requests-list.html';
+                    }, 1000);
+                } else {
+                    throw new Error(response?.error || 'Failed to approve verification');
+                }
+            } catch (apiError) {
+                console.error('API Error:', apiError);
+                throw new Error(apiError.message || 'Failed to submit approval. Please try again.');
+            }
+
         } catch (error) {
             console.error('Error approving verification:', error);
             if (typeof ErrorHandler !== 'undefined') {
                 ErrorHandler.handleAPIError(error);
+            } else {
+                alert('Error: ' + (error.message || 'Failed to approve verification'));
             }
         }
     },

@@ -357,18 +357,80 @@ function viewInsuranceDocument(applicationId) {
     showNotification('Opening insurance certificate document...', 'info');
 }
 
-function approveInsurance(applicationId) {
-    if (confirm('Are you sure you want to approve this insurance certificate?')) {
-        updateInsuranceStatus(applicationId, 'approved', 'Insurance certificate approved by verifier');
-        showNotification('Insurance certificate approved successfully', 'success');
+async function approveInsurance(requestId) {
+    if (!confirm('Are you sure you want to approve this insurance certificate?')) {
+        return;
+    }
+    
+    try {
+        const apiClient = typeof APIClient !== 'undefined' ? new APIClient() : window.apiClient;
+        if (!apiClient) {
+            throw new Error('API client not available');
+        }
+
+        const response = await apiClient.post('/api/insurance/verify/approve', {
+            requestId: requestId,
+            notes: 'Insurance certificate approved by verifier'
+        });
+        
+        if (response && response.success) {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Insurance verification approved successfully!', 'success');
+            } else {
+                showNotification('Insurance verification approved successfully!', 'success');
+            }
+            
+            // Reload the verification tasks
+            loadInsuranceVerificationTasks();
+        } else {
+            throw new Error(response?.error || 'Failed to approve');
+        }
+    } catch (error) {
+        console.error('Error approving insurance:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Failed to approve insurance: ' + error.message, 'error');
+        } else {
+            showNotification('Failed to approve insurance: ' + error.message, 'error');
+        }
     }
 }
 
-function rejectInsurance(applicationId) {
+async function rejectInsurance(requestId) {
     const reason = prompt('Please provide a reason for rejection:');
-    if (reason && reason.trim()) {
-        updateInsuranceStatus(applicationId, 'rejected', `Insurance certificate rejected: ${reason}`);
-        showNotification('Insurance certificate rejected', 'success');
+    if (!reason || !reason.trim()) {
+        return;
+    }
+    
+    try {
+        const apiClient = typeof APIClient !== 'undefined' ? new APIClient() : window.apiClient;
+        if (!apiClient) {
+            throw new Error('API client not available');
+        }
+
+        const response = await apiClient.post('/api/insurance/verify/reject', {
+            requestId: requestId,
+            reason: reason
+        });
+        
+        if (response && response.success) {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Insurance verification rejected.', 'warning');
+            } else {
+                showNotification('Insurance verification rejected.', 'warning');
+            }
+            
+            // Reload the verification tasks
+            loadInsuranceVerificationTasks();
+        } else {
+            throw new Error(response?.error || 'Failed to reject');
+        }
+    } catch (error) {
+        console.error('Error rejecting insurance:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Failed to reject insurance: ' + error.message, 'error');
+        } else {
+            showNotification('Failed to reject insurance: ' + error.message, 'error');
+        }
     }
 }
 

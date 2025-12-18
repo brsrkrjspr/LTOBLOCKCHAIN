@@ -59,6 +59,21 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'emiss
             performedBy: req.user.userId
         });
 
+        // Create notification for LTO admin
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        const dbModule = require('../database/db');
+        const ltoAdmins = await dbModule.query(
+            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+        );
+        if (ltoAdmins.rows.length > 0) {
+            await db.createNotification({
+                userId: ltoAdmins.rows[0].id,
+                title: 'Emission Verification Approved',
+                message: `Emission verification approved for vehicle ${vehicle.plate_number || vehicle.vin}`,
+                type: 'success'
+            });
+        }
+
         res.json({ success: true, message: 'Emission verification approved' });
     } catch (error) {
         console.error('Error approving emission:', error);
@@ -89,6 +104,21 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'emissi
             description: `Emission verification rejected: ${reason}`,
             performedBy: req.user.userId
         });
+
+        // Create notification for LTO admin
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        const dbModule = require('../database/db');
+        const ltoAdmins = await dbModule.query(
+            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+        );
+        if (ltoAdmins.rows.length > 0) {
+            await db.createNotification({
+                userId: ltoAdmins.rows[0].id,
+                title: 'Emission Verification Rejected',
+                message: `Emission verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}`,
+                type: 'warning'
+            });
+        }
 
         res.json({ success: true, message: 'Emission verification rejected' });
     } catch (error) {

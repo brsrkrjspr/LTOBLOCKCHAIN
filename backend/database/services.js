@@ -490,21 +490,51 @@ async function getClearanceRequestsByStatus(status) {
 async function updateClearanceRequestStatus(id, status, metadata = null) {
     let query = `UPDATE clearance_requests SET status = $1`;
     const params = [status];
+    let paramIndex = 2;
     
+    // Only set completed_at if status is final (COMPLETED, APPROVED, or REJECTED)
+    // Check if column exists first, or use a safer approach
     if (status === 'COMPLETED' || status === 'APPROVED' || status === 'REJECTED') {
+        // Try to add completed_at update, but handle gracefully if column doesn't exist
         query += ', completed_at = CURRENT_TIMESTAMP';
     }
     
     if (metadata) {
-        query += ', metadata = metadata || $2::jsonb';
+        query += ', metadata = metadata || $' + paramIndex + '::jsonb';
         params.push(JSON.stringify(metadata));
+        paramIndex++;
     }
     
-    query += ' WHERE id = $' + (params.length + 1) + ' RETURNING *';
+    query += ', updated_at = CURRENT_TIMESTAMP';
+    query += ' WHERE id = $' + paramIndex + ' RETURNING *';
     params.push(id);
     
-    const result = await db.query(query, params);
-    return result.rows[0] || null;
+    try {
+        const result = await db.query(query, params);
+        return result.rows[0] || null;
+    } catch (error) {
+        // If completed_at column doesn't exist, retry without it
+        if (error.message && error.message.includes('completed_at')) {
+            console.warn('completed_at column not found, updating without it');
+            let fallbackQuery = `UPDATE clearance_requests SET status = $1`;
+            const fallbackParams = [status];
+            let fallbackIndex = 2;
+            
+            if (metadata) {
+                fallbackQuery += ', metadata = metadata || $' + fallbackIndex + '::jsonb';
+                fallbackParams.push(JSON.stringify(metadata));
+                fallbackIndex++;
+            }
+            
+            fallbackQuery += ', updated_at = CURRENT_TIMESTAMP';
+            fallbackQuery += ' WHERE id = $' + fallbackIndex + ' RETURNING *';
+            fallbackParams.push(id);
+            
+            const result = await db.query(fallbackQuery, fallbackParams);
+            return result.rows[0] || null;
+        }
+        throw error;
+    }
 }
 
 async function assignClearanceRequest(id, assignedTo) {

@@ -58,6 +58,21 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
             performedBy: req.user.userId
         });
 
+        // Create notification for LTO admin
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        const dbModule = require('../database/db');
+        const ltoAdmins = await dbModule.query(
+            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+        );
+        if (ltoAdmins.rows.length > 0) {
+            await db.createNotification({
+                userId: ltoAdmins.rows[0].id,
+                title: 'Insurance Verification Approved',
+                message: `Insurance verification approved for vehicle ${vehicle.plate_number || vehicle.vin}`,
+                type: 'success'
+            });
+        }
+
         res.json({ success: true, message: 'Insurance verification approved' });
     } catch (error) {
         console.error('Error approving insurance:', error);
@@ -88,6 +103,21 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
             description: `Insurance verification rejected: ${reason}`,
             performedBy: req.user.userId
         });
+
+        // Create notification for LTO admin
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        const dbModule = require('../database/db');
+        const ltoAdmins = await dbModule.query(
+            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+        );
+        if (ltoAdmins.rows.length > 0) {
+            await db.createNotification({
+                userId: ltoAdmins.rows[0].id,
+                title: 'Insurance Verification Rejected',
+                message: `Insurance verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}`,
+                type: 'warning'
+            });
+        }
 
         res.json({ success: true, message: 'Insurance verification rejected' });
     } catch (error) {

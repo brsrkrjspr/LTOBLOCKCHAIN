@@ -624,12 +624,28 @@
             const vin = params.get('vin');
             const vehicleId = params.get('vehicleId');
             const appId = params.get('appId');
+            const cid = params.get('cid');
             
             const token = localStorage.getItem('token') || localStorage.getItem('authToken');
             
             try {
+                // Case 0: Single document by IPFS CID (no metadata, just the file)
+                if (cid) {
+                    console.log('Loading single document by CID:', cid);
+                    documents = [{
+                        id: cid,
+                        type: 'other',
+                        label: 'Document',
+                        filename: 'Document',
+                        url: `/api/documents/ipfs/${cid}`,
+                        cid: cid,
+                        uploadDate: null,
+                        verified: false
+                    }];
+                }
+                
                 // Case 1: Single document by ID
-                if (documentId) {
+                if (!documents.length && documentId) {
                     console.log('Loading single document by ID:', documentId);
                     try {
                         const response = await fetch(`/api/documents/${documentId}`, {

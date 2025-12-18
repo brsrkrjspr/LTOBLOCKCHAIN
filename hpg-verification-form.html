@@ -154,13 +154,13 @@
                                 </div>
                                 <div class="orcr-document-container" id="orcrDocContainer" style="display: none;">
                                     <div class="orcr-preview">
-                                        <img id="orcrDocImage" src="" alt="OR/CR Document" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="openDocumentFullscreen(this.src)">
+                                        <img id="orcrDocImage" src="" alt="OR/CR Document" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="openOrcrInViewer()">
                                     </div>
                                     <div class="orcr-actions">
-                                        <button type="button" class="btn-secondary btn-sm" onclick="openDocumentFullscreen(document.getElementById('orcrDocImage').src)">
+                                        <button type="button" class="btn-secondary btn-sm" onclick="openOrcrInViewer()">
                                             <i class="fas fa-expand"></i> View Full Size
                                         </button>
-                                        <button type="button" class="btn-secondary btn-sm" onclick="window.open(document.getElementById('orcrDocImage').src, '_blank')">
+                                        <button type="button" class="btn-secondary btn-sm" onclick="openOrcrInViewer()">
                                             <i class="fas fa-external-link-alt"></i> Open in New Tab
                                         </button>
                                     </div>
@@ -976,6 +976,9 @@
             document.body.appendChild(modal);
         }
 
+        // Track current OR/CR document for viewer
+        let currentOrcrDoc = null;
+
         // Load OR/CR document
         function loadORCRDocument(docs) {
             const orcrDoc = docs.find(d => 
@@ -991,6 +994,9 @@
             const orcrImage = document.getElementById('orcrDocImage');
 
             if (orcrDoc) {
+                // Remember current OR/CR doc so we can open it in the secure viewer
+                currentOrcrDoc = orcrDoc;
+
                 const url = orcrDoc.cid ? `/api/documents/ipfs/${orcrDoc.cid}` : (orcrDoc.path ? `/api/documents/file/${encodeURIComponent(orcrDoc.path)}` : null);
                 
                 if (url) {
@@ -1021,11 +1027,13 @@
 
                 docsGrid.innerHTML = docs.map(doc => {
                     const typeName = docTypeNames[doc.type] || doc.type || 'Document';
-                    const url = doc.cid ? `/api/documents/ipfs/${doc.cid}` : (doc.path ? `/api/documents/file/${encodeURIComponent(doc.path)}` : '#');
+                    const viewerUrl = doc.id 
+                        ? `document-viewer.html?documentId=${encodeURIComponent(doc.id)}`
+                        : (doc.cid ? `document-viewer.html?cid=${encodeURIComponent(doc.cid)}` : '#');
                     const isOrcr = doc.type === 'registration_cert' || doc.type === 'registration';
                     
                     return `
-                        <div class="doc-preview-card ${isOrcr ? 'orcr' : ''}" onclick="window.open('${url}', '_blank')">
+                        <div class="doc-preview-card ${isOrcr ? 'orcr' : ''}" onclick="window.open('${viewerUrl}', '_blank')">
                             <i class="fas fa-file-image doc-icon"></i>
                             <div class="doc-type">${typeName}${isOrcr ? ' ★' : ''}</div>
                             <div class="doc-filename">${doc.filename || 'document'}</div>
@@ -1033,6 +1041,28 @@
                     `;
                 }).join('');
             }
+        }
+
+        // Open the currently selected OR/CR document in the authenticated viewer page
+        function openOrcrInViewer() {
+            if (!currentOrcrDoc) {
+                alert('No OR/CR document available yet.');
+                return;
+            }
+
+            let viewerUrl = null;
+            if (currentOrcrDoc.id) {
+                viewerUrl = `document-viewer.html?documentId=${encodeURIComponent(currentOrcrDoc.id)}`;
+            } else if (currentOrcrDoc.cid) {
+                viewerUrl = `document-viewer.html?cid=${encodeURIComponent(currentOrcrDoc.cid)}`;
+            }
+
+            if (!viewerUrl) {
+                alert('This document cannot be opened right now.');
+                return;
+            }
+
+            window.open(viewerUrl, '_blank');
         }
 
         // Initialize page

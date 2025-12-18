@@ -49,7 +49,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
             notes
         });
 
-        await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'APPROVED', notes);
+        await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'APPROVED', req.user.userId, notes);
 
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -95,7 +95,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
         }
 
         await db.updateClearanceRequestStatus(requestId, 'REJECTED', { reason });
-        await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'REJECTED', reason);
+        await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'REJECTED', req.user.userId, reason);
 
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,

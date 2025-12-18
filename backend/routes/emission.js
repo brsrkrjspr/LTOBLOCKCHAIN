@@ -50,7 +50,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'emiss
             testResult
         });
 
-        await db.updateVerificationStatus(request.vehicle_id, 'emission', 'APPROVED', notes);
+        await db.updateVerificationStatus(request.vehicle_id, 'emission', 'APPROVED', req.user.userId, notes);
 
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -96,7 +96,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'emissi
         }
 
         await db.updateClearanceRequestStatus(requestId, 'REJECTED', { reason });
-        await db.updateVerificationStatus(request.vehicle_id, 'emission', 'REJECTED', reason);
+        await db.updateVerificationStatus(request.vehicle_id, 'emission', 'REJECTED', req.user.userId, reason);
 
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,

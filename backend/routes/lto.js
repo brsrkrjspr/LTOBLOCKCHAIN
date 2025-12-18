@@ -264,7 +264,7 @@ router.post('/send-to-insurance', authenticateToken, authorizeRole(['admin']), a
         });
 
         // Update vehicle verification status
-        await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', null);
+        await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', null, null);
 
         // Add to history
         await db.addVehicleHistory({
@@ -392,7 +392,7 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
         });
 
         // Update vehicle verification status
-        await db.updateVerificationStatus(vehicleId, 'emission', 'PENDING', null);
+        await db.updateVerificationStatus(vehicleId, 'emission', 'PENDING', null, null);
 
         // Add to history
         await db.addVehicleHistory({

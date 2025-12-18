@@ -74,6 +74,107 @@ function mapDocumentType(type) {
     return mapping[type] || 'registration_cert';
 }
 
+// View document by IPFS CID (wrapper that reuses existing view logic)
+// This supports existing frontend URLs like /api/documents/ipfs/:cid
+router.get('/ipfs/:cid', authenticateToken, async (req, res) => {
+    try {
+        const { cid } = req.params;
+
+        // Find document by IPFS CID
+        const document = await db.getDocumentByCid(cid);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document not found for this CID'
+            });
+        }
+
+        // Get vehicle to check permissions (same rules as /:documentId/view)
+        const vehicle = await db.getVehicleById(document.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        const isVerifier =
+            req.user.role === 'insurance_verifier' ||
+            req.user.role === 'emission_verifier';
+
+        if (!isAdmin && !isOwner && !isVerifier) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Get document from storage service (IPFS or local)
+        let filePath = null;
+        let mimeType = document.mime_type || 'application/pdf';
+
+        if (document.ipfs_cid || document.file_path) {
+            try {
+                const storageResult = await storageService.getDocument(document.id);
+                filePath = storageResult.filePath;
+                if (storageResult.mimeType) {
+                    mimeType = storageResult.mimeType;
+                }
+            } catch (storageError) {
+                console.error('Storage service error (IPFS view):', storageError);
+                // Fallback to direct file path if available
+                if (document.file_path && fs.existsSync(document.file_path)) {
+                    filePath = document.file_path;
+                } else {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Document file not found',
+                        details: storageError.message
+                    });
+                }
+            }
+        } else {
+            return res.status(404).json({
+                success: false,
+                error: 'Document has no storage location (no IPFS CID or file path)'
+            });
+        }
+
+        if (!filePath || !fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document file not found on storage system'
+            });
+        }
+
+        // Stream inline
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="${document.original_name}"`);
+
+        res.sendFile(path.resolve(filePath), (err) => {
+            if (err) {
+                console.error('View error (IPFS route):', err);
+                if (!res.headersSent) {
+                    res.status(500).json({
+                        success: false,
+                        error: 'Failed to view document'
+                    });
+                }
+            }
+        });
+    } catch (error) {
+        console.error('View by CID error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                error: 'Failed to view document by CID'
+            });
+        }
+    }
+});
+
 // Upload document (requires authentication)
 router.post('/upload', authenticateToken, upload.single('document'), async (req, res) => {
     try {

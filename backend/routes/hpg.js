@@ -119,7 +119,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             performedBy: req.user.userId,
             transactionId: null,
             metadata: {
-                clearanceRequestId,
+                clearanceRequestId: requestId,
                 engineNumber,
                 chassisNumber,
                 macroEtching
@@ -191,7 +191,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
             performedBy: req.user.userId,
             transactionId: null,
             metadata: {
-                clearanceRequestId,
+                clearanceRequestId: requestId,
                 reason
             }
         });

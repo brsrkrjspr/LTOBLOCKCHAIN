@@ -651,7 +651,8 @@
             try {
                 const response = await window.apiClient.get('/api/vehicles/my-vehicles');
                 if (response.success && response.vehicles) {
-                    userVehicles = response.vehicles.filter(v => v.status === 'REGISTERED' || v.status === 'approved');
+                    // Include vehicles that are fully registered/approved
+                    userVehicles = response.vehicles.filter(v => v.status === 'REGISTERED' || v.status === 'APPROVED');
                     populateVehicleSelector();
                 }
             } catch (error) {

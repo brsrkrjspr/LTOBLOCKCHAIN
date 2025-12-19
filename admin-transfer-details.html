@@ -144,24 +144,51 @@
                                 <div class="info-grid-2col">
                                     <div class="info-item">
                                         <label>Request ID</label>
-                                        <p><strong>TO-2024-001</strong></p>
+                                        <p id="requestId"><strong>TO-2024-001</strong></p>
                                     </div>
                                     <div class="info-item">
                                         <label>Submission Date</label>
-                                        <p>January 15, 2024</p>
+                                        <p id="requestDate">January 15, 2024</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Current Status</label>
-                                        <p><span class="status-badge status-pending">Pending</span></p>
+                                        <p><span id="requestStatus" class="status-badge status-pending">Pending</span></p>
                                     </div>
                                     <div class="info-item">
                                         <label>Assigned Admin Reviewer</label>
-                                        <p>Admin User</p>
+                                        <p id="reviewedBy">Admin User</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 1.5: Organization Approval Status -->
+                            <div class="dashboard-card" id="orgApprovalSection" style="display: none;">
+                                <h3><span class="card-icon">🏢</span> Organization Approval Status</h3>
+                                <div class="info-grid-2col">
+                                    <div class="info-item">
+                                        <label>HPG Approval</label>
+                                        <p id="hpgApprovalStatus">
+                                            <span class="status-badge status-pending">Pending</span>
+                                        </p>
+                                        <small id="hpgApprovalDate" style="color: #7f8c8d;"></small>
                                     </div>
                                     <div class="info-item">
-                                        <label>Forwarded to HPG</label>
-                                        <p><span class="status-badge status-rejected">No</span></p>
+                                        <label>Insurance Approval</label>
+                                        <p id="insuranceApprovalStatus">
+                                            <span class="status-badge status-pending">Pending</span>
+                                        </p>
+                                        <small id="insuranceApprovalDate" style="color: #7f8c8d;"></small>
                                     </div>
+                                    <div class="info-item">
+                                        <label>Emission Approval</label>
+                                        <p id="emissionApprovalStatus">
+                                            <span class="status-badge status-pending">Pending</span>
+                                        </p>
+                                        <small id="emissionApprovalDate" style="color: #7f8c8d;"></small>
+                                    </div>
+                                </div>
+                                <div id="orgApprovalMessage" style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #f39c12; display: none;">
+                                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> All organizations (HPG, Insurance, Emission) must approve before LTO can finalize this transfer request.
                                 </div>
                             </div>
 

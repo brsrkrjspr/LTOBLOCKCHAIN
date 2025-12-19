@@ -134,8 +134,98 @@ function renderTransferRequestDetails(request) {
     // Update documents
     renderDocuments(request.documents || []);
 
+    // Update organization approval status display
+    renderOrgApprovalStatus(request);
+    
     // Update action buttons
     updateActionButtons(request);
+}
+
+function renderOrgApprovalStatus(request) {
+    const orgSection = document.getElementById('orgApprovalSection');
+    const orgMessage = document.getElementById('orgApprovalMessage');
+    
+    if (!orgSection) return;
+    
+    // Show section if any org approval is tracked
+    const hasOrgTracking = request.hpg_approval_status || request.insurance_approval_status || request.emission_approval_status;
+    
+    if (hasOrgTracking) {
+        orgSection.style.display = 'block';
+        orgMessage.style.display = 'block';
+    } else {
+        orgSection.style.display = 'none';
+        orgMessage.style.display = 'none';
+    }
+    
+    // HPG Approval Status
+    const hpgStatus = request.hpg_approval_status || 'PENDING';
+    const hpgStatusEl = document.getElementById('hpgApprovalStatus');
+    const hpgDateEl = document.getElementById('hpgApprovalDate');
+    
+    if (hpgStatusEl) {
+        const statusClass = hpgStatus === 'APPROVED' ? 'status-approved' : 
+                           hpgStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
+        hpgStatusEl.innerHTML = `<span class="status-badge ${statusClass}">${hpgStatus}</span>`;
+    }
+    
+    if (hpgDateEl && request.hpg_approved_at) {
+        hpgDateEl.textContent = `Approved: ${new Date(request.hpg_approved_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}`;
+    } else if (hpgDateEl) {
+        hpgDateEl.textContent = '';
+    }
+    
+    // Insurance Approval Status
+    const insuranceStatus = request.insurance_approval_status || 'PENDING';
+    const insuranceStatusEl = document.getElementById('insuranceApprovalStatus');
+    const insuranceDateEl = document.getElementById('insuranceApprovalDate');
+    
+    if (insuranceStatusEl) {
+        const statusClass = insuranceStatus === 'APPROVED' ? 'status-approved' : 
+                           insuranceStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
+        insuranceStatusEl.innerHTML = `<span class="status-badge ${statusClass}">${insuranceStatus}</span>`;
+    }
+    
+    if (insuranceDateEl && request.insurance_approved_at) {
+        insuranceDateEl.textContent = `Approved: ${new Date(request.insurance_approved_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}`;
+    } else if (insuranceDateEl) {
+        insuranceDateEl.textContent = '';
+    }
+    
+    // Emission Approval Status
+    const emissionStatus = request.emission_approval_status || 'PENDING';
+    const emissionStatusEl = document.getElementById('emissionApprovalStatus');
+    const emissionDateEl = document.getElementById('emissionApprovalDate');
+    
+    if (emissionStatusEl) {
+        const statusClass = emissionStatus === 'APPROVED' ? 'status-approved' : 
+                           emissionStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
+        emissionStatusEl.innerHTML = `<span class="status-badge ${statusClass}">${emissionStatus}</span>`;
+    }
+    
+    if (emissionDateEl && request.emission_approved_at) {
+        emissionDateEl.textContent = `Approved: ${new Date(request.emission_approved_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}`;
+    } else if (emissionDateEl) {
+        emissionDateEl.textContent = '';
+    }
 }
 
 function renderSellerInfo(request) {
@@ -315,24 +405,83 @@ function updateActionButtons(request) {
     
     if (!actionButtons) return;
 
+    // Check organization approval status
+    const hpgStatus = request.hpg_approval_status || 'PENDING';
+    const insuranceStatus = request.insurance_approval_status || 'PENDING';
+    const emissionStatus = request.emission_approval_status || 'PENDING';
+    
+    const allApproved = hpgStatus === 'APPROVED' && insuranceStatus === 'APPROVED' && emissionStatus === 'APPROVED';
+    const anyRejected = hpgStatus === 'REJECTED' || insuranceStatus === 'REJECTED' || emissionStatus === 'REJECTED';
+    
     // Clear existing buttons
     actionButtons.innerHTML = '';
 
-    if (status === 'PENDING' || status === 'REVIEWING') {
-        actionButtons.innerHTML = `
-            <button class="btn-success" onclick="approveTransfer()">
-                <i class="fas fa-check"></i> Approve Transfer
-            </button>
-            <button class="btn-danger" onclick="rejectTransfer()">
-                <i class="fas fa-times"></i> Reject Transfer
-            </button>
-            <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-primary">
+    if (status === 'PENDING' || status === 'REVIEWING' || status === 'FORWARDED_TO_HPG') {
+        let buttonsHTML = '';
+        
+        // Forwarding buttons
+        if (hpgStatus === 'PENDING' && !request.forwarded_to_hpg) {
+            buttonsHTML += `
+                <button class="btn-primary btn-block" onclick="forwardToHPG()">
+                    <i class="fas fa-forward"></i> Forward to HPG
+                </button>
+            `;
+        }
+        
+        if (insuranceStatus === 'PENDING' && !request.insurance_clearance_request_id) {
+            buttonsHTML += `
+                <button class="btn-primary btn-block" onclick="forwardToInsurance()">
+                    <i class="fas fa-forward"></i> Forward to Insurance
+                </button>
+            `;
+        }
+        
+        if (emissionStatus === 'PENDING' && !request.emission_clearance_request_id) {
+            buttonsHTML += `
+                <button class="btn-primary btn-block" onclick="forwardToEmission()">
+                    <i class="fas fa-forward"></i> Forward to Emission
+                </button>
+            `;
+        }
+        
+        // Approve/Reject buttons (only enabled if all orgs approved)
+        if (allApproved) {
+            buttonsHTML += `
+                <button class="btn-success btn-block" onclick="approveTransfer()">
+                    <i class="fas fa-check"></i> Approve Transfer
+                </button>
+                <button class="btn-danger btn-block" onclick="rejectTransfer()">
+                    <i class="fas fa-times"></i> Reject Transfer
+                </button>
+            `;
+        } else if (anyRejected) {
+            buttonsHTML += `
+                <button class="btn-danger btn-block" onclick="rejectTransfer()" style="opacity: 0.6; cursor: not-allowed;" disabled>
+                    <i class="fas fa-times"></i> Cannot Approve (Organization Rejected)
+                </button>
+            `;
+        } else {
+            buttonsHTML += `
+                <button class="btn-success btn-block" style="opacity: 0.6; cursor: not-allowed;" disabled title="All organizations must approve first">
+                    <i class="fas fa-check"></i> Approve Transfer (Pending Org Approvals)
+                </button>
+                <button class="btn-danger btn-block" onclick="rejectTransfer()">
+                    <i class="fas fa-times"></i> Reject Transfer
+                </button>
+            `;
+        }
+        
+        // Verification button
+        buttonsHTML += `
+            <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-secondary btn-block">
                 <i class="fas fa-clipboard-check"></i> Verify Documents
             </a>
         `;
+        
+        actionButtons.innerHTML = buttonsHTML;
     } else {
         actionButtons.innerHTML = `
-            <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-secondary">
+            <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-secondary btn-block">
                 <i class="fas fa-clipboard-check"></i> View Verification
             </a>
         `;
@@ -390,6 +539,23 @@ async function downloadDocument(docId) {
 }
 
 async function approveTransfer() {
+    // Check if all orgs have approved
+    if (currentTransferRequest) {
+        const hpgStatus = currentTransferRequest.hpg_approval_status || 'PENDING';
+        const insuranceStatus = currentTransferRequest.insurance_approval_status || 'PENDING';
+        const emissionStatus = currentTransferRequest.emission_approval_status || 'PENDING';
+        
+        const pendingApprovals = [];
+        if (hpgStatus !== 'APPROVED') pendingApprovals.push('HPG');
+        if (insuranceStatus !== 'APPROVED') pendingApprovals.push('Insurance');
+        if (emissionStatus !== 'APPROVED') pendingApprovals.push('Emission');
+        
+        if (pendingApprovals.length > 0) {
+            showError(`Cannot approve. Pending approvals from: ${pendingApprovals.join(', ')}`);
+            return;
+        }
+    }
+    
     if (!confirm('Are you sure you want to approve this transfer request?')) {
         return;
     }
@@ -404,11 +570,12 @@ async function approveTransfer() {
             showSuccess('Transfer request approved successfully');
             loadTransferRequestDetails(); // Reload to update status
         } else {
-            throw new Error(response.error || 'Failed to approve transfer request');
+            throw new Error(response.error || response.message || 'Failed to approve transfer request');
         }
     } catch (error) {
         console.error('Approve transfer error:', error);
-        showError(error.message || 'Failed to approve transfer request');
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to approve transfer request';
+        showError(errorMessage);
     }
 }
 
@@ -489,9 +656,84 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+async function forwardToHPG() {
+    if (!confirm('Forward this transfer request to HPG for clearance review?')) {
+        return;
+    }
+
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/forward-hpg`, {
+            purpose: 'Vehicle ownership transfer clearance',
+            notes: 'Forwarded for HPG clearance review'
+        });
+        
+        if (response.success) {
+            showSuccess('Transfer request forwarded to HPG successfully');
+            loadTransferRequestDetails(); // Reload to update status
+        } else {
+            throw new Error(response.error || 'Failed to forward to HPG');
+        }
+    } catch (error) {
+        console.error('Forward to HPG error:', error);
+        showError(error.message || 'Failed to forward to HPG');
+    }
+}
+
+async function forwardToInsurance() {
+    if (!confirm('Forward this transfer request to Insurance for clearance review?')) {
+        return;
+    }
+
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/forward-insurance`, {
+            purpose: 'Vehicle ownership transfer clearance',
+            notes: 'Forwarded for Insurance clearance review'
+        });
+        
+        if (response.success) {
+            showSuccess('Transfer request forwarded to Insurance successfully');
+            loadTransferRequestDetails(); // Reload to update status
+        } else {
+            throw new Error(response.error || 'Failed to forward to Insurance');
+        }
+    } catch (error) {
+        console.error('Forward to Insurance error:', error);
+        showError(error.message || 'Failed to forward to Insurance');
+    }
+}
+
+async function forwardToEmission() {
+    if (!confirm('Forward this transfer request to Emission for clearance review?')) {
+        return;
+    }
+
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/forward-emission`, {
+            purpose: 'Vehicle ownership transfer clearance',
+            notes: 'Forwarded for Emission clearance review'
+        });
+        
+        if (response.success) {
+            showSuccess('Transfer request forwarded to Emission successfully');
+            loadTransferRequestDetails(); // Reload to update status
+        } else {
+            throw new Error(response.error || 'Failed to forward to Emission');
+        }
+    } catch (error) {
+        console.error('Forward to Emission error:', error);
+        showError(error.message || 'Failed to forward to Emission');
+    }
+}
+
 // Make functions globally available for inline onclick handlers
 window.viewDocument = viewDocument;
 window.downloadDocument = downloadDocument;
 window.approveTransfer = approveTransfer;
 window.rejectTransfer = rejectTransfer;
+window.forwardToHPG = forwardToHPG;
+window.forwardToInsurance = forwardToInsurance;
+window.forwardToEmission = forwardToEmission;
 

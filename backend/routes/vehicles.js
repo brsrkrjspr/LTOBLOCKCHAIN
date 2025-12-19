@@ -929,6 +929,43 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
     }
 });
 
+// Get owner's ownership history (all vehicles owned by current user)
+// MUST come before /:vin/ownership-history to avoid route conflict
+router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const vehicles = await db.getVehiclesByOwner(userId);
+
+        const ownershipHistory = [];
+        for (const vehicle of vehicles) {
+            const history = await db.getOwnershipHistory(vehicle.id);
+            ownershipHistory.push({
+                vehicle: {
+                    id: vehicle.id,
+                    vin: vehicle.vin,
+                    plateNumber: vehicle.plate_number,
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    year: vehicle.year
+                },
+                history
+            });
+        }
+
+        res.json({
+            success: true,
+            ownershipHistory
+        });
+
+    } catch (error) {
+        console.error('Get my ownership history error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
 // Get ownership history for a vehicle
 router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
     try {
@@ -1008,42 +1045,6 @@ router.get('/:vehicleId/registration-progress', authenticateToken, async (req, r
 
     } catch (error) {
         console.error('Get registration progress error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-});
-
-// Get owner's ownership history (all vehicles owned by current user)
-router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        const vehicles = await db.getVehiclesByOwner(userId);
-
-        const ownershipHistory = [];
-        for (const vehicle of vehicles) {
-            const history = await db.getOwnershipHistory(vehicle.id);
-            ownershipHistory.push({
-                vehicle: {
-                    id: vehicle.id,
-                    vin: vehicle.vin,
-                    plateNumber: vehicle.plate_number,
-                    make: vehicle.make,
-                    model: vehicle.model,
-                    year: vehicle.year
-                },
-                history
-            });
-        }
-
-        res.json({
-            success: true,
-            ownershipHistory
-        });
-
-    } catch (error) {
-        console.error('Get my ownership history error:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error'

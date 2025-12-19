@@ -208,7 +208,11 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 if (!docId) continue; // Skip empty values
                 
                 // Map role key to transfer role
-                const transferRole = documentRoleMap[roleKey] || docTypes.TRANSFER_ROLES.OTHER;
+                const transferRole = documentRoleMap[roleKey];
+                if (!transferRole) {
+                    console.warn('⚠️ Unknown document role key:', { roleKey, docId });
+                    continue;
+                }
                 
                 // Validate document exists
                 const document = await db.getDocumentById(docId);
@@ -223,13 +227,20 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                     continue;
                 }
                 
-                // Link document with explicit role
-                await dbModule.query(
-                    `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
-                     VALUES ($1, $2, $3, $4)
-                     ON CONFLICT DO NOTHING`,
-                    [transferRequest.id, transferRole, docId, req.user.userId]
+                // Link document with explicit role (check if already exists first)
+                const existingDoc = await dbModule.query(
+                    `SELECT id FROM transfer_documents 
+                     WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
+                    [transferRequest.id, docId, transferRole]
                 );
+                
+                if (existingDoc.rows.length === 0) {
+                    await dbModule.query(
+                        `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
+                         VALUES ($1, $2, $3, $4)`,
+                        [transferRequest.id, transferRole, docId, req.user.userId]
+                    );
+                }
                 
                 console.log('✅ Linked transfer document:', {
                     transferRequestId: transferRequest.id,
@@ -250,7 +261,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 // Determine document type from document (legacy inference)
                 const document = await db.getDocumentById(docId);
                 if (document) {
-                    let docType = docTypes.TRANSFER_ROLES.OTHER;
+                    let docType = null;
                     if (document.document_type === 'owner_id') {
                         // Check if it's seller or buyer ID based on uploader (legacy inference)
                         docType = String(document.uploaded_by) === String(req.user.userId) 
@@ -258,14 +269,32 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                             : docTypes.TRANSFER_ROLES.BUYER_ID;
                     } else if (document.document_type === 'registration_cert') {
                         docType = docTypes.TRANSFER_ROLES.OR_CR;
+                    } else if (document.document_type === 'deed_of_sale') {
+                        docType = docTypes.TRANSFER_ROLES.DEED_OF_SALE;
                     }
                     
-                    await dbModule.query(
-                        `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
-                         VALUES ($1, $2, $3, $4)
-                         ON CONFLICT DO NOTHING`,
-                        [transferRequest.id, docType, docId, req.user.userId]
-                    );
+                    // Only insert if we have a valid transfer role
+                    if (docType && docTypes.isValidTransferRole(docType)) {
+                        // Check if already exists
+                        const existingDoc = await dbModule.query(
+                            `SELECT id FROM transfer_documents 
+                             WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
+                            [transferRequest.id, docId, docType]
+                        );
+                        
+                        if (existingDoc.rows.length === 0) {
+                            await dbModule.query(
+                                `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
+                                 VALUES ($1, $2, $3, $4)`,
+                                [transferRequest.id, docType, docId, req.user.userId]
+                            );
+                        }
+                    } else {
+                        console.warn('⚠️ Could not determine transfer role for document:', { 
+                            docId, 
+                            documentType: document.document_type 
+                        });
+                    }
                 }
             }
         }
@@ -320,10 +349,18 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         
     } catch (error) {
         console.error('Create transfer request error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Request body:', JSON.stringify(req.body, null, 2));
+        console.error('User:', { userId: req.user?.userId, email: req.user?.email, role: req.user?.role });
+        
         res.status(500).json({
             success: false,
             error: 'Internal server error',
-            message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create transfer request'
+            message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create transfer request',
+            details: process.env.NODE_ENV === 'development' ? {
+                stack: error.stack,
+                requestBody: req.body
+            } : undefined
         });
     }
 });

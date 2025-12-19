@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Vehicle Ownership History - LTO Blockchain</title>
+    <title>My Vehicles - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -579,8 +579,8 @@
                     <span>Transfer of Ownership</span>
                 </a>
                 <a href="my-vehicle-ownership.html" class="nav-item active">
-                    <i class="fas fa-history"></i>
-                    <span>Ownership History</span>
+                    <i class="fas fa-car"></i>
+                    <span>My Vehicles</span>
                 </a>
                 <a href="#applications" class="nav-item">
                     <i class="fas fa-list"></i>
@@ -633,8 +633,8 @@
                     <!-- Page Header -->
                     <div class="page-header">
                         <div class="page-title-section">
-                            <h2><i class="fas fa-history"></i> My Vehicle Ownership History</h2>
-                            <p>View your vehicle ownership timeline and verification records</p>
+                            <h2><i class="fas fa-car"></i> My Vehicles</h2>
+                            <p>View your registered vehicles and their ownership history</p>
                         </div>
                     </div>
 
@@ -722,44 +722,6 @@
 
     <script src="js/my-vehicle-ownership.js"></script>
     <script>
-        // Legacy dummy data (kept for fallback, will be replaced by API calls)
-        const myVehicles = [
-            {
-                plateNumber: 'ABC-1234',
-                vin: '4T1BF1FK5EU123456',
-                make: 'Toyota',
-                model: 'Vios',
-                year: '2020',
-                isCurrent: true,
-                ownershipPeriods: [
-                    {
-                        startDate: '2020-01-15',
-                        endDate: null,
-                        isCurrent: true,
-                        transactionRef: '0x7a3b9c2d4e5f6a1b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
-                        verified: true
-                    }
-                ]
-            },
-            {
-                plateNumber: 'XYZ-5678',
-                vin: '5YJ3E1EB1KF123456',
-                make: 'Honda',
-                model: 'Civic',
-                year: '2018',
-                isCurrent: false,
-                ownershipPeriods: [
-                    {
-                        startDate: '2018-06-01',
-                        endDate: '2020-12-31',
-                        isCurrent: false,
-                        transactionRef: '0x6b2a8d1c3e4f5a0b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1',
-                        verified: true
-                    }
-                ]
-            }
-        ];
-
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
@@ -806,9 +768,6 @@
                     }
                 });
             }
-
-            // Load vehicles
-            loadMyVehicles();
             
             // Load incoming transfer requests (buyer flow)
             loadIncomingTransferRequests();
@@ -949,231 +908,6 @@
                 alert(message);
             }
         }
-
-        function loadMyVehicles() {
-            const vehiclesListContent = document.getElementById('vehiclesListContent');
-            const emptyState = document.getElementById('emptyState');
-
-            if (!vehiclesListContent) return;
-
-            if (myVehicles.length === 0) {
-                vehiclesListContent.style.display = 'none';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            vehiclesListContent.innerHTML = '';
-            emptyState.style.display = 'none';
-
-            myVehicles.forEach(vehicle => {
-                const card = createVehicleCard(vehicle);
-                vehiclesListContent.appendChild(card);
-            });
-        }
-
-        function createVehicleCard(vehicle) {
-            const card = document.createElement('div');
-            card.className = `vehicle-card ${vehicle.isCurrent ? 'current' : ''}`;
-
-            card.innerHTML = `
-                <div class="vehicle-info">
-                    <div class="vehicle-plate">${vehicle.plateNumber}</div>
-                    <div class="vehicle-details">
-                        <div class="vehicle-detail-item">
-                            <i class="fas fa-car"></i>
-                            <span>${vehicle.year} ${vehicle.make} ${vehicle.model}</span>
-                        </div>
-                        <div class="vehicle-detail-item">
-                            <i class="fas fa-barcode"></i>
-                            <span>VIN: ${vehicle.vin.substring(0, 8)}...</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="vehicle-status">
-                    <span class="status-badge ${vehicle.isCurrent ? 'current' : 'previous'}">
-                        ${vehicle.isCurrent ? 'Current' : 'Previous'}
-                    </span>
-                    <button class="btn-view-history" onclick="viewOwnershipHistory('${vehicle.plateNumber}')">
-                        <i class="fas fa-history"></i> View Ownership History
-                    </button>
-                </div>
-            `;
-
-            return card;
-        }
-
-        function viewOwnershipHistory(plateNumber) {
-            const vehicle = myVehicles.find(v => v.plateNumber === plateNumber);
-            if (!vehicle) return;
-
-            const vehiclesList = document.getElementById('vehiclesList');
-            const timelineContainer = document.getElementById('limitedTimelineContainer');
-            const timeline = document.getElementById('limitedOwnershipTimeline');
-
-            // Hide vehicle list, show timeline
-            vehiclesList.style.display = 'none';
-            timelineContainer.classList.add('active');
-
-            // Clear and populate timeline
-            timeline.innerHTML = '';
-
-            // Sort periods by start date (newest first)
-            const sortedPeriods = [...vehicle.ownershipPeriods].sort((a, b) => 
-                new Date(b.startDate) - new Date(a.startDate)
-            );
-
-            sortedPeriods.forEach((period, index) => {
-                const node = createLimitedTimelineNode(period, vehicle, index);
-                timeline.appendChild(node);
-            });
-
-            // Scroll to timeline
-            timelineContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function createLimitedTimelineNode(period, vehicle, index) {
-            const node = document.createElement('div');
-            node.className = `limited-timeline-node ${period.isCurrent ? 'current' : ''}`;
-
-            const startDate = new Date(period.startDate).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-            const endDate = period.endDate ? 
-                new Date(period.endDate).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                }) : 'Present';
-
-            const periodTitle = period.isCurrent ? 'Current Ownership Period' : 'Previous Ownership Period';
-
-            node.innerHTML = `
-                <div class="limited-timeline-node-card">
-                    <div class="limited-node-header">
-                        <div class="limited-node-period">
-                            <div class="limited-node-period-title">${periodTitle}</div>
-                            <div class="limited-node-period-dates">
-                                <i class="fas fa-calendar-check"></i> ${startDate} - 
-                                <i class="fas fa-calendar-times"></i> ${endDate}
-                            </div>
-                        </div>
-                        <div class="limited-node-badges">
-                            ${period.isCurrent ? '<span class="badge-current-limited"><i class="fas fa-star"></i> Current</span>' : ''}
-                            <span class="badge-verified-limited">
-                                <i class="fas fa-shield-alt"></i> Verified
-                            </span>
-                        </div>
-                    </div>
-                    <div class="limited-trust-indicators">
-                        <div class="limited-trust-indicator" title="Blockchain-verified ownership record">
-                            <i class="fas fa-lock"></i>
-                            <span>Blockchain Verified</span>
-                        </div>
-                        <div class="limited-trust-indicator" title="Tamper-proof transaction record">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>Tamper-Proof</span>
-                        </div>
-                    </div>
-                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #e9ecef;">
-                        <button 
-                            class="btn-verify-ownership" 
-                            onclick="verifyOwnershipPeriod('${vehicle.plateNumber}', '${period.startDate}', '${period.endDate || 'Present'}', ${period.isCurrent})"
-                            title="Verify this ownership period on blockchain"
-                        >
-                            <i class="fas fa-shield-check"></i> Verify Ownership Period
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            return node;
-        }
-
-        function backToVehicleList() {
-            const vehiclesList = document.getElementById('vehiclesList');
-            const timelineContainer = document.getElementById('limitedTimelineContainer');
-
-            vehiclesList.style.display = 'block';
-            timelineContainer.classList.remove('active');
-
-            vehiclesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function verifyOwnershipPeriod(plateNumber, startDate, endDate, isCurrent) {
-            const modal = document.getElementById('verificationModal');
-            const vehicle = myVehicles.find(v => v.plateNumber === plateNumber);
-            
-            if (!vehicle) return;
-
-            // Find the matching period
-            const period = vehicle.ownershipPeriods.find(p => 
-                p.startDate === startDate && 
-                (p.endDate === endDate || (p.endDate === null && endDate === 'Present'))
-            );
-
-            // Format dates
-            const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-            const endDateFormatted = endDate === 'Present' ? 'Present' : 
-                new Date(endDate).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                });
-
-            // Update modal content
-            document.getElementById('verifyPlateNumber').textContent = plateNumber;
-            document.getElementById('verifyOwnershipPeriod').textContent = `${startDateFormatted} - ${endDateFormatted}`;
-            document.getElementById('verifyStatus').innerHTML = isCurrent ? 
-                '<span class="badge-current-limited"><i class="fas fa-star"></i> Current Ownership</span>' :
-                '<span class="badge-verified-limited"><i class="fas fa-check"></i> Previous Ownership</span>';
-
-            // Check verification status
-            const isVerified = period ? period.verified : true; // Default to verified if period not found
-            const statusBox = document.getElementById('verificationStatusBox');
-            const statusTitle = document.getElementById('verificationStatusTitle');
-            const statusDescription = document.getElementById('verificationStatusDescription');
-
-            if (isVerified) {
-                statusBox.className = 'verification-status-box verified';
-                statusTitle.textContent = 'Ownership Verified';
-                statusDescription.textContent = 'This ownership period has been verified and recorded on the blockchain. The record is tamper-proof and immutable. Your ownership is confirmed and protected.';
-            } else {
-                statusBox.className = 'verification-status-box pending';
-                statusTitle.textContent = 'Verification Pending';
-                statusDescription.textContent = 'This ownership period is being verified. Please check back later.';
-            }
-
-            // Show modal
-            modal.classList.add('active');
-
-            // Show toast notification
-            if (typeof ToastNotification !== 'undefined') {
-                ToastNotification.show('Ownership verification details displayed', 'info');
-            } else {
-                console.log('Ownership verification:', { plateNumber, startDate, endDate, isVerified });
-            }
-        }
-
-        function closeVerificationModal() {
-            const modal = document.getElementById('verificationModal');
-            if (modal) {
-                modal.classList.remove('active');
-            }
-        }
-
-        // Close modal when clicking outside
-        document.addEventListener('click', function(event) {
-            const modal = document.getElementById('verificationModal');
-            if (modal && event.target === modal) {
-                closeVerificationModal();
-            }
-        });
     </script>
 </body>
 </html>

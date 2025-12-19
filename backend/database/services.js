@@ -758,13 +758,13 @@ async function getTransferRequests(filters = {}) {
     
     if (dateFrom) {
         paramCount++;
-        query += ` AND tr.submitted_at >= $${paramCount}`;
+        query += ` AND COALESCE(tr.submitted_at, tr.created_at) >= $${paramCount}`;
         params.push(dateFrom);
     }
     
     if (dateTo) {
         paramCount++;
-        query += ` AND tr.submitted_at <= $${paramCount}`;
+        query += ` AND COALESCE(tr.submitted_at, tr.created_at) <= $${paramCount}`;
         params.push(dateTo);
     }
     
@@ -774,7 +774,7 @@ async function getTransferRequests(filters = {}) {
         params.push(`%${plateNumber}%`);
     }
     
-    query += ` ORDER BY tr.submitted_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    query += ` ORDER BY COALESCE(tr.submitted_at, tr.created_at) DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(limit, offset);
     
     const result = await db.query(query, params);

@@ -8,13 +8,92 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const fabricService = require('../services/optimizedFabricService');
 const docTypes = require('../config/documentTypes');
+const jwt = require('jsonwebtoken');
+
+// Transfer invite token secret (fallbacks to JWT_SECRET for simplicity)
+const INVITE_TOKEN_SECRET = process.env.TRANSFER_INVITE_SECRET || process.env.JWT_SECRET || 'fallback-secret';
+
+/**
+ * Generate a short-lived transfer invite token that can be embedded in an email link.
+ * Payload is minimal and validated against the database on use.
+ */
+function generateTransferInviteToken(transferRequestId, buyerEmail) {
+    const payload = {
+        type: 'transfer_invite',
+        transferRequestId,
+        buyerEmail
+    };
+
+    // 3 days is a reasonable default for completing a transfer
+    return jwt.sign(payload, INVITE_TOKEN_SECRET, { expiresIn: '3d' });
+}
+
+/**
+ * Validate a transfer invite token and return its payload.
+ * Throws on invalid/expired tokens.
+ */
+function verifyTransferInviteToken(token) {
+    const payload = jwt.verify(token, INVITE_TOKEN_SECRET);
+    if (!payload || payload.type !== 'transfer_invite' || !payload.transferRequestId || !payload.buyerEmail) {
+        throw new Error('Invalid transfer invite token');
+    }
+    return payload;
+}
+
+/**
+ * Minimal email helper for buyer invites.
+ * NOTE: This currently logs to console; production deployments should plug in a real email service.
+ */
+async function sendTransferInviteEmail({ to, buyerName, sellerName, vehicle, inviteToken }) {
+    const subject = 'Vehicle Ownership Transfer Request - TrustChain LTO';
+
+    const confirmationUrl = `${process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org'}/transfer-confirmation.html?token=${encodeURIComponent(inviteToken)}`;
+
+    const safeBuyerName = buyerName || 'Buyer';
+    const vehicleLabel = vehicle
+        ? `${vehicle.plate_number || vehicle.plateNumber || vehicle.vin} (${vehicle.make || ''} ${vehicle.model || ''})`
+        : 'a vehicle';
+
+    const message = `
+Dear ${safeBuyerName},
+
+${sellerName || 'A vehicle owner'} has initiated a request to transfer ownership of ${vehicleLabel} to you in the TrustChain LTO system.
+
+If you recognise this request and want to proceed, please open the link below to review and confirm the transfer:
+
+${confirmationUrl}
+
+If you did not expect this email, you can safely ignore it. No ownership change will happen unless you log in to your account and explicitly accept the transfer.
+
+Best regards,
+TrustChain LTO System
+`.trim();
+
+    // For now, behave like the existing MockNotificationService: log instead of sending.
+    console.log('📧 [Transfer Invite] Email (mock) would be sent:', {
+        to,
+        subject,
+        preview: message.split('\n').slice(0, 6).join('\n') + '\n...'
+    });
+
+    return { success: true };
+}
 
 // Create transfer request (owner submits)
-// NEW: Accepts explicit document roles in documents object
-// LEGACY: Still supports documentIds array for backward compatibility
+// NEW: Accepts explicit document roles in documents object and buyerEmail (Option A - email invite)
+// LEGACY: Still supports documentIds array and buyerId/buyerInfo for backward compatibility
 router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
     try {
-        const { vehicleId, buyerId, buyerInfo, documentIds, documents } = req.body;
+        const {
+            vehicleId,
+            buyerId,
+            buyerInfo,
+            buyerEmail,
+            buyerName,
+            buyerPhone,
+            documentIds,
+            documents
+        } = req.body;
         
         if (!vehicleId) {
             return res.status(400).json({
@@ -23,10 +102,10 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             });
         }
         
-        if (!buyerId && !buyerInfo) {
+        if (!buyerId && !buyerInfo && !buyerEmail) {
             return res.status(400).json({
                 success: false,
-                error: 'Either buyer ID or buyer information is required'
+                error: 'Either buyer ID, buyer information, or buyer email is required'
             });
         }
         
@@ -56,13 +135,46 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 existingRequestId: existingRequests[0].id
             });
         }
+
+        // Resolve buyer identity based on buyerId / buyerInfo / buyerEmail
+        let resolvedBuyerId = buyerId || null;
+        let resolvedBuyerInfo = buyerInfo || null;
+
+        // Option A: email-based lookup / provisional buyer
+        if (!resolvedBuyerId && buyerEmail) {
+            try {
+                const existingBuyer = await db.getUserByEmail(buyerEmail);
+                if (existingBuyer) {
+                    resolvedBuyerId = existingBuyer.id;
+                } else {
+                    // Build provisional buyer info; will be converted to a real user if LTO approves without buyer account
+                    let firstName = null;
+                    let lastName = null;
+                    if (buyerName && typeof buyerName === 'string') {
+                        const parts = buyerName.trim().split(' ');
+                        firstName = parts[0];
+                        lastName = parts.slice(1).join(' ') || null;
+                    }
+
+                    resolvedBuyerInfo = {
+                        ...(typeof buyerInfo === 'object' ? buyerInfo : {}),
+                        email: buyerEmail,
+                        firstName: resolvedBuyerInfo?.firstName || firstName,
+                        lastName: resolvedBuyerInfo?.lastName || lastName,
+                        phone: resolvedBuyerInfo?.phone || buyerPhone || null
+                    };
+                }
+            } catch (lookupError) {
+                console.warn('⚠️ Buyer email lookup failed:', lookupError.message);
+            }
+        }
         
         // Create transfer request
         const transferRequest = await db.createTransferRequest({
             vehicleId,
             sellerId: req.user.userId,
-            buyerId: buyerId || null,
-            buyerInfo: buyerInfo || null,
+            buyerId: resolvedBuyerId || null,
+            buyerInfo: resolvedBuyerInfo || null,
             metadata: {}
         });
         
@@ -163,7 +275,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             transferRequestId: transferRequest.id,
             vehicleId,
             sellerId: req.user.userId,
-            buyerId: buyerId || 'new_user',
+            buyerId: resolvedBuyerId || 'new_user',
             documentCount: documents ? Object.keys(documents).length : (documentIds?.length || 0),
             mode: documents ? 'explicit_roles' : 'legacy_inference'
         });
@@ -177,6 +289,25 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             transactionId: null,
             metadata: { transferRequestId: transferRequest.id }
         });
+
+        // Send email invite to buyer (Option A) if we have an email and either:
+        // - buyer is not yet a user, or
+        // - we still want to notify an existing buyer about the pending request.
+        if (buyerEmail) {
+            try {
+                const inviteToken = generateTransferInviteToken(transferRequest.id, buyerEmail);
+                await sendTransferInviteEmail({
+                    to: buyerEmail,
+                    buyerName: buyerName || resolvedBuyerInfo?.firstName,
+                    sellerName: req.user.email,
+                    vehicle,
+                    inviteToken
+                });
+            } catch (inviteError) {
+                // Do not fail the whole request if email sending fails; log for observability
+                console.warn('⚠️ Failed to send transfer invite email:', inviteError.message);
+            }
+        }
         
         // Get full request with relations
         const fullRequest = await db.getTransferRequestById(transferRequest.id);
@@ -193,6 +324,254 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             success: false,
             error: 'Internal server error',
             message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create transfer request'
+        });
+    }
+});
+
+// Get transfer requests where the current user is the intended buyer
+// Matches on buyer_id or buyer_info.email, and limits to active statuses.
+router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const userEmail = req.user.email;
+        const dbModule = require('../database/db');
+
+        const result = await dbModule.query(
+            `
+            SELECT tr.*,
+                   v.vin, v.plate_number, v.make, v.model, v.year,
+                   seller.first_name || ' ' || seller.last_name as seller_name,
+                   seller.email as seller_email
+            FROM transfer_requests tr
+            JOIN vehicles v ON tr.vehicle_id = v.id
+            JOIN users seller ON tr.seller_id = seller.id
+            WHERE
+                (tr.buyer_id = $1 OR (tr.buyer_id IS NULL AND (tr.buyer_info->>'email') = $2))
+                AND tr.status IN ('PENDING', 'REVIEWING')
+            ORDER BY tr.submitted_at DESC
+            `,
+            [userId, userEmail]
+        );
+
+        const requests = result.rows.map(row => ({
+            ...row,
+            buyer_info: row.buyer_info ? (typeof row.buyer_info === 'string' ? JSON.parse(row.buyer_info) : row.buyer_info) : null,
+            metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
+        }));
+
+        res.json({
+            success: true,
+            requests
+        });
+    } catch (error) {
+        console.error('Get pending transfer requests for buyer error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Buyer accepts a transfer request (handshake step)
+router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+
+        // Only allow acceptance when request is still pending from LTO perspective
+        if (request.status !== 'PENDING' && request.status !== 'REVIEWING') {
+            return res.status(400).json({
+                success: false,
+                error: `Cannot accept request with status: ${request.status}`
+            });
+        }
+
+        const currentUserId = req.user.userId;
+        const currentUserEmail = req.user.email;
+
+        const buyerInfo = request.buyer_info;
+        const isDesignatedBuyerById = request.buyer_user_id && String(request.buyer_user_id) === String(currentUserId);
+        const isDesignatedBuyerByEmail = !request.buyer_user_id && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === currentUserEmail.toLowerCase();
+
+        if (!isDesignatedBuyerById && !isDesignatedBuyerByEmail) {
+            return res.status(403).json({
+                success: false,
+                error: 'You are not the designated buyer for this transfer request'
+            });
+        }
+
+        const dbModule = require('../database/db');
+
+        // If buyer_id is not yet set but email matches, bind this user as the buyer
+        if (!request.buyer_user_id && isDesignatedBuyerByEmail) {
+            await dbModule.query(
+                `UPDATE transfer_requests
+                 SET buyer_id = $1,
+                     buyer_info = jsonb_set(COALESCE(buyer_info, '{}'::jsonb), '{email}', to_jsonb($2::text), true),
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $3`,
+                [currentUserId, currentUserEmail, id]
+            );
+        }
+
+        // Update status to REVIEWING to indicate that buyer has accepted and LTO review is next
+        const metadataUpdate = {
+            buyerAcceptedAt: new Date().toISOString(),
+            buyerAcceptedBy: currentUserId
+        };
+        await db.updateTransferRequestStatus(id, 'REVIEWING', null, null, metadataUpdate);
+
+        const updatedRequest = await db.getTransferRequestById(id);
+
+        res.json({
+            success: true,
+            message: 'Transfer request accepted. Awaiting LTO review.',
+            transferRequest: updatedRequest
+        });
+    } catch (error) {
+        console.error('Buyer accept transfer request error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Buyer rejects a transfer request
+router.post('/requests/:id/reject-by-buyer', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+
+        if (request.status !== 'PENDING' && request.status !== 'REVIEWING') {
+            return res.status(400).json({
+                success: false,
+                error: `Cannot reject request with status: ${request.status}`
+            });
+        }
+
+        const currentUserId = req.user.userId;
+        const currentUserEmail = req.user.email;
+        const buyerInfo = request.buyer_info;
+        const isDesignatedBuyerById = request.buyer_user_id && String(request.buyer_user_id) === String(currentUserId);
+        const isDesignatedBuyerByEmail = !request.buyer_user_id && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === currentUserEmail.toLowerCase();
+
+        if (!isDesignatedBuyerById && !isDesignatedBuyerByEmail) {
+            return res.status(403).json({
+                success: false,
+                error: 'You are not the designated buyer for this transfer request'
+            });
+        }
+
+        const metadataUpdate = {
+            rejectedBy: 'buyer',
+            rejectedByUserId: currentUserId,
+            buyerRejectedAt: new Date().toISOString()
+        };
+        await db.updateTransferRequestStatus(id, 'REJECTED', null, 'Rejected by buyer', metadataUpdate);
+
+        const updatedRequest = await db.getTransferRequestById(id);
+
+        res.json({
+            success: true,
+            message: 'Transfer request rejected by buyer.',
+            transferRequest: updatedRequest
+        });
+    } catch (error) {
+        console.error('Buyer reject transfer request error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Public preview of a transfer request via email invite token (no PII)
+router.get('/requests/preview-from-token', async (req, res) => {
+    try {
+        const { token } = req.query;
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                error: 'Token is required'
+            });
+        }
+
+        let payload;
+        try {
+            payload = verifyTransferInviteToken(token);
+        } catch (verifyError) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid or expired token'
+            });
+        }
+
+        const transferRequest = await db.getTransferRequestById(payload.transferRequestId);
+        if (!transferRequest) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+
+        // Ensure token buyerEmail still matches current intended buyer (buyer_email or buyer_info.email)
+        const intendedEmail =
+            (transferRequest.buyer && transferRequest.buyer.email) ||
+            (transferRequest.buyer_info && transferRequest.buyer_info.email);
+
+        if (!intendedEmail || intendedEmail.toLowerCase() !== payload.buyerEmail.toLowerCase()) {
+            return res.status(403).json({
+                success: false,
+                error: 'Token does not match current buyer for this transfer request'
+            });
+        }
+
+        // Return limited, non-sensitive information for preview
+        const vehicle = transferRequest.vehicle || {};
+        const seller = transferRequest.seller || {};
+
+        res.json({
+            success: true,
+            preview: {
+                transferRequestId: transferRequest.id,
+                status: transferRequest.status,
+                vehicle: {
+                    vin: vehicle.vin,
+                    plateNumber: vehicle.plate_number,
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    year: vehicle.year
+                },
+                seller: {
+                    name: seller.first_name && seller.last_name
+                        ? `${seller.first_name} ${seller.last_name}`
+                        : seller.email,
+                    emailMasked: seller.email
+                        ? seller.email.replace(/^(.{2}).+(@.+)$/, '$1***$2')
+                        : null
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Preview transfer request from token error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
         });
     }
 });

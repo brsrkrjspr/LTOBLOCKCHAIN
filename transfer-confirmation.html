@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Confirmation - TrustChain LTO</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .confirmation-container {
+            max-width: 800px;
+            margin: 4rem auto;
+            padding: 2rem;
+        }
+        .confirmation-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .confirmation-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .confirmation-header h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        .confirmation-header p {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+        .preview-section {
+            margin-bottom: 2rem;
+        }
+        .preview-section h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .preview-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .preview-info-item {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .preview-info-label {
+            font-size: 0.875rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.5px;
+        }
+        .preview-info-value {
+            font-size: 1rem;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        .action-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+        .action-section h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        .action-section p {
+            color: #7f8c8d;
+            margin-bottom: 1.5rem;
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        .error-message {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .loading-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+        .loading-state i {
+            font-size: 3rem;
+            color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="dashboard-main">
+            <main class="dashboard-content">
+                <div class="container">
+                    <div class="confirmation-container">
+                        <!-- Loading State -->
+                        <div class="confirmation-card" id="loadingState">
+                            <div class="loading-state">
+                                <i class="fas fa-spinner"></i>
+                                <h3>Loading transfer details...</h3>
+                            </div>
+                        </div>
+
+                        <!-- Error State -->
+                        <div class="confirmation-card" id="errorState" style="display: none;">
+                            <div class="error-message">
+                                <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                                <p id="errorMessage">Failed to load transfer details.</p>
+                            </div>
+                            <div style="text-align: center; margin-top: 1.5rem;">
+                                <a href="index.html" class="btn-login">
+                                    <i class="fas fa-home"></i> Return to Home
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Preview State -->
+                        <div class="confirmation-card" id="previewState" style="display: none;">
+                            <div class="confirmation-header">
+                                <h1><i class="fas fa-envelope-open-text"></i> Vehicle Ownership Transfer Request</h1>
+                                <p>You've been invited to accept a vehicle ownership transfer</p>
+                            </div>
+
+                            <div class="preview-section">
+                                <h3><i class="fas fa-car"></i> Vehicle Information</h3>
+                                <div class="preview-info-grid" id="vehicleInfo">
+                                    <!-- Vehicle details will be populated here -->
+                                </div>
+                            </div>
+
+                            <div class="preview-section">
+                                <h3><i class="fas fa-user-shield"></i> Seller Information</h3>
+                                <div class="preview-info-grid" id="sellerInfo">
+                                    <!-- Seller details will be populated here -->
+                                </div>
+                            </div>
+
+                            <div class="action-section">
+                                <h3><i class="fas fa-sign-in-alt"></i> Next Steps</h3>
+                                <p>To accept or reject this transfer request, you need to log in to your TrustChain LTO account. If you don't have an account yet, you can create one using the email address associated with this transfer.</p>
+                                <div style="text-align: center; margin-top: 1.5rem;">
+                                    <a href="login-signup.html" class="btn-login" id="loginButton">
+                                        <i class="fas fa-sign-in-alt"></i> Log In to Continue
+                                    </a>
+                                </div>
+                                <p style="text-align: center; margin-top: 1rem; font-size: 0.875rem; color: #7f8c8d;">
+                                    After logging in, you'll be able to view and manage this transfer request from your dashboard.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script>
+        // Get token from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        // Initialize API client
+        const apiClient = new APIClient();
+
+        // Load preview on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!token) {
+                showError('No transfer token provided. Please use the link from your email.');
+                return;
+            }
+
+            try {
+                // Fetch preview from token
+                const response = await apiClient.get(`/api/vehicles/transfer/requests/preview-from-token?token=${encodeURIComponent(token)}`);
+                
+                if (response.success && response.preview) {
+                    showPreview(response.preview);
+                } else {
+                    showError(response.error || 'Failed to load transfer details.');
+                }
+            } catch (error) {
+                console.error('Error loading preview:', error);
+                showError(error.message || 'Failed to load transfer details. The token may be invalid or expired.');
+            }
+        });
+
+        function showPreview(preview) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('previewState').style.display = 'block';
+
+            const vehicle = preview.vehicle || {};
+            const seller = preview.seller || {};
+
+            // Populate vehicle info
+            const vehicleInfo = document.getElementById('vehicleInfo');
+            vehicleInfo.innerHTML = `
+                <div class="preview-info-item">
+                    <div class="preview-info-label">Plate Number</div>
+                    <div class="preview-info-value">${vehicle.plateNumber || vehicle.plate_number || 'N/A'}</div>
+                </div>
+                <div class="preview-info-item">
+                    <div class="preview-info-label">Make & Model</div>
+                    <div class="preview-info-value">${vehicle.make || ''} ${vehicle.model || ''}</div>
+                </div>
+                <div class="preview-info-item">
+                    <div class="preview-info-label">Year</div>
+                    <div class="preview-info-value">${vehicle.year || 'N/A'}</div>
+                </div>
+                <div class="preview-info-item">
+                    <div class="preview-info-label">VIN</div>
+                    <div class="preview-info-value">${vehicle.vin ? vehicle.vin.substring(0, 8) + '...' : 'N/A'}</div>
+                </div>
+            `;
+
+            // Populate seller info
+            const sellerInfo = document.getElementById('sellerInfo');
+            sellerInfo.innerHTML = `
+                <div class="preview-info-item">
+                    <div class="preview-info-label">Seller Name</div>
+                    <div class="preview-info-value">${seller.name || 'N/A'}</div>
+                </div>
+                <div class="preview-info-item">
+                    <div class="preview-info-label">Email</div>
+                    <div class="preview-info-value">${seller.emailMasked || seller.email || 'N/A'}</div>
+                </div>
+            `;
+
+            // Store token in sessionStorage for use after login
+            if (token) {
+                sessionStorage.setItem('transferToken', token);
+                sessionStorage.setItem('transferRequestId', preview.transferRequestId);
+            }
+
+            // Update login button to preserve token
+            const loginButton = document.getElementById('loginButton');
+            if (loginButton && token) {
+                loginButton.href = `login-signup.html?redirect=transfer-confirmation&token=${encodeURIComponent(token)}`;
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('previewState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+        }
+    </script>
+</body>
+</html>

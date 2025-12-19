@@ -348,7 +348,7 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
             WHERE
                 (tr.buyer_id = $1 OR (tr.buyer_id IS NULL AND (tr.buyer_info->>'email') = $2))
                 AND tr.status IN ('PENDING', 'REVIEWING')
-            ORDER BY tr.submitted_at DESC
+            ORDER BY tr.created_at DESC
             `,
             [userId, userEmail]
         );
@@ -397,8 +397,10 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
         const currentUserEmail = req.user.email;
 
         const buyerInfo = request.buyer_info;
-        const isDesignatedBuyerById = request.buyer_user_id && String(request.buyer_user_id) === String(currentUserId);
-        const isDesignatedBuyerByEmail = !request.buyer_user_id && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === currentUserEmail.toLowerCase();
+        // Check buyer_id from database row or buyer_user_id from JOIN
+        const buyerId = request.buyer_id || request.buyer_user_id;
+        const isDesignatedBuyerById = buyerId && String(buyerId) === String(currentUserId);
+        const isDesignatedBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === currentUserEmail.toLowerCase();
 
         if (!isDesignatedBuyerById && !isDesignatedBuyerByEmail) {
             return res.status(403).json({
@@ -410,7 +412,7 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
         const dbModule = require('../database/db');
 
         // If buyer_id is not yet set but email matches, bind this user as the buyer
-        if (!request.buyer_user_id && isDesignatedBuyerByEmail) {
+        if (!buyerId && isDesignatedBuyerByEmail) {
             await dbModule.query(
                 `UPDATE transfer_requests
                  SET buyer_id = $1,
@@ -467,8 +469,10 @@ router.post('/requests/:id/reject-by-buyer', authenticateToken, authorizeRole(['
         const currentUserId = req.user.userId;
         const currentUserEmail = req.user.email;
         const buyerInfo = request.buyer_info;
-        const isDesignatedBuyerById = request.buyer_user_id && String(request.buyer_user_id) === String(currentUserId);
-        const isDesignatedBuyerByEmail = !request.buyer_user_id && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === currentUserEmail.toLowerCase();
+        // Check buyer_id from database row or buyer_user_id from JOIN
+        const buyerId = request.buyer_id || request.buyer_user_id;
+        const isDesignatedBuyerById = buyerId && String(buyerId) === String(currentUserId);
+        const isDesignatedBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === currentUserEmail.toLowerCase();
 
         if (!isDesignatedBuyerById && !isDesignatedBuyerByEmail) {
             return res.status(403).json({

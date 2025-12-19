@@ -1039,16 +1039,12 @@
                     return;
                 }
                 
-                // Prepare request data with explicit document roles (NEW APPROACH)
+                // Prepare request data with explicit document roles (NEW APPROACH - Option A: email-based)
                 const requestData = {
                     vehicleId: transferData.vehicleId,
-                    buyerInfo: {
-                        firstName: transferData.buyer.firstName,
-                        lastName: transferData.buyer.lastName,
-                        email: transferData.buyer.email,
-                        phone: transferData.buyer.phone,
-                        address: transferData.buyer.address
-                    },
+                    buyerEmail: transferData.buyer.email,
+                    buyerName: transferData.buyer.name,
+                    buyerPhone: transferData.buyer.phone,
                     // NEW: Explicit document roles (preferred)
                     documents: {
                         deedOfSale: transferData.documents.deedOfSale?.id,

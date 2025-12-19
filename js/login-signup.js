@@ -244,6 +244,30 @@
                     
                     showNotification('Login successful! Redirecting to dashboard...', 'success');
                     
+                    // Check for redirect parameter (e.g., from transfer confirmation)
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirect = urlParams.get('redirect');
+                    const token = urlParams.get('token');
+                    
+                    // Handle transfer confirmation redirect
+                    if (redirect === 'transfer-confirmation' && token) {
+                        setTimeout(() => {
+                            // Store token in sessionStorage for transfer-confirmation page
+                            sessionStorage.setItem('transferToken', token);
+                            // Redirect to my-vehicle-ownership.html where buyer can see pending transfers
+                            window.location.href = 'my-vehicle-ownership.html';
+                        }, 1500);
+                        return;
+                    }
+                    
+                    // Handle other redirects
+                    if (redirect && redirect !== 'transfer-confirmation') {
+                        setTimeout(() => {
+                            window.location.href = redirect;
+                        }, 1500);
+                        return;
+                    }
+                    
                     // Redirect based on user role
                     setTimeout(() => {
                         const userRole = result.user?.role;

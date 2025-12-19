@@ -638,6 +638,16 @@
                         </div>
                     </div>
 
+                    <!-- Incoming Transfer Requests (Buyer) -->
+                    <div class="vehicles-list" id="incomingTransfersList" style="display: none;">
+                        <div class="vehicles-list-header">
+                            <h3><i class="fas fa-inbox"></i> Incoming Transfer Requests</h3>
+                        </div>
+                        <div id="incomingTransfersContent">
+                            <!-- Transfer requests will be loaded dynamically -->
+                        </div>
+                    </div>
+
                     <!-- Vehicle List -->
                     <div class="vehicles-list" id="vehiclesList">
                         <div class="vehicles-list-header">
@@ -799,7 +809,146 @@
 
             // Load vehicles
             loadMyVehicles();
+            
+            // Load incoming transfer requests (buyer flow)
+            loadIncomingTransferRequests();
+            
+            // Check if user came from transfer confirmation page
+            const transferToken = sessionStorage.getItem('transferToken');
+            if (transferToken) {
+                // Clear token from sessionStorage
+                sessionStorage.removeItem('transferToken');
+                // Show notification about pending transfers
+                setTimeout(() => {
+                    showNotification('You have pending transfer requests. Check the "Incoming Transfer Requests" section above.', 'info');
+                }, 1000);
+            }
         });
+
+        async function loadIncomingTransferRequests() {
+            try {
+                const response = await window.apiClient.get('/api/vehicles/transfer/requests/pending-for-buyer');
+                
+                if (response.success && response.requests && response.requests.length > 0) {
+                    const incomingTransfersList = document.getElementById('incomingTransfersList');
+                    const incomingTransfersContent = document.getElementById('incomingTransfersContent');
+                    
+                    if (incomingTransfersList && incomingTransfersContent) {
+                        incomingTransfersList.style.display = 'block';
+                        incomingTransfersContent.innerHTML = '';
+                        
+                        response.requests.forEach(request => {
+                            const card = createTransferRequestCard(request);
+                            incomingTransfersContent.appendChild(card);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading incoming transfer requests:', error);
+            }
+        }
+
+        function createTransferRequestCard(request) {
+            const card = document.createElement('div');
+            card.className = 'vehicle-card';
+            
+            const vehicle = request.vehicle || {};
+            const sellerName = request.seller_name || request.seller?.name || 'Unknown Seller';
+            const status = request.status || 'PENDING';
+            const createdAt = request.created_at || request.submitted_at || new Date().toISOString();
+            const dateFormatted = new Date(createdAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            const statusBadgeClass = status === 'PENDING' ? 'pending' : status === 'REVIEWING' ? 'reviewing' : '';
+            const statusText = status === 'PENDING' ? 'Pending Your Response' : 
+                              status === 'REVIEWING' ? 'Awaiting LTO Review' : status;
+            
+            card.innerHTML = `
+                <div class="vehicle-info">
+                    <div class="vehicle-plate">${vehicle.plate_number || vehicle.plateNumber || 'N/A'}</div>
+                    <div class="vehicle-details">
+                        <div class="vehicle-detail-item">
+                            <i class="fas fa-car"></i>
+                            <span>${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</span>
+                        </div>
+                        <div class="vehicle-detail-item">
+                            <i class="fas fa-user-shield"></i>
+                            <span>From: ${sellerName}</span>
+                        </div>
+                        <div class="vehicle-detail-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>Requested: ${dateFormatted}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="vehicle-status">
+                    <span class="status-badge ${statusBadgeClass}">${statusText}</span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn-view-history" onclick="acceptTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
+                            <i class="fas fa-check"></i> Accept
+                        </button>
+                        <button class="btn-view-history" onclick="rejectTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        async function acceptTransferRequest(requestId) {
+            if (!confirm('Are you sure you want to accept this transfer request? This will move it to LTO review.')) {
+                return;
+            }
+            
+            try {
+                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`);
+                
+                if (response.success) {
+                    showNotification('Transfer request accepted successfully. Awaiting LTO review.', 'success');
+                    // Reload incoming requests
+                    loadIncomingTransferRequests();
+                } else {
+                    throw new Error(response.error || 'Failed to accept transfer request');
+                }
+            } catch (error) {
+                console.error('Error accepting transfer request:', error);
+                showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+            }
+        }
+
+        async function rejectTransferRequest(requestId) {
+            if (!confirm('Are you sure you want to reject this transfer request? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/reject-by-buyer`);
+                
+                if (response.success) {
+                    showNotification('Transfer request rejected successfully.', 'success');
+                    // Reload incoming requests
+                    loadIncomingTransferRequests();
+                } else {
+                    throw new Error(response.error || 'Failed to reject transfer request');
+                }
+            } catch (error) {
+                console.error('Error rejecting transfer request:', error);
+                showNotification(`Error: ${error.message || 'Failed to reject transfer request'}`, 'error');
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show(message, type);
+            } else {
+                alert(message);
+            }
+        }
 
         function loadMyVehicles() {
             const vehiclesListContent = document.getElementById('vehiclesListContent');

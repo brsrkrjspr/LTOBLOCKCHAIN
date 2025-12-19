@@ -127,9 +127,16 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
             <span class="status-badge ${isCurrent ? 'current' : 'previous'}">
                 ${isCurrent ? 'Current' : 'Previous'}
             </span>
-            <button class="btn-view-history" onclick="viewOwnershipHistory('${escapeHtml(vehicle.vin || vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')">
-                <i class="fas fa-history"></i> View Ownership History
-            </button>
+            <div class="vehicle-actions">
+                ${isCurrent ? `
+                    <button class="btn-transfer" onclick="transferVehicle('${escapeHtml(vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')" title="Transfer Ownership">
+                        <i class="fas fa-exchange-alt"></i> Transfer
+                    </button>
+                ` : ''}
+                <button class="btn-view-history" onclick="viewOwnershipHistory('${escapeHtml(vehicle.vin || vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')">
+                    <i class="fas fa-history"></i> View History
+                </button>
+            </div>
         </div>
     `;
 
@@ -437,9 +444,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Transfer vehicle ownership - redirects to transfer page with vehicle pre-selected
+function transferVehicle(vehicleId, plateNumber) {
+    // Store vehicle ID in sessionStorage for transfer-ownership.html to pick up
+    sessionStorage.setItem('selectedVehicleId', vehicleId);
+    sessionStorage.setItem('selectedVehiclePlate', plateNumber || '');
+    
+    // Redirect to transfer ownership page
+    window.location.href = 'transfer-ownership.html';
+}
+
 // Make functions globally available for inline onclick handlers
 window.viewOwnershipHistory = viewOwnershipHistory;
 window.backToVehicleList = backToVehicleList;
 window.verifyOwnershipPeriod = verifyOwnershipPeriod;
 window.closeVerificationModal = closeVerificationModal;
+window.transferVehicle = transferVehicle;
 

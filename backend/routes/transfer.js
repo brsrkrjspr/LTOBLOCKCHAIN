@@ -145,7 +145,59 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             try {
                 const existingBuyer = await db.getUserByEmail(buyerEmail);
                 if (existingBuyer) {
+                    // CRITICAL: Validate that entered buyer info matches the actual email owner's info
+                    const enteredFirstName = buyerInfo?.firstName || (buyerName ? buyerName.trim().split(' ')[0] : null);
+                    const enteredLastName = buyerInfo?.lastName || (buyerName ? buyerName.trim().split(' ').slice(1).join(' ') : null);
+                    const enteredPhone = buyerInfo?.phone || buyerPhone || null;
+                    
+                    // Check for mismatches
+                    const nameMismatch = (enteredFirstName && existingBuyer.first_name && 
+                                         enteredFirstName.toLowerCase() !== existingBuyer.first_name.toLowerCase()) ||
+                                        (enteredLastName && existingBuyer.last_name && 
+                                         enteredLastName.toLowerCase() !== existingBuyer.last_name.toLowerCase());
+                    
+                    const phoneMismatch = enteredPhone && existingBuyer.phone && 
+                                         enteredPhone.replace(/\D/g, '') !== existingBuyer.phone.replace(/\D/g, '');
+                    
+                    if (nameMismatch || phoneMismatch) {
+                        const mismatches = [];
+                        if (nameMismatch) mismatches.push('name');
+                        if (phoneMismatch) mismatches.push('phone');
+                        
+                        return res.status(400).json({
+                            success: false,
+                            error: `Buyer information mismatch`,
+                            message: `The entered buyer ${mismatches.join(' and ')} does not match the account owner for email ${buyerEmail}. Please verify the buyer's information.`,
+                            details: {
+                                email: buyerEmail,
+                                accountOwner: {
+                                    firstName: existingBuyer.first_name,
+                                    lastName: existingBuyer.last_name,
+                                    phone: existingBuyer.phone
+                                },
+                                enteredInfo: {
+                                    firstName: enteredFirstName,
+                                    lastName: enteredLastName,
+                                    phone: enteredPhone
+                                },
+                                mismatches
+                            }
+                        });
+                    }
+                    
+                    // Info matches or no info provided - use the existing user
                     resolvedBuyerId = existingBuyer.id;
+                    
+                    // If buyer info was provided but matches, we can still store it for reference
+                    // but the buyer_id will be the primary identifier
+                    if (buyerInfo || buyerName || buyerPhone) {
+                        resolvedBuyerInfo = {
+                            email: buyerEmail,
+                            firstName: existingBuyer.first_name,
+                            lastName: existingBuyer.last_name,
+                            phone: existingBuyer.phone || enteredPhone
+                        };
+                    }
                 } else {
                     // Build provisional buyer info; will be converted to a real user if LTO approves without buyer account
                     let firstName = null;
@@ -166,6 +218,11 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 }
             } catch (lookupError) {
                 console.warn('⚠️ Buyer email lookup failed:', lookupError.message);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to verify buyer information',
+                    message: lookupError.message
+                });
             }
         }
         

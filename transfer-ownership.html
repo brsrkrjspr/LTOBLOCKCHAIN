@@ -682,6 +682,28 @@
             `;
             
             vehicleContainer.insertAdjacentHTML('afterbegin', selectorHTML);
+            
+            // Check if vehicle was pre-selected from vehicle list page
+            const selectedVehicleId = sessionStorage.getItem('selectedVehicleId');
+            if (selectedVehicleId) {
+                const vehicle = userVehicles.find(v => v.id === selectedVehicleId);
+                if (vehicle) {
+                    // Auto-select the vehicle
+                    const selector = document.getElementById('vehicleSelector');
+                    if (selector) {
+                        selector.value = selectedVehicleId;
+                        selectVehicle(selectedVehicleId);
+                        
+                        // Show notification
+                        if (typeof ToastNotification !== 'undefined') {
+                            ToastNotification.show(`Vehicle ${vehicle.plate_number || vehicle.plateNumber || ''} pre-selected`, 'info');
+                        }
+                    }
+                }
+                // Clear sessionStorage
+                sessionStorage.removeItem('selectedVehicleId');
+                sessionStorage.removeItem('selectedVehiclePlate');
+            }
         }
 
         function selectVehicle(vehicleId) {

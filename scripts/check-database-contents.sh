@@ -64,7 +64,9 @@ run_query_formatted "SELECT document_type, COUNT(*) as count, COUNT(CASE WHEN ip
 echo ""
 echo "📋 TRANSFER REQUESTS TABLE"
 echo "================================"
-run_query_formatted "SELECT id, vehicle_id, seller_id, buyer_id, status, submitted_at, reviewed_at FROM transfer_requests ORDER BY submitted_at DESC LIMIT 10;"
+# Try submitted_at first, fallback to created_at
+run_query_formatted "SELECT id, vehicle_id, seller_id, buyer_id, status, COALESCE(submitted_at, created_at) as submitted_date, reviewed_at FROM transfer_requests ORDER BY COALESCE(submitted_at, created_at) DESC LIMIT 10;" 2>/dev/null || \
+run_query_formatted "SELECT id, vehicle_id, seller_id, buyer_id, status, created_at, reviewed_at FROM transfer_requests ORDER BY created_at DESC LIMIT 10;"
 
 echo ""
 echo "📋 Transfer Requests by Status:"
@@ -103,8 +105,8 @@ echo ""
 echo "📊 IPFS Statistics:"
 IPFS_COUNT=$(run_query "SELECT COUNT(*) FROM documents WHERE ipfs_cid IS NOT NULL;")
 TOTAL_DOCS=$(run_query "SELECT COUNT(*) FROM documents;")
-echo "  Documents with IPFS CID: $IPFS_COUNT / $TOTAL_DOCS"
-if [ "$TOTAL_DOCS" -gt 0 ]; then
+echo "  Documents with IPFS CID: ${IPFS_COUNT:-0} / ${TOTAL_DOCS:-0}"
+if [ -n "$TOTAL_DOCS" ] && [ "$TOTAL_DOCS" -gt 0 ] && [ -n "$IPFS_COUNT" ]; then
     PERCENTAGE=$((IPFS_COUNT * 100 / TOTAL_DOCS))
     echo "  IPFS Coverage: $PERCENTAGE%"
 fi

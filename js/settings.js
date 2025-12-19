@@ -46,7 +46,7 @@ function initializeSidebar() {
 
 // Update sidebar user info
 function updateSidebarUserInfo() {
-    const userInfo = AuthUtils.getUserInfo();
+    const userInfo = AuthUtils.getCurrentUser();
     if (userInfo) {
         const avatar = document.getElementById('sidebarUserAvatar');
         const name = document.getElementById('sidebarUserName');
@@ -185,13 +185,13 @@ async function handleProfileSubmit(e) {
             updateSidebarUserInfo();
             
             // Update AuthUtils user info
-            const userInfo = AuthUtils.getUserInfo();
+            const userInfo = AuthUtils.getCurrentUser();
             if (userInfo) {
                 userInfo.firstName = response.user.firstName;
                 userInfo.lastName = response.user.lastName;
                 userInfo.phone = response.user.phone;
                 userInfo.organization = response.user.organization;
-                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                AuthUtils.updateUser(userInfo);
             }
         } else {
             showAlert(response.error || 'Failed to update profile', 'error');

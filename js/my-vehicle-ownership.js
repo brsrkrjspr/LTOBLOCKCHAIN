@@ -166,7 +166,7 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
                 ${isCurrent ? 'Current' : 'Previous'}
             </span>
             <div class="vehicle-actions">
-                ${isCurrent ? `
+                ${isCurrent && (vehicle.status === 'REGISTERED' || vehicle.status === 'APPROVED') ? `
                     <button class="btn-transfer" onclick="transferVehicle('${escapeHtml(vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')" title="Transfer Ownership">
                         <i class="fas fa-exchange-alt"></i> Transfer
                     </button>

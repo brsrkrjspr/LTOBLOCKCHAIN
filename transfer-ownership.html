@@ -200,7 +200,7 @@
                                     <div class="form-grid">
                                         <div class="form-group">
                                             <label>Seller Full Name</label>
-                                            <input type="text" id="sellerName" value="Auto-filled from profile" disabled>
+                                            <input type="text" id="sellerName" placeholder="Auto-filled from profile">
                                         </div>
                                         <div class="form-group">
                                             <label>Seller Address</label>
@@ -622,25 +622,50 @@
 
         async function loadSellerInfo() {
             try {
-                const user = AuthUtils.getCurrentUser();
+                // Fetch full profile from API to get phone and other details
+                const profileResponse = await window.apiClient.get('/api/auth/profile');
+                const user = profileResponse.success ? profileResponse.user : AuthUtils.getCurrentUser();
+                
                 if (user) {
                     const sellerNameEl = document.getElementById('sellerName');
                     const sellerAddressEl = document.getElementById('sellerAddress');
                     const sellerContactEl = document.getElementById('sellerContact');
                     
-                    // Set seller name from profile
+                    // Set seller name from profile (editable)
                     const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
-                    if (sellerNameEl) sellerNameEl.value = displayName;
+                    if (sellerNameEl) {
+                        sellerNameEl.value = displayName;
+                        sellerNameEl.removeAttribute('disabled'); // Make editable
+                    }
+                    
+                    // Auto-fill phone if available (editable)
+                    if (sellerContactEl && user.phone) {
+                        sellerContactEl.value = user.phone;
+                    }
+                    
+                    // Address field remains empty for user to fill (not in user profile)
+                    // User can edit all fields as needed
                     
                     // Store seller data
                     transferData.seller = {
-                        id: user.userId,
+                        id: user.id || user.userId,
                         name: displayName,
-                        email: user.email
+                        email: user.email,
+                        phone: user.phone || ''
                     };
                 }
             } catch (error) {
                 console.error('Error loading seller info:', error);
+                // Fallback to current user if API fails
+                const user = AuthUtils.getCurrentUser();
+                if (user) {
+                    const sellerNameEl = document.getElementById('sellerName');
+                    if (sellerNameEl) {
+                        const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+                        sellerNameEl.value = displayName;
+                        sellerNameEl.removeAttribute('disabled');
+                    }
+                }
             }
         }
 

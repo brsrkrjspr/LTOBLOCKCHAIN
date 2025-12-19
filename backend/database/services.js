@@ -130,12 +130,13 @@ async function updateVehicle(id, updateData) {
 }
 
 async function getVehiclesByOwner(ownerId) {
-    // Get vehicles where the user is the current owner
-    // Check if current_owner_id column exists, if not use owner_id
-    // This ensures we only get vehicles the user currently owns (not previously owned)
+    // Get vehicles where the user is the current owner AND the vehicle is actually registered/approved
+    // Only return vehicles with status REGISTERED or APPROVED (actually owned, not pending)
+    // This excludes: SUBMITTED, PENDING_BLOCKCHAIN, REJECTED, SUSPENDED
     const result = await db.query(
         `SELECT v.* FROM vehicles v
          WHERE v.owner_id = $1
+           AND v.status IN ('REGISTERED', 'APPROVED')
          ORDER BY v.registration_date DESC`,
         [ownerId]
     );
@@ -763,13 +764,13 @@ async function getTransferRequests(filters = {}) {
     
     if (dateFrom) {
         paramCount++;
-        query += ` AND COALESCE(tr.submitted_at, tr.created_at) >= $${paramCount}`;
+        query += ` AND tr.created_at >= $${paramCount}`;
         params.push(dateFrom);
     }
     
     if (dateTo) {
         paramCount++;
-        query += ` AND COALESCE(tr.submitted_at, tr.created_at) <= $${paramCount}`;
+        query += ` AND tr.created_at <= $${paramCount}`;
         params.push(dateTo);
     }
     
@@ -779,7 +780,7 @@ async function getTransferRequests(filters = {}) {
         params.push(`%${plateNumber}%`);
     }
     
-    query += ` ORDER BY COALESCE(tr.submitted_at, tr.created_at) DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    query += ` ORDER BY tr.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(limit, offset);
     
     const result = await db.query(query, params);

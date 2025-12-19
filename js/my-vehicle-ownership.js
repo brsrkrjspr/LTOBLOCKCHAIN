@@ -84,6 +84,8 @@ function displayVehiclesList(ownershipHistory) {
 
     if (!vehiclesListContent) return;
 
+    // The backend already filters to only return vehicles the user currently owns
+    // (via getVehiclesByOwner which queries by owner_id - the current owner)
     if (ownershipHistory.length === 0) {
         vehiclesListContent.style.display = 'none';
         if (emptyState) emptyState.style.display = 'block';
@@ -93,12 +95,13 @@ function displayVehiclesList(ownershipHistory) {
     vehiclesListContent.innerHTML = '';
     if (emptyState) emptyState.style.display = 'none';
 
+    // Display all vehicles (all are currently owned since backend filters by current owner_id)
     ownershipHistory.forEach(vehicleData => {
         const vehicle = vehicleData.vehicle;
         const history = vehicleData.history || [];
         
-        // Determine if current owner (has history entry with no end date or is latest)
-        const isCurrent = history.length > 0 && history[0].performed_at && !history[0].metadata?.endDate;
+        // All vehicles returned are currently owned
+        const isCurrent = true;
         
         const card = createVehicleCard(vehicle, isCurrent, history.length);
         vehiclesListContent.appendChild(card);
@@ -109,18 +112,53 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
     const card = document.createElement('div');
     card.className = `vehicle-card ${isCurrent ? 'current' : ''}`;
 
+    // Build vehicle description with all available information
+    const vehicleDesc = [
+        vehicle.year ? vehicle.year : '',
+        vehicle.make ? vehicle.make : '',
+        vehicle.model ? vehicle.model : ''
+    ].filter(Boolean).join(' ') || 'Vehicle';
+    
+    const color = vehicle.color ? ` • ${vehicle.color}` : '';
+    const vehicleType = vehicle.vehicleType ? ` • ${vehicle.vehicleType}` : '';
+    const fuelType = vehicle.fuelType ? ` • ${vehicle.fuelType}` : '';
+
     card.innerHTML = `
         <div class="vehicle-info">
             <div class="vehicle-plate">${escapeHtml(vehicle.plateNumber || vehicle.plate_number || 'N/A')}</div>
             <div class="vehicle-details">
                 <div class="vehicle-detail-item">
                     <i class="fas fa-car"></i>
-                    <span>${escapeHtml((vehicle.year || '') + ' ' + (vehicle.make || '') + ' ' + (vehicle.model || ''))}</span>
+                    <span>${escapeHtml(vehicleDesc + color + vehicleType + fuelType)}</span>
                 </div>
                 <div class="vehicle-detail-item">
                     <i class="fas fa-barcode"></i>
-                    <span>VIN: ${escapeHtml((vehicle.vin || '').substring(0, 8))}...</span>
+                    <span>VIN: ${escapeHtml(vehicle.vin || 'N/A')}</span>
                 </div>
+                ${vehicle.engineNumber ? `
+                <div class="vehicle-detail-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Engine: ${escapeHtml(vehicle.engineNumber)}</span>
+                </div>
+                ` : ''}
+                ${vehicle.chassisNumber ? `
+                <div class="vehicle-detail-item">
+                    <i class="fas fa-wrench"></i>
+                    <span>Chassis: ${escapeHtml(vehicle.chassisNumber)}</span>
+                </div>
+                ` : ''}
+                ${vehicle.transmission ? `
+                <div class="vehicle-detail-item">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Transmission: ${escapeHtml(vehicle.transmission)}</span>
+                </div>
+                ` : ''}
+                ${vehicle.status ? `
+                <div class="vehicle-detail-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Status: ${escapeHtml(vehicle.status)}</span>
+                </div>
+                ` : ''}
             </div>
         </div>
         <div class="vehicle-status">

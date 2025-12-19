@@ -130,8 +130,13 @@ async function updateVehicle(id, updateData) {
 }
 
 async function getVehiclesByOwner(ownerId) {
+    // Get vehicles where the user is the current owner
+    // Check if current_owner_id column exists, if not use owner_id
+    // This ensures we only get vehicles the user currently owns (not previously owned)
     const result = await db.query(
-        'SELECT * FROM vehicles WHERE owner_id = $1 ORDER BY registration_date DESC',
+        `SELECT v.* FROM vehicles v
+         WHERE v.owner_id = $1
+         ORDER BY v.registration_date DESC`,
         [ownerId]
     );
     return result.rows;

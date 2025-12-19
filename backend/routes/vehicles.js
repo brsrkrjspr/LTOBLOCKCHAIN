@@ -939,6 +939,8 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
         const ownershipHistory = [];
         for (const vehicle of vehicles) {
             const history = await db.getOwnershipHistory(vehicle.id);
+            
+            // Include complete vehicle information
             ownershipHistory.push({
                 vehicle: {
                     id: vehicle.id,
@@ -946,7 +948,16 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                     plateNumber: vehicle.plate_number,
                     make: vehicle.make,
                     model: vehicle.model,
-                    year: vehicle.year
+                    year: vehicle.year,
+                    color: vehicle.color,
+                    engineNumber: vehicle.engine_number,
+                    chassisNumber: vehicle.chassis_number,
+                    vehicleType: vehicle.vehicle_type,
+                    fuelType: vehicle.fuel_type,
+                    transmission: vehicle.transmission,
+                    engineDisplacement: vehicle.engine_displacement,
+                    status: vehicle.status,
+                    registrationDate: vehicle.registration_date
                 },
                 history
             });

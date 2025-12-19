@@ -7,11 +7,14 @@ const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const fabricService = require('../services/optimizedFabricService');
+const docTypes = require('../config/documentTypes');
 
 // Create transfer request (owner submits)
+// NEW: Accepts explicit document roles in documents object
+// LEGACY: Still supports documentIds array for backward compatibility
 router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
     try {
-        const { vehicleId, buyerId, buyerInfo, documentIds } = req.body;
+        const { vehicleId, buyerId, buyerInfo, documentIds, documents } = req.body;
         
         if (!vehicleId) {
             return res.status(400).json({
@@ -63,29 +66,107 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             metadata: {}
         });
         
-        // Link documents if provided
-        if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
-            const dbModule = require('../database/db');
+        // Link documents - NEW: Support explicit document roles, LEGACY: Support documentIds array
+        const dbModule = require('../database/db');
+        
+        // NEW APPROACH: Explicit document roles (preferred)
+        if (documents && typeof documents === 'object') {
+            console.log('📋 Linking transfer documents with explicit roles:', {
+                transferRequestId: transferRequest.id,
+                vehicleId,
+                sellerId: req.user.userId,
+                documents: Object.keys(documents)
+            });
+            
+            // Expected structure: { deedOfSale: "<docId>", sellerId: "<docId>", buyerId: "<docId>", orCr: "<docId>" }
+            const documentRoleMap = {
+                'deedOfSale': docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+                'deed_of_sale': docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+                'sellerId': docTypes.TRANSFER_ROLES.SELLER_ID,
+                'seller_id': docTypes.TRANSFER_ROLES.SELLER_ID,
+                'buyerId': docTypes.TRANSFER_ROLES.BUYER_ID,
+                'buyer_id': docTypes.TRANSFER_ROLES.BUYER_ID,
+                'orCr': docTypes.TRANSFER_ROLES.OR_CR,
+                'or_cr': docTypes.TRANSFER_ROLES.OR_CR,
+                'registrationCert': docTypes.TRANSFER_ROLES.OR_CR, // Legacy: registration cert = OR/CR
+                'registration_cert': docTypes.TRANSFER_ROLES.OR_CR
+            };
+            
+            for (const [roleKey, docId] of Object.entries(documents)) {
+                if (!docId) continue; // Skip empty values
+                
+                // Map role key to transfer role
+                const transferRole = documentRoleMap[roleKey] || docTypes.TRANSFER_ROLES.OTHER;
+                
+                // Validate document exists
+                const document = await db.getDocumentById(docId);
+                if (!document) {
+                    console.warn('⚠️ Document not found for transfer:', { docId, roleKey });
+                    continue;
+                }
+                
+                // Validate transfer role
+                if (!docTypes.isValidTransferRole(transferRole)) {
+                    console.warn('⚠️ Invalid transfer role:', { roleKey, transferRole });
+                    continue;
+                }
+                
+                // Link document with explicit role
+                await dbModule.query(
+                    `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
+                     VALUES ($1, $2, $3, $4)
+                     ON CONFLICT DO NOTHING`,
+                    [transferRequest.id, transferRole, docId, req.user.userId]
+                );
+                
+                console.log('✅ Linked transfer document:', {
+                    transferRequestId: transferRequest.id,
+                    role: transferRole,
+                    documentId: docId
+                });
+            }
+        }
+        // LEGACY APPROACH: Infer document types from documentIds array (backward compatibility)
+        else if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
+            console.log('📋 Linking transfer documents (legacy mode):', {
+                transferRequestId: transferRequest.id,
+                documentCount: documentIds.length,
+                note: 'Using legacy inference - consider migrating to explicit document roles'
+            });
+            
             for (const docId of documentIds) {
-                // Determine document type from document
+                // Determine document type from document (legacy inference)
                 const document = await db.getDocumentById(docId);
                 if (document) {
-                    let docType = 'other';
+                    let docType = docTypes.TRANSFER_ROLES.OTHER;
                     if (document.document_type === 'owner_id') {
-                        // Check if it's seller or buyer ID based on uploader
-                        docType = String(document.uploaded_by) === String(req.user.userId) ? 'seller_id' : 'buyer_id';
+                        // Check if it's seller or buyer ID based on uploader (legacy inference)
+                        docType = String(document.uploaded_by) === String(req.user.userId) 
+                            ? docTypes.TRANSFER_ROLES.SELLER_ID 
+                            : docTypes.TRANSFER_ROLES.BUYER_ID;
                     } else if (document.document_type === 'registration_cert') {
-                        docType = 'or_cr';
+                        docType = docTypes.TRANSFER_ROLES.OR_CR;
                     }
                     
                     await dbModule.query(
                         `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
-                         VALUES ($1, $2, $3, $4)`,
+                         VALUES ($1, $2, $3, $4)
+                         ON CONFLICT DO NOTHING`,
                         [transferRequest.id, docType, docId, req.user.userId]
                     );
                 }
             }
         }
+        
+        // Log transfer request creation
+        console.log('✅ Transfer request created:', {
+            transferRequestId: transferRequest.id,
+            vehicleId,
+            sellerId: req.user.userId,
+            buyerId: buyerId || 'new_user',
+            documentCount: documents ? Object.keys(documents).length : (documentIds?.length || 0),
+            mode: documents ? 'explicit_roles' : 'legacy_inference'
+        });
         
         // Add to vehicle history
         await db.addVehicleHistory({

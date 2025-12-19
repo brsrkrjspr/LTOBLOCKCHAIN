@@ -9,6 +9,7 @@ const db = require('../database/services');
 const storageService = require('../services/storageService');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
+const docTypes = require('../config/documentTypes');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -63,15 +64,13 @@ function calculateFileHash(filePath) {
 }
 
 // Map document type names to database enum values
+// LEGACY: Kept for backward compatibility, now uses centralized config
 function mapDocumentType(type) {
-    const mapping = {
-        'registrationCert': 'registration_cert',
-        'insuranceCert': 'insurance_cert',
-        'emissionCert': 'emission_cert',
-        'ownerId': 'owner_id',
-        'general': 'registration_cert' // Default
-    };
-    return mapping[type] || 'registration_cert';
+    // First try legacy mapping for backward compatibility
+    const legacyType = docTypes.mapLegacyType(type);
+    
+    // Then map to database type using centralized config
+    return docTypes.mapToDbType(legacyType);
 }
 
 // View document by IPFS CID (wrapper that reuses existing view logic)
@@ -195,17 +194,41 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
         }
 
         const { type, documentType, vehicleId } = req.body;
-        const docType = type || documentType || 'general';
+        // Support both 'type' and 'documentType' for backward compatibility
+        let docType = type || documentType || docTypes.LOGICAL_TYPES.REGISTRATION_CERT;
+        
+        // Map legacy types to canonical logical types
+        docType = docTypes.mapLegacyType(docType);
 
-        // Validate document type
-        const validTypes = ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId', 'general'];
-        if (!validTypes.includes(docType)) {
+        // Validate document type using centralized config
+        if (!docTypes.isValidLogicalType(docType)) {
+            // Log the invalid type for debugging
+            console.error('❌ Invalid document type received:', {
+                received: type || documentType,
+                mapped: docType,
+                userId: req.user?.userId,
+                route: '/api/documents/upload',
+                validTypes: docTypes.getValidLogicalTypes()
+            });
+            
             fs.unlinkSync(req.file.path);
             return res.status(400).json({
                 success: false,
-                error: 'Invalid document type'
+                error: 'Invalid document type',
+                message: `Document type '${docType}' is not valid. Valid types: ${docTypes.getValidLogicalTypes().join(', ')}`,
+                receivedType: type || documentType,
+                validTypes: docTypes.getValidLogicalTypes()
             });
         }
+        
+        // Log successful validation
+        console.log('📄 Document upload:', {
+            docType,
+            userId: req.user?.userId,
+            route: '/api/documents/upload',
+            fileName: req.file.originalname,
+            fileSize: req.file.size
+        });
 
         // Store document using unified storage service (IPFS or local)
         let storageResult;
@@ -435,15 +458,40 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
             });
         }
 
-        // Validate document type
-        const validTypes = ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId'];
-        if (!validTypes.includes(documentType)) {
+        // Map legacy types to canonical logical types
+        const mappedType = docTypes.mapLegacyType(documentType);
+        
+        // Validate document type using centralized config
+        if (!docTypes.isValidLogicalType(mappedType)) {
+            console.error('❌ Invalid document type in /upload-auth:', {
+                received: documentType,
+                mapped: mappedType,
+                userId: req.user?.userId,
+                vehicleVin,
+                validTypes: docTypes.getValidLogicalTypes()
+            });
+            
             fs.unlinkSync(req.file.path);
             return res.status(400).json({
                 success: false,
-                error: 'Invalid document type'
+                error: 'Invalid document type',
+                message: `Document type '${mappedType}' is not valid. Valid types: ${docTypes.getValidLogicalTypes().join(', ')}`,
+                receivedType: documentType,
+                validTypes: docTypes.getValidLogicalTypes()
             });
         }
+        
+        // Use mapped type for storage
+        const docType = mappedType;
+        
+        // Log successful validation
+        console.log('📄 Document upload (auth):', {
+            docType,
+            userId: req.user?.userId,
+            vehicleVin,
+            route: '/api/documents/upload-auth',
+            fileName: req.file.originalname
+        });
 
         // Get vehicle by VIN
         const vehicle = await db.getVehicleByVin(vehicleVin);
@@ -465,17 +513,19 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
         }
 
         // Store document using unified storage service (IPFS or local)
+        // Use mapped canonical type
         const storageResult = await storageService.storeDocument(
             req.file,
-            documentType,
+            docType,
             vehicleVin,
             req.user.email || null
         );
 
         // Create document record in database with CID
+        // Use centralized mapping function
         const document = await db.createDocument({
             vehicleId: vehicle.id,
-            documentType: mapDocumentType(documentType),
+            documentType: docTypes.mapToDbType(docType),
             filename: req.file.filename,
             originalName: req.file.originalname,
             filePath: req.file.path,
@@ -491,7 +541,7 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
             message: 'Document uploaded successfully',
             document: {
                 id: document.id,
-                documentType: documentType,
+                documentType: docType, // Return canonical logical type
                 originalName: document.original_name,
                 fileSize: document.file_size,
                 fileHash: document.file_hash,

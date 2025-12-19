@@ -504,6 +504,7 @@
     <script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
+    <script src="js/document-upload-utils.js"></script>
     <script>
         // DEBUG: Log immediately when script loads
         console.log('🚀 transfer-ownership.html script starting...');
@@ -757,11 +758,9 @@
             console.log('✅ File upload handlers initialized');
         }
 
-        // Handle file upload - same approach as registration-wizard.html
+        // Handle file upload - using unified upload utility
         async function handleTransferUpload(input, docType) {
             console.log(`📤 handleTransferUpload called for: ${docType}`);
-            console.log(`   Input:`, input);
-            console.log(`   Files:`, input?.files);
             
             if (!input.files || input.files.length === 0) {
                 console.log(`⚠️ No files selected for ${docType}`);
@@ -769,68 +768,46 @@
             }
             
             const file = input.files[0];
-            console.log(`📎 File selected:`, {
-                name: file.name,
-                size: file.size,
-                type: file.type
-            });
-            
             const label = document.getElementById(`label-${docType}`);
             const filenameDiv = document.getElementById(`filename-${docType}`);
             const uploadItem = document.getElementById(`upload-item-${docType}`);
             
-            console.log(`🔍 UI elements found:`, {
-                label: !!label,
-                filenameDiv: !!filenameDiv,
-                uploadItem: !!uploadItem
-            });
+            // Map transfer-specific doc types to logical document types
+            // Transfer uses specific roles, but we need to map to logical types for upload
+            const docTypeMap = {
+                'deedOfSale': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
+                'sellerId': DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID,
+                'buyerId': DocumentUploadUtils.DOCUMENT_TYPES.BUYER_ID,
+                'orCr': DocumentUploadUtils.DOCUMENT_TYPES.REGISTRATION_CERT, // OR/CR is a registration cert
+                'emissionCert': DocumentUploadUtils.DOCUMENT_TYPES.EMISSION_CERT
+            };
             
-            // Validate file size (10MB)
-            const maxSize = 10 * 1024 * 1024;
-            if (file.size > maxSize) {
-                console.log(`❌ File too large: ${file.size} bytes`);
-                showNotification('File size exceeds 10MB limit', 'error');
-                if (filenameDiv) {
-                    filenameDiv.innerHTML = '<span style="color: #e74c3c;">❌ File too large</span>';
-                }
-                return;
+            const logicalDocType = docTypeMap[docType] || DocumentUploadUtils.DOCUMENT_TYPES.OTHER;
+            
+            // Show uploading state
+            if (label) {
+                label.innerHTML = `
+                    <span class="transfer-upload-icon">⏳</span>
+                    <span class="transfer-upload-text">Uploading...</span>
+                `;
             }
             
             try {
-                console.log(`⏳ Starting upload for ${docType}...`);
-                
-                // Show uploading state
-                if (label) {
-                    label.innerHTML = `
-                        <span class="transfer-upload-icon">⏳</span>
-                        <span class="transfer-upload-text">Uploading...</span>
-                    `;
-                }
-                
-                // Create form data
-                const formData = new FormData();
-                formData.append('document', file);
-                formData.append('type', docType);
-                formData.append('documentType', docType);
-                
-                // Upload to server
-                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-                const response = await fetch('/api/documents/upload', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: formData
+                // Use unified upload utility
+                const result = await DocumentUploadUtils.uploadDocument(logicalDocType, file, {
+                    vehicleId: transferData.vehicleId,
+                    onProgress: (progress) => {
+                        // Optional: Update progress indicator
+                        console.log(`Upload progress for ${docType}:`, progress);
+                    }
                 });
                 
-                const result = await response.json();
-                
                 if (result.success) {
-                    // Store document info
+                    // Store document info with transfer role
                     transferData.documents[docType] = {
-                        id: result.document?.id || result.id,
-                        filename: result.filename || file.name,
-                        cid: result.cid || result.document?.cid
+                        id: result.document?.id || result.document?.document?.id,
+                        filename: result.document?.originalName || file.name,
+                        cid: result.document?.cid || result.document?.ipfsHash
                     };
                     
                     // Update UI to show success
@@ -849,6 +826,11 @@
                     }
                     
                     showNotification(`${file.name} uploaded successfully`, 'success');
+                    console.log(`✅ Document uploaded successfully:`, {
+                        docType,
+                        logicalType: logicalDocType,
+                        documentId: transferData.documents[docType].id
+                    });
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
@@ -864,10 +846,10 @@
                     `;
                 }
                 if (filenameDiv) {
-                    filenameDiv.innerHTML = `<span style="color: #e74c3c;">❌ ${error.message}</span>`;
+                    filenameDiv.innerHTML = `<span style="color: #e74c3c;">❌ ${error.message || 'Upload failed'}</span>`;
                 }
                 
-                showNotification(`Upload failed: ${error.message}`, 'error');
+                showNotification(`Upload failed: ${error.message || 'Unknown error'}`, 'error');
             }
         }
 
@@ -945,9 +927,21 @@
             } else if (step === 4) {
                 // Check required documents
                 const requiredDocs = ['deedOfSale', 'sellerId', 'buyerId', 'orCr'];
-                const missingDocs = requiredDocs.filter(doc => !transferData.documents[doc]);
+                // Enhanced validation: Check that documents exist AND have IDs
+                const missingDocs = requiredDocs.filter(doc => {
+                    const docData = transferData.documents[doc];
+                    return !docData || !docData.id;
+                });
+                
                 if (missingDocs.length > 0) {
-                    showWizardError(4, `Please upload required documents: ${missingDocs.join(', ')}`);
+                    const docNames = {
+                        'deedOfSale': 'Deed of Sale',
+                        'sellerId': 'Seller ID',
+                        'buyerId': 'Buyer ID',
+                        'orCr': 'OR/CR'
+                    };
+                    const missingNames = missingDocs.map(d => docNames[d] || d).join(', ');
+                    showWizardError(4, `Please upload all required documents: ${missingNames}`);
                     valid = false;
                 }
             }
@@ -1030,7 +1024,22 @@
                     return;
                 }
                 
-                // Prepare request data
+                // Validate required documents are present
+                const requiredDocs = ['deedOfSale', 'sellerId', 'buyerId', 'orCr'];
+                const missingDocs = requiredDocs.filter(doc => !transferData.documents[doc] || !transferData.documents[doc].id);
+                
+                if (missingDocs.length > 0) {
+                    const docNames = {
+                        'deedOfSale': 'Deed of Sale',
+                        'sellerId': 'Seller ID',
+                        'buyerId': 'Buyer ID',
+                        'orCr': 'OR/CR'
+                    };
+                    showNotification(`Please upload all required documents: ${missingDocs.map(d => docNames[d] || d).join(', ')}`, 'error');
+                    return;
+                }
+                
+                // Prepare request data with explicit document roles (NEW APPROACH)
                 const requestData = {
                     vehicleId: transferData.vehicleId,
                     buyerInfo: {
@@ -1040,10 +1049,24 @@
                         phone: transferData.buyer.phone,
                         address: transferData.buyer.address
                     },
-                    documentIds: Object.values(transferData.documents)
-                        .filter(d => d.id)
-                        .map(d => d.id)
+                    // NEW: Explicit document roles (preferred)
+                    documents: {
+                        deedOfSale: transferData.documents.deedOfSale?.id,
+                        sellerId: transferData.documents.sellerId?.id,
+                        buyerId: transferData.documents.buyerId?.id,
+                        orCr: transferData.documents.orCr?.id
+                    }
+                    // LEGACY: Keep documentIds for backward compatibility (will be ignored if documents is provided)
+                    // documentIds: Object.values(transferData.documents)
+                    //     .filter(d => d.id)
+                    //     .map(d => d.id)
                 };
+                
+                console.log('📤 Submitting transfer request with explicit document roles:', {
+                    vehicleId: requestData.vehicleId,
+                    documentCount: Object.keys(requestData.documents).length,
+                    documents: requestData.documents
+                });
                 
                 // Submit to API
                 const response = await window.apiClient.post('/api/vehicles/transfer/requests', requestData);

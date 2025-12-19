@@ -6013,6 +6013,15 @@ input.invalid {
     padding: 0.75rem;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+}
+
+.sidebar-user-profile:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
 }
 
 .sidebar-user-avatar {

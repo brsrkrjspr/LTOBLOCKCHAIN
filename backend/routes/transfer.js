@@ -803,10 +803,52 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             });
         }
         
-        if (request.status !== 'PENDING' && request.status !== 'REVIEWING') {
+        if (request.status !== 'PENDING' && request.status !== 'REVIEWING' && request.status !== 'FORWARDED_TO_HPG') {
             return res.status(400).json({
                 success: false,
                 error: `Cannot approve request with status: ${request.status}`
+            });
+        }
+        
+        // Check if all organization approvals are complete
+        const pendingApprovals = [];
+        if (!request.hpg_approval_status || request.hpg_approval_status === 'PENDING') {
+            pendingApprovals.push('HPG');
+        }
+        if (!request.insurance_approval_status || request.insurance_approval_status === 'PENDING') {
+            pendingApprovals.push('Insurance');
+        }
+        if (!request.emission_approval_status || request.emission_approval_status === 'PENDING') {
+            pendingApprovals.push('Emission');
+        }
+        
+        if (pendingApprovals.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot approve transfer request. Pending organization approvals required.',
+                pendingApprovals,
+                message: `The following organizations must approve before LTO can finalize: ${pendingApprovals.join(', ')}`
+            });
+        }
+        
+        // Check if any organization rejected
+        const rejectedApprovals = [];
+        if (request.hpg_approval_status === 'REJECTED') {
+            rejectedApprovals.push('HPG');
+        }
+        if (request.insurance_approval_status === 'REJECTED') {
+            rejectedApprovals.push('Insurance');
+        }
+        if (request.emission_approval_status === 'REJECTED') {
+            rejectedApprovals.push('Emission');
+        }
+        
+        if (rejectedApprovals.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot approve transfer request. Some organizations have rejected.',
+                rejectedApprovals,
+                message: `The following organizations have rejected: ${rejectedApprovals.join(', ')}`
             });
         }
         
@@ -1045,6 +1087,7 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
             `UPDATE transfer_requests 
              SET forwarded_to_hpg = true, 
                  hpg_clearance_request_id = $1,
+                 hpg_approval_status = 'PENDING',
                  status = 'FORWARDED_TO_HPG',
                  metadata = metadata || $2::jsonb,
                  updated_at = CURRENT_TIMESTAMP
@@ -1265,6 +1308,319 @@ router.post('/requests/bulk-reject', authenticateToken, authorizeRole(['admin'])
         
     } catch (error) {
         console.error('Bulk reject error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// HPG approves transfer request
+router.post('/requests/:id/hpg-approve', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body;
+        
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+        
+        // Update HPG approval status
+        const dbModule = require('../database/db');
+        await dbModule.query(
+            `UPDATE transfer_requests 
+             SET hpg_approval_status = 'APPROVED',
+                 hpg_approved_at = CURRENT_TIMESTAMP,
+                 hpg_approved_by = $1,
+                 metadata = metadata || $2::jsonb,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [
+                req.user.userId,
+                JSON.stringify({ hpgApprovalNotes: notes || null }),
+                id
+            ]
+        );
+        
+        // Add to vehicle history
+        await db.addVehicleHistory({
+            vehicleId: request.vehicle_id,
+            action: 'TRANSFER_HPG_APPROVED',
+            description: `HPG approved transfer request ${id}`,
+            performedBy: req.user.userId,
+            metadata: { transferRequestId: id, notes: notes || null }
+        });
+        
+        const updatedRequest = await db.getTransferRequestById(id);
+        
+        res.json({
+            success: true,
+            message: 'HPG approval recorded successfully',
+            transferRequest: updatedRequest
+        });
+        
+    } catch (error) {
+        console.error('HPG approve transfer error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Insurance approves transfer request
+router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(['admin', 'insurance_admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body;
+        
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+        
+        // Update Insurance approval status
+        const dbModule = require('../database/db');
+        await dbModule.query(
+            `UPDATE transfer_requests 
+             SET insurance_approval_status = 'APPROVED',
+                 insurance_approved_at = CURRENT_TIMESTAMP,
+                 insurance_approved_by = $1,
+                 metadata = metadata || $2::jsonb,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [
+                req.user.userId,
+                JSON.stringify({ insuranceApprovalNotes: notes || null }),
+                id
+            ]
+        );
+        
+        // Add to vehicle history
+        await db.addVehicleHistory({
+            vehicleId: request.vehicle_id,
+            action: 'TRANSFER_INSURANCE_APPROVED',
+            description: `Insurance approved transfer request ${id}`,
+            performedBy: req.user.userId,
+            metadata: { transferRequestId: id, notes: notes || null }
+        });
+        
+        const updatedRequest = await db.getTransferRequestById(id);
+        
+        res.json({
+            success: true,
+            message: 'Insurance approval recorded successfully',
+            transferRequest: updatedRequest
+        });
+        
+    } catch (error) {
+        console.error('Insurance approve transfer error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Emission approves transfer request
+router.post('/requests/:id/emission-approve', authenticateToken, authorizeRole(['admin', 'emission_admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body;
+        
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+        
+        // Update Emission approval status
+        const dbModule = require('../database/db');
+        await dbModule.query(
+            `UPDATE transfer_requests 
+             SET emission_approval_status = 'APPROVED',
+                 emission_approved_at = CURRENT_TIMESTAMP,
+                 emission_approved_by = $1,
+                 metadata = metadata || $2::jsonb,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [
+                req.user.userId,
+                JSON.stringify({ emissionApprovalNotes: notes || null }),
+                id
+            ]
+        );
+        
+        // Add to vehicle history
+        await db.addVehicleHistory({
+            vehicleId: request.vehicle_id,
+            action: 'TRANSFER_EMISSION_APPROVED',
+            description: `Emission approved transfer request ${id}`,
+            performedBy: req.user.userId,
+            metadata: { transferRequestId: id, notes: notes || null }
+        });
+        
+        const updatedRequest = await db.getTransferRequestById(id);
+        
+        res.json({
+            success: true,
+            message: 'Emission approval recorded successfully',
+            transferRequest: updatedRequest
+        });
+        
+    } catch (error) {
+        console.error('Emission approve transfer error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Forward transfer request to Insurance
+router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { purpose, notes } = req.body;
+        
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+        
+        // Create Insurance clearance request
+        const clearanceRequest = await db.createClearanceRequest({
+            vehicleId: request.vehicle_id,
+            requestType: 'insurance',
+            requestedBy: req.user.userId,
+            purpose: purpose || 'Vehicle ownership transfer clearance',
+            notes: notes || null,
+            metadata: {
+                transferRequestId: id,
+                vehicleVin: request.vehicle?.vin,
+                vehiclePlate: request.vehicle?.plate_number
+            }
+        });
+        
+        // Update transfer request
+        const dbModule = require('../database/db');
+        await dbModule.query(
+            `UPDATE transfer_requests 
+             SET insurance_clearance_request_id = $1,
+                 insurance_approval_status = 'PENDING',
+                 metadata = metadata || $2::jsonb,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [
+                clearanceRequest.id,
+                JSON.stringify({ insuranceClearanceRequestId: clearanceRequest.id }),
+                id
+            ]
+        );
+        
+        // Add to vehicle history
+        await db.addVehicleHistory({
+            vehicleId: request.vehicle_id,
+            action: 'TRANSFER_FORWARDED_TO_INSURANCE',
+            description: `Transfer request forwarded to Insurance for clearance review`,
+            performedBy: req.user.userId,
+            metadata: { transferRequestId: id, clearanceRequestId: clearanceRequest.id }
+        });
+        
+        const updatedRequest = await db.getTransferRequestById(id);
+        
+        res.json({
+            success: true,
+            message: 'Transfer request forwarded to Insurance',
+            transferRequest: updatedRequest,
+            clearanceRequest
+        });
+        
+    } catch (error) {
+        console.error('Forward to Insurance error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Forward transfer request to Emission
+router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { purpose, notes } = req.body;
+        
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+        
+        // Create Emission clearance request
+        const clearanceRequest = await db.createClearanceRequest({
+            vehicleId: request.vehicle_id,
+            requestType: 'emission',
+            requestedBy: req.user.userId,
+            purpose: purpose || 'Vehicle ownership transfer clearance',
+            notes: notes || null,
+            metadata: {
+                transferRequestId: id,
+                vehicleVin: request.vehicle?.vin,
+                vehiclePlate: request.vehicle?.plate_number
+            }
+        });
+        
+        // Update transfer request
+        const dbModule = require('../database/db');
+        await dbModule.query(
+            `UPDATE transfer_requests 
+             SET emission_clearance_request_id = $1,
+                 emission_approval_status = 'PENDING',
+                 metadata = metadata || $2::jsonb,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [
+                clearanceRequest.id,
+                JSON.stringify({ emissionClearanceRequestId: clearanceRequest.id }),
+                id
+            ]
+        );
+        
+        // Add to vehicle history
+        await db.addVehicleHistory({
+            vehicleId: request.vehicle_id,
+            action: 'TRANSFER_FORWARDED_TO_EMISSION',
+            description: `Transfer request forwarded to Emission for clearance review`,
+            performedBy: req.user.userId,
+            metadata: { transferRequestId: id, clearanceRequestId: clearanceRequest.id }
+        });
+        
+        const updatedRequest = await db.getTransferRequestById(id);
+        
+        res.json({
+            success: true,
+            message: 'Transfer request forwarded to Emission',
+            transferRequest: updatedRequest,
+            clearanceRequest
+        });
+        
+    } catch (error) {
+        console.error('Forward to Emission error:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error'

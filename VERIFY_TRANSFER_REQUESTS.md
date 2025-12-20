@@ -8,11 +8,11 @@ SELECT
     tr.id,
     tr.status,
     tr.created_at,
-    tr.submitted_at,
+    COALESCE(tr.submitted_at, tr.created_at) as submitted_at,
     v.plate_number,
     seller.first_name || ' ' || seller.last_name as seller_name,
     buyer.first_name || ' ' || buyer.last_name as buyer_name,
-    tr.buyer_info->>'email' as buyer_email
+    (tr.buyer_info::jsonb)->>'email' as buyer_email
 FROM transfer_requests tr
 JOIN vehicles v ON tr.vehicle_id = v.id
 JOIN users seller ON tr.seller_id = seller.id
@@ -38,7 +38,7 @@ SELECT
     tr.created_at,
     v.plate_number,
     seller.email as seller_email,
-    COALESCE(buyer.email, tr.buyer_info->>'email') as buyer_email
+    COALESCE(buyer.email, (tr.buyer_info::jsonb)->>'email') as buyer_email
 FROM transfer_requests tr
 JOIN vehicles v ON tr.vehicle_id = v.id
 JOIN users seller ON tr.seller_id = seller.id
@@ -54,8 +54,8 @@ SELECT
     tr.created_at,
     v.plate_number,
     seller.first_name || ' ' || seller.last_name as seller_name,
-    tr.buyer_info->>'email' as buyer_email,
-    tr.buyer_info->>'firstName' || ' ' || tr.buyer_info->>'lastName' as buyer_name
+    (tr.buyer_info::jsonb)->>'email' as buyer_email,
+    (tr.buyer_info::jsonb)->>'firstName' || ' ' || (tr.buyer_info::jsonb)->>'lastName' as buyer_name
 FROM transfer_requests tr
 JOIN vehicles v ON tr.vehicle_id = v.id
 JOIN users seller ON tr.seller_id = seller.id
@@ -71,7 +71,7 @@ SELECT
     v.plate_number,
     seller.first_name || ' ' || seller.last_name as seller_name,
     COALESCE(buyer.first_name || ' ' || buyer.last_name, 
-             tr.buyer_info->>'firstName' || ' ' || tr.buyer_info->>'lastName') as buyer_name
+             (tr.buyer_info::jsonb)->>'firstName' || ' ' || (tr.buyer_info::jsonb)->>'lastName') as buyer_name
 FROM transfer_requests tr
 JOIN vehicles v ON tr.vehicle_id = v.id
 JOIN users seller ON tr.seller_id = seller.id

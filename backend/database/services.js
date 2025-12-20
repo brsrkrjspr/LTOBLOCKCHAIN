@@ -637,20 +637,27 @@ async function updateCertificateStatus(id, status) {
 
 async function createTransferRequest(transferData) {
     const { vehicleId, sellerId, buyerId, buyerInfo, metadata } = transferData;
-    const result = await db.query(
-        `INSERT INTO transfer_requests 
-         (vehicle_id, seller_id, buyer_id, buyer_info, metadata)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING *`,
-        [
-            vehicleId,
-            sellerId,
-            buyerId || null,
-            buyerInfo ? JSON.stringify(buyerInfo) : null,
-            JSON.stringify(metadata || {})
-        ]
-    );
-    return result.rows[0];
+    
+    try {
+        const result = await db.query(
+            `INSERT INTO transfer_requests 
+             (vehicle_id, seller_id, buyer_id, buyer_info, metadata)
+             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)
+             RETURNING *`,
+            [
+                vehicleId,
+                sellerId,
+                buyerId || null,
+                buyerInfo ? JSON.stringify(buyerInfo) : null,
+                JSON.stringify(metadata || {})
+            ]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error creating transfer request:', error);
+        console.error('Transfer data:', { vehicleId, sellerId, buyerId, hasBuyerInfo: !!buyerInfo });
+        throw error;
+    }
 }
 
 async function getTransferRequestById(id) {
@@ -730,19 +737,7 @@ async function getTransferRequests(filters = {}) {
                seller.phone as seller_phone,
                buyer.first_name || ' ' || buyer.last_name as buyer_name,
                buyer.email as buyer_email,
-               buyer.phone as buyer_phone,
-               -- Extract buyer name from buyer_info JSONB if buyer_id is NULL
-               CASE 
-                   WHEN buyer.id IS NOT NULL THEN buyer.first_name || ' ' || buyer.last_name
-                   WHEN tr.buyer_info IS NOT NULL THEN 
-                       COALESCE(
-                           (tr.buyer_info->>'firstName' || ' ' || tr.buyer_info->>'lastName'),
-                           tr.buyer_info->>'name',
-                           tr.buyer_info->>'firstName',
-                           tr.buyer_info->>'lastName'
-                       )
-                   ELSE NULL
-               END as buyer_name_from_info
+               buyer.phone as buyer_phone
         FROM transfer_requests tr
         JOIN vehicles v ON tr.vehicle_id = v.id
         JOIN users seller ON tr.seller_id = seller.id
@@ -798,7 +793,15 @@ async function getTransferRequests(filters = {}) {
     query += ` ORDER BY tr.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(limit, offset);
     
-    const result = await db.query(query, params);
+    let result;
+    try {
+        result = await db.query(query, params);
+    } catch (queryError) {
+        console.error('SQL Query Error in getTransferRequests:', queryError);
+        console.error('Query:', query);
+        console.error('Params:', params);
+        throw queryError;
+    }
     
     // Parse JSONB fields and ensure proper name extraction
     return result.rows.map(row => {

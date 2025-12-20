@@ -127,7 +127,13 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         }
         
         // Check if there's already a pending transfer request for this vehicle
-        const existingRequests = await db.getTransferRequests({ vehicleId, status: 'PENDING' });
+        let existingRequests = [];
+        try {
+            existingRequests = await db.getTransferRequests({ vehicleId, status: 'PENDING' });
+        } catch (checkError) {
+            console.warn('⚠️ Error checking existing requests (continuing anyway):', checkError.message);
+            // Continue - don't block transfer creation if check fails
+        }
         if (existingRequests.length > 0) {
             return res.status(409).json({
                 success: false,
@@ -259,17 +265,33 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         }
         
         // Create transfer request
-        const transferRequest = await db.createTransferRequest({
-            vehicleId,
-            sellerId: req.user.userId,
-            buyerId: resolvedBuyerId || null,
-            buyerInfo: resolvedBuyerInfo || null,
-            metadata: {}
-        });
+        let transferRequest;
+        try {
+            transferRequest = await db.createTransferRequest({
+                vehicleId,
+                sellerId: req.user.userId,
+                buyerId: resolvedBuyerId || null,
+                buyerInfo: resolvedBuyerInfo || null,
+                metadata: {}
+            });
+            console.log('✅ Transfer request created successfully:', transferRequest.id);
+        } catch (createError) {
+            console.error('❌ Failed to create transfer request:', createError);
+            console.error('Create error details:', {
+                message: createError.message,
+                stack: createError.stack,
+                vehicleId,
+                sellerId: req.user.userId,
+                buyerId: resolvedBuyerId,
+                hasBuyerInfo: !!resolvedBuyerInfo
+            });
+            throw createError;
+        }
         
         // Link documents - NEW: Support explicit document roles, LEGACY: Support documentIds array
         const dbModule = require('../database/db');
         
+        try {
         // NEW APPROACH: Explicit document roles (preferred)
         if (documents && typeof documents === 'object') {
             console.log('📋 Linking transfer documents with explicit roles:', {
@@ -387,6 +409,11 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 }
             }
         }
+        } catch (docLinkError) {
+            // Don't fail the whole request if document linking fails
+            console.error('⚠️ Error linking documents (transfer request still created):', docLinkError);
+            console.error('Document linking error details:', docLinkError.message, docLinkError.stack);
+        }
         
         // Log transfer request creation
         console.log('✅ Transfer request created:', {
@@ -449,7 +476,25 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         }
         
         // Get full request with relations
-        const fullRequest = await db.getTransferRequestById(transferRequest.id);
+        let fullRequest;
+        try {
+            fullRequest = await db.getTransferRequestById(transferRequest.id);
+        } catch (fetchError) {
+            console.warn('⚠️ Error fetching full request details (returning basic info):', fetchError.message);
+            // Return basic request info if full fetch fails
+            fullRequest = {
+                ...transferRequest,
+                buyer_info: resolvedBuyerInfo,
+                vehicle: {
+                    id: vehicle.id,
+                    vin: vehicle.vin,
+                    plate_number: vehicle.plate_number,
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    year: vehicle.year
+                }
+            };
+        }
         
         res.status(201).json({
             success: true,
@@ -493,7 +538,7 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
             JOIN vehicles v ON tr.vehicle_id = v.id
             JOIN users seller ON tr.seller_id = seller.id
             WHERE
-                (tr.buyer_id = $1 OR (tr.buyer_id IS NULL AND (tr.buyer_info->>'email') = $2))
+                (tr.buyer_id = $1 OR (tr.buyer_id IS NULL AND ((tr.buyer_info::jsonb)->>'email') = $2))
                 AND tr.status IN ('PENDING', 'REVIEWING')
             ORDER BY tr.created_at DESC
             `,
@@ -766,10 +811,13 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
         const countParams = [];
         let paramCount = 0;
         
-        if (status) {
+        // Use the same status filter as the main query
+        const statusFilter = filters.status || (req.user.role === 'admin' ? 'REVIEWING' : null);
+        
+        if (statusFilter) {
             paramCount++;
             countQuery += ` AND status = $${paramCount}`;
-            countParams.push(status);
+            countParams.push(statusFilter);
         } else if (req.user.role === 'admin') {
             // Admin default: Only count REVIEWING and above (exclude PENDING)
             // This matches the default filter applied above
@@ -783,7 +831,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
         }
         
         const countResult = await dbModule.query(countQuery, countParams);
-        const totalCount = parseInt(countResult.rows[0].count);
+        const totalCount = parseInt(countResult.rows[0]?.count || 0);
         
         res.json({
             success: true,
@@ -799,9 +847,11 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
         
     } catch (error) {
         console.error('Get transfer requests error:', error);
+        console.error('Error details:', error.message, error.stack);
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to load transfer requests'
         });
     }
 });

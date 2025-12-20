@@ -145,29 +145,56 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             try {
                 const existingBuyer = await db.getUserByEmail(buyerEmail);
                 if (existingBuyer) {
-                    // CRITICAL: Validate that entered buyer info matches the actual email owner's info
+                    // LENIENT VALIDATION: Use fuzzy matching for names to handle nicknames, middle names, etc.
+                    // Only blocks if there's a clear mismatch, not minor differences
                     const enteredFirstName = buyerInfo?.firstName || (buyerName ? buyerName.trim().split(' ')[0] : null);
                     const enteredLastName = buyerInfo?.lastName || (buyerName ? buyerName.trim().split(' ').slice(1).join(' ') : null);
                     const enteredPhone = buyerInfo?.phone || buyerPhone || null;
                     
-                    // Check for mismatches
-                    const nameMismatch = (enteredFirstName && existingBuyer.first_name && 
-                                         enteredFirstName.toLowerCase() !== existingBuyer.first_name.toLowerCase()) ||
-                                        (enteredLastName && existingBuyer.last_name && 
-                                         enteredLastName.toLowerCase() !== existingBuyer.last_name.toLowerCase());
+                    // Fuzzy name matching: Check if one contains the other (handles "John" vs "John Michael")
+                    let firstNameMismatch = false;
+                    let lastNameMismatch = false;
                     
-                    const phoneMismatch = enteredPhone && existingBuyer.phone && 
-                                         enteredPhone.replace(/\D/g, '') !== existingBuyer.phone.replace(/\D/g, '');
+                    if (enteredFirstName && existingBuyer.first_name) {
+                        const enteredFirst = enteredFirstName.toLowerCase().trim();
+                        const accountFirst = existingBuyer.first_name.toLowerCase().trim();
+                        // Check if one contains the other (handles nicknames and middle names)
+                        firstNameMismatch = !enteredFirst.includes(accountFirst) && !accountFirst.includes(enteredFirst);
+                    }
                     
-                    if (nameMismatch || phoneMismatch) {
-                        const mismatches = [];
-                        if (nameMismatch) mismatches.push('name');
-                        if (phoneMismatch) mismatches.push('phone');
-                        
+                    if (enteredLastName && existingBuyer.last_name) {
+                        const enteredLast = enteredLastName.toLowerCase().trim();
+                        const accountLast = existingBuyer.last_name.toLowerCase().trim();
+                        // Check if one contains the other
+                        lastNameMismatch = !enteredLast.includes(accountLast) && !accountLast.includes(enteredLast);
+                    }
+                    
+                    // Only fail if BOTH first and last name clearly don't match
+                    // This handles cases like "John" vs "John Michael" or "Maria" vs "Maria Santos"
+                    const nameMismatch = firstNameMismatch && lastNameMismatch;
+                    
+                    // Phone validation: Only check if both are provided and clearly different
+                    // Phone numbers might be updated, so we're lenient here
+                    let phoneMismatch = false;
+                    if (enteredPhone && existingBuyer.phone) {
+                        const enteredPhoneClean = enteredPhone.replace(/\D/g, '');
+                        const accountPhoneClean = existingBuyer.phone.replace(/\D/g, '');
+                        // Only flag mismatch if they're completely different (not just format difference)
+                        // Check last 10 digits to handle country code differences
+                        phoneMismatch = enteredPhoneClean.length > 0 && 
+                                       accountPhoneClean.length > 0 &&
+                                       enteredPhoneClean !== accountPhoneClean &&
+                                       !enteredPhoneClean.endsWith(accountPhoneClean.slice(-10)) &&
+                                       !accountPhoneClean.endsWith(enteredPhoneClean.slice(-10));
+                    }
+                    
+                    // Only block if BOTH first and last name clearly don't match
+                    // Phone mismatch is just logged as warning (phone might be updated)
+                    if (nameMismatch) {
                         return res.status(400).json({
                             success: false,
                             error: `Buyer information mismatch`,
-                            message: `The entered buyer ${mismatches.join(' and ')} does not match the account owner for email ${buyerEmail}. Please verify the buyer's information.`,
+                            message: `The entered buyer name does not match the account owner for email ${buyerEmail}. Please verify the buyer's information.`,
                             details: {
                                 email: buyerEmail,
                                 accountOwner: {
@@ -180,9 +207,14 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                                     lastName: enteredLastName,
                                     phone: enteredPhone
                                 },
-                                mismatches
+                                mismatches: ['name']
                             }
                         });
+                    }
+                    
+                    // Warn about phone mismatch but don't block (phone might be updated)
+                    if (phoneMismatch && enteredPhone && existingBuyer.phone) {
+                        console.warn(`⚠️ Phone number mismatch for buyer ${buyerEmail}: Account has ${existingBuyer.phone}, entered ${enteredPhone}. Proceeding anyway.`);
                     }
                     
                     // Info matches or no info provided - use the existing user

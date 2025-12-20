@@ -981,29 +981,99 @@
 
         // Load OR/CR document
         function loadORCRDocument(docs) {
-            const orcrDoc = docs.find(d => 
-                d.type === 'registration_cert' || 
-                d.type === 'registration' ||
-                (d.filename && d.filename.toLowerCase().includes('registration')) ||
-                (d.filename && d.filename.toLowerCase().includes('or')) ||
-                (d.filename && d.filename.toLowerCase().includes('cr'))
-            );
+            if (!docs || !Array.isArray(docs) || docs.length === 0) {
+                console.warn('[HPG] No documents provided to loadORCRDocument');
+                return;
+            }
+
+            console.log('[HPG] Searching for OR/CR document in', docs.length, 'documents');
+            console.log('[HPG] Document types:', docs.map(d => d.type || d.document_type || 'unknown'));
+
+            // Check multiple document type fields and filename patterns
+            const orcrDoc = docs.find(d => {
+                const docType = (d.type || d.document_type || '').toLowerCase();
+                const filename = (d.filename || d.original_name || '').toLowerCase();
+                
+                // Check document type
+                if (docType === 'registration_cert' || 
+                    docType === 'registrationcert' ||
+                    docType === 'registration' ||
+                    docType === 'or_cr' ||
+                    docType === 'orcr' ||
+                    docType === 'or-cr') {
+                    return true;
+                }
+                
+                // Check filename patterns
+                if (filename.includes('registration') ||
+                    filename.includes('or_cr') ||
+                    filename.includes('or-cr') ||
+                    filename.includes('orcr') ||
+                    (filename.includes('or') && filename.includes('cr'))) {
+                    return true;
+                }
+                
+                return false;
+            });
 
             const orcrContainer = document.getElementById('orcrDocContainer');
             const noOrcrMessage = document.getElementById('noOrcrMessage');
             const orcrImage = document.getElementById('orcrDocImage');
 
+            if (!orcrContainer || !orcrImage) {
+                console.error('[HPG] OR/CR container or image element not found');
+                return;
+            }
+
             if (orcrDoc) {
+                console.log('[HPG] Found OR/CR document:', orcrDoc);
                 // Remember current OR/CR doc so we can open it in the secure viewer
                 currentOrcrDoc = orcrDoc;
 
-                const url = orcrDoc.cid ? `/api/documents/ipfs/${orcrDoc.cid}` : (orcrDoc.path ? `/api/documents/file/${encodeURIComponent(orcrDoc.path)}` : null);
+                // Try multiple URL construction methods
+                let url = null;
+                if (orcrDoc.cid) {
+                    url = `/api/documents/ipfs/${orcrDoc.cid}`;
+                } else if (orcrDoc.ipfs_cid) {
+                    url = `/api/documents/ipfs/${orcrDoc.ipfs_cid}`;
+                } else if (orcrDoc.path) {
+                    url = `/api/documents/file/${encodeURIComponent(orcrDoc.path)}`;
+                } else if (orcrDoc.file_path) {
+                    url = `/api/documents/file/${encodeURIComponent(orcrDoc.file_path)}`;
+                } else if (orcrDoc.file_url) {
+                    url = orcrDoc.file_url;
+                } else if (orcrDoc.id) {
+                    url = `/api/documents/${orcrDoc.id}/view`;
+                }
                 
                 if (url) {
+                    console.log('[HPG] Loading OR/CR image from URL:', url);
+                    orcrImage.onerror = function() {
+                        console.error('[HPG] Failed to load OR/CR image from:', url);
+                        if (noOrcrMessage) noOrcrMessage.style.display = 'block';
+                        orcrContainer.style.display = 'none';
+                    };
+                    orcrImage.onload = function() {
+                        console.log('[HPG] OR/CR image loaded successfully');
+                        orcrContainer.style.display = 'block';
+                        if (noOrcrMessage) noOrcrMessage.style.display = 'none';
+                    };
                     orcrImage.src = url;
-                    orcrContainer.style.display = 'block';
-                    noOrcrMessage.style.display = 'none';
+                } else {
+                    console.error('[HPG] Could not construct URL for OR/CR document:', orcrDoc);
+                    if (noOrcrMessage) {
+                        noOrcrMessage.style.display = 'block';
+                        noOrcrMessage.textContent = 'OR/CR document found but cannot be displayed (missing URL)';
+                    }
+                    orcrContainer.style.display = 'none';
                 }
+            } else {
+                console.warn('[HPG] No OR/CR document found in provided documents');
+                if (noOrcrMessage) {
+                    noOrcrMessage.style.display = 'block';
+                    noOrcrMessage.textContent = 'No OR/CR document found in submitted documents';
+                }
+                orcrContainer.style.display = 'none';
             }
 
             // Also show all documents

@@ -964,9 +964,19 @@
                 const chassis = document.getElementById('toChassisNumber');
                 const type = document.getElementById('toVehicleType');
                 const orcr = document.getElementById('toOrCrNumber');
+                
+                // Validate required fields
                 if (!plate?.value.trim()) markInvalid(plate);
                 if (!chassis?.value.trim()) markInvalid(chassis);
-                if (!valid) showWizardError(3, 'Please select a vehicle and complete all details.');
+                if (!orcr?.value.trim()) markInvalid(orcr);  // ✅ OR/CR validation added
+                
+                if (!valid) {
+                    const missingFields = [];
+                    if (!plate?.value.trim()) missingFields.push('Plate Number');
+                    if (!chassis?.value.trim()) missingFields.push('Chassis Number');
+                    if (!orcr?.value.trim()) missingFields.push('OR/CR Number');  // ✅ Include in error message
+                    showWizardError(3, `Please complete all required fields: ${missingFields.join(', ')}`);
+                }
             } else if (step === 4) {
                 // Check required documents
                 const requiredDocs = ['deedOfSale', 'sellerId', 'buyerId', 'orCr'];

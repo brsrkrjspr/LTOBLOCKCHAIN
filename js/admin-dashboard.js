@@ -171,20 +171,29 @@ async function loadOrgVerificationStatus() {
             };
         }
         
-        // Update HPG counts
-        document.getElementById('hpgPendingCount').textContent = stats.hpg.pending;
-        document.getElementById('hpgApprovedCount').textContent = stats.hpg.approved + (stats.hpg.completed || 0);
-        document.getElementById('hpgRejectedCount').textContent = stats.hpg.rejected;
+        // Update HPG counts (with null checks for pages that don't have these elements)
+        const hpgPendingEl = document.getElementById('hpgPendingCount');
+        const hpgApprovedEl = document.getElementById('hpgApprovedCount');
+        const hpgRejectedEl = document.getElementById('hpgRejectedCount');
+        if (hpgPendingEl) hpgPendingEl.textContent = stats.hpg.pending;
+        if (hpgApprovedEl) hpgApprovedEl.textContent = stats.hpg.approved + (stats.hpg.completed || 0);
+        if (hpgRejectedEl) hpgRejectedEl.textContent = stats.hpg.rejected;
         
-        // Update Insurance counts
-        document.getElementById('insurancePendingCount').textContent = stats.insurance.pending;
-        document.getElementById('insuranceApprovedCount').textContent = stats.insurance.approved + (stats.insurance.completed || 0);
-        document.getElementById('insuranceRejectedCount').textContent = stats.insurance.rejected;
+        // Update Insurance counts (with null checks)
+        const insurancePendingEl = document.getElementById('insurancePendingCount');
+        const insuranceApprovedEl = document.getElementById('insuranceApprovedCount');
+        const insuranceRejectedEl = document.getElementById('insuranceRejectedCount');
+        if (insurancePendingEl) insurancePendingEl.textContent = stats.insurance.pending;
+        if (insuranceApprovedEl) insuranceApprovedEl.textContent = stats.insurance.approved + (stats.insurance.completed || 0);
+        if (insuranceRejectedEl) insuranceRejectedEl.textContent = stats.insurance.rejected;
         
-        // Update Emission counts
-        document.getElementById('emissionPendingCount').textContent = stats.emission.pending;
-        document.getElementById('emissionApprovedCount').textContent = stats.emission.approved + (stats.emission.completed || 0);
-        document.getElementById('emissionRejectedCount').textContent = stats.emission.rejected;
+        // Update Emission counts (with null checks)
+        const emissionPendingEl = document.getElementById('emissionPendingCount');
+        const emissionApprovedEl = document.getElementById('emissionApprovedCount');
+        const emissionRejectedEl = document.getElementById('emissionRejectedCount');
+        if (emissionPendingEl) emissionPendingEl.textContent = stats.emission.pending;
+        if (emissionApprovedEl) emissionApprovedEl.textContent = stats.emission.approved + (stats.emission.completed || 0);
+        if (emissionRejectedEl) emissionRejectedEl.textContent = stats.emission.rejected;
         
         // Combine all requests and sort by date for the table
         const allRequests = [
@@ -193,20 +202,26 @@ async function loadOrgVerificationStatus() {
             ...emissionRequests.map(r => ({ ...r, orgType: 'Emission', orgIcon: 'fa-leaf', orgColor: '#16a085' }))
         ].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
         
-        // Render the verification responses table
-        renderVerificationResponsesTable(allRequests.slice(0, 20)); // Show latest 20
+        // Render the verification responses table (with null check)
+        const verificationTbody = document.getElementById('verification-responses-tbody');
+        if (verificationTbody) {
+            renderVerificationResponsesTable(allRequests.slice(0, 20)); // Show latest 20
+        }
         
         console.log('📊 Organization verification status loaded:', stats);
         
     } catch (error) {
         console.error('Error loading organization verification status:', error);
-        document.getElementById('verification-responses-tbody').innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align: center; padding: 2rem; color: #e74c3c;">
-                    <i class="fas fa-exclamation-triangle"></i> Error loading verification statuses
-                </td>
-            </tr>
-        `;
+        const verificationTbody = document.getElementById('verification-responses-tbody');
+        if (verificationTbody) {
+            verificationTbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                        <i class="fas fa-exclamation-triangle"></i> Error loading verification statuses
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 

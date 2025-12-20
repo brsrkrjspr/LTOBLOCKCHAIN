@@ -223,7 +223,7 @@ This link will expire in 3 days for security purposes.
 
 Best regards,
 TrustChain LTO System
-    `.trim();
+`.trim();
 
     try {
         const transporter = getEmailTransporter();
@@ -359,12 +359,12 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                     // Buyer has account - use their account info
                     resolvedBuyerId = existingBuyer.id;
                     // Store buyer info from their account (real data, no placeholders)
-                    resolvedBuyerInfo = {
-                        email: buyerEmail,
-                        firstName: existingBuyer.first_name,
-                        lastName: existingBuyer.last_name,
+                        resolvedBuyerInfo = {
+                            email: buyerEmail,
+                            firstName: existingBuyer.first_name,
+                            lastName: existingBuyer.last_name,
                         phone: existingBuyer.phone || null
-                    };
+                        };
                 } else {
                     // Buyer doesn't have account yet - store email only
                     // Name/phone will be collected when buyer accepts or registers
@@ -386,12 +386,12 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         let transferRequest;
         try {
             transferRequest = await db.createTransferRequest({
-                vehicleId,
-                sellerId: req.user.userId,
-                buyerId: resolvedBuyerId || null,
-                buyerInfo: resolvedBuyerInfo || null,
-                metadata: {}
-            });
+            vehicleId,
+            sellerId: req.user.userId,
+            buyerId: resolvedBuyerId || null,
+            buyerInfo: resolvedBuyerInfo || null,
+            metadata: {}
+        });
             console.log('✅ Transfer request created successfully:', transferRequest.id);
         } catch (createError) {
             console.error('❌ Failed to create transfer request:', createError);
@@ -960,7 +960,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
                 countQuery += ` AND status = ANY($${paramCount})`;
                 countParams.push(statusFilter);
             } else {
-                countQuery += ` AND status = $${paramCount}`;
+            countQuery += ` AND status = $${paramCount}`;
                 countParams.push(statusFilter);
             }
         }

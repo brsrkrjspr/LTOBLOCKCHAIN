@@ -170,8 +170,31 @@ function renderTransferRequests(requests) {
     }
 
     tbody.innerHTML = requests.map(request => {
-        const sellerName = request.seller_name || request.seller?.name || 'N/A';
-        const buyerName = request.buyer_name || request.buyer?.name || request.buyer_info?.name || 'N/A';
+        // Extract seller name - should be from database join
+        const sellerName = request.seller_name || 
+                          (request.seller ? `${request.seller.first_name || ''} ${request.seller.last_name || ''}`.trim() : null) ||
+                          (request.seller?.name) || 
+                          'N/A';
+        
+        // Extract buyer name - prioritize database join, then buyer_info JSONB
+        let buyerName = request.buyer_name || 
+                       (request.buyer ? `${request.buyer.first_name || ''} ${request.buyer.last_name || ''}`.trim() : null) ||
+                       (request.buyer?.name);
+        
+        // If still no buyer name, try extracting from buyer_info JSONB
+        if (!buyerName && request.buyer_info) {
+            const buyerInfo = typeof request.buyer_info === 'string' ? JSON.parse(request.buyer_info) : request.buyer_info;
+            if (buyerInfo.firstName && buyerInfo.lastName) {
+                buyerName = `${buyerInfo.firstName} ${buyerInfo.lastName}`;
+            } else if (buyerInfo.name) {
+                buyerName = buyerInfo.name;
+            } else if (buyerInfo.firstName) {
+                buyerName = buyerInfo.firstName;
+            }
+        }
+        
+        buyerName = buyerName || 'N/A';
+        
         const plateNumber = request.vehicle?.plate_number || request.plate_number || 'N/A';
         const submittedDate = new Date(request.submitted_at || request.created_at).toLocaleDateString('en-US');
         const status = request.status || 'PENDING';

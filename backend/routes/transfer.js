@@ -421,6 +421,27 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                     vehicle,
                     inviteToken
                 });
+                
+                // Create in-app notification for buyer if they have an account
+                if (resolvedBuyerId) {
+                    try {
+                        // Fetch seller info to get full name
+                        const seller = await db.getUserById(req.user.userId);
+                        const sellerFullName = seller 
+                            ? `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email
+                            : req.user.email;
+                        
+                        await db.createNotification({
+                            userId: resolvedBuyerId,
+                            title: 'New Transfer Request',
+                            message: `${sellerFullName} has requested to transfer vehicle ${vehicle.plate_number || vehicle.plateNumber || vehicle.vin} to you. Please review and accept or reject the request.`,
+                            type: 'info'
+                        });
+                        console.log('✅ Created notification for buyer:', resolvedBuyerId);
+                    } catch (notifError) {
+                        console.warn('⚠️ Failed to create buyer notification:', notifError.message);
+                    }
+                }
             } catch (inviteError) {
                 // Do not fail the whole request if email sending fails; log for observability
                 console.warn('⚠️ Failed to send transfer invite email:', inviteError.message);
@@ -728,6 +749,15 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
             filters.sellerId = req.user.userId;
         }
         
+        // CRITICAL: Admin should only see REVIEWING status by default (after buyer accepts)
+        // PENDING status means buyer hasn't accepted yet - admin shouldn't see these
+        // But allow admin to filter by specific status if needed
+        if (req.user.role === 'admin' && !status) {
+            // Default admin view: Only show REVIEWING (after buyer accepts)
+            // Exclude PENDING (waiting for buyer acceptance)
+            filters.status = 'REVIEWING';
+        }
+        
         const requests = await db.getTransferRequests(filters);
         
         // Get total count for pagination
@@ -740,6 +770,10 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
             paramCount++;
             countQuery += ` AND status = $${paramCount}`;
             countParams.push(status);
+        } else if (req.user.role === 'admin') {
+            // Admin default: Only count REVIEWING and above (exclude PENDING)
+            // This matches the default filter applied above
+            countQuery += ` AND status IN ('REVIEWING', 'APPROVED', 'REJECTED_BY_LTO', 'REJECTED', 'COMPLETED')`;
         }
         
         if (req.user.role === 'vehicle_owner') {

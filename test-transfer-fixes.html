@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Fixes Test Helper</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        .test-case h3 {
+            margin-top: 0;
+            color: #2980b9;
+        }
+        .test-input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn-success {
+            background: #27ae60;
+        }
+        .btn-danger {
+            background: #e74c3c;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .instructions {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Transfer Ownership Fixes - Test Helper</h1>
+    
+    <div class="instructions">
+        <strong>📋 Instructions:</strong>
+        <ol>
+            <li>Make sure your backend server is running</li>
+            <li>Log in to the system first (get your auth token)</li>
+            <li>Use this page to test the buyer validation fixes</li>
+            <li>Check the browser console (F12) for detailed logs</li>
+        </ol>
+    </div>
+
+    <!-- Test 1: OR/CR Validation -->
+    <div class="test-section">
+        <h2>Test 1: OR/CR Number Validation (Frontend)</h2>
+        
+        <div class="test-case">
+            <h3>Test 1.1: Missing OR/CR Number</h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Go to <code>transfer-ownership.html</code></li>
+                <li>Complete Steps 1 and 2</li>
+                <li>In Step 3, fill Plate and Chassis but leave OR/CR empty</li>
+                <li>Try to proceed to next step</li>
+            </ol>
+            <p><strong>Expected:</strong> Should NOT proceed, show error message</p>
+            <button class="btn" onclick="testORCRValidation()">Test OR/CR Validation</button>
+            <div id="orcr-result" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Test 2: Buyer Name Validation -->
+    <div class="test-section">
+        <h2>Test 2: Buyer Name Validation (Backend)</h2>
+        
+        <div class="test-case">
+            <h3>Test 2.1: Name Variation (Should Pass)</h3>
+            <p>Test fuzzy matching with name variations</p>
+            
+            <label>Buyer Email (existing account):</label>
+            <input type="email" id="buyerEmail" class="test-input" placeholder="buyer@test.com">
+            
+            <label>Account First Name:</label>
+            <input type="text" id="accountFirstName" class="test-input" placeholder="John Michael">
+            
+            <label>Account Last Name:</label>
+            <input type="text" id="accountLastName" class="test-input" placeholder="Smith">
+            
+            <label>Entered Buyer Name:</label>
+            <input type="text" id="enteredBuyerName" class="test-input" placeholder="John Smith">
+            
+            <label>Vehicle ID:</label>
+            <input type="text" id="vehicleId" class="test-input" placeholder="vehicle-id-here">
+            
+            <button class="btn btn-success" onclick="testNameVariation()">Test Name Variation</button>
+            <div id="name-variation-result" class="result"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>Test 2.2: Name Mismatch (Should Fail)</h3>
+            <p>Test that complete mismatch is rejected</p>
+            
+            <label>Buyer Email:</label>
+            <input type="email" id="buyerEmail2" class="test-input" placeholder="buyer@test.com">
+            
+            <label>Account Name:</label>
+            <input type="text" id="accountName2" class="test-input" placeholder="John Smith">
+            
+            <label>Entered Name (Different):</label>
+            <input type="text" id="enteredName2" class="test-input" placeholder="Jane Doe">
+            
+            <label>Vehicle ID:</label>
+            <input type="text" id="vehicleId2" class="test-input" placeholder="vehicle-id-here">
+            
+            <button class="btn btn-danger" onclick="testNameMismatch()">Test Name Mismatch</button>
+            <div id="name-mismatch-result" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Test 3: API Test -->
+    <div class="test-section">
+        <h2>Test 3: Direct API Test</h2>
+        
+        <div class="test-case">
+            <h3>Test API Endpoint Directly</h3>
+            <p>Test the transfer request API with different scenarios</p>
+            
+            <label>Auth Token:</label>
+            <input type="text" id="authToken" class="test-input" placeholder="Paste your JWT token here">
+            
+            <label>API Endpoint:</label>
+            <input type="text" id="apiEndpoint" class="test-input" value="http://localhost:3001/api/vehicles/transfer/requests" readonly>
+            
+            <button class="btn" onclick="testAPI()">Test API Call</button>
+            <div id="api-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Get auth token from localStorage
+        window.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            if (token) {
+                document.getElementById('authToken').value = token;
+            }
+        });
+
+        function showResult(elementId, message, type) {
+            const resultEl = document.getElementById(elementId);
+            resultEl.className = `result ${type}`;
+            resultEl.style.display = 'block';
+            resultEl.textContent = message;
+        }
+
+        function testORCRValidation() {
+            showResult('orcr-result', 
+                '✅ Frontend validation test:\n\n' +
+                '1. Open transfer-ownership.html\n' +
+                '2. Complete Steps 1-2\n' +
+                '3. In Step 3, leave OR/CR empty\n' +
+                '4. Try to proceed\n\n' +
+                'Expected: Error message "Please complete all required fields: OR/CR Number"',
+                'info');
+        }
+
+        async function testNameVariation() {
+            const buyerEmail = document.getElementById('buyerEmail').value;
+            const accountFirstName = document.getElementById('accountFirstName').value;
+            const accountLastName = document.getElementById('accountLastName').value;
+            const enteredName = document.getElementById('enteredBuyerName').value;
+            const vehicleId = document.getElementById('vehicleId').value;
+            const token = document.getElementById('authToken').value;
+
+            if (!buyerEmail || !enteredName || !vehicleId || !token) {
+                showResult('name-variation-result', 
+                    '❌ Please fill in all fields (buyer email, entered name, vehicle ID, and auth token)',
+                    'error');
+                return;
+            }
+
+            const nameParts = enteredName.trim().split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            // Check fuzzy matching logic
+            const enteredFirst = firstName.toLowerCase().trim();
+            const accountFirst = accountFirstName.toLowerCase().trim();
+            const firstNameMatch = enteredFirst.includes(accountFirst) || accountFirst.includes(enteredFirst);
+
+            const enteredLast = lastName.toLowerCase().trim();
+            const accountLast = accountLastName.toLowerCase().trim();
+            const lastNameMatch = enteredLast.includes(accountLast) || accountLast.includes(enteredLast);
+
+            const shouldPass = firstNameMatch || lastNameMatch;
+
+            showResult('name-variation-result', 
+                `Testing Name Variation:\n\n` +
+                `Account Name: ${accountFirstName} ${accountLastName}\n` +
+                `Entered Name: ${enteredName}\n` +
+                `First Name Match: ${firstNameMatch ? '✅' : '❌'}\n` +
+                `Last Name Match: ${lastNameMatch ? '✅' : '❌'}\n\n` +
+                `Expected Result: ${shouldPass ? '✅ Should PASS (fuzzy match)' : '❌ May FAIL (both names differ)'}\n\n` +
+                `Now testing API call...`,
+                'info');
+
+            // Test actual API call
+            try {
+                const response = await fetch(document.getElementById('apiEndpoint').value, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        vehicleId: vehicleId,
+                        buyerEmail: buyerEmail,
+                        buyerName: enteredName,
+                        buyerPhone: '09171234567'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showResult('name-variation-result', 
+                        `✅ SUCCESS!\n\n` +
+                        `Transfer request created successfully.\n` +
+                        `Request ID: ${data.transferRequest?.id || 'N/A'}\n\n` +
+                        `Fuzzy matching worked correctly!`,
+                        'success');
+                } else {
+                    showResult('name-variation-result', 
+                        `❌ FAILED\n\n` +
+                        `Error: ${data.error || 'Unknown error'}\n` +
+                        `Message: ${data.message || 'No message'}\n\n` +
+                        `Details: ${JSON.stringify(data.details || {}, null, 2)}`,
+                        'error');
+                }
+            } catch (error) {
+                showResult('name-variation-result', 
+                    `❌ API Error: ${error.message}\n\n` +
+                    `Check:\n` +
+                    `1. Backend server is running\n` +
+                    `2. Auth token is valid\n` +
+                    `3. Vehicle ID exists\n` +
+                    `4. Buyer email exists in system`,
+                    'error');
+            }
+        }
+
+        async function testNameMismatch() {
+            const buyerEmail = document.getElementById('buyerEmail2').value;
+            const accountName = document.getElementById('accountName2').value;
+            const enteredName = document.getElementById('enteredName2').value;
+            const vehicleId = document.getElementById('vehicleId2').value;
+            const token = document.getElementById('authToken').value;
+
+            if (!buyerEmail || !enteredName || !vehicleId || !token) {
+                showResult('name-mismatch-result', 
+                    '❌ Please fill in all fields',
+                    'error');
+                return;
+            }
+
+            showResult('name-mismatch-result', 
+                `Testing Name Mismatch:\n\n` +
+                `Account Name: ${accountName}\n` +
+                `Entered Name: ${enteredName}\n\n` +
+                `Expected: Should FAIL with "Buyer information mismatch" error\n\n` +
+                `Testing API call...`,
+                'info');
+
+            try {
+                const response = await fetch(document.getElementById('apiEndpoint').value, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        vehicleId: vehicleId,
+                        buyerEmail: buyerEmail,
+                        buyerName: enteredName,
+                        buyerPhone: '09171234567'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok && data.error === 'Buyer information mismatch') {
+                    showResult('name-mismatch-result', 
+                        `✅ CORRECT BEHAVIOR!\n\n` +
+                        `Error returned as expected:\n` +
+                        `Error: ${data.error}\n` +
+                        `Message: ${data.message}\n\n` +
+                        `Validation is working correctly!`,
+                        'success');
+                } else if (response.ok) {
+                    showResult('name-mismatch-result', 
+                        `⚠️ UNEXPECTED RESULT\n\n` +
+                        `Request succeeded but should have failed.\n` +
+                        `This might mean:\n` +
+                        `1. Buyer email doesn't exist in system (new buyer)\n` +
+                        `2. Names actually match (check fuzzy logic)\n\n` +
+                        `Response: ${JSON.stringify(data, null, 2)}`,
+                        'error');
+                } else {
+                    showResult('name-mismatch-result', 
+                        `❌ Different Error:\n\n` +
+                        `Error: ${data.error || 'Unknown'}\n` +
+                        `Message: ${data.message || 'No message'}\n\n` +
+                        `Full Response: ${JSON.stringify(data, null, 2)}`,
+                        'error');
+                }
+            } catch (error) {
+                showResult('name-mismatch-result', 
+                    `❌ API Error: ${error.message}`,
+                    'error');
+            }
+        }
+
+        async function testAPI() {
+            const token = document.getElementById('authToken').value;
+            const endpoint = document.getElementById('apiEndpoint').value;
+
+            if (!token) {
+                showResult('api-result', '❌ Please provide auth token', 'error');
+                return;
+            }
+
+            showResult('api-result', 'Testing API endpoint...', 'info');
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        vehicleId: 'test-vehicle-id',
+                        buyerEmail: 'test@example.com'
+                    })
+                });
+
+                const data = await response.json();
+
+                showResult('api-result', 
+                    `API Response:\n\n` +
+                    `Status: ${response.status} ${response.statusText}\n\n` +
+                    `Response Body:\n${JSON.stringify(data, null, 2)}`,
+                    response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('api-result', 
+                    `❌ API Error: ${error.message}\n\n` +
+                    `Check:\n` +
+                    `1. Backend server is running\n` +
+                    `2. Endpoint URL is correct\n` +
+                    `3. CORS is configured`,
+                    'error');
+            }
+        }
+    </script>
+</body>
+</html>
+

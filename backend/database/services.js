@@ -727,8 +727,22 @@ async function getTransferRequests(filters = {}) {
                v.vin, v.plate_number, v.make, v.model, v.year,
                seller.first_name || ' ' || seller.last_name as seller_name,
                seller.email as seller_email,
+               seller.phone as seller_phone,
                buyer.first_name || ' ' || buyer.last_name as buyer_name,
-               buyer.email as buyer_email
+               buyer.email as buyer_email,
+               buyer.phone as buyer_phone,
+               -- Extract buyer name from buyer_info JSONB if buyer_id is NULL
+               CASE 
+                   WHEN buyer.id IS NOT NULL THEN buyer.first_name || ' ' || buyer.last_name
+                   WHEN tr.buyer_info IS NOT NULL THEN 
+                       COALESCE(
+                           (tr.buyer_info->>'firstName' || ' ' || tr.buyer_info->>'lastName'),
+                           tr.buyer_info->>'name',
+                           tr.buyer_info->>'firstName',
+                           tr.buyer_info->>'lastName'
+                       )
+                   ELSE NULL
+               END as buyer_name_from_info
         FROM transfer_requests tr
         JOIN vehicles v ON tr.vehicle_id = v.id
         JOIN users seller ON tr.seller_id = seller.id
@@ -786,12 +800,40 @@ async function getTransferRequests(filters = {}) {
     
     const result = await db.query(query, params);
     
-    // Parse JSONB fields
-    return result.rows.map(row => ({
-        ...row,
-        buyer_info: row.buyer_info ? (typeof row.buyer_info === 'string' ? JSON.parse(row.buyer_info) : row.buyer_info) : null,
-        metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
-    }));
+    // Parse JSONB fields and ensure proper name extraction
+    return result.rows.map(row => {
+        const buyerInfo = row.buyer_info ? (typeof row.buyer_info === 'string' ? JSON.parse(row.buyer_info) : row.buyer_info) : null;
+        const metadata = row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {};
+        
+        // Ensure buyer_name is properly set (use buyer_name_from_info if buyer_name is NULL)
+        let finalBuyerName = row.buyer_name;
+        if (!finalBuyerName && row.buyer_name_from_info) {
+            finalBuyerName = row.buyer_name_from_info;
+        } else if (!finalBuyerName && buyerInfo) {
+            // Fallback: construct from buyer_info
+            if (buyerInfo.firstName && buyerInfo.lastName) {
+                finalBuyerName = `${buyerInfo.firstName} ${buyerInfo.lastName}`;
+            } else if (buyerInfo.name) {
+                finalBuyerName = buyerInfo.name;
+            } else if (buyerInfo.firstName) {
+                finalBuyerName = buyerInfo.firstName;
+            }
+        }
+        
+        return {
+            ...row,
+            buyer_name: finalBuyerName || row.buyer_name || null,
+            buyer_info: buyerInfo,
+            metadata: metadata,
+            vehicle: {
+                vin: row.vin,
+                plate_number: row.plate_number,
+                make: row.make,
+                model: row.model,
+                year: row.year
+            }
+        };
+    });
 }
 
 async function updateTransferRequestStatus(id, status, reviewedBy = null, rejectionReason = null, metadata = null) {

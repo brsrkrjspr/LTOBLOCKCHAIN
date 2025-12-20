@@ -211,19 +211,26 @@ function renderTransferRequests(requests) {
                 <td>${escapeHtml(plateNumber)}</td>
                 <td>${submittedDate}</td>
                 <td>
-                    <span class="status-badge ${statusClass}">${escapeHtml(status)}</span>
+                    <span class="status-badge ${statusClass}" title="${status === 'PENDING' ? 'Waiting for buyer to accept the transfer request' : status === 'REVIEWING' ? 'Buyer has accepted, waiting for admin review' : ''}">
+                        ${escapeHtml(status)}
+                        ${status === 'PENDING' ? ' <i class="fas fa-info-circle" style="font-size: 0.8em; opacity: 0.7;"></i>' : ''}
+                    </span>
                 </td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn-icon" onclick="viewTransferDetails('${request.id}')" title="View Details">
                             <i class="fas fa-eye"></i>
                         </button>
-                        ${status === 'PENDING' || status === 'REVIEWING' ? `
+                        ${status === 'REVIEWING' ? `
                             <button class="btn-icon btn-success" onclick="approveTransfer('${request.id}')" title="Approve">
                                 <i class="fas fa-check"></i>
                             </button>
                             <button class="btn-icon btn-danger" onclick="rejectTransfer('${request.id}')" title="Reject">
                                 <i class="fas fa-times"></i>
+                            </button>
+                        ` : status === 'PENDING' ? `
+                            <button class="btn-icon" disabled title="Waiting for buyer to accept" style="opacity: 0.5; cursor: not-allowed;">
+                                <i class="fas fa-clock"></i>
                             </button>
                         ` : ''}
                     </div>
@@ -283,7 +290,10 @@ function applyFilters() {
     const searchText = document.getElementById('searchInput')?.value || '';
 
     currentFilters = {};
-    if (status) currentFilters.status = status;
+    if (status) {
+        // Status values are already uppercase (PENDING, REVIEWING, etc.)
+        currentFilters.status = status;
+    }
     if (dateFrom) currentFilters.dateFrom = dateFrom;
     if (dateTo) currentFilters.dateTo = dateTo;
     if (plateNumber) currentFilters.plateNumber = plateNumber;

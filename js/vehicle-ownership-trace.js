@@ -236,12 +236,25 @@ function createTimelineNode(record, index, total) {
     node.className = `timeline-node ${isCurrent ? 'current' : ''}`;
     
     // Extract data from record
-    const ownerName = record.new_owner_name || record.owner_name || record.metadata?.newOwnerName || 'Unknown Owner';
-    const ownerId = record.new_owner_id || record.owner_id || record.metadata?.newOwnerId || 'N/A';
+    // For REGISTERED actions, use owner_name/owner_email from metadata or record
+    // For OWNERSHIP_TRANSFERRED, use new_owner_name or owner_name
+    let ownerName = 'Unknown Owner';
+    let ownerId = 'N/A';
+    
+    if (record.action === 'REGISTERED' || record.metadata?.is_initial) {
+        // Initial registration - use owner from metadata or record
+        ownerName = record.metadata?.owner_name || record.owner_name || record.performed_by_name || 'System';
+        ownerId = record.metadata?.owner_id || record.owner_id || record.performed_by || 'N/A';
+    } else {
+        // Ownership transfer - use new owner
+        ownerName = record.new_owner_name || record.owner_name || record.metadata?.newOwnerName || record.metadata?.owner_name || 'Unknown Owner';
+        ownerId = record.new_owner_id || record.owner_id || record.metadata?.newOwnerId || record.metadata?.owner_id || 'N/A';
+    }
+    
     const startDate = record.performed_at || record.timestamp || record.startDate || new Date().toISOString();
     const endDate = record.metadata?.endDate || record.endDate || (isCurrent ? null : startDate);
     const transactionId = record.transaction_id || record.transactionId || record.metadata?.transactionId || 'N/A';
-    const eventType = record.action || record.eventType || 'Ownership Transfer';
+    const eventType = record.action === 'REGISTERED' ? 'Initial Registration' : (record.action || record.eventType || 'Ownership Transfer');
     
     const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', { 
         year: 'numeric', 

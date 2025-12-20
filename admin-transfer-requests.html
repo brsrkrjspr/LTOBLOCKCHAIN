@@ -92,7 +92,7 @@
                     </div>
                 </div>
                 <div class="sidebar-user-actions">
-                    <a href="settings.html" class="sidebar-action-item" title="Settings">
+                    <a href="admin-settings.html" class="sidebar-action-item" title="Settings">
                         <i class="fas fa-cog"></i>
                         <span>Settings</span>
                     </a>
@@ -153,11 +153,12 @@
                             <div class="filter-group">
                                 <label>Status</label>
                                 <select id="statusFilter" class="form-control">
-                                    <option value="">All Statuses</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="reviewing">Reviewing</option>
-                                    <option value="approved">Approved</option>
-                                    <option value="rejected">Rejected</option>
+                                    <option value="">All Active (PENDING + REVIEWING)</option>
+                                    <option value="PENDING">Pending (Waiting for Buyer)</option>
+                                    <option value="REVIEWING">Reviewing (Waiting for Admin)</option>
+                                    <option value="APPROVED">Approved</option>
+                                    <option value="REJECTED">Rejected</option>
+                                    <option value="COMPLETED">Completed</option>
                                 </select>
                             </div>
                             <div class="filter-group">

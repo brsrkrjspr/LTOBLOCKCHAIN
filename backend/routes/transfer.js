@@ -794,13 +794,14 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
             filters.sellerId = req.user.userId;
         }
         
-        // CRITICAL: Admin should only see REVIEWING status by default (after buyer accepts)
-        // PENDING status means buyer hasn't accepted yet - admin shouldn't see these
-        // But allow admin to filter by specific status if needed
+        // Admin should see both PENDING and REVIEWING by default
+        // PENDING = waiting for buyer to accept, REVIEWING = waiting for admin review
+        // This allows admin to see all active transfer requests
         if (req.user.role === 'admin' && !status) {
-            // Default admin view: Only show REVIEWING (after buyer accepts)
-            // Exclude PENDING (waiting for buyer acceptance)
-            filters.status = 'REVIEWING';
+            // Default admin view: Show both PENDING and REVIEWING
+            // Admin can filter by specific status if needed
+            // Note: We'll handle this in the query by using IN clause
+            filters.status = ['PENDING', 'REVIEWING'];
         }
         
         const requests = await db.getTransferRequests(filters);
@@ -812,16 +813,18 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
         let paramCount = 0;
         
         // Use the same status filter as the main query
-        const statusFilter = filters.status || (req.user.role === 'admin' ? 'REVIEWING' : null);
+        const statusFilter = filters.status || (req.user.role === 'admin' ? ['PENDING', 'REVIEWING'] : null);
         
         if (statusFilter) {
             paramCount++;
-            countQuery += ` AND status = $${paramCount}`;
-            countParams.push(statusFilter);
-        } else if (req.user.role === 'admin') {
-            // Admin default: Only count REVIEWING and above (exclude PENDING)
-            // This matches the default filter applied above
-            countQuery += ` AND status IN ('REVIEWING', 'APPROVED', 'REJECTED_BY_LTO', 'REJECTED', 'COMPLETED')`;
+            // Handle both single status and array of statuses
+            if (Array.isArray(statusFilter)) {
+                countQuery += ` AND status = ANY($${paramCount})`;
+                countParams.push(statusFilter);
+            } else {
+                countQuery += ` AND status = $${paramCount}`;
+                countParams.push(statusFilter);
+            }
         }
         
         if (req.user.role === 'vehicle_owner') {

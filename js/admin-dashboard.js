@@ -560,9 +560,11 @@ async function updateSystemStats() {
             totalAppsEl.textContent = totalVehicles.toLocaleString();
         }
         
-        // Update pending transfers (REVIEWING status - after buyer accepts)
+        // Update pending transfers (PENDING + REVIEWING - both need admin attention)
         if (pendingTransfersEl && transferStatsResponse.success && transferStatsResponse.stats) {
-            const pendingCount = transferStatsResponse.stats.reviewing || 0;
+            const stats = transferStatsResponse.stats;
+            // PENDING = waiting for buyer, REVIEWING = waiting for admin
+            const pendingCount = (stats.pending || 0) + (stats.reviewing || 0);
             pendingTransfersEl.textContent = pendingCount.toLocaleString();
             
             // Update badge

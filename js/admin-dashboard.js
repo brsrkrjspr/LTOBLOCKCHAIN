@@ -533,37 +533,71 @@ function checkAndClearDemoAccount() {
 }
 
 async function updateSystemStats() {
-    // Show loading state
-    const statCards = document.querySelectorAll('.stat-card .stat-number');
-    statCards.forEach(card => {
-        card.textContent = '...';
-    });
-    
     try {
-        // Simulate API call with abort controller
-        const signal = requestManager.createRequest('system-stats');
+        const apiClient = window.apiClient || new APIClient();
         
-        // Simulate real-time data updates
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Load stats from backend API
+        const [adminStatsResponse, transferStatsResponse] = await Promise.all([
+            apiClient.get('/api/admin/stats').catch(e => {
+                console.error('Failed to load admin stats:', e);
+                return { success: false, stats: null };
+            }),
+            apiClient.get('/api/vehicles/transfer/requests/stats').catch(e => {
+                console.error('Failed to load transfer stats:', e);
+                return { success: false, stats: null };
+            })
+        ]);
         
-        const stats = {
-            totalUsers: Math.floor(Math.random() * 100) + 1200,
-            totalApplications: Math.floor(Math.random() * 200) + 3500,
-            activeOrganizations: Math.floor(Math.random() * 10) + 85,
-            systemUptime: (99.5 + Math.random() * 0.4).toFixed(1) + '%'
-        };
+        // Update dashboard stat cards if they exist
+        const totalAppsEl = document.getElementById('totalApplications');
+        const pendingTransfersEl = document.getElementById('pendingTransfers');
+        const approvedAppsEl = document.getElementById('approvedApplications');
+        const totalUsersEl = document.getElementById('totalUsers');
         
-        // Update stat cards
-        if (statCards.length >= 4) {
-            statCards[0].textContent = stats.totalUsers.toLocaleString();
-            statCards[1].textContent = stats.totalApplications.toLocaleString();
-            statCards[2].textContent = stats.activeOrganizations;
-            statCards[3].textContent = stats.systemUptime;
+        // Update total applications (vehicles)
+        if (totalAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
+            const totalVehicles = adminStatsResponse.stats.vehicles?.total || 0;
+            totalAppsEl.textContent = totalVehicles.toLocaleString();
         }
+        
+        // Update pending transfers (REVIEWING status - after buyer accepts)
+        if (pendingTransfersEl && transferStatsResponse.success && transferStatsResponse.stats) {
+            const pendingCount = transferStatsResponse.stats.reviewing || 0;
+            pendingTransfersEl.textContent = pendingCount.toLocaleString();
+            
+            // Update badge
+            const transferBadge = document.getElementById('transferBadge');
+            if (transferBadge) {
+                if (pendingCount > 0) {
+                    transferBadge.textContent = pendingCount;
+                    transferBadge.style.display = 'inline-block';
+                } else {
+                    transferBadge.style.display = 'none';
+                }
+            }
+        }
+        
+        // Update approved applications
+        if (approvedAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
+            const vehicles = adminStatsResponse.stats.vehicles || {};
+            const approvedCount = (vehicles.approved || 0) + (vehicles.registered || 0);
+            approvedAppsEl.textContent = approvedCount.toLocaleString();
+        }
+        
+        // Update total users
+        if (totalUsersEl && adminStatsResponse.success && adminStatsResponse.stats) {
+            const totalUsers = adminStatsResponse.stats.users?.total || 0;
+            totalUsersEl.textContent = totalUsers.toLocaleString();
+        }
+        
+        console.log('✅ System stats updated:', {
+            vehicles: adminStatsResponse.stats?.vehicles,
+            transfers: transferStatsResponse.stats,
+            users: adminStatsResponse.stats?.users
+        });
+        
     } catch (error) {
-        if (error.name !== 'AbortError') {
-            console.error('Failed to update stats:', error);
-        }
+        console.error('Failed to update system stats:', error);
     }
 }
 

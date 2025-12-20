@@ -521,48 +521,87 @@
             }
         });
 
-        // Load dashboard statistics
+        // Load dashboard statistics from backend API
         async function loadDashboardStats() {
             try {
-                // Load applications count
-                const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-                const transferRequests = JSON.parse(localStorage.getItem('transferRequests') || '[]');
+                const apiClient = window.apiClient || new APIClient();
                 
-                // Update stats
+                // Load stats from backend API
+                const [adminStatsResponse, transferStatsResponse] = await Promise.all([
+                    apiClient.get('/api/admin/stats').catch(e => {
+                        console.error('Failed to load admin stats:', e);
+                        return { success: false, stats: null };
+                    }),
+                    apiClient.get('/api/vehicles/transfer/requests/stats').catch(e => {
+                        console.error('Failed to load transfer stats:', e);
+                        return { success: false, stats: null };
+                    })
+                ]);
+                
+                // Update stats elements
                 const totalAppsEl = document.getElementById('totalApplications');
                 const pendingTransfersEl = document.getElementById('pendingTransfers');
                 const approvedAppsEl = document.getElementById('approvedApplications');
                 const totalUsersEl = document.getElementById('totalUsers');
                 
-                if (totalAppsEl) {
-                    totalAppsEl.textContent = applications.length || '0';
+                // Update total applications (vehicles)
+                if (totalAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
+                    const totalVehicles = adminStatsResponse.stats.vehicles?.total || 0;
+                    totalAppsEl.textContent = totalVehicles.toLocaleString();
+                } else if (totalAppsEl) {
+                    totalAppsEl.textContent = '0';
                 }
                 
+                // Update pending transfers (REVIEWING status - after buyer accepts)
                 if (pendingTransfersEl) {
-                    const pending = transferRequests.filter(r => r.status === 'pending' || r.status === 'reviewing').length;
-                    pendingTransfersEl.textContent = pending || '0';
+                    let pendingCount = 0;
+                    if (transferStatsResponse.success && transferStatsResponse.stats) {
+                        // Count REVIEWING status (after buyer accepts, waiting for admin)
+                        pendingCount = transferStatsResponse.stats.reviewing || 0;
+                    }
+                    pendingTransfersEl.textContent = pendingCount.toLocaleString();
                     
                     // Update badge
                     const transferBadge = document.getElementById('transferBadge');
-                    if (transferBadge && pending > 0) {
-                        transferBadge.textContent = pending;
-                        transferBadge.style.display = 'inline-block';
+                    if (transferBadge) {
+                        if (pendingCount > 0) {
+                            transferBadge.textContent = pendingCount;
+                            transferBadge.style.display = 'inline-block';
+                        } else {
+                            transferBadge.style.display = 'none';
+                        }
                     }
                 }
                 
-                if (approvedAppsEl) {
-                    const approved = applications.filter(a => a.status === 'approved' || a.status === 'completed').length;
-                    approvedAppsEl.textContent = approved || '0';
+                // Update approved applications (vehicles with approved/registered status)
+                if (approvedAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
+                    const vehicles = adminStatsResponse.stats.vehicles || {};
+                    const approvedCount = (vehicles.approved || 0) + (vehicles.registered || 0);
+                    approvedAppsEl.textContent = approvedCount.toLocaleString();
+                } else if (approvedAppsEl) {
+                    approvedAppsEl.textContent = '0';
                 }
                 
-                if (totalUsersEl) {
-                    const users = JSON.parse(localStorage.getItem('users') || '[]');
-                    totalUsersEl.textContent = users.length || '0';
+                // Update total users
+                if (totalUsersEl && adminStatsResponse.success && adminStatsResponse.stats) {
+                    const totalUsers = adminStatsResponse.stats.users?.total || 0;
+                    totalUsersEl.textContent = totalUsers.toLocaleString();
+                } else if (totalUsersEl) {
+                    totalUsersEl.textContent = '0';
                 }
+                
+                console.log('✅ Dashboard stats loaded:', {
+                    vehicles: adminStatsResponse.stats?.vehicles,
+                    transfers: transferStatsResponse.stats,
+                    users: adminStatsResponse.stats?.users
+                });
             } catch (error) {
                 console.error('Error loading dashboard stats:', error);
             }
         }
+        
+        // Call loadDashboardStats on page load
+        loadDashboardStats();
     </script>
 </body>
 </html>

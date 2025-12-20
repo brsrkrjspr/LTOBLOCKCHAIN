@@ -9,6 +9,7 @@ const { authorizeRole } = require('../middleware/authorize');
 const fabricService = require('../services/optimizedFabricService');
 const docTypes = require('../config/documentTypes');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 // Transfer invite token secret (fallbacks to JWT_SECRET for simplicity)
 const INVITE_TOKEN_SECRET = process.env.TRANSFER_INVITE_SECRET || process.env.JWT_SECRET || 'fallback-secret';
@@ -41,42 +42,228 @@ function verifyTransferInviteToken(token) {
 }
 
 /**
- * Minimal email helper for buyer invites.
- * NOTE: This currently logs to console; production deployments should plug in a real email service.
+ * Email service for sending transfer invite emails.
+ * Uses nodemailer with Gmail SMTP.
+ */
+let emailTransporter = null;
+
+function getEmailTransporter() {
+    if (!emailTransporter) {
+        // Use Gmail App Password from environment variable
+        // Remove spaces if present (user provided: "fjje jnhd nofj rakr")
+        const appPassword = (process.env.GMAIL_APP_PASSWORD || 'fjjejnhdnofjrakr').replace(/\s+/g, '');
+        
+        emailTransporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'kimandrei012@gmail.com',
+                pass: appPassword
+            }
+        });
+        
+        // Verify connection on first use
+        emailTransporter.verify((error, success) => {
+            if (error) {
+                console.error('❌ Email transporter verification failed:', error);
+            } else {
+                console.log('✅ Email transporter verified successfully');
+            }
+        });
+    }
+    return emailTransporter;
+}
+
+/**
+ * Send transfer invite email to buyer with professional HTML template.
  */
 async function sendTransferInviteEmail({ to, buyerName, sellerName, vehicle, inviteToken }) {
     const subject = 'Vehicle Ownership Transfer Request - TrustChain LTO';
-
     const confirmationUrl = `${process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org'}/transfer-confirmation.html?token=${encodeURIComponent(inviteToken)}`;
 
     const safeBuyerName = buyerName || 'Buyer';
+    const safeSellerName = sellerName || 'A vehicle owner';
     const vehicleLabel = vehicle
-        ? `${vehicle.plate_number || vehicle.plateNumber || vehicle.vin} (${vehicle.make || ''} ${vehicle.model || ''})`
+        ? `${vehicle.plate_number || vehicle.plateNumber || vehicle.vin}${vehicle.make || vehicle.model ? ` (${vehicle.make || ''} ${vehicle.model || ''})` : ''}`
         : 'a vehicle';
 
-    const message = `
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #003A8C 0%, #005FCC 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 30px -30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            color: #333333;
+        }
+        .vehicle-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .vehicle-info strong {
+            color: #2c3e50;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #7f8c8d;
+            font-size: 14px;
+            text-align: center;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>🚗 Vehicle Ownership Transfer Request</h1>
+        </div>
+        <div class="content">
+            <p>Dear ${escapeHtml(safeBuyerName)},</p>
+            
+            <p>${escapeHtml(safeSellerName)} has initiated a request to transfer ownership of a vehicle to you in the TrustChain LTO system.</p>
+            
+            <div class="vehicle-info">
+                <strong>Vehicle Details:</strong><br>
+                ${escapeHtml(vehicleLabel)}
+            </div>
+            
+            <p>To review and accept this transfer request, please click the button below:</p>
+            
+            <div class="button-container">
+                <a href="${confirmationUrl}" class="button">Review Transfer Request</a>
+            </div>
+            
+            <div class="warning">
+                <strong>⚠️ Important:</strong> If you did not expect this email, you can safely ignore it. No ownership change will happen unless you log in to your account and explicitly accept the transfer.
+            </div>
+            
+            <p>This link will expire in 3 days for security purposes.</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br><strong>TrustChain LTO System</strong></p>
+            <p style="font-size: 12px; color: #95a5a6;">This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `.trim();
+
+    const text = `
+Vehicle Ownership Transfer Request - TrustChain LTO
+
 Dear ${safeBuyerName},
 
-${sellerName || 'A vehicle owner'} has initiated a request to transfer ownership of ${vehicleLabel} to you in the TrustChain LTO system.
+${safeSellerName} has initiated a request to transfer ownership of ${vehicleLabel} to you in the TrustChain LTO system.
 
-If you recognise this request and want to proceed, please open the link below to review and confirm the transfer:
-
+To review and accept this transfer request, please visit:
 ${confirmationUrl}
 
 If you did not expect this email, you can safely ignore it. No ownership change will happen unless you log in to your account and explicitly accept the transfer.
 
+This link will expire in 3 days for security purposes.
+
 Best regards,
 TrustChain LTO System
-`.trim();
+    `.trim();
 
-    // For now, behave like the existing MockNotificationService: log instead of sending.
-    console.log('📧 [Transfer Invite] Email (mock) would be sent:', {
-        to,
-        subject,
-        preview: message.split('\n').slice(0, 6).join('\n') + '\n...'
-    });
+    try {
+        const transporter = getEmailTransporter();
+        const info = await transporter.sendMail({
+            from: '"TrustChain LTO System" <kimandrei012@gmail.com>',
+            to: to,
+            subject: subject,
+            html: html,
+            text: text
+        });
+        
+        console.log('✅ Transfer invite email sent successfully:', {
+            messageId: info.messageId,
+            to: to,
+            subject: subject
+        });
+        
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('❌ Failed to send transfer invite email:', error);
+        console.error('Email error details:', {
+            to: to,
+            error: error.message,
+            stack: error.stack
+        });
+        throw error;
+    }
+}
 
-    return { success: true };
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
 }
 
 // Create transfer request (owner submits)
@@ -102,10 +289,11 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             });
         }
         
-        if (!buyerId && !buyerInfo && !buyerEmail) {
+        // NEW: Only require buyer email (simplified workflow)
+        if (!buyerEmail && !buyerId) {
             return res.status(400).json({
                 success: false,
-                error: 'Either buyer ID, buyer information, or buyer email is required'
+                error: 'Buyer email is required'
             });
         }
         
@@ -126,6 +314,23 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             });
         }
         
+        // Validate seller profile - ensure seller has complete profile information
+        const seller = await db.getUserById(req.user.userId);
+        if (!seller) {
+            return res.status(404).json({
+                success: false,
+                error: 'Seller account not found'
+            });
+        }
+        
+        if (!seller.first_name || !seller.last_name) {
+            return res.status(400).json({
+                success: false,
+                error: 'Seller profile incomplete. Please update your profile with first name and last name before creating transfer requests.',
+                requiresProfileUpdate: true
+            });
+        }
+        
         // Check if there's already a pending transfer request for this vehicle
         let existingRequests = [];
         try {
@@ -142,120 +347,33 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             });
         }
 
-        // Resolve buyer identity based on buyerId / buyerInfo / buyerEmail
+        // Resolve buyer identity based on buyerEmail (email-only workflow)
         let resolvedBuyerId = buyerId || null;
-        let resolvedBuyerInfo = buyerInfo || null;
+        let resolvedBuyerInfo = null;
 
-        // Option A: email-based lookup / provisional buyer
+        // Email-based lookup - if buyer has account, use it; otherwise store email for later
         if (!resolvedBuyerId && buyerEmail) {
             try {
                 const existingBuyer = await db.getUserByEmail(buyerEmail);
                 if (existingBuyer) {
-                    // LENIENT VALIDATION: Use fuzzy matching for names to handle nicknames, middle names, etc.
-                    // Only blocks if there's a clear mismatch, not minor differences
-                    const enteredFirstName = buyerInfo?.firstName || (buyerName ? buyerName.trim().split(' ')[0] : null);
-                    const enteredLastName = buyerInfo?.lastName || (buyerName ? buyerName.trim().split(' ').slice(1).join(' ') : null);
-                    const enteredPhone = buyerInfo?.phone || buyerPhone || null;
-                    
-                    // Fuzzy name matching: Check if one contains the other (handles "John" vs "John Michael")
-                    let firstNameMismatch = false;
-                    let lastNameMismatch = false;
-                    
-                    if (enteredFirstName && existingBuyer.first_name) {
-                        const enteredFirst = enteredFirstName.toLowerCase().trim();
-                        const accountFirst = existingBuyer.first_name.toLowerCase().trim();
-                        // Check if one contains the other (handles nicknames and middle names)
-                        firstNameMismatch = !enteredFirst.includes(accountFirst) && !accountFirst.includes(enteredFirst);
-                    }
-                    
-                    if (enteredLastName && existingBuyer.last_name) {
-                        const enteredLast = enteredLastName.toLowerCase().trim();
-                        const accountLast = existingBuyer.last_name.toLowerCase().trim();
-                        // Check if one contains the other
-                        lastNameMismatch = !enteredLast.includes(accountLast) && !accountLast.includes(enteredLast);
-                    }
-                    
-                    // Only fail if BOTH first and last name clearly don't match
-                    // This handles cases like "John" vs "John Michael" or "Maria" vs "Maria Santos"
-                    const nameMismatch = firstNameMismatch && lastNameMismatch;
-                    
-                    // Phone validation: Only check if both are provided and clearly different
-                    // Phone numbers might be updated, so we're lenient here
-                    let phoneMismatch = false;
-                    if (enteredPhone && existingBuyer.phone) {
-                        const enteredPhoneClean = enteredPhone.replace(/\D/g, '');
-                        const accountPhoneClean = existingBuyer.phone.replace(/\D/g, '');
-                        // Only flag mismatch if they're completely different (not just format difference)
-                        // Check last 10 digits to handle country code differences
-                        phoneMismatch = enteredPhoneClean.length > 0 && 
-                                       accountPhoneClean.length > 0 &&
-                                       enteredPhoneClean !== accountPhoneClean &&
-                                       !enteredPhoneClean.endsWith(accountPhoneClean.slice(-10)) &&
-                                       !accountPhoneClean.endsWith(enteredPhoneClean.slice(-10));
-                    }
-                    
-                    // Only block if BOTH first and last name clearly don't match
-                    // Phone mismatch is just logged as warning (phone might be updated)
-                    if (nameMismatch) {
-                        return res.status(400).json({
-                            success: false,
-                            error: `Buyer information mismatch`,
-                            message: `The entered buyer name does not match the account owner for email ${buyerEmail}. Please verify the buyer's information.`,
-                            details: {
-                                email: buyerEmail,
-                                accountOwner: {
-                                    firstName: existingBuyer.first_name,
-                                    lastName: existingBuyer.last_name,
-                                    phone: existingBuyer.phone
-                                },
-                                enteredInfo: {
-                                    firstName: enteredFirstName,
-                                    lastName: enteredLastName,
-                                    phone: enteredPhone
-                                },
-                                mismatches: ['name']
-                            }
-                        });
-                    }
-                    
-                    // Warn about phone mismatch but don't block (phone might be updated)
-                    if (phoneMismatch && enteredPhone && existingBuyer.phone) {
-                        console.warn(`⚠️ Phone number mismatch for buyer ${buyerEmail}: Account has ${existingBuyer.phone}, entered ${enteredPhone}. Proceeding anyway.`);
-                    }
-                    
-                    // Info matches or no info provided - use the existing user
+                    // Buyer has account - use their account info
                     resolvedBuyerId = existingBuyer.id;
-                    
-                    // If buyer info was provided but matches, we can still store it for reference
-                    // but the buyer_id will be the primary identifier
-                    if (buyerInfo || buyerName || buyerPhone) {
-                        resolvedBuyerInfo = {
-                            email: buyerEmail,
-                            firstName: existingBuyer.first_name,
-                            lastName: existingBuyer.last_name,
-                            phone: existingBuyer.phone || enteredPhone
-                        };
-                    }
-                } else {
-                    // Build provisional buyer info; will be converted to a real user if LTO approves without buyer account
-                    let firstName = null;
-                    let lastName = null;
-                    if (buyerName && typeof buyerName === 'string') {
-                        const parts = buyerName.trim().split(' ');
-                        firstName = parts[0];
-                        lastName = parts.slice(1).join(' ') || null;
-                    }
-
+                    // Store buyer info from their account (real data, no placeholders)
                     resolvedBuyerInfo = {
-                        ...(typeof buyerInfo === 'object' ? buyerInfo : {}),
                         email: buyerEmail,
-                        firstName: resolvedBuyerInfo?.firstName || firstName,
-                        lastName: resolvedBuyerInfo?.lastName || lastName,
-                        phone: resolvedBuyerInfo?.phone || buyerPhone || null
+                        firstName: existingBuyer.first_name,
+                        lastName: existingBuyer.last_name,
+                        phone: existingBuyer.phone || null
+                    };
+                } else {
+                    // Buyer doesn't have account yet - store email only
+                    // Name/phone will be collected when buyer accepts or registers
+                    resolvedBuyerInfo = {
+                        email: buyerEmail
                     };
                 }
             } catch (lookupError) {
-                console.warn('⚠️ Buyer email lookup failed:', lookupError.message);
+                console.error('❌ Buyer email lookup failed:', lookupError);
                 return res.status(500).json({
                     success: false,
                     error: 'Failed to verify buyer information',
@@ -435,29 +553,43 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             metadata: { transferRequestId: transferRequest.id }
         });
 
-        // Send email invite to buyer (Option A) if we have an email and either:
-        // - buyer is not yet a user, or
-        // - we still want to notify an existing buyer about the pending request.
+        // Send email invite to buyer - use real seller and buyer names from database
         if (buyerEmail) {
             try {
                 const inviteToken = generateTransferInviteToken(transferRequest.id, buyerEmail);
+                
+                // Get buyer name from database if buyer has account, otherwise use email
+                let buyerDisplayName = buyerEmail;
+                if (resolvedBuyerId && resolvedBuyerInfo) {
+                    if (resolvedBuyerInfo.firstName && resolvedBuyerInfo.lastName) {
+                        buyerDisplayName = `${resolvedBuyerInfo.firstName} ${resolvedBuyerInfo.lastName}`;
+                    } else if (resolvedBuyerInfo.firstName) {
+                        buyerDisplayName = resolvedBuyerInfo.firstName;
+                    }
+                }
+                
+                // Get seller full name from database (already fetched above)
+                const sellerFullName = seller 
+                    ? `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email
+                    : req.user.email;
+                
                 await sendTransferInviteEmail({
                     to: buyerEmail,
-                    buyerName: buyerName || resolvedBuyerInfo?.firstName,
-                    sellerName: req.user.email,
+                    buyerName: buyerDisplayName,
+                    sellerName: sellerFullName,
                     vehicle,
                     inviteToken
+                });
+                
+                console.log('✅ Transfer invite email sent to buyer:', {
+                    buyerEmail: buyerEmail,
+                    buyerName: buyerDisplayName,
+                    sellerName: sellerFullName
                 });
                 
                 // Create in-app notification for buyer if they have an account
                 if (resolvedBuyerId) {
                     try {
-                        // Fetch seller info to get full name
-                        const seller = await db.getUserById(req.user.userId);
-                        const sellerFullName = seller 
-                            ? `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email
-                            : req.user.email;
-                        
                         await db.createNotification({
                             userId: resolvedBuyerId,
                             title: 'New Transfer Request',
@@ -470,8 +602,14 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                     }
                 }
             } catch (inviteError) {
-                // Do not fail the whole request if email sending fails; log for observability
-                console.warn('⚠️ Failed to send transfer invite email:', inviteError.message);
+                // Log error but don't fail the request - email is important but not critical
+                console.error('❌ Failed to send transfer invite email:', inviteError);
+                console.error('Email error details:', {
+                    buyerEmail: buyerEmail,
+                    error: inviteError.message,
+                    stack: inviteError.stack
+                });
+                // Continue - request is created, buyer can still access via notifications or direct link
             }
         }
         

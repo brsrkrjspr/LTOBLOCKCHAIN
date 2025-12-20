@@ -176,24 +176,34 @@ function renderTransferRequests(requests) {
                           (request.seller?.name) || 
                           'N/A';
         
-        // Extract buyer name - prioritize database join, then buyer_info JSONB
-        let buyerName = request.buyer_name || 
-                       (request.buyer ? `${request.buyer.first_name || ''} ${request.buyer.last_name || ''}`.trim() : null) ||
-                       (request.buyer?.name);
+        // Extract buyer name - prioritize database join (real user data), then buyer_info JSONB
+        // NEVER use placeholders - always use real data from records
+        let buyerName = request.buyer_name; // From database join (if buyer has account)
+        
+        // If no buyer_name from join, try buyer object
+        if (!buyerName && request.buyer) {
+            const buyerFirst = request.buyer.first_name || '';
+            const buyerLast = request.buyer.last_name || '';
+            buyerName = `${buyerFirst} ${buyerLast}`.trim() || null;
+        }
         
         // If still no buyer name, try extracting from buyer_info JSONB
         if (!buyerName && request.buyer_info) {
             const buyerInfo = typeof request.buyer_info === 'string' ? JSON.parse(request.buyer_info) : request.buyer_info;
             if (buyerInfo.firstName && buyerInfo.lastName) {
                 buyerName = `${buyerInfo.firstName} ${buyerInfo.lastName}`;
-            } else if (buyerInfo.name) {
-                buyerName = buyerInfo.name;
             } else if (buyerInfo.firstName) {
                 buyerName = buyerInfo.firstName;
             }
         }
         
-        buyerName = buyerName || 'N/A';
+        // If still no name, use buyer email (real data, not placeholder)
+        if (!buyerName) {
+            buyerName = request.buyer_email || 
+                       (request.buyer?.email) ||
+                       (request.buyer_info && (typeof request.buyer_info === 'string' ? JSON.parse(request.buyer_info) : request.buyer_info).email) ||
+                       'Unknown Buyer';
+        }
         
         const plateNumber = request.vehicle?.plate_number || request.plate_number || 'N/A';
         const submittedDate = new Date(request.submitted_at || request.created_at).toLocaleDateString('en-US');

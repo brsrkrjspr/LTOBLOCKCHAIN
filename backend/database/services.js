@@ -732,10 +732,18 @@ async function getTransferRequests(filters = {}) {
     let query = `
         SELECT tr.*,
                v.vin, v.plate_number, v.make, v.model, v.year,
-               seller.first_name || ' ' || seller.last_name as seller_name,
+               COALESCE(
+                   NULLIF(TRIM(seller.first_name || ' ' || seller.last_name), ''),
+                   seller.email,
+                   'Unknown Seller'
+               ) as seller_name,
                seller.email as seller_email,
                seller.phone as seller_phone,
-               buyer.first_name || ' ' || buyer.last_name as buyer_name,
+               COALESCE(
+                   NULLIF(TRIM(buyer.first_name || ' ' || buyer.last_name), ''),
+                   buyer.email,
+                   NULL
+               ) as buyer_name,
                buyer.email as buyer_email,
                buyer.phone as buyer_phone
         FROM transfer_requests tr
@@ -814,24 +822,35 @@ async function getTransferRequests(filters = {}) {
         const buyerInfo = row.buyer_info ? (typeof row.buyer_info === 'string' ? JSON.parse(row.buyer_info) : row.buyer_info) : null;
         const metadata = row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {};
         
-        // Ensure buyer_name is properly set (use buyer_name_from_info if buyer_name is NULL)
-        let finalBuyerName = row.buyer_name;
-        if (!finalBuyerName && row.buyer_name_from_info) {
-            finalBuyerName = row.buyer_name_from_info;
-        } else if (!finalBuyerName && buyerInfo) {
-            // Fallback: construct from buyer_info
+        // Extract buyer name - prioritize database join (real user data), then buyer_info JSONB
+        // NEVER use placeholders - always use real data from records
+        let finalBuyerName = row.buyer_name; // From database join (if buyer has account)
+        
+        // If no buyer_name from join, try buyer_info JSONB (for buyers without accounts yet)
+        if (!finalBuyerName && buyerInfo) {
             if (buyerInfo.firstName && buyerInfo.lastName) {
                 finalBuyerName = `${buyerInfo.firstName} ${buyerInfo.lastName}`;
-            } else if (buyerInfo.name) {
-                finalBuyerName = buyerInfo.name;
             } else if (buyerInfo.firstName) {
                 finalBuyerName = buyerInfo.firstName;
+            } else if (buyerInfo.email) {
+                // Last resort: use email (real data, not placeholder)
+                finalBuyerName = buyerInfo.email;
             }
+        }
+        
+        // If still no name, use buyer email from join (real data)
+        if (!finalBuyerName && row.buyer_email) {
+            finalBuyerName = row.buyer_email;
+        }
+        
+        // If still no name and we have buyer_info with email, use that
+        if (!finalBuyerName && buyerInfo && buyerInfo.email) {
+            finalBuyerName = buyerInfo.email;
         }
         
         return {
             ...row,
-            buyer_name: finalBuyerName || row.buyer_name || null,
+            buyer_name: finalBuyerName || null, // Never use 'N/A' or placeholders
             buyer_info: buyerInfo,
             metadata: metadata,
             vehicle: {

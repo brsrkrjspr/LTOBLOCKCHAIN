@@ -233,21 +233,10 @@
                                 <div class="card-body">
                                     <div id="wizardError2" class="wizard-error"></div>
                                     <div class="form-grid">
-                                        <div class="form-group">
-                                            <label>Buyer Full Name</label>
-                                            <input type="text" id="buyerName" placeholder="Juan Dela Cruz">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Buyer Address</label>
-                                            <input type="text" id="buyerAddress" placeholder="Street, City, Province">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Buyer Contact Number</label>
-                                            <input type="tel" id="buyerContact" placeholder="+63 912 345 6789">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Buyer Email</label>
-                                            <input type="email" id="buyerEmail" placeholder="buyer@email.com">
+                                        <div class="form-group" style="grid-column: 1 / -1;">
+                                            <label>Buyer Email <span class="required">*</span></label>
+                                            <input type="email" id="buyerEmail" placeholder="buyer@email.com" required>
+                                            <small class="form-text text-muted">Enter the email address of the buyer. They will receive a notification to accept or reject the transfer request.</small>
                                         </div>
                                     </div>
                                     <div class="wizard-actions">
@@ -449,9 +438,6 @@
                                         <div class="summary-card">
                                             <h4><i class="fas fa-user-plus"></i> Buyer Details</h4>
                                             <ul>
-                                                <li><strong>Name:</strong> <span id="summaryBuyerName">—</span></li>
-                                                <li><strong>Address:</strong> <span id="summaryBuyerAddress">—</span></li>
-                                                <li><strong>Contact:</strong> <span id="summaryBuyerContact">—</span></li>
                                                 <li><strong>Email:</strong> <span id="summaryBuyerEmail">—</span></li>
                                             </ul>
                                         </div>
@@ -931,26 +917,23 @@
                 transferData.seller.address = addr?.value.trim();
                 transferData.seller.phone = contact?.value.trim();
             } else if (step === 2) {
-                const buyerName = document.getElementById('buyerName');
-                const buyerAddress = document.getElementById('buyerAddress');
-                const buyerContact = document.getElementById('buyerContact');
+                // NEW: Only require buyer email (simplified workflow)
                 const buyerEmail = document.getElementById('buyerEmail');
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!buyerName?.value.trim()) markInvalid(buyerName);
-                if (!buyerAddress?.value.trim()) markInvalid(buyerAddress);
-                if (!buyerContact?.value.trim()) markInvalid(buyerContact);
-                if (!buyerEmail?.value.trim() || !emailRegex.test(buyerEmail.value.trim())) markInvalid(buyerEmail);
-                if (!valid) showWizardError(2, 'Please complete all buyer details with a valid email.');
                 
-                // Parse buyer name
-                const nameParts = buyerName?.value.trim().split(' ') || [];
+                if (!buyerEmail?.value.trim() || !emailRegex.test(buyerEmail.value.trim())) {
+                    markInvalid(buyerEmail);
+                    valid = false;
+                }
+                
+                if (!valid) {
+                    showWizardError(2, 'Please enter a valid buyer email address.');
+                    return;
+                }
+                
+                // Store only email - buyer will complete profile when they accept
                 transferData.buyer = {
-                    firstName: nameParts[0] || '',
-                    lastName: nameParts.slice(1).join(' ') || '',
-                    name: buyerName?.value.trim(),
-                    address: buyerAddress?.value.trim(),
-                    phone: buyerContact?.value.trim(),
-                    email: buyerEmail?.value.trim()
+                    email: buyerEmail.value.trim()
                 };
             } else if (step === 3) {
                 const vehicleSelector = document.getElementById('vehicleSelector');
@@ -1024,10 +1007,7 @@
             document.getElementById('summarySellerAddress').textContent = transferData.seller.address || 'N/A';
             document.getElementById('summarySellerContact').textContent = transferData.seller.phone || 'N/A';
             
-            // Buyer
-            document.getElementById('summaryBuyerName').textContent = transferData.buyer.name || 'N/A';
-            document.getElementById('summaryBuyerAddress').textContent = transferData.buyer.address || 'N/A';
-            document.getElementById('summaryBuyerContact').textContent = transferData.buyer.phone || 'N/A';
+            // Buyer (email only)
             document.getElementById('summaryBuyerEmail').textContent = transferData.buyer.email || 'N/A';
             
             // Vehicle
@@ -1096,8 +1076,6 @@
                 const requestData = {
                     vehicleId: transferData.vehicleId,
                     buyerEmail: transferData.buyer.email,
-                    buyerName: transferData.buyer.name,
-                    buyerPhone: transferData.buyer.phone,
                     // NEW: Explicit document roles (preferred)
                     documents: {
                         deedOfSale: transferData.documents.deedOfSale?.id,

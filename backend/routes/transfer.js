@@ -806,6 +806,48 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
     }
 });
 
+// Get transfer request statistics (MUST BE BEFORE /requests/:id to avoid route conflict)
+router.get('/requests/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const dbModule = require('../database/db');
+        
+        const stats = {
+            total: 0,
+            pending: 0,
+            reviewing: 0,
+            approved: 0,
+            rejected: 0,
+            completed: 0
+        };
+        
+        const result = await dbModule.query(
+            `SELECT status, COUNT(*) as count 
+             FROM transfer_requests 
+             GROUP BY status`
+        );
+        
+        result.rows.forEach(row => {
+            stats.total += parseInt(row.count);
+            const status = row.status.toLowerCase();
+            if (stats.hasOwnProperty(status)) {
+                stats[status] = parseInt(row.count);
+            }
+        });
+        
+        res.json({
+            success: true,
+            stats
+        });
+        
+    } catch (error) {
+        console.error('Get transfer stats error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
 // Get transfer request by ID
 router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_owner']), async (req, res) => {
     try {
@@ -900,48 +942,6 @@ router.get('/requests/:id/verification-history', authenticateToken, authorizeRol
         
     } catch (error) {
         console.error('Get verification history error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-});
-
-// Get transfer request statistics
-router.get('/requests/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
-    try {
-        const dbModule = require('../database/db');
-        
-        const stats = {
-            total: 0,
-            pending: 0,
-            reviewing: 0,
-            approved: 0,
-            rejected: 0,
-            completed: 0
-        };
-        
-        const result = await dbModule.query(
-            `SELECT status, COUNT(*) as count 
-             FROM transfer_requests 
-             GROUP BY status`
-        );
-        
-        result.rows.forEach(row => {
-            stats.total += parseInt(row.count);
-            const status = row.status.toLowerCase();
-            if (stats.hasOwnProperty(status)) {
-                stats[status] = parseInt(row.count);
-            }
-        });
-        
-        res.json({
-            success: true,
-            stats
-        });
-        
-    } catch (error) {
-        console.error('Get transfer stats error:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error'

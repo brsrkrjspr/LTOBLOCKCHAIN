@@ -28,10 +28,21 @@ function initializeTransferDetails() {
             const userNameEl = document.getElementById('userName');
             const userRoleEl = document.getElementById('userRole');
             const userAvatarEl = document.getElementById('userAvatar');
+            const sidebarUserNameEl = document.getElementById('sidebarUserName');
+            const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+            const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
             
-            if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName() || 'ADMIN';
+            const displayName = AuthUtils.getUserDisplayName() || 'ADMIN';
+            const initials = AuthUtils.getUserInitials() || 'AD';
+            
+            if (userNameEl) userNameEl.textContent = displayName;
             if (userRoleEl) userRoleEl.textContent = 'System Administrator';
-            if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials() || 'AD';
+            if (userAvatarEl) userAvatarEl.textContent = initials;
+            
+            // Update sidebar user info
+            if (sidebarUserNameEl) sidebarUserNameEl.textContent = displayName;
+            if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'System Administrator';
+            if (sidebarUserAvatarEl) sidebarUserAvatarEl.textContent = initials;
         } else {
             window.location.href = 'login-signup.html';
         }
@@ -229,17 +240,75 @@ function renderOrgApprovalStatus(request) {
 }
 
 function renderSellerInfo(request) {
+    // Extract seller info from database join (real data, not placeholders)
+    // Seller is always a user account, so we use seller object from API
+    const seller = request.seller || {};
+    
+    // Log error if seller object is missing or empty
+    if (!request.seller || Object.keys(seller).length === 0) {
+        console.error('❌ [Seller Info] Seller object is missing or empty:', {
+            requestId: request.id,
+            hasSeller: !!request.seller,
+            sellerKeys: request.seller ? Object.keys(request.seller) : [],
+            fullRequest: request
+        });
+    }
+    
+    // Construct seller name from database fields (real data)
+    let sellerName = 'Unknown Seller';
+    let nameSource = 'none';
+    
+    if (seller.first_name && seller.last_name) {
+        sellerName = `${seller.first_name} ${seller.last_name}`;
+        nameSource = 'first_name + last_name';
+    } else if (seller.first_name) {
+        sellerName = seller.first_name;
+        nameSource = 'first_name only';
+    } else if (seller.email) {
+        sellerName = seller.email; // Use email as fallback (real data)
+        nameSource = 'email (fallback)';
+    } else {
+        // Log error if no name can be extracted
+        console.error('❌ [Seller Info] Cannot extract seller name - all fields missing:', {
+            requestId: request.id,
+            seller: seller,
+            availableFields: Object.keys(seller),
+            sellerId: seller.id,
+            sellerEmail: seller.email
+        });
+    }
+    
+    const sellerContact = seller.phone || 'N/A';
+    const sellerEmail = seller.email || 'N/A';
+    const sellerAddress = seller.address || 'N/A';
+    
+    // Log warning if critical fields are missing
+    if (!seller.email) {
+        console.warn('⚠️ [Seller Info] Seller email is missing:', {
+            requestId: request.id,
+            sellerId: seller.id,
+            sellerName: sellerName,
+            availableFields: Object.keys(seller)
+        });
+    }
+    
+    // Log info about data extraction
+    console.log('ℹ️ [Seller Info] Extracted seller data:', {
+        requestId: request.id,
+        sellerId: seller.id,
+        name: sellerName,
+        nameSource: nameSource,
+        email: sellerEmail,
+        phone: sellerContact,
+        hasAddress: !!seller.address
+    });
+
+    // Update DOM elements
     const sellerNameEl = document.querySelector('[data-field="seller-name"]');
     const sellerContactEl = document.querySelector('[data-field="seller-contact"]');
     const sellerEmailEl = document.querySelector('[data-field="seller-email"]');
     const sellerAddressEl = document.querySelector('[data-field="seller-address"]');
     const sellerIdEl = document.querySelector('[data-field="seller-id"]');
-
-    const seller = request.seller || request.seller_info || {};
-    const sellerName = seller.name || seller.first_name + ' ' + seller.last_name || 'N/A';
-    const sellerContact = seller.phone || seller.contact_number || 'N/A';
-    const sellerEmail = seller.email || 'N/A';
-    const sellerAddress = seller.address || 'N/A';
 
     if (sellerNameEl) sellerNameEl.textContent = sellerName;
     if (sellerContactEl) sellerContactEl.textContent = sellerContact;
@@ -259,21 +328,126 @@ function renderSellerInfo(request) {
                 <i class="fas fa-download"></i> Download
             </button>
         `;
+    } else if (sellerIdEl) {
+        sellerIdEl.innerHTML = '<span style="color: #7f8c8d;">No document uploaded</span>';
     }
 }
 
 function renderBuyerInfo(request) {
+    // Extract buyer info - prioritize database join (real user data), then buyer_info JSONB
+    // NEVER use placeholders - always use real data from records
+    let buyerName = null;
+    let buyerContact = null;
+    let buyerEmail = null;
+    let buyerAddress = null;
+    let dataSource = 'none';
+    
+    // First, try buyer object (if buyer has account)
+    if (request.buyer && request.buyer.id) {
+        dataSource = 'buyer object (database join)';
+        // Buyer has account - use database fields
+        if (request.buyer.first_name && request.buyer.last_name) {
+            buyerName = `${request.buyer.first_name} ${request.buyer.last_name}`;
+        } else if (request.buyer.first_name) {
+            buyerName = request.buyer.first_name;
+        }
+        buyerContact = request.buyer.phone || null;
+        buyerEmail = request.buyer.email || null;
+        buyerAddress = request.buyer.address || null;
+        
+        // Log warning if buyer account exists but name is missing
+        if (!buyerName && !request.buyer.email) {
+            console.warn('⚠️ [Buyer Info] Buyer account exists but name and email are missing:', {
+                requestId: request.id,
+                buyerId: request.buyer.id,
+                availableFields: Object.keys(request.buyer)
+            });
+        }
+    }
+    
+    // If no buyer account, try buyer_info JSONB
+    if (!buyerName && request.buyer_info) {
+        try {
+            const buyerInfo = typeof request.buyer_info === 'string' ? JSON.parse(request.buyer_info) : request.buyer_info;
+            dataSource = 'buyer_info JSONB';
+            
+            if (buyerInfo.firstName && buyerInfo.lastName) {
+                buyerName = `${buyerInfo.firstName} ${buyerInfo.lastName}`;
+            } else if (buyerInfo.firstName) {
+                buyerName = buyerInfo.firstName;
+            }
+            
+            buyerContact = buyerInfo.phone || null;
+            buyerEmail = buyerInfo.email || null;
+            buyerAddress = buyerInfo.address || null;
+            
+            // Log warning if buyer_info exists but email is missing
+            if (!buyerEmail) {
+                console.warn('⚠️ [Buyer Info] buyer_info JSONB exists but email is missing:', {
+                    requestId: request.id,
+                    buyerInfo: buyerInfo,
+                    availableFields: Object.keys(buyerInfo)
+                });
+            }
+        } catch (parseError) {
+            console.error('❌ [Buyer Info] Failed to parse buyer_info JSONB:', {
+                requestId: request.id,
+                buyer_info: request.buyer_info,
+                error: parseError.message,
+                stack: parseError.stack
+            });
+        }
+    }
+    
+    // Final fallback: use email (real data, not placeholder)
+    if (!buyerName && buyerEmail) {
+        buyerName = buyerEmail;
+        dataSource = dataSource === 'none' ? 'email (fallback)' : dataSource + ' + email fallback';
+    } else if (!buyerName) {
+        buyerName = 'Unknown Buyer';
+        // Log error if no buyer data can be extracted at all
+        console.error('❌ [Buyer Info] Cannot extract buyer information - all sources failed:', {
+            requestId: request.id,
+            hasBuyerObject: !!(request.buyer && request.buyer.id),
+            hasBuyerInfo: !!request.buyer_info,
+            buyerObject: request.buyer,
+            buyerInfo: request.buyer_info,
+            availableFields: Object.keys(request).filter(k => k.includes('buyer'))
+        });
+    }
+    
+    // Set defaults for missing fields
+    buyerContact = buyerContact || 'N/A';
+    buyerEmail = buyerEmail || 'N/A';
+    buyerAddress = buyerAddress || 'N/A';
+    
+    // Log error if critical email is missing
+    if (buyerEmail === 'N/A') {
+        console.error('❌ [Buyer Info] Buyer email is missing - this is required:', {
+            requestId: request.id,
+            buyerName: buyerName,
+            dataSource: dataSource,
+            hasBuyerObject: !!(request.buyer && request.buyer.id),
+            hasBuyerInfo: !!request.buyer_info
+        });
+    }
+    
+    // Log info about data extraction
+    console.log('ℹ️ [Buyer Info] Extracted buyer data:', {
+        requestId: request.id,
+        name: buyerName,
+        email: buyerEmail,
+        phone: buyerContact,
+        dataSource: dataSource,
+        hasAddress: buyerAddress !== 'N/A'
+    });
+
+    // Update DOM elements
     const buyerNameEl = document.querySelector('[data-field="buyer-name"]');
     const buyerContactEl = document.querySelector('[data-field="buyer-contact"]');
     const buyerEmailEl = document.querySelector('[data-field="buyer-email"]');
     const buyerAddressEl = document.querySelector('[data-field="buyer-address"]');
     const buyerIdEl = document.querySelector('[data-field="buyer-id"]');
-
-    const buyer = request.buyer || request.buyer_info || {};
-    const buyerName = buyer.name || buyer.first_name + ' ' + buyer.last_name || 'N/A';
-    const buyerContact = buyer.phone || buyer.contact_number || 'N/A';
-    const buyerEmail = buyer.email || 'N/A';
-    const buyerAddress = buyer.address || 'N/A';
 
     if (buyerNameEl) buyerNameEl.textContent = buyerName;
     if (buyerContactEl) buyerContactEl.textContent = buyerContact;
@@ -293,6 +467,8 @@ function renderBuyerInfo(request) {
                 <i class="fas fa-download"></i> Download
             </button>
         `;
+    } else if (buyerIdEl) {
+        buyerIdEl.innerHTML = '<span style="color: #7f8c8d;">No document uploaded</span>';
     }
 }
 
@@ -316,10 +492,10 @@ function renderVehicleInfo(request) {
 
     // Find OR/CR documents
     const orDoc = (request.documents || []).find(doc => 
-        doc.document_type === 'OR' || doc.type === 'or'
+        doc.document_type === 'OR' || doc.type === 'or' || doc.document_type === 'OR_CR' || doc.type === 'orCr'
     );
     const crDoc = (request.documents || []).find(doc => 
-        doc.document_type === 'CR' || doc.type === 'cr'
+        doc.document_type === 'CR' || doc.type === 'cr' || doc.document_type === 'OR_CR' || doc.type === 'orCr'
     );
 
     if (orDocEl && orDoc) {
@@ -331,6 +507,8 @@ function renderVehicleInfo(request) {
                 <i class="fas fa-download"></i> Download
             </button>
         `;
+    } else if (orDocEl) {
+        orDocEl.innerHTML = '<span style="color: #7f8c8d;">No document uploaded</span>';
     }
 
     if (crDocEl && crDoc) {
@@ -342,6 +520,8 @@ function renderVehicleInfo(request) {
                 <i class="fas fa-download"></i> Download
             </button>
         `;
+    } else if (crDocEl) {
+        crDocEl.innerHTML = '<span style="color: #7f8c8d;">No document uploaded</span>';
     }
 }
 

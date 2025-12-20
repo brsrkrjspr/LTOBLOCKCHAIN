@@ -66,6 +66,27 @@
                     <span>Ownership Trace</span>
                 </a>
             </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">AD</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">ADMIN</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">System Administrator</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="admin-settings.html" class="sidebar-action-item" title="Settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -182,25 +203,24 @@
                                 <div class="info-grid-2col">
                                     <div class="info-item">
                                         <label>Seller Name</label>
-                                        <p><strong>Juan Dela Cruz</strong></p>
+                                        <p><strong data-field="seller-name">Loading...</strong></p>
                                     </div>
                                     <div class="info-item">
                                         <label>Seller Contact</label>
-                                        <p>+63 912 345 6789</p>
+                                        <p data-field="seller-contact">Loading...</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Seller Email</label>
+                                        <p data-field="seller-email">Loading...</p>
                                     </div>
                                     <div class="info-item full-width">
                                         <label>Seller Address</label>
-                                        <p>123 Main Street, Barangay San Antonio, Quezon City, Metro Manila</p>
+                                        <p data-field="seller-address">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Seller Valid ID</label>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('seller-id')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('seller-id')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
+                                        <div class="document-actions" data-field="seller-id">
+                                            <span style="color: #7f8c8d;">No document uploaded</span>
                                         </div>
                                     </div>
                                 </div>
@@ -212,29 +232,24 @@
                                 <div class="info-grid-2col">
                                     <div class="info-item">
                                         <label>Buyer Name</label>
-                                        <p><strong>Maria Santos</strong></p>
+                                        <p><strong data-field="buyer-name">Loading...</strong></p>
                                     </div>
                                     <div class="info-item">
                                         <label>Buyer Contact</label>
-                                        <p>+63 987 654 3210</p>
+                                        <p data-field="buyer-contact">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Buyer Email</label>
-                                        <p>maria.santos@email.com</p>
+                                        <p data-field="buyer-email">Loading...</p>
                                     </div>
                                     <div class="info-item full-width">
                                         <label>Buyer Address</label>
-                                        <p>456 Oak Avenue, Barangay San Jose, Makati City, Metro Manila</p>
+                                        <p data-field="buyer-address">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Buyer Valid ID</label>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('buyer-id')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('buyer-id')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
+                                        <div class="document-actions" data-field="buyer-id">
+                                            <span style="color: #7f8c8d;">No document uploaded</span>
                                         </div>
                                     </div>
                                 </div>
@@ -246,48 +261,38 @@
                                 <div class="info-grid-2col">
                                     <div class="info-item">
                                         <label>Plate Number</label>
-                                        <p><strong>ABC-1234</strong></p>
+                                        <p><strong data-field="plate-number">Loading...</strong></p>
                                     </div>
                                     <div class="info-item">
                                         <label>Engine Number</label>
-                                        <p>2NR-FE123456</p>
+                                        <p data-field="engine-number">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Chassis Number</label>
-                                        <p>JT1234567890</p>
+                                        <p data-field="chassis-number">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Vehicle Type</label>
-                                        <p>Sedan</p>
+                                        <p data-field="vehicle-type">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Make/Model</label>
-                                        <p>Toyota Vios</p>
+                                        <p data-field="make-model">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>Year Model</label>
-                                        <p>2020</p>
+                                        <p data-field="year-model">Loading...</p>
                                     </div>
                                     <div class="info-item">
                                         <label>OR Documents</label>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('or-doc')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('or-doc')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
+                                        <div class="document-actions" data-field="or-doc">
+                                            <span style="color: #7f8c8d;">No document uploaded</span>
                                         </div>
                                     </div>
                                     <div class="info-item">
                                         <label>CR Documents</label>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('cr-doc')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('cr-doc')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
+                                        <div class="document-actions" data-field="cr-doc">
+                                            <span style="color: #7f8c8d;">No document uploaded</span>
                                         </div>
                                     </div>
                                 </div>

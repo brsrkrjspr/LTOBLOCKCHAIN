@@ -1376,15 +1376,9 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
             filters.sellerId = req.user.userId;
         }
         
-        // Admin should see both PENDING and REVIEWING by default
-        // PENDING = waiting for buyer to accept, REVIEWING = waiting for admin review
-        // This allows admin to see all active transfer requests
-        if (req.user.role === 'admin' && !status) {
-            // Default admin view: Show both PENDING and REVIEWING
-            // Admin can filter by specific status if needed
-            // Note: We'll handle this in the query by using IN clause
-            filters.status = ['PENDING', 'REVIEWING'];
-        }
+        // Only apply status filter if user explicitly provided one
+        // No default filtering - show all requests unless user filters
+        // (The UI can handle filtering on the frontend if needed)
         
         const requests = await db.getTransferRequests(filters);
         
@@ -1394,8 +1388,8 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
         const countParams = [];
         let paramCount = 0;
         
-        // Use the same status filter as the main query
-        const statusFilter = filters.status || (req.user.role === 'admin' ? ['PENDING', 'REVIEWING'] : null);
+        // Use the same status filter as the main query (only if explicitly provided)
+        const statusFilter = filters.status;
         
         if (statusFilter) {
             paramCount++;
@@ -1606,15 +1600,35 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         }
         
         // Check if all organization approvals are complete
+        // Only check organizations that were actually forwarded to
         const pendingApprovals = [];
-        if (!request.hpg_approval_status || request.hpg_approval_status === 'PENDING') {
-            pendingApprovals.push('HPG');
+        const rejectedApprovals = [];
+        
+        // Check HPG approval only if it was forwarded to HPG
+        if (request.hpg_clearance_request_id) {
+            if (!request.hpg_approval_status || request.hpg_approval_status === 'PENDING') {
+                pendingApprovals.push('HPG');
+            } else if (request.hpg_approval_status === 'REJECTED') {
+                rejectedApprovals.push('HPG');
+            }
         }
-        if (!request.insurance_approval_status || request.insurance_approval_status === 'PENDING') {
-            pendingApprovals.push('Insurance');
+        
+        // Check Insurance approval only if it was forwarded to Insurance
+        if (request.insurance_clearance_request_id) {
+            if (!request.insurance_approval_status || request.insurance_approval_status === 'PENDING') {
+                pendingApprovals.push('Insurance');
+            } else if (request.insurance_approval_status === 'REJECTED') {
+                rejectedApprovals.push('Insurance');
+            }
         }
-        if (!request.emission_approval_status || request.emission_approval_status === 'PENDING') {
-            pendingApprovals.push('Emission');
+        
+        // Check Emission approval only if it was forwarded to Emission
+        if (request.emission_clearance_request_id) {
+            if (!request.emission_approval_status || request.emission_approval_status === 'PENDING') {
+                pendingApprovals.push('Emission');
+            } else if (request.emission_approval_status === 'REJECTED') {
+                rejectedApprovals.push('Emission');
+            }
         }
         
         if (pendingApprovals.length > 0) {
@@ -1624,18 +1638,6 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                 pendingApprovals,
                 message: `The following organizations must approve before LTO can finalize: ${pendingApprovals.join(', ')}`
             });
-        }
-        
-        // Check if any organization rejected
-        const rejectedApprovals = [];
-        if (request.hpg_approval_status === 'REJECTED') {
-            rejectedApprovals.push('HPG');
-        }
-        if (request.insurance_approval_status === 'REJECTED') {
-            rejectedApprovals.push('Insurance');
-        }
-        if (request.emission_approval_status === 'REJECTED') {
-            rejectedApprovals.push('Emission');
         }
         
         if (rejectedApprovals.length > 0) {

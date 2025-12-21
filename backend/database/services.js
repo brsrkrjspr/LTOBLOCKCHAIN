@@ -133,11 +133,12 @@ async function getVehiclesByOwner(ownerId) {
     // Get ALL vehicles where the user is the owner (including pending applications)
     // Include all statuses: SUBMITTED, PENDING_BLOCKCHAIN, REGISTERED, APPROVED, etc.
     // This allows owners to see their pending applications in addition to registered vehicles
-    // Use COALESCE to check both current_owner_id (if maintained) and owner_id (fallback)
+    // Use owner_id directly (current_owner_id may not exist in all schemas)
+    // Use COALESCE for ordering to handle schemas with or without created_at column
     const result = await db.query(
         `SELECT v.* FROM vehicles v
-         WHERE (COALESCE(v.current_owner_id, v.owner_id) = $1)
-         ORDER BY v.created_at DESC, v.registration_date DESC`,
+         WHERE v.owner_id = $1
+         ORDER BY COALESCE(v.created_at, v.registration_date, v.last_updated) DESC, v.registration_date DESC`,
         [ownerId]
     );
     return result.rows;
@@ -954,110 +955,117 @@ async function getTransferVerificationHistory(transferRequestId) {
 }
 
 async function getOwnershipHistory(vehicleId) {
-    // First, get the vehicle to access owner information
-    const vehicle = await getVehicleById(vehicleId);
-    if (!vehicle) {
-        return [];
-    }
-    
-    // Get ownership-related history (both REGISTERED and OWNERSHIP_TRANSFERRED)
-    const result = await db.query(
-        `SELECT vh.*,
-                u.first_name || ' ' || u.last_name as performed_by_name,
-                v.vin, v.plate_number,
-                owner.first_name || ' ' || owner.last_name as owner_name,
-                owner.email as owner_email
-         FROM vehicle_history vh
-         JOIN vehicles v ON vh.vehicle_id = v.id
-         LEFT JOIN users u ON vh.performed_by = u.id
-         LEFT JOIN users owner ON v.owner_id = owner.id
-         WHERE vh.vehicle_id = $1 
-           AND (vh.action = 'OWNERSHIP_TRANSFERRED' 
-                OR vh.action = 'REGISTERED'
-                OR (vh.metadata::jsonb)->>'previousOwnerId' IS NOT NULL)
-         ORDER BY vh.performed_at ASC`,
-        [vehicleId]
-    );
-    
-    const history = result.rows.map(row => ({
-        ...row,
-        metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
-    }));
-    
-    // If no history exists but vehicle exists, create initial ownership entry
-    if (history.length === 0 && vehicle) {
-        // Get current owner information
-        const ownerInfo = vehicle.owner_id ? await getUserById(vehicle.owner_id) : null;
-        
-        return [{
-            id: null,
-            vehicle_id: vehicleId,
-            action: 'REGISTERED',
-            description: 'Vehicle initially registered',
-            performed_at: vehicle.created_at || vehicle.registration_date || new Date(),
-            performed_by: vehicle.owner_id,
-            performed_by_name: ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : 'System',
-            transaction_id: null,
-            metadata: {
-                is_initial: true,
-                owner_id: vehicle.owner_id,
-                owner_name: ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : null,
-                owner_email: ownerInfo ? ownerInfo.email : null
-            },
-            vin: vehicle.vin,
-            plate_number: vehicle.plate_number,
-            owner_name: ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : null,
-            owner_email: ownerInfo ? ownerInfo.email : null
-        }];
-    }
-    
-    // If we have history but no REGISTERED action, add initial registration as first entry
-    const hasRegistered = history.some(h => h.action === 'REGISTERED');
-    if (!hasRegistered && vehicle) {
-        const ownerInfo = vehicle.owner_id ? await getUserById(vehicle.owner_id) : null;
-        
-        // Find the earliest transfer to determine initial owner
-        // If there are transfers, the initial owner is in the first transfer's metadata
-        let initialOwnerId = vehicle.owner_id;
-        let initialOwnerName = ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : null;
-        let initialOwnerEmail = ownerInfo ? ownerInfo.email : null;
-        
-        if (history.length > 0) {
-            const firstTransfer = history[0];
-            if (firstTransfer.metadata && firstTransfer.metadata.previousOwnerId) {
-                const prevOwner = await getUserById(firstTransfer.metadata.previousOwnerId);
-                if (prevOwner) {
-                    initialOwnerId = firstTransfer.metadata.previousOwnerId;
-                    initialOwnerName = `${prevOwner.first_name} ${prevOwner.last_name}`;
-                    initialOwnerEmail = prevOwner.email;
-                }
-            }
+    try {
+        // First, get the vehicle to access owner information
+        const vehicle = await getVehicleById(vehicleId);
+        if (!vehicle) {
+            return [];
         }
         
-        // Add initial registration as first entry
-        history.unshift({
-            id: null,
-            vehicle_id: vehicleId,
-            action: 'REGISTERED',
-            description: 'Vehicle initially registered',
-            performed_at: vehicle.created_at || vehicle.registration_date || (history.length > 0 ? new Date(new Date(history[0].performed_at).getTime() - 86400000) : new Date()),
-            performed_by: initialOwnerId,
-            performed_by_name: initialOwnerName || 'System',
-            transaction_id: null,
-            metadata: {
-                is_initial: true,
-                owner_id: initialOwnerId,
+        // Get ownership-related history (both REGISTERED and OWNERSHIP_TRANSFERRED)
+        const result = await db.query(
+            `SELECT vh.*,
+                    COALESCE(u.first_name || ' ' || u.last_name, 'System') as performed_by_name,
+                    v.vin, v.plate_number,
+                    COALESCE(owner.first_name || ' ' || owner.last_name, 'Unknown') as owner_name,
+                    COALESCE(owner.email, '') as owner_email
+             FROM vehicle_history vh
+             JOIN vehicles v ON vh.vehicle_id = v.id
+             LEFT JOIN users u ON vh.performed_by = u.id
+             LEFT JOIN users owner ON v.owner_id = owner.id
+             WHERE vh.vehicle_id = $1 
+               AND (vh.action = 'OWNERSHIP_TRANSFERRED' 
+                    OR vh.action = 'REGISTERED'
+                    OR (vh.metadata::jsonb)->>'previousOwnerId' IS NOT NULL)
+             ORDER BY vh.performed_at ASC`,
+            [vehicleId]
+        );
+        
+        const history = result.rows.map(row => ({
+            ...row,
+            metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
+        }));
+        
+        // If no history exists but vehicle exists, create initial ownership entry
+        if (history.length === 0 && vehicle) {
+            // Get current owner information
+            const ownerInfo = vehicle.owner_id ? await getUserById(vehicle.owner_id) : null;
+            
+            return [{
+                id: null,
+                vehicle_id: vehicleId,
+                action: 'REGISTERED',
+                description: 'Vehicle initially registered',
+                performed_at: vehicle.created_at || vehicle.registration_date || new Date(),
+                performed_by: vehicle.owner_id,
+                performed_by_name: ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : 'System',
+                transaction_id: null,
+                metadata: {
+                    is_initial: true,
+                    owner_id: vehicle.owner_id,
+                    owner_name: ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : null,
+                    owner_email: ownerInfo ? ownerInfo.email : null
+                },
+                vin: vehicle.vin,
+                plate_number: vehicle.plate_number,
+                owner_name: ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : null,
+                owner_email: ownerInfo ? ownerInfo.email : null
+            }];
+        }
+        
+        // If we have history but no REGISTERED action, add initial registration as first entry
+        const hasRegistered = history.some(h => h.action === 'REGISTERED');
+        if (!hasRegistered && vehicle) {
+            const ownerInfo = vehicle.owner_id ? await getUserById(vehicle.owner_id) : null;
+            
+            // Find the earliest transfer to determine initial owner
+            // If there are transfers, the initial owner is in the first transfer's metadata
+            let initialOwnerId = vehicle.owner_id;
+            let initialOwnerName = ownerInfo ? `${ownerInfo.first_name} ${ownerInfo.last_name}` : null;
+            let initialOwnerEmail = ownerInfo ? ownerInfo.email : null;
+            
+            if (history.length > 0) {
+                const firstTransfer = history[0];
+                if (firstTransfer.metadata && firstTransfer.metadata.previousOwnerId) {
+                    const prevOwner = await getUserById(firstTransfer.metadata.previousOwnerId);
+                    if (prevOwner) {
+                        initialOwnerId = firstTransfer.metadata.previousOwnerId;
+                        initialOwnerName = `${prevOwner.first_name} ${prevOwner.last_name}`;
+                        initialOwnerEmail = prevOwner.email;
+                    }
+                }
+            }
+            
+            // Add initial registration as first entry
+            history.unshift({
+                id: null,
+                vehicle_id: vehicleId,
+                action: 'REGISTERED',
+                description: 'Vehicle initially registered',
+                performed_at: vehicle.created_at || vehicle.registration_date || (history.length > 0 ? new Date(new Date(history[0].performed_at).getTime() - 86400000) : new Date()),
+                performed_by: initialOwnerId,
+                performed_by_name: initialOwnerName || 'System',
+                transaction_id: null,
+                metadata: {
+                    is_initial: true,
+                    owner_id: initialOwnerId,
+                    owner_name: initialOwnerName,
+                    owner_email: initialOwnerEmail
+                },
+                vin: vehicle.vin,
+                plate_number: vehicle.plate_number,
                 owner_name: initialOwnerName,
                 owner_email: initialOwnerEmail
-            },
-            vin: vehicle.vin,
-            plate_number: vehicle.plate_number,
-            owner_name: initialOwnerName,
-            owner_email: initialOwnerEmail
-        });
+            });
+        }
+        
+        return history;
+    } catch (error) {
+        console.error(`Error in getOwnershipHistory for vehicle ${vehicleId}:`, error);
+        console.error('Error stack:', error.stack);
+        // Return empty array on error to prevent breaking the entire request
+        return [];
     }
-    
-    return history;
 }
 
 async function getRegistrationProgress(vehicleId) {

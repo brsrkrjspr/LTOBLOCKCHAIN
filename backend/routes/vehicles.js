@@ -938,29 +938,58 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
 
         const ownershipHistory = [];
         for (const vehicle of vehicles) {
-            const history = await db.getOwnershipHistory(vehicle.id);
-            
-            // Include complete vehicle information
-            ownershipHistory.push({
-                vehicle: {
-                    id: vehicle.id,
-                    vin: vehicle.vin,
-                    plateNumber: vehicle.plate_number,
-                    make: vehicle.make,
-                    model: vehicle.model,
-                    year: vehicle.year,
-                    color: vehicle.color,
-                    engineNumber: vehicle.engine_number,
-                    chassisNumber: vehicle.chassis_number,
-                    vehicleType: vehicle.vehicle_type,
-                    fuelType: vehicle.fuel_type,
-                    transmission: vehicle.transmission,
-                    engineDisplacement: vehicle.engine_displacement,
-                    status: vehicle.status,
-                    registrationDate: vehicle.registration_date
-                },
-                history
-            });
+            try {
+                // Safely get ownership history for each vehicle
+                // If one fails, continue with others
+                const history = await db.getOwnershipHistory(vehicle.id);
+                
+                // Include complete vehicle information
+                ownershipHistory.push({
+                    vehicle: {
+                        id: vehicle.id,
+                        vin: vehicle.vin,
+                        plateNumber: vehicle.plate_number,
+                        make: vehicle.make,
+                        model: vehicle.model,
+                        year: vehicle.year,
+                        color: vehicle.color,
+                        engineNumber: vehicle.engine_number,
+                        chassisNumber: vehicle.chassis_number,
+                        vehicleType: vehicle.vehicle_type,
+                        fuelType: vehicle.fuel_type,
+                        transmission: vehicle.transmission,
+                        engineDisplacement: vehicle.engine_displacement,
+                        status: vehicle.status,
+                        registrationDate: vehicle.registration_date
+                    },
+                    history: history || []
+                });
+            } catch (vehicleError) {
+                // Log error for this specific vehicle but continue with others
+                console.error(`Error loading history for vehicle ${vehicle.id} (${vehicle.vin}):`, vehicleError);
+                
+                // Still include the vehicle with empty history
+                ownershipHistory.push({
+                    vehicle: {
+                        id: vehicle.id,
+                        vin: vehicle.vin,
+                        plateNumber: vehicle.plate_number,
+                        make: vehicle.make,
+                        model: vehicle.model,
+                        year: vehicle.year,
+                        color: vehicle.color,
+                        engineNumber: vehicle.engine_number,
+                        chassisNumber: vehicle.chassis_number,
+                        vehicleType: vehicle.vehicle_type,
+                        fuelType: vehicle.fuel_type,
+                        transmission: vehicle.transmission,
+                        engineDisplacement: vehicle.engine_displacement,
+                        status: vehicle.status,
+                        registrationDate: vehicle.registration_date
+                    },
+                    history: []
+                });
+            }
         }
 
         res.json({
@@ -970,9 +999,11 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
 
     } catch (error) {
         console.error('Get my ownership history error:', error);
+        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: error.message
         });
     }
 });

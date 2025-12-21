@@ -174,7 +174,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
 
         // Create notification for LTO admin
         const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
-        const dbModule = require('../database/db');
+        // dbModule already declared at line 120, reuse it
         const ltoAdmins = await dbModule.query(
             "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
         );
@@ -280,7 +280,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
 
         // Create notification for LTO admin
         const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
-        const dbModule = require('../database/db');
+        // dbModule already declared at line 233, reuse it
         const ltoAdmins = await dbModule.query(
             "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
         );

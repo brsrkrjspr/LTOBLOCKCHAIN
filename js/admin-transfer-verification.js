@@ -1,6 +1,11 @@
 // Admin Transfer Verification - JavaScript
 // Handles document verification for transfer requests
 
+// Prevent duplicate declaration of currentZoom
+if (typeof window.currentZoom === 'undefined') {
+    window.currentZoom = 100;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeTransferVerification();
 });
@@ -8,8 +13,46 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentTransferRequest = null;
 let currentRequestId = null;
 let currentDocumentId = null;
-let currentZoom = 100;
+let currentZoom = window.currentZoom || 100; // Use existing or default
 let verificationHistory = [];
+
+// Map document type identifiers to database types
+function mapDocumentTypeIdentifier(identifier) {
+    const typeMap = {
+        'deed-of-sale': 'deed_of_sale',
+        'seller-id': 'seller_id',
+        'buyer-id': 'buyer_id',
+        'or-cr': 'or_cr',
+        'emission': 'emission_cert'
+    };
+    return typeMap[identifier] || identifier;
+}
+
+// Find document by type from transfer request documents
+function findDocumentByType(docType) {
+    if (!currentTransferRequest || !currentTransferRequest.documents) {
+        return null;
+    }
+    
+    const mappedType = mapDocumentTypeIdentifier(docType);
+    const documents = currentTransferRequest.documents;
+    
+    // Try exact match first
+    let doc = documents.find(d => {
+        const dbType = (d.document_type || d.type || '').toLowerCase();
+        return dbType === mappedType.toLowerCase();
+    });
+    
+    // If not found, try partial match (e.g., 'or_cr' matches 'OR_CR')
+    if (!doc) {
+        doc = documents.find(d => {
+            const dbType = (d.document_type || d.type || '').toLowerCase();
+            return dbType.includes(mappedType.toLowerCase()) || mappedType.toLowerCase().includes(dbType);
+        });
+    }
+    
+    return doc ? (doc.document_id || doc.id) : null;
+}
 
 function initializeTransferVerification() {
     // Get request ID from URL
@@ -83,6 +126,9 @@ async function loadTransferRequest() {
 
         // Load documents list
         renderDocumentsList(currentTransferRequest.documents || []);
+        
+        // Populate document selector with actual document IDs
+        populateDocumentSelector(currentTransferRequest.documents || []);
 
         // Load first document if docId is provided, otherwise load first document
         if (currentDocumentId) {
@@ -118,6 +164,60 @@ function renderTransferRequestInfo(request) {
     }
 }
 
+// Populate document selector with actual document IDs
+function populateDocumentSelector(documents) {
+    const selector = document.getElementById('documentSelector');
+    if (!selector) return;
+    
+    // Clear existing options except the first one
+    while (selector.options.length > 1) {
+        selector.remove(1);
+    }
+    
+    // Create a map of document types to document IDs
+    const typeToDocMap = {};
+    documents.forEach(doc => {
+        const docId = doc.document_id || doc.id;
+        const docType = (doc.document_type || doc.type || '').toLowerCase();
+        if (docId && docType) {
+            // Map various type formats
+            if (docType.includes('deed') || docType.includes('sale')) {
+                typeToDocMap['deed-of-sale'] = docId;
+            }
+            if (docType.includes('seller') && docType.includes('id')) {
+                typeToDocMap['seller-id'] = docId;
+            }
+            if (docType.includes('buyer') && docType.includes('id')) {
+                typeToDocMap['buyer-id'] = docId;
+            }
+            if (docType.includes('or') || docType.includes('cr')) {
+                typeToDocMap['or-cr'] = docId;
+            }
+            if (docType.includes('emission')) {
+                typeToDocMap['emission'] = docId;
+            }
+        }
+    });
+    
+    // Add options for available documents
+    const optionLabels = {
+        'deed-of-sale': 'Deed of Sale',
+        'seller-id': 'Seller Valid ID',
+        'buyer-id': 'Buyer Valid ID',
+        'or-cr': 'Latest OR/CR',
+        'emission': 'Emission Test Certificate (Optional)'
+    };
+    
+    Object.entries(optionLabels).forEach(([value, label]) => {
+        if (typeToDocMap[value]) {
+            const option = document.createElement('option');
+            option.value = typeToDocMap[value]; // Use actual document ID
+            option.textContent = label;
+            selector.appendChild(option);
+        }
+    });
+}
+
 function renderDocumentsList(documents) {
     const documentsList = document.getElementById('documentsList');
     if (!documentsList) return;
@@ -151,16 +251,23 @@ function renderDocumentsList(documents) {
     }).join('');
 }
 
-async function loadDocument(docId) {
+async function loadDocument(docIdOrType) {
     try {
-        if (!docId) {
-            throw new Error('Document ID is required');
+        if (!docIdOrType) {
+            throw new Error('Document ID or type is required');
         }
         
-        // Validate UUID format (if using UUIDs) or numeric ID
-        if (docId && !docId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) && 
-            !docId.match(/^[0-9]+$/)) {
-            console.warn('⚠️ Document ID format may be invalid:', docId);
+        // Check if it's a document type identifier (not a UUID or numeric ID)
+        let docId = docIdOrType;
+        const isUUID = docId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+        const isNumeric = docId.match(/^[0-9]+$/);
+        
+        // If it's not a UUID or numeric ID, treat it as a document type identifier
+        if (!isUUID && !isNumeric) {
+            docId = findDocumentByType(docIdOrType);
+            if (!docId) {
+                throw new Error(`Document of type "${docIdOrType}" not found in this transfer request`);
+            }
         }
         
         currentDocumentId = docId;
@@ -183,6 +290,12 @@ async function loadDocument(docId) {
 
         // Update documents list active state
         renderDocumentsList(currentTransferRequest.documents || []);
+        
+        // Update document selector to show current selection
+        const selector = document.getElementById('documentSelector');
+        if (selector) {
+            selector.value = docId;
+        }
 
         // Load verification history for this document
         loadDocumentVerificationHistory(docId);
@@ -191,7 +304,7 @@ async function loadDocument(docId) {
 
     } catch (error) {
         console.error('Load document error:', {
-            documentId: docId,
+            documentId: docIdOrType,
             error: error.message,
             stack: error.stack
         });
@@ -199,7 +312,7 @@ async function loadDocument(docId) {
         // Provide more specific error message
         let errorMessage = 'Failed to load document';
         if (error.message.includes('404') || error.message.includes('not found')) {
-            errorMessage = `Document not found. ID: ${docId}`;
+            errorMessage = `Document not found. ${docIdOrType}`;
         } else if (error.message.includes('500') || error.message.includes('Internal server error')) {
             errorMessage = 'Server error while loading document. Please try again.';
         } else {
@@ -217,31 +330,41 @@ function updateDocumentDisplay(doc) {
     const docTypeDisplayEl = document.getElementById('docTypeDisplay');
     const documentViewerEl = document.getElementById('documentViewer');
 
-    const docType = doc.document_type || doc.type || 'Document';
-    const docName = doc.name || doc.filename || docType;
+    const docType = doc.document_type || doc.type || doc.documentType || 'Document';
+    const docName = doc.originalName || doc.original_name || doc.name || doc.filename || docType;
 
     if (currentDocNameEl) currentDocNameEl.textContent = docName;
     if (currentDocTypeEl) currentDocTypeEl.textContent = getDocumentTypeLabel(docType);
     if (docTypeDisplayEl) docTypeDisplayEl.innerHTML = `<strong>${escapeHtml(getDocumentTypeLabel(docType))}</strong>`;
 
-    // Load document content
-    if (documentViewerEl && doc.file_url) {
-        if (doc.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+    // Load document content - use url field from API response
+    const docUrl = doc.url || doc.file_url || doc.fileUrl;
+    if (documentViewerEl && docUrl) {
+        if (docUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
             // Image document
-            documentViewerEl.innerHTML = `<img src="${doc.file_url}" alt="${escapeHtml(docName)}" style="max-width: 100%; height: auto;">`;
-        } else if (doc.file_url.match(/\.(pdf)$/i)) {
+            documentViewerEl.innerHTML = `<img src="${docUrl}" alt="${escapeHtml(docName)}" style="max-width: 100%; height: auto;">`;
+        } else if (docUrl.match(/\.(pdf)$/i)) {
             // PDF document
-            documentViewerEl.innerHTML = `<iframe src="${doc.file_url}" style="width: 100%; height: 600px; border: none;"></iframe>`;
+            documentViewerEl.innerHTML = `<iframe src="${docUrl}" style="width: 100%; height: 600px; border: none;"></iframe>`;
         } else {
-            // Other document types
+            // Other document types - try to use view endpoint
+            const viewUrl = `/api/documents/${doc.id}/view`;
             documentViewerEl.innerHTML = `
                 <div style="text-align: center; padding: 2rem;">
                     <i class="fas fa-file-alt" style="font-size: 3rem; color: #7f8c8d;"></i>
                     <p>Preview not available for this file type</p>
-                    <a href="${doc.file_url}" target="_blank" class="btn-primary">Open Document</a>
+                    <a href="${viewUrl}" target="_blank" class="btn-primary">Open Document</a>
                 </div>
             `;
         }
+    } else if (documentViewerEl) {
+        // No URL available, show placeholder
+        documentViewerEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+                <i class="fas fa-file-alt" style="font-size: 3rem; color: #7f8c8d;"></i>
+                <p>Document preview not available</p>
+            </div>
+        `;
     }
 
     // Reset zoom

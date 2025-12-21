@@ -253,6 +253,302 @@ TrustChain LTO System
     }
 }
 
+/**
+ * Send email to seller when buyer accepts transfer request
+ */
+async function sendTransferBuyerAcceptanceEmail({ to, sellerName, buyerName, vehicle }) {
+    const subject = 'Transfer Request Accepted by Buyer - TrustChain LTO';
+    
+    const safeSellerName = sellerName || 'Vehicle Owner';
+    const safeBuyerName = buyerName || 'the buyer';
+    const vehicleLabel = vehicle
+        ? `${vehicle.plate_number || vehicle.plateNumber || vehicle.vin}${vehicle.make || vehicle.model ? ` (${vehicle.make || ''} ${vehicle.model || ''})` : ''}`
+        : 'your vehicle';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 30px -30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            color: #333333;
+        }
+        .vehicle-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box {
+            background-color: #e8f5e9;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #7f8c8d;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>✅ Transfer Request Accepted</h1>
+        </div>
+        <div class="content">
+            <p>Dear ${escapeHtml(safeSellerName)},</p>
+            
+            <p>Good news! ${escapeHtml(safeBuyerName)} has accepted your transfer request.</p>
+            
+            <div class="vehicle-info">
+                <strong>Vehicle Details:</strong><br>
+                ${escapeHtml(vehicleLabel)}
+            </div>
+            
+            <div class="info-box">
+                <strong>📋 Next Steps:</strong><br>
+                Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance, Emission Testing, and HPG clearance) before final approval.
+            </div>
+            
+            <p>You will receive another notification once the LTO has completed their review and made a decision on your transfer request.</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br><strong>TrustChain LTO System</strong></p>
+            <p style="font-size: 12px; color: #95a5a6;">This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `.trim();
+
+    const text = `
+Transfer Request Accepted by Buyer - TrustChain LTO
+
+Dear ${safeSellerName},
+
+Good news! ${safeBuyerName} has accepted your transfer request for ${vehicleLabel}.
+
+Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance, Emission Testing, and HPG clearance) before final approval.
+
+You will receive another notification once the LTO has completed their review and made a decision on your transfer request.
+
+Best regards,
+TrustChain LTO System
+`.trim();
+
+    try {
+        const transporter = getEmailTransporter();
+        const info = await transporter.sendMail({
+            from: '"TrustChain LTO System" <kimandrei012@gmail.com>',
+            to: to,
+            subject: subject,
+            html: html,
+            text: text
+        });
+        
+        console.log('✅ Buyer acceptance email sent to seller:', {
+            messageId: info.messageId,
+            to: to,
+            subject: subject
+        });
+        
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('❌ Failed to send buyer acceptance email to seller:', error);
+        console.error('Email error details:', {
+            to: to,
+            error: error.message,
+            stack: error.stack
+        });
+        throw error;
+    }
+}
+
+/**
+ * Send email to seller when buyer rejects transfer request
+ */
+async function sendTransferBuyerRejectionEmail({ to, sellerName, buyerName, vehicle }) {
+    const subject = 'Transfer Request Rejected by Buyer - TrustChain LTO';
+    
+    const safeSellerName = sellerName || 'Vehicle Owner';
+    const safeBuyerName = buyerName || 'the buyer';
+    const vehicleLabel = vehicle
+        ? `${vehicle.plate_number || vehicle.plateNumber || vehicle.vin}${vehicle.make || vehicle.model ? ` (${vehicle.make || ''} ${vehicle.model || ''})` : ''}`
+        : 'your vehicle';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 30px -30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            color: #333333;
+        }
+        .vehicle-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box {
+            background-color: #ffebee;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #7f8c8d;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>❌ Transfer Request Rejected</h1>
+        </div>
+        <div class="content">
+            <p>Dear ${escapeHtml(safeSellerName)},</p>
+            
+            <p>We regret to inform you that ${escapeHtml(safeBuyerName)} has rejected your transfer request.</p>
+            
+            <div class="vehicle-info">
+                <strong>Vehicle Details:</strong><br>
+                ${escapeHtml(vehicleLabel)}
+            </div>
+            
+            <div class="info-box">
+                <strong>📋 What This Means:</strong><br>
+                The transfer request has been cancelled and will not proceed further. No action is required from your side at this time.
+            </div>
+            
+            <p>If you wish to transfer this vehicle to another buyer, you can submit a new transfer request through your TrustChain account.</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br><strong>TrustChain LTO System</strong></p>
+            <p style="font-size: 12px; color: #95a5a6;">This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `.trim();
+
+    const text = `
+Transfer Request Rejected by Buyer - TrustChain LTO
+
+Dear ${safeSellerName},
+
+We regret to inform you that ${safeBuyerName} has rejected your transfer request for ${vehicleLabel}.
+
+The transfer request has been cancelled and will not proceed further. No action is required from your side at this time.
+
+If you wish to transfer this vehicle to another buyer, you can submit a new transfer request through your TrustChain account.
+
+Best regards,
+TrustChain LTO System
+`.trim();
+
+    try {
+        const transporter = getEmailTransporter();
+        const info = await transporter.sendMail({
+            from: '"TrustChain LTO System" <kimandrei012@gmail.com>',
+            to: to,
+            subject: subject,
+            html: html,
+            text: text
+        });
+        
+        console.log('✅ Buyer rejection email sent to seller:', {
+            messageId: info.messageId,
+            to: to,
+            subject: subject
+        });
+        
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('❌ Failed to send buyer rejection email to seller:', error);
+        console.error('Email error details:', {
+            to: to,
+            error: error.message,
+            stack: error.stack
+        });
+        throw error;
+    }
+}
+
 // Helper function to escape HTML
 function escapeHtml(text) {
     if (!text) return '';
@@ -781,6 +1077,49 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
         };
         await db.updateTransferRequestStatus(id, 'REVIEWING', null, null, metadataUpdate);
 
+        // Get vehicle information for email
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        
+        // Get seller information
+        const sellerEmail = request.seller_email;
+        const sellerName = request.seller_first_name && request.seller_last_name
+            ? `${request.seller_first_name} ${request.seller_last_name}`
+            : request.seller_email;
+        
+        // Get buyer name for email
+        const buyerName = request.buyer_first_name && request.buyer_last_name
+            ? `${request.buyer_first_name} ${request.buyer_last_name}`
+            : (request.buyer_email || currentUserEmail);
+
+        // Send email notification to seller
+        if (sellerEmail) {
+            try {
+                await sendTransferBuyerAcceptanceEmail({
+                    to: sellerEmail,
+                    sellerName: sellerName,
+                    buyerName: buyerName,
+                    vehicle: vehicle
+                });
+                console.log('✅ Buyer acceptance email sent to seller:', sellerEmail);
+            } catch (emailError) {
+                console.error('❌ Failed to send buyer acceptance email to seller:', emailError);
+                // Don't fail the request if email fails
+            }
+        }
+
+        // Create in-app notification for seller
+        try {
+            await db.createNotification({
+                userId: request.seller_id,
+                title: 'Transfer Request Accepted by Buyer',
+                message: `${buyerName} has accepted your transfer request for vehicle ${vehicle?.plate_number || vehicle?.vin || 'your vehicle'}. The request is now under LTO review.`,
+                type: 'success'
+            });
+            console.log('✅ Created notification for seller about buyer acceptance');
+        } catch (notifError) {
+            console.warn('⚠️ Failed to create seller notification:', notifError.message);
+        }
+
         const updatedRequest = await db.getTransferRequestById(id);
 
         res.json({
@@ -838,6 +1177,49 @@ router.post('/requests/:id/reject-by-buyer', authenticateToken, authorizeRole(['
             buyerRejectedAt: new Date().toISOString()
         };
         await db.updateTransferRequestStatus(id, 'REJECTED', null, 'Rejected by buyer', metadataUpdate);
+
+        // Get vehicle information for email
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        
+        // Get seller information
+        const sellerEmail = request.seller_email;
+        const sellerName = request.seller_first_name && request.seller_last_name
+            ? `${request.seller_first_name} ${request.seller_last_name}`
+            : request.seller_email;
+        
+        // Get buyer name for email
+        const buyerName = request.buyer_first_name && request.buyer_last_name
+            ? `${request.buyer_first_name} ${request.buyer_last_name}`
+            : (request.buyer_email || currentUserEmail);
+
+        // Send email notification to seller
+        if (sellerEmail) {
+            try {
+                await sendTransferBuyerRejectionEmail({
+                    to: sellerEmail,
+                    sellerName: sellerName,
+                    buyerName: buyerName,
+                    vehicle: vehicle
+                });
+                console.log('✅ Buyer rejection email sent to seller:', sellerEmail);
+            } catch (emailError) {
+                console.error('❌ Failed to send buyer rejection email to seller:', emailError);
+                // Don't fail the request if email fails
+            }
+        }
+
+        // Create in-app notification for seller
+        try {
+            await db.createNotification({
+                userId: request.seller_id,
+                title: 'Transfer Request Rejected by Buyer',
+                message: `${buyerName} has rejected your transfer request for vehicle ${vehicle?.plate_number || vehicle?.vin || 'your vehicle'}.`,
+                type: 'error'
+            });
+            console.log('✅ Created notification for seller about buyer rejection');
+        } catch (notifError) {
+            console.warn('⚠️ Failed to create seller notification:', notifError.message);
+        }
 
         const updatedRequest = await db.getTransferRequestById(id);
 
@@ -1439,7 +1821,90 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
             });
         }
         
-        // Create HPG clearance request
+        // Get transfer documents and vehicle documents
+        const transferDocuments = await db.getTransferRequestDocuments(id);
+        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+        
+        // Find OR/CR from transfer documents (document_type = 'or_cr') or vehicle documents
+        let orCrDoc = transferDocuments.find(td => td.document_type === 'or_cr' && td.document_id);
+        if (!orCrDoc && vehicleDocuments.length > 0) {
+            orCrDoc = vehicleDocuments.find(d => 
+                d.document_type === 'or_cr' || 
+                d.document_type === 'registration_cert' || 
+                d.document_type === 'registrationCert' ||
+                d.document_type === 'registration' ||
+                (d.original_name && (
+                    d.original_name.toLowerCase().includes('or_cr') ||
+                    d.original_name.toLowerCase().includes('or-cr') ||
+                    d.original_name.toLowerCase().includes('orcr') ||
+                    d.original_name.toLowerCase().includes('registration')
+                ))
+            );
+        }
+        
+        // Find Owner ID from transfer documents (document_type = 'seller_id') or vehicle documents
+        let ownerIdDoc = transferDocuments.find(td => td.document_type === 'seller_id' && td.document_id);
+        if (!ownerIdDoc && vehicleDocuments.length > 0) {
+            ownerIdDoc = vehicleDocuments.find(d => 
+                d.document_type === 'owner_id' || 
+                d.document_type === 'ownerId' ||
+                (d.original_name && d.original_name.toLowerCase().includes('id'))
+            );
+        }
+        
+        // Build HPG documents array (only OR/CR and Owner ID)
+        const hpgDocuments = [];
+        
+        // Add OR/CR if found
+        if (orCrDoc) {
+            if (orCrDoc.document_id) {
+                // From transfer documents
+                hpgDocuments.push({
+                    id: orCrDoc.document_id,
+                    type: orCrDoc.document_type || 'or_cr',
+                    cid: orCrDoc.ipfs_cid,
+                    path: orCrDoc.file_path,
+                    filename: orCrDoc.original_name
+                });
+            } else {
+                // From vehicle documents
+                hpgDocuments.push({
+                    id: orCrDoc.id,
+                    type: orCrDoc.document_type,
+                    cid: orCrDoc.ipfs_cid,
+                    path: orCrDoc.file_path,
+                    filename: orCrDoc.original_name
+                });
+            }
+        }
+        
+        // Add Owner ID if found
+        if (ownerIdDoc) {
+            if (ownerIdDoc.document_id) {
+                // From transfer documents
+                hpgDocuments.push({
+                    id: ownerIdDoc.document_id,
+                    type: ownerIdDoc.document_type || 'seller_id',
+                    cid: ownerIdDoc.ipfs_cid,
+                    path: ownerIdDoc.file_path,
+                    filename: ownerIdDoc.original_name
+                });
+            } else {
+                // From vehicle documents
+                hpgDocuments.push({
+                    id: ownerIdDoc.id,
+                    type: ownerIdDoc.document_type,
+                    cid: ownerIdDoc.ipfs_cid,
+                    path: ownerIdDoc.file_path,
+                    filename: ownerIdDoc.original_name
+                });
+            }
+        }
+        
+        console.log(`[Transfer→HPG] Sending ${hpgDocuments.length} documents to HPG (filtered from ${transferDocuments.length} transfer docs + ${vehicleDocuments.length} vehicle docs)`);
+        console.log(`[Transfer→HPG] Document types sent: ${hpgDocuments.map(d => d.type).join(', ')}`);
+        
+        // Create HPG clearance request with filtered documents
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId: request.vehicle_id,
             requestType: 'hpg',
@@ -1449,7 +1914,18 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
             metadata: {
                 transferRequestId: id,
                 vehicleVin: request.vehicle.vin,
-                vehiclePlate: request.vehicle.plate_number
+                vehiclePlate: request.vehicle.plate_number,
+                // Include individual document references
+                orCrDocId: orCrDoc?.document_id || orCrDoc?.id || null,
+                orCrDocCid: orCrDoc?.ipfs_cid || null,
+                orCrDocPath: orCrDoc?.file_path || null,
+                orCrDocFilename: orCrDoc?.original_name || null,
+                ownerIdDocId: ownerIdDoc?.document_id || ownerIdDoc?.id || null,
+                ownerIdDocCid: ownerIdDoc?.ipfs_cid || null,
+                ownerIdDocPath: ownerIdDoc?.file_path || null,
+                ownerIdDocFilename: ownerIdDoc?.original_name || null,
+                // Include ONLY HPG-relevant documents (OR/CR and Owner ID)
+                documents: hpgDocuments
             }
         });
         
@@ -1478,7 +1954,11 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
             description: `Transfer request forwarded to HPG for clearance review`,
             performedBy: req.user.userId,
             transactionId: null,
-            metadata: { transferRequestId: id, clearanceRequestId: clearanceRequest.id }
+            metadata: { 
+                transferRequestId: id, 
+                clearanceRequestId: clearanceRequest.id,
+                documentsSent: hpgDocuments.length
+            }
         });
         
         // Get updated request
@@ -1872,7 +2352,34 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
             });
         }
         
-        // Create Insurance clearance request
+        // Get vehicle documents - Insurance ONLY receives Insurance Certificate
+        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+        
+        // Find Insurance Certificate document
+        const insuranceDoc = vehicleDocuments.find(d => 
+            d.document_type === 'insurance_cert' || 
+            d.document_type === 'insuranceCert' ||
+            d.document_type === 'insurance' ||
+            (d.original_name && d.original_name.toLowerCase().includes('insurance'))
+        );
+        
+        // Build insurance documents array (only Insurance Certificate, max 1)
+        const insuranceDocuments = insuranceDoc ? [{
+            id: insuranceDoc.id,
+            type: insuranceDoc.document_type,
+            cid: insuranceDoc.ipfs_cid,
+            path: insuranceDoc.file_path,
+            filename: insuranceDoc.original_name
+        }] : [];
+        
+        if (!insuranceDoc) {
+            console.warn(`[Transfer→Insurance] Warning: No insurance certificate found for vehicle ${request.vehicle_id}`);
+        }
+        
+        console.log(`[Transfer→Insurance] Sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${vehicleDocuments.length} total)`);
+        console.log(`[Transfer→Insurance] Document type sent: ${insuranceDoc?.document_type || 'none'}`);
+        
+        // Create Insurance clearance request with filtered documents
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId: request.vehicle_id,
             requestType: 'insurance',
@@ -1882,7 +2389,15 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
             metadata: {
                 transferRequestId: id,
                 vehicleVin: request.vehicle?.vin,
-                vehiclePlate: request.vehicle?.plate_number
+                vehiclePlate: request.vehicle?.plate_number,
+                // Include individual document reference
+                documentId: insuranceDoc?.id || null,
+                documentCid: insuranceDoc?.ipfs_cid || null,
+                documentPath: insuranceDoc?.file_path || null,
+                documentType: insuranceDoc?.document_type || null,
+                documentFilename: insuranceDoc?.original_name || null,
+                // Include ONLY Insurance Certificate
+                documents: insuranceDocuments
             }
         });
         
@@ -1908,7 +2423,11 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
             action: 'TRANSFER_FORWARDED_TO_INSURANCE',
             description: `Transfer request forwarded to Insurance for clearance review`,
             performedBy: req.user.userId,
-            metadata: { transferRequestId: id, clearanceRequestId: clearanceRequest.id }
+            metadata: { 
+                transferRequestId: id, 
+                clearanceRequestId: clearanceRequest.id,
+                documentsSent: insuranceDocuments.length
+            }
         });
         
         const updatedRequest = await db.getTransferRequestById(id);
@@ -1943,7 +2462,34 @@ router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole([
             });
         }
         
-        // Create Emission clearance request
+        // Get vehicle documents - Emission ONLY receives Emission Certificate
+        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+        
+        // Find Emission Certificate document
+        const emissionDoc = vehicleDocuments.find(d => 
+            d.document_type === 'emission_cert' || 
+            d.document_type === 'emissionCert' ||
+            d.document_type === 'emission' ||
+            (d.original_name && d.original_name.toLowerCase().includes('emission'))
+        );
+        
+        // Build emission documents array (only Emission Certificate, max 1)
+        const emissionDocuments = emissionDoc ? [{
+            id: emissionDoc.id,
+            type: emissionDoc.document_type,
+            cid: emissionDoc.ipfs_cid,
+            path: emissionDoc.file_path,
+            filename: emissionDoc.original_name
+        }] : [];
+        
+        if (!emissionDoc) {
+            console.warn(`[Transfer→Emission] Warning: No emission certificate found for vehicle ${request.vehicle_id}`);
+        }
+        
+        console.log(`[Transfer→Emission] Sending ${emissionDocuments.length} document(s) to Emission (filtered from ${vehicleDocuments.length} total)`);
+        console.log(`[Transfer→Emission] Document type sent: ${emissionDoc?.document_type || 'none'}`);
+        
+        // Create Emission clearance request with filtered documents
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId: request.vehicle_id,
             requestType: 'emission',
@@ -1953,7 +2499,15 @@ router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole([
             metadata: {
                 transferRequestId: id,
                 vehicleVin: request.vehicle?.vin,
-                vehiclePlate: request.vehicle?.plate_number
+                vehiclePlate: request.vehicle?.plate_number,
+                // Include individual document reference
+                documentId: emissionDoc?.id || null,
+                documentCid: emissionDoc?.ipfs_cid || null,
+                documentPath: emissionDoc?.file_path || null,
+                documentType: emissionDoc?.document_type || null,
+                documentFilename: emissionDoc?.original_name || null,
+                // Include ONLY Emission Certificate
+                documents: emissionDocuments
             }
         });
         
@@ -1979,7 +2533,11 @@ router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole([
             action: 'TRANSFER_FORWARDED_TO_EMISSION',
             description: `Transfer request forwarded to Emission for clearance review`,
             performedBy: req.user.userId,
-            metadata: { transferRequestId: id, clearanceRequestId: clearanceRequest.id }
+            metadata: { 
+                transferRequestId: id, 
+                clearanceRequestId: clearanceRequest.id,
+                documentsSent: emissionDocuments.length
+            }
         });
         
         const updatedRequest = await db.getTransferRequestById(id);

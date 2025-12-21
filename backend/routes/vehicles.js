@@ -942,10 +942,22 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
             });
         }
         
-        const vehicles = await db.getVehiclesByOwner(userId);
+        // Safely get vehicles with error handling
+        let vehicles = [];
+        try {
+            vehicles = await db.getVehiclesByOwner(userId);
+        } catch (vehiclesError) {
+            console.error('Error getting vehicles by owner:', vehiclesError);
+            console.error('Error stack:', vehiclesError.stack);
+            // Return empty result instead of 500 error
+            return res.json({
+                success: true,
+                ownershipHistory: []
+            });
+        }
         
         if (!vehicles || !Array.isArray(vehicles)) {
-            console.error('getVehiclesByOwner returned invalid result:', vehicles);
+            console.warn('getVehiclesByOwner returned invalid result:', vehicles);
             return res.json({
                 success: true,
                 ownershipHistory: []
@@ -955,53 +967,59 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
         const ownershipHistory = [];
         for (const vehicle of vehicles) {
             try {
+                // Validate vehicle has required fields
+                if (!vehicle || !vehicle.id) {
+                    console.warn('Skipping invalid vehicle:', vehicle);
+                    continue;
+                }
+                
                 // Safely get ownership history for each vehicle
-                // If one fails, continue with others
                 const history = await db.getOwnershipHistory(vehicle.id);
                 
                 // Include complete vehicle information
                 ownershipHistory.push({
                     vehicle: {
                         id: vehicle.id,
-                        vin: vehicle.vin,
-                        plateNumber: vehicle.plate_number,
-                        make: vehicle.make,
-                        model: vehicle.model,
-                        year: vehicle.year,
-                        color: vehicle.color,
-                        engineNumber: vehicle.engine_number,
-                        chassisNumber: vehicle.chassis_number,
-                        vehicleType: vehicle.vehicle_type,
-                        fuelType: vehicle.fuel_type,
-                        transmission: vehicle.transmission,
-                        engineDisplacement: vehicle.engine_displacement,
-                        status: vehicle.status,
-                        registrationDate: vehicle.registration_date
+                        vin: vehicle.vin || null,
+                        plateNumber: vehicle.plate_number || null,
+                        make: vehicle.make || null,
+                        model: vehicle.model || null,
+                        year: vehicle.year || null,
+                        color: vehicle.color || null,
+                        engineNumber: vehicle.engine_number || null,
+                        chassisNumber: vehicle.chassis_number || null,
+                        vehicleType: vehicle.vehicle_type || null,
+                        fuelType: vehicle.fuel_type || null,
+                        transmission: vehicle.transmission || null,
+                        engineDisplacement: vehicle.engine_displacement || null,
+                        status: vehicle.status || null,
+                        registrationDate: vehicle.registration_date || null
                     },
-                    history: history || []
+                    history: Array.isArray(history) ? history : []
                 });
             } catch (vehicleError) {
                 // Log error for this specific vehicle but continue with others
-                console.error(`Error loading history for vehicle ${vehicle.id} (${vehicle.vin}):`, vehicleError);
+                console.error(`Error loading history for vehicle ${vehicle?.id} (${vehicle?.vin || 'unknown'}):`, vehicleError);
+                console.error('Vehicle error stack:', vehicleError.stack);
                 
                 // Still include the vehicle with empty history
                 ownershipHistory.push({
                     vehicle: {
-                        id: vehicle.id,
-                        vin: vehicle.vin,
-                        plateNumber: vehicle.plate_number,
-                        make: vehicle.make,
-                        model: vehicle.model,
-                        year: vehicle.year,
-                        color: vehicle.color,
-                        engineNumber: vehicle.engine_number,
-                        chassisNumber: vehicle.chassis_number,
-                        vehicleType: vehicle.vehicle_type,
-                        fuelType: vehicle.fuel_type,
-                        transmission: vehicle.transmission,
-                        engineDisplacement: vehicle.engine_displacement,
-                        status: vehicle.status,
-                        registrationDate: vehicle.registration_date
+                        id: vehicle?.id || null,
+                        vin: vehicle?.vin || null,
+                        plateNumber: vehicle?.plate_number || null,
+                        make: vehicle?.make || null,
+                        model: vehicle?.model || null,
+                        year: vehicle?.year || null,
+                        color: vehicle?.color || null,
+                        engineNumber: vehicle?.engine_number || null,
+                        chassisNumber: vehicle?.chassis_number || null,
+                        vehicleType: vehicle?.vehicle_type || null,
+                        fuelType: vehicle?.fuel_type || null,
+                        transmission: vehicle?.transmission || null,
+                        engineDisplacement: vehicle?.engine_displacement || null,
+                        status: vehicle?.status || null,
+                        registrationDate: vehicle?.registration_date || null
                     },
                     history: []
                 });
@@ -1016,10 +1034,15 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
     } catch (error) {
         console.error('Get my ownership history error:', error);
         console.error('Error stack:', error.stack);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            name: error.name
+        });
         res.status(500).json({
             success: false,
             error: 'Internal server error',
-            message: error.message
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

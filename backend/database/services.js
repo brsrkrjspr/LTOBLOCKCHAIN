@@ -134,11 +134,11 @@ async function getVehiclesByOwner(ownerId) {
     // Include all statuses: SUBMITTED, PENDING_BLOCKCHAIN, REGISTERED, APPROVED, etc.
     // This allows owners to see their pending applications in addition to registered vehicles
     // Use owner_id directly (current_owner_id may not exist in all schemas)
-    // Use COALESCE for ordering to handle schemas with or without created_at column
+    // Use registration_date and last_updated for ordering (created_at may not exist in all schemas)
     const result = await db.query(
         `SELECT v.* FROM vehicles v
          WHERE v.owner_id = $1
-         ORDER BY COALESCE(v.created_at, v.registration_date, v.last_updated) DESC, v.registration_date DESC`,
+         ORDER BY COALESCE(v.registration_date, v.last_updated) DESC, v.last_updated DESC`,
         [ownerId]
     );
     return result.rows;
@@ -956,9 +956,16 @@ async function getTransferVerificationHistory(transferRequestId) {
 
 async function getOwnershipHistory(vehicleId) {
     try {
+        // Validate vehicleId
+        if (!vehicleId) {
+            console.warn('getOwnershipHistory called with null/undefined vehicleId');
+            return [];
+        }
+        
         // First, get the vehicle to access owner information
         const vehicle = await getVehicleById(vehicleId);
         if (!vehicle) {
+            console.warn(`Vehicle ${vehicleId} not found`);
             return [];
         }
         

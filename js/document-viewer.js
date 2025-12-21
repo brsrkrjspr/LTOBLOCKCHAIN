@@ -5,36 +5,71 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Go back to the appropriate dashboard based on user role
 function goBack() {
-    // Try to get user info to determine the correct dashboard
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-    
-    if (token) {
+    // First check if user is still authenticated
+    if (typeof AuthUtils !== 'undefined') {
+        if (!AuthUtils.isAuthenticated()) {
+            // User is not authenticated, redirect to login
+            console.warn('Session expired or user logged out - redirecting to login');
+            localStorage.clear();
+            window.location.href = 'login-signup.html?expired=true';
+            return;
+        }
+    } else {
+        // AuthUtils not available, check token manually
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token || token === 'dev-token-bypass' || token.startsWith('demo-token-')) {
+            // No valid token, redirect to login
+            localStorage.clear();
+            window.location.href = 'login-signup.html';
+            return;
+        }
+        
+        // Verify token is valid JWT and not expired
         try {
-            // Try to decode JWT to get user role
-            const user = typeof AuthUtils !== 'undefined' ? AuthUtils.getCurrentUser() : null;
-            
-            if (user && user.role) {
-                switch (user.role) {
-                    case 'admin':
-                        window.location.href = 'admin-dashboard.html';
-                        return;
-                    case 'vehicle_owner':
-                        window.location.href = 'owner-dashboard.html';
-                        return;
-                    case 'insurance_verifier':
-                        window.location.href = 'insurance-verifier-dashboard.html';
-                        return;
-                    case 'emission_verifier':
-                        window.location.href = 'emission-verifier-dashboard.html';
-                        return;
-                    case 'hpg_admin':
-                        window.location.href = 'hpg-dashboard.html';
-                        return;
+            const parts = token.split('.');
+            if (parts.length === 3) {
+                const payload = JSON.parse(atob(parts[1]));
+                if (payload.exp && payload.exp * 1000 < Date.now()) {
+                    // Token expired
+                    localStorage.clear();
+                    window.location.href = 'login-signup.html?expired=true';
+                    return;
                 }
             }
         } catch (e) {
-            console.error('Error getting user role:', e);
+            // Invalid token format
+            localStorage.clear();
+            window.location.href = 'login-signup.html';
+            return;
         }
+    }
+    
+    // User is authenticated, proceed with role-based redirect
+    try {
+        // Try to decode JWT to get user role
+        const user = typeof AuthUtils !== 'undefined' ? AuthUtils.getCurrentUser() : null;
+        
+        if (user && user.role) {
+            switch (user.role) {
+                case 'admin':
+                    window.location.href = 'admin-dashboard.html';
+                    return;
+                case 'vehicle_owner':
+                    window.location.href = 'owner-dashboard.html';
+                    return;
+                case 'insurance_verifier':
+                    window.location.href = 'insurance-verifier-dashboard.html';
+                    return;
+                case 'emission_verifier':
+                    window.location.href = 'emission-verifier-dashboard.html';
+                    return;
+                case 'hpg_admin':
+                    window.location.href = 'hpg-dashboard.html';
+                    return;
+            }
+        }
+    } catch (e) {
+        console.error('Error getting user role:', e);
     }
     
     // Fallback: use browser history or go to index

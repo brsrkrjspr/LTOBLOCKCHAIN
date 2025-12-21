@@ -130,15 +130,14 @@ async function updateVehicle(id, updateData) {
 }
 
 async function getVehiclesByOwner(ownerId) {
-    // Get vehicles where the user is the current owner AND the vehicle is actually registered/approved
-    // Only return vehicles with status REGISTERED or APPROVED (actually owned, not pending)
-    // This excludes: SUBMITTED, PENDING_BLOCKCHAIN, REJECTED, SUSPENDED
+    // Get ALL vehicles where the user is the owner (including pending applications)
+    // Include all statuses: SUBMITTED, PENDING_BLOCKCHAIN, REGISTERED, APPROVED, etc.
+    // This allows owners to see their pending applications in addition to registered vehicles
     // Use COALESCE to check both current_owner_id (if maintained) and owner_id (fallback)
     const result = await db.query(
         `SELECT v.* FROM vehicles v
          WHERE (COALESCE(v.current_owner_id, v.owner_id) = $1)
-           AND v.status IN ('REGISTERED', 'APPROVED')
-         ORDER BY v.registration_date DESC`,
+         ORDER BY v.created_at DESC, v.registration_date DESC`,
         [ownerId]
     );
     return result.rows;

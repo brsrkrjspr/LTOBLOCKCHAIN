@@ -70,6 +70,27 @@
                     <span>Document Viewer</span>
                 </a>
             </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">AD</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">ADMIN</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">System Administrator</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="admin-settings.html" class="sidebar-action-item" title="Settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -81,21 +102,7 @@
                             <i class="fas fa-bars"></i>
                         </button>
                         <div class="logo">
-                            <h1>LTO Blockchain</h1>
-                            <p>Admin Dashboard</p>
-                        </div>
-                        <div class="user-info">
-                            <div class="user-profile">
-                                <div class="user-avatar" id="userAvatar">AD</div>
-                                <div class="user-details">
-                                    <span class="user-name" id="userName">Loading...</span>
-                                    <span class="user-role" id="userRole">Loading...</span>
-                                </div>
-                            </div>
-                            <div class="user-actions">
-                                <a href="admin-settings.html" class="btn-secondary">Settings</a>
-                                <a href="index.html" class="btn-secondary">Logout</a>
-                            </div>
+                            <h1>LTO MANAGEMENT SYSTEM</h1>
                         </div>
                     </div>
                 </div>
@@ -284,16 +291,7 @@
                 }
                 // ================================================
                 
-                const userNameEl = document.getElementById('userName');
-                const userRoleEl = document.getElementById('userRole');
-                const userAvatarEl = document.getElementById('userAvatar');
-                
-                if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName();
-                if (userRoleEl) {
-                    const roleNames = { 'admin': 'System Administrator' };
-                    userRoleEl.textContent = roleNames[user.role] || user.role;
-                }
-                if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials();
+                // User info is now only in sidebar footer (handled by sidebar initialization)
             } else {
                 window.location.href = 'login-signup.html';
                 return;

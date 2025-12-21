@@ -24,7 +24,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initializeOwnerDashboard();
     initializeKeyboardShortcuts();
-    initializePagination();
+    
+    // Initialize pagination after a short delay to ensure table is rendered
+    setTimeout(() => {
+        initializePagination();
+    }, 100);
 });
 
 // Pagination state
@@ -744,7 +748,17 @@ function initializePagination() {
         
         const table = tableContainer.querySelector('table');
         if (table) {
-            tableContainer.insertBefore(toolbar, table);
+            // Safely insert toolbar before table
+            // Check if table is a direct child of tableContainer
+            if (table.parentElement === tableContainer) {
+                tableContainer.insertBefore(toolbar, table);
+            } else {
+                // Table is nested, insert at the beginning of tableContainer instead
+                tableContainer.insertBefore(toolbar, tableContainer.firstChild);
+            }
+        } else {
+            // Table not found yet, insert at beginning of container
+            tableContainer.insertBefore(toolbar, tableContainer.firstChild);
         }
         
         document.getElementById('applicationSearch')?.addEventListener('input', () => {
@@ -758,12 +772,22 @@ function initializePagination() {
         });
     }
     
-    const tbody = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    // Try multiple selectors for tbody
+    const tbody = document.querySelector('.table-modern tbody') || 
+                  document.querySelector('#applications .table-modern tbody') ||
+                  document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+    
     if (tbody && !document.getElementById('pagination-container-owner')) {
         const paginationContainer = document.createElement('div');
         paginationContainer.id = 'pagination-container-owner';
         paginationContainer.style.marginTop = '1rem';
-        tbody.closest('table')?.parentElement?.appendChild(paginationContainer);
+        
+        // Find the table wrapper to append pagination
+        const tableElement = tbody.closest('table');
+        const tableWrapper = tableElement?.parentElement;
+        if (tableWrapper) {
+            tableWrapper.appendChild(paginationContainer);
+        }
     }
 }
 

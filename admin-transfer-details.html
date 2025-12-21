@@ -98,21 +98,7 @@
                             <i class="fas fa-bars"></i>
                         </button>
                         <div class="logo">
-                            <h1>LTO Blockchain</h1>
-                            <p>Admin Dashboard</p>
-                        </div>
-                        <div class="user-info">
-                            <div class="user-profile">
-                                <div class="user-avatar" id="userAvatar">AD</div>
-                                <div class="user-details">
-                                    <span class="user-name" id="userName">Loading...</span>
-                                    <span class="user-role" id="userRole">Loading...</span>
-                                </div>
-                            </div>
-                            <div class="user-actions">
-                                <a href="admin-settings.html" class="btn-secondary">Settings</a>
-                                <a href="index.html" class="btn-secondary">Logout</a>
-                            </div>
+                            <h1>LTO MANAGEMENT SYSTEM</h1>
                         </div>
                     </div>
                 </div>
@@ -489,16 +475,7 @@
                 }
                 // ================================================
                 
-                const userNameEl = document.getElementById('userName');
-                const userRoleEl = document.getElementById('userRole');
-                const userAvatarEl = document.getElementById('userAvatar');
-                
-                if (userNameEl) userNameEl.textContent = AuthUtils.getUserDisplayName();
-                if (userRoleEl) {
-                    const roleNames = { 'admin': 'System Administrator' };
-                    userRoleEl.textContent = roleNames[user.role] || user.role;
-                }
-                if (userAvatarEl) userAvatarEl.textContent = AuthUtils.getUserInitials();
+                // User info is now only in sidebar footer (handled by admin-transfer-details.js)
             } else {
                 window.location.href = 'login-signup.html';
                 return;
@@ -526,11 +503,8 @@
             document.getElementById('requestDocsModal').style.display = 'flex';
         }
 
-        function forwardToHPG() {
-            if (confirm('Forward this request to HPG for clearance review? This will lock the request.')) {
-                console.log('Forwarding to HPG...');
-            }
-        }
+        // Note: forwardToHPG() is implemented in js/admin-transfer-details.js
+        // This stub was removed to allow the real implementation to work
 
         function viewVerification() {
             window.location.href = 'admin-transfer-verification.html?id=TO-2024-001';

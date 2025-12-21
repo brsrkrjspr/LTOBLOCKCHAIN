@@ -979,11 +979,28 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
             [userId, userEmail]
         );
 
-        const requests = result.rows.map(row => ({
-            ...row,
-            buyer_info: row.buyer_info ? (typeof row.buyer_info === 'string' ? JSON.parse(row.buyer_info) : row.buyer_info) : null,
-            metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
-        }));
+        const requests = result.rows.map(row => {
+            // Extract vehicle fields and create nested vehicle object
+            const vehicle = {
+                id: row.vehicle_id,
+                vin: row.vin,
+                plate_number: row.plate_number,
+                plateNumber: row.plate_number, // Support both naming conventions
+                make: row.make,
+                model: row.model,
+                year: row.year
+            };
+            
+            // Remove vehicle fields from the main object to avoid duplication
+            const { vin, plate_number, make, model, year, ...transferRequest } = row;
+            
+            return {
+                ...transferRequest,
+                vehicle: vehicle, // Nested vehicle object for frontend compatibility
+                buyer_info: row.buyer_info ? (typeof row.buyer_info === 'string' ? JSON.parse(row.buyer_info) : row.buyer_info) : null,
+                metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
+            };
+        });
 
         res.json({
             success: true,
@@ -1070,15 +1087,39 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
             }
         }
 
+        // Validate required fields before proceeding
+        if (!request.vehicle_id) {
+            throw new Error('Transfer request missing vehicle_id');
+        }
+
+        if (!request.seller_id) {
+            throw new Error('Transfer request missing seller_id');
+        }
+
         // Update status to REVIEWING to indicate that buyer has accepted and LTO review is next
         const metadataUpdate = {
             buyerAcceptedAt: new Date().toISOString(),
             buyerAcceptedBy: currentUserId
         };
-        await db.updateTransferRequestStatus(id, 'REVIEWING', null, null, metadataUpdate);
+        
+        try {
+            await db.updateTransferRequestStatus(id, 'REVIEWING', null, null, metadataUpdate);
+        } catch (updateError) {
+            console.error('Failed to update transfer request status:', updateError);
+            throw new Error(`Failed to update transfer request status: ${updateError.message}`);
+        }
 
         // Get vehicle information for email
-        const vehicle = await db.getVehicleById(request.vehicle_id);
+        let vehicle = null;
+        try {
+            vehicle = await db.getVehicleById(request.vehicle_id);
+            if (!vehicle) {
+                console.warn(`Vehicle not found: ${request.vehicle_id}`);
+            }
+        } catch (vehicleError) {
+            console.error('Failed to get vehicle:', vehicleError);
+            // Don't fail the request if vehicle lookup fails - continue with null vehicle
+        }
         
         // Get seller information
         const sellerEmail = request.seller_email;
@@ -1128,10 +1169,23 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
             transferRequest: updatedRequest
         });
     } catch (error) {
-        console.error('Buyer accept transfer request error:', error);
+        console.error('Buyer accept transfer request error:', {
+            error: error.message,
+            stack: error.stack,
+            transferRequestId: id,
+            userId: req.user?.userId,
+            userEmail: req.user?.email,
+            requestData: {
+                vehicle_id: request?.vehicle_id,
+                seller_id: request?.seller_id,
+                buyer_id: request?.buyer_id,
+                status: request?.status
+            }
+        });
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to accept transfer request'
         });
     }
 });

@@ -526,7 +526,22 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
 
         // All verifications complete - approve and register on blockchain
         console.log(`[LTO Approval] All verifications approved for vehicle ${vehicleId}. Proceeding with approval.`);
-        
+
+        // Generate OR/CR Number
+        let orCrNumber = null;
+        let orCrIssuedAt = null;
+        try {
+            const orCrResult = await db.assignOrCrNumber(vehicleId);
+            orCrNumber = orCrResult.orCrNumber;
+            orCrIssuedAt = orCrResult.issuedAt;
+            console.log(`[LTO Approval] OR/CR number assigned: ${orCrNumber}`);
+        } catch (orCrError) {
+            console.error('Failed to generate OR/CR number:', orCrError);
+            // Continue with approval even if OR/CR generation fails
+            // Admin can manually assign later
+        }
+
+        // Update vehicle status to APPROVED (with OR/CR number if generated)
         await db.updateVehicle(vehicleId, {
             status: 'APPROVED'
         });
@@ -549,6 +564,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     transmission: vehicle.transmission,
                     engineDisplacement: vehicle.engine_displacement,
                     owner: vehicle.owner_name || vehicle.owner_email,
+                    orCrNumber: orCrNumber, // Include OR/CR in blockchain record
                     documents: {}
                 };
 
@@ -567,34 +583,39 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             });
         }
 
-        // Add to history
+        // Add to history (include OR/CR number in metadata)
         await db.addVehicleHistory({
             vehicleId,
             action: 'CLEARANCE_APPROVED',
-            description: `Clearance approved by ${req.user.email}. ${notes || 'All verifications complete.'}`,
+            description: `Clearance approved by ${req.user.email}. OR/CR: ${orCrNumber || 'Pending'}. ${notes || 'All verifications complete.'}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId,
             metadata: { 
                 notes,
                 blockchainTxId,
+                orCrNumber,
+                orCrIssuedAt,
                 verifications: verifications.map(v => ({ type: v.verification_type, status: v.status }))
             }
         });
 
-        // Create notification for owner
+        // Create notification for owner (include OR/CR number)
         if (vehicle.owner_id) {
             await db.createNotification({
                 userId: vehicle.owner_id,
                 title: 'Vehicle Registration Approved',
-                message: `Your vehicle registration (${vehicle.plate_number || vehicle.vin}) has been approved!`,
+                message: `Your vehicle registration (${vehicle.plate_number || vehicle.vin}) has been approved! OR/CR Number: ${orCrNumber || 'Processing'}`,
                 type: 'success'
             });
         }
 
+        // Return response with OR/CR number
         res.json({
             success: true,
             message: 'Clearance approved successfully',
             vehicleId,
+            orCrNumber,
+            orCrIssuedAt,
             blockchainTxId,
             status: blockchainTxId ? 'REGISTERED' : 'APPROVED'
         });

@@ -1217,6 +1217,108 @@ async function getRegistrationProgress(vehicleId) {
     return progress;
 }
 
+// ============================================
+// OR/CR NUMBER GENERATION
+// ============================================
+
+/**
+ * Generate unique OR/CR number
+ * Format: ORCR-YYYY-XXXXXX (Year + 6-digit sequential number)
+ * Uses database sequence for atomic incrementing to prevent race conditions
+ * 
+ * @returns {Promise<string>} The generated OR/CR number
+ */
+async function generateOrCrNumber() {
+    const year = new Date().getFullYear();
+    
+    try {
+        // Use database sequence for atomic increment
+        // This prevents race conditions when multiple approvals happen simultaneously
+        const result = await db.query(
+            `SELECT nextval('or_cr_number_seq') as seq_num`
+        );
+        
+        const sequenceNumber = parseInt(result.rows[0].seq_num);
+        
+        // Format: ORCR-YYYY-XXXXXX (6 digits, zero-padded)
+        const orCrNumber = `ORCR-${year}-${String(sequenceNumber).padStart(6, '0')}`;
+        
+        // Verify uniqueness (safety check - should never fail with sequence)
+        const existingCheck = await db.query(
+            'SELECT id FROM vehicles WHERE or_cr_number = $1',
+            [orCrNumber]
+        );
+        
+        if (existingCheck.rows.length > 0) {
+            // Extremely rare case - retry with next sequence number
+            console.warn(`OR/CR number collision detected: ${orCrNumber}. Retrying...`);
+            return generateOrCrNumber(); // Recursive retry
+        }
+        
+        console.log(`[OR/CR] Generated new number: ${orCrNumber}`);
+        return orCrNumber;
+        
+    } catch (error) {
+        // If sequence doesn't exist (first run before migration), fall back to count-based
+        if (error.message && error.message.includes('or_cr_number_seq')) {
+            console.warn('OR/CR sequence not found, using fallback method');
+            return generateOrCrNumberFallback();
+        }
+        throw error;
+    }
+}
+
+/**
+ * Fallback OR/CR number generation (used if sequence doesn't exist)
+ * Less atomic but works without migration
+ */
+async function generateOrCrNumberFallback() {
+    const year = new Date().getFullYear();
+    
+    // Get the highest sequence number for this year
+    const result = await db.query(
+        `SELECT or_cr_number FROM vehicles 
+         WHERE or_cr_number LIKE $1 
+         ORDER BY or_cr_number DESC 
+         LIMIT 1`,
+        [`ORCR-${year}-%`]
+    );
+    
+    let sequence = 1;
+    if (result.rows.length > 0) {
+        const lastNumber = result.rows[0].or_cr_number;
+        const lastSequence = parseInt(lastNumber.split('-')[2]) || 0;
+        sequence = lastSequence + 1;
+    }
+    
+    // Format: ORCR-YYYY-XXXXXX (6 digits)
+    const orCrNumber = `ORCR-${year}-${String(sequence).padStart(6, '0')}`;
+    
+    console.log(`[OR/CR] Generated new number (fallback): ${orCrNumber}`);
+    return orCrNumber;
+}
+
+/**
+ * Assign OR/CR number to a vehicle
+ * Updates the vehicle record with the generated OR/CR number
+ * 
+ * @param {string} vehicleId - The vehicle UUID
+ * @returns {Promise<{orCrNumber: string, issuedAt: Date}>}
+ */
+async function assignOrCrNumber(vehicleId) {
+    const orCrNumber = await generateOrCrNumber();
+    const issuedAt = new Date();
+    
+    await db.query(
+        `UPDATE vehicles 
+         SET or_cr_number = $1, or_cr_issued_at = $2, last_updated = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [orCrNumber, issuedAt, vehicleId]
+    );
+    
+    return { orCrNumber, issuedAt };
+}
+
 module.exports = {
     // User operations
     getUserByEmail,
@@ -1279,6 +1381,11 @@ module.exports = {
     createTransferVerification,
     getTransferVerificationHistory,
     getOwnershipHistory,
-    getRegistrationProgress
+    getRegistrationProgress,
+    
+    // OR/CR Number operations
+    generateOrCrNumber,
+    generateOrCrNumberFallback,
+    assignOrCrNumber
 };
 

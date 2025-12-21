@@ -51,12 +51,13 @@ function getEmailTransporter() {
     if (!emailTransporter) {
         // Use Gmail App Password from environment variable
         // Remove spaces if present (user provided: "fjje jnhd nofj rakr")
+        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
         const appPassword = (process.env.GMAIL_APP_PASSWORD || 'fjjejnhdnofjrakr').replace(/\s+/g, '');
         
         emailTransporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'kimandrei012@gmail.com',
+                user: gmailUser,
                 pass: appPassword
             }
         });
@@ -227,8 +228,9 @@ TrustChain LTO System
 
     try {
         const transporter = getEmailTransporter();
+        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
         const info = await transporter.sendMail({
-            from: '"TrustChain LTO System" <kimandrei012@gmail.com>',
+            from: `"TrustChain LTO System" <${gmailUser}>`,
             to: to,
             subject: subject,
             html: html,
@@ -375,8 +377,9 @@ TrustChain LTO System
 
     try {
         const transporter = getEmailTransporter();
+        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
         const info = await transporter.sendMail({
-            from: '"TrustChain LTO System" <kimandrei012@gmail.com>',
+            from: `"TrustChain LTO System" <${gmailUser}>`,
             to: to,
             subject: subject,
             html: html,
@@ -523,8 +526,9 @@ TrustChain LTO System
 
     try {
         const transporter = getEmailTransporter();
+        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
         const info = await transporter.sendMail({
-            from: '"TrustChain LTO System" <kimandrei012@gmail.com>',
+            from: `"TrustChain LTO System" <${gmailUser}>`,
             to: to,
             subject: subject,
             html: html,

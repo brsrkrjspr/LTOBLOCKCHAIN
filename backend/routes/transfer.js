@@ -1087,27 +1087,13 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
             }
         }
 
-        // Validate required fields before proceeding
-        if (!request.vehicle_id) {
-            throw new Error('Transfer request missing vehicle_id');
-        }
-
-        if (!request.seller_id) {
-            throw new Error('Transfer request missing seller_id');
-        }
-
         // Update status to REVIEWING to indicate that buyer has accepted and LTO review is next
         const metadataUpdate = {
             buyerAcceptedAt: new Date().toISOString(),
             buyerAcceptedBy: currentUserId
         };
         
-        try {
-            await db.updateTransferRequestStatus(id, 'REVIEWING', null, null, metadataUpdate);
-        } catch (updateError) {
-            console.error('Failed to update transfer request status:', updateError);
-            throw new Error(`Failed to update transfer request status: ${updateError.message}`);
-        }
+        await db.updateTransferRequestStatus(id, 'REVIEWING', null, null, metadataUpdate);
 
         // Get vehicle information for email
         let vehicle = null;

@@ -29,6 +29,48 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'insurance_ve
     }
 });
 
+// Get single insurance verification request
+router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const request = await db.getClearanceRequestById(id);
+        if (!request || request.request_type !== 'insurance') {
+            return res.status(404).json({
+                success: false,
+                error: 'Insurance clearance request not found'
+            });
+        }
+
+        // Get vehicle details
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        
+        // Extract documents from metadata (filtered by LTO)
+        // Insurance should ONLY see documents that were explicitly included in metadata.documents
+        const metadata = request.metadata || {};
+        const documents = metadata.documents || [];
+        
+        console.log(`[Insurance] Returning ${documents.length} document(s) from metadata (filtered by LTO)`);
+        console.log(`[Insurance] Document types: ${documents.map(d => d.type).join(', ')}`);
+
+        res.json({
+            success: true,
+            request: {
+                ...request,
+                vehicle,
+                documents: documents // Return filtered documents
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting Insurance request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get Insurance request: ' + error.message
+        });
+    }
+});
+
 // Approve insurance verification
 router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {

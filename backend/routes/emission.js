@@ -29,6 +29,48 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'emission_ver
     }
 });
 
+// Get single emission verification request
+router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'emission_verifier']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const request = await db.getClearanceRequestById(id);
+        if (!request || request.request_type !== 'emission') {
+            return res.status(404).json({
+                success: false,
+                error: 'Emission clearance request not found'
+            });
+        }
+
+        // Get vehicle details
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        
+        // Extract documents from metadata (filtered by LTO)
+        // Emission should ONLY see documents that were explicitly included in metadata.documents
+        const metadata = request.metadata || {};
+        const documents = metadata.documents || [];
+        
+        console.log(`[Emission] Returning ${documents.length} document(s) from metadata (filtered by LTO)`);
+        console.log(`[Emission] Document types: ${documents.map(d => d.type).join(', ')}`);
+
+        res.json({
+            success: true,
+            request: {
+                ...request,
+                vehicle,
+                documents: documents // Return filtered documents
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting Emission request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get Emission request: ' + error.message
+        });
+    }
+});
+
 // Approve emission verification
 router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'emission_verifier']), async (req, res) => {
     try {

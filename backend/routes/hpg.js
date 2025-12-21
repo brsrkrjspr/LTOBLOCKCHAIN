@@ -51,14 +51,22 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admi
 
         // Get vehicle details
         const vehicle = await db.getVehicleById(request.vehicle_id);
-        const certificates = await db.getCertificatesByRequest(id);
+        
+        // Extract documents from metadata (filtered by LTO)
+        // HPG should ONLY see documents that were explicitly included in metadata.documents
+        const metadata = request.metadata || {};
+        const documents = metadata.documents || [];
+        
+        console.log(`[HPG] Returning ${documents.length} document(s) from metadata (filtered by LTO)`);
+        console.log(`[HPG] Document types: ${documents.map(d => d.type).join(', ')}`);
 
         res.json({
             success: true,
             request: {
                 ...request,
                 vehicle,
-                certificates
+                certificates: documents, // Return filtered documents as certificates
+                documents: documents // Also include as documents for consistency
             }
         });
 

@@ -85,6 +85,34 @@
             color: #27ae60;
             font-weight: bold;
         }
+        
+        /* OR/CR Number readonly styling */
+        #toOrCrNumber[readonly] {
+            background-color: #f0f8ff;
+            border-color: #3498db;
+            cursor: not-allowed;
+        }
+        
+        #toOrCrNumber[readonly]:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        /* OR/CR info badge */
+        .orcr-info-badge {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            background: #d4edda;
+            color: #155724;
+            border-radius: 12px;
+            font-weight: normal;
+        }
+        
+        .orcr-info-badge i {
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -286,8 +314,16 @@
                                             </select>
                                         </div>
                                         <div class="form-group">
-                                            <label>OR/CR Number</label>
-                                            <input type="text" id="toOrCrNumber" placeholder="e.g., OR-123456 / CR-654321">
+                                            <label>
+                                                OR/CR Number 
+                                                <span class="orcr-info-badge" id="orcrBadge" style="display: none;">
+                                                    <i class="fas fa-lock"></i> System Assigned
+                                                </span>
+                                            </label>
+                                            <input type="text" id="toOrCrNumber" placeholder="e.g., ORCR-2025-000001">
+                                            <small class="form-text text-muted" id="orcrHelpText">
+                                                This will be auto-filled when you select a registered vehicle.
+                                            </small>
                                         </div>
                                     </div>
                                     <div class="wizard-actions">
@@ -729,10 +765,51 @@
                 document.getElementById('toChassisNumber').value = vehicle.chassis_number || vehicle.chassisNumber || vehicle.vin || '';
                 document.getElementById('toVehicleType').value = vehicle.vehicle_type || vehicle.vehicleType || '';
                 
-                // Make fields readonly since they come from the system
+                // Auto-fill OR/CR Number from vehicle record
+                const orCrField = document.getElementById('toOrCrNumber');
+                const orcrBadge = document.getElementById('orcrBadge');
+                const orcrHelpText = document.getElementById('orcrHelpText');
+                
+                if (orCrField) {
+                    // Try multiple possible field names (camelCase and snake_case)
+                    const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || vehicle.orcr_number || '';
+                    orCrField.value = orCrNumber;
+                    
+                    // Make OR/CR field readonly if it has a value (system-assigned)
+                    if (orCrNumber) {
+                        orCrField.readOnly = true;
+                        orCrField.style.backgroundColor = '#f0f8ff';
+                        orCrField.title = 'OR/CR Number is assigned by the system and cannot be edited';
+                        
+                        // Show badge and hide help text
+                        if (orcrBadge) orcrBadge.style.display = 'inline-block';
+                        if (orcrHelpText) orcrHelpText.style.display = 'none';
+                    } else {
+                        // If no OR/CR exists (edge case), allow manual entry
+                        orCrField.readOnly = false;
+                        orCrField.style.backgroundColor = '';
+                        orCrField.title = '';
+                        
+                        // Hide badge and show help text
+                        if (orcrBadge) orcrBadge.style.display = 'none';
+                        if (orcrHelpText) {
+                            orcrHelpText.style.display = 'block';
+                            orcrHelpText.textContent = 'No OR/CR number found for this vehicle. You may enter it manually if needed.';
+                        }
+                    }
+                }
+                
+                // Make other fields readonly since they come from the system
                 document.getElementById('toPlateNumber').readOnly = true;
                 document.getElementById('toEngineNumber').readOnly = true;
                 document.getElementById('toChassisNumber').readOnly = true;
+                
+                // Log for debugging
+                console.log('✅ Vehicle selected:', {
+                    vehicleId,
+                    plateNumber: vehicle.plate_number || vehicle.plateNumber,
+                    orCrNumber: vehicle.or_cr_number || vehicle.orCrNumber || 'N/A'
+                });
             }
         }
 
@@ -1016,7 +1093,10 @@
             document.getElementById('summaryEngine').textContent = vehicle?.engine_number || vehicle?.engineNumber || 'N/A';
             document.getElementById('summaryChassis').textContent = vehicle?.chassis_number || vehicle?.chassisNumber || vehicle?.vin || 'N/A';
             document.getElementById('summaryType').textContent = vehicle?.vehicle_type || vehicle?.vehicleType || 'N/A';
-            document.getElementById('summaryOrCr').textContent = document.getElementById('toOrCrNumber')?.value || 'N/A';
+            
+            // OR/CR Number - prefer vehicle object, fallback to field value
+            const orCrNumber = vehicle?.or_cr_number || vehicle?.orCrNumber || document.getElementById('toOrCrNumber')?.value || 'N/A';
+            document.getElementById('summaryOrCr').textContent = orCrNumber;
             
             // Documents
             const uploadsList = document.getElementById('summaryUploads');

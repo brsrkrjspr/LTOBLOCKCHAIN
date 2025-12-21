@@ -2063,8 +2063,12 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
             flagged: flagged || false
         });
         
-        // Update document verification status
-        await db.verifyDocument(docId, status === 'APPROVED', req.user.userId);
+        // Update document verification status (only if approved)
+        // Note: verifyDocument always sets verified=true, so only call for APPROVED status
+        if (status === 'APPROVED') {
+            await db.verifyDocument(docId, req.user.userId);
+        }
+        // For REJECTED/PENDING, the verification record is created but document verified flag is not updated
         
         // Add to vehicle history
         await db.addVehicleHistory({
@@ -2088,10 +2092,18 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
         });
         
     } catch (error) {
-        console.error('Verify document error:', error);
+        console.error('Verify document error:', {
+            error: error.message,
+            stack: error.stack,
+            transferRequestId: id,
+            documentId: docId,
+            status: req.body.status,
+            userId: req.user?.userId
+        });
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to verify document'
         });
     }
 });

@@ -82,6 +82,12 @@ function initializeTransferDetails() {
 
     // Load transfer request details
     loadTransferRequestDetails();
+    
+    // Start auto-refresh
+    startAutoRefresh();
+    
+    // Stop auto-refresh when page unloads
+    window.addEventListener('beforeunload', stopAutoRefresh);
 }
 
 async function loadTransferRequestDetails() {
@@ -109,6 +115,38 @@ async function loadTransferRequestDetails() {
         console.error('Load transfer request details error:', error);
         showError(error.message || 'Failed to load transfer request details');
         hideLoading();
+    }
+}
+
+// Auto-refresh transfer request details every 30 seconds
+// This ensures organization approval statuses are updated when approvals happen from other dashboards
+let autoRefreshInterval = null;
+
+function startAutoRefresh() {
+    // Clear existing interval if any
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+    
+    // Refresh every 30 seconds
+    autoRefreshInterval = setInterval(() => {
+        if (currentRequestId && document.visibilityState === 'visible') {
+            loadTransferRequestDetails();
+        }
+    }, 30000); // 30 seconds
+    
+    // Also refresh when window gains focus
+    window.addEventListener('focus', () => {
+        if (currentRequestId) {
+            loadTransferRequestDetails();
+        }
+    });
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
     }
 }
 
@@ -153,6 +191,16 @@ function renderTransferRequestDetails(request) {
 }
 
 function renderOrgApprovalStatus(request) {
+    // Debug: Log approval statuses
+    console.log('Organization Approval Statuses:', {
+        hpg: request.hpg_approval_status,
+        insurance: request.insurance_approval_status,
+        emission: request.emission_approval_status,
+        hpg_clearance_request_id: request.hpg_clearance_request_id,
+        insurance_clearance_request_id: request.insurance_clearance_request_id,
+        emission_clearance_request_id: request.emission_clearance_request_id
+    });
+    
     const orgSection = document.getElementById('orgApprovalSection');
     const orgMessage = document.getElementById('orgApprovalMessage');
     

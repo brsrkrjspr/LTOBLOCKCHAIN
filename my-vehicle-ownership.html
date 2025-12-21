@@ -185,6 +185,48 @@
             box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
         }
 
+        /* Download Certificate Button */
+        .btn-download-cert {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-download-cert:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
+        }
+
+        /* Status badge inline */
+        .status-badge-inline {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge-inline.registered,
+        .status-badge-inline.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge-inline.submitted,
+        .status-badge-inline.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
         /* Limited Timeline Styles */
         .limited-timeline-container {
             background: white;
@@ -741,6 +783,7 @@
         </div>
     </div>
 
+    <script src="js/certificate-generator.js"></script>
     <script src="js/my-vehicle-ownership.js"></script>
     <script>
         // Initialize

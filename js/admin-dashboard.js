@@ -777,11 +777,16 @@ function showNotification(message, type = 'info') {
 }
 
 function initializeSubmittedApplications() {
-    // Load and display submitted applications
-    loadSubmittedApplications();
+    // Load and display submitted applications (legacy - for backward compatibility)
+    // Now using separate functions for registrations and transfers
+    loadRegistrationApplications();
+    loadTransferApplications();
     
     // Set up auto-refresh for applications
-    setInterval(loadSubmittedApplications, 10000); // Update every 10 seconds
+    setInterval(() => {
+        loadRegistrationApplications();
+        loadTransferApplications();
+    }, 10000); // Update every 10 seconds
 }
 
 async function loadSubmittedApplications() {
@@ -1926,6 +1931,166 @@ window.sendVerificationRequest = sendVerificationRequest;
 document.addEventListener('DOMContentLoaded', function() {
     checkWorkflowState();
 });
+
+// Load registration applications
+async function loadRegistrationApplications() {
+    try {
+        const tbody = document.getElementById('registration-applications-tbody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+        
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/vehicles?status=SUBMITTED,PROCESSING,APPROVED,REJECTED&limit=10');
+        
+        if (!response.success || !response.vehicles || response.vehicles.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <i class="fas fa-inbox"></i> No registration applications found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = response.vehicles.map(v => `
+            <tr>
+                <td><code style="font-size: 0.85rem;">${(v.id || '').substring(0, 8)}...</code></td>
+                <td>
+                    <strong>${v.plate_number || 'N/A'}</strong><br>
+                    <small>${v.make || ''} ${v.model || ''} ${v.year || ''}</small>
+                </td>
+                <td>${v.owner_name || v.owner_email || 'N/A'}</td>
+                <td>${v.created_at ? new Date(v.created_at).toLocaleDateString() : 'N/A'}</td>
+                <td>${renderOrgStatusIndicators(v)}</td>
+                <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${v.status || 'N/A'}</span></td>
+                <td>
+                    <a href="admin-application-details.html?id=${v.id}" class="btn-secondary btn-sm">View</a>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading registration applications:', error);
+        const tbody = document.getElementById('registration-applications-tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Error loading applications</td></tr>';
+        }
+    }
+}
+
+// Load transfer applications
+async function loadTransferApplications() {
+    try {
+        const tbody = document.getElementById('transfer-applications-tbody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+        
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/vehicles/transfer/requests?limit=10');
+        
+        if (!response.success || !response.requests || response.requests.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <i class="fas fa-inbox"></i> No transfer requests found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = response.requests.map(r => `
+            <tr>
+                <td><code style="font-size: 0.85rem;">${(r.id || '').substring(0, 8)}...</code></td>
+                <td>
+                    <strong>${r.vehicle?.plate_number || 'N/A'}</strong><br>
+                    <small>${r.vehicle?.make || ''} ${r.vehicle?.model || ''}</small>
+                </td>
+                <td>
+                    ${r.seller_name || 'Seller'} → ${r.buyer_name || r.buyer_email || 'Buyer'}
+                </td>
+                <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : 'N/A'}</td>
+                <td>${renderTransferOrgStatus(r)}</td>
+                <td><span class="status-badge status-${(r.status || '').toLowerCase()}">${r.status || 'N/A'}</span></td>
+                <td>
+                    <a href="admin-transfer-details.html?id=${r.id}" class="btn-secondary btn-sm">View</a>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading transfer applications:', error);
+        const tbody = document.getElementById('transfer-applications-tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Error loading transfers</td></tr>';
+        }
+    }
+}
+
+// Render org status indicators for registration
+function renderOrgStatusIndicators(vehicle) {
+    const hpg = vehicle.hpg_clearance_status || vehicle.hpg_status || 'NOT_STARTED';
+    const insurance = vehicle.insurance_status || 'NOT_STARTED';
+    const emission = vehicle.emission_status || 'NOT_STARTED';
+    
+    return `
+        <div class="org-status-indicators">
+            <span class="org-indicator ${getOrgStatusClass(hpg)}" title="HPG: ${hpg}">H</span>
+            <span class="org-indicator ${getOrgStatusClass(insurance)}" title="Insurance: ${insurance}">I</span>
+            <span class="org-indicator ${getOrgStatusClass(emission)}" title="Emission: ${emission}">E</span>
+        </div>
+    `;
+}
+
+// Render org status for transfer
+function renderTransferOrgStatus(request) {
+    const hpg = request.hpg_approval_status || 'NOT_FORWARDED';
+    const insurance = request.insurance_approval_status || 'NOT_FORWARDED';
+    const emission = request.emission_approval_status || 'NOT_FORWARDED';
+    
+    return `
+        <div class="org-status-indicators">
+            <span class="org-indicator ${getOrgStatusClass(hpg)}" title="HPG: ${hpg}">H</span>
+            <span class="org-indicator ${getOrgStatusClass(insurance)}" title="Insurance: ${insurance}">I</span>
+            <span class="org-indicator ${getOrgStatusClass(emission)}" title="Emission: ${emission}">E</span>
+        </div>
+    `;
+}
+
+function getOrgStatusClass(status) {
+    switch (status) {
+        case 'APPROVED':
+        case 'COMPLETED':
+            return 'approved';
+        case 'PENDING':
+        case 'PROCESSING':
+            return 'pending';
+        case 'REJECTED':
+            return 'rejected';
+        default:
+            return 'not-forwarded';
+    }
+}
+
+// Filter functions
+function filterRegistrations(status, btn) {
+    document.querySelectorAll('#registration-applications-table .filter-tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    // TODO: Implement actual filtering via API call or DOM filtering
+    loadRegistrationApplications();
+}
+
+function filterTransfers(status, btn) {
+    document.querySelectorAll('#transfer-applications-table .filter-tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    // TODO: Implement actual filtering
+    loadTransferApplications();
+}
+
+// Make filter functions globally available
+window.filterRegistrations = filterRegistrations;
+window.filterTransfers = filterTransfers;
 
 // Export functions for potential external use
 window.AdminDashboard = {

@@ -225,15 +225,15 @@
                     <div class="dashboard-card-modern action-card-secondary">
                         <div class="card-header-modern">
                             <div class="card-icon-modern">
-                                <i class="fas fa-cloud-upload-alt"></i>
+                                <i class="fas fa-file-alt"></i>
                             </div>
-                            <h3>Upload Documents</h3>
+                            <h3>My Documents</h3>
                         </div>
-                        <p class="card-description">Upload required documents for your registration application</p>
-                        <button class="btn-card-secondary" onclick="uploadDocuments()">
-                            <span>Upload Now</span>
+                        <p class="card-description">View documents you've uploaded for your applications</p>
+                        <a href="document-viewer.html" class="btn-card-secondary">
+                            <span>View Documents</span>
                             <i class="fas fa-arrow-right"></i>
-                        </button>
+                        </a>
                     </div>
                     
                     <div class="dashboard-card-modern action-card-info">
@@ -255,13 +255,13 @@
                             <div class="card-icon-modern">
                                 <i class="fas fa-file-download"></i>
                             </div>
-                            <h3>Download Papers</h3>
+                            <h3>Download Certificates</h3>
                         </div>
-                        <p class="card-description">Download your completed registration documents</p>
-                        <button class="btn-card-success" onclick="downloadFinalPapers()" id="downloadPapersBtn" disabled>
-                            <span>Download</span>
-                            <i class="fas fa-download"></i>
-                        </button>
+                        <p class="card-description">Download registration certificates for your approved vehicles</p>
+                        <a href="my-vehicle-ownership.html" class="btn-card-success">
+                            <span>Go to My Vehicles</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
                     </div>
                 </div>
 
@@ -343,25 +343,61 @@
 
                 <!-- Recent Applications -->
                 <div class="section-header">
-                    <h2 class="section-title">Recent Applications</h2>
-                    <p class="section-subtitle">View and manage your vehicle registration applications</p>
+                    <h2 class="section-title">My Applications</h2>
+                    <p class="section-subtitle">Track your vehicle registration and transfer requests</p>
                 </div>
+
+                <!-- Tabs for Registration vs Transfer -->
+                <div class="application-tabs" style="margin-bottom: 1rem;">
+                    <button class="app-tab active" onclick="showApplicationTab('registrations', this)">
+                        <i class="fas fa-car"></i> Registrations
+                    </button>
+                    <button class="app-tab" onclick="showApplicationTab('transfers', this)">
+                        <i class="fas fa-exchange-alt"></i> Transfers
+                    </button>
+                </div>
+
                 <div class="dashboard-card-modern table-card" id="applications">
-                    <div class="table-container-modern">
-                        <table class="table-modern">
-                            <thead>
-                                <tr>
-                                    <th>Vehicle</th>
-                                    <th>Application ID</th>
-                                    <th>Status</th>
-                                    <th>Submitted</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Applications will be loaded dynamically -->
-                            </tbody>
-                        </table>
+                    <!-- Registration Applications Table -->
+                    <div id="registrations-tab" class="application-tab-content active">
+                        <div class="table-container-modern">
+                            <table class="table-modern">
+                                <thead>
+                                    <tr>
+                                        <th>Vehicle</th>
+                                        <th>Application ID</th>
+                                        <th>Submitted</th>
+                                        <th>Verification Status</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="my-registrations-tbody">
+                                    <!-- Loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Transfer Applications Table -->
+                    <div id="transfers-tab" class="application-tab-content" style="display: none;">
+                        <div class="table-container-modern">
+                            <table class="table-modern">
+                                <thead>
+                                    <tr>
+                                        <th>Vehicle</th>
+                                        <th>Request ID</th>
+                                        <th>Type</th>
+                                        <th>Other Party</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="my-transfers-tbody">
+                                    <!-- Loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 

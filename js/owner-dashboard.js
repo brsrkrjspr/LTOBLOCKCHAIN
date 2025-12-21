@@ -1949,51 +1949,12 @@ function requestRegistration() {
     window.location.href = 'registration-wizard.html';
 }
 
+// DEPRECATED: This function is no longer used.
+// Document uploads are handled within registration-wizard.html
+// Redirecting to My Vehicles page instead
 function uploadDocuments() {
-    // Show upload modal or redirect to document upload page
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h3>Upload Required Documents</h3>
-                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
-            </div>
-            <div class="modal-body">
-                <form id="documentUploadForm" onsubmit="handleDocumentUpload(event)">
-                    <div class="form-group">
-                        <label for="documentType">Document Type</label>
-                        <select id="documentType" name="documentType" required>
-                            <option value="">Select document type...</option>
-                            <option value="owner_id">Owner ID</option>
-                            <option value="vehicle_registration">Vehicle Registration</option>
-                            <option value="insurance_cert">Insurance Certificate</option>
-                            <option value="emission_cert">Emission Certificate</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="documentFile">Upload Document (PDF/Image)</label>
-                        <input type="file" id="documentFile" name="documentFile" accept=".pdf,.jpg,.jpeg,.png" required>
-                        <small class="hint">Supported formats: PDF, JPG, PNG</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="documentNotes">Notes (Optional)</label>
-                        <textarea id="documentNotes" name="notes" rows="3" placeholder="Add any notes about this document..."></textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                        <button type="submit" class="btn-primary">Upload Document</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    modal.querySelector('.modal-close').onclick = () => modal.remove();
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    // Redirect to My Vehicles page where users can manage their vehicles and documents
+    window.location.href = 'my-vehicle-ownership.html';
 }
 
 function handleDocumentUpload(event) {
@@ -2169,6 +2130,28 @@ window.OwnerDashboard = {
     viewAllDocsInModal
 };
 
+// Application tab switching function
+function showApplicationTab(tab, btn) {
+    // Update tab buttons
+    document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    
+    // Show/hide content
+    document.querySelectorAll('.application-tab-content').forEach(c => c.classList.remove('active'));
+    const targetTab = document.getElementById(`${tab}-tab`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        targetTab.style.display = 'block';
+    }
+    
+    // Hide other tabs
+    document.querySelectorAll('.application-tab-content').forEach(c => {
+        if (!c.classList.contains('active')) {
+            c.style.display = 'none';
+        }
+    });
+}
+
 // Make functions globally available for inline onclick handlers
 window.retryLoadDocuments = retryLoadDocuments;
 window.viewUserApplication = viewUserApplication;
@@ -2177,3 +2160,4 @@ window.closeApplicationDetailsModal = closeApplicationDetailsModal;
 window.openDocumentByKey = openDocumentByKey;
 window.viewAllDocumentsFullPage = viewAllDocumentsFullPage;
 window.viewAllDocsInModal = viewAllDocsInModal;
+window.showApplicationTab = showApplicationTab;

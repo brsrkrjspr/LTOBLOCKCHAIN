@@ -354,32 +354,50 @@ function updateDocumentDisplay(doc) {
     if (currentDocTypeEl) currentDocTypeEl.textContent = getDocumentTypeLabel(docType);
     if (docTypeDisplayEl) docTypeDisplayEl.innerHTML = `<strong>${escapeHtml(getDocumentTypeLabel(docType))}</strong>`;
 
-    // Load document content - use url field from API response
-    const docUrl = doc.url || doc.file_url || doc.fileUrl;
-    if (documentViewerEl && docUrl) {
-        if (docUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-            // Image document
-            documentViewerEl.innerHTML = `<img src="${docUrl}" alt="${escapeHtml(docName)}" style="max-width: 100%; height: auto;">`;
-        } else if (docUrl.match(/\.(pdf)$/i)) {
-            // PDF document
-            documentViewerEl.innerHTML = `<iframe src="${docUrl}" style="width: 100%; height: 600px; border: none;"></iframe>`;
-        } else {
-            // Other document types - try to use view endpoint
-            const viewUrl = `/api/documents/${doc.id}/view`;
-            documentViewerEl.innerHTML = `
-                <div style="text-align: center; padding: 2rem;">
-                    <i class="fas fa-file-alt" style="font-size: 3rem; color: #7f8c8d;"></i>
-                    <p>Preview not available for this file type</p>
-                    <a href="${viewUrl}" target="_blank" class="btn-primary">Open Document</a>
-                </div>
-            `;
-        }
-    } else if (documentViewerEl) {
-        // No URL available, show placeholder
+    if (!documentViewerEl) return;
+
+    // Always use the authenticated view endpoint
+    const viewUrl = `/api/documents/${doc.id}/view`;
+    const mimeType = doc.mime_type || doc.mimeType || '';
+    const fileName = (doc.original_name || doc.filename || '').toLowerCase();
+
+    // Determine file type
+    const isImage = mimeType.startsWith('image/') || 
+                   fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    const isPdf = mimeType === 'application/pdf' || 
+                 fileName.endsWith('.pdf');
+
+    if (isImage) {
+        // For images - load via fetch with auth, then display
+        documentViewerEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3498db;"></i>
+                <p>Loading image...</p>
+            </div>
+        `;
+        loadAuthenticatedImage(doc.id, docName, documentViewerEl);
+    } else if (isPdf) {
+        // For PDFs - load via fetch with auth, then display
+        documentViewerEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3498db;"></i>
+                <p>Loading PDF...</p>
+            </div>
+        `;
+        loadAuthenticatedPdf(doc.id, docName, documentViewerEl);
+    } else {
+        // Other types - show download button with authenticated handler
         documentViewerEl.innerHTML = `
             <div style="text-align: center; padding: 2rem;">
                 <i class="fas fa-file-alt" style="font-size: 3rem; color: #7f8c8d;"></i>
-                <p>Document preview not available</p>
+                <p>Preview not available for this file type</p>
+                <p style="color: #7f8c8d; font-size: 0.9rem;">${escapeHtml(mimeType || 'Unknown type')}</p>
+                <button onclick="openDocumentAuthenticated('${doc.id}', '${escapeHtml(docName)}')" class="btn-primary" style="margin-top: 1rem;">
+                    <i class="fas fa-external-link-alt"></i> Open Document
+                </button>
+                <button onclick="downloadDocumentAuthenticated('${doc.id}', '${escapeHtml(docName)}')" class="btn-secondary" style="margin-top: 0.5rem;">
+                    <i class="fas fa-download"></i> Download
+                </button>
             </div>
         `;
     }
@@ -387,6 +405,160 @@ function updateDocumentDisplay(doc) {
     // Reset zoom
     currentZoom = 100;
     updateZoom();
+}
+
+// Load image with authentication
+async function loadAuthenticatedImage(documentId, docName, containerEl) {
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token) {
+            throw new Error('Not authenticated');
+        }
+
+        const response = await fetch(`/api/documents/${documentId}/view`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load image: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        containerEl.innerHTML = `
+            <img src="${blobUrl}" alt="${escapeHtml(docName)}" 
+                 style="max-width: 100%; height: auto; display: block; margin: 0 auto;"
+                 onload="URL.revokeObjectURL(this.src)">
+        `;
+    } catch (error) {
+        console.error('Error loading image:', error);
+        containerEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #e74c3c;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
+                <p>Failed to load image: ${escapeHtml(error.message)}</p>
+                <button onclick="openDocumentAuthenticated('${documentId}', '${escapeHtml(docName)}')" class="btn-primary" style="margin-top: 1rem;">
+                    Try Opening in New Tab
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Load PDF with authentication
+async function loadAuthenticatedPdf(documentId, docName, containerEl) {
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token) {
+            throw new Error('Not authenticated');
+        }
+
+        const response = await fetch(`/api/documents/${documentId}/view`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load PDF: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        containerEl.innerHTML = `
+            <iframe src="${blobUrl}" 
+                    style="width: 100%; height: 600px; border: none;"
+                    onload="setTimeout(() => URL.revokeObjectURL('${blobUrl}'), 60000)"></iframe>
+        `;
+    } catch (error) {
+        console.error('Error loading PDF:', error);
+        containerEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #e74c3c;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
+                <p>Failed to load PDF: ${escapeHtml(error.message)}</p>
+                <button onclick="openDocumentAuthenticated('${documentId}', '${escapeHtml(docName)}')" class="btn-primary" style="margin-top: 1rem;">
+                    Open in New Tab
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Open document in new tab with authentication
+async function openDocumentAuthenticated(documentId, docName) {
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token) {
+            showError('Please log in to view documents');
+            return;
+        }
+
+        showLoading();
+
+        const response = await fetch(`/api/documents/${documentId}/view`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load document');
+        }
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Open in new tab
+        window.open(blobUrl, '_blank');
+        
+        // Clean up blob URL after a delay
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+        hideLoading();
+    } catch (error) {
+        console.error('Error opening document:', error);
+        showError(error.message || 'Failed to open document');
+        hideLoading();
+    }
+}
+
+// Download document with authentication
+async function downloadDocumentAuthenticated(documentId, docName) {
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token) {
+            showError('Please log in to download documents');
+            return;
+        }
+
+        showLoading();
+
+        const response = await fetch(`/api/documents/${documentId}/view`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to download document');
+        }
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Create download link
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = docName || 'document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        URL.revokeObjectURL(blobUrl);
+        hideLoading();
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Document downloaded', 'success');
+        }
+    } catch (error) {
+        console.error('Error downloading document:', error);
+        showError(error.message || 'Failed to download document');
+        hideLoading();
+    }
 }
 
 async function loadDocumentVerificationHistory(docId) {
@@ -674,4 +846,8 @@ window.toggleFullscreen = toggleFullscreen;
 window.approveDocument = approveDocument;
 window.rejectDocument = rejectDocument;
 window.saveVerification = saveVerification;
+window.openDocumentAuthenticated = openDocumentAuthenticated;
+window.downloadDocumentAuthenticated = downloadDocumentAuthenticated;
+window.loadAuthenticatedImage = loadAuthenticatedImage;
+window.loadAuthenticatedPdf = loadAuthenticatedPdf;
 

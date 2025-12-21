@@ -112,7 +112,7 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
     const card = document.createElement('div');
     card.className = `vehicle-card ${isCurrent ? 'current' : ''}`;
 
-    // Build vehicle description with all available information
+    // Build vehicle description
     const vehicleDesc = [
         vehicle.year ? vehicle.year : '',
         vehicle.make ? vehicle.make : '',
@@ -120,8 +120,18 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
     ].filter(Boolean).join(' ') || 'Vehicle';
     
     const color = vehicle.color ? ` • ${vehicle.color}` : '';
-    const vehicleType = vehicle.vehicleType ? ` • ${vehicle.vehicleType}` : '';
-    const fuelType = vehicle.fuelType ? ` • ${vehicle.fuelType}` : '';
+    const vehicleType = vehicle.vehicleType || vehicle.vehicle_type ? ` • ${vehicle.vehicleType || vehicle.vehicle_type}` : '';
+
+    // Get OR/CR Number
+    const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || null;
+    const registrationDate = vehicle.registration_date || vehicle.registrationDate || null;
+    const isRegistered = vehicle.status === 'REGISTERED' || vehicle.status === 'APPROVED';
+
+    // Format dates
+    const regDateFormatted = registrationDate ? 
+        new Date(registrationDate).toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric' 
+        }) : 'N/A';
 
     card.innerHTML = `
         <div class="vehicle-info">
@@ -129,50 +139,64 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
             <div class="vehicle-details">
                 <div class="vehicle-detail-item">
                     <i class="fas fa-car"></i>
-                    <span>${escapeHtml(vehicleDesc + color + vehicleType + fuelType)}</span>
+                    <span>${escapeHtml(vehicleDesc + color + vehicleType)}</span>
                 </div>
                 <div class="vehicle-detail-item">
                     <i class="fas fa-barcode"></i>
                     <span>VIN: ${escapeHtml(vehicle.vin || 'N/A')}</span>
                 </div>
-                ${vehicle.engineNumber ? `
+                ${vehicle.engineNumber || vehicle.engine_number ? `
                 <div class="vehicle-detail-item">
                     <i class="fas fa-cog"></i>
-                    <span>Engine: ${escapeHtml(vehicle.engineNumber)}</span>
+                    <span>Engine: ${escapeHtml(vehicle.engineNumber || vehicle.engine_number)}</span>
                 </div>
                 ` : ''}
-                ${vehicle.chassisNumber ? `
+                ${vehicle.chassisNumber || vehicle.chassis_number ? `
                 <div class="vehicle-detail-item">
                     <i class="fas fa-wrench"></i>
-                    <span>Chassis: ${escapeHtml(vehicle.chassisNumber)}</span>
+                    <span>Chassis: ${escapeHtml(vehicle.chassisNumber || vehicle.chassis_number)}</span>
                 </div>
                 ` : ''}
-                ${vehicle.transmission ? `
+                
+                <!-- OR/CR Number - Prominently displayed -->
+                ${orCrNumber ? `
+                <div class="vehicle-detail-item" style="background: #e8f5e9; padding: 0.5rem 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                    <i class="fas fa-file-certificate" style="color: #27ae60;"></i>
+                    <span style="color: #27ae60; font-weight: 700;">OR/CR: ${escapeHtml(orCrNumber)}</span>
+                </div>
+                ` : ''}
+                
+                <!-- Registration Date -->
                 <div class="vehicle-detail-item">
-                    <i class="fas fa-sliders-h"></i>
-                    <span>Transmission: ${escapeHtml(vehicle.transmission)}</span>
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Registered: ${regDateFormatted}</span>
                 </div>
-                ` : ''}
-                ${vehicle.status ? `
+                
+                <!-- Status -->
                 <div class="vehicle-detail-item">
                     <i class="fas fa-info-circle"></i>
-                    <span>Status: ${escapeHtml(vehicle.status)}</span>
+                    <span>Status: <span class="status-badge-inline ${(vehicle.status || '').toLowerCase()}">${escapeHtml(vehicle.status || 'N/A')}</span></span>
                 </div>
-                ` : ''}
             </div>
         </div>
         <div class="vehicle-status">
             <span class="status-badge ${isCurrent ? 'current' : 'previous'}">
-                ${isCurrent ? 'Current' : 'Previous'}
+                ${isCurrent ? 'Current Owner' : 'Previous Owner'}
             </span>
             <div class="vehicle-actions">
-                ${isCurrent && (vehicle.status === 'REGISTERED' || vehicle.status === 'APPROVED') ? `
+                <!-- Download Certificate Button -->
+                ${isRegistered && orCrNumber ? `
+                    <button class="btn-download-cert" onclick="downloadVehicleCertificate('${escapeHtml(vehicle.id)}', '${escapeHtml(orCrNumber)}')" title="Download Registration Certificate">
+                        <i class="fas fa-download"></i> Certificate
+                    </button>
+                ` : ''}
+                ${isCurrent && isRegistered ? `
                     <button class="btn-transfer" onclick="transferVehicle('${escapeHtml(vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')" title="Transfer Ownership">
                         <i class="fas fa-exchange-alt"></i> Transfer
                     </button>
                 ` : ''}
                 <button class="btn-view-history" onclick="viewOwnershipHistory('${escapeHtml(vehicle.vin || vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')">
-                    <i class="fas fa-history"></i> View History
+                    <i class="fas fa-history"></i> History
                 </button>
             </div>
         </div>
@@ -482,6 +506,59 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Download vehicle registration certificate
+async function downloadVehicleCertificate(vehicleId, orCrNumber) {
+    try {
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Generating certificate...', 'info');
+        }
+
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Get vehicle details
+        const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
+        if (!vehicleResponse.success) {
+            throw new Error('Failed to load vehicle data');
+        }
+        
+        const vehicle = vehicleResponse.vehicle;
+        
+        // Get owner details
+        let owner = { email: 'N/A' };
+        if (vehicle.owner_id) {
+            try {
+                const profileResponse = await apiClient.get('/api/auth/profile');
+                if (profileResponse.success) {
+                    owner = profileResponse.user;
+                }
+            } catch (e) {
+                console.warn('Could not load owner profile:', e);
+            }
+        }
+        
+        // Generate certificate
+        if (typeof CertificateGenerator !== 'undefined') {
+            CertificateGenerator.generateCertificate(vehicle, owner);
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Certificate generated! Use Print dialog to save as PDF.', 'success');
+            }
+        } else {
+            throw new Error('Certificate generator not available');
+        }
+        
+    } catch (error) {
+        console.error('Certificate generation error:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Error: ${error.message}`, 'error');
+        } else {
+            alert(`Error: ${error.message}`);
+        }
+    }
+}
+
+// Make globally available
+window.downloadVehicleCertificate = downloadVehicleCertificate;
+
 // Transfer vehicle ownership - redirects to transfer page with vehicle pre-selected
 function transferVehicle(vehicleId, plateNumber) {
     // Store vehicle ID in sessionStorage for transfer-ownership.html to pick up
@@ -498,4 +575,5 @@ window.backToVehicleList = backToVehicleList;
 window.verifyOwnershipPeriod = verifyOwnershipPeriod;
 window.closeVerificationModal = closeVerificationModal;
 window.transferVehicle = transferVehicle;
+window.downloadVehicleCertificate = downloadVehicleCertificate;
 

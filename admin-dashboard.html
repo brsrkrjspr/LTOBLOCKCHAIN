@@ -404,26 +404,71 @@
                     </div>
                 </div>
 
-                <!-- Recent Applications -->
+                <!-- Vehicle Registration Applications Section -->
                 <div class="section-header">
-                    <h2 class="section-title">Recent Applications</h2>
-                    <p class="section-subtitle">View and manage vehicle registration applications</p>
+                    <h2 class="section-title"><i class="fas fa-car" style="color: #3498db;"></i> Vehicle Registration Applications</h2>
+                    <p class="section-subtitle">New vehicle registrations submitted by owners</p>
                 </div>
                 <div class="dashboard-card-modern table-card">
+                    <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div class="filter-tabs">
+                            <button class="filter-tab active" data-filter="all" onclick="filterRegistrations('all', this)">All</button>
+                            <button class="filter-tab" data-filter="SUBMITTED" onclick="filterRegistrations('SUBMITTED', this)">Pending</button>
+                            <button class="filter-tab" data-filter="PROCESSING" onclick="filterRegistrations('PROCESSING', this)">Processing</button>
+                            <button class="filter-tab" data-filter="APPROVED" onclick="filterRegistrations('APPROVED', this)">Approved</button>
+                        </div>
+                        <a href="admin-registrations.html" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
+                    </div>
                     <div class="table-container-modern">
-                        <table class="table-modern" id="submitted-applications-table">
+                        <table class="table-modern" id="registration-applications-table">
                             <thead>
                                 <tr>
                                     <th>Application ID</th>
                                     <th>Vehicle</th>
                                     <th>Owner</th>
                                     <th>Submitted</th>
+                                    <th>Org Status</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="submitted-applications-tbody">
-                                <!-- Applications will be loaded dynamically -->
+                            <tbody id="registration-applications-tbody">
+                                <!-- Registrations loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Transfer of Ownership Applications Section -->
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fas fa-exchange-alt" style="color: #27ae60;"></i> Transfer of Ownership Applications</h2>
+                    <p class="section-subtitle">Ownership transfer requests between sellers and buyers</p>
+                </div>
+                <div class="dashboard-card-modern table-card">
+                    <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div class="filter-tabs">
+                            <button class="filter-tab active" data-filter="all" onclick="filterTransfers('all', this)">All</button>
+                            <button class="filter-tab" data-filter="PENDING" onclick="filterTransfers('PENDING', this)">Pending Buyer</button>
+                            <button class="filter-tab" data-filter="REVIEWING" onclick="filterTransfers('REVIEWING', this)">Reviewing</button>
+                            <button class="filter-tab" data-filter="APPROVED" onclick="filterTransfers('APPROVED', this)">Approved</button>
+                        </div>
+                        <a href="admin-transfer-requests.html" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                    <div class="table-container-modern">
+                        <table class="table-modern" id="transfer-applications-table">
+                            <thead>
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th>Vehicle</th>
+                                    <th>Seller → Buyer</th>
+                                    <th>Submitted</th>
+                                    <th>Org Approvals</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transfer-applications-tbody">
+                                <!-- Transfers loaded dynamically -->
                             </tbody>
                         </table>
                     </div>

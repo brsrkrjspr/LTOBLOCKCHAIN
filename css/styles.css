@@ -8213,6 +8213,119 @@ input.invalid {
     margin: 0;
 }
 
+/* Filter Tabs */
+.filter-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: #e9ecef;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #495057;
+}
+
+.filter-tab:hover {
+    background: #dee2e6;
+}
+
+.filter-tab.active {
+    background: #3498db;
+    color: white;
+}
+
+/* Org Status Indicators */
+.org-status-indicators {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.org-indicator {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+}
+
+.org-indicator.approved {
+    background: #27ae60;
+}
+
+.org-indicator.pending {
+    background: #f39c12;
+}
+
+.org-indicator.rejected {
+    background: #e74c3c;
+}
+
+.org-indicator.not-forwarded {
+    background: #95a5a6;
+}
+
+.org-indicator[title]:hover {
+    cursor: help;
+    transform: scale(1.1);
+}
+
+/* Application Tabs (Owner Dashboard) */
+.application-tabs {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.app-tab {
+    padding: 0.75rem 1.5rem;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.app-tab:hover {
+    background: #f8f9fa;
+}
+
+.app-tab.active {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.application-tab-content {
+    display: none;
+}
+
+.application-tab-content.active {
+    display: block;
+}
+
+/* Table Header Actions */
+.table-header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
 @media (max-width: 768px) {
     .page-header {
         flex-direction: column;

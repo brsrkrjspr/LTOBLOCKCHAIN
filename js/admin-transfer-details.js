@@ -629,16 +629,34 @@ function getDocumentTypeLabel(type) {
 
 function updateActionButtons(request) {
     const status = request.status || 'PENDING';
-    const actionButtons = document.querySelector('.action-buttons');
+    const actionButtons = document.querySelector('.action-buttons') || document.getElementById('actionButtons');
     
     if (!actionButtons) return;
 
-    // Check organization approval status
-    const hpgStatus = request.hpg_approval_status || 'PENDING';
-    const insuranceStatus = request.insurance_approval_status || 'PENDING';
-    const emissionStatus = request.emission_approval_status || 'PENDING';
+    // Check organization approval statuses
+    const hpgStatus = request.hpg_approval_status || 'NOT_FORWARDED';
+    const insuranceStatus = request.insurance_approval_status || 'NOT_FORWARDED';
+    const emissionStatus = request.emission_approval_status || 'NOT_FORWARDED';
     
-    const allApproved = hpgStatus === 'APPROVED' && insuranceStatus === 'APPROVED' && emissionStatus === 'APPROVED';
+    // Determine if all orgs have approved
+    const hpgApproved = hpgStatus === 'APPROVED';
+    const insuranceApproved = insuranceStatus === 'APPROVED';
+    const emissionApproved = emissionStatus === 'APPROVED';
+    const allOrgsApproved = hpgApproved && insuranceApproved && emissionApproved;
+    
+    // Determine what's pending
+    const pendingOrgs = [];
+    if (hpgStatus !== 'APPROVED' && hpgStatus !== 'NOT_FORWARDED' && hpgStatus !== 'REJECTED') pendingOrgs.push('HPG');
+    if (insuranceStatus !== 'APPROVED' && insuranceStatus !== 'NOT_FORWARDED' && insuranceStatus !== 'REJECTED') pendingOrgs.push('Insurance');
+    if (emissionStatus !== 'APPROVED' && emissionStatus !== 'NOT_FORWARDED' && emissionStatus !== 'REJECTED') pendingOrgs.push('Emission');
+    
+    // Not forwarded orgs
+    const notForwardedOrgs = [];
+    if (hpgStatus === 'NOT_FORWARDED' || !hpgStatus || (!request.forwarded_to_hpg && !request.hpg_clearance_request_id)) notForwardedOrgs.push('HPG');
+    if (insuranceStatus === 'NOT_FORWARDED' || !insuranceStatus || !request.insurance_clearance_request_id) notForwardedOrgs.push('Insurance');
+    if (emissionStatus === 'NOT_FORWARDED' || !emissionStatus || !request.emission_clearance_request_id) notForwardedOrgs.push('Emission');
+    
+    // Check for rejections
     const anyRejected = hpgStatus === 'REJECTED' || insuranceStatus === 'REJECTED' || emissionStatus === 'REJECTED';
     
     // Clear existing buttons
@@ -647,34 +665,36 @@ function updateActionButtons(request) {
     if (status === 'PENDING' || status === 'REVIEWING' || status === 'FORWARDED_TO_HPG') {
         let buttonsHTML = '';
         
-        // Forwarding buttons
-        if (hpgStatus === 'PENDING' && !request.forwarded_to_hpg) {
+        // Show forward buttons for orgs not yet forwarded
+        if (notForwardedOrgs.includes('HPG')) {
             buttonsHTML += `
-                <button class="btn-primary btn-block" onclick="forwardToHPG()">
-                    <i class="fas fa-forward"></i> Forward to HPG
+                <button class="btn-info btn-block" onclick="forwardToHPG()">
+                    <i class="fas fa-shield-alt"></i> Forward to HPG
+                </button>
+            `;
+        }
+        if (notForwardedOrgs.includes('Insurance')) {
+            buttonsHTML += `
+                <button class="btn-info btn-block" onclick="forwardToInsurance()">
+                    <i class="fas fa-file-shield"></i> Forward to Insurance
+                </button>
+            `;
+        }
+        if (notForwardedOrgs.includes('Emission')) {
+            buttonsHTML += `
+                <button class="btn-info btn-block" onclick="forwardToEmission()">
+                    <i class="fas fa-leaf"></i> Forward to Emission
                 </button>
             `;
         }
         
-        if (insuranceStatus === 'PENDING' && !request.insurance_clearance_request_id) {
+        // Approve/Reject buttons - only enabled if all orgs approved
+        if (allOrgsApproved) {
             buttonsHTML += `
-                <button class="btn-primary btn-block" onclick="forwardToInsurance()">
-                    <i class="fas fa-forward"></i> Forward to Insurance
-                </button>
-            `;
-        }
-        
-        if (emissionStatus === 'PENDING' && !request.emission_clearance_request_id) {
-            buttonsHTML += `
-                <button class="btn-primary btn-block" onclick="forwardToEmission()">
-                    <i class="fas fa-forward"></i> Forward to Emission
-                </button>
-            `;
-        }
-        
-        // Approve/Reject buttons (only enabled if all orgs approved)
-        if (allApproved) {
-            buttonsHTML += `
+                <div class="approval-ready-banner" style="background: #d4edda; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
+                    <i class="fas fa-check-circle" style="color: #27ae60;"></i>
+                    <strong style="color: #155724;">All organizations have approved. Ready for final approval.</strong>
+                </div>
                 <button class="btn-success btn-block" onclick="approveTransfer()">
                     <i class="fas fa-check"></i> Approve Transfer
                 </button>
@@ -684,14 +704,28 @@ function updateActionButtons(request) {
             `;
         } else if (anyRejected) {
             buttonsHTML += `
-                <button class="btn-danger btn-block" onclick="rejectTransfer()" style="opacity: 0.6; cursor: not-allowed;" disabled>
-                    <i class="fas fa-times"></i> Cannot Approve (Organization Rejected)
+                <div class="approval-rejected-banner" style="background: #f8d7da; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
+                    <i class="fas fa-times-circle" style="color: #e74c3c;"></i>
+                    <strong style="color: #721c24;">One or more organizations have rejected this request.</strong>
+                </div>
+                <button class="btn-danger btn-block" onclick="rejectTransfer()">
+                    <i class="fas fa-times"></i> Reject Transfer
                 </button>
             `;
         } else {
+            // Show disabled buttons with explanation
+            const waitingFor = pendingOrgs.length > 0 ? pendingOrgs : notForwardedOrgs;
             buttonsHTML += `
-                <button class="btn-success btn-block" style="opacity: 0.6; cursor: not-allowed;" disabled title="All organizations must approve first">
-                    <i class="fas fa-check"></i> Approve Transfer (Pending Org Approvals)
+                <div class="approval-pending-banner" style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <i class="fas fa-hourglass-half" style="color: #856404;"></i>
+                    <strong style="color: #856404;">Cannot approve yet.</strong>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #856404;">
+                        ${notForwardedOrgs.length > 0 ? `Not forwarded to: ${notForwardedOrgs.join(', ')}` : ''}
+                        ${pendingOrgs.length > 0 ? `<br>Pending approval from: ${pendingOrgs.join(', ')}` : ''}
+                    </p>
+                </div>
+                <button class="btn-success btn-block" disabled style="opacity: 0.5; cursor: not-allowed;">
+                    <i class="fas fa-check"></i> Approve Transfer (Waiting for Orgs)
                 </button>
                 <button class="btn-danger btn-block" onclick="rejectTransfer()">
                     <i class="fas fa-times"></i> Reject Transfer
@@ -699,7 +733,7 @@ function updateActionButtons(request) {
             `;
         }
         
-        // Verification button
+        // Always show verification link
         buttonsHTML += `
             <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-secondary btn-block">
                 <i class="fas fa-clipboard-check"></i> Verify Documents

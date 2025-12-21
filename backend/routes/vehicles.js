@@ -1354,6 +1354,10 @@ function formatVehicleResponse(vehicle) {
         status: vehicle.status,
         registrationDate: vehicle.registration_date,
         lastUpdated: vehicle.last_updated,
+        orCrNumber: vehicle.or_cr_number || vehicle.orCrNumber,
+        or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber,
+        orCrIssuedAt: vehicle.or_cr_issued_at || vehicle.orCrIssuedAt,
+        or_cr_issued_at: vehicle.or_cr_issued_at || vehicle.orCrIssuedAt,
         verificationStatus: verificationStatus,
         verifications: vehicle.verifications || [],
         documents: formattedDocuments, // Use formatted documents with proper structure

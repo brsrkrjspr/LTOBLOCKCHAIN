@@ -934,7 +934,23 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
 router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.userId;
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'User ID is required'
+            });
+        }
+        
         const vehicles = await db.getVehiclesByOwner(userId);
+        
+        if (!vehicles || !Array.isArray(vehicles)) {
+            console.error('getVehiclesByOwner returned invalid result:', vehicles);
+            return res.json({
+                success: true,
+                ownershipHistory: []
+            });
+        }
 
         const ownershipHistory = [];
         for (const vehicle of vehicles) {

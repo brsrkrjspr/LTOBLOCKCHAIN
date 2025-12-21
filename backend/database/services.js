@@ -963,33 +963,69 @@ async function getOwnershipHistory(vehicleId) {
         }
         
         // Get ownership-related history (both REGISTERED and OWNERSHIP_TRANSFERRED)
-        const result = await db.query(
-            `SELECT vh.*,
-                    COALESCE(u.first_name || ' ' || u.last_name, 'System') as performed_by_name,
-                    v.vin, v.plate_number,
-                    COALESCE(owner.first_name || ' ' || owner.last_name, 'Unknown') as owner_name,
-                    COALESCE(owner.email, '') as owner_email
-             FROM vehicle_history vh
-             JOIN vehicles v ON vh.vehicle_id = v.id
-             LEFT JOIN users u ON vh.performed_by = u.id
-             LEFT JOIN users owner ON v.owner_id = owner.id
-             WHERE vh.vehicle_id = $1 
-               AND (vh.action = 'OWNERSHIP_TRANSFERRED' 
-                    OR vh.action = 'REGISTERED'
-                    OR (vh.metadata::jsonb)->>'previousOwnerId' IS NOT NULL)
-             ORDER BY vh.performed_at ASC`,
-            [vehicleId]
-        );
+        // Use standard JOIN (not LEFT JOIN) to only get actual history records
+        let result;
+        try {
+            result = await db.query(
+                `SELECT vh.*,
+                        COALESCE(u.first_name || ' ' || u.last_name, 'System') as performed_by_name,
+                        v.vin, v.plate_number,
+                        COALESCE(owner.first_name || ' ' || owner.last_name, 'Unknown') as owner_name,
+                        COALESCE(owner.email, '') as owner_email
+                 FROM vehicle_history vh
+                 JOIN vehicles v ON vh.vehicle_id = v.id
+                 LEFT JOIN users u ON vh.performed_by = u.id
+                 LEFT JOIN users owner ON v.owner_id = owner.id
+                 WHERE vh.vehicle_id = $1 
+                   AND (vh.action = 'OWNERSHIP_TRANSFERRED' 
+                        OR vh.action = 'REGISTERED'
+                        OR (vh.metadata IS NOT NULL 
+                            AND vh.metadata::text != 'null'
+                            AND vh.metadata::text != ''
+                            AND vh.metadata::text LIKE '%previousOwnerId%'))
+                 ORDER BY vh.performed_at ASC NULLS LAST`,
+                [vehicleId]
+            );
+        } catch (queryError) {
+            // If vehicle_history table doesn't exist or query fails, log and return empty history
+            console.error(`Query error in getOwnershipHistory for vehicle ${vehicleId}:`, queryError);
+            console.error('Error details:', {
+                message: queryError.message,
+                code: queryError.code,
+                detail: queryError.detail,
+                hint: queryError.hint
+            });
+            result = { rows: [] };
+        }
         
-        const history = result.rows.map(row => ({
-            ...row,
-            metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
-        }));
+        // Safely parse metadata for each history record
+        const history = result.rows.map(row => {
+            try {
+                return {
+                    ...row,
+                    metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
+                };
+            } catch (parseError) {
+                console.warn(`Error parsing metadata for history record ${row.id}:`, parseError);
+                return {
+                    ...row,
+                    metadata: {}
+                };
+            }
+        });
         
         // If no history exists but vehicle exists, create initial ownership entry
         if (history.length === 0 && vehicle) {
-            // Get current owner information
-            const ownerInfo = vehicle.owner_id ? await getUserById(vehicle.owner_id) : null;
+            // Get current owner information (safely handle errors)
+            let ownerInfo = null;
+            if (vehicle.owner_id) {
+                try {
+                    ownerInfo = await getUserById(vehicle.owner_id);
+                } catch (userError) {
+                    console.warn(`Error getting owner info for vehicle ${vehicleId}:`, userError);
+                    ownerInfo = null;
+                }
+            }
             
             return [{
                 id: null,
@@ -1016,7 +1052,16 @@ async function getOwnershipHistory(vehicleId) {
         // If we have history but no REGISTERED action, add initial registration as first entry
         const hasRegistered = history.some(h => h.action === 'REGISTERED');
         if (!hasRegistered && vehicle) {
-            const ownerInfo = vehicle.owner_id ? await getUserById(vehicle.owner_id) : null;
+            // Get current owner information (safely handle errors)
+            let ownerInfo = null;
+            if (vehicle.owner_id) {
+                try {
+                    ownerInfo = await getUserById(vehicle.owner_id);
+                } catch (userError) {
+                    console.warn(`Error getting owner info for vehicle ${vehicleId}:`, userError);
+                    ownerInfo = null;
+                }
+            }
             
             // Find the earliest transfer to determine initial owner
             // If there are transfers, the initial owner is in the first transfer's metadata
@@ -1027,11 +1072,15 @@ async function getOwnershipHistory(vehicleId) {
             if (history.length > 0) {
                 const firstTransfer = history[0];
                 if (firstTransfer.metadata && firstTransfer.metadata.previousOwnerId) {
-                    const prevOwner = await getUserById(firstTransfer.metadata.previousOwnerId);
-                    if (prevOwner) {
-                        initialOwnerId = firstTransfer.metadata.previousOwnerId;
-                        initialOwnerName = `${prevOwner.first_name} ${prevOwner.last_name}`;
-                        initialOwnerEmail = prevOwner.email;
+                    try {
+                        const prevOwner = await getUserById(firstTransfer.metadata.previousOwnerId);
+                        if (prevOwner) {
+                            initialOwnerId = firstTransfer.metadata.previousOwnerId;
+                            initialOwnerName = `${prevOwner.first_name} ${prevOwner.last_name}`;
+                            initialOwnerEmail = prevOwner.email;
+                        }
+                    } catch (prevOwnerError) {
+                        console.warn(`Error getting previous owner info:`, prevOwnerError);
                     }
                 }
             }

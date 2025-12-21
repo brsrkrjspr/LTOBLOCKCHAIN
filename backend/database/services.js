@@ -870,7 +870,6 @@ async function updateTransferRequestStatus(id, status, reviewedBy = null, reject
     let paramCount = 1;
     
     if (status === 'REVIEWING' || status === 'APPROVED' || status === 'REJECTED' || status === 'COMPLETED') {
-        paramCount++;
         query += `, reviewed_at = CURRENT_TIMESTAMP`;
         if (reviewedBy) {
             paramCount++;
@@ -887,7 +886,8 @@ async function updateTransferRequestStatus(id, status, reviewedBy = null, reject
     
     if (metadata) {
         paramCount++;
-        query += `, metadata = metadata || $${paramCount}::jsonb`;
+        // Use COALESCE to ensure metadata exists before merging, and explicitly cast to help PostgreSQL determine the type
+        query += `, metadata = COALESCE(metadata, '{}'::jsonb) || $${paramCount}::jsonb`;
         params.push(JSON.stringify(metadata));
     }
     

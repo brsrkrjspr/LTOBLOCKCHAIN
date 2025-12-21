@@ -1155,18 +1155,19 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
             transferRequest: updatedRequest
         });
     } catch (error) {
+        const transferRequestId = req.params?.id || 'unknown';
         console.error('Buyer accept transfer request error:', {
             error: error.message,
             stack: error.stack,
-            transferRequestId: id,
+            transferRequestId: transferRequestId,
             userId: req.user?.userId,
             userEmail: req.user?.email,
-            requestData: {
-                vehicle_id: request?.vehicle_id,
-                seller_id: request?.seller_id,
-                buyer_id: request?.buyer_id,
-                status: request?.status
-            }
+            requestData: request ? {
+                vehicle_id: request.vehicle_id,
+                seller_id: request.seller_id,
+                buyer_id: request.buyer_id,
+                status: request.status
+            } : null
         });
         res.status(500).json({
             success: false,

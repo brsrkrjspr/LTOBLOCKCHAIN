@@ -277,9 +277,7 @@
     <script src="js/utils.js"></script>
     <script src="js/admin-transfer-verification.js"></script>
     <script>
-        // Legacy initialization (kept for fallback, will be replaced by external JS)
-        let currentZoom = 100;
-
+        // Authentication and sidebar initialization only
         document.addEventListener('DOMContentLoaded', function() {
             // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
@@ -306,74 +304,6 @@
                 });
             }
         });
-
-        function loadDocument(docId) {
-            const docNames = {
-                'deed-of-sale': 'Deed of Sale',
-                'seller-id': 'Seller Valid ID',
-                'buyer-id': 'Buyer Valid ID',
-                'or-cr': 'Latest OR/CR',
-                'emission': 'Emission Test Certificate'
-            };
-            const docTypes = {
-                'deed-of-sale': 'Legal Document',
-                'seller-id': 'Identification',
-                'buyer-id': 'Identification',
-                'or-cr': 'Vehicle Registration',
-                'emission': 'Test Certificate'
-            };
-            document.getElementById('currentDocName').textContent = docNames[docId] || 'Document';
-            document.getElementById('currentDocType').textContent = docTypes[docId] || 'Document';
-            document.getElementById('docTypeDisplay').innerHTML = '<strong>' + (docTypes[docId] || 'Document') + '</strong>';
-            console.log('Loading document:', docId);
-        }
-
-        function zoomIn() {
-            currentZoom = Math.min(currentZoom + 25, 200);
-            updateZoom();
-        }
-
-        function zoomOut() {
-            currentZoom = Math.max(currentZoom - 25, 50);
-            updateZoom();
-        }
-
-        function updateZoom() {
-            document.getElementById('zoomLevel').textContent = currentZoom + '%';
-            const viewer = document.getElementById('documentViewer');
-            viewer.style.transform = `scale(${currentZoom / 100})`;
-        }
-
-        function toggleFullscreen() {
-            const viewer = document.getElementById('documentViewer');
-            if (!document.fullscreenElement) {
-                viewer.requestFullscreen().catch(err => alert('Error attempting to enable fullscreen'));
-            } else {
-                document.exitFullscreen();
-            }
-        }
-
-        function approveDocument() {
-            if (confirm('Approve this document?')) {
-                console.log('Document approved');
-                alert('Document approved successfully!');
-            }
-        }
-
-        function rejectDocument() {
-            const reason = prompt('Please provide a reason for rejection:');
-            if (reason) {
-                console.log('Document rejected:', reason);
-                alert('Document rejected.');
-            }
-        }
-
-        function saveVerification() {
-            const notes = document.getElementById('verificationNotes').value;
-            const flagged = document.getElementById('flagSuspicious').checked;
-            console.log('Saving verification:', { notes, flagged });
-            alert('Verification saved successfully!');
-        }
     </script>
 </body>
 </html>

@@ -88,7 +88,9 @@ async function loadTransferRequest() {
         if (currentDocumentId) {
             loadDocument(currentDocumentId);
         } else if (currentTransferRequest.documents && currentTransferRequest.documents.length > 0) {
-            loadDocument(currentTransferRequest.documents[0].id);
+            const firstDoc = currentTransferRequest.documents[0];
+            const firstDocId = firstDoc.document_id || firstDoc.id;
+            loadDocument(firstDocId);
         }
 
         hideLoading();
@@ -126,13 +128,16 @@ function renderDocumentsList(documents) {
     }
 
     documentsList.innerHTML = documents.map(doc => {
+        // Use document_id from JOIN (actual document ID), fallback to id
+        const docId = doc.document_id || doc.id;
         const docType = doc.document_type || doc.type || 'Document';
-        const docName = doc.name || doc.filename || docType;
-        const isActive = doc.id === currentDocumentId;
+        // Use original_name from documents table, fallback to filename, then document_type
+        const docName = doc.original_name || doc.filename || doc.document_type || 'Document';
+        const isActive = docId === currentDocumentId;
         const verificationStatus = doc.verification_status || doc.status || 'PENDING';
 
         return `
-            <div class="document-list-item ${isActive ? 'active' : ''}" onclick="loadDocument('${doc.id}')">
+            <div class="document-list-item ${isActive ? 'active' : ''}" onclick="loadDocument('${docId}')">
                 <div class="document-list-icon">
                     <i class="fas fa-file-contract"></i>
                 </div>
@@ -148,6 +153,16 @@ function renderDocumentsList(documents) {
 
 async function loadDocument(docId) {
     try {
+        if (!docId) {
+            throw new Error('Document ID is required');
+        }
+        
+        // Validate UUID format (if using UUIDs) or numeric ID
+        if (docId && !docId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) && 
+            !docId.match(/^[0-9]+$/)) {
+            console.warn('⚠️ Document ID format may be invalid:', docId);
+        }
+        
         currentDocumentId = docId;
         showLoading();
 
@@ -175,8 +190,23 @@ async function loadDocument(docId) {
         hideLoading();
 
     } catch (error) {
-        console.error('Load document error:', error);
-        showError(error.message || 'Failed to load document');
+        console.error('Load document error:', {
+            documentId: docId,
+            error: error.message,
+            stack: error.stack
+        });
+        
+        // Provide more specific error message
+        let errorMessage = 'Failed to load document';
+        if (error.message.includes('404') || error.message.includes('not found')) {
+            errorMessage = `Document not found. ID: ${docId}`;
+        } else if (error.message.includes('500') || error.message.includes('Internal server error')) {
+            errorMessage = 'Server error while loading document. Please try again.';
+        } else {
+            errorMessage = error.message || 'Failed to load document';
+        }
+        
+        showError(errorMessage);
         hideLoading();
     }
 }

@@ -751,6 +751,27 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
                  WHERE id = $3`,
                 [currentUserId, currentUserEmail, id]
             );
+            
+            // Create notification for buyer now that account is linked
+            // Get seller and vehicle info for notification message
+            const sellerName = request.seller_first_name && request.seller_last_name
+                ? `${request.seller_first_name} ${request.seller_last_name}`
+                : request.seller_email;
+            const vehicle = await db.getVehicleById(request.vehicle_id);
+            const vehicleLabel = vehicle?.plate_number || vehicle?.vin || 'a vehicle';
+            
+            try {
+                await db.createNotification({
+                    userId: currentUserId,
+                    title: 'New Transfer Request',
+                    message: `${sellerName} has requested to transfer vehicle ${vehicleLabel} to you. Please review and accept or reject the request.`,
+                    type: 'info'
+                });
+                console.log('✅ Created notification for buyer after account linking:', currentUserId);
+            } catch (notifError) {
+                console.warn('⚠️ Failed to create buyer notification after linking:', notifError.message);
+                // Don't fail the request if notification fails
+            }
         }
 
         // Update status to REVIEWING to indicate that buyer has accepted and LTO review is next

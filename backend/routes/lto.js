@@ -455,37 +455,78 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
         const verifications = await db.getVehicleVerifications(vehicleId);
         const clearanceRequests = await db.getClearanceRequestsByVehicle(vehicleId);
         
-        // Check HPG clearance
+        // Collect pending and rejected approvals for comprehensive error reporting
+        const pendingApprovals = [];
+        const rejectedApprovals = [];
+        
+        // Check HPG clearance - MUST exist and be APPROVED or COMPLETED
         const hpgRequest = clearanceRequests.find(r => r.request_type === 'hpg');
-        if (hpgRequest && hpgRequest.status !== 'COMPLETED' && hpgRequest.status !== 'APPROVED') {
-            return res.status(400).json({
-                success: false,
-                error: 'HPG clearance is not yet completed',
-                pendingVerifications: ['hpg']
-            });
+        if (!hpgRequest) {
+            pendingApprovals.push('HPG');
+        } else if (hpgRequest.status !== 'APPROVED' && hpgRequest.status !== 'COMPLETED') {
+            if (hpgRequest.status === 'REJECTED') {
+                rejectedApprovals.push('HPG');
+            } else {
+                pendingApprovals.push('HPG');
+            }
         }
-
-        // Check insurance verification
+        
+        // Check insurance verification - MUST exist and be APPROVED
         const insuranceVerification = verifications.find(v => v.verification_type === 'insurance');
-        if (!insuranceVerification || insuranceVerification.status !== 'APPROVED') {
+        if (!insuranceVerification) {
+            pendingApprovals.push('Insurance');
+        } else if (insuranceVerification.status !== 'APPROVED') {
+            if (insuranceVerification.status === 'REJECTED') {
+                rejectedApprovals.push('Insurance');
+            } else {
+                pendingApprovals.push('Insurance');
+            }
+        }
+        
+        // Check emission verification - MUST exist and be APPROVED
+        const emissionVerification = verifications.find(v => v.verification_type === 'emission');
+        if (!emissionVerification) {
+            pendingApprovals.push('Emission');
+        } else if (emissionVerification.status !== 'APPROVED') {
+            if (emissionVerification.status === 'REJECTED') {
+                rejectedApprovals.push('Emission');
+            } else {
+                pendingApprovals.push('Emission');
+            }
+        }
+        
+        // Log validation check for debugging
+        console.log(`[LTO Approval] Checking verifications for vehicle ${vehicleId}:`, {
+            hpg: hpgRequest ? hpgRequest.status : 'MISSING',
+            insurance: insuranceVerification ? insuranceVerification.status : 'MISSING',
+            emission: emissionVerification ? emissionVerification.status : 'MISSING',
+            pendingApprovals,
+            rejectedApprovals
+        });
+        
+        // Block approval if any organizations are pending
+        if (pendingApprovals.length > 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Insurance verification is not yet approved',
-                pendingVerifications: ['insurance']
+                error: 'Cannot approve vehicle registration. Pending organization approvals required.',
+                pendingApprovals,
+                message: `The following organizations must approve before LTO can finalize: ${pendingApprovals.join(', ')}`
             });
         }
-
-        // Check emission verification
-        const emissionVerification = verifications.find(v => v.verification_type === 'emission');
-        if (!emissionVerification || emissionVerification.status !== 'APPROVED') {
+        
+        // Block approval if any organizations have rejected
+        if (rejectedApprovals.length > 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Emission verification is not yet approved',
-                pendingVerifications: ['emission']
+                error: 'Cannot approve vehicle registration. Some organizations have rejected.',
+                rejectedApprovals,
+                message: `The following organizations have rejected: ${rejectedApprovals.join(', ')}`
             });
         }
 
         // All verifications complete - approve and register on blockchain
+        console.log(`[LTO Approval] All verifications approved for vehicle ${vehicleId}. Proceeding with approval.`);
+        
         await db.updateVehicle(vehicleId, {
             status: 'APPROVED'
         });

@@ -538,12 +538,19 @@ async function downloadVehicleCertificate(vehicleId, orCrNumber) {
         
         // Generate certificate
         if (typeof CertificateGenerator !== 'undefined') {
-            CertificateGenerator.generateCertificate(vehicle, owner);
-            if (typeof ToastNotification !== 'undefined') {
-                ToastNotification.show('Certificate generated! Use Print dialog to save as PDF.', 'success');
+            const success = await CertificateGenerator.generateCertificate(vehicle, owner);
+            if (success) {
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Certificate opened! Use Print dialog to save as PDF.', 'success');
+                }
+            } else {
+                // Popup was blocked, file was downloaded instead
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Certificate downloaded as HTML file. Open it in your browser and use Print to save as PDF.', 'warning');
+                }
             }
         } else {
-            throw new Error('Certificate generator not available');
+            throw new Error('Certificate generator not available. Please refresh the page.');
         }
         
     } catch (error) {

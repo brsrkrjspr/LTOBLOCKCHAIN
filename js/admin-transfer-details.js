@@ -528,6 +528,7 @@ function renderVehicleInfo(request) {
     const vehicleTypeEl = document.querySelector('[data-field="vehicle-type"]');
     const makeModelEl = document.querySelector('[data-field="make-model"]');
     const yearModelEl = document.querySelector('[data-field="year-model"]');
+    const orCrNumberEl = document.querySelector('[data-field="or-cr-number"]');
     const orDocEl = document.querySelector('[data-field="or-doc"]');
     const crDocEl = document.querySelector('[data-field="cr-doc"]');
 
@@ -537,6 +538,16 @@ function renderVehicleInfo(request) {
     if (vehicleTypeEl) vehicleTypeEl.textContent = vehicle.vehicle_type || vehicle.vehicleType || 'N/A';
     if (makeModelEl) makeModelEl.textContent = `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'N/A';
     if (yearModelEl) yearModelEl.textContent = vehicle.year || 'N/A';
+    
+    // Display OR/CR Number if available
+    if (orCrNumberEl) {
+        const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber;
+        if (orCrNumber) {
+            orCrNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">${orCrNumber}</strong>`;
+        } else {
+            orCrNumberEl.textContent = 'Not yet assigned';
+        }
+    }
 
     // Find OR/CR documents
     const orDoc = (request.documents || []).find(doc => 

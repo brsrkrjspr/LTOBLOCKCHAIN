@@ -409,13 +409,33 @@
                     <h2 class="section-title"><i class="fas fa-car" style="color: #3498db;"></i> Vehicle Registration Applications</h2>
                     <p class="section-subtitle">New vehicle registrations submitted by owners</p>
                 </div>
+                <script>
+                // Define filter functions early to prevent "not defined" errors
+                if (typeof window.filterRegistrations === 'undefined') {
+                    window.filterRegistrations = function(status, btn) {
+                        if (typeof filterRegistrations === 'function' && filterRegistrations !== window.filterRegistrations) {
+                            return filterRegistrations(status, btn);
+                        }
+                        console.log('Filter registrations:', status);
+                        // The real function will be defined in admin-dashboard.js
+                    };
+                }
+                if (typeof window.filterTransfers === 'undefined') {
+                    window.filterTransfers = function(status, btn) {
+                        if (typeof filterTransfers === 'function' && filterTransfers !== window.filterTransfers) {
+                            return filterTransfers(status, btn);
+                        }
+                        console.log('Filter transfers:', status);
+                    };
+                }
+                </script>
                 <div class="dashboard-card-modern table-card">
                     <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <div class="filter-tabs">
-                            <button class="filter-tab active" data-filter="all" onclick="filterRegistrations('all', this)">All</button>
-                            <button class="filter-tab" data-filter="SUBMITTED" onclick="filterRegistrations('SUBMITTED', this)">Pending</button>
-                            <button class="filter-tab" data-filter="PROCESSING" onclick="filterRegistrations('PROCESSING', this)">Processing</button>
-                            <button class="filter-tab" data-filter="APPROVED" onclick="filterRegistrations('APPROVED', this)">Approved</button>
+                            <button class="filter-tab active" data-filter="all" onclick="window.filterRegistrations('all', this)">All</button>
+                            <button class="filter-tab" data-filter="SUBMITTED" onclick="window.filterRegistrations('SUBMITTED', this)">Pending</button>
+                            <button class="filter-tab" data-filter="PROCESSING" onclick="window.filterRegistrations('PROCESSING', this)">Processing</button>
+                            <button class="filter-tab" data-filter="APPROVED" onclick="window.filterRegistrations('APPROVED', this)">Approved</button>
                         </div>
                         <a href="admin-registrations.html" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
                     </div>
@@ -447,10 +467,10 @@
                 <div class="dashboard-card-modern table-card">
                     <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <div class="filter-tabs">
-                            <button class="filter-tab active" data-filter="all" onclick="filterTransfers('all', this)">All</button>
-                            <button class="filter-tab" data-filter="PENDING" onclick="filterTransfers('PENDING', this)">Pending Buyer</button>
-                            <button class="filter-tab" data-filter="REVIEWING" onclick="filterTransfers('REVIEWING', this)">Reviewing</button>
-                            <button class="filter-tab" data-filter="APPROVED" onclick="filterTransfers('APPROVED', this)">Approved</button>
+                            <button class="filter-tab active" data-filter="all" onclick="window.filterTransfers('all', this)">All</button>
+                            <button class="filter-tab" data-filter="PENDING" onclick="window.filterTransfers('PENDING', this)">Pending Buyer</button>
+                            <button class="filter-tab" data-filter="REVIEWING" onclick="window.filterTransfers('REVIEWING', this)">Reviewing</button>
+                            <button class="filter-tab" data-filter="APPROVED" onclick="window.filterTransfers('APPROVED', this)">Approved</button>
                         </div>
                         <a href="admin-transfer-requests.html" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
                     </div>

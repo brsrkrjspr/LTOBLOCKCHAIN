@@ -10,17 +10,55 @@ const CertificateGenerator = {
         // Create certificate HTML
         const certificateHtml = this.createCertificateHtml(vehicleData, ownerData);
         
-        // Open print dialog with certificate
+        // Try to open print window
         const printWindow = window.open('', '_blank', 'width=800,height=1000');
-        printWindow.document.write(certificateHtml);
-        printWindow.document.close();
         
-        // Wait for content to load, then trigger print
-        printWindow.onload = function() {
-            setTimeout(() => {
-                printWindow.print();
-            }, 500);
-        };
+        // Check if popup was blocked
+        if (!printWindow || printWindow.closed || typeof printWindow.closed === 'undefined') {
+            // Popup was blocked - fallback to download as HTML file
+            console.warn('Popup blocked - using download fallback');
+            this.downloadAsHtmlFile(certificateHtml, vehicleData.or_cr_number || vehicleData.orCrNumber || vehicleData.id);
+            return false;
+        }
+        
+        try {
+            printWindow.document.write(certificateHtml);
+            printWindow.document.close();
+            
+            // Wait for content to load, then trigger print
+            printWindow.onload = function() {
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
+            };
+            
+            return true;
+        } catch (error) {
+            console.error('Error opening print window:', error);
+            // Fallback to download
+            this.downloadAsHtmlFile(certificateHtml, vehicleData.or_cr_number || vehicleData.orCrNumber || vehicleData.id);
+            return false;
+        }
+    },
+
+    // Fallback: Download as HTML file that user can open and print
+    downloadAsHtmlFile(htmlContent, filename) {
+        try {
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `LTO_Certificate_${filename || 'Vehicle'}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading HTML file:', error);
+            // Last resort: Create a data URL and open it
+            const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
+            window.open(dataUrl, '_blank');
+        }
     },
 
     createCertificateHtml(vehicle, owner) {

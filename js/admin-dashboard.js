@@ -2075,20 +2075,58 @@ function getOrgStatusClass(status) {
 
 // Filter functions
 function filterRegistrations(status, btn) {
-    document.querySelectorAll('#registration-applications-table .filter-tab').forEach(t => t.classList.remove('active'));
+    // Update active tab
+    const tabs = document.querySelectorAll('#registration-applications-table ~ .table-header-actions .filter-tab, .table-header-actions:has(#registration-applications-table) .filter-tab');
+    tabs.forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    // TODO: Implement actual filtering via API call or DOM filtering
-    loadRegistrationApplications();
+    
+    // Filter logic - reload with status filter
+    if (status === 'all') {
+        loadRegistrationApplications();
+    } else {
+        // Filter by status
+        const tbody = document.getElementById('registration-applications-tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const statusBadge = row.querySelector('.status-badge');
+                if (statusBadge) {
+                    const rowStatus = statusBadge.textContent.trim().toUpperCase();
+                    const shouldShow = status === 'all' || rowStatus === status.toUpperCase();
+                    row.style.display = shouldShow ? '' : 'none';
+                }
+            });
+        }
+    }
 }
 
 function filterTransfers(status, btn) {
-    document.querySelectorAll('#transfer-applications-table .filter-tab').forEach(t => t.classList.remove('active'));
+    // Update active tab
+    const tabs = document.querySelectorAll('#transfer-applications-table ~ .table-header-actions .filter-tab, .table-header-actions:has(#transfer-applications-table) .filter-tab');
+    tabs.forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    // TODO: Implement actual filtering
-    loadTransferApplications();
+    
+    // Filter logic - reload with status filter
+    if (status === 'all') {
+        loadTransferApplications();
+    } else {
+        // Filter by status
+        const tbody = document.getElementById('transfer-applications-tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const statusBadge = row.querySelector('.status-badge');
+                if (statusBadge) {
+                    const rowStatus = statusBadge.textContent.trim().toUpperCase();
+                    const shouldShow = status === 'all' || rowStatus === status.toUpperCase();
+                    row.style.display = shouldShow ? '' : 'none';
+                }
+            });
+        }
+    }
 }
 
-// Make filter functions globally available
+// Make filter functions globally available (override stubs)
 window.filterRegistrations = filterRegistrations;
 window.filterTransfers = filterTransfers;
 

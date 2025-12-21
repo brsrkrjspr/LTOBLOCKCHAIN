@@ -186,12 +186,27 @@
                                     <p id="docTypeDisplay"><strong>Legal Document</strong></p>
                                 </div>
 
-                                <!-- Verification Actions -->
+                                <!-- Verification Status Selection -->
+                                <div class="form-group">
+                                    <label>Verification Status</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="verificationStatus" value="APPROVED" id="statusApproved">
+                                            <span>Approve Document</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="verificationStatus" value="REJECTED" id="statusRejected">
+                                            <span>Reject Document</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Action Buttons (set radio and call saveVerification) -->
                                 <div class="verification-actions">
-                                    <button class="btn-success btn-block" onclick="approveDocument()">
+                                    <button class="btn-success btn-block" onclick="setStatusAndSave('APPROVED')">
                                         <i class="fas fa-check-circle"></i> Approve Document
                                     </button>
-                                    <button class="btn-danger btn-block" onclick="rejectDocument()">
+                                    <button class="btn-danger btn-block" onclick="setStatusAndSave('REJECTED')">
                                         <i class="fas fa-times-circle"></i> Reject Document
                                     </button>
                                 </div>

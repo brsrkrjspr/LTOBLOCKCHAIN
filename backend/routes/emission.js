@@ -92,6 +92,44 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'emiss
             testResult
         });
 
+        // Update transfer request approval status if this clearance request is linked to a transfer request
+        const dbModule = require('../database/db');
+        const transferRequests = await dbModule.query(
+            `SELECT id FROM transfer_requests WHERE emission_clearance_request_id = $1`,
+            [requestId]
+        );
+
+        if (transferRequests.rows.length > 0) {
+            for (const tr of transferRequests.rows) {
+                await dbModule.query(
+                    `UPDATE transfer_requests 
+                     SET emission_approval_status = 'APPROVED',
+                         emission_approved_at = CURRENT_TIMESTAMP,
+                         emission_approved_by = $1,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $2`,
+                    [req.user.userId, tr.id]
+                );
+                
+                // Add to vehicle history for the transfer request
+                const transferRequest = await db.getTransferRequestById(tr.id);
+                if (transferRequest) {
+                    await db.addVehicleHistory({
+                        vehicleId: transferRequest.vehicle_id,
+                        action: 'TRANSFER_EMISSION_APPROVED',
+                        description: `Emission approved transfer request ${tr.id} via clearance request ${requestId}`,
+                        performedBy: req.user.userId,
+                        metadata: { 
+                            transferRequestId: tr.id, 
+                            clearanceRequestId: requestId,
+                            notes: notes || null 
+                        }
+                    });
+                }
+            }
+            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with Emission approval`);
+        }
+
         await db.updateVerificationStatus(request.vehicle_id, 'emission', 'APPROVED', req.user.userId, notes);
 
         await db.addVehicleHistory({
@@ -138,6 +176,43 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'emissi
         }
 
         await db.updateClearanceRequestStatus(requestId, 'REJECTED', { reason });
+        
+        // Update transfer request approval status if this clearance request is linked to a transfer request
+        const dbModule = require('../database/db');
+        const transferRequests = await dbModule.query(
+            `SELECT id FROM transfer_requests WHERE emission_clearance_request_id = $1`,
+            [requestId]
+        );
+
+        if (transferRequests.rows.length > 0) {
+            for (const tr of transferRequests.rows) {
+                await dbModule.query(
+                    `UPDATE transfer_requests 
+                     SET emission_approval_status = 'REJECTED',
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $1`,
+                    [tr.id]
+                );
+                
+                // Add to vehicle history for the transfer request
+                const transferRequest = await db.getTransferRequestById(tr.id);
+                if (transferRequest) {
+                    await db.addVehicleHistory({
+                        vehicleId: transferRequest.vehicle_id,
+                        action: 'TRANSFER_EMISSION_REJECTED',
+                        description: `Emission rejected transfer request ${tr.id} via clearance request ${requestId}. Reason: ${reason}`,
+                        performedBy: req.user.userId,
+                        metadata: { 
+                            transferRequestId: tr.id, 
+                            clearanceRequestId: requestId,
+                            reason: reason 
+                        }
+                    });
+                }
+            }
+            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with Emission rejection`);
+        }
+        
         await db.updateVerificationStatus(request.vehicle_id, 'emission', 'REJECTED', req.user.userId, reason);
 
         await db.addVehicleHistory({

@@ -116,6 +116,44 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             await db.assignClearanceRequest(requestId, req.user.userId);
         }
 
+        // Update transfer request approval status if this clearance request is linked to a transfer request
+        const dbModule = require('../database/db');
+        const transferRequests = await dbModule.query(
+            `SELECT id FROM transfer_requests WHERE hpg_clearance_request_id = $1`,
+            [requestId]
+        );
+
+        if (transferRequests.rows.length > 0) {
+            for (const tr of transferRequests.rows) {
+                await dbModule.query(
+                    `UPDATE transfer_requests 
+                     SET hpg_approval_status = 'APPROVED',
+                         hpg_approved_at = CURRENT_TIMESTAMP,
+                         hpg_approved_by = $1,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $2`,
+                    [req.user.userId, tr.id]
+                );
+                
+                // Add to vehicle history for the transfer request
+                const transferRequest = await db.getTransferRequestById(tr.id);
+                if (transferRequest) {
+                    await db.addVehicleHistory({
+                        vehicleId: transferRequest.vehicle_id,
+                        action: 'TRANSFER_HPG_APPROVED',
+                        description: `HPG approved transfer request ${tr.id} via clearance request ${requestId}`,
+                        performedBy: req.user.userId,
+                        metadata: { 
+                            transferRequestId: tr.id, 
+                            clearanceRequestId: requestId,
+                            notes: remarks || null 
+                        }
+                    });
+                }
+            }
+            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with HPG approval`);
+        }
+
         // Update vehicle verification status (if vehicle_verifications table supports hpg)
         // For now, we'll just update the clearance request
 
@@ -190,6 +228,42 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
             rejectedBy: req.user.userId,
             rejectedAt: new Date().toISOString()
         });
+
+        // Update transfer request approval status if this clearance request is linked to a transfer request
+        const dbModule = require('../database/db');
+        const transferRequests = await dbModule.query(
+            `SELECT id FROM transfer_requests WHERE hpg_clearance_request_id = $1`,
+            [requestId]
+        );
+
+        if (transferRequests.rows.length > 0) {
+            for (const tr of transferRequests.rows) {
+                await dbModule.query(
+                    `UPDATE transfer_requests 
+                     SET hpg_approval_status = 'REJECTED',
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $1`,
+                    [tr.id]
+                );
+                
+                // Add to vehicle history for the transfer request
+                const transferRequest = await db.getTransferRequestById(tr.id);
+                if (transferRequest) {
+                    await db.addVehicleHistory({
+                        vehicleId: transferRequest.vehicle_id,
+                        action: 'TRANSFER_HPG_REJECTED',
+                        description: `HPG rejected transfer request ${tr.id} via clearance request ${requestId}. Reason: ${reason}`,
+                        performedBy: req.user.userId,
+                        metadata: { 
+                            transferRequestId: tr.id, 
+                            clearanceRequestId: requestId,
+                            reason: reason 
+                        }
+                    });
+                }
+            }
+            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with HPG rejection`);
+        }
 
         // Add to vehicle history
         await db.addVehicleHistory({

@@ -298,7 +298,24 @@ async function loadDocument(docIdOrType) {
         }
 
         // Load verification history for this document
-        loadDocumentVerificationHistory(docId);
+        await loadDocumentVerificationHistory(docId);
+
+        // Pre-select radio button based on existing verification
+        const existingVerification = verificationHistory.find(v => v.document_id === docId);
+        if (existingVerification) {
+            const status = existingVerification.status;
+            if (status === 'APPROVED') {
+                const approvedRadio = document.getElementById('statusApproved');
+                if (approvedRadio) {
+                    approvedRadio.checked = true;
+                }
+            } else if (status === 'REJECTED') {
+                const rejectedRadio = document.getElementById('statusRejected');
+                if (rejectedRadio) {
+                    rejectedRadio.checked = true;
+                }
+            }
+        }
 
         hideLoading();
 
@@ -483,74 +500,57 @@ function toggleFullscreen() {
     }
 }
 
+function setStatusAndSave(status) {
+    // Set the radio button
+    const radio = document.getElementById(status === 'APPROVED' ? 'statusApproved' : 'statusRejected');
+    if (radio) {
+        radio.checked = true;
+    }
+    
+    // If rejecting, prompt for reason
+    if (status === 'REJECTED') {
+        const reason = prompt('Please provide a reason for rejection:');
+        if (!reason) {
+            radio.checked = false;
+            return;
+        }
+        // Add reason to notes if notes field is empty
+        const notesField = document.getElementById('verificationNotes');
+        if (notesField && !notesField.value.trim()) {
+            notesField.value = reason;
+        }
+    }
+    
+    // Call saveVerification
+    saveVerification();
+}
+
 async function approveDocument() {
     if (!confirm('Approve this document?')) {
         return;
     }
-
-    try {
-        // Get apiClient instance
-        const apiClient = window.apiClient || new APIClient();
-
-        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/documents/${currentDocumentId}/verify`, {
-            status: 'APPROVED',
-            notes: document.getElementById('verificationNotes')?.value || '',
-            checklist: getChecklistData(),
-            flagged: document.getElementById('flagSuspicious')?.checked || false
-        });
-        
-        if (response.success) {
-            showSuccess('Document approved successfully');
-            loadDocument(currentDocumentId); // Reload to update status
-            loadVerificationHistory(); // Reload verification history
-        } else {
-            throw new Error(response.error || 'Failed to approve document');
-        }
-    } catch (error) {
-        console.error('Approve document error:', error);
-        showError(error.message || 'Failed to approve document');
-    }
+    setStatusAndSave('APPROVED');
 }
 
 async function rejectDocument() {
-    const reason = prompt('Please provide a reason for rejection:');
-    if (!reason) {
-        return;
-    }
-
-    try {
-        // Get apiClient instance
-        const apiClient = window.apiClient || new APIClient();
-
-        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/documents/${currentDocumentId}/verify`, {
-            status: 'REJECTED',
-            notes: reason + (document.getElementById('verificationNotes')?.value ? '\n\n' + document.getElementById('verificationNotes').value : ''),
-            checklist: getChecklistData(),
-            flagged: document.getElementById('flagSuspicious')?.checked || false
-        });
-        
-        if (response.success) {
-            showSuccess('Document rejected');
-            loadDocument(currentDocumentId); // Reload to update status
-            loadVerificationHistory(); // Reload verification history
-        } else {
-            throw new Error(response.error || 'Failed to reject document');
-        }
-    } catch (error) {
-        console.error('Reject document error:', error);
-        showError(error.message || 'Failed to reject document');
-    }
+    setStatusAndSave('REJECTED');
 }
 
 async function saveVerification() {
-    const status = document.querySelector('input[name="verificationStatus"]:checked')?.value || 'PENDING';
-    const notes = document.getElementById('verificationNotes')?.value || '';
-    const flagged = document.getElementById('flagSuspicious')?.checked || false;
-
-    if (status === 'PENDING') {
+    if (!currentDocumentId) {
+        showError('Please select a document to verify');
+        return;
+    }
+    
+    const statusRadio = document.querySelector('input[name="verificationStatus"]:checked');
+    if (!statusRadio) {
         showError('Please select a verification status (Approve or Reject)');
         return;
     }
+    
+    const status = statusRadio.value;
+    const notes = document.getElementById('verificationNotes')?.value || '';
+    const flagged = document.getElementById('flagSuspicious')?.checked || false;
 
     try {
         // Get apiClient instance
@@ -572,6 +572,8 @@ async function saveVerification() {
             document.getElementById('verificationNotes').value = '';
             document.getElementById('flagSuspicious').checked = false;
             document.querySelectorAll('#check1, #check2, #check3, #check4, #check5').forEach(cb => cb.checked = false);
+            // Clear radio buttons
+            document.querySelectorAll('input[name="verificationStatus"]').forEach(radio => radio.checked = false);
         } else {
             throw new Error(response.error || 'Failed to save verification');
         }

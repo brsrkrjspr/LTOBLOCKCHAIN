@@ -91,6 +91,44 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
             notes
         });
 
+        // Update transfer request approval status if this clearance request is linked to a transfer request
+        const dbModule = require('../database/db');
+        const transferRequests = await dbModule.query(
+            `SELECT id FROM transfer_requests WHERE insurance_clearance_request_id = $1`,
+            [requestId]
+        );
+
+        if (transferRequests.rows.length > 0) {
+            for (const tr of transferRequests.rows) {
+                await dbModule.query(
+                    `UPDATE transfer_requests 
+                     SET insurance_approval_status = 'APPROVED',
+                         insurance_approved_at = CURRENT_TIMESTAMP,
+                         insurance_approved_by = $1,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $2`,
+                    [req.user.userId, tr.id]
+                );
+                
+                // Add to vehicle history for the transfer request
+                const transferRequest = await db.getTransferRequestById(tr.id);
+                if (transferRequest) {
+                    await db.addVehicleHistory({
+                        vehicleId: transferRequest.vehicle_id,
+                        action: 'TRANSFER_INSURANCE_APPROVED',
+                        description: `Insurance approved transfer request ${tr.id} via clearance request ${requestId}`,
+                        performedBy: req.user.userId,
+                        metadata: { 
+                            transferRequestId: tr.id, 
+                            clearanceRequestId: requestId,
+                            notes: notes || null 
+                        }
+                    });
+                }
+            }
+            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with Insurance approval`);
+        }
+
         await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'APPROVED', req.user.userId, notes);
 
         await db.addVehicleHistory({
@@ -137,6 +175,43 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
         }
 
         await db.updateClearanceRequestStatus(requestId, 'REJECTED', { reason });
+        
+        // Update transfer request approval status if this clearance request is linked to a transfer request
+        const dbModule = require('../database/db');
+        const transferRequests = await dbModule.query(
+            `SELECT id FROM transfer_requests WHERE insurance_clearance_request_id = $1`,
+            [requestId]
+        );
+
+        if (transferRequests.rows.length > 0) {
+            for (const tr of transferRequests.rows) {
+                await dbModule.query(
+                    `UPDATE transfer_requests 
+                     SET insurance_approval_status = 'REJECTED',
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $1`,
+                    [tr.id]
+                );
+                
+                // Add to vehicle history for the transfer request
+                const transferRequest = await db.getTransferRequestById(tr.id);
+                if (transferRequest) {
+                    await db.addVehicleHistory({
+                        vehicleId: transferRequest.vehicle_id,
+                        action: 'TRANSFER_INSURANCE_REJECTED',
+                        description: `Insurance rejected transfer request ${tr.id} via clearance request ${requestId}. Reason: ${reason}`,
+                        performedBy: req.user.userId,
+                        metadata: { 
+                            transferRequestId: tr.id, 
+                            clearanceRequestId: requestId,
+                            reason: reason 
+                        }
+                    });
+                }
+            }
+            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with Insurance rejection`);
+        }
+        
         await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'REJECTED', req.user.userId, reason);
 
         await db.addVehicleHistory({

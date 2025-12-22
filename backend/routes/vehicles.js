@@ -10,25 +10,68 @@ const crypto = require('crypto');
 // Get all vehicles (admin only)
 router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
+        console.log('[API /api/vehicles] Request received:', {
+            query: req.query,
+            user: req.user?.email,
+            timestamp: new Date().toISOString()
+        });
+
         const { status, page = 1, limit = 10 } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
         
         let vehicles;
         let totalCount;
+        const dbModule = require('../database/db');
 
         if (status) {
-            vehicles = await db.getVehiclesByStatus(status, parseInt(limit), offset);
-            // Get total count for this status
-            const dbModule = require('../database/db');
-            const countResult = await dbModule.query(
-                'SELECT COUNT(*) FROM vehicles WHERE status = $1',
-                [status]
-            );
-            totalCount = parseInt(countResult.rows[0].count);
+            // Handle comma-separated status values
+            const statusValues = status.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+            
+            if (statusValues.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid status filter'
+                });
+            }
+
+            console.log('[API /api/vehicles] Filtering by statuses:', statusValues);
+
+            // Build query with IN clause for multiple statuses
+            if (statusValues.length === 1) {
+                // Single status - use existing function
+                vehicles = await db.getVehiclesByStatus(statusValues[0], parseInt(limit), offset);
+                const countResult = await dbModule.query(
+                    'SELECT COUNT(*) FROM vehicles WHERE status = $1',
+                    [statusValues[0]]
+                );
+                totalCount = parseInt(countResult.rows[0].count);
+            } else {
+                // Multiple statuses - use IN clause
+                const placeholders = statusValues.map((_, i) => `$${i + 1}`).join(', ');
+                const query = `
+                    SELECT v.*, u.first_name || ' ' || u.last_name as owner_name, u.email as owner_email
+                    FROM vehicles v
+                    LEFT JOIN users u ON v.owner_id = u.id
+                    WHERE v.status IN (${placeholders})
+                    ORDER BY COALESCE(v.registration_date, v.last_updated) DESC
+                    LIMIT $${statusValues.length + 1} OFFSET $${statusValues.length + 2}
+                `;
+                const params = [...statusValues, parseInt(limit), offset];
+                
+                console.log('[API /api/vehicles] Query:', query);
+                console.log('[API /api/vehicles] Params:', params);
+                
+                const result = await dbModule.query(query, params);
+                vehicles = result.rows;
+                
+                // Get total count
+                const countQuery = `SELECT COUNT(*) FROM vehicles WHERE status IN (${placeholders})`;
+                const countResult = await dbModule.query(countQuery, statusValues);
+                totalCount = parseInt(countResult.rows[0].count);
+            }
         } else {
             vehicles = await db.getAllVehicles(parseInt(limit), offset);
             // Get total count
-            const dbModule = require('../database/db');
             const countResult = await dbModule.query('SELECT COUNT(*) FROM vehicles');
             totalCount = parseInt(countResult.rows[0].count);
         }
@@ -45,6 +88,11 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
             });
         }
 
+        console.log('[API /api/vehicles] Success:', {
+            vehicleCount: vehicles.length,
+            totalCount
+        });
+
         res.json({
             success: true,
             vehicles: vehicles.map(v => formatVehicleResponse(v)),
@@ -58,10 +106,15 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
         });
 
     } catch (error) {
-        console.error('Get vehicles error:', error);
+        console.error('[API /api/vehicles] Error:', {
+            message: error.message,
+            stack: error.stack,
+            query: req.query
+        });
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: error.message
         });
     }
 });

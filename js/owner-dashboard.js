@@ -540,7 +540,7 @@ async function loadUserApplications() {
     }
     
     // Show loading state
-    applicationsTable.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
+    applicationsTable.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
     
     try {
         // Try to load from API first
@@ -571,8 +571,10 @@ async function loadUserApplications() {
                             year: vehicle.year,
                             plateNumber: vehicle.plateNumber || vehicle.plate_number,
                             vin: vehicle.vin,
-                            color: vehicle.color
+                            color: vehicle.color,
+                            or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber
                         },
+                        or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber,
                         status: vehicle.status?.toLowerCase() || 'submitted',
                         submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || vehicle.created_at || new Date().toISOString(),
                         documents: vehicle.documents || []
@@ -617,7 +619,7 @@ async function loadUserApplications() {
             console.log('ℹ️ No applications found in localStorage');
             applicationsTable.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
+                    <td colspan="7" style="text-align: center; padding: 20px; color: #666;">
                         No applications found. <a href="registration-wizard.html" style="color: #007bff;">Register a vehicle</a>
                     </td>
                 </tr>
@@ -644,7 +646,7 @@ async function loadUserApplications() {
         console.error('❌ Error loading applications:', error);
         applicationsTable.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 20px; color: #dc3545;">
+                <td colspan="7" style="text-align: center; padding: 20px; color: #dc3545;">
                     Error loading applications: ${error.message}. Please refresh the page.
                 </td>
             </tr>
@@ -700,7 +702,7 @@ function renderApplications() {
     if (filteredApplications.length === 0) {
         applicationsTable.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
+                <td colspan="7" style="text-align: center; padding: 20px; color: #666;">
                     No applications found. <a href="registration-wizard.html" style="color: #007bff;">Start a new registration</a>
                 </td>
             </tr>
@@ -818,22 +820,40 @@ function initializeKeyboardShortcuts() {
 
 function createUserApplicationRow(application) {
     const row = document.createElement('tr');
+    const orCrNumber = application.or_cr_number || application.vehicle?.or_cr_number || '-';
+    const isApproved = application.status === 'approved' || application.status === 'registered';
+    const appId = (application.id || '').substring(0, 8) + '...';
+    
     row.innerHTML = `
         <td>
             <div class="vehicle-info">
-                <strong>${application.vehicle.make} ${application.vehicle.model} ${application.vehicle.year}</strong>
-                <small>${application.vehicle.plateNumber}</small>
+                <strong>${escapeHtml(application.vehicle?.make || '')} ${escapeHtml(application.vehicle?.model || '')} ${escapeHtml(application.vehicle?.year || '')}</strong>
+                <br><small>${escapeHtml(application.vehicle?.plateNumber || '')}</small>
             </div>
         </td>
-        <td>${application.id}</td>
+        <td><code style="font-size: 0.85rem;">${appId}</code></td>
+        <td>
+            ${isApproved && orCrNumber !== '-' ? 
+                `<span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.9rem;">${escapeHtml(orCrNumber)}</span>` :
+                `<span style="color: #6c757d;">-</span>`
+            }
+        </td>
+        <td>${application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : '-'}</td>
         <td><span class="status-badge status-${application.status}">${getStatusText(application.status)}</span></td>
-        <td>${new Date(application.submittedDate).toLocaleDateString()}</td>
         <td>
             <button class="btn-secondary btn-sm" onclick="viewUserApplication('${application.id}')">View Details</button>
-            ${application.status === 'approved' ? '<button class="btn-primary btn-sm" onclick="downloadCertificate(\'' + application.id + '\')">Download Certificate</button>' : ''}
+            ${isApproved && orCrNumber !== '-' ? `<button class="btn-primary btn-sm" onclick="downloadVehicleCertificate('${application.id}', '${escapeHtml(orCrNumber)}')">Download Certificate</button>` : ''}
         </td>
     `;
     return row;
+}
+
+// Helper function for escaping HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function getStatusText(status) {
@@ -1146,6 +1166,20 @@ function showApplicationDetailsModal(application) {
                     <i class="fas ${getStatusIcon(status)}"></i>
                     <span>${getStatusText(status)}</span>
                 </div>
+                
+                <!-- OR/CR Number Display -->
+                ${application.or_cr_number || application.vehicle?.or_cr_number ? `
+                <div class="orcr-display" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+                    <small style="opacity: 0.8; display: block; margin-bottom: 0.5rem;">Official Registration Number</small>
+                    <div style="font-size: 1.5rem; font-weight: bold; letter-spacing: 2px;">
+                        ${application.or_cr_number || application.vehicle?.or_cr_number}
+                    </div>
+                </div>
+                ` : (status === 'approved' || status === 'registered') ? `
+                <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center; font-size: 0.9rem;">
+                    <i class="fas fa-clock"></i> OR/CR Number: Pending Assignment
+                </div>
+                ` : ''}
                 
                 <!-- Vehicle Info Section -->
                 <div class="detail-section">

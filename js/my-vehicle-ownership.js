@@ -160,9 +160,13 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
                 
                 <!-- OR/CR Number - Prominently displayed -->
                 ${orCrNumber ? `
-                <div class="vehicle-detail-item" style="background: #e8f5e9; padding: 0.5rem 1rem; border-radius: 8px; margin-top: 0.5rem;">
-                    <i class="fas fa-file-certificate" style="color: #27ae60;"></i>
-                    <span style="color: #27ae60; font-weight: 700;">OR/CR: ${escapeHtml(orCrNumber)}</span>
+                <div class="orcr-badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; margin-top: 1rem; text-align: center;">
+                    <small style="opacity: 0.8; display: block; font-size: 0.7rem; margin-bottom: 0.25rem;">OR/CR NUMBER</small>
+                    <strong style="font-size: 1.1rem; letter-spacing: 1px;">${escapeHtml(orCrNumber)}</strong>
+                </div>
+                ` : isRegistered ? `
+                <div style="background: #fff3cd; color: #856404; padding: 0.5rem 1rem; border-radius: 8px; margin-top: 1rem; text-align: center; font-size: 0.85rem;">
+                    <i class="fas fa-clock"></i> OR/CR Number: Pending Assignment
                 </div>
                 ` : ''}
                 
@@ -508,57 +512,80 @@ function escapeHtml(text) {
 
 // Download vehicle registration certificate
 async function downloadVehicleCertificate(vehicleId, orCrNumber) {
+    console.log('=== downloadVehicleCertificate START ===');
+    console.log('Vehicle ID:', vehicleId);
+    console.log('OR/CR Number:', orCrNumber);
+    
     try {
+        // Show loading notification
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show('Generating certificate...', 'info');
         }
+        console.log('Loading notification shown');
+
+        // Check if CertificateGenerator is available
+        console.log('CertificateGenerator available:', typeof CertificateGenerator !== 'undefined');
+        if (typeof CertificateGenerator === 'undefined') {
+            throw new Error('CertificateGenerator not loaded. Please refresh the page.');
+        }
 
         const apiClient = window.apiClient || new APIClient();
+        console.log('API Client ready');
         
         // Get vehicle details
+        console.log('Fetching vehicle details from API...');
         const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
+        console.log('Vehicle API response:', vehicleResponse);
+        
         if (!vehicleResponse.success) {
-            throw new Error('Failed to load vehicle data');
+            throw new Error(vehicleResponse.error || 'Failed to load vehicle data');
         }
         
         const vehicle = vehicleResponse.vehicle;
+        console.log('Vehicle data:', vehicle);
+        console.log('Vehicle OR/CR from API:', vehicle.or_cr_number);
         
         // Get owner details
+        console.log('Fetching owner profile...');
         let owner = { email: 'N/A' };
-        if (vehicle.owner_id) {
-            try {
-                const profileResponse = await apiClient.get('/api/auth/profile');
-                if (profileResponse.success) {
-                    owner = profileResponse.user;
-                }
-            } catch (e) {
-                console.warn('Could not load owner profile:', e);
+        try {
+            const profileResponse = await apiClient.get('/api/auth/profile');
+            console.log('Profile response:', profileResponse);
+            if (profileResponse.success) {
+                owner = profileResponse.user;
             }
+        } catch (e) {
+            console.warn('Could not load owner profile:', e);
         }
+        console.log('Owner data:', owner);
         
         // Generate certificate
-        if (typeof CertificateGenerator !== 'undefined') {
-            const success = await CertificateGenerator.generateCertificate(vehicle, owner);
-            if (success) {
-                if (typeof ToastNotification !== 'undefined') {
-                    ToastNotification.show('Certificate opened! Use Print dialog to save as PDF.', 'success');
-                }
-            } else {
-                // Popup was blocked, file was downloaded instead
-                if (typeof ToastNotification !== 'undefined') {
-                    ToastNotification.show('Certificate downloaded as HTML file. Open it in your browser and use Print to save as PDF.', 'warning');
-                }
+        console.log('Calling CertificateGenerator.generateCertificate...');
+        const result = await CertificateGenerator.generateCertificate(vehicle, owner);
+        console.log('Certificate generation result:', result);
+        
+        // Show success message
+        if (result && result.method === 'download') {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Certificate downloaded as HTML file. Open it and use Print to save as PDF.', 'warning');
             }
         } else {
-            throw new Error('Certificate generator not available. Please refresh the page.');
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Certificate opened! Use Print dialog to save as PDF.', 'success');
+            }
         }
         
+        console.log('=== downloadVehicleCertificate SUCCESS ===');
+        
     } catch (error) {
-        console.error('Certificate generation error:', error);
+        console.error('=== downloadVehicleCertificate ERROR ===');
+        console.error('Error:', error.message);
+        console.error('Stack:', error.stack);
+        
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show(`Error: ${error.message}`, 'error');
         } else {
-            alert(`Error: ${error.message}`);
+            alert(`Error generating certificate: ${error.message}`);
         }
     }
 }

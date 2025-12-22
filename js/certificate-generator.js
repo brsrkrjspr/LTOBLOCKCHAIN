@@ -7,54 +7,103 @@ const CertificateGenerator = {
      * Uses HTML-to-Canvas approach with browser print
      */
     async generateCertificate(vehicleData, ownerData) {
-        // Create certificate HTML
-        const certificateHtml = this.createCertificateHtml(vehicleData, ownerData);
-        
-        // Try to open print window
-        const printWindow = window.open('', '_blank', 'width=800,height=1000');
-        
-        // Check if popup was blocked
-        if (!printWindow || printWindow.closed || typeof printWindow.closed === 'undefined') {
-            // Popup was blocked - fallback to download as HTML file
-            console.warn('Popup blocked - using download fallback');
-            this.downloadAsHtmlFile(certificateHtml, vehicleData.or_cr_number || vehicleData.orCrNumber || vehicleData.id);
-            return false;
-        }
+        console.log('=== CERTIFICATE GENERATOR START ===');
+        console.log('Vehicle Data:', JSON.stringify(vehicleData, null, 2));
+        console.log('Owner Data:', JSON.stringify(ownerData, null, 2));
         
         try {
+            // Validate input
+            if (!vehicleData) {
+                console.error('ERROR: vehicleData is null or undefined');
+                throw new Error('Vehicle data is required');
+            }
+            
+            // Create certificate HTML
+            console.log('Creating certificate HTML...');
+            const certificateHtml = this.createCertificateHtml(vehicleData, ownerData);
+            console.log('Certificate HTML created, length:', certificateHtml.length);
+            
+            // Try to open print window
+            console.log('Attempting to open print window...');
+            const printWindow = window.open('', '_blank', 'width=800,height=1000');
+            
+            // Check if popup was blocked
+            if (!printWindow) {
+                console.error('ERROR: window.open returned null - popup blocked!');
+                console.log('Falling back to HTML file download...');
+                this.downloadAsHtmlFile(certificateHtml, vehicleData.or_cr_number || vehicleData.orCrNumber || vehicleData.plate_number || vehicleData.id);
+                return { success: true, method: 'download' };
+            }
+            
+            if (printWindow.closed) {
+                console.error('ERROR: Print window was immediately closed');
+                this.downloadAsHtmlFile(certificateHtml, vehicleData.or_cr_number || vehicleData.orCrNumber || vehicleData.plate_number || vehicleData.id);
+                return { success: true, method: 'download' };
+            }
+            
+            console.log('Print window opened successfully');
+            
+            // Write content to window
+            console.log('Writing HTML to print window...');
             printWindow.document.write(certificateHtml);
             printWindow.document.close();
+            console.log('HTML written and document closed');
             
             // Wait for content to load, then trigger print
             printWindow.onload = function() {
+                console.log('Print window loaded, triggering print dialog in 500ms...');
                 setTimeout(() => {
+                    console.log('Triggering print...');
                     printWindow.print();
+                    console.log('Print dialog should be open now');
                 }, 500);
             };
             
-            return true;
+            // Also try immediate print as fallback
+            setTimeout(() => {
+                if (printWindow && !printWindow.closed) {
+                    console.log('Fallback: Triggering print after 1 second...');
+                    try {
+                        printWindow.print();
+                    } catch (e) {
+                        console.error('Fallback print failed:', e);
+                    }
+                }
+            }, 1000);
+            
+            console.log('=== CERTIFICATE GENERATOR SUCCESS ===');
+            return { success: true, method: 'print' };
+            
         } catch (error) {
-            console.error('Error opening print window:', error);
-            // Fallback to download
-            this.downloadAsHtmlFile(certificateHtml, vehicleData.or_cr_number || vehicleData.orCrNumber || vehicleData.id);
-            return false;
+            console.error('=== CERTIFICATE GENERATOR ERROR ===');
+            console.error('Error:', error.message);
+            console.error('Stack:', error.stack);
+            throw error;
         }
     },
 
     // Fallback: Download as HTML file that user can open and print
     downloadAsHtmlFile(htmlContent, filename) {
+        console.log('downloadAsHtmlFile called with filename:', filename);
         try {
             const blob = new Blob([htmlContent], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
+            console.log('Blob URL created:', url);
+            
             const a = document.createElement('a');
             a.href = url;
-            a.download = `LTO_Certificate_${filename || 'Vehicle'}.html`;
+            a.download = `LTO_Certificate_${filename || 'unknown'}.html`;
+            console.log('Download filename:', a.download);
+            
             document.body.appendChild(a);
+            console.log('Clicking download link...');
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            
+            console.log('HTML file download initiated');
         } catch (error) {
-            console.error('Error downloading HTML file:', error);
+            console.error('downloadAsHtmlFile ERROR:', error);
             // Last resort: Create a data URL and open it
             const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
             window.open(dataUrl, '_blank');
@@ -62,13 +111,27 @@ const CertificateGenerator = {
     },
 
     createCertificateHtml(vehicle, owner) {
-        const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || 'N/A';
-        const regDate = vehicle.registration_date ?  
-            new Date(vehicle.registration_date).toLocaleDateString('en-US', {
+        console.log('createCertificateHtml called');
+        
+        const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
+        const regDate = vehicle.registration_date || vehicle.approved_at || vehicle.created_at;
+        const regDateFormatted = regDate ?  
+            new Date(regDate).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric'
             }) : 'N/A';
-        const ownerName = `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email || 'N/A';
+        
+        const ownerName = owner ?  
+            `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email || 'N/A'
+            : 'N/A';
+        
         const verificationUrl = `${window.location.origin}/verify/${vehicle.blockchain_tx_id || vehicle.id}`;
+        
+        console.log('Certificate data:', {
+            orCrNumber,
+            regDateFormatted,
+            ownerName,
+            plateNumber: vehicle.plate_number || vehicle.plateNumber
+        });
 
         return `
 <!DOCTYPE html>
@@ -156,7 +219,7 @@ const CertificateGenerator = {
             <div class="section-title">REGISTRATION DETAILS</div>
             <div class="info-grid">
                 <span class="info-label">Registration Date:</span>
-                <span class="info-value">${regDate}</span>
+                <span class="info-value">${regDateFormatted}</span>
                 <span class="info-label">Status:</span>
                 <span class="info-value">${this.escapeHtml(vehicle.status || 'REGISTERED')}</span>
             </div>
@@ -192,4 +255,5 @@ const CertificateGenerator = {
 
 // Make globally available
 window.CertificateGenerator = CertificateGenerator;
+console.log('CertificateGenerator loaded and available globally');
 

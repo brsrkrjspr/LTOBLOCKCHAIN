@@ -284,19 +284,44 @@ const HPGRequests = {
         if (!tbody) return;
 
         if (this.filteredRequests.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No requests found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-inbox"></i> No requests found</td></tr>';
             return;
         }
 
         tbody.innerHTML = this.filteredRequests.map(req => {
-            const statusClass = `status-${req.status}`;
-            const statusText = req.status.charAt(0).toUpperCase() + req.status.slice(1);
+            const status = (req.status || 'pending').toLowerCase();
+            const statusClass = `status-${status}`;
+            const statusText = status.charAt(0).toUpperCase() + status.slice(1);
             const reqId = typeof req.id === 'string' && req.id.length > 10 ? req.id.substring(0, 10) + '...' : req.id;
             const docCount = req.documents?.length || 0;
+            const isProcessed = ['approved', 'completed', 'rejected'].includes(status);
+
+            let actionButtons = '';
+            if (isProcessed) {
+                if (status === 'approved' || status === 'completed') {
+                    actionButtons = `
+                        <span class="status-badge status-approved" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <i class="fas fa-check-circle"></i> Verified
+                        </span>
+                    `;
+                } else if (status === 'rejected') {
+                    actionButtons = `
+                        <span class="status-badge status-rejected" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <i class="fas fa-times-circle"></i> Rejected
+                        </span>
+                    `;
+                }
+            } else {
+                actionButtons = `
+                    <button class="btn-success btn-sm" onclick="startVerification('${req.id}')" title="Start verification process">
+                        <i class="fas fa-clipboard-check"></i> Verify
+                    </button>
+                `;
+            }
             
             return `
                 <tr>
-                    <td><strong title="${req.id}">${reqId}</strong></td>
+                    <td><code style="font-size: 0.85rem;" title="${req.id}">${reqId}</code></td>
                     <td>${req.ownerName}</td>
                     <td><span class="badge badge-plate">${req.plateNumber}</span></td>
                     <td>${req.vehicleType}</td>
@@ -304,20 +329,16 @@ const HPGRequests = {
                     <td>${req.requestDate}</td>
                     <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                     <td>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            ${req.status === 'pending' ? `
-                                <button class="btn-success btn-sm" onclick="startVerification('${req.id}')" title="Auto-fill form with vehicle data and start verification">
-                                    <i class="fas fa-clipboard-check"></i> Start Verification
-                                </button>
-                            ` : ''}
-                            <button class="btn-secondary btn-sm" onclick="viewDetails('${req.id}')">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                            <button class="btn-secondary btn-sm" onclick="viewDetails('${req.id}')" title="View request details">
                                 <i class="fas fa-eye"></i> Details
                             </button>
                             ${docCount > 0 ? `
-                                <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${req.id}')" title="View ${docCount} attached document(s)">
+                                <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${req.id}')" title="View ${docCount} document(s)">
                                     <i class="fas fa-file-image"></i> ${docCount} Doc${docCount > 1 ? 's' : ''}
                                 </button>
                             ` : ''}
+                            ${actionButtons}
                         </div>
                     </td>
                 </tr>
@@ -1170,6 +1191,26 @@ const HPGLogs = {
             this.currentPage++;
             this.renderTable();
         }
+    }
+};
+
+// Status tab filter (All/Pending/Approved/Rejected)
+HPGRequests.filterByStatus = function(status, btn) {
+    document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    if (status === 'all') {
+        this.filteredRequests = [...this.requests];
+    } else {
+        this.filteredRequests = this.requests.filter(r => (r.status || '').toLowerCase() === status.toLowerCase());
+    }
+    this.renderTable();
+};
+
+// Make globally accessible
+window.filterHPGByStatus = function(status, btn) {
+    if (typeof HPGRequests !== 'undefined') {
+        HPGRequests.filterByStatus(status, btn);
     }
 };
 

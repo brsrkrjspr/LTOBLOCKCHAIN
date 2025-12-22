@@ -979,7 +979,6 @@
         // Track current OR/CR document for viewer
         let currentOrcrDoc = null;
 
-        // Load OR/CR document
         function loadORCRDocument(docs) {
             if (!docs || !Array.isArray(docs) || docs.length === 0) {
                 console.warn('[HPG] No documents provided to loadORCRDocument');
@@ -989,127 +988,197 @@
             console.log('[HPG] Searching for OR/CR document in', docs.length, 'documents');
             console.log('[HPG] Document types:', docs.map(d => d.type || d.document_type || 'unknown'));
 
-            // Check multiple document type fields and filename patterns
             const orcrDoc = docs.find(d => {
                 const docType = (d.type || d.document_type || '').toLowerCase();
                 const filename = (d.filename || d.original_name || '').toLowerCase();
                 
-                // Check document type
-                if (docType === 'registration_cert' || 
-                    docType === 'registrationcert' ||
-                    docType === 'registration' ||
-                    docType === 'or_cr' ||
-                    docType === 'orcr' ||
-                    docType === 'or-cr') {
-                    return true;
-                }
-                
-                // Check filename patterns
-                if (filename.includes('registration') ||
-                    filename.includes('or_cr') ||
-                    filename.includes('or-cr') ||
-                    filename.includes('orcr') ||
-                    (filename.includes('or') && filename.includes('cr'))) {
-                    return true;
-                }
-                
-                return false;
+                return docType === 'registration_cert' || 
+                       docType === 'registrationcert' ||
+                       docType === 'registration' ||
+                       docType === 'or_cr' ||
+                       docType === 'orcr' ||
+                       filename.includes('orcr') ||
+                       filename.includes('or_cr') ||
+                       filename.includes('registration');
             });
-
-            const orcrContainer = document.getElementById('orcrDocContainer');
-            const noOrcrMessage = document.getElementById('noOrcrMessage');
-            const orcrImage = document.getElementById('orcrDocImage');
-
-            if (!orcrContainer || !orcrImage) {
-                console.error('[HPG] OR/CR container or image element not found');
-                return;
-            }
 
             if (orcrDoc) {
                 console.log('[HPG] Found OR/CR document:', orcrDoc);
-                // Remember current OR/CR doc so we can open it in the secure viewer
-                currentOrcrDoc = orcrDoc;
-
-                // Try multiple URL construction methods
-                let url = null;
-                if (orcrDoc.cid) {
-                    url = `/api/documents/ipfs/${orcrDoc.cid}`;
-                } else if (orcrDoc.ipfs_cid) {
-                    url = `/api/documents/ipfs/${orcrDoc.ipfs_cid}`;
-                } else if (orcrDoc.path) {
-                    url = `/api/documents/file/${encodeURIComponent(orcrDoc.path)}`;
-                } else if (orcrDoc.file_path) {
-                    url = `/api/documents/file/${encodeURIComponent(orcrDoc.file_path)}`;
-                } else if (orcrDoc.file_url) {
-                    url = orcrDoc.file_url;
-                } else if (orcrDoc.id) {
-                    url = `/api/documents/${orcrDoc.id}/view`;
-                }
-                
-                if (url) {
-                    console.log('[HPG] Loading OR/CR image from URL:', url);
-                    orcrImage.onerror = function() {
-                        console.error('[HPG] Failed to load OR/CR image from:', url);
-                        if (noOrcrMessage) noOrcrMessage.style.display = 'block';
-                        orcrContainer.style.display = 'none';
-                    };
-                    orcrImage.onload = function() {
-                        console.log('[HPG] OR/CR image loaded successfully');
-                        orcrContainer.style.display = 'block';
-                        if (noOrcrMessage) noOrcrMessage.style.display = 'none';
-                    };
-                    orcrImage.src = url;
-                } else {
-                    console.error('[HPG] Could not construct URL for OR/CR document:', orcrDoc);
-                    if (noOrcrMessage) {
-                        noOrcrMessage.style.display = 'block';
-                        noOrcrMessage.textContent = 'OR/CR document found but cannot be displayed (missing URL)';
-                    }
-                    orcrContainer.style.display = 'none';
-                }
+                loadDocumentWithAuth(orcrDoc);
             } else {
-                console.warn('[HPG] No OR/CR document found in provided documents');
-                if (noOrcrMessage) {
-                    noOrcrMessage.style.display = 'block';
-                    noOrcrMessage.textContent = 'No OR/CR document found in submitted documents';
+                console.log('[HPG] No OR/CR document found, showing first document');
+                if (docs.length > 0) {
+                    loadDocumentWithAuth(docs[0]);
                 }
-                orcrContainer.style.display = 'none';
             }
 
-            // Also show all documents
-            if (docs.length > 0) {
-                const allDocsSection = document.getElementById('allDocsSection');
-                const docsGrid = document.getElementById('attachedDocsGrid');
-                
-                allDocsSection.style.display = 'block';
-                
-                // HPG only receives Owner ID and OR/CR documents (filtered by LTO)
-                const docTypeNames = {
-                    'owner_id': 'Owner ID',
-                    'ownerId': 'Owner ID',
-                    'registration_cert': 'OR/CR',
-                    'registrationCert': 'OR/CR',
-                    'registration': 'OR/CR',
-                    'or_cr': 'OR/CR'
-                };
-                
-                console.log(`[HPG] Displaying ${docs.length} documents (filtered: Owner ID & OR/CR only)`);
+            populateAllDocumentsGrid(docs);
+        }
 
-                docsGrid.innerHTML = docs.map(doc => {
-                    const typeName = docTypeNames[doc.type] || doc.type || 'Document';
-                    const viewerUrl = doc.id 
-                        ? `document-viewer.html?documentId=${encodeURIComponent(doc.id)}`
-                        : (doc.cid ? `document-viewer.html?cid=${encodeURIComponent(doc.cid)}` : '#');
-                    const isOrcr = doc.type === 'registration_cert' || doc.type === 'registration';
-                    
-                    return `
-                        <div class="doc-preview-card ${isOrcr ? 'orcr' : ''}" onclick="window.open('${viewerUrl}', '_blank')">
-                            <i class="fas fa-file-image doc-icon"></i>
-                            <div class="doc-type">${typeName}${isOrcr ? ' ★' : ''}</div>
-                            <div class="doc-filename">${doc.filename || 'document'}</div>
-                        </div>
+        async function loadDocumentWithAuth(doc) {
+            const orcrImage = document.getElementById('orcrDocImage');
+            const orcrDocContainer = document.getElementById('orcrDocContainer');
+            const noOrcrMessage = document.getElementById('noOrcrMessage');
+
+            if (!doc) {
+                if (noOrcrMessage) noOrcrMessage.style.display = 'block';
+                if (orcrDocContainer) orcrDocContainer.style.display = 'none';
+                return;
+            }
+
+            currentOrcrDoc = doc;
+
+            let docUrl = null;
+            if (doc.url && doc.url.startsWith('data:')) {
+                docUrl = doc.url;
+            } else if (doc.id) {
+                docUrl = `/api/documents/${doc.id}/view`;
+            } else if (doc.cid || doc.ipfs_cid) {
+                docUrl = `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}`;
+            } else if (doc.path || doc.file_path) {
+                docUrl = doc.path || doc.file_path;
+            }
+
+            if (!docUrl) {
+                if (noOrcrMessage) {
+                    noOrcrMessage.innerHTML = `
+                        <i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i>
+                        <p>Document URL not available</p>
                     `;
-                }).join('');
+                    noOrcrMessage.style.display = 'block';
+                }
+                if (orcrDocContainer) orcrDocContainer.style.display = 'none';
+                return;
+            }
+
+            if (docUrl.startsWith('data:')) {
+                if (orcrImage) {
+                    orcrImage.src = docUrl;
+                    orcrImage.onload = () => {
+                        if (noOrcrMessage) noOrcrMessage.style.display = 'none';
+                        if (orcrDocContainer) orcrDocContainer.style.display = 'block';
+                    };
+                }
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const response = await fetch(docUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'image/*,application/pdf,*/*'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+
+                if (orcrImage) {
+                    orcrImage.src = blobUrl;
+                    orcrImage.onload = () => {
+                        if (noOrcrMessage) noOrcrMessage.style.display = 'none';
+                        if (orcrDocContainer) orcrDocContainer.style.display = 'block';
+                    };
+                    orcrImage.onerror = () => {
+                        if (noOrcrMessage) {
+                            noOrcrMessage.innerHTML = `
+                                <i class="fas fa-file-pdf" style="color: #e74c3c; font-size: 3rem;"></i>
+                                <p>PDF Document</p>
+                                <button class="btn-primary btn-sm" onclick="openOrcrInViewer()" style="margin-top: 1rem;">
+                                    <i class="fas fa-eye"></i> View Document
+                                </button>
+                            `;
+                            noOrcrMessage.style.display = 'block';
+                        }
+                        if (orcrDocContainer) orcrDocContainer.style.display = 'none';
+                    };
+                }
+            } catch (error) {
+                if (noOrcrMessage) {
+                    noOrcrMessage.innerHTML = `
+                        <i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i>
+                        <p>Failed to load document</p>
+                        <small style="color: #7f8c8d;">${error.message}</small>
+                        <button class="btn-secondary btn-sm" onclick="retryLoadOrcrDocument()" style="margin-top: 1rem;">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    `;
+                    noOrcrMessage.style.display = 'block';
+                }
+                if (orcrDocContainer) orcrDocContainer.style.display = 'none';
+            }
+        }
+
+        function populateAllDocumentsGrid(docs) {
+            const grid = document.getElementById('attachedDocsGrid');
+            const section = document.getElementById('allDocsSection');
+            
+            if (!grid || !docs || docs.length === 0) {
+                if (section) section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            
+            const docTypeLabels = {
+                'owner_id': 'Owner ID',
+                'ownerId': 'Owner ID',
+                'registration_cert': 'OR/CR',
+                'registrationCert': 'OR/CR',
+                'registration': 'OR/CR',
+                'or_cr': 'OR/CR',
+                'insurance_cert': 'Insurance',
+                'emission_cert': 'Emission'
+            };
+
+            grid.innerHTML = docs.map((doc, index) => {
+                const docType = doc.type || doc.document_type || 'document';
+                const label = docTypeLabels[docType] || docType;
+                const isOrcr = docType.toLowerCase().includes('registration') || docType.toLowerCase().includes('orcr');
+                
+                return `
+                    <div class="doc-preview-card ${isOrcr ? 'orcr' : ''}" onclick="viewDocumentAtIndex(${index})">
+                        <div class="doc-icon">
+                            <i class="fas ${isOrcr ? 'fa-car' : 'fa-id-card'}"></i>
+                        </div>
+                        <div class="doc-type">${label}</div>
+                        <div class="doc-filename">${doc.filename || doc.original_name || 'Document'}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function viewDocumentAtIndex(index) {
+            const docs = HPGVerification.requestData?.documents || [];
+            if (docs.length === 0) {
+                alert('No documents available');
+                return;
+            }
+            
+            const preparedDocs = docs.map(doc => ({
+                id: doc.id,
+                filename: doc.filename || doc.original_name || 'Document',
+                type: doc.type || doc.document_type,
+                document_type: doc.type || doc.document_type,
+                cid: doc.cid || doc.ipfs_cid,
+                path: doc.path || doc.file_path,
+                url: doc.id ? `/api/documents/${doc.id}/view` : 
+                     (doc.cid || doc.ipfs_cid) ? `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}` : 
+                     doc.path || doc.file_path
+            }));
+            
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.viewMultiple(preparedDocs, index);
+            } else {
+                const doc = preparedDocs[index];
+                if (doc.url) {
+                    window.open(doc.url, '_blank');
+                }
             }
         }
 
@@ -1134,6 +1203,18 @@
 
             window.open(viewerUrl, '_blank');
         }
+
+        function retryLoadOrcrDocument() {
+            const docs = HPGVerification.requestData?.documents || [];
+            if (docs.length > 0) {
+                loadORCRDocument(docs);
+            }
+        }
+
+        // Expose helpers for onclick usage
+        window.openOrcrInViewer = openOrcrInViewer;
+        window.viewDocumentAtIndex = viewDocumentAtIndex;
+        window.retryLoadOrcrDocument = retryLoadOrcrDocument;
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {

@@ -56,72 +56,33 @@ function updateInsuranceStats() {
     }
 }
 
+let allInsuranceRequests = [];
+let currentInsuranceStatusFilter = 'all';
+
 async function loadInsuranceVerificationTasks() {
     const tbody = document.getElementById('insuranceVerificationTableBody');
-    
     if (!tbody) return;
     
-    // Show loading state
     tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading verification requests...</td></tr>';
     
     try {
-        // Call API to get insurance verification requests
         if (typeof APIClient !== 'undefined') {
             const apiClient = new APIClient();
-            const response = await apiClient.get('/api/insurance/requests?status=PENDING');
+            // load all statuses to enable filtering
+            const response = await apiClient.get('/api/insurance/requests');
             
             if (response && response.success && response.requests) {
-                const requests = response.requests;
-                
-                if (requests.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
-                                No pending insurance verification requests
-                            </td>
-                        </tr>
-                    `;
-                    updateInsuranceSummary([]);
-                    return;
-                }
-                
-                // Clear existing rows
-                tbody.innerHTML = '';
-                
-                // Display requests
-                requests.forEach(req => {
-                    const row = createInsuranceVerificationRowFromRequest(req);
-                    tbody.appendChild(row);
-                });
-                
-                // Update summary
-                updateInsuranceSummary(requests);
+                allInsuranceRequests = response.requests;
+                renderFilteredInsuranceRequests();
+                updateInsuranceSummary(allInsuranceRequests);
             } else {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Failed to load requests. Please try again.</td></tr>';
             }
         } else {
-            // Fallback to localStorage if API not available
             const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-            const applicationsWithInsurance = applications.filter(app => 
-                app.documents && app.documents.insuranceCert
-            );
-            
-            if (applicationsWithInsurance.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
-                            No applications with insurance certificates found
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            tbody.innerHTML = '';
-            applicationsWithInsurance.forEach(app => {
-                const row = createInsuranceVerificationRow(app);
-                tbody.appendChild(row);
-            });
+            const applicationsWithInsurance = applications.filter(app => app.documents && app.documents.insuranceCert);
+            allInsuranceRequests = applicationsWithInsurance;
+            renderFilteredInsuranceRequests();
             updateInsuranceSummary(applicationsWithInsurance);
         }
     } catch (error) {
@@ -130,26 +91,134 @@ async function loadInsuranceVerificationTasks() {
     }
 }
 
+function renderFilteredInsuranceRequests() {
+    const tbody = document.getElementById('insuranceVerificationTableBody');
+    if (!tbody) return;
+
+    let filtered = allInsuranceRequests;
+    if (currentInsuranceStatusFilter !== 'all') {
+        filtered = allInsuranceRequests.filter(r => (r.status || '').toLowerCase() === currentInsuranceStatusFilter.toLowerCase());
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                    No ${currentInsuranceStatusFilter === 'all' ? '' : currentInsuranceStatusFilter} requests found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    filtered.forEach(req => {
+        const row = createInsuranceVerificationRowFromRequest(req);
+        tbody.appendChild(row);
+    });
+}
+
+function filterInsuranceByStatus(status, btn) {
+    currentInsuranceStatusFilter = status;
+    document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderFilteredInsuranceRequests();
+}
+
+window.filterInsuranceByStatus = filterInsuranceByStatus;
+
 function createInsuranceVerificationRowFromRequest(request) {
     const row = document.createElement('tr');
     const vehicle = request.vehicle || {};
     const owner = request.owner || {};
+    const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
     const requestDate = request.created_at ? new Date(request.created_at).toLocaleDateString() : 'N/A';
-    
+    const status = (request.status || 'PENDING').toUpperCase();
+    const docs = metadata.documents || request.documents || [];
+    const docCount = docs.length;
+    const isProcessed = ['APPROVED', 'COMPLETED', 'REJECTED'].includes(status);
+
+    let actionButtons = '';
+    if (isProcessed) {
+        if (status === 'APPROVED' || status === 'COMPLETED') {
+            actionButtons = `
+                <span class="status-badge status-approved" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    <i class="fas fa-check-circle"></i> Verified
+                </span>
+            `;
+        } else if (status === 'REJECTED') {
+            actionButtons = `
+                <span class="status-badge status-rejected" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    <i class="fas fa-times-circle"></i> Rejected
+                </span>
+            `;
+        }
+    } else {
+        actionButtons = `
+            <button class="btn-success btn-sm" onclick="approveInsurance('${request.id}')">
+                <i class="fas fa-check"></i> Approve
+            </button>
+            <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">
+                <i class="fas fa-times"></i> Reject
+            </button>
+        `;
+    }
+
     row.innerHTML = `
-        <td>${request.id.substring(0, 8)}...</td>
+        <td><code style="font-size: 0.85rem;">${request.id.substring(0, 8)}...</code></td>
         <td>${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</td>
         <td>${vehicle.plate_number || 'N/A'}</td>
         <td>${owner.first_name || ''} ${owner.last_name || 'Unknown'}</td>
         <td>${requestDate}</td>
-        <td><span class="status-badge status-${request.status?.toLowerCase() || 'pending'}">${request.status || 'PENDING'}</span></td>
+        <td><span class="status-badge status-${status.toLowerCase()}">${status}</span></td>
         <td>
-            <button class="btn-primary btn-sm" onclick="approveInsurance('${request.id}')">Approve</button>
-            <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">Reject</button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                ${docCount > 0 ? `
+                    <button class="btn-info btn-sm" onclick="viewInsuranceDocuments('${request.id}')" title="View ${docCount} document(s)">
+                        <i class="fas fa-file-shield"></i> Cert
+                    </button>
+                ` : ''}
+                ${actionButtons}
+            </div>
         </td>
     `;
     return row;
 }
+
+async function viewInsuranceDocuments(requestId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/insurance/requests/${requestId}`);
+        if (response.success && response.request) {
+            const docs = response.request.documents || [];
+            if (!docs.length) {
+                alert('No documents available for this request');
+                return;
+            }
+            const prepared = docs.map(doc => ({
+                id: doc.id,
+                filename: doc.filename || doc.original_name || 'Insurance Certificate',
+                type: doc.type || doc.document_type || 'insurance_cert',
+                document_type: doc.type || doc.document_type,
+                cid: doc.cid || doc.ipfs_cid,
+                url: doc.id ? `/api/documents/${doc.id}/view` :
+                     (doc.cid || doc.ipfs_cid) ? `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}` :
+                     doc.path || doc.file_path
+            }));
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.viewMultiple(prepared, 0);
+            } else if (prepared[0].url) {
+                window.open(prepared[0].url, '_blank');
+            }
+        }
+    } catch (error) {
+        console.error('Error viewing insurance documents:', error);
+        alert('Failed to load documents: ' + error.message);
+    }
+}
+
+window.viewInsuranceDocuments = viewInsuranceDocuments;
 
 function createInsuranceVerificationRow(application) {
     const row = document.createElement('tr');

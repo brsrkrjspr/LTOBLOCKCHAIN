@@ -151,6 +151,23 @@
                 <div class="dashboard-card">
                     <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
                     <p>Review and verify insurance certificates uploaded by users</p>
+
+                    <!-- Status filter tabs -->
+                    <div class="filter-tabs" style="display: flex; gap: 0.5rem; margin: 0.5rem 0 1rem 0; flex-wrap: wrap;">
+                        <button class="filter-tab active" onclick="filterInsuranceByStatus('all', this)">
+                            <i class="fas fa-list"></i> All
+                        </button>
+                        <button class="filter-tab" onclick="filterInsuranceByStatus('pending', this)">
+                            <i class="fas fa-clock"></i> Pending
+                        </button>
+                        <button class="filter-tab" onclick="filterInsuranceByStatus('approved', this)">
+                            <i class="fas fa-check"></i> Approved
+                        </button>
+                        <button class="filter-tab" onclick="filterInsuranceByStatus('rejected', this)">
+                            <i class="fas fa-times"></i> Rejected
+                        </button>
+                    </div>
+
                     <div class="table-container">
                         <table class="table" id="insuranceVerificationTable">
                             <thead>
@@ -202,6 +219,7 @@
     <script src="js/api-client.js"></script>
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/document-modal.js"></script>
     <script src="js/insurance-verifier-dashboard.js"></script>
     <script>
         // Initialize user data on page load

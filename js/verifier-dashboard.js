@@ -84,41 +84,24 @@ function initializeTaskManagement() {
     }
 }
 
+let allEmissionRequests = [];
+let currentEmissionStatusFilter = 'all';
+
 async function loadEmissionVerificationTasks() {
     const tbody = document.querySelector('.table tbody');
     if (!tbody) return;
     
-    // Show loading state
     tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading verification requests...</td></tr>';
     
     try {
-        // Call API to get emission verification requests
         if (typeof APIClient !== 'undefined') {
             const apiClient = new APIClient();
-            const response = await apiClient.get('/api/emission/requests?status=PENDING');
+            // Load all requests (not only pending) for filtering
+            const response = await apiClient.get('/api/emission/requests');
             
             if (response && response.success && response.requests) {
-                const requests = response.requests;
-                
-                if (requests.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 2rem; color: #6c757d;">
-                                No pending emission verification requests
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                // Clear existing rows
-                tbody.innerHTML = '';
-                
-                // Display requests
-                requests.forEach(req => {
-                    const row = createEmissionVerificationRow(req);
-                    tbody.appendChild(row);
-                });
+                allEmissionRequests = response.requests;
+                renderFilteredEmissionRequests();
             } else {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Failed to load requests. Please try again.</td></tr>';
             }
@@ -134,31 +117,229 @@ async function loadEmissionVerificationTasks() {
     }
 }
 
+function renderFilteredEmissionRequests() {
+    const tbody = document.querySelector('.table tbody');
+    if (!tbody) return;
+
+    let filtered = allEmissionRequests;
+    if (currentEmissionStatusFilter !== 'all') {
+        filtered = allEmissionRequests.filter(r => (r.status || '').toUpperCase() === currentEmissionStatusFilter.toUpperCase());
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                    No ${currentEmissionStatusFilter === 'all' ? '' : currentEmissionStatusFilter.toLowerCase()} requests found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    filtered.forEach(req => {
+        const row = createEmissionVerificationRow(req);
+        tbody.appendChild(row);
+    });
+
+    // Update pending badge if present
+    const badge = document.getElementById('pendingRequestsBadge');
+    if (badge) {
+        const pendingCount = allEmissionRequests.filter(r => (r.status || '').toUpperCase() === 'PENDING').length;
+        badge.textContent = pendingCount;
+        badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+    }
+}
+
+function filterEmissionByStatus(status, btn) {
+    currentEmissionStatusFilter = status;
+    document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderFilteredEmissionRequests();
+}
+
+window.filterEmissionByStatus = filterEmissionByStatus;
+
 function createEmissionVerificationRow(request) {
     const row = document.createElement('tr');
     const vehicle = request.vehicle || {};
     const owner = request.owner || {};
+    const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
     const requestDate = request.created_at ? new Date(request.created_at).toLocaleDateString() : 'N/A';
-    
+    const status = (request.status || 'PENDING').toUpperCase();
+
+    const isProcessed = ['APPROVED', 'COMPLETED', 'REJECTED'].includes(status);
+    const docs = metadata.documents || request.documents || [];
+    const docCount = docs.length;
+
+    let actionButtons = '';
+    if (isProcessed) {
+        if (status === 'APPROVED' || status === 'COMPLETED') {
+            actionButtons = `
+                <span class="status-badge status-approved" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    <i class="fas fa-check-circle"></i> Verified
+                </span>
+            `;
+        } else if (status === 'REJECTED') {
+            actionButtons = `
+                <span class="status-badge status-rejected" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    <i class="fas fa-times-circle"></i> Rejected
+                </span>
+            `;
+        }
+    } else {
+        actionButtons = `
+            <button class="btn-success btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">
+                <i class="fas fa-check"></i> Approve
+            </button>
+            <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">
+                <i class="fas fa-times"></i> Reject
+            </button>
+        `;
+    }
+
     row.innerHTML = `
-        <td>${request.id.substring(0, 8)}...</td>
+        <td><code style="font-size: 0.85rem;">${request.id.substring(0, 8)}...</code></td>
         <td>
             <div class="vehicle-info">
-                <strong>${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</strong>
+                <strong>${vehicle.plate_number || metadata.vehiclePlate || 'N/A'}</strong><br>
+                <small style="color: #7f8c8d;">${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</small>
             </div>
         </td>
-        <td>${vehicle.plate_number || 'N/A'}</td>
-        <td>${owner.first_name || ''} ${owner.last_name || 'Unknown'}</td>
+        <td>${metadata.ownerName || (owner.first_name ? owner.first_name + ' ' + (owner.last_name || '') : 'Unknown')}</td>
         <td>${requestDate}</td>
-        <td><span class="status-badge status-${request.status?.toLowerCase() || 'pending'}">${request.status || 'PENDING'}</span></td>
+        <td><span class="status-badge status-${status.toLowerCase()}">${status}</span></td>
         <td>
-            <button class="btn-primary btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">Approve</button>
-            <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">Reject</button>
-            <button class="btn-secondary btn-sm" onclick="handleEmissionReviewFromRequest('${request.id}')">Review</button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <button class="btn-secondary btn-sm" onclick="viewEmissionRequestDetails('${request.id}')">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                ${docCount > 0 ? `
+                    <button class="btn-info btn-sm" onclick="viewEmissionDocuments('${request.id}')">
+                        <i class="fas fa-leaf"></i> Cert
+                    </button>
+                ` : ''}
+                ${actionButtons}
+            </div>
         </td>
     `;
     return row;
 }
+
+async function viewEmissionRequestDetails(requestId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/emission/requests/${requestId}`);
+        if (response.success && response.request) {
+            showEmissionDetailsModal(response.request);
+        } else {
+            throw new Error(response.error || 'Failed to load request');
+        }
+    } catch (error) {
+        console.error('Error viewing emission request:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Failed to load request: ' + error.message, 'error');
+        } else {
+            alert('Failed to load request: ' + error.message);
+        }
+    }
+}
+
+async function viewEmissionDocuments(requestId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/emission/requests/${requestId}`);
+        if (response.success && response.request) {
+            const docs = response.request.documents || [];
+            if (!docs.length) {
+                alert('No documents available for this request');
+                return;
+            }
+            const prepared = docs.map(doc => ({
+                id: doc.id,
+                filename: doc.filename || doc.original_name || 'Emission Certificate',
+                type: doc.type || doc.document_type || 'emission_cert',
+                document_type: doc.type || doc.document_type,
+                cid: doc.cid || doc.ipfs_cid,
+                url: doc.id ? `/api/documents/${doc.id}/view` :
+                     (doc.cid || doc.ipfs_cid) ? `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}` :
+                     doc.path || doc.file_path
+            }));
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.viewMultiple(prepared, 0);
+            } else if (prepared[0].url) {
+                window.open(prepared[0].url, '_blank');
+            }
+        }
+    } catch (error) {
+        console.error('Error viewing emission documents:', error);
+        alert('Failed to load documents: ' + error.message);
+    }
+}
+
+function showEmissionDetailsModal(request) {
+    const vehicle = request.vehicle || {};
+    const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+    const status = (request.status || 'PENDING').toUpperCase();
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;';
+
+    modal.innerHTML = `
+        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%); border-radius: 16px 16px 0 0;">
+                <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-leaf"></i> Emission Request Details
+                </h3>
+                <button onclick="this.closest('.modal').remove()" style="background: rgba(255,255,255,0.2); border: none; font-size: 1.25rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="display: grid; gap: 1.25rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Request ID</label>
+                            <div style="font-weight: 600; font-family: monospace; font-size: 0.9rem;">${request.id.substring(0, 12)}...</div>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Status</label>
+                            <div><span class="status-badge status-${status.toLowerCase()}">${status}</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Vehicle</label>
+                        <div style="font-weight: 600; font-size: 1.1rem;">${vehicle.plate_number || metadata.vehiclePlate || 'N/A'}</div>
+                        <div style="color: #7f8c8d;">${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Owner</label>
+                        <div>${metadata.ownerName || 'N/A'}</div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Created</label>
+                        <div>${request.created_at ? new Date(request.created_at).toLocaleString() : 'N/A'}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 2px solid #e9ecef; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                ${(request.documents?.length > 0) ? `
+                    <button onclick="viewEmissionDocuments('${request.id}'); this.closest('.modal').remove();" class="btn-primary">
+                        <i class="fas fa-file-image"></i> View Certificate
+                    </button>
+                ` : ''}
+                <button onclick="this.closest('.modal').remove()" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+window.viewEmissionRequestDetails = viewEmissionRequestDetails;
+window.viewEmissionDocuments = viewEmissionDocuments;
 
 // Wrapper functions for API-based approval/rejection
 async function handleEmissionApproveFromRequest(requestId) {

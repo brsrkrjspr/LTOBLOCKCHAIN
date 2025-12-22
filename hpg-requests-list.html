@@ -170,6 +170,22 @@
                         </div>
                     </div>
 
+                <!-- Status filter tabs -->
+                <div class="filter-tabs" style="display: flex; gap: 0.5rem; margin: 0.5rem 0 1rem 0; flex-wrap: wrap;">
+                    <button class="filter-tab active" onclick="filterHPGByStatus('all', this)">
+                        <i class="fas fa-list"></i> All
+                    </button>
+                    <button class="filter-tab" onclick="filterHPGByStatus('pending', this)">
+                        <i class="fas fa-clock"></i> Pending
+                    </button>
+                    <button class="filter-tab" onclick="filterHPGByStatus('approved', this)">
+                        <i class="fas fa-check"></i> Approved
+                    </button>
+                    <button class="filter-tab" onclick="filterHPGByStatus('rejected', this)">
+                        <i class="fas fa-times"></i> Rejected
+                    </button>
+                </div>
+
                     <!-- Requests Table -->
                     <div class="dashboard-card">
                         <div class="table-container">

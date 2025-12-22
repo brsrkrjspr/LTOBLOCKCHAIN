@@ -98,7 +98,7 @@ async function loadTransferRequestDetails() {
         const apiClient = window.apiClient || new APIClient();
 
         // Get transfer request by ID
-        const response = await apiClient.get(`/api/vehicles/transfer/requests/${currentRequestId}`);
+        const response = await apiClient.get(`/api/transfer/requests/${currentRequestId}`);
         
         if (!response.success) {
             throw new Error(response.error || 'Failed to load transfer request');
@@ -549,20 +549,23 @@ function renderVehicleInfo(request) {
         }
     }
 
-    // Find OR/CR documents
+    // Find OR/CR documents (real document_id, not transfer_documents.id)
     const orDoc = (request.documents || []).find(doc => 
-        doc.document_type === 'OR' || doc.type === 'or' || doc.document_type === 'OR_CR' || doc.type === 'orCr'
+        doc.document_type === 'OR' || doc.type === 'or' || doc.document_type === 'OR_CR' || doc.type === 'orCr' || doc.document_type === 'or_cr'
     );
     const crDoc = (request.documents || []).find(doc => 
-        doc.document_type === 'CR' || doc.type === 'cr' || doc.document_type === 'OR_CR' || doc.type === 'orCr'
+        doc.document_type === 'CR' || doc.type === 'cr' || doc.document_type === 'OR_CR' || doc.type === 'orCr' || doc.document_type === 'or_cr'
     );
 
-    if (orDocEl && orDoc) {
+    const orDocId = orDoc ? (orDoc.document_id || orDoc.id) : null;
+    const crDocId = crDoc ? (crDoc.document_id || crDoc.id) : null;
+
+    if (orDocEl && orDocId) {
         orDocEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${orDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="viewDocument('${orDocId}')">
                 <i class="fas fa-eye"></i> View
             </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${orDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="downloadDocument('${orDocId}')">
                 <i class="fas fa-download"></i> Download
             </button>
         `;
@@ -570,12 +573,12 @@ function renderVehicleInfo(request) {
         orDocEl.innerHTML = '<span style="color: #7f8c8d;">No document uploaded</span>';
     }
 
-    if (crDocEl && crDoc) {
+    if (crDocEl && crDocId) {
         crDocEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${crDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="viewDocument('${crDocId}')">
                 <i class="fas fa-eye"></i> View
             </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${crDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="downloadDocument('${crDocId}')">
                 <i class="fas fa-download"></i> Download
             </button>
         `;

@@ -309,6 +309,10 @@ services:
       # Server Configuration
       - TRUST_PROXY=1
       - FRONTEND_URL=https://ltoblockchain.duckdns.org
+      # Email Configuration (for transfer notifications)
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+      - APP_BASE_URL=${APP_BASE_URL:-https://ltoblockchain.duckdns.org}
     # Port removed - Nginx will handle external access
     # Internal access only via Docker network
     volumes:

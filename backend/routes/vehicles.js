@@ -46,13 +46,13 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
                 );
                 totalCount = parseInt(countResult.rows[0].count);
             } else {
-                // Multiple statuses - use IN clause
+                // Multiple statuses - use IN clause with text casting to avoid enum label errors
                 const placeholders = statusValues.map((_, i) => `$${i + 1}`).join(', ');
                 const query = `
                     SELECT v.*, u.first_name || ' ' || u.last_name as owner_name, u.email as owner_email
                     FROM vehicles v
                     LEFT JOIN users u ON v.owner_id = u.id
-                    WHERE v.status IN (${placeholders})
+                    WHERE v.status::text IN (${placeholders})
                     ORDER BY COALESCE(v.registration_date, v.last_updated) DESC
                     LIMIT $${statusValues.length + 1} OFFSET $${statusValues.length + 2}
                 `;
@@ -65,7 +65,7 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
                 vehicles = result.rows;
                 
                 // Get total count
-                const countQuery = `SELECT COUNT(*) FROM vehicles WHERE status IN (${placeholders})`;
+                const countQuery = `SELECT COUNT(*) FROM vehicles WHERE status::text IN (${placeholders})`;
                 const countResult = await dbModule.query(countQuery, statusValues);
                 totalCount = parseInt(countResult.rows[0].count);
             }

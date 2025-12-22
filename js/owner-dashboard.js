@@ -1978,6 +1978,83 @@ function saveUserWorkflowState() {
     updateProgressTimeline();
 }
 
+// Download vehicle registration certificate (owner dashboard)
+async function downloadVehicleCertificate(applicationId, orCrNumber) {
+    console.log('=== downloadVehicleCertificate (Owner Dashboard) START ===');
+    console.log('Application ID:', applicationId);
+    console.log('OR/CR Number:', orCrNumber);
+    
+    try {
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Generating certificate...', 'info');
+        }
+
+        if (typeof CertificateGenerator === 'undefined') {
+            console.error('CertificateGenerator not loaded');
+            throw new Error('Certificate generator not loaded. Please refresh the page.');
+        }
+
+        const apiClient = window.apiClient || new APIClient();
+
+        // Find the application in local cache to get vehicle ID
+        let applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+        let application = applications.find(app => app.id === applicationId);
+
+        if (!application || !application.vehicle || !application.vehicle.vin) {
+            console.warn('Application not found locally or missing vehicle VIN. Falling back to API lookup.');
+        }
+
+        // We don't have vehicleId directly here, so we call a dedicated endpoint if needed
+        // Try to use application.id as vehicle ID first (if they match), otherwise user will download via My Vehicles page
+        const vehicleId = applicationId;
+
+        console.log('Fetching vehicle details for certificate via /api/vehicles/id/', vehicleId);
+        const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
+        console.log('Vehicle API response (owner dashboard):', vehicleResponse);
+
+        if (!vehicleResponse.success) {
+            throw new Error(vehicleResponse.error || 'Failed to load vehicle data');
+        }
+
+        const vehicle = vehicleResponse.vehicle;
+
+        // Fetch owner profile
+        let owner = { email: 'N/A' };
+        try {
+            const profileResponse = await apiClient.get('/api/auth/profile');
+            if (profileResponse.success) {
+                owner = profileResponse.user;
+            }
+        } catch (e) {
+            console.warn('Could not load owner profile for certificate:', e);
+        }
+
+        console.log('Calling CertificateGenerator.generateCertificate from owner dashboard...');
+        const result = await CertificateGenerator.generateCertificate(vehicle, owner);
+        console.log('Certificate generation result (owner dashboard):', result);
+
+        if (result && result.method === 'download') {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Certificate downloaded as HTML file. Open it and use Print to save as PDF.', 'warning');
+            }
+        } else {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Certificate opened! Use Print dialog to save as PDF.', 'success');
+            }
+        }
+        
+        console.log('=== downloadVehicleCertificate (Owner Dashboard) SUCCESS ===');
+    } catch (error) {
+        console.error('=== downloadVehicleCertificate (Owner Dashboard) ERROR ===');
+        console.error('Error:', error.message);
+        console.error('Stack:', error.stack);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Error: ${error.message}`, 'error');
+        } else {
+            alert(`Error generating certificate: ${error.message}`);
+        }
+    }
+
 function requestRegistration() {
     // Redirect to registration wizard
     window.location.href = 'registration-wizard.html';

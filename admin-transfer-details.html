@@ -291,74 +291,10 @@
                             <!-- Section 5: Uploaded Documents -->
                             <div class="dashboard-card">
                                 <h3><span class="card-icon">📄</span> Uploaded Documents</h3>
-                                <div class="documents-grid">
-                                    <div class="document-card">
-                                        <div class="document-icon">
-                                            <i class="fas fa-file-contract"></i>
-                                        </div>
-                                        <div class="document-info">
-                                            <h4>Deed of Sale</h4>
-                                            <p class="document-type">Legal Document</p>
-                                        </div>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('deed-of-sale')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('deed-of-sale')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="document-card">
-                                        <div class="document-icon">
-                                            <i class="fas fa-id-card"></i>
-                                        </div>
-                                        <div class="document-info">
-                                            <h4>Seller Valid ID</h4>
-                                            <p class="document-type">Identification</p>
-                                        </div>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('seller-id')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('seller-id')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="document-card">
-                                        <div class="document-icon">
-                                            <i class="fas fa-id-card-clip"></i>
-                                        </div>
-                                        <div class="document-info">
-                                            <h4>Buyer Valid ID</h4>
-                                            <p class="document-type">Identification</p>
-                                        </div>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('buyer-id')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('buyer-id')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="document-card">
-                                        <div class="document-icon">
-                                            <i class="fas fa-file-invoice"></i>
-                                        </div>
-                                        <div class="document-info">
-                                            <h4>Latest OR/CR</h4>
-                                            <p class="document-type">Vehicle Registration</p>
-                                        </div>
-                                        <div class="document-actions">
-                                            <button class="btn-secondary btn-sm" onclick="viewDocument('or-cr')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <button class="btn-secondary btn-sm" onclick="downloadDocument('or-cr')">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
-                                        </div>
+                                <div class="documents-grid" id="documentsGrid">
+                                    <!-- Documents will be loaded dynamically by admin-transfer-details.js -->
+                                    <div class="loading-placeholder" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading documents...
                                     </div>
                                 </div>
                             </div>
@@ -565,16 +501,6 @@
             console.log('Requesting documents:', docs, notes);
             closeModal('requestDocsModal');
             alert('Document request sent to applicant.');
-        }
-
-        function viewDocument(docId) {
-            console.log('Viewing document:', docId);
-            // Open document viewer
-        }
-
-        function downloadDocument(docId) {
-            console.log('Downloading document:', docId);
-            // Trigger download
         }
     </script>
 </body>

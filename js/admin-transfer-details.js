@@ -586,22 +586,30 @@ function renderVehicleInfo(request) {
 
 function renderDocuments(documents) {
     const documentsContainer = document.querySelector('.documents-grid');
-    if (!documentsContainer) return;
+    if (!documentsContainer) {
+        console.error('[renderDocuments] Container .documents-grid not found');
+        return;
+    }
+    
+    console.log('[renderDocuments] Rendering documents:', documents);
 
-    if (documents.length === 0) {
+    if (!documents || documents.length === 0) {
         documentsContainer.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-file-alt"></i>
-                <p>No documents uploaded</p>
+            <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                <i class="fas fa-file-alt" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                <p>No documents uploaded for this transfer request</p>
             </div>
         `;
         return;
     }
 
     documentsContainer.innerHTML = documents.map(doc => {
+        const docId = doc.document_id || doc.id;
         const docType = doc.document_type || doc.type || 'Document';
-        const docName = doc.name || doc.filename || docType;
+        const docName = doc.original_name || doc.filename || doc.name || docType;
         const docTypeLabel = getDocumentTypeLabel(docType);
+        
+        console.log('[renderDocuments] Document:', { id: docId, type: docType, name: docName });
 
         return `
             <div class="document-card">
@@ -613,10 +621,10 @@ function renderDocuments(documents) {
                     <p class="document-type">${escapeHtml(docTypeLabel)}</p>
                 </div>
                 <div class="document-actions">
-                    <button class="btn-secondary btn-sm" onclick="viewDocument('${doc.id}')">
+                    <button class="btn-secondary btn-sm" onclick="viewDocument('${docId}')">
                         <i class="fas fa-eye"></i> View
                     </button>
-                    <button class="btn-secondary btn-sm" onclick="downloadDocument('${doc.id}')">
+                    <button class="btn-secondary btn-sm" onclick="downloadDocument('${docId}')">
                         <i class="fas fa-download"></i> Download
                     </button>
                 </div>
@@ -762,18 +770,22 @@ function updateActionButtons(request) {
 }
 
 async function viewDocument(docId) {
+    console.log('[viewDocument] Called with docId:', docId);
+    
     try {
         // Use DocumentModal if available for better in-page viewing
         if (typeof DocumentModal !== 'undefined') {
+            console.log('[viewDocument] Using DocumentModal');
             DocumentModal.view({ id: docId });
             return;
         }
         
+        console.log('[viewDocument] DocumentModal not available, opening in new tab');
         // Fallback: Open document viewer in new tab
         window.open(`document-viewer.html?id=${docId}`, '_blank');
 
     } catch (error) {
-        console.error('View document error:', error);
+        console.error('[viewDocument] Error:', error);
         showError(error.message || 'Failed to view document');
     }
 }

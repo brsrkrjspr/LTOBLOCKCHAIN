@@ -311,7 +311,9 @@ services:
       - FRONTEND_URL=https://ltoblockchain.duckdns.org
       # Email Configuration (for transfer notifications)
       - GMAIL_USER=${GMAIL_USER}
-      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+      - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID}
+      - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET}
+      - GMAIL_REFRESH_TOKEN=${GMAIL_REFRESH_TOKEN}
       - APP_BASE_URL=${APP_BASE_URL:-https://ltoblockchain.duckdns.org}
     # Port removed - Nginx will handle external access
     # Internal access only via Docker network

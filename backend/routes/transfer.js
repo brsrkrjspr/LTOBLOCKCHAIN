@@ -9,7 +9,7 @@ const { authorizeRole } = require('../middleware/authorize');
 const fabricService = require('../services/optimizedFabricService');
 const docTypes = require('../config/documentTypes');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { sendMail } = require('../services/gmailApiService');
 
 // Transfer invite token secret (fallbacks to JWT_SECRET for simplicity)
 const INVITE_TOKEN_SECRET = process.env.TRANSFER_INVITE_SECRET || process.env.JWT_SECRET || 'fallback-secret';
@@ -39,39 +39,6 @@ function verifyTransferInviteToken(token) {
         throw new Error('Invalid transfer invite token');
     }
     return payload;
-}
-
-/**
- * Email service for sending transfer invite emails.
- * Uses nodemailer with Gmail SMTP.
- */
-let emailTransporter = null;
-
-function getEmailTransporter() {
-    if (!emailTransporter) {
-        // Use Gmail App Password from environment variable
-        // Remove spaces if present (user provided: "fjje jnhd nofj rakr")
-        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
-        const appPassword = (process.env.GMAIL_APP_PASSWORD || 'fjjejnhdnofjrakr').replace(/\s+/g, '');
-        
-        emailTransporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: gmailUser,
-                pass: appPassword
-            }
-        });
-        
-        // Verify connection on first use
-        emailTransporter.verify((error, success) => {
-            if (error) {
-                console.error('❌ Email transporter verification failed:', error);
-            } else {
-                console.log('✅ Email transporter verified successfully');
-            }
-        });
-    }
-    return emailTransporter;
 }
 
 /**
@@ -227,30 +194,16 @@ TrustChain LTO System
 `.trim();
 
     try {
-        const transporter = getEmailTransporter();
-        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
-        const info = await transporter.sendMail({
-            from: `"TrustChain LTO System" <${gmailUser}>`,
-            to: to,
-            subject: subject,
-            html: html,
-            text: text
+        const result = await sendMail({ to, subject, text, html });
+        console.log('✅ Transfer invite email sent via Gmail API:', {
+            messageId: result.id,
+            threadId: result.threadId,
+            to,
+            subject
         });
-        
-        console.log('✅ Transfer invite email sent successfully:', {
-            messageId: info.messageId,
-            to: to,
-            subject: subject
-        });
-        
-        return { success: true, messageId: info.messageId };
+        return { success: true, messageId: result.id };
     } catch (error) {
-        console.error('❌ Failed to send transfer invite email:', error);
-        console.error('Email error details:', {
-            to: to,
-            error: error.message,
-            stack: error.stack
-        });
+        console.error('❌ Failed to send transfer invite email via Gmail API:', error);
         throw error;
     }
 }
@@ -376,30 +329,16 @@ TrustChain LTO System
 `.trim();
 
     try {
-        const transporter = getEmailTransporter();
-        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
-        const info = await transporter.sendMail({
-            from: `"TrustChain LTO System" <${gmailUser}>`,
-            to: to,
-            subject: subject,
-            html: html,
-            text: text
+        const result = await sendMail({ to, subject, text, html });
+        console.log('✅ Buyer acceptance email sent to seller via Gmail API:', {
+            messageId: result.id,
+            threadId: result.threadId,
+            to,
+            subject
         });
-        
-        console.log('✅ Buyer acceptance email sent to seller:', {
-            messageId: info.messageId,
-            to: to,
-            subject: subject
-        });
-        
-        return { success: true, messageId: info.messageId };
+        return { success: true, messageId: result.id };
     } catch (error) {
-        console.error('❌ Failed to send buyer acceptance email to seller:', error);
-        console.error('Email error details:', {
-            to: to,
-            error: error.message,
-            stack: error.stack
-        });
+        console.error('❌ Failed to send buyer acceptance email to seller via Gmail API:', error);
         throw error;
     }
 }
@@ -525,30 +464,16 @@ TrustChain LTO System
 `.trim();
 
     try {
-        const transporter = getEmailTransporter();
-        const gmailUser = process.env.GMAIL_USER || 'foundlost004@gmail.com';
-        const info = await transporter.sendMail({
-            from: `"TrustChain LTO System" <${gmailUser}>`,
-            to: to,
-            subject: subject,
-            html: html,
-            text: text
+        const result = await sendMail({ to, subject, text, html });
+        console.log('✅ Buyer rejection email sent to seller via Gmail API:', {
+            messageId: result.id,
+            threadId: result.threadId,
+            to,
+            subject
         });
-        
-        console.log('✅ Buyer rejection email sent to seller:', {
-            messageId: info.messageId,
-            to: to,
-            subject: subject
-        });
-        
-        return { success: true, messageId: info.messageId };
+        return { success: true, messageId: result.id };
     } catch (error) {
-        console.error('❌ Failed to send buyer rejection email to seller:', error);
-        console.error('Email error details:', {
-            to: to,
-            error: error.message,
-            stack: error.stack
-        });
+        console.error('❌ Failed to send buyer rejection email to seller via Gmail API:', error);
         throw error;
     }
 }

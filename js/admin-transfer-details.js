@@ -97,8 +97,8 @@ async function loadTransferRequestDetails() {
         // Get apiClient instance
         const apiClient = window.apiClient || new APIClient();
 
-        // Get transfer request by ID
-        const response = await apiClient.get(`/api/transfer/requests/${currentRequestId}`);
+        // Get transfer request by ID (mounted under /api/vehicles/transfer)
+        const response = await apiClient.get(`/api/vehicles/transfer/requests/${currentRequestId}`);
         
         if (!response.success) {
             throw new Error(response.error || 'Failed to load transfer request');

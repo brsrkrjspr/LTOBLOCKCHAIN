@@ -1943,6 +1943,8 @@ async function loadRegistrationApplications() {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/vehicles?status=SUBMITTED,PROCESSING,APPROVED,REJECTED&limit=10');
         
+        console.log('[loadRegistrationApplications] API Response:', response);
+        
         if (!response.success || !response.vehicles || response.vehicles.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -1954,22 +1956,41 @@ async function loadRegistrationApplications() {
             return;
         }
         
-        tbody.innerHTML = response.vehicles.map(v => `
-            <tr>
-                <td><code style="font-size: 0.85rem;">${(v.id || '').substring(0, 8)}...</code></td>
-                <td>
-                    <strong>${v.plate_number || 'N/A'}</strong><br>
-                    <small>${v.make || ''} ${v.model || ''} ${v.year || ''}</small>
-                </td>
-                <td>${v.owner_name || v.owner_email || 'N/A'}</td>
-                <td>${v.created_at ? new Date(v.created_at).toLocaleDateString() : 'N/A'}</td>
-                <td>${renderOrgStatusIndicators(v)}</td>
-                <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${v.status || 'N/A'}</span></td>
-                <td>
-                    <a href="admin-application-details.html?id=${v.id}" class="btn-secondary btn-sm">View</a>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = response.vehicles.map(v => {
+            // Handle BOTH camelCase and snake_case field names
+            const plateNumber = v.plateNumber || v.plate_number || 'N/A';
+            const ownerName = v.ownerName || v.owner_name || v.ownerEmail || v.owner_email || 'N/A';
+            const submittedDate =
+                v.registrationDate || v.registration_date ||
+                v.lastUpdated || v.last_updated ||
+                v.createdAt || v.created_at;
+            const formattedDate = submittedDate ? new Date(submittedDate).toLocaleDateString() : 'N/A';
+            
+            console.log('[loadRegistrationApplications] Vehicle row:', {
+                id: v.id,
+                plateNumber,
+                ownerName,
+                submittedDate,
+                status: v.status
+            });
+            
+            return `
+                <tr>
+                    <td><code style="font-size: 0.85rem;">${(v.id || '').substring(0, 8)}...</code></td>
+                    <td>
+                        <strong>${plateNumber}</strong><br>
+                        <small>${v.make || ''} ${v.model || ''} ${v.year || ''}</small>
+                    </td>
+                    <td>${ownerName}</td>
+                    <td>${formattedDate}</td>
+                    <td>${renderOrgStatusIndicators(v)}</td>
+                    <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${v.status || 'N/A'}</span></td>
+                    <td>
+                        <a href="admin-application-details.html?id=${v.id}" class="btn-secondary btn-sm">View</a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     } catch (error) {
         console.error('Error loading registration applications:', error);
         const tbody = document.getElementById('registration-applications-tbody');

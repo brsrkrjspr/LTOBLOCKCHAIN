@@ -39,35 +39,58 @@
     </script>
     <script>
         // Early stub to prevent "showApplicationTab is not defined" error
-        // This will be replaced when owner-dashboard.js fully loads
-        window.showApplicationTab = window.showApplicationTab || function(tab, btn) {
-            console.log('showApplicationTab stub called, waiting for full script load...');
+        // Simple queue-based approach - queue calls until real function is available
+        (function() {
+            const callQueue = [];
+            let checkInterval = null;
             
-            // Store the arguments for later execution
-            const args = { tab, btn };
-            
-            // Function to check and execute when real function is available
-            const tryExecute = () => {
-                // Check if the real function is loaded (it should have the proper implementation)
-                const realFunc = window.showApplicationTab;
-                if (realFunc && realFunc.toString().includes('Update tab buttons')) {
-                    // Real function is loaded, execute it
-                    console.log('Real showApplicationTab function found, executing...');
-                    realFunc(args.tab, args.btn);
-                } else {
-                    // Not loaded yet, try again after a short delay
-                    setTimeout(tryExecute, 100);
+            const stubFunction = function(tab, btn) {
+                // Check if real function is loaded (using flag or function content)
+                if (window.showApplicationTabLoaded || 
+                    (window.showApplicationTab && 
+                     window.showApplicationTab !== stubFunction && 
+                     window.showApplicationTab.toString().includes('Update tab buttons'))) {
+                    // Real function is loaded, call it directly
+                    window.showApplicationTab(tab, btn);
+                    return;
+                }
+                
+                // Otherwise, queue the call
+                callQueue.push({ tab, btn });
+                
+                // Start checking if not already checking
+                if (!checkInterval) {
+                    checkInterval = setInterval(() => {
+                        const currentFunc = window.showApplicationTab;
+                        if (window.showApplicationTabLoaded || 
+                            (currentFunc && 
+                             currentFunc !== stubFunction && 
+                             currentFunc.toString().includes('Update tab buttons'))) {
+                            // Real function is loaded, execute all queued calls
+                            callQueue.forEach(args => {
+                                currentFunc(args.tab, args.btn);
+                            });
+                            callQueue.length = 0; // Clear queue
+                            clearInterval(checkInterval);
+                            checkInterval = null;
+                        }
+                    }, 100);
+                    
+                    // Stop checking after 5 seconds
+                    setTimeout(() => {
+                        if (checkInterval) {
+                            clearInterval(checkInterval);
+                            checkInterval = null;
+                        }
+                    }, 5000);
                 }
             };
             
-            // Start checking after a short delay to allow script to load
-            setTimeout(tryExecute, 50);
-            
-            // Also try on DOMContentLoaded if still loading
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', tryExecute);
+            // Only set if not already defined
+            if (!window.showApplicationTab) {
+                window.showApplicationTab = stubFunction;
             }
-        };
+        })();
     </script>
 </head>
 <body>

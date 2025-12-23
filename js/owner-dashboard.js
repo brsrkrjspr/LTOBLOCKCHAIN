@@ -2350,18 +2350,10 @@ function showApplicationTab(tab, btn) {
         } else if (tab === 'registrations') {
             // Ensure registrations are loaded and rendered
             if (typeof loadUserApplications === 'function') {
-                // Check if we have data already
-                const tbody = document.getElementById('my-registrations-tbody');
-                if (tbody && tbody.children.length === 0) {
-                    // No data loaded yet, load it
-                    loadUserApplications();
-                } else if (typeof renderApplications === 'function' && allApplications.length > 0) {
-                    // Data exists, just re-render
-                    renderApplications();
-                } else {
-                    // Force reload
-                    loadUserApplications();
-                }
+                // Always load data when switching to registrations tab
+                // This ensures fresh data and handles empty states
+                console.log('Switching to registrations tab, loading applications...');
+                loadUserApplications();
             } else {
                 console.warn('loadUserApplications function not available');
             }
@@ -2387,3 +2379,6 @@ window.viewAllDocsInModal = viewAllDocsInModal;
 window.showApplicationTab = showApplicationTab;
 window.loadOwnerTransferRequests = loadOwnerTransferRequests;
 window.viewTransferRequest = viewTransferRequest;
+
+// Signal that the real showApplicationTab function is loaded
+window.showApplicationTabLoaded = true;

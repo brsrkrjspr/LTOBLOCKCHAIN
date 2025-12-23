@@ -1186,6 +1186,11 @@ window.viewApplication = viewApplication;
 function showApplicationModal(application) {
     console.log('📋 showApplicationModal called with:', application);
     
+    // Normalize status to lowercase for consistent comparison
+    const normalizedStatus = (application.status || '').toLowerCase();
+    const isFinalState = ['approved', 'registered', 'rejected'].includes(normalizedStatus);
+    const isApprovedOrRegistered = ['approved', 'registered'].includes(normalizedStatus);
+    
     // Remove any existing modals first
     const existingModal = document.querySelector('.modal');
     if (existingModal) {
@@ -1311,6 +1316,7 @@ function showApplicationModal(application) {
                     
                     <div class="detail-section">
                         <h4>Verification Requests</h4>
+                        ${!isApprovedOrRegistered ? `
                         <div class="verification-actions" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
                             <button class="btn-secondary" onclick="sendVerificationRequest('${application.id}', 'hpg')" style="flex: 1; min-width: 150px;">
                                 <i class="fas fa-shield-alt"></i> Request HPG Clearance
@@ -1325,6 +1331,13 @@ function showApplicationModal(application) {
                         <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
                             <i class="fas fa-info-circle"></i> Send verification requests to external organizations for document verification.
                         </p>
+                        ` : `
+                        <div style="padding: 15px; background-color: #e8f5e9; border-left: 4px solid #27ae60; border-radius: 4px;">
+                            <p style="color: #27ae60; margin: 0;">
+                                <i class="fas fa-check-circle"></i> This application has been ${normalizedStatus === 'approved' ? 'approved' : 'registered'}. Verification requests are no longer needed.
+                            </p>
+                        </div>
+                        `}
                     </div>
                     
                     <div class="detail-section">
@@ -1338,10 +1351,20 @@ function showApplicationModal(application) {
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; gap: 10px; justify-content: space-between;">
+                ${!isFinalState ? `
                 <div style="display: flex; gap: 10px;">
                     <button class="btn-primary" onclick="approveApplication('${application.id}')">Approve</button>
                     <button class="btn-danger" onclick="rejectApplication('${application.id}')">Reject</button>
                 </div>
+                ` : `
+                <div style="display: flex; gap: 10px;">
+                    <span style="padding: 8px 16px; color: #666; font-style: italic;">
+                        ${normalizedStatus === 'approved' || normalizedStatus === 'registered' 
+                            ? 'Application has been approved' 
+                            : 'Application has been rejected'}
+                    </span>
+                </div>
+                `}
                 <button class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
             </div>
         </div>

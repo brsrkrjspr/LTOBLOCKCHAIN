@@ -527,7 +527,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
         // All verifications complete - approve and register on blockchain
         console.log(`[LTO Approval] All verifications approved for vehicle ${vehicleId}. Proceeding with approval.`);
 
-        // Generate OR/CR Number
+        // Generate OR/CR Number - MANDATORY for approval
         let orCrNumber = null;
         let orCrIssuedAt = null;
         try {
@@ -537,8 +537,13 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             console.log(`[LTO Approval] OR/CR number assigned: ${orCrNumber}`);
         } catch (orCrError) {
             console.error('Failed to generate OR/CR number:', orCrError);
-            // Continue with approval even if OR/CR generation fails
-            // Admin can manually assign later
+            // OR/CR assignment is mandatory - fail approval if it cannot be generated
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to generate OR/CR number. Approval cannot proceed without OR/CR assignment.',
+                details: orCrError.message,
+                vehicleId: vehicleId
+            });
         }
 
         // Update vehicle status to APPROVED (with OR/CR number if generated)

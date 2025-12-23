@@ -654,6 +654,110 @@ async function loadUserApplications() {
     }
 }
 
+// Load transfer requests for the current owner
+async function loadOwnerTransferRequests() {
+    try {
+        const tbody = document.getElementById('my-transfers-tbody');
+        if (!tbody) {
+            console.warn('Transfer requests tbody not found');
+            return;
+        }
+        
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading transfer requests...</td></tr>';
+        
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Get transfer requests where current user is seller or buyer
+        const response = await apiClient.get('/api/vehicles/transfer/requests?limit=50');
+        
+        if (!response.success || !response.requests || response.requests.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                        <p>No transfer requests found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Filter to only show requests where current user is involved
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const currentUserId = currentUser.id || currentUser.userId;
+        const currentUserEmail = currentUser.email;
+        
+        const userRequests = response.requests.filter(r => {
+            // User is seller
+            if (r.seller_id === currentUserId || r.seller_email === currentUserEmail) {
+                return true;
+            }
+            // User is buyer
+            if (r.buyer_id === currentUserId || r.buyer_email === currentUserEmail) {
+                return true;
+            }
+            return false;
+        });
+        
+        if (userRequests.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                        <p>No transfer requests found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = userRequests.map(r => {
+            const vehicleInfo = r.vehicle || {};
+            const isSeller = r.seller_id === currentUserId || r.seller_email === currentUserEmail;
+            const otherParty = isSeller 
+                ? (r.buyer_name || r.buyer_email || 'Buyer')
+                : (r.seller_name || r.seller_email || 'Seller');
+            const transferType = isSeller ? 'Selling' : 'Buying';
+            
+            return `
+                <tr>
+                    <td>
+                        <div class="vehicle-info">
+                            <strong>${vehicleInfo.plate_number || vehicleInfo.vin || 'N/A'}</strong>
+                            <br><small>${vehicleInfo.make || ''} ${vehicleInfo.model || ''} ${vehicleInfo.year || ''}</small>
+                        </div>
+                    </td>
+                    <td><code style="font-size: 0.85rem;">${(r.id || '').substring(0, 8)}...</code></td>
+                    <td><span class="badge">${transferType}</span></td>
+                    <td>${otherParty}</td>
+                    <td><span class="status-badge status-${(r.status || '').toLowerCase()}">${r.status || 'N/A'}</span></td>
+                    <td>
+                        <button class="btn-secondary btn-sm" onclick="viewTransferRequest('${r.id}')">View</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading transfer requests:', error);
+        const tbody = document.getElementById('my-transfers-tbody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                        <i class="fas fa-exclamation-triangle"></i> Error loading transfer requests
+                    </td>
+                </tr>
+            `;
+        }
+    }
+}
+
+// View transfer request details
+function viewTransferRequest(requestId) {
+    window.location.href = `transfer-confirmation.html?requestId=${requestId}`;
+}
+
 function applyFilters(applications) {
     const searchInput = document.getElementById('applicationSearch');
     const statusFilter = document.getElementById('statusFilter');
@@ -2253,6 +2357,11 @@ function showApplicationTab(tab, btn) {
     if (targetTab) {
         targetTab.classList.add('active');
         targetTab.style.display = 'block';
+        
+        // Load data when switching to transfers tab
+        if (tab === 'transfers' && typeof loadOwnerTransferRequests === 'function') {
+            loadOwnerTransferRequests();
+        }
     }
     
     // Hide other tabs
@@ -2272,3 +2381,5 @@ window.openDocumentByKey = openDocumentByKey;
 window.viewAllDocumentsFullPage = viewAllDocumentsFullPage;
 window.viewAllDocsInModal = viewAllDocsInModal;
 window.showApplicationTab = showApplicationTab;
+window.loadOwnerTransferRequests = loadOwnerTransferRequests;
+window.viewTransferRequest = viewTransferRequest;

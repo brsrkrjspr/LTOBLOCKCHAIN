@@ -37,6 +37,21 @@
             }
         })();
     </script>
+    <script>
+        // Early stub to prevent "showApplicationTab is not defined" error
+        // This will be replaced when owner-dashboard.js fully loads
+        window.showApplicationTab = window.showApplicationTab || function(tab, btn) {
+            console.log('showApplicationTab stub called, waiting for full script load...');
+            // Defer execution until script is loaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (typeof window.showApplicationTab === 'function' && window.showApplicationTab !== arguments.callee) {
+                        window.showApplicationTab(tab, btn);
+                    }
+                });
+            }
+        };
+    </script>
 </head>
 <body>
     <div class="dashboard">

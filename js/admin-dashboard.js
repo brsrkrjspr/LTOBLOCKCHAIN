@@ -1986,7 +1986,7 @@ async function loadRegistrationApplications() {
                     <td>${renderOrgStatusIndicators(v)}</td>
                     <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${v.status || 'N/A'}</span></td>
                     <td>
-                        <a href="admin-application-details.html?id=${v.id}" class="btn-secondary btn-sm">View</a>
+                        <button class="btn-secondary btn-sm" onclick="viewApplication('${v.id}')">View</button>
                     </td>
                 </tr>
             `;

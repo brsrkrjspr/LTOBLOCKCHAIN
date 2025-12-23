@@ -1972,6 +1972,14 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
                 error: 'Transfer request not found'
             });
         }
+
+        // Do not allow verification changes once the transfer is finalized
+        if (['APPROVED', 'COMPLETED', 'REJECTED'].includes(request.status)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot modify document verification for a finalized transfer request'
+            });
+        }
         
         const document = await db.getDocumentById(docId);
         if (!document) {

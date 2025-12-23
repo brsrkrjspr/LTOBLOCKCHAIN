@@ -161,6 +161,14 @@ function renderTransferRequestDetails(request) {
         requestStatusEl.textContent = request.status || 'PENDING';
         requestStatusEl.className = `status-badge ${getStatusClass(request.status)}`;
     }
+
+    // Update page header status badge (top-right chip)
+    const headerStatusEl = document.getElementById('pageStatusBadge');
+    if (headerStatusEl) {
+        const status = request.status || 'PENDING';
+        headerStatusEl.textContent = status;
+        headerStatusEl.className = `status-badge status-badge-large ${getStatusClass(status)}`;
+    }
     if (requestDateEl) {
         requestDateEl.textContent = new Date(request.submitted_at || request.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -652,6 +660,17 @@ function getDocumentTypeLabel(type) {
 function updateActionButtons(request) {
     const status = request.status || 'PENDING';
     const actionButtons = document.querySelector('.action-buttons') || document.getElementById('actionButtons');
+    
+    // Update side card header: Admin Actions vs Document Verification
+    const actionCardTitle = document.querySelector('.action-panel .dashboard-card h3');
+    if (actionCardTitle) {
+        if (status === 'PENDING' || status === 'REVIEWING' || status === 'FORWARDED_TO_HPG') {
+            actionCardTitle.innerHTML = '<span class="card-icon">⚙️</span> Admin Actions';
+        } else {
+            // Finalized request – only viewing verification
+            actionCardTitle.innerHTML = '<span class="card-icon">📄</span> Document Verification';
+        }
+    }
     
     if (!actionButtons) return;
 

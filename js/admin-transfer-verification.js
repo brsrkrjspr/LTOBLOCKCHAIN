@@ -162,6 +162,12 @@ function renderTransferRequestInfo(request) {
         const vehicle = request.vehicle || {};
         plateNumberEl.textContent = vehicle.plate_number || vehicle.plateNumber || 'N/A';
     }
+
+    // Make verification read-only if transfer is finalized
+    const status = request.status || 'PENDING';
+    if (status === 'APPROVED' || status === 'COMPLETED' || status === 'REJECTED') {
+        setVerificationReadonly(true);
+    }
 }
 
 // Populate document selector with actual document IDs
@@ -638,6 +644,38 @@ function renderVerificationHistory(history) {
     }).join('');
 }
 
+function setVerificationReadonly(isReadonly) {
+    // Disable all verification-related inputs
+    const controls = document.querySelectorAll(
+        'input[name=\"verificationStatus\"], ' +
+        '#verificationNotes, #flagSuspicious, ' +
+        '#check1, #check2, #check3, #check4, #check5'
+    );
+    controls.forEach(el => {
+        if (el) el.disabled = isReadonly;
+    });
+
+    // Disable action buttons (approve/reject/save)
+    const actionButtons = document.querySelectorAll(
+        '.verification-actions button, button[onclick=\"saveVerification()\"]'
+    );
+    actionButtons.forEach(btn => {
+        if (btn) btn.disabled = isReadonly;
+    });
+
+    // Add a small note indicating read-only mode
+    const toolsCard = document.querySelector('.verification-tools .dashboard-card');
+    if (isReadonly && toolsCard && !toolsCard.querySelector('.verification-readonly-note')) {
+        const note = document.createElement('p');
+        note.className = 'verification-readonly-note';
+        note.style.marginTop = '0.75rem';
+        note.style.fontSize = '0.9rem';
+        note.style.color = '#6b7280';
+        note.textContent = 'This transfer has been finalized; document verification is read-only.';
+        toolsCard.appendChild(note);
+    }
+}
+
 function zoomIn() {
     currentZoom = Math.min(currentZoom + 25, 200);
     updateZoom();
@@ -709,6 +747,16 @@ async function rejectDocument() {
 }
 
 async function saveVerification() {
+    // Prevent changes for finalized transfers
+    if (currentTransferRequest && (
+        currentTransferRequest.status === 'APPROVED' ||
+        currentTransferRequest.status === 'COMPLETED' ||
+        currentTransferRequest.status === 'REJECTED'
+    )) {
+        showError('Cannot modify verification for a finalized transfer request.');
+        return;
+    }
+
     if (!currentDocumentId) {
         showError('Please select a document to verify');
         return;

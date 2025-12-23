@@ -79,33 +79,91 @@ async function loadMyVehicles() {
 }
 
 function displayVehiclesList(ownershipHistory) {
-    const vehiclesListContent = document.getElementById('vehiclesListContent');
+    // Get DOM elements
+    const myVehiclesContent = document.getElementById('myVehiclesContent');
+    const pendingVehiclesContent = document.getElementById('pendingVehiclesContent');
+    const myVehiclesList = document.getElementById('myVehiclesList');
+    const pendingVehiclesList = document.getElementById('pendingVehiclesList');
+    const myVehiclesCount = document.getElementById('myVehiclesCount');
+    const pendingVehiclesCount = document.getElementById('pendingVehiclesCount');
     const emptyState = document.getElementById('emptyState');
 
-    if (!vehiclesListContent) return;
-
-    // The backend already filters to only return vehicles the user currently owns
-    // (via getVehiclesByOwner which queries by owner_id - the current owner)
-    if (ownershipHistory.length === 0) {
-        vehiclesListContent.style.display = 'none';
-        if (emptyState) emptyState.style.display = 'block';
+    // Safety check
+    if (!myVehiclesContent || !pendingVehiclesContent) {
+        console.error('Required DOM elements not found for vehicle display');
         return;
     }
 
-    vehiclesListContent.innerHTML = '';
-    if (emptyState) emptyState.style.display = 'none';
+    // Separate vehicles by status
+    const myVehicles = [];      // APPROVED or REGISTERED
+    const pendingVehicles = []; // All other statuses
 
-    // Display all vehicles (all are currently owned since backend filters by current owner_id)
     ownershipHistory.forEach(vehicleData => {
         const vehicle = vehicleData.vehicle;
-        const history = vehicleData.history || [];
-        
-        // All vehicles returned are currently owned
-        const isCurrent = true;
-        
-        const card = createVehicleCard(vehicle, isCurrent, history.length);
-        vehiclesListContent.appendChild(card);
+        if (!vehicle || !vehicle.id) {
+            console.warn('Skipping invalid vehicle data:', vehicleData);
+            return;
+        }
+
+        // Normalize status for comparison (handle both uppercase and lowercase)
+        const status = (vehicle.status || '').toUpperCase().trim();
+        const isApprovedOrRegistered = status === 'APPROVED' || status === 'REGISTERED';
+
+        if (isApprovedOrRegistered) {
+            myVehicles.push(vehicleData);
+        } else {
+            pendingVehicles.push(vehicleData);
+        }
     });
+
+    // Clear existing content
+    myVehiclesContent.innerHTML = '';
+    pendingVehiclesContent.innerHTML = '';
+
+    // Display My Vehicles (Approved/Registered)
+    if (myVehicles.length > 0) {
+        myVehicles.forEach(vehicleData => {
+            const vehicle = vehicleData.vehicle;
+            const history = vehicleData.history || [];
+            const card = createVehicleCard(vehicle, true, history.length);
+            myVehiclesContent.appendChild(card);
+        });
+        if (myVehiclesList) myVehiclesList.style.display = 'block';
+        if (myVehiclesCount) myVehiclesCount.textContent = myVehicles.length;
+    } else {
+        if (myVehiclesList) myVehiclesList.style.display = 'none';
+        if (myVehiclesCount) myVehiclesCount.textContent = '0';
+    }
+
+    // Display Pending Vehicles
+    if (pendingVehicles.length > 0) {
+        pendingVehicles.forEach(vehicleData => {
+            const vehicle = vehicleData.vehicle;
+            const history = vehicleData.history || [];
+            const card = createVehicleCard(vehicle, true, history.length);
+            pendingVehiclesContent.appendChild(card);
+        });
+        if (pendingVehiclesList) pendingVehiclesList.style.display = 'block';
+        if (pendingVehiclesCount) pendingVehiclesCount.textContent = pendingVehicles.length;
+    } else {
+        if (pendingVehiclesList) pendingVehiclesList.style.display = 'none';
+        if (pendingVehiclesCount) pendingVehiclesCount.textContent = '0';
+    }
+
+    // Show empty state if no vehicles at all
+    if (ownershipHistory.length === 0) {
+        if (emptyState) {
+            emptyState.style.display = 'block';
+            const emptyStateP = emptyState.querySelector('p');
+            if (emptyStateP) {
+                emptyStateP.textContent = 'You don\'t have any registered or pending vehicles yet';
+            }
+        }
+        if (myVehiclesList) myVehiclesList.style.display = 'none';
+        if (pendingVehiclesList) pendingVehiclesList.style.display = 'none';
+    } else {
+        if (emptyState) emptyState.style.display = 'none';
+    }
 }
 
 function createVehicleCard(vehicle, isCurrent, historyCount) {
@@ -125,7 +183,9 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
     // Get OR/CR Number
     const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || null;
     const registrationDate = vehicle.registration_date || vehicle.registrationDate || null;
-    const isRegistered = vehicle.status === 'REGISTERED' || vehicle.status === 'APPROVED';
+    // Normalize status for comparison (handle both uppercase and lowercase)
+    const status = (vehicle.status || '').toUpperCase().trim();
+    const isRegistered = status === 'REGISTERED' || status === 'APPROVED';
 
     // Format dates
     const regDateFormatted = registrationDate ? 
@@ -263,12 +323,14 @@ async function viewOwnershipHistory(vinOrId, plateNumber) {
 }
 
 function displayOwnershipTimeline(vehicleData) {
-    const vehiclesList = document.getElementById('vehiclesList');
+    const myVehiclesList = document.getElementById('myVehiclesList');
+    const pendingVehiclesList = document.getElementById('pendingVehiclesList');
     const timelineContainer = document.getElementById('limitedTimelineContainer');
     const timeline = document.getElementById('limitedOwnershipTimeline');
 
-    // Hide vehicle list, show timeline
-    if (vehiclesList) vehiclesList.style.display = 'none';
+    // Hide vehicle lists, show timeline
+    if (myVehiclesList) myVehiclesList.style.display = 'none';
+    if (pendingVehiclesList) pendingVehiclesList.style.display = 'none';
     if (timelineContainer) timelineContainer.classList.add('active');
 
     // Clear and populate timeline
@@ -375,14 +437,24 @@ function createLimitedTimelineNode(period, vehicle, isCurrent) {
 }
 
 function backToVehicleList() {
-    const vehiclesList = document.getElementById('vehiclesList');
+    const myVehiclesList = document.getElementById('myVehiclesList');
+    const pendingVehiclesList = document.getElementById('pendingVehiclesList');
     const timelineContainer = document.getElementById('limitedTimelineContainer');
 
-    if (vehiclesList) vehiclesList.style.display = 'block';
+    // Show vehicle lists if they have content, hide timeline
+    if (myVehiclesList && myVehiclesList.querySelector('#myVehiclesContent')?.children.length > 0) {
+        myVehiclesList.style.display = 'block';
+    }
+    if (pendingVehiclesList && pendingVehiclesList.querySelector('#pendingVehiclesContent')?.children.length > 0) {
+        pendingVehiclesList.style.display = 'block';
+    }
     if (timelineContainer) timelineContainer.classList.remove('active');
 
-    if (vehiclesList) {
-        vehiclesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Scroll to first visible vehicle list
+    if (myVehiclesList && myVehiclesList.style.display !== 'none') {
+        myVehiclesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (pendingVehiclesList && pendingVehiclesList.style.display !== 'none') {
+        pendingVehiclesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 
@@ -469,12 +541,16 @@ function closeVerificationModal() {
 }
 
 function showLoading() {
-    const vehiclesListContent = document.getElementById('vehiclesListContent');
+    const myVehiclesContent = document.getElementById('myVehiclesContent');
+    const pendingVehiclesContent = document.getElementById('pendingVehiclesContent');
     const emptyState = document.getElementById('emptyState');
     
     if (emptyState) emptyState.style.display = 'none';
-    if (vehiclesListContent) {
-        vehiclesListContent.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Loading...</h3></div>';
+    if (myVehiclesContent) {
+        myVehiclesContent.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Loading...</h3></div>';
+    }
+    if (pendingVehiclesContent) {
+        pendingVehiclesContent.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Loading...</h3></div>';
     }
 }
 
@@ -489,10 +565,12 @@ function showError(message) {
         alert(message);
     }
     
-    const vehiclesListContent = document.getElementById('vehiclesListContent');
+    const myVehiclesContent = document.getElementById('myVehiclesContent');
+    const pendingVehiclesContent = document.getElementById('pendingVehiclesContent');
     const emptyState = document.getElementById('emptyState');
     
-    if (vehiclesListContent) vehiclesListContent.innerHTML = '';
+    if (myVehiclesContent) myVehiclesContent.innerHTML = '';
+    if (pendingVehiclesContent) pendingVehiclesContent.innerHTML = '';
     if (emptyState) {
         emptyState.style.display = 'block';
         emptyState.innerHTML = `

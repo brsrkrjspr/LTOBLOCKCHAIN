@@ -1046,7 +1046,11 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                         transmission: vehicle.transmission || null,
                         engineDisplacement: vehicle.engine_displacement || null,
                         status: vehicle.status || null,
-                        registrationDate: vehicle.registration_date || null
+                        registrationDate: vehicle.registration_date || null,
+                        or_cr_number: vehicle.or_cr_number || null,
+                        orCrNumber: vehicle.or_cr_number || null,  // camelCase for frontend compatibility
+                        or_cr_issued_at: vehicle.or_cr_issued_at || null,
+                        orCrIssuedAt: vehicle.or_cr_issued_at || null  // camelCase for frontend compatibility
                     },
                     history: Array.isArray(history) ? history : []
                 });

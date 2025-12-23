@@ -70,6 +70,16 @@
             color: #3498db;
         }
 
+        .vehicle-count-badge {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
         .vehicle-card {
             background: white;
             border: 2px solid #e9ecef;
@@ -711,13 +721,25 @@
                         </div>
                     </div>
 
-                    <!-- Vehicle List -->
-                    <div class="vehicles-list" id="vehiclesList">
+                    <!-- My Vehicles (Registered/Approved) -->
+                    <div class="vehicles-list" id="myVehiclesList">
                         <div class="vehicles-list-header">
-                            <h3><i class="fas fa-car"></i> My Vehicles</h3>
+                            <h3><i class="fas fa-check-circle"></i> My Vehicles</h3>
+                            <span class="vehicle-count-badge" id="myVehiclesCount">0</span>
                         </div>
-                        <div id="vehiclesListContent">
-                            <!-- Vehicles will be loaded dynamically -->
+                        <div id="myVehiclesContent">
+                            <!-- Registered/Approved vehicles will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Pending Vehicles (Not Yet Approved/Registered) -->
+                    <div class="vehicles-list" id="pendingVehiclesList" style="display: none;">
+                        <div class="vehicles-list-header">
+                            <h3><i class="fas fa-clock"></i> Pending Vehicles</h3>
+                            <span class="vehicle-count-badge" id="pendingVehiclesCount">0</span>
+                        </div>
+                        <div id="pendingVehiclesContent">
+                            <!-- Pending vehicles will be loaded here -->
                         </div>
                     </div>
 
@@ -738,7 +760,7 @@
                     <div class="empty-state" id="emptyState" style="display: none;">
                         <i class="fas fa-car"></i>
                         <h3>No Vehicles Found</h3>
-                        <p>You don't have any registered vehicles yet</p>
+                        <p>You don't have any registered or pending vehicles yet</p>
                     </div>
                 </div>
             </main>

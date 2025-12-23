@@ -16,6 +16,10 @@ let currentDocumentId = null;
 let currentZoom = window.currentZoom || 100; // Use existing or default
 let verificationHistory = [];
 
+function isFinalizedStatus(status) {
+    return status === 'APPROVED' || status === 'REJECTED' || status === 'COMPLETED';
+}
+
 // Map document type identifiers to database types
 function mapDocumentTypeIdentifier(identifier) {
     const typeMap = {
@@ -165,7 +169,7 @@ function renderTransferRequestInfo(request) {
 
     // Make verification read-only if transfer is finalized
     const status = request.status || 'PENDING';
-    if (status === 'APPROVED' || status === 'COMPLETED' || status === 'REJECTED') {
+    if (isFinalizedStatus(status)) {
         setVerificationReadonly(true);
     }
 }
@@ -748,11 +752,7 @@ async function rejectDocument() {
 
 async function saveVerification() {
     // Prevent changes for finalized transfers
-    if (currentTransferRequest && (
-        currentTransferRequest.status === 'APPROVED' ||
-        currentTransferRequest.status === 'COMPLETED' ||
-        currentTransferRequest.status === 'REJECTED'
-    )) {
+    if (currentTransferRequest && isFinalizedStatus(currentTransferRequest.status)) {
         showError('Cannot modify verification for a finalized transfer request.');
         return;
     }

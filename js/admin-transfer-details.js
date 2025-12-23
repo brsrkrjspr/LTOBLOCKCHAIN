@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentTransferRequest = null;
 let currentRequestId = null;
 
+function isFinalizedStatus(status) {
+    return status === 'APPROVED' || status === 'REJECTED' || status === 'COMPLETED';
+}
+
 function initializeTransferDetails() {
     // Get request ID from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -664,7 +668,7 @@ function updateActionButtons(request) {
     // Update side card header: Admin Actions vs Document Verification
     const actionCardTitle = document.querySelector('.action-panel .dashboard-card h3');
     if (actionCardTitle) {
-        if (status === 'PENDING' || status === 'REVIEWING' || status === 'FORWARDED_TO_HPG') {
+        if (!isFinalizedStatus(status)) {
             actionCardTitle.innerHTML = '<span class="card-icon">⚙️</span> Admin Actions';
         } else {
             // Finalized request – only viewing verification
@@ -703,7 +707,7 @@ function updateActionButtons(request) {
     // Clear existing buttons
     actionButtons.innerHTML = '';
 
-    if (status === 'PENDING' || status === 'REVIEWING' || status === 'FORWARDED_TO_HPG') {
+    if (!isFinalizedStatus(status)) {
         let buttonsHTML = '';
         
         // Show forward buttons for orgs not yet forwarded
@@ -785,7 +789,7 @@ function updateActionButtons(request) {
     } else {
         actionButtons.innerHTML = `
             <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-secondary btn-block">
-                <i class="fas fa-clipboard-check"></i> View Verification
+                <i class="fas fa-clipboard-check"></i> View Documents &amp; Verification
             </a>
         `;
     }

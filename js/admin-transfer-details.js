@@ -671,8 +671,8 @@ function updateActionButtons(request) {
         if (!isFinalizedStatus(status)) {
             actionCardTitle.innerHTML = '<span class="card-icon">⚙️</span> Admin Actions';
         } else {
-            // Finalized request – only viewing verification
-            actionCardTitle.innerHTML = '<span class="card-icon">📄</span> Document Verification';
+            // Finalized request – we will hide the card entirely
+            actionCardTitle.textContent = '';
         }
     }
     
@@ -787,11 +787,10 @@ function updateActionButtons(request) {
         
         actionButtons.innerHTML = buttonsHTML;
     } else {
-        actionButtons.innerHTML = `
-            <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-secondary btn-block">
-                <i class="fas fa-clipboard-check"></i> View Documents &amp; Verification
-            </a>
-        `;
+        // Finalized: hide the entire card and clear any actions/links
+        const card = document.querySelector('.action-panel .dashboard-card');
+        if (card) card.style.display = 'none';
+        actionButtons.innerHTML = '';
     }
 }
 

@@ -42,13 +42,30 @@
         // This will be replaced when owner-dashboard.js fully loads
         window.showApplicationTab = window.showApplicationTab || function(tab, btn) {
             console.log('showApplicationTab stub called, waiting for full script load...');
-            // Defer execution until script is loaded
+            
+            // Store the arguments for later execution
+            const args = { tab, btn };
+            
+            // Function to check and execute when real function is available
+            const tryExecute = () => {
+                // Check if the real function is loaded (it should have the proper implementation)
+                const realFunc = window.showApplicationTab;
+                if (realFunc && realFunc.toString().includes('Update tab buttons')) {
+                    // Real function is loaded, execute it
+                    console.log('Real showApplicationTab function found, executing...');
+                    realFunc(args.tab, args.btn);
+                } else {
+                    // Not loaded yet, try again after a short delay
+                    setTimeout(tryExecute, 100);
+                }
+            };
+            
+            // Start checking after a short delay to allow script to load
+            setTimeout(tryExecute, 50);
+            
+            // Also try on DOMContentLoaded if still loading
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function() {
-                    if (typeof window.showApplicationTab === 'function' && window.showApplicationTab !== arguments.callee) {
-                        window.showApplicationTab(tab, btn);
-                    }
-                });
+                document.addEventListener('DOMContentLoaded', tryExecute);
             }
         };
     </script>

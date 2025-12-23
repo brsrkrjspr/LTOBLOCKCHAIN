@@ -482,6 +482,15 @@ function viewAllNotifications() {
 }
 
 function initializeSubmittedApplications() {
+    // Ensure registrations tab is visible on initial load
+    const registrationsTab = document.getElementById('registrations-tab');
+    const transfersTab = document.getElementById('transfers-tab');
+    
+    if (registrationsTab && transfersTab) {
+        registrationsTab.style.display = 'block';
+        transfersTab.style.display = 'none';
+    }
+    
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -510,34 +519,17 @@ async function loadUserApplications() {
         });
     }
     
-    // Try multiple selectors with retry logic
-    let applicationsTable = null;
-    const selectors = [
-        '.table-modern tbody',
-        '#applications .table-modern tbody',
-        '.dashboard-card-modern.table-card .table-modern tbody',
-        '.dashboard-card:nth-child(3) .table tbody',
-        '.table tbody'
-    ];
-    
-    for (const selector of selectors) {
-        applicationsTable = document.querySelector(selector);
-        if (applicationsTable) {
-            console.log(`✅ Found applications table with selector: ${selector}`);
-            break;
-        }
-    }
+    // Target the registrations tbody specifically
+    const applicationsTable = document.getElementById('my-registrations-tbody');
     
     if (!applicationsTable) {
-        console.error('❌ Could not find applications table. Available selectors:', {
-            tableModern: document.querySelector('.table-modern'),
-            applicationsDiv: document.querySelector('#applications'),
-            allTables: document.querySelectorAll('table')
-        });
+        console.error('❌ Could not find registrations table (#my-registrations-tbody). Retrying...');
         // Retry after a short delay
         setTimeout(loadUserApplications, 500);
         return;
     }
+    
+    console.log('✅ Found registrations table (#my-registrations-tbody)');
     
     // Show loading state
     applicationsTable.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
@@ -782,22 +774,11 @@ function applyFilters(applications) {
 
 function renderApplications() {
     // Try multiple selectors
-    let applicationsTable = null;
-    const selectors = [
-        '.table-modern tbody',
-        '#applications .table-modern tbody',
-        '.dashboard-card-modern.table-card .table-modern tbody',
-        '.dashboard-card:nth-child(3) .table tbody',
-        '.table tbody'
-    ];
-    
-    for (const selector of selectors) {
-        applicationsTable = document.querySelector(selector);
-        if (applicationsTable) break;
-    }
+    // Target the registrations tbody specifically
+    const applicationsTable = document.getElementById('my-registrations-tbody');
     
     if (!applicationsTable) {
-        console.error('❌ Could not find applications table for rendering');
+        console.error('❌ Could not find registrations table (#my-registrations-tbody) for rendering');
         return;
     }
     
@@ -2358,9 +2339,32 @@ function showApplicationTab(tab, btn) {
         targetTab.classList.add('active');
         targetTab.style.display = 'block';
         
-        // Load data when switching to transfers tab
-        if (tab === 'transfers' && typeof loadOwnerTransferRequests === 'function') {
-            loadOwnerTransferRequests();
+        // Load data when switching tabs
+        if (tab === 'transfers') {
+            // Load transfer requests
+            if (typeof loadOwnerTransferRequests === 'function') {
+                loadOwnerTransferRequests();
+            } else {
+                console.warn('loadOwnerTransferRequests function not available');
+            }
+        } else if (tab === 'registrations') {
+            // Ensure registrations are loaded and rendered
+            if (typeof loadUserApplications === 'function') {
+                // Check if we have data already
+                const tbody = document.getElementById('my-registrations-tbody');
+                if (tbody && tbody.children.length === 0) {
+                    // No data loaded yet, load it
+                    loadUserApplications();
+                } else if (typeof renderApplications === 'function' && allApplications.length > 0) {
+                    // Data exists, just re-render
+                    renderApplications();
+                } else {
+                    // Force reload
+                    loadUserApplications();
+                }
+            } else {
+                console.warn('loadUserApplications function not available');
+            }
         }
     }
     

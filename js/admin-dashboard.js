@@ -838,33 +838,53 @@ async function loadSubmittedApplications() {
                 }
                 
                 if (response && response.success && response.vehicles) {
-                    // Convert vehicles to application format
-                    allApplications = response.vehicles.map(vehicle => ({
-                        id: vehicle.id,
-                        vehicle: {
-                            make: vehicle.make,
-                            model: vehicle.model,
-                            year: vehicle.year,
-                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
-                            vin: vehicle.vin,
-                            color: vehicle.color,
-                            engineNumber: vehicle.engineNumber || vehicle.engine_number,
-                            chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
-                        },
-                        owner: {
-                            firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
-                            lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
-                            email: vehicle.owner_email || 'unknown@example.com'
-                        },
-                        status: vehicle.status?.toLowerCase() || 'submitted',
-                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
-                        priority: vehicle.priority || 'MEDIUM',
-                        documents: vehicle.documents || [],
-                        verifications: vehicle.verifications || []
-                    }));
+                    // Convert vehicles to application format using canonical mapper + admin extensions
+                    const mapper = window.VehicleMapper?.mapVehicleToApplication;
+                    if (!mapper) {
+                        console.error('❌ VehicleMapper not available. Make sure js/models/vehicle-mapper.js is loaded.');
+                        throw new Error('VehicleMapper not available');
+                    }
                     
-                    // Save to localStorage for offline access
-                    localStorage.setItem('submittedApplications', JSON.stringify(allApplications));
+                    allApplications = response.vehicles.map(vehicle => {
+                        // Start with canonical mapping
+                        const app = mapper(vehicle);
+                        
+                        // Extend with admin-specific fields
+                        const verificationStatus = app.verificationStatus || {};
+                        
+                        return {
+                            ...app,
+                            // Add engine and chassis numbers to vehicle info
+                            vehicle: {
+                                ...app.vehicle,
+                                engineNumber: vehicle.engineNumber ?? vehicle.engine_number ?? '',
+                                chassisNumber: vehicle.chassisNumber ?? vehicle.chassis_number ?? ''
+                            },
+                            // Admin-specific owner information
+                            owner: {
+                                firstName: vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : 'Unknown',
+                                lastName: vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : 'User',
+                                email: vehicle.owner_email ?? 'unknown@example.com'
+                            },
+                            // Admin-specific priority
+                            priority: vehicle.priority ?? 'MEDIUM',
+                            // Preserve verifications array for backward compatibility
+                            verifications: vehicle.verifications ?? [],
+                            // Add flat status properties for insurance verifier compatibility
+                            insuranceStatus: verificationStatus.insurance ?? 'pending',
+                            emissionStatus: verificationStatus.emission ?? 'pending',
+                            hpgStatus: verificationStatus.hpg ?? 'pending'
+                        };
+                    });
+                    
+                    // Save to localStorage for offline access (v2 format)
+                    localStorage.setItem('submittedApplications_v2', JSON.stringify(allApplications));
+                    console.log(`💾 Saved ${allApplications.length} applications to localStorage (v2)`);
+                    
+                    // Keep v1 for backward compatibility (read-only, don't overwrite if it exists)
+                    if (!localStorage.getItem('submittedApplications')) {
+                        localStorage.setItem('submittedApplications', JSON.stringify(allApplications));
+                    }
                     
                     // Sort applications by submission date (newest first)
                     allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
@@ -882,8 +902,82 @@ async function loadSubmittedApplications() {
             }
         }
         
-        // Fallback to localStorage
-        allApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+        // Fallback to localStorage with migration support
+        console.log('📦 Loading from localStorage...');
+        
+        // Try v2 first
+        let localApps = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
+        
+        // If v2 is empty but v1 exists, migrate
+        if (localApps.length === 0) {
+            const v1Apps = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            if (v1Apps.length > 0) {
+                console.log(`🔄 Migrating ${v1Apps.length} applications from v1 to v2...`);
+                const mapper = window.VehicleMapper?.mapVehicleToApplication;
+                
+                if (mapper) {
+                    // Attempt to migrate old entries
+                    try {
+                        localApps = v1Apps.map(oldApp => {
+                            // If old app already has the structure, try to map it through the mapper
+                            // by treating it as a vehicle-like object
+                            if (oldApp.vehicle && oldApp.id) {
+                                // Reconstruct vehicle-like object from old app
+                                const vehicleLike = {
+                                    id: oldApp.id,
+                                    ...oldApp.vehicle,
+                                    orCrNumber: oldApp.or_cr_number,
+                                    status: oldApp.status,
+                                    registrationDate: oldApp.submittedDate,
+                                    documents: oldApp.documents || [],
+                                    verificationStatus: oldApp.verificationStatus || {},
+                                    verifications: oldApp.verifications || [],
+                                    owner_name: oldApp.owner ? `${oldApp.owner.firstName} ${oldApp.owner.lastName}` : null,
+                                    owner_email: oldApp.owner?.email,
+                                    priority: oldApp.priority
+                                };
+                                const baseApp = mapper(vehicleLike);
+                                const verificationStatus = baseApp.verificationStatus || {};
+                                
+                                // Return with admin extensions
+                                return {
+                                    ...baseApp,
+                                    vehicle: {
+                                        ...baseApp.vehicle,
+                                        engineNumber: oldApp.vehicle.engineNumber || '',
+                                        chassisNumber: oldApp.vehicle.chassisNumber || ''
+                                    },
+                                    owner: oldApp.owner || {
+                                        firstName: 'Unknown',
+                                        lastName: 'User',
+                                        email: 'unknown@example.com'
+                                    },
+                                    priority: oldApp.priority || 'MEDIUM',
+                                    verifications: oldApp.verifications || [],
+                                    insuranceStatus: verificationStatus.insurance || oldApp.insuranceStatus || 'pending',
+                                    emissionStatus: verificationStatus.emission || oldApp.emissionStatus || 'pending',
+                                    hpgStatus: verificationStatus.hpg || oldApp.hpgStatus || 'pending'
+                                };
+                            }
+                            return oldApp; // Fallback to old structure if migration fails
+                        });
+                        
+                        // Save migrated data to v2
+                        localStorage.setItem('submittedApplications_v2', JSON.stringify(localApps));
+                        console.log(`✅ Migration complete: ${localApps.length} applications migrated`);
+                    } catch (migrationError) {
+                        console.error('❌ Migration failed, using v1 data as-is:', migrationError);
+                        localApps = v1Apps;
+                    }
+                } else {
+                    console.warn('⚠️ Mapper not available for migration, using v1 data as-is');
+                    localApps = v1Apps;
+                }
+            }
+        }
+        
+        console.log(`📦 Found ${localApps.length} applications in localStorage`);
+        allApplications = localApps;
         
         // Sort applications by submission date (newest first)
         allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
@@ -1121,32 +1215,71 @@ async function viewApplication(applicationId) {
                 
                 if (response && response.success && response.vehicle) {
                     const vehicle = response.vehicle;
-                    application = {
-                        id: vehicle.id,
-                        vehicle: {
-                            make: vehicle.make,
-                            model: vehicle.model,
-                            year: vehicle.year,
-                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
-                            vin: vehicle.vin,
-                            color: vehicle.color,
-                            engineNumber: vehicle.engineNumber || vehicle.engine_number,
-                            chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
-                        },
-                        owner: vehicle.owner || {
-                            firstName: vehicle.ownerFirstName || vehicle.owner_first_name || (vehicle.ownerName ? vehicle.ownerName.split(' ')[0] : 'Unknown'),
-                            lastName: vehicle.ownerLastName || vehicle.owner_last_name || (vehicle.ownerName ? vehicle.ownerName.split(' ').slice(1).join(' ') : 'User'),
-                            email: vehicle.ownerEmail || vehicle.owner_email || 'unknown@example.com',
-                            phone: vehicle.ownerPhone || vehicle.owner_phone || 'N/A',
-                            idType: vehicle.owner_id_type || undefined,
-                            idNumber: vehicle.owner_id_number || undefined
-                        },
-                        status: vehicle.status?.toLowerCase() || 'submitted',
-                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
-                        priority: vehicle.priority || 'MEDIUM',
-                        documents: vehicle.documents || [],
-                        verifications: vehicle.verifications || []
-                    };
+                    const mapper = window.VehicleMapper?.mapVehicleToApplication;
+                    
+                    if (mapper) {
+                        // Start with canonical mapping
+                        const baseApp = mapper(vehicle);
+                        const verificationStatus = baseApp.verificationStatus || {};
+                        
+                        // Extend with admin-specific fields
+                        application = {
+                            ...baseApp,
+                            // Add engine and chassis numbers to vehicle info
+                            vehicle: {
+                                ...baseApp.vehicle,
+                                engineNumber: vehicle.engineNumber ?? vehicle.engine_number ?? '',
+                                chassisNumber: vehicle.chassisNumber ?? vehicle.chassis_number ?? ''
+                            },
+                            // Admin-specific owner information
+                            owner: vehicle.owner || {
+                                firstName: vehicle.ownerFirstName ?? vehicle.owner_first_name ?? (vehicle.ownerName ? vehicle.ownerName.split(' ')[0] : 'Unknown'),
+                                lastName: vehicle.ownerLastName ?? vehicle.owner_last_name ?? (vehicle.ownerName ? vehicle.ownerName.split(' ').slice(1).join(' ') : 'User'),
+                                email: vehicle.ownerEmail ?? vehicle.owner_email ?? 'unknown@example.com',
+                                phone: vehicle.ownerPhone ?? vehicle.owner_phone ?? 'N/A',
+                                idType: vehicle.owner_id_type ?? undefined,
+                                idNumber: vehicle.owner_id_number ?? undefined
+                            },
+                            // Admin-specific priority
+                            priority: vehicle.priority ?? 'MEDIUM',
+                            // Preserve verifications array for backward compatibility
+                            verifications: vehicle.verifications ?? [],
+                            // Add flat status properties for insurance verifier compatibility
+                            insuranceStatus: verificationStatus.insurance ?? 'pending',
+                            emissionStatus: verificationStatus.emission ?? 'pending',
+                            hpgStatus: verificationStatus.hpg ?? 'pending'
+                        };
+                    } else {
+                        // Fallback to old mapping if mapper not available
+                        console.warn('⚠️ VehicleMapper not available, using fallback mapping');
+                        application = {
+                            id: vehicle.id,
+                            vehicle: {
+                                make: vehicle.make,
+                                model: vehicle.model,
+                                year: vehicle.year,
+                                plateNumber: vehicle.plateNumber || vehicle.plate_number,
+                                vin: vehicle.vin,
+                                color: vehicle.color,
+                                engineNumber: vehicle.engineNumber || vehicle.engine_number,
+                                chassisNumber: vehicle.chassisNumber || vehicle.chassis_number
+                            },
+                            owner: vehicle.owner || {
+                                firstName: vehicle.ownerFirstName || vehicle.owner_first_name || (vehicle.ownerName ? vehicle.ownerName.split(' ')[0] : 'Unknown'),
+                                lastName: vehicle.ownerLastName || vehicle.owner_last_name || (vehicle.ownerName ? vehicle.ownerName.split(' ').slice(1).join(' ') : 'User'),
+                                email: vehicle.ownerEmail || vehicle.owner_email || 'unknown@example.com',
+                                phone: vehicle.ownerPhone || vehicle.owner_phone || 'N/A',
+                                idType: vehicle.owner_id_type || undefined,
+                                idNumber: vehicle.owner_id_number || undefined
+                            },
+                            status: vehicle.status?.toLowerCase() || 'submitted',
+                            submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || new Date().toISOString(),
+                            priority: vehicle.priority || 'MEDIUM',
+                            documents: vehicle.documents || [],
+                            verifications: vehicle.verifications || [],
+                            verificationStatus: vehicle.verificationStatus || {}
+                        };
+                    }
                     console.log('✅ Application loaded from API:', application);
                 }
             } catch (apiError) {
@@ -1155,11 +1288,19 @@ async function viewApplication(applicationId) {
             }
         }
         
-        // Fallback to localStorage
+        // Fallback to localStorage (try v2 first, then v1)
         if (!application) {
             console.log('📦 Loading from localStorage...');
-            const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            // Try v2 first
+            let applications = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
             application = applications.find(app => app.id === applicationId);
+            
+            // If not found in v2, try v1
+            if (!application) {
+                applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+                application = applications.find(app => app.id === applicationId);
+            }
+            
             if (application) {
                 console.log('✅ Application found in localStorage:', application);
             }
@@ -1556,15 +1697,25 @@ async function rejectApplication(applicationId) {
 }
 
 function updateApplicationStatus(applicationId, newStatus, notes) {
-    // Update in submitted applications
-    let applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+    // Update in submitted applications (try v2 first, fallback to v1)
+    let applications = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
+    
+    if (applications.length === 0) {
+        applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+    }
+    
     let application = applications.find(app => app.id === applicationId);
     
     if (application) {
         application.status = newStatus;
         application.lastUpdated = new Date().toISOString();
         application.adminNotes = notes;
-        localStorage.setItem('submittedApplications', JSON.stringify(applications));
+        
+        // Update in localStorage (prefer v2, update both if v1 exists)
+        localStorage.setItem('submittedApplications_v2', JSON.stringify(applications));
+        if (localStorage.getItem('submittedApplications')) {
+            localStorage.setItem('submittedApplications', JSON.stringify(applications));
+        }
     }
     
     // Update in user applications
@@ -1581,7 +1732,12 @@ function updateApplicationStatus(applicationId, newStatus, notes) {
 
 function addUserNotification(applicationId, type, message) {
     // Get the application to get vehicle info
-    let applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+    // Try v2 first, fallback to v1
+    let applications = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
+    if (applications.length === 0) {
+        applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+    }
+    
     let application = applications.find(app => app.id === applicationId);
     
     if (!application) return;

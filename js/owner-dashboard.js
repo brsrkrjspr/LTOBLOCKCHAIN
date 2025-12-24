@@ -554,28 +554,23 @@ async function loadUserApplications() {
                 if (response && response.success && response.vehicles) {
                     console.log(`✅ Loaded ${response.vehicles.length} vehicles from API`);
                     
-                    // Convert vehicles to application format
-                    allApplications = response.vehicles.map(vehicle => ({
-                        id: vehicle.id,
-                        vehicle: {
-                            make: vehicle.make,
-                            model: vehicle.model,
-                            year: vehicle.year,
-                            plateNumber: vehicle.plateNumber || vehicle.plate_number,
-                            vin: vehicle.vin,
-                            color: vehicle.color,
-                            or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber
-                        },
-                        or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber,
-                        status: vehicle.status?.toLowerCase() || 'submitted',
-                        submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || vehicle.created_at || new Date().toISOString(),
-                        documents: vehicle.documents || [],
-                        verificationStatus: vehicle.verificationStatus || {}
-                    }));
+                    // Convert vehicles to application format using canonical mapper
+                    const mapper = window.VehicleMapper?.mapVehicleToApplication;
+                    if (!mapper) {
+                        console.error('❌ VehicleMapper not available. Make sure js/models/vehicle-mapper.js is loaded.');
+                        throw new Error('VehicleMapper not available');
+                    }
                     
-                    // Save to localStorage for offline access
-                    localStorage.setItem('userApplications', JSON.stringify(allApplications));
-                    console.log(`💾 Saved ${allApplications.length} applications to localStorage`);
+                    allApplications = response.vehicles.map(vehicle => mapper(vehicle));
+                    
+                    // Save to localStorage for offline access (v2 format)
+                    localStorage.setItem('userApplications_v2', JSON.stringify(allApplications));
+                    console.log(`💾 Saved ${allApplications.length} applications to localStorage (v2)`);
+                    
+                    // Keep v1 for backward compatibility (read-only, don't overwrite if it exists)
+                    if (!localStorage.getItem('userApplications')) {
+                        localStorage.setItem('userApplications', JSON.stringify(allApplications));
+                    }
                     
                     // Sort applications by submission date (newest first)
                     allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
@@ -601,11 +596,56 @@ async function loadUserApplications() {
             console.warn('⚠️ No valid token found. Token:', token ? 'exists but invalid' : 'missing');
         }
         
-        // Fallback to localStorage
+        // Fallback to localStorage with migration support
         console.log('📦 Loading from localStorage...');
-        const localApps = JSON.parse(localStorage.getItem('userApplications') || '[]');
-        console.log(`📦 Found ${localApps.length} applications in localStorage`);
         
+        // Try v2 first
+        let localApps = JSON.parse(localStorage.getItem('userApplications_v2') || '[]');
+        
+        // If v2 is empty but v1 exists, migrate
+        if (localApps.length === 0) {
+            const v1Apps = JSON.parse(localStorage.getItem('userApplications') || '[]');
+            if (v1Apps.length > 0) {
+                console.log(`🔄 Migrating ${v1Apps.length} applications from v1 to v2...`);
+                const mapper = window.VehicleMapper?.mapVehicleToApplication;
+                
+                if (mapper) {
+                    // Attempt to migrate old entries
+                    try {
+                        localApps = v1Apps.map(oldApp => {
+                            // If old app already has the structure, try to map it through the mapper
+                            // by treating it as a vehicle-like object
+                            if (oldApp.vehicle && oldApp.id) {
+                                // Reconstruct vehicle-like object from old app
+                                const vehicleLike = {
+                                    id: oldApp.id,
+                                    ...oldApp.vehicle,
+                                    orCrNumber: oldApp.or_cr_number,
+                                    status: oldApp.status,
+                                    registrationDate: oldApp.submittedDate,
+                                    documents: oldApp.documents || [],
+                                    verificationStatus: oldApp.verificationStatus || {}
+                                };
+                                return mapper(vehicleLike);
+                            }
+                            return oldApp; // Fallback to old structure if migration fails
+                        });
+                        
+                        // Save migrated data to v2
+                        localStorage.setItem('userApplications_v2', JSON.stringify(localApps));
+                        console.log(`✅ Migration complete: ${localApps.length} applications migrated`);
+                    } catch (migrationError) {
+                        console.error('❌ Migration failed, using v1 data as-is:', migrationError);
+                        localApps = v1Apps;
+                    }
+                } else {
+                    console.warn('⚠️ Mapper not available for migration, using v1 data as-is');
+                    localApps = v1Apps;
+                }
+            }
+        }
+        
+        console.log(`📦 Found ${localApps.length} applications in localStorage`);
         allApplications = localApps;
         
         if (allApplications.length === 0) {
@@ -2042,26 +2082,40 @@ async function resubmitApplication(applicationId) {
     
     if (confirmed) {
         try {
-            // Update application status back to submitted
-            let applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+            // Update application status back to submitted (try v2 first, fallback to v1)
+            let applications = JSON.parse(localStorage.getItem('userApplications_v2') || '[]');
+            if (applications.length === 0) {
+                applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
+            }
             let application = applications.find(app => app.id === applicationId);
             
             if (application) {
                 application.status = 'submitted';
                 application.lastUpdated = new Date().toISOString();
                 application.adminNotes = '';
-                localStorage.setItem('userApplications', JSON.stringify(applications));
+                // Update in localStorage (prefer v2, update both if v1 exists)
+                localStorage.setItem('userApplications_v2', JSON.stringify(applications));
+                if (localStorage.getItem('userApplications')) {
+                    localStorage.setItem('userApplications', JSON.stringify(applications));
+                }
             }
             
-            // Also update in submitted applications
-            let submittedApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            // Also update in submitted applications (try v2 first, fallback to v1)
+            let submittedApplications = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
+            if (submittedApplications.length === 0) {
+                submittedApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
+            }
             let submittedApp = submittedApplications.find(app => app.id === applicationId);
             
             if (submittedApp) {
                 submittedApp.status = 'submitted';
                 submittedApp.lastUpdated = new Date().toISOString();
                 submittedApp.adminNotes = '';
-                localStorage.setItem('submittedApplications', JSON.stringify(submittedApplications));
+                // Update in localStorage (prefer v2, update both if v1 exists)
+                localStorage.setItem('submittedApplications_v2', JSON.stringify(submittedApplications));
+                if (localStorage.getItem('submittedApplications')) {
+                    localStorage.setItem('submittedApplications', JSON.stringify(submittedApplications));
+                }
             }
             
             ToastNotification.show('Application resubmitted successfully!', 'success');

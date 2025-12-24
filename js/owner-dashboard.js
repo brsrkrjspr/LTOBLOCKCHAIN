@@ -555,7 +555,7 @@ async function loadUserApplications() {
                     console.log(`✅ Loaded ${response.vehicles.length} vehicles from API`);
                     
                     // Convert vehicles to application format using canonical mapper
-                    const mapper = window.VehicleMapper?.mapVehicleToApplication;
+                    const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
                     if (!mapper) {
                         console.error('❌ VehicleMapper not available. Make sure js/models/vehicle-mapper.js is loaded.');
                         throw new Error('VehicleMapper not available');
@@ -607,7 +607,7 @@ async function loadUserApplications() {
             const v1Apps = JSON.parse(localStorage.getItem('userApplications') || '[]');
             if (v1Apps.length > 0) {
                 console.log(`🔄 Migrating ${v1Apps.length} applications from v1 to v2...`);
-                const mapper = window.VehicleMapper?.mapVehicleToApplication;
+                const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
                 
                 if (mapper) {
                     // Attempt to migrate old entries
@@ -616,16 +616,15 @@ async function loadUserApplications() {
                             // If old app already has the structure, try to map it through the mapper
                             // by treating it as a vehicle-like object
                             if (oldApp.vehicle && oldApp.id) {
-                                // Reconstruct vehicle-like object from old app
-                                const vehicleLike = {
+                                // Reconstruct vehicle-like object from old app (using Object.assign for compatibility)
+                                const vehicleLike = Object.assign({
                                     id: oldApp.id,
-                                    ...oldApp.vehicle,
                                     orCrNumber: oldApp.or_cr_number,
                                     status: oldApp.status,
                                     registrationDate: oldApp.submittedDate,
                                     documents: oldApp.documents || [],
                                     verificationStatus: oldApp.verificationStatus || {}
-                                };
+                                }, oldApp.vehicle);
                                 return mapper(vehicleLike);
                             }
                             return oldApp; // Fallback to old structure if migration fails
@@ -2240,7 +2239,7 @@ async function downloadVehicleCertificate(applicationId, orCrNumber) {
             alert(`Error generating certificate: ${error.message}`);
         }
     }
-
+}
 function requestRegistration() {
     // Redirect to registration wizard
     window.location.href = 'registration-wizard.html';

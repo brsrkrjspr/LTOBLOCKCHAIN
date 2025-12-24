@@ -73,19 +73,19 @@ function mapVehicleToApplication(vehicle) {
         throw new Error('mapVehicleToApplication: vehicle must be an object');
     }
     
-    // Extract vehicle info with nullish coalescing for fallbacks
+    // Extract vehicle info with fallbacks (using || for compatibility)
     const vehicleInfo = {
-        make: vehicle.make ?? '',
-        model: vehicle.model ?? '',
-        year: vehicle.year ?? '',
-        plateNumber: vehicle.plateNumber ?? vehicle.plate_number ?? '',
-        vin: vehicle.vin ?? '',
-        color: vehicle.color ?? '',
-        orCrNumber: vehicle.orCrNumber ?? vehicle.or_cr_number ?? null
+        make: vehicle.make || '',
+        model: vehicle.model || '',
+        year: vehicle.year || '',
+        plateNumber: vehicle.plateNumber || vehicle.plate_number || '',
+        vin: vehicle.vin || '',
+        color: vehicle.color || '',
+        orCrNumber: vehicle.orCrNumber || vehicle.or_cr_number || null
     };
     
     // Extract OR/CR number (snake_case fallback for backward compatibility)
-    const orCrNumber = vehicle.orCrNumber ?? vehicle.or_cr_number ?? null;
+    const orCrNumber = vehicle.orCrNumber || vehicle.or_cr_number || null;
     
     // Normalize status to lowercase
     const status = vehicle.status 
@@ -109,11 +109,11 @@ function mapVehicleToApplication(vehicle) {
     
     // Normalize verification status
     const verificationStatus = normalizeVerificationStatus(
-        vehicle.verificationStatus ?? vehicle.verification_status
+        vehicle.verificationStatus || vehicle.verification_status
     );
     
     return {
-        id: vehicle.id ?? '',
+        id: vehicle.id || '',
         vehicle: vehicleInfo,
         or_cr_number: orCrNumber, // Keep snake_case for backward compatibility
         status,

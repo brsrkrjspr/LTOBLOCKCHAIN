@@ -569,7 +569,8 @@ async function loadUserApplications() {
                         or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber,
                         status: vehicle.status?.toLowerCase() || 'submitted',
                         submittedDate: vehicle.registrationDate || vehicle.registration_date || vehicle.createdAt || vehicle.created_at || new Date().toISOString(),
-                        documents: vehicle.documents || []
+                        documents: vehicle.documents || [],
+                        verificationStatus: vehicle.verificationStatus || {}
                     }));
                     
                     // Save to localStorage for offline access
@@ -909,6 +910,10 @@ function createUserApplicationRow(application) {
     const isApproved = application.status === 'approved' || application.status === 'registered';
     const appId = (application.id || '').substring(0, 8) + '...';
     
+    // Get verification status display
+    const verificationStatus = application.verificationStatus || {};
+    const verificationStatusText = getVerificationStatusDisplay(verificationStatus);
+    
     row.innerHTML = `
         <td>
             <div class="vehicle-info">
@@ -924,6 +929,7 @@ function createUserApplicationRow(application) {
             }
         </td>
         <td>${application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : '-'}</td>
+        <td>${verificationStatusText}</td>
         <td><span class="status-badge status-${application.status}">${getStatusText(application.status)}</span></td>
         <td>
             <button class="btn-secondary btn-sm" onclick="viewUserApplication('${application.id}')">View Details</button>
@@ -950,6 +956,47 @@ function getStatusText(status) {
         'completed': 'Completed'
     };
     return statusMap[status] || status;
+}
+
+function getVerificationStatusDisplay(verificationStatus) {
+    if (!verificationStatus || typeof verificationStatus !== 'object' || Object.keys(verificationStatus).length === 0) {
+        return '<span style="color: #6c757d;">-</span>';
+    }
+    
+    const statuses = [];
+    const emissionStatus = (verificationStatus.emission || '').toLowerCase();
+    const insuranceStatus = (verificationStatus.insurance || '').toLowerCase();
+    const hpgStatus = (verificationStatus.hpg || '').toLowerCase();
+    
+    if (emissionStatus === 'approved') {
+        statuses.push('<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Emission</span>');
+    } else if (emissionStatus === 'pending') {
+        statuses.push('<span style="color: #ffc107;"><i class="fas fa-clock"></i> Emission</span>');
+    } else if (emissionStatus === 'rejected') {
+        statuses.push('<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> Emission</span>');
+    }
+    
+    if (insuranceStatus === 'approved') {
+        statuses.push('<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Insurance</span>');
+    } else if (insuranceStatus === 'pending') {
+        statuses.push('<span style="color: #ffc107;"><i class="fas fa-clock"></i> Insurance</span>');
+    } else if (insuranceStatus === 'rejected') {
+        statuses.push('<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> Insurance</span>');
+    }
+    
+    if (hpgStatus === 'approved') {
+        statuses.push('<span style="color: #28a745;"><i class="fas fa-check-circle"></i> HPG</span>');
+    } else if (hpgStatus === 'pending') {
+        statuses.push('<span style="color: #ffc107;"><i class="fas fa-clock"></i> HPG</span>');
+    } else if (hpgStatus === 'rejected') {
+        statuses.push('<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> HPG</span>');
+    }
+    
+    if (statuses.length === 0) {
+        return '<span style="color: #6c757d;">Pending</span>';
+    }
+    
+    return statuses.join(' | ');
 }
 
 function updateStatsFromApplications(applications) {

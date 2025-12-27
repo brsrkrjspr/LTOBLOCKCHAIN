@@ -151,28 +151,44 @@
             color: #7f8c8d;
         }
 
+        /* Vehicle Actions - Mobile-First Layout */
         .vehicle-actions {
             display: flex;
-            gap: 0.75rem;
-            align-items: stretch;
-            flex-wrap: wrap;
-            min-width: 0;
+            flex-direction: column;
+            gap: 12px;
             width: 100%;
-            max-width: 100%;
             box-sizing: border-box;
-            position: relative;
+        }
+
+        .vehicle-actions button {
+            width: 100%;
+            min-height: 44px;
+            box-sizing: border-box;
+        }
+
+        .vehicle-actions-secondary {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
         }
         
-        .primary-actions,
-        .secondary-actions {
-            display: flex;
-            gap: 0.75rem;
-            align-items: stretch;
-            flex-wrap: wrap;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-            position: relative;
+        /* Tablet and Desktop */
+        @media (min-width: 768px) {
+            .vehicle-actions {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .vehicle-actions button {
+                flex: 1 1 48%;
+            }
+
+            .vehicle-actions-secondary {
+                flex-direction: row;
+                width: 100%;
+            }
         }
 
         .btn-view-history {
@@ -653,81 +669,25 @@
                 position: relative !important;
             }
             
-            /* Vehicle Actions Container - Mobile: Column layout */
+            /* Vehicle Actions - Mobile: Column layout */
             .vehicle-actions {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
                 flex-direction: column !important;
-                flex-wrap: nowrap !important;
-                gap: 1rem !important;
-                align-items: stretch !important;
-                position: relative !important;
-                box-sizing: border-box !important;
-                display: flex !important;
-                margin: 0 !important;
-                padding: 0 !important;
+                gap: 12px !important;
+                width: 100% !important;
             }
             
-            /* Primary Actions - Mobile: Column, full width */
-            .primary-actions {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
-                display: flex !important;
+            .vehicle-actions-secondary {
                 flex-direction: column !important;
-                flex-wrap: nowrap !important;
-                gap: 0.75rem !important;
-                align-items: stretch !important;
-                order: 1 !important;
-                box-sizing: border-box !important;
-                margin: 0 !important;
-                padding: 0 !important;
+                gap: 12px !important;
+                width: 100% !important;
             }
             
-            /* Secondary Actions - Mobile: Column, full width, below primary */
-            .secondary-actions {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                flex-wrap: nowrap !important;
-                gap: 0.75rem !important;
-                align-items: stretch !important;
-                order: 2 !important;
-                box-sizing: border-box !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            
-            /* ALL BUTTONS - Mobile: Full width, stacked vertically */
+            /* ALL BUTTONS - Mobile: Full width */
             .vehicle-actions button,
-            .primary-actions button,
-            .secondary-actions button,
-            .primary-actions .btn-download-cert,
-            .secondary-actions .btn-transfer,
-            .secondary-actions .btn-view-history,
-            .vehicle-actions .btn-view-history,
-            .vehicle-actions .btn-transfer,
-            .vehicle-actions .btn-download-cert {
+            .vehicle-actions-secondary button {
                 width: 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
-                min-height: 48px !important;
-                flex: 0 0 auto !important;
-                flex-shrink: 0 !important;
-                flex-grow: 0 !important;
-                position: relative !important;
+                min-height: 44px !important;
                 box-sizing: border-box !important;
-                margin: 0 !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                margin-top: 0 !important;
-                margin-bottom: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
             }
 
             .limited-timeline::before {
@@ -740,17 +700,6 @@
 
             .limited-timeline-node::before {
                 left: 0.5rem;
-            }
-        }
-        
-        /* Tablet and Desktop - Restore original layout */
-        @media (min-width: 769px) {
-            .primary-actions,
-            .secondary-actions {
-                display: flex !important;
-                flex-direction: row !important;
-                flex-wrap: wrap !important;
-                gap: 0.75rem !important;
             }
         }
     </style>

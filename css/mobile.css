@@ -811,6 +811,7 @@
     /* Vehicle Cards - Compact */
     .vehicle-card {
         padding: 1rem;
+        gap: 0.75rem;
     }
     
     .vehicle-plate {
@@ -823,6 +824,19 @@
     
     .vehicles-list-header h3 {
         font-size: 1.125rem;
+    }
+    
+    /* Vehicle Actions - Extra Small Screens */
+    .vehicle-actions {
+        gap: 0.625rem;
+    }
+    
+    .btn-view-history,
+    .btn-transfer,
+    .btn-download-cert {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
     }
     
     /* Stats grid - single column on very small screens */
@@ -1618,29 +1632,50 @@
         flex-direction: column;
         align-items: stretch;
         gap: 1rem;
+        flex-shrink: 0;
     }
     
     .status-badge {
         align-self: flex-start;
         padding: 0.5rem 0.875rem;
         font-size: 0.8rem;
+        width: auto;
+        flex-shrink: 0;
     }
     
-    /* Vehicle Actions - Full Width Stack */
+    /* Vehicle Actions - Full Width Stack on Mobile */
     .vehicle-actions {
         width: 100%;
+        max-width: 100%;
+        display: flex;
         flex-direction: column;
         gap: 0.75rem;
+        align-items: stretch;
+        flex-wrap: nowrap;
+        box-sizing: border-box;
     }
     
     .btn-view-history,
     .btn-transfer,
     .btn-download-cert {
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        flex: 0 0 auto;
         justify-content: center;
         min-height: 48px;
         padding: 0.875rem 1.25rem;
         font-size: 0.9rem;
+        box-sizing: border-box;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Ensure buttons don't have fixed widths that cause overflow */
+    .vehicle-actions button {
+        width: 100% !important;
+        max-width: 100% !important;
     }
     
     /* Limited Timeline - Mobile */

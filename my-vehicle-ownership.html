@@ -155,6 +155,8 @@
             display: flex;
             gap: 0.75rem;
             align-items: center;
+            flex-wrap: wrap;
+            min-width: 0;
         }
 
         .btn-view-history {
@@ -169,6 +171,9 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            min-width: 0;
+            flex-shrink: 1;
+            box-sizing: border-box;
         }
 
         .btn-view-history:hover {
@@ -188,6 +193,9 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            min-width: 0;
+            flex-shrink: 1;
+            box-sizing: border-box;
         }
 
         .btn-transfer:hover {
@@ -209,6 +217,9 @@
             align-items: center;
             gap: 0.5rem;
             font-size: 0.875rem;
+            min-width: 0;
+            flex-shrink: 1;
+            box-sizing: border-box;
         }
 
         .btn-download-cert:hover {
@@ -610,13 +621,26 @@
         @media (max-width: 768px) {
             .vehicle-card {
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: stretch;
                 gap: 1rem;
             }
 
             .vehicle-status {
                 width: 100%;
-                justify-content: space-between;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .vehicle-actions {
+                width: 100%;
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .vehicle-actions button {
+                width: 100%;
+                min-height: 48px;
             }
 
             .limited-timeline::before {
@@ -1038,7 +1062,7 @@
                 </div>
                 <div class="vehicle-status">
                     <span class="status-badge ${statusBadgeClass}">${statusText}</span>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div class="vehicle-actions">
                         <button class="btn-view-history" onclick="acceptTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
                             <i class="fas fa-check"></i> Accept
                         </button>

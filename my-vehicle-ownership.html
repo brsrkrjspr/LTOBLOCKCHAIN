@@ -154,9 +154,13 @@
         .vehicle-actions {
             display: flex;
             gap: 0.75rem;
-            align-items: center;
+            align-items: stretch;
             flex-wrap: wrap;
             min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            position: relative;
         }
 
         .btn-view-history {
@@ -174,6 +178,9 @@
             min-width: 0;
             flex-shrink: 1;
             box-sizing: border-box;
+            position: relative;
+            width: auto;
+            max-width: 100%;
         }
 
         .btn-view-history:hover {
@@ -620,27 +627,43 @@
 
         @media (max-width: 768px) {
             .vehicle-card {
-                flex-direction: column;
-                align-items: stretch;
+                flex-direction: column !important;
+                align-items: stretch !important;
                 gap: 1rem;
             }
 
             .vehicle-status {
-                width: 100%;
-                flex-direction: column;
-                align-items: stretch;
+                width: 100% !important;
+                max-width: 100% !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
                 gap: 1rem;
+                position: relative !important;
             }
             
             .vehicle-actions {
-                width: 100%;
-                flex-direction: column;
-                gap: 0.75rem;
+                width: 100% !important;
+                max-width: 100% !important;
+                flex-direction: column !important;
+                flex-wrap: nowrap !important;
+                gap: 0.75rem !important;
+                align-items: stretch !important;
+                position: relative !important;
+                box-sizing: border-box !important;
             }
             
-            .vehicle-actions button {
-                width: 100%;
-                min-height: 48px;
+            .vehicle-actions button,
+            .vehicle-actions .btn-view-history,
+            .vehicle-actions .btn-transfer,
+            .vehicle-actions .btn-download-cert {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                min-height: 48px !important;
+                flex: 0 0 auto !important;
+                position: relative !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
             }
 
             .limited-timeline::before {

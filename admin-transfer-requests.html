@@ -6,6 +6,728 @@
     <title>Transfer of Ownership Requests - Admin Dashboard</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ============================================
+           ADMIN TRANSFER REQUESTS - UI/UX IMPROVEMENTS
+           ============================================ */
+        
+        /* Modern Typography & Base Styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+        }
+
+        /* Breadcrumb Improvements */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem 0;
+            font-size: 0.875rem;
+            flex-wrap: wrap;
+        }
+
+        .breadcrumb a {
+            color: #4a90e2;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .breadcrumb a:hover {
+            color: #357abd;
+            text-decoration: underline;
+        }
+
+        .breadcrumb-separator {
+            color: #9ca3af;
+            margin: 0 0.25rem;
+        }
+
+        .breadcrumb-current {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        /* Page Header Enhancements */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            padding: 1.5rem 0;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .page-header > div:first-child {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .page-header h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 0.5rem 0;
+            line-height: 1.2;
+        }
+
+        .page-header p {
+            font-size: 1rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .page-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* Search Box Improvements */
+        .search-box {
+            position: relative;
+            min-width: 280px;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            pointer-events: none;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            transition: all 0.2s ease;
+            background-color: #ffffff;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .search-box input::placeholder {
+            color: #9ca3af;
+        }
+
+        /* Button Improvements */
+        .btn-secondary,
+        .btn-primary,
+        .btn-success,
+        .btn-danger {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            min-height: 44px;
+            box-sizing: border-box;
+        }
+
+        .btn-secondary {
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #e5e7eb;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-secondary:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.2);
+        }
+
+        .btn-primary {
+            background-color: #4a90e2;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: #357abd;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
+        }
+
+        .btn-primary:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: #ffffff;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background-color: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: #ffffff;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            min-height: 36px;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Filter Panel Improvements */
+        .filter-panel {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.25rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            transition: all 0.2s ease;
+            background-color: #ffffff;
+            box-sizing: border-box;
+            min-height: 44px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 0.75rem;
+            grid-column: 1 / -1;
+            justify-content: flex-end;
+            margin-top: 0.5rem;
+        }
+
+        /* Bulk Actions Improvements */
+        .bulk-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .bulk-actions #selectedCount {
+            font-weight: 600;
+            font-size: 0.9375rem;
+        }
+
+        .bulk-buttons {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .bulk-actions .btn-success,
+        .bulk-actions .btn-danger,
+        .bulk-actions .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .bulk-actions .btn-success:hover {
+            background-color: rgba(16, 185, 129, 0.9);
+            border-color: #10b981;
+        }
+
+        .bulk-actions .btn-danger:hover {
+            background-color: rgba(239, 68, 68, 0.9);
+            border-color: #ef4444;
+        }
+
+        .bulk-actions .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Table Card Improvements */
+        .dashboard-card-modern.table-card {
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Table Improvements */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9375rem;
+        }
+
+        .table thead {
+            background-color: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .table th:first-child {
+            width: 50px;
+        }
+
+        .table th:last-child {
+            width: 150px;
+        }
+
+        .table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.15s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .table td {
+            padding: 1rem;
+            color: #1f2937;
+            vertical-align: middle;
+        }
+
+        .table input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #4a90e2;
+        }
+
+        /* Status Badge Styles */
+        .status-badge {
+            display: inline-block;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-badge.reviewing {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-badge.approved {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.rejected {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-badge.completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        /* Action Buttons in Table */
+        .table .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .table .action-btn {
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            min-height: 36px;
+        }
+
+        .table .action-btn.view {
+            background-color: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .table .action-btn.view:hover {
+            background-color: #c7d2fe;
+        }
+
+        .table .action-btn.approve {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .table .action-btn.approve:hover {
+            background-color: #a7f3d0;
+        }
+
+        .table .action-btn.reject {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .table .action-btn.reject:hover {
+            background-color: #fecaca;
+        }
+
+        /* Pagination Improvements */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .pagination-info {
+            font-size: 0.9375rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #d1d5db;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            color: #374151;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 0.9375rem;
+        }
+
+        /* ============================================
+           RESPONSIVE DESIGN
+           ============================================ */
+
+        /* Tablet (768px - 1024px) */
+        @media (max-width: 1024px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .page-header-actions {
+                width: 100%;
+            }
+
+            .search-box {
+                max-width: 100%;
+                min-width: 100%;
+            }
+
+            .filter-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .table th,
+            .table td {
+                padding: 0.75rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Mobile (up to 768px) */
+        @media (max-width: 768px) {
+            .breadcrumb {
+                font-size: 0.8125rem;
+            }
+
+            .page-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .page-header p {
+                font-size: 0.875rem;
+            }
+
+            .page-header-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .filter-panel {
+                padding: 1rem;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .filter-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .filter-actions button {
+                width: 100%;
+            }
+
+            .bulk-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .bulk-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .bulk-buttons button {
+                width: 100%;
+            }
+
+            /* Mobile Table - Convert to Card Layout */
+            .table-container {
+                overflow-x: visible;
+            }
+
+            .table,
+            .table thead,
+            .table tbody,
+            .table th,
+            .table td,
+            .table tr {
+                display: block;
+            }
+
+            .table thead {
+                display: none;
+            }
+
+            .table tbody tr {
+                background-color: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+                padding: 1rem;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            }
+
+            .table td {
+                padding: 0.75rem 0;
+                border: none;
+                text-align: left;
+                position: relative;
+                padding-left: 40%;
+            }
+
+            .table td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0;
+                width: 35%;
+                font-weight: 600;
+                font-size: 0.8125rem;
+                color: #6b7280;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .table td:first-child {
+                padding-left: 0;
+            }
+
+            .table td:first-child:before {
+                display: none;
+            }
+
+            .table .action-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .table .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .pagination {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .pagination button {
+                width: 100%;
+            }
+        }
+
+        /* Small Mobile (up to 480px) */
+        @media (max-width: 480px) {
+            .page-header h2 {
+                font-size: 1.25rem;
+            }
+
+            .btn-secondary,
+            .btn-primary,
+            .btn-success,
+            .btn-danger {
+                padding: 0.625rem 1.25rem;
+                font-size: 0.875rem;
+            }
+
+            .table td {
+                padding-left: 45%;
+            }
+
+            .table td:before {
+                width: 40%;
+                font-size: 0.75rem;
+            }
+        }
+
+        /* Accessibility Improvements */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus Visible for Keyboard Navigation */
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        select:focus-visible {
+            outline: 2px solid #4a90e2;
+            outline-offset: 2px;
+        }
+
+        /* High Contrast Mode Support */
+        @media (prefers-contrast: high) {
+            .table {
+                border: 2px solid #000000;
+            }
+
+            .table th,
+            .table td {
+                border: 1px solid #000000;
+            }
+
+            button {
+                border: 2px solid currentColor;
+            }
+        }
+    </style>
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
         (function() {
@@ -109,7 +831,7 @@
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
-                        <button class="sidebar-toggle" id="sidebarToggle">
+                        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
                             <i class="fas fa-bars"></i>
                         </button>
                         <div class="logo">
@@ -122,37 +844,37 @@
             <main class="dashboard-content">
                 <div class="container">
                     <!-- Breadcrumb -->
-                    <div class="breadcrumb">
+                    <nav class="breadcrumb" aria-label="Breadcrumb">
                         <a href="admin-dashboard.html">Dashboard</a>
-                        <span class="breadcrumb-separator">></span>
+                        <span class="breadcrumb-separator" aria-hidden="true">></span>
                         <a href="admin-transfer-requests.html">Transfer of Ownership</a>
-                        <span class="breadcrumb-separator">></span>
+                        <span class="breadcrumb-separator" aria-hidden="true">></span>
                         <span class="breadcrumb-current">Requests</span>
-                    </div>
+                    </nav>
 
                     <!-- Page Header -->
-                    <div class="page-header">
+                    <section class="page-header">
                         <div>
                             <h2>Transfer of Ownership Requests</h2>
                             <p>Manage and review ownership transfer applications</p>
                         </div>
                         <div class="page-header-actions">
                             <div class="search-box">
-                                <i class="fas fa-search"></i>
-                                <input type="text" id="searchInput" placeholder="Search by ID, name, or plate number...">
+                                <i class="fas fa-search" aria-hidden="true"></i>
+                                <input type="text" id="searchInput" placeholder="Search by ID, name, or plate number..." aria-label="Search transfer requests">
                             </div>
-                            <button class="btn-secondary" id="filterToggle">
-                                <i class="fas fa-filter"></i> Filter
+                            <button class="btn-secondary" id="filterToggle" aria-label="Toggle filters">
+                                <i class="fas fa-filter" aria-hidden="true"></i> Filter
                             </button>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Filter Panel -->
-                    <div class="filter-panel" id="filterPanel" style="display: none;">
+                    <section class="filter-panel" id="filterPanel" style="display: none;" aria-label="Filter options">
                         <div class="filter-grid">
                             <div class="filter-group">
-                                <label>Status</label>
-                                <select id="statusFilter" class="form-control">
+                                <label for="statusFilter">Status</label>
+                                <select id="statusFilter" class="form-control" aria-label="Filter by status">
                                     <option value="">All Active (PENDING + REVIEWING)</option>
                                     <option value="PENDING">Pending (Waiting for Buyer)</option>
                                     <option value="REVIEWING">Reviewing (Waiting for Admin)</option>
@@ -162,48 +884,52 @@
                                 </select>
                             </div>
                             <div class="filter-group">
-                                <label>Date Range</label>
-                                <input type="date" id="dateFrom" class="form-control">
+                                <label for="dateFrom">Date From</label>
+                                <input type="date" id="dateFrom" class="form-control" aria-label="Filter from date">
                             </div>
                             <div class="filter-group">
-                                <label>To</label>
-                                <input type="date" id="dateTo" class="form-control">
+                                <label for="dateTo">Date To</label>
+                                <input type="date" id="dateTo" class="form-control" aria-label="Filter to date">
                             </div>
                             <div class="filter-group">
-                                <label>Plate Number</label>
-                                <input type="text" id="plateFilter" class="form-control" placeholder="ABC-1234">
+                                <label for="plateFilter">Plate Number</label>
+                                <input type="text" id="plateFilter" class="form-control" placeholder="ABC-1234" aria-label="Filter by plate number">
                             </div>
                             <div class="filter-actions">
-                                <button class="btn-primary" onclick="applyFilters()">Apply Filters</button>
-                                <button class="btn-secondary" onclick="clearFilters()">Clear</button>
+                                <button class="btn-primary" onclick="applyFilters()" aria-label="Apply filters">
+                                    <i class="fas fa-check" aria-hidden="true"></i> Apply Filters
+                                </button>
+                                <button class="btn-secondary" onclick="clearFilters()" aria-label="Clear filters">
+                                    <i class="fas fa-times" aria-hidden="true"></i> Clear
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Bulk Actions -->
-                    <div class="bulk-actions" id="bulkActions" style="display: none;">
-                        <span id="selectedCount">0 selected</span>
+                    <section class="bulk-actions" id="bulkActions" style="display: none;" role="region" aria-label="Bulk actions">
+                        <span id="selectedCount" aria-live="polite">0 selected</span>
                         <div class="bulk-buttons">
-                            <button class="btn-success btn-sm" onclick="bulkApprove()">
-                                <i class="fas fa-check"></i> Approve Selected
+                            <button class="btn-success btn-sm" onclick="bulkApprove()" aria-label="Approve selected requests">
+                                <i class="fas fa-check" aria-hidden="true"></i> Approve Selected
                             </button>
-                            <button class="btn-danger btn-sm" onclick="bulkReject()">
-                                <i class="fas fa-times"></i> Reject Selected
+                            <button class="btn-danger btn-sm" onclick="bulkReject()" aria-label="Reject selected requests">
+                                <i class="fas fa-times" aria-hidden="true"></i> Reject Selected
                             </button>
-                            <button class="btn-secondary btn-sm" onclick="clearSelection()">
-                                <i class="fas fa-times-circle"></i> Clear Selection
+                            <button class="btn-secondary btn-sm" onclick="clearSelection()" aria-label="Clear selection">
+                                <i class="fas fa-times-circle" aria-hidden="true"></i> Clear Selection
                             </button>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Requests Table -->
-                    <div class="dashboard-card-modern table-card">
+                    <article class="dashboard-card-modern table-card">
                         <div class="table-container">
-                            <table class="table" id="transferRequestsTable">
+                            <table class="table" id="transferRequestsTable" role="table" aria-label="Transfer ownership requests">
                                 <thead>
                                     <tr>
                                         <th>
-                                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" aria-label="Select all requests">
                                         </th>
                                         <th>Request ID</th>
                                         <th>Applicant Name</th>
@@ -221,16 +947,16 @@
                         </div>
 
                         <!-- Pagination -->
-                        <div class="pagination">
-                            <button class="btn-secondary btn-sm" disabled>
-                                <i class="fas fa-chevron-left"></i> Previous
+                        <nav class="pagination" aria-label="Table pagination">
+                            <button class="btn-secondary btn-sm" disabled aria-label="Previous page">
+                                <i class="fas fa-chevron-left" aria-hidden="true"></i> Previous
                             </button>
-                            <span class="pagination-info">Page 1 of 1</span>
-                            <button class="btn-secondary btn-sm" disabled>
-                                Next <i class="fas fa-chevron-right"></i>
+                            <span class="pagination-info" aria-live="polite">Page 1 of 1</span>
+                            <button class="btn-secondary btn-sm" disabled aria-label="Next page">
+                                Next <i class="fas fa-chevron-right" aria-hidden="true"></i>
                             </button>
-                        </div>
-                    </div>
+                        </nav>
+                    </article>
                 </div>
             </main>
         </div>
@@ -316,7 +1042,9 @@
             const filterPanel = document.getElementById('filterPanel');
             if (filterToggle && filterPanel) {
                 filterToggle.addEventListener('click', function() {
-                    filterPanel.style.display = filterPanel.style.display === 'none' ? 'block' : 'none';
+                    const isHidden = filterPanel.style.display === 'none';
+                    filterPanel.style.display = isHidden ? 'block' : 'none';
+                    filterToggle.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
                 });
             }
 
@@ -399,4 +1127,3 @@
     </script>
 </body>
 </html>
-

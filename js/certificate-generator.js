@@ -120,126 +120,447 @@ const CertificateGenerator = {
                 year: 'numeric', month: 'long', day: 'numeric'
             }) : 'N/A';
         
+        const regDateShort = regDate ?  
+            new Date(regDate).toLocaleDateString('en-US', {
+                year: 'numeric', month: '2-digit', day: '2-digit'
+            }) : 'N/A';
+        
+        // Calculate validity date (3 years from registration)
+        const validityDate = regDate ?  
+            new Date(new Date(regDate).setFullYear(new Date(regDate).getFullYear() + 3)).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            }) : 'N/A';
+        
         const ownerName = owner ?  
             `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email || 'N/A'
             : 'N/A';
         
-        const verificationUrl = `${window.location.origin}/verify/${vehicle.blockchain_tx_id || vehicle.id}`;
+        const ownerAddress = owner?.address || owner?.full_address || 'N/A';
+        const transactionType = vehicle.transaction_type || 'NEW REGISTRATION';
+        const blockchainTxId = vehicle.blockchain_tx_id || vehicle.id || 'N/A';
+        const verificationUrl = `${window.location.origin}/verify/${blockchainTxId}`;
+        
+        // Vehicle details
+        const plateNumber = vehicle.plate_number || vehicle.plateNumber || 'N/A';
+        const mvFileNumber = vehicle.mv_file_number || vehicle.mvFileNumber || 'N/A';
+        const engineNumber = vehicle.engine_number || vehicle.engineNumber || 'N/A';
+        const chassisNumber = vehicle.chassis_number || vehicle.chassisNumber || vehicle.vin || 'N/A';
+        const make = vehicle.make || 'N/A';
+        const model = vehicle.model || 'N/A';
+        const year = vehicle.year || 'N/A';
+        const bodyType = vehicle.vehicle_type || vehicle.vehicleType || 'N/A';
+        const color = vehicle.color || 'N/A';
+        const fuelType = vehicle.fuel_type || vehicle.fuelType || 'N/A';
+        const displacement = vehicle.displacement || vehicle.piston_displacement || 'N/A';
+        const grossWeight = vehicle.gross_weight || vehicle.grossWeight || 'N/A';
+        
+        // Payment details (if available)
+        const orNumber = vehicle.or_number || orCrNumber;
+        const paymentDate = regDateShort;
+        const paymentMode = vehicle.payment_mode || 'ONLINE';
+        const amountPaid = vehicle.amount_paid || vehicle.total_amount || 'N/A';
+        const paymentPurpose = vehicle.payment_purpose || 'VEHICLE REGISTRATION';
+        
+        // Issuing office
+        const issuingOffice = vehicle.issuing_office || 'LTO MAIN OFFICE';
         
         console.log('Certificate data:', {
             orCrNumber,
             regDateFormatted,
             ownerName,
-            plateNumber: vehicle.plate_number || vehicle.plateNumber
+            plateNumber
         });
 
         return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>LTO Registration Certificate - ${orCrNumber}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTO Official Receipt & Certificate of Registration</title>
     <style>
-        @page { size: letter; margin: 0.5in; }
-        @media print {
-            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        /* General Document Settings */
+        body {
+            background-color: #525659; /* Grey background for viewing */
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: white; }
-        .certificate { max-width: 700px; margin: 0 auto; border: 3px solid #1a5276; padding: 30px; }
-        .header { text-align: center; border-bottom: 2px solid #1a5276; padding-bottom: 20px; margin-bottom: 20px; }
-        .header h1 { color: #1a5276; font-size: 14px; margin-bottom: 5px; }
-        .header h2 { color: #1a5276; font-size: 20px; margin-bottom: 5px; }
-        .header h3 { font-size: 10px; color: #666; }
-        .title { text-align: center; margin: 20px 0; }
-        .title h1 { color: #1a5276; font-size: 24px; letter-spacing: 2px; }
-        .orcr-number { text-align: center; font-size: 20px; font-weight: bold; margin: 15px 0; padding: 10px; background: #e8f4f8; border-radius: 8px; }
-        .section { margin: 20px 0; }
-        .section-title { font-weight: bold; color: #1a5276; font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; }
-        .info-grid { display: grid; grid-template-columns: 150px 1fr; gap: 8px; font-size: 12px; }
-        .info-label { font-weight: 600; color: #555; }
-        .info-value { color: #333; }
-        .qr-section { text-align: center; margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; }
-        .qr-placeholder { width: 100px; height: 100px; border: 2px dashed #1a5276; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666; }
-        .verification-text { font-size: 10px; color: #666; }
-        .blockchain-badge { background: #1a5276; color: white; padding: 5px 15px; border-radius: 20px; font-size: 10px; display: inline-block; margin-top: 10px; }
-        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 10px; color: #888; }
-        .print-btn { display: block; margin: 20px auto; padding: 10px 30px; background: #1a5276; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
-        .print-btn:hover { background: #2980b9; }
-        @media print { .print-btn { display: none; } }
+
+        .document-container {
+            background-color: white;
+            width: 210mm; /* A4 Width */
+            min-height: 297mm; /* A4 Height */
+            padding: 10mm 15mm;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        /* Watermark */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 100px;
+            color: rgba(0, 0, 0, 0.05);
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 0;
+            white-space: nowrap;
+        }
+
+        /* Typography & Colors */
+        h1, h2, h3, h4, p { margin: 0; }
+        
+        .text-center { text-align: center; }
+        .text-blue { color: #003366; }
+        .text-uppercase { text-transform: uppercase; }
+        
+        /* Header Section */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .seal-placeholder {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #ccc;
+        }
+
+        .agency-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: #003366;
+            letter-spacing: 1px;
+        }
+
+        .doc-title-box {
+            background-color: #003366;
+            color: white;
+            display: inline-block;
+            padding: 8px 30px;
+            border-radius: 4px;
+            margin-top: 5px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .sub-text {
+            font-size: 12px;
+            font-style: italic;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Section Styling */
+        .section-box {
+            border: 1px solid #b0b0b0;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+            background: white;
+        }
+
+        .section-header {
+            background-color: #eaf2f8;
+            color: #003366;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 1px solid #b0b0b0;
+        }
+
+        .section-body {
+            padding: 10px;
+        }
+
+        /* Grid Layouts */
+        .grid-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .col {
+            flex: 1;
+            min-width: 0; /* Prevents overflow */
+        }
+
+        .col-half { flex: 0 0 48%; }
+        .col-third { flex: 0 0 30%; }
+        .col-quarter { flex: 0 0 22%; }
+        .col-full { flex: 0 0 100%; width: 100%; }
+
+        /* Field Styling */
+        .field-group {
+            margin-bottom: 10px;
+        }
+
+        .label {
+            display: block;
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .value {
+            display: block;
+            font-size: 13px;
+            font-weight: bold;
+            color: #000;
+            text-transform: uppercase;
+        }
+
+        .value.highlight { color: #b91c1c; } /* Red text for validity/important */
+
+        /* Specific Adjustments for Layout Match */
+        .top-info-bar {
+            display: flex;
+            justify-content: space-between;
+            border: 1px solid #b0b0b0;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+        }
+
+        /* Blockchain Section */
+        .blockchain-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .qr-box {
+            width: 80px;
+            height: 80px;
+            border: 1px dashed #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #999;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .hash-container {
+            flex-grow: 1;
+        }
+
+        .hash-code {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            word-break: break-all;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .notice-text {
+            font-size: 9px;
+            color: #777;
+            line-height: 1.3;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            border-top: 1px dashed #ccc;
+            padding-top: 20px;
+        }
+
+        .footer h3 { font-size: 14px; color: #003366; }
+        .footer p { font-size: 10px; color: #666; margin-top: 5px; }
+
+        /* Print Settings */
+        @media print {
+            body { background: none; padding: 0; }
+            .document-container { box-shadow: none; width: 100%; height: auto; }
+        }
     </style>
 </head>
 <body>
-    <div class="certificate">
+
+    <div class="document-container">
+        <div class="watermark">OFFICIAL COPY</div>
+
         <div class="header">
-            <h1>Republic of the Philippines</h1>
-            <h2>LAND TRANSPORTATION OFFICE</h2>
-            <h3>TrustChain Vehicle Registration System</h3>
+            <div class="seal-placeholder">[SEAL]</div>
+            <div class="agency-name">LAND TRANSPORTATION OFFICE</div>
+            <div class="doc-title-box">OFFICIAL RECEIPT & CERTIFICATE OF REGISTRATION</div>
+            <div class="sub-text">Digitally Generated via LTO Blockchain System</div>
         </div>
-        
-        <div class="title">
-            <h1>CERTIFICATE OF REGISTRATION</h1>
-        </div>
-        
-        <div class="orcr-number">OR/CR Number: ${this.escapeHtml(orCrNumber)}</div>
-        
-        <div class="section">
-            <div class="section-title">VEHICLE INFORMATION</div>
-            <div class="info-grid">
-                <span class="info-label">Plate Number:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.plate_number || vehicle.plateNumber || 'N/A')}</span>
-                <span class="info-label">VIN/Chassis:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.vin || 'N/A')}</span>
-                <span class="info-label">Engine Number:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.engine_number || vehicle.engineNumber || 'N/A')}</span>
-                <span class="info-label">Make:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.make || 'N/A')}</span>
-                <span class="info-label">Model:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.model || 'N/A')}</span>
-                <span class="info-label">Year:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.year || 'N/A')}</span>
-                <span class="info-label">Color:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.color || 'N/A')}</span>
-                <span class="info-label">Vehicle Type:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.vehicle_type || vehicle.vehicleType || 'N/A')}</span>
+
+        <div class="top-info-bar">
+            <div class="col">
+                <span class="label">OR/CR Reference No.</span>
+                <span class="value">${this.escapeHtml(orCrNumber)}</span>
+            </div>
+            <div class="col">
+                <span class="label">Date Issued</span>
+                <span class="value">${regDateShort}</span>
+            </div>
+            <div class="col">
+                <span class="label">Issuing Office</span>
+                <span class="value">${this.escapeHtml(issuingOffice)}</span>
+            </div>
+            <div class="col">
+                <span class="label">Registration Validity</span>
+                <span class="value highlight">${validityDate}</span>
             </div>
         </div>
-        
-        <div class="section">
-            <div class="section-title">REGISTERED OWNER</div>
-            <div class="info-grid">
-                <span class="info-label">Name:</span>
-                <span class="info-value">${this.escapeHtml(ownerName)}</span>
-                <span class="info-label">Email:</span>
-                <span class="info-value">${this.escapeHtml(owner.email || 'N/A')}</span>
+
+        <div class="section-box">
+            <div class="section-header">REGISTERED OWNER INFORMATION</div>
+            <div class="section-body">
+                <div class="grid-row">
+                    <div class="col-half">
+                        <span class="label">Full Name</span>
+                        <span class="value">${this.escapeHtml(ownerName)}</span>
+                    </div>
+                    <div class="col-half">
+                        <span class="label">Transaction Type</span>
+                        <span class="value">${this.escapeHtml(transactionType)}</span>
+                    </div>
+                    <div class="col-full" style="margin-top: 10px;">
+                        <span class="label">Complete Address</span>
+                        <span class="value">${this.escapeHtml(ownerAddress)}</span>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <div class="section">
-            <div class="section-title">REGISTRATION DETAILS</div>
-            <div class="info-grid">
-                <span class="info-label">Registration Date:</span>
-                <span class="info-value">${regDateFormatted}</span>
-                <span class="info-label">Status:</span>
-                <span class="info-value">${this.escapeHtml(vehicle.status || 'REGISTERED')}</span>
+
+        <div class="section-box">
+            <div class="section-header">VEHICLE INFORMATION</div>
+            <div class="section-body">
+                <div class="grid-row">
+                    <div class="col-third">
+                        <span class="label">Plate Number</span>
+                        <span class="value">${this.escapeHtml(plateNumber)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">MV File Number</span>
+                        <span class="value">${this.escapeHtml(mvFileNumber)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Engine Number</span>
+                        <span class="value">${this.escapeHtml(engineNumber)}</span>
+                    </div>
+                    
+                    <div class="col-third">
+                        <span class="label">Chassis Number</span>
+                        <span class="value">${this.escapeHtml(chassisNumber)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Make</span>
+                        <span class="value">${this.escapeHtml(make)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Series / Model</span>
+                        <span class="value">${this.escapeHtml(model)}</span>
+                    </div>
+
+                    <div class="col-third">
+                        <span class="label">Year Model</span>
+                        <span class="value">${this.escapeHtml(year)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Body Type</span>
+                        <span class="value">${this.escapeHtml(bodyType)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Color</span>
+                        <span class="value">${this.escapeHtml(color)}</span>
+                    </div>
+
+                    <div class="col-third">
+                        <span class="label">Fuel Type</span>
+                        <span class="value">${this.escapeHtml(fuelType)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Piston Disp.</span>
+                        <span class="value">${this.escapeHtml(displacement)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Gross Wt.</span>
+                        <span class="value">${this.escapeHtml(grossWeight)}</span>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <div class="qr-section">
-            <div class="qr-placeholder">QR Code</div>
-            <div class="verification-text">Scan to verify on blockchain</div>
-            <div class="verification-text" style="word-break: break-all; font-size: 8px;">${verificationUrl}</div>
-            <div class="blockchain-badge">✓ BLOCKCHAIN VERIFIED</div>
+
+        <div class="section-box">
+            <div class="section-header">OFFICIAL RECEIPT DETAILS</div>
+            <div class="section-body">
+                <div class="grid-row">
+                    <div class="col-quarter">
+                        <span class="label">OR Number</span>
+                        <span class="value">${this.escapeHtml(orNumber)}</span>
+                    </div>
+                    <div class="col-quarter">
+                        <span class="label">Date of Payment</span>
+                        <span class="value">${paymentDate}</span>
+                    </div>
+                    <div class="col-quarter">
+                        <span class="label">Mode of Payment</span>
+                        <span class="value">${this.escapeHtml(paymentMode)}</span>
+                    </div>
+                    <div class="col-quarter">
+                        <span class="label">Total Amount Paid</span>
+                        <span class="value">${this.escapeHtml(amountPaid)}</span>
+                    </div>
+                    <div class="col-full" style="margin-top: 10px;">
+                        <span class="label">Purpose of Payment</span>
+                        <span class="value">${this.escapeHtml(paymentPurpose)}</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        
+
+        <div class="section-box">
+            <div class="section-header">BLOCKCHAIN VERIFICATION</div>
+            <div class="section-body">
+                <div class="blockchain-container">
+                    <div class="qr-box">
+                        [QR PLACEHOLDER]
+                    </div>
+                    <div class="hash-container">
+                        <span class="label">Blockchain Transaction Hash</span>
+                        <div class="hash-code">${this.escapeHtml(blockchainTxId)}</div>
+                        <div class="notice-text">
+                            SYSTEM NOTICE: This document is digitally generated and secured via the LTO Private Blockchain. 
+                            The QR code above contains the cryptographic proof of ownership and registration validity. 
+                            No physical signature is required. This document is tamper-proof.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="footer">
-            <p>Generated on ${new Date().toLocaleString()}</p>
-            <p>This is a computer-generated document. The blockchain record serves as the official verification.</p>
-            ${vehicle.blockchain_tx_id ? `<p style="font-size: 8px;">TX: ${vehicle.blockchain_tx_id}</p>` : ''}
+            <h3>AUTHORIZED BY: LAND TRANSPORTATION OFFICE</h3>
+            <p>Digitally Signed: ${new Date().toLocaleString()} | Server ID: ${this.escapeHtml(blockchainTxId)}</p>
         </div>
+
     </div>
-    
-    <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+
 </body>
 </html>
         `;

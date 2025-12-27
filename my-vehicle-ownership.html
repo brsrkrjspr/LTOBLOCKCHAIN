@@ -162,6 +162,17 @@
             box-sizing: border-box;
             position: relative;
         }
+        
+        .primary-actions,
+        .secondary-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: stretch;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
 
         .btn-view-history {
             background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
@@ -652,29 +663,37 @@
                 box-sizing: border-box !important;
             }
             
-            /* Primary Actions - Full width on mobile */
+            /* Primary Actions - Full width on mobile - FORCE COLUMN */
             .primary-actions {
                 width: 100% !important;
                 max-width: 100% !important;
                 display: flex !important;
                 flex-direction: column !important;
+                flex-wrap: nowrap !important;
                 gap: 0.75rem !important;
                 align-items: stretch !important;
+                order: 1 !important;
             }
             
-            /* Secondary Actions - Full width, below primary on mobile */
+            /* Secondary Actions - Full width, below primary on mobile - FORCE COLUMN */
             .secondary-actions {
                 width: 100% !important;
                 max-width: 100% !important;
                 display: flex !important;
                 flex-direction: column !important;
+                flex-wrap: nowrap !important;
                 gap: 0.75rem !important;
                 align-items: stretch !important;
+                order: 2 !important;
             }
             
+            /* CRITICAL: All buttons must be full width and stacked */
             .vehicle-actions button,
             .primary-actions button,
             .secondary-actions button,
+            .primary-actions .btn-download-cert,
+            .secondary-actions .btn-transfer,
+            .secondary-actions .btn-view-history,
             .vehicle-actions .btn-view-history,
             .vehicle-actions .btn-transfer,
             .vehicle-actions .btn-download-cert {
@@ -683,9 +702,14 @@
                 min-width: 0 !important;
                 min-height: 48px !important;
                 flex: 0 0 auto !important;
+                flex-shrink: 0 !important;
+                flex-grow: 0 !important;
                 position: relative !important;
                 box-sizing: border-box !important;
                 margin: 0 !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                display: flex !important;
             }
 
             .limited-timeline::before {

@@ -5,10 +5,6 @@
    CRITICAL: Vehicle Actions - Prevent Overlap
    ============================================ */
 
-/* ============================================
-   CRITICAL: Vehicle Actions - Prevent Overlap
-   ============================================ */
-
 /* Base rules - Apply to ALL screen sizes first - NO ABSOLUTE/FIXED POSITIONING */
 .vehicle-actions {
     position: relative !important;
@@ -19,10 +15,22 @@
     max-width: 100% !important;
 }
 
+/* Primary and Secondary Action Groups */
+.primary-actions,
+.secondary-actions {
+    position: relative !important;
+    display: flex !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
 .vehicle-actions button,
 .vehicle-actions .btn-view-history,
 .vehicle-actions .btn-transfer,
-.vehicle-actions .btn-download-cert {
+.vehicle-actions .btn-download-cert,
+.primary-actions button,
+.secondary-actions button {
     position: relative !important;
     float: none !important;
     box-sizing: border-box !important;
@@ -30,9 +38,6 @@
     right: auto !important;
     top: auto !important;
     bottom: auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
 }
 
 /* CRITICAL: Mobile-first - Force column layout on small screens */
@@ -41,10 +46,28 @@
         flex-direction: column !important;
         flex-wrap: nowrap !important;
         align-items: stretch !important;
-        gap: 0.75rem !important;
+        gap: 1rem !important;
     }
     
+    /* Primary actions - Full width on mobile */
+    .primary-actions {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        width: 100% !important;
+    }
+    
+    /* Secondary actions - Full width, below primary on mobile */
+    .secondary-actions {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+    }
+    
+    /* All buttons full width on mobile */
     .vehicle-actions button,
+    .primary-actions button,
+    .secondary-actions button,
     .vehicle-actions .btn-view-history,
     .vehicle-actions .btn-transfer,
     .vehicle-actions .btn-download-cert {
@@ -1021,7 +1044,7 @@
         grid-template-columns: repeat(2, 1fr);
     }
     
-    /* Vehicle Actions - Tablet: 2 buttons per row */
+    /* Vehicle Actions - Tablet: Restore original layout */
     .vehicle-actions {
         display: flex !important;
         flex-direction: row !important;
@@ -1032,7 +1055,19 @@
         position: relative !important;
     }
     
+    /* Primary and Secondary actions - Inline on tablet */
+    .primary-actions,
+    .secondary-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.75rem !important;
+        flex: 0 0 auto !important;
+    }
+    
     .vehicle-actions button,
+    .primary-actions button,
+    .secondary-actions button,
     .vehicle-actions .btn-view-history,
     .vehicle-actions .btn-transfer,
     .vehicle-actions .btn-download-cert {
@@ -1070,7 +1105,7 @@
    ============================================ */
 
 @media (min-width: 1025px) {
-    /* Vehicle Actions - Desktop: Inline with wrapping */
+    /* Vehicle Actions - Desktop: Restore original inline layout */
     .vehicle-actions {
         display: flex !important;
         flex-direction: row !important;
@@ -1081,7 +1116,19 @@
         position: relative !important;
     }
     
+    /* Primary and Secondary actions - Inline on desktop */
+    .primary-actions,
+    .secondary-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.75rem !important;
+        flex: 0 0 auto !important;
+    }
+    
     .vehicle-actions button,
+    .primary-actions button,
+    .secondary-actions button,
     .vehicle-actions .btn-view-history,
     .vehicle-actions .btn-transfer,
     .vehicle-actions .btn-download-cert {
@@ -1801,7 +1848,7 @@
         max-width: 100% !important;
         display: flex !important;
         flex-direction: column !important;
-        gap: 0.75rem !important;
+        gap: 1rem !important;
         align-items: stretch !important;
         flex-wrap: nowrap !important;
         box-sizing: border-box !important;
@@ -1811,13 +1858,36 @@
         padding: 0 !important;
     }
     
-    /* ALL buttons in vehicle-actions - Force full width on mobile - HISTORY BUTTON INCLUDED */
+    /* Primary Actions - Mobile */
+    .vehicle-card .vehicle-actions .primary-actions {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        align-items: stretch !important;
+    }
+    
+    /* Secondary Actions - Mobile (Transfer & History below) */
+    .vehicle-card .vehicle-actions .secondary-actions {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        align-items: stretch !important;
+        margin-top: 0 !important;
+    }
+    
+    /* ALL buttons in vehicle-actions - Force full width on mobile */
     .vehicle-card .vehicle-actions button,
     .vehicle-card .vehicle-actions .btn-view-history,
     .vehicle-card .vehicle-actions .btn-transfer,
     .vehicle-card .vehicle-actions .btn-download-cert,
     .vehicle-card .vehicle-status .vehicle-actions button,
-    .vehicle-card .vehicle-status .vehicle-actions .btn-view-history {
+    .vehicle-card .vehicle-status .vehicle-actions .btn-view-history,
+    .vehicle-card .primary-actions button,
+    .vehicle-card .secondary-actions button {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;

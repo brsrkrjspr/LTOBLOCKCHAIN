@@ -646,13 +646,35 @@
                 max-width: 100% !important;
                 flex-direction: column !important;
                 flex-wrap: nowrap !important;
-                gap: 0.75rem !important;
+                gap: 1rem !important;
                 align-items: stretch !important;
                 position: relative !important;
                 box-sizing: border-box !important;
             }
             
+            /* Primary Actions - Full width on mobile */
+            .primary-actions {
+                width: 100% !important;
+                max-width: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+                align-items: stretch !important;
+            }
+            
+            /* Secondary Actions - Full width, below primary on mobile */
+            .secondary-actions {
+                width: 100% !important;
+                max-width: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+                align-items: stretch !important;
+            }
+            
             .vehicle-actions button,
+            .primary-actions button,
+            .secondary-actions button,
             .vehicle-actions .btn-view-history,
             .vehicle-actions .btn-transfer,
             .vehicle-actions .btn-download-cert {
@@ -676,6 +698,17 @@
 
             .limited-timeline-node::before {
                 left: 0.5rem;
+            }
+        }
+        
+        /* Tablet and Desktop - Restore original layout */
+        @media (min-width: 769px) {
+            .primary-actions,
+            .secondary-actions {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 0.75rem !important;
             }
         }
     </style>

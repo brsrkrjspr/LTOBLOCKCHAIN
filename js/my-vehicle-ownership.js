@@ -248,20 +248,25 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
                 ${isCurrent ? 'Current Owner' : 'Previous Owner'}
             </span>
             <div class="vehicle-actions">
-                <!-- Download Certificate Button -->
-                ${isRegistered && orCrNumber ? `
-                    <button class="btn-download-cert" onclick="downloadVehicleCertificate('${escapeHtml(vehicle.id)}', '${escapeHtml(orCrNumber)}')" title="Download Registration Certificate">
-                        <i class="fas fa-download"></i> Certificate
+                <!-- Primary Actions (Certificate) -->
+                <div class="primary-actions">
+                    ${isRegistered && orCrNumber ? `
+                        <button class="btn-download-cert" onclick="downloadVehicleCertificate('${escapeHtml(vehicle.id)}', '${escapeHtml(orCrNumber)}')" title="Download Registration Certificate">
+                            <i class="fas fa-download"></i> Certificate
+                        </button>
+                    ` : ''}
+                </div>
+                <!-- Secondary Actions (Transfer, History) -->
+                <div class="secondary-actions">
+                    ${isCurrent && isRegistered ? `
+                        <button class="btn-transfer" onclick="transferVehicle('${escapeHtml(vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')" title="Transfer Ownership">
+                            <i class="fas fa-exchange-alt"></i> Transfer
+                        </button>
+                    ` : ''}
+                    <button class="btn-view-history" onclick="viewOwnershipHistory('${escapeHtml(vehicle.vin || vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')">
+                        <i class="fas fa-history"></i> History
                     </button>
-                ` : ''}
-                ${isCurrent && isRegistered ? `
-                    <button class="btn-transfer" onclick="transferVehicle('${escapeHtml(vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')" title="Transfer Ownership">
-                        <i class="fas fa-exchange-alt"></i> Transfer
-                    </button>
-                ` : ''}
-                <button class="btn-view-history" onclick="viewOwnershipHistory('${escapeHtml(vehicle.vin || vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')">
-                    <i class="fas fa-history"></i> History
-                </button>
+                </div>
             </div>
         </div>
     `;

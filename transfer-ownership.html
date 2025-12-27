@@ -169,16 +169,26 @@
             </div>
         </aside>
 
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <div class="dashboard-main">
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
                         <div class="nav-left">
+                            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                                <i class="fas fa-bars"></i>
+                            </button>
                             <div class="logo">
                                 <h1>LTO MANAGEMENT SYSTEM</h1>
                             </div>
                         </div>
-                        <div class="user-info-spacer"></div>
+                        <div class="nav-right">
+                            <button class="header-profile-btn" id="headerProfileBtn" aria-label="Profile">
+                                <i class="fas fa-user-circle"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -608,10 +618,106 @@
             initializeFileUploads();
             console.log('✅ All initialization complete');
             
+            // Initialize mobile navigation
+            initializeMobileNavigation();
+            
             } catch (error) {
                 console.error('❌ Initialization error:', error);
             }
         });
+        
+        // Initialize mobile navigation
+        function initializeMobileNavigation() {
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            
+            if (mobileMenuToggle && sidebar) {
+                mobileMenuToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMobileSidebar();
+                });
+            }
+            
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    closeMobileSidebar();
+                });
+            }
+            
+            // Close sidebar when clicking on nav items
+            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        closeMobileSidebar();
+                    }
+                });
+            });
+        }
+        
+        // Toggle mobile sidebar
+        function toggleMobileSidebar() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            
+            if (!sidebar) return;
+            
+            if (sidebar.classList.contains('mobile-open')) {
+                closeMobileSidebar();
+            } else {
+                openMobileSidebar();
+            }
+        }
+        
+        // Open mobile sidebar
+        function openMobileSidebar() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            
+            if (sidebar) {
+                sidebar.classList.add('mobile-open');
+                sidebar.classList.remove('collapsed');
+            }
+            
+            if (overlay) {
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-times';
+                }
+            }
+        }
+        
+        // Close mobile sidebar
+        function closeMobileSidebar() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            
+            if (sidebar) {
+                sidebar.classList.remove('mobile-open');
+            }
+            
+            if (overlay) {
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-bars';
+                }
+            }
+        }
 
         function updateSidebarUserInfo() {
             if (typeof AuthUtils !== 'undefined') {

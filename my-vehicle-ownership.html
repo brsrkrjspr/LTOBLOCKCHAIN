@@ -172,6 +172,7 @@
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
+            position: relative;
         }
 
         .btn-view-history {
@@ -652,42 +653,55 @@
                 position: relative !important;
             }
             
+            /* Vehicle Actions Container - Mobile: Column layout */
             .vehicle-actions {
                 width: 100% !important;
                 max-width: 100% !important;
+                min-width: 0 !important;
                 flex-direction: column !important;
                 flex-wrap: nowrap !important;
                 gap: 1rem !important;
                 align-items: stretch !important;
                 position: relative !important;
                 box-sizing: border-box !important;
+                display: flex !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
-            /* Primary Actions - Full width on mobile - FORCE COLUMN */
+            /* Primary Actions - Mobile: Column, full width */
             .primary-actions {
                 width: 100% !important;
                 max-width: 100% !important;
+                min-width: 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
                 flex-wrap: nowrap !important;
                 gap: 0.75rem !important;
                 align-items: stretch !important;
                 order: 1 !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
-            /* Secondary Actions - Full width, below primary on mobile - FORCE COLUMN */
+            /* Secondary Actions - Mobile: Column, full width, below primary */
             .secondary-actions {
                 width: 100% !important;
                 max-width: 100% !important;
+                min-width: 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
                 flex-wrap: nowrap !important;
                 gap: 0.75rem !important;
                 align-items: stretch !important;
                 order: 2 !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
-            /* CRITICAL: All buttons must be full width and stacked */
+            /* ALL BUTTONS - Mobile: Full width, stacked vertically */
             .vehicle-actions button,
             .primary-actions button,
             .secondary-actions button,
@@ -709,7 +723,11 @@
                 margin: 0 !important;
                 margin-left: 0 !important;
                 margin-right: 0 !important;
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
                 display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
 
             .limited-timeline::before {

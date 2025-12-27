@@ -147,15 +147,30 @@
             </div>
         </aside>
 
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- Main Content -->
         <div class="dashboard-main">
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
                         <div class="nav-left">
+                            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                                <i class="fas fa-bars"></i>
+                            </button>
                             <div class="logo">
                                 <h1>LTO MANAGEMENT SYSTEM</h1>
                             </div>
+                        </div>
+                        <div class="nav-right">
+                            <button class="header-notification-btn" id="headerNotificationBtn" aria-label="Notifications">
+                                <i class="fas fa-bell"></i>
+                                <span class="notification-badge" id="headerNotificationBadge" style="display: none;">0</span>
+                            </button>
+                            <button class="header-profile-btn" id="headerProfileBtn" aria-label="Profile">
+                                <i class="fas fa-user-circle"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -641,7 +656,272 @@
                     }
                 });
             }
+            
+            // Initialize mobile navigation
+            initializeMobileNavigation();
+            
+            // Convert tables to cards on mobile
+            convertTablesToCards();
+            
+            // Handle window resize for responsive updates
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    convertTablesToCards();
+                }, 250);
+            });
         });
+        
+        // Initialize mobile navigation
+        function initializeMobileNavigation() {
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            
+            if (mobileMenuToggle && sidebar) {
+                mobileMenuToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMobileSidebar();
+                });
+            }
+            
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    closeMobileSidebar();
+                });
+            }
+            
+            // Close sidebar when clicking on nav items
+            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        closeMobileSidebar();
+                    }
+                });
+            });
+        }
+        
+        // Toggle mobile sidebar
+        function toggleMobileSidebar() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            
+            if (!sidebar) return;
+            
+            if (sidebar.classList.contains('mobile-open')) {
+                closeMobileSidebar();
+            } else {
+                openMobileSidebar();
+            }
+        }
+        
+        // Open mobile sidebar
+        function openMobileSidebar() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            
+            if (sidebar) {
+                sidebar.classList.add('mobile-open');
+                sidebar.classList.remove('collapsed');
+            }
+            
+            if (overlay) {
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-times';
+                }
+            }
+        }
+        
+        // Close mobile sidebar
+        function closeMobileSidebar() {
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            
+            if (sidebar) {
+                sidebar.classList.remove('mobile-open');
+            }
+            
+            if (overlay) {
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-bars';
+                }
+            }
+        }
+        
+        // Convert tables to mobile cards
+        function convertTablesToCards() {
+            if (window.innerWidth > 768) {
+                // Desktop: Show tables, hide mobile cards
+                document.querySelectorAll('.mobile-applications-list').forEach(list => {
+                    list.style.display = 'none';
+                });
+                document.querySelectorAll('.table-container-modern').forEach(container => {
+                    container.style.display = 'block';
+                });
+                return;
+            }
+            
+            // Mobile: Convert tables to cards
+            const registrationsTable = document.getElementById('my-registrations-tbody');
+            const transfersTable = document.getElementById('my-transfers-tbody');
+            
+            // Handle registrations
+            if (registrationsTable) {
+                const registrationsContainer = registrationsTable.closest('.application-tab-content');
+                if (registrationsContainer) {
+                    let mobileList = registrationsContainer.querySelector('.mobile-applications-list');
+                    if (!mobileList) {
+                        mobileList = document.createElement('div');
+                        mobileList.className = 'mobile-applications-list';
+                        registrationsContainer.appendChild(mobileList);
+                    }
+                    
+                    // Hide table on mobile
+                    const tableContainer = registrationsContainer.querySelector('.table-container-modern');
+                    if (tableContainer) {
+                        tableContainer.style.display = 'none';
+                    }
+                    
+                    // Generate cards from table rows
+                    generateMobileCards(registrationsTable, mobileList, 'registration');
+                }
+            }
+            
+            // Handle transfers
+            if (transfersTable) {
+                const transfersContainer = transfersTable.closest('.application-tab-content');
+                if (transfersContainer) {
+                    let mobileList = transfersContainer.querySelector('.mobile-applications-list');
+                    if (!mobileList) {
+                        mobileList = document.createElement('div');
+                        mobileList.className = 'mobile-applications-list';
+                        transfersContainer.appendChild(mobileList);
+                    }
+                    
+                    // Hide table on mobile
+                    const tableContainer = transfersContainer.querySelector('.table-container-modern');
+                    if (tableContainer) {
+                        tableContainer.style.display = 'none';
+                    }
+                    
+                    // Generate cards from table rows
+                    generateMobileCards(transfersTable, mobileList, 'transfer');
+                }
+            }
+        }
+        
+        // Generate mobile cards from table rows
+        function generateMobileCards(tableBody, container, type) {
+            if (!tableBody || !container) return;
+            
+            const rows = tableBody.querySelectorAll('tr');
+            
+            if (rows.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #6b7280;">No applications found</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return;
+                
+                const card = document.createElement('div');
+                card.className = 'mobile-application-card';
+                
+                if (type === 'registration') {
+                    // Registration card structure
+                    const vehicle = cells[0]?.textContent?.trim() || 'N/A';
+                    const appId = cells[1]?.textContent?.trim() || 'N/A';
+                    const orcr = cells[2]?.textContent?.trim() || 'N/A';
+                    const submitted = cells[3]?.textContent?.trim() || 'N/A';
+                    const verificationStatus = cells[4]?.innerHTML || '';
+                    const status = cells[5]?.innerHTML || '';
+                    const actions = cells[6]?.innerHTML || '';
+                    
+                    card.innerHTML = `
+                        <div class="mobile-app-header">
+                            <h3 class="mobile-app-title">${vehicle}</h3>
+                            <span class="mobile-app-status">${status}</span>
+                        </div>
+                        <div class="mobile-app-details">
+                            <div class="mobile-app-detail-row">
+                                <span class="mobile-app-detail-label">Application ID:</span>
+                                <span class="mobile-app-detail-value">${appId}</span>
+                            </div>
+                            <div class="mobile-app-detail-row">
+                                <span class="mobile-app-detail-label">OR/CR Number:</span>
+                                <span class="mobile-app-detail-value">${orcr}</span>
+                            </div>
+                            <div class="mobile-app-detail-row">
+                                <span class="mobile-app-detail-label">Submitted:</span>
+                                <span class="mobile-app-detail-value">${submitted}</span>
+                            </div>
+                            <div class="mobile-app-detail-row">
+                                <span class="mobile-app-detail-label">Verification:</span>
+                                <span class="mobile-app-detail-value">${verificationStatus}</span>
+                            </div>
+                        </div>
+                        <div class="mobile-app-actions">
+                            ${actions}
+                        </div>
+                    `;
+                } else if (type === 'transfer') {
+                    // Transfer card structure
+                    const vehicle = cells[0]?.textContent?.trim() || 'N/A';
+                    const requestId = cells[1]?.textContent?.trim() || 'N/A';
+                    const transferType = cells[2]?.textContent?.trim() || 'N/A';
+                    const otherParty = cells[3]?.textContent?.trim() || 'N/A';
+                    const status = cells[4]?.innerHTML || '';
+                    const actions = cells[5]?.innerHTML || '';
+                    
+                    card.innerHTML = `
+                        <div class="mobile-app-header">
+                            <h3 class="mobile-app-title">${vehicle}</h3>
+                            <span class="mobile-app-status">${status}</span>
+                        </div>
+                        <div class="mobile-app-details">
+                            <div class="mobile-app-detail-row">
+                                <span class="mobile-app-detail-label">Request ID:</span>
+                                <span class="mobile-app-detail-value">${requestId}</span>
+                            </div>
+                            <div class="mobile-app-detail-row">
+                                <span class="mobile-app-detail-label">Type:</span>
+                                <span class="mobile-app-detail-value">${transferType}</span>
+                            </div>
+                            <div class="mobile-app-detail-row">
+                                <span class="mobile-app-detail-label">Other Party:</span>
+                                <span class="mobile-app-detail-value">${otherParty}</span>
+                            </div>
+                        </div>
+                        <div class="mobile-app-actions">
+                            ${actions}
+                        </div>
+                    `;
+                }
+                
+                container.appendChild(card);
+            });
+        }
     </script>
 </body>
 </html>

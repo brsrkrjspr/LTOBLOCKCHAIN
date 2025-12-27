@@ -695,6 +695,13 @@ async function loadOwnerTransferRequests() {
             return;
         }
         
+        // Convert tables to mobile cards after rendering transfers
+        setTimeout(() => {
+            if (typeof convertTablesToCards === 'function') {
+                convertTablesToCards();
+            }
+        }, 100);
+        
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading transfer requests...</td></tr>';
         
         const apiClient = window.apiClient || new APIClient();
@@ -769,6 +776,13 @@ async function loadOwnerTransferRequests() {
                 </tr>
             `;
         }).join('');
+        
+        // Convert tables to mobile cards after rendering transfers
+        setTimeout(() => {
+            if (typeof convertTablesToCards === 'function') {
+                convertTablesToCards();
+            }
+        }, 100);
         
     } catch (error) {
         console.error('Error loading transfer requests:', error);
@@ -845,6 +859,13 @@ function renderApplications() {
         const row = createUserApplicationRow(app);
         applicationsTable.appendChild(row);
     });
+    
+    // Convert tables to mobile cards after rendering
+    setTimeout(() => {
+        if (typeof convertTablesToCards === 'function') {
+            convertTablesToCards();
+        }
+    }, 100);
 }
 
 function initializePagination() {

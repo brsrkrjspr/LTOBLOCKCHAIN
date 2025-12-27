@@ -1,5 +1,6 @@
 // Certificate Generator - Client-Side PDF using Browser APIs
 // No external libraries required
+// Version: 2.0 - Updated with cache-busting support
 
 const CertificateGenerator = {
     /**

@@ -228,19 +228,23 @@ function renderTransferRequests(requests) {
                 </td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn-icon" onclick="viewTransferDetails('${request.id}')" title="View Details">
-                            <i class="fas fa-eye"></i>
+                        <button class="btn-icon" onclick="viewTransferDetails('${request.id}')" title="View Request Details" aria-label="View Request Details">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                            <span>View Details</span>
                         </button>
                         ${status === 'REVIEWING' ? `
-                            <button class="btn-icon btn-success" onclick="approveTransfer('${request.id}')" title="Approve">
-                                <i class="fas fa-check"></i>
+                            <button class="btn-icon btn-success" onclick="approveTransfer('${request.id}')" title="Approve Transfer" aria-label="Approve Transfer">
+                                <i class="fas fa-check" aria-hidden="true"></i>
+                                <span>Approve</span>
                             </button>
-                            <button class="btn-icon btn-danger" onclick="rejectTransfer('${request.id}')" title="Reject">
-                                <i class="fas fa-times"></i>
+                            <button class="btn-icon btn-danger" onclick="rejectTransfer('${request.id}')" title="Reject Transfer" aria-label="Reject Transfer">
+                                <i class="fas fa-times" aria-hidden="true"></i>
+                                <span>Reject</span>
                             </button>
                         ` : status === 'PENDING' ? `
-                            <button class="btn-icon" disabled title="Waiting for buyer to accept" style="opacity: 0.5; cursor: not-allowed;">
-                                <i class="fas fa-clock"></i>
+                            <button class="btn-icon" disabled title="Waiting for buyer to accept" aria-label="Waiting for buyer to accept" style="opacity: 0.5; cursor: not-allowed;">
+                                <i class="fas fa-clock" aria-hidden="true"></i>
+                                <span>Waiting</span>
                             </button>
                         ` : ''}
                     </div>

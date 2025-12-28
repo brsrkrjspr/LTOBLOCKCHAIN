@@ -124,7 +124,7 @@
             color: #9ca3af;
         }
 
-        /* Button Improvements */
+        /* Button Improvements - All buttons must have text labels */
         .btn-secondary,
         .btn-primary,
         .btn-success,
@@ -142,6 +142,14 @@
             white-space: nowrap;
             min-height: 44px;
             box-sizing: border-box;
+        }
+
+        /* Ensure buttons with icons also show text */
+        .btn-secondary span,
+        .btn-primary span,
+        .btn-success span,
+        .btn-danger span {
+            display: inline-block;
         }
 
         .btn-secondary {
@@ -417,15 +425,17 @@
             color: #065f46;
         }
 
-        /* Action Buttons in Table */
+        /* Action Buttons in Table - With Text Labels */
         .table .action-buttons {
             display: flex;
             gap: 0.5rem;
             flex-wrap: wrap;
+            align-items: center;
         }
 
-        .table .action-btn {
-            padding: 0.5rem 0.75rem;
+        .table .action-btn,
+        .table .btn-icon {
+            padding: 0.625rem 1rem;
             border-radius: 6px;
             font-size: 0.875rem;
             font-weight: 500;
@@ -434,35 +444,76 @@
             transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
-            gap: 0.375rem;
+            gap: 0.5rem;
             min-height: 36px;
+            white-space: nowrap;
         }
 
-        .table .action-btn.view {
+        /* Ensure all buttons show text labels */
+        .table .btn-icon {
+            padding: 0.625rem 1rem;
+        }
+
+        .table .btn-icon i {
+            font-size: 0.875rem;
+        }
+
+        .table .btn-icon span {
+            display: inline-block;
+            font-size: 0.875rem;
+        }
+
+        /* View button */
+        .table .action-btn.view,
+        .table .btn-icon[onclick*="viewTransferDetails"] {
             background-color: #e0e7ff;
             color: #4338ca;
         }
 
-        .table .action-btn.view:hover {
+        .table .action-btn.view:hover,
+        .table .btn-icon[onclick*="viewTransferDetails"]:hover:not(:disabled) {
             background-color: #c7d2fe;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(67, 56, 202, 0.2);
         }
 
-        .table .action-btn.approve {
+        /* Approve button */
+        .table .action-btn.approve,
+        .table .btn-icon.btn-success[onclick*="approveTransfer"] {
             background-color: #d1fae5;
             color: #065f46;
         }
 
-        .table .action-btn.approve:hover {
+        .table .action-btn.approve:hover,
+        .table .btn-icon.btn-success[onclick*="approveTransfer"]:hover:not(:disabled) {
             background-color: #a7f3d0;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(5, 95, 70, 0.2);
         }
 
-        .table .action-btn.reject {
+        /* Reject button */
+        .table .action-btn.reject,
+        .table .btn-icon.btn-danger[onclick*="rejectTransfer"] {
             background-color: #fee2e2;
             color: #991b1b;
         }
 
-        .table .action-btn.reject:hover {
+        .table .action-btn.reject:hover,
+        .table .btn-icon.btn-danger[onclick*="rejectTransfer"]:hover:not(:disabled) {
             background-color: #fecaca;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(153, 27, 27, 0.2);
+        }
+
+        /* Disabled button */
+        .table .btn-icon:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .table .btn-icon:disabled:hover {
+            transform: none;
+            box-shadow: none;
         }
 
         /* Pagination Improvements */
@@ -903,7 +954,7 @@
                     </nav>
 
                     <!-- Page Header -->
-                    <section class="page-header">
+                    <header class="page-header">
                         <div>
                             <h2>Transfer of Ownership Requests</h2>
                             <p>Manage and review ownership transfer applications</p>
@@ -914,10 +965,10 @@
                                 <input type="text" id="searchInput" placeholder="Search by ID, name, or plate number..." aria-label="Search transfer requests">
                             </div>
                             <button class="btn-secondary" id="filterToggle" aria-label="Toggle filters">
-                                <i class="fas fa-filter" aria-hidden="true"></i> Filter
+                                <i class="fas fa-filter" aria-hidden="true"></i> <span>Filter</span>
                             </button>
                         </div>
-                    </section>
+                    </header>
 
                     <!-- Filter Panel -->
                     <section class="filter-panel" id="filterPanel" style="display: none;" aria-label="Filter options">
@@ -947,10 +998,10 @@
                             </div>
                             <div class="filter-actions">
                                 <button class="btn-primary" onclick="applyFilters()" aria-label="Apply filters">
-                                    <i class="fas fa-check" aria-hidden="true"></i> Apply Filters
+                                    <i class="fas fa-check" aria-hidden="true"></i> <span>Apply Filters</span>
                                 </button>
                                 <button class="btn-secondary" onclick="clearFilters()" aria-label="Clear filters">
-                                    <i class="fas fa-times" aria-hidden="true"></i> Clear
+                                    <i class="fas fa-times" aria-hidden="true"></i> <span>Clear</span>
                                 </button>
                             </div>
                         </div>
@@ -961,19 +1012,19 @@
                         <span id="selectedCount" aria-live="polite">0 selected</span>
                         <div class="bulk-buttons">
                             <button class="btn-success btn-sm" onclick="bulkApprove()" aria-label="Approve selected requests">
-                                <i class="fas fa-check" aria-hidden="true"></i> Approve Selected
+                                <i class="fas fa-check" aria-hidden="true"></i> <span>Approve Selected</span>
                             </button>
                             <button class="btn-danger btn-sm" onclick="bulkReject()" aria-label="Reject selected requests">
-                                <i class="fas fa-times" aria-hidden="true"></i> Reject Selected
+                                <i class="fas fa-times" aria-hidden="true"></i> <span>Reject Selected</span>
                             </button>
                             <button class="btn-secondary btn-sm" onclick="clearSelection()" aria-label="Clear selection">
-                                <i class="fas fa-times-circle" aria-hidden="true"></i> Clear Selection
+                                <i class="fas fa-times-circle" aria-hidden="true"></i> <span>Clear Selection</span>
                             </button>
                         </div>
                     </section>
 
-                    <!-- Requests Table -->
-                    <article class="dashboard-card-modern table-card">
+                    <!-- Requests List -->
+                    <section class="dashboard-card-modern table-card">
                         <div class="table-container">
                             <table class="table" id="transferRequestsTable" role="table" aria-label="Transfer ownership requests">
                                 <thead>
@@ -982,11 +1033,11 @@
                                             <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" aria-label="Select all requests">
                                         </th>
                                         <th>Request ID</th>
-                                        <th>Applicant Name</th>
-                                        <th>Buyer Name</th>
-                                        <th>Plate Number</th>
+                                        <th>Current Owner</th>
+                                        <th>New Owner</th>
+                                        <th>Vehicle Details</th>
                                         <th>Date Submitted</th>
-                                        <th>Status</th>
+                                        <th>Request Status</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -996,17 +1047,17 @@
                             </table>
                         </div>
 
-                        <!-- Pagination -->
-                        <nav class="pagination" aria-label="Table pagination">
-                            <button class="btn-secondary btn-sm" disabled aria-label="Previous page">
-                                <i class="fas fa-chevron-left" aria-hidden="true"></i> Previous
-                            </button>
-                            <span class="pagination-info" aria-live="polite">Page 1 of 1</span>
-                            <button class="btn-secondary btn-sm" disabled aria-label="Next page">
-                                Next <i class="fas fa-chevron-right" aria-hidden="true"></i>
-                            </button>
-                        </nav>
-                    </article>
+                            <!-- Pagination -->
+                            <footer class="pagination" aria-label="Table pagination">
+                                <button class="btn-secondary btn-sm" disabled aria-label="Previous page">
+                                    <i class="fas fa-chevron-left" aria-hidden="true"></i> <span>Previous</span>
+                                </button>
+                                <span class="pagination-info" aria-live="polite">Page 1 of 1</span>
+                                <button class="btn-secondary btn-sm" disabled aria-label="Next page">
+                                    <span>Next</span> <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                                </button>
+                            </footer>
+                        </section>
                 </div>
             </main>
         </div>

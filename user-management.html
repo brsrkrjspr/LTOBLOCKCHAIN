@@ -776,7 +776,7 @@
                 font-weight: 700 !important;
             }
 
-            /* Hamburger button on RIGHT side */
+            /* Hamburger button on LEFT side */
             .mobile-menu-toggle {
                 display: flex !important;
                 align-items: center !important;
@@ -794,8 +794,8 @@
                 transition: all 0.2s ease !important;
                 flex-shrink: 0 !important;
                 box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
-                margin-left: auto !important; /* Push to right */
-                order: 999 !important; /* Ensure it's last */
+                margin-right: 1rem !important; /* Space after hamburger */
+                order: -1 !important; /* Ensure it's first (left side) */
             }
 
             .mobile-menu-toggle:active {
@@ -1282,18 +1282,18 @@
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
     <script>
-        // User Management - Ensure hamburger is on right side on mobile
+        // User Management - Ensure hamburger is on LEFT side on mobile
         (function() {
-            function ensureHamburgerOnRight() {
+            function ensureHamburgerOnLeft() {
                 const toggleBtn = document.querySelector('.mobile-menu-toggle');
                 const nav = document.querySelector('.dashboard-header .dashboard-nav');
                 
                 if (toggleBtn && nav && window.innerWidth <= 768) {
-                    // Ensure it's at the end (right side) - remove and append
+                    // Ensure it's at the beginning (left side) - remove and prepend
                     if (toggleBtn.parentNode === nav) {
                         toggleBtn.remove();
                     }
-                    nav.appendChild(toggleBtn);
+                    nav.insertBefore(toggleBtn, nav.firstChild);
                 }
             }
             
@@ -1304,7 +1304,7 @@
                     const toggleBtn = document.querySelector('.mobile-menu-toggle');
                     if (toggleBtn) {
                         clearInterval(checkInterval);
-                        ensureHamburgerOnRight();
+                        ensureHamburgerOnLeft();
                     }
                 }, 50);
                 
@@ -1323,7 +1323,7 @@
             // Handle window resize
             window.addEventListener('resize', function() {
                 if (window.innerWidth <= 768) {
-                    ensureHamburgerOnRight();
+                    ensureHamburgerOnLeft();
                 }
             });
             
@@ -1334,7 +1334,7 @@
                     mutations.forEach(function(mutation) {
                         mutation.addedNodes.forEach(function(node) {
                             if (node.nodeType === 1 && node.classList && node.classList.contains('mobile-menu-toggle')) {
-                                ensureHamburgerOnRight();
+                                ensureHamburgerOnLeft();
                             }
                         });
                     });

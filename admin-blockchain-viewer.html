@@ -878,7 +878,7 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">AD</div>
+                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">AD</div>
                     <div class="logo-text">
                         <h2>Admin</h2>
                         <p>Dashboard</p>
@@ -939,12 +939,8 @@
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
-                        <button class="sidebar-toggle" id="sidebarToggle">
-                            <i class="fas fa-bars"></i>
-                        </button>
                         <div class="logo">
                             <h1>LTO MANAGEMENT SYSTEM</h1>
-                            <p>Blockchain Ledger Viewer</p>
                         </div>
                     </div>
                 </div>
@@ -1119,11 +1115,11 @@
                 sidebar.classList.add('collapsed');
             }
 
-            // Sidebar toggle
-            const sidebarToggle = document.getElementById('sidebarToggle');
+            // Sidebar toggle via AD icon
+            const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
             
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function(e) {
+            if (sidebarToggleIcon && sidebar) {
+                const toggleSidebar = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
@@ -1131,6 +1127,13 @@
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                };
+                
+                sidebarToggleIcon.addEventListener('click', toggleSidebar);
+                sidebarToggleIcon.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
                 });
             }
 

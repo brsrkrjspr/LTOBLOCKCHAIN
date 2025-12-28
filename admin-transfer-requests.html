@@ -8,6 +8,55 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
+           SIDEBAR TRANSITIONS & HEADER IMPROVEMENTS
+           ============================================ */
+        
+        /* Smooth Sidebar Transitions */
+        .dashboard-sidebar {
+            transition: width 0.3s ease-in-out;
+        }
+        
+        .dashboard-main {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        
+        .dashboard-sidebar .logo-icon {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .dashboard-sidebar .logo-icon:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        
+        .dashboard-sidebar .logo-icon:active {
+            transform: scale(0.95);
+        }
+        
+        .dashboard-sidebar .logo-text {
+            transition: opacity 0.2s ease, width 0.3s ease;
+        }
+        
+        .dashboard-sidebar .nav-item span {
+            transition: opacity 0.2s ease;
+        }
+        
+        /* Header Logo Positioning */
+        .dashboard-header .logo {
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+        
+        .dashboard-header .logo h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        /* ============================================
            ADMIN TRANSFER REQUESTS - UI/UX IMPROVEMENTS
            ============================================ */
         
@@ -870,7 +919,7 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">AD</div>
+                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">AD</div>
                     <div class="logo-text">
                         <h2>Admin</h2>
                         <p>Dashboard</p>
@@ -932,9 +981,6 @@
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
-                        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-                            <i class="fas fa-bars"></i>
-                        </button>
                         <div class="logo">
                             <h1>LTO MANAGEMENT SYSTEM</h1>
                         </div>
@@ -1109,11 +1155,11 @@
                 sidebar.classList.add('collapsed');
             }
 
-            // Sidebar toggle
-            const sidebarToggle = document.getElementById('sidebarToggle');
+            // Sidebar toggle via AD icon
+            const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
             
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function(e) {
+            if (sidebarToggleIcon && sidebar) {
+                const toggleSidebar = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
@@ -1121,6 +1167,13 @@
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                };
+                
+                sidebarToggleIcon.addEventListener('click', toggleSidebar);
+                sidebarToggleIcon.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
                 });
             }
 

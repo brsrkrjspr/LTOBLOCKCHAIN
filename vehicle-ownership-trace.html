@@ -569,21 +569,126 @@
             background: #dee2e6;
         }
 
+        /* ============================================
+           MOBILE VIEW UI/UX IMPROVEMENTS ONLY
+           Mobile: max-width 768px
+           Desktop/Tablet: Unchanged
+           ============================================ */
+        
         @media (max-width: 768px) {
+            /* Search Form - Stack Vertically */
             .search-form {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+
+            .search-section {
+                padding: 1.5rem 1rem !important;
+            }
+
+            /* Unified Button System - All Buttons */
+            button,
+            .btn-trace,
+            .btn-view-blockchain,
+            .btn-copy-tx,
+            .btn-primary,
+            .btn-secondary {
+                min-height: 44px !important;
+                padding: 0.75rem 1.25rem !important;
+                font-size: 0.9375rem !important;
+                border-radius: 8px !important;
+                box-sizing: border-box !important;
+                width: 100% !important;
+            }
+
+            .btn-trace {
+                width: 100% !important;
+                justify-content: center !important;
+            }
+
+            /* Timeline Adjustments */
+            .timeline-container {
+                padding: 1.5rem 1rem !important;
+            }
+
+            .timeline-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1rem;
+            }
+
+            .timeline-header h3 {
+                font-size: 1.25rem !important;
+            }
+
+            .vehicle-info-summary {
+                flex-direction: column !important;
+                gap: 1rem !important;
+                width: 100%;
             }
 
             .timeline::before {
-                left: 1rem;
+                left: 1rem !important;
             }
 
             .timeline-node {
-                padding-left: 3.5rem;
+                padding-left: 3.5rem !important;
             }
 
             .timeline-node::before {
-                left: 0.5rem;
+                left: 0.5rem !important;
+            }
+
+            .timeline-node-card {
+                padding: 1rem !important;
+            }
+
+            /* Node Actions - Stack Vertically */
+            .node-actions {
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+            }
+
+            .node-actions button {
+                width: 100% !important;
+            }
+
+            /* Ensure No Overlap */
+            * {
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+
+            /* Container Padding */
+            .container {
+                padding: 1rem !important;
+            }
+        }
+
+            /* Additional Timeline Adjustments */
+            .timeline::before {
+                left: 1rem !important;
+            }
+
+            .timeline-node {
+                padding-left: 3.5rem !important;
+            }
+
+            .timeline-node::before {
+                left: 0.5rem !important;
+            }
+        }
+
+        /* Small Mobile (up to 480px) */
+        @media (max-width: 480px) {
+            .timeline-header h3 {
+                font-size: 1.125rem !important;
+            }
+
+            button,
+            .btn-trace {
+                padding: 0.625rem 1rem !important;
+                font-size: 0.875rem !important;
             }
         }
     </style>

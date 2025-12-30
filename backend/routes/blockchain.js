@@ -3,6 +3,11 @@ const express = require('express');
 const router = express.Router();
 const fabricService = require('../services/optimizedFabricService');
 
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
+}
+
 // Initialize Fabric service - MANDATORY Fabric connection (no fallbacks)
 fabricService.initialize().then(result => {
     if (result && result.mode === 'fabric') {
@@ -342,7 +347,7 @@ function authenticateToken(req, res, next) {
     }
 
     const jwt = require('jsonwebtoken');
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(403).json({
                 success: false,

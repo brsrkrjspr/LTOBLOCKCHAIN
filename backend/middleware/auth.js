@@ -1,6 +1,11 @@
 // TrustChain Authentication Middleware
 const jwt = require('jsonwebtoken');
 
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
+}
+
 // Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -13,7 +18,7 @@ function authenticateToken(req, res, next) {
         });
     }
 
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(403).json({
                 success: false,
@@ -31,7 +36,7 @@ function optionalAuth(req, res, next) {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (token) {
-        jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
+        jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
             if (!err && user) {
                 req.user = user;
             }

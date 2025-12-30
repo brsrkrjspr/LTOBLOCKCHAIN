@@ -11,8 +11,13 @@ const docTypes = require('../config/documentTypes');
 const jwt = require('jsonwebtoken');
 const { sendMail } = require('../services/gmailApiService');
 
-// Transfer invite token secret (fallbacks to JWT_SECRET for simplicity)
-const INVITE_TOKEN_SECRET = process.env.TRANSFER_INVITE_SECRET || process.env.JWT_SECRET || 'fallback-secret';
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
+}
+
+// Transfer invite token secret (uses JWT_SECRET if TRANSFER_INVITE_SECRET not set)
+const INVITE_TOKEN_SECRET = process.env.TRANSFER_INVITE_SECRET || process.env.JWT_SECRET;
 
 /**
  * Generate a short-lived transfer invite token that can be embedded in an email link.

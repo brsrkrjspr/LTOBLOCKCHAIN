@@ -9,7 +9,7 @@ const path = require('path');
 
 class StorageService {
     constructor() {
-        this.storageMode = process.env.STORAGE_MODE || 'auto'; // 'ipfs', 'local', or 'auto'
+        this.storageMode = process.env.STORAGE_MODE; // Must be 'ipfs' or 'local' - no auto mode
         this.currentMode = 'local'; // Will be set after initialization
         this.initialized = false;
     }
@@ -18,6 +18,11 @@ class StorageService {
     async initialize() {
         if (this.initialized) {
             return { success: true, mode: this.currentMode };
+        }
+
+        // Require explicit mode - no auto fallback
+        if (!this.storageMode || (this.storageMode !== 'ipfs' && this.storageMode !== 'local')) {
+            throw new Error('STORAGE_MODE must be set to either "ipfs" or "local" in .env file. Auto mode removed.');
         }
 
         // If mode is 'local', use local storage only
@@ -39,43 +44,9 @@ class StorageService {
                 return { success: true, mode: 'ipfs' };
             } else {
                 const errorMsg = ipfsResult.error || 'IPFS service not available';
-                console.error('❌ IPFS initialization failed:', errorMsg);
-                console.error('   Check: IPFS container running, API accessible at http://localhost:5001');
                 throw new Error(`IPFS mode requested (STORAGE_MODE=ipfs) but IPFS is not available: ${errorMsg}`);
             }
         }
-
-        // Auto mode: try IPFS first, fallback to local
-        if (this.storageMode === 'auto') {
-            const ipfsResult = await ipfsService.initialize();
-            if (ipfsResult.success && ipfsService.isAvailable()) {
-                this.currentMode = 'ipfs';
-                this.initialized = true;
-                console.log('🌐 Using IPFS storage (auto mode)');
-                return { success: true, mode: 'ipfs' };
-            } else {
-                // Retry IPFS connection once more
-                console.log('⚠️ IPFS initialization failed, retrying...');
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-                const retryResult = await ipfsService.initialize();
-                if (retryResult.success && ipfsService.isAvailable()) {
-                    this.currentMode = 'ipfs';
-                    this.initialized = true;
-                    console.log('🌐 Using IPFS storage (retry successful)');
-                    return { success: true, mode: 'ipfs' };
-                } else {
-                    this.currentMode = 'local';
-                    this.initialized = true;
-                    console.log('📁 Using local storage (IPFS unavailable, auto fallback)');
-                    return { success: true, mode: 'local' };
-                }
-            }
-        }
-
-        // Default to local
-        this.currentMode = 'local';
-        this.initialized = true;
-        return { success: true, mode: 'local' };
     }
 
     // Store document
@@ -94,13 +65,7 @@ class StorageService {
             await this.initialize();
         } catch (initError) {
             console.error('❌ Storage initialization error:', initError.message);
-            // If STORAGE_MODE=ipfs, don't silently fallback - the error will be thrown
-            if (this.storageMode === 'ipfs') {
-                throw initError; // Re-throw to fail the upload
-            }
-            // Only fallback to local if not in strict IPFS mode
-            console.warn('⚠️ Falling back to local storage due to initialization error');
-            this.currentMode = 'local';
+            throw initError; // Always throw - no fallback
         }
 
         if (this.currentMode === 'ipfs' && ipfsService.isAvailable()) {
@@ -196,21 +161,9 @@ class StorageService {
                     mimeType: document.mime_type
                 };
             } catch (error) {
-                console.error('❌ IPFS retrieval failed, trying local file:', error);
-                // If STORAGE_MODE=ipfs, don't fallback to local - fail if IPFS retrieval fails
-                if (this.storageMode === 'ipfs') {
-                    throw new Error(`IPFS storage is required (STORAGE_MODE=ipfs) but document retrieval from IPFS failed: ${error.message}`);
-                }
-                
-                // Only fallback to local file path if not in strict IPFS mode (for backward compatibility)
-                if (document.file_path && fs.existsSync(document.file_path)) {
-                    return {
-                        success: true,
-                        filePath: document.file_path,
-                        storageMode: 'local',
-                        mimeType: document.mime_type
-                    };
-                }
+                console.error('❌ IPFS retrieval failed:', error);
+                throw new Error(`IPFS storage is required (STORAGE_MODE=ipfs) but document retrieval from IPFS failed: ${error.message}`);
+            }
                 throw new Error(`Document retrieval failed: ${error.message}`);
             }
         } else {
@@ -262,8 +215,7 @@ class StorageService {
                 };
             } catch (error) {
                 console.error('❌ IPFS verification failed:', error);
-                // Fallback to local verification
-                return await localStorageService.verifyDocument(documentId);
+                throw new Error(`IPFS storage is required (STORAGE_MODE=ipfs) but document verification from IPFS failed: ${error.message}`);
             }
         } else {
             // Use local storage

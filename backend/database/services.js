@@ -1260,42 +1260,13 @@ async function generateOrNumber() {
         return orNumber;
         
     } catch (error) {
-        // If sequence doesn't exist (first run before migration), fall back to count-based
         if (error.message && error.message.includes('or_number_seq')) {
-            console.warn('OR sequence not found, using fallback method');
-            return generateOrNumberFallback();
+            throw new Error('OR number sequence not found. Run database migration to create or_number_seq sequence.');
         }
         throw error;
     }
 }
 
-/**
- * Fallback OR number generation (used if sequence doesn't exist)
- * Less atomic but works without migration
- */
-async function generateOrNumberFallback() {
-    const year = new Date().getFullYear();
-    
-    // Get the highest sequence number for this year (check both or_number and or_cr_number for backward compatibility)
-    const result = await db.query(
-        `SELECT COALESCE(MAX(CAST(SPLIT_PART(or_number, '-', 3) AS INTEGER)), 
-                        MAX(CAST(SPLIT_PART(or_cr_number, '-', 3) AS INTEGER)), 0) as max_seq
-         FROM vehicles 
-         WHERE (or_number LIKE $1 OR or_cr_number LIKE $2)`,
-        [`OR-${year}-%`, `ORCR-${year}-%`]
-    );
-    
-    let sequence = 1;
-    if (result.rows.length > 0 && result.rows[0].max_seq) {
-        sequence = parseInt(result.rows[0].max_seq) + 1;
-    }
-    
-    // Format: OR-YYYY-XXXXXX (6 digits)
-    const orNumber = `OR-${year}-${String(sequence).padStart(6, '0')}`;
-    
-    console.log(`[OR] Generated new number (fallback): ${orNumber}`);
-    return orNumber;
-}
 
 /**
  * Generate a unique CR (Certificate of Registration) number
@@ -1335,41 +1306,11 @@ async function generateCrNumber() {
         return crNumber;
         
     } catch (error) {
-        // If sequence doesn't exist (first run before migration), fall back to count-based
         if (error.message && error.message.includes('cr_number_seq')) {
-            console.warn('CR sequence not found, using fallback method');
-            return generateCrNumberFallback();
+            throw new Error('CR number sequence not found. Run database migration to create cr_number_seq sequence.');
         }
         throw error;
     }
-}
-
-/**
- * Fallback CR number generation (used if sequence doesn't exist)
- * Less atomic but works without migration
- */
-async function generateCrNumberFallback() {
-    const year = new Date().getFullYear();
-    
-    // Get the highest sequence number for this year (check both cr_number and or_cr_number for backward compatibility)
-    const result = await db.query(
-        `SELECT COALESCE(MAX(CAST(SPLIT_PART(cr_number, '-', 3) AS INTEGER)), 
-                        MAX(CAST(SPLIT_PART(or_cr_number, '-', 3) AS INTEGER)), 0) as max_seq
-         FROM vehicles 
-         WHERE (cr_number LIKE $1 OR or_cr_number LIKE $2)`,
-        [`CR-${year}-%`, `ORCR-${year}-%`]
-    );
-    
-    let sequence = 1;
-    if (result.rows.length > 0 && result.rows[0].max_seq) {
-        sequence = parseInt(result.rows[0].max_seq) + 1;
-    }
-    
-    // Format: CR-YYYY-XXXXXX (6 digits)
-    const crNumber = `CR-${year}-${String(sequence).padStart(6, '0')}`;
-    
-    console.log(`[CR] Generated new number (fallback): ${crNumber}`);
-    return crNumber;
 }
 
 /**
@@ -1418,14 +1359,6 @@ async function generateOrCrNumber() {
     return generateOrNumber();
 }
 
-/**
- * DEPRECATED: Fallback OR/CR number generation
- * @deprecated Use generateOrNumberFallback() and generateCrNumberFallback() instead
- */
-async function generateOrCrNumberFallback() {
-    console.warn('[DEPRECATED] generateOrCrNumberFallback() is deprecated.');
-    return generateOrNumberFallback();
-}
 
 /**
  * DEPRECATED: Assign OR/CR number to a vehicle (combined)
@@ -1486,40 +1419,11 @@ async function generateMvirNumber() {
         return mvirNumber;
         
     } catch (error) {
-        // If sequence doesn't exist (first run before migration), fall back to count-based
         if (error.message && error.message.includes('mvir_number_seq')) {
-            console.warn('MVIR sequence not found, using fallback method');
-            return generateMvirNumberFallback();
+            throw new Error('MVIR number sequence not found. Run database migration to create mvir_number_seq sequence.');
         }
         throw error;
     }
-}
-
-/**
- * Fallback MVIR number generation (used if sequence doesn't exist)
- * Less atomic but works without migration
- */
-async function generateMvirNumberFallback() {
-    const year = new Date().getFullYear();
-    
-    // Get the highest sequence number for this year
-    const result = await db.query(
-        `SELECT COALESCE(MAX(CAST(SPLIT_PART(mvir_number, '-', 3) AS INTEGER)), 0) as max_seq
-         FROM vehicles 
-         WHERE mvir_number LIKE $1`,
-        [`MVIR-${year}-%`]
-    );
-    
-    let sequence = 1;
-    if (result.rows.length > 0 && result.rows[0].max_seq) {
-        sequence = parseInt(result.rows[0].max_seq) + 1;
-    }
-    
-    // Format: MVIR-YYYY-XXXXXX (6 digits)
-    const mvirNumber = `MVIR-${year}-${String(sequence).padStart(6, '0')}`;
-    
-    console.log(`[MVIR] Generated new number (fallback): ${mvirNumber}`);
-    return mvirNumber;
 }
 
 /**
@@ -1646,18 +1550,14 @@ module.exports = {
     
     // OR/CR Number operations (new separate functions)
     generateOrNumber,
-    generateOrNumberFallback,
     generateCrNumber,
-    generateCrNumberFallback,
     assignOrAndCrNumbers,
     // Deprecated functions (kept for backward compatibility)
     generateOrCrNumber,
-    generateOrCrNumberFallback,
     assignOrCrNumber,
     
     // MVIR Number operations
     generateMvirNumber,
-    generateMvirNumberFallback,
     assignMvirNumber
 };
 

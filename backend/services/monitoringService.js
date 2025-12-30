@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const db = require('../database/db');
 
 class MonitoringService {
     constructor() {
@@ -252,55 +253,122 @@ class MonitoringService {
         }
     }
 
-    // Get request count (mock implementation)
-    getRequestCount() {
-        // In a real implementation, this would track actual request counts
-        return Math.floor(Math.random() * 1000) + 500;
+    // Get request count (real implementation)
+    async getRequestCount() {
+        try {
+            // If request_logs table exists, use it; otherwise throw error
+            const result = await db.query(
+                `SELECT COUNT(*) as count FROM request_logs WHERE created_at > NOW() - INTERVAL '24 hours'`
+            );
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get request count:', error);
+            throw new Error('Monitoring service: Failed to retrieve request count from database. Ensure request_logs table exists.');
+        }
     }
 
-    // Get error count (mock implementation)
-    getErrorCount() {
-        return Math.floor(Math.random() * 10);
+    // Get error count (real implementation)
+    async getErrorCount() {
+        try {
+            const result = await db.query(
+                `SELECT COUNT(*) as count FROM request_logs WHERE status_code >= 400 AND created_at > NOW() - INTERVAL '24 hours'`
+            );
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get error count:', error);
+            throw new Error('Monitoring service: Failed to retrieve error count from database.');
+        }
     }
 
-    // Get success count (mock implementation)
-    getSuccessCount() {
-        return this.getRequestCount() - this.getErrorCount();
+    // Get success count (real implementation)
+    async getSuccessCount() {
+        try {
+            const requestCount = await this.getRequestCount();
+            const errorCount = await this.getErrorCount();
+            return requestCount - errorCount;
+        } catch (error) {
+            console.error('Failed to get success count:', error);
+            throw new Error('Monitoring service: Failed to retrieve success count from database.');
+        }
     }
 
-    // Get active user count (mock implementation)
-    getActiveUserCount() {
-        return Math.floor(Math.random() * 50) + 10;
+    // Get active user count (real implementation)
+    async getActiveUserCount() {
+        try {
+            const result = await db.query(
+                `SELECT COUNT(DISTINCT user_id) as count FROM request_logs WHERE created_at > NOW() - INTERVAL '24 hours' AND user_id IS NOT NULL`
+            );
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get active user count:', error);
+            throw new Error('Monitoring service: Failed to retrieve active user count from database.');
+        }
     }
 
-    // Get total user count (mock implementation)
-    getTotalUserCount() {
-        return Math.floor(Math.random() * 200) + 100;
+    // Get total user count (real implementation)
+    async getTotalUserCount() {
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM users WHERE is_active = true');
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get total user count:', error);
+            throw new Error('Monitoring service: Failed to retrieve total user count from database.');
+        }
     }
 
-    // Get total vehicle count (mock implementation)
-    getTotalVehicleCount() {
-        return Math.floor(Math.random() * 500) + 200;
+    // Get total vehicle count (real implementation)
+    async getTotalVehicleCount() {
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM vehicles');
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get total vehicle count:', error);
+            throw new Error('Monitoring service: Failed to retrieve total vehicle count from database.');
+        }
     }
 
-    // Get pending vehicle count (mock implementation)
-    getPendingVehicleCount() {
-        return Math.floor(Math.random() * 50) + 10;
+    // Get pending vehicle count (real implementation)
+    async getPendingVehicleCount() {
+        try {
+            const result = await db.query(`SELECT COUNT(*) as count FROM vehicles WHERE status = 'PENDING'`);
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get pending vehicle count:', error);
+            throw new Error('Monitoring service: Failed to retrieve pending vehicle count from database.');
+        }
     }
 
-    // Get approved vehicle count (mock implementation)
-    getApprovedVehicleCount() {
-        return this.getTotalVehicleCount() - this.getPendingVehicleCount();
+    // Get approved vehicle count (real implementation)
+    async getApprovedVehicleCount() {
+        try {
+            const result = await db.query(`SELECT COUNT(*) as count FROM vehicles WHERE status = 'APPROVED' OR status = 'REGISTERED'`);
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get approved vehicle count:', error);
+            throw new Error('Monitoring service: Failed to retrieve approved vehicle count from database.');
+        }
     }
 
-    // Get total document count (mock implementation)
-    getTotalDocumentCount() {
-        return Math.floor(Math.random() * 1000) + 500;
+    // Get total document count (real implementation)
+    async getTotalDocumentCount() {
+        try {
+            const result = await db.query('SELECT COUNT(*) as count FROM documents');
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get total document count:', error);
+            throw new Error('Monitoring service: Failed to retrieve total document count from database.');
+        }
     }
 
-    // Get verified document count (mock implementation)
-    getVerifiedDocumentCount() {
-        return Math.floor(this.getTotalDocumentCount() * 0.8);
+    // Get verified document count (real implementation)
+    async getVerifiedDocumentCount() {
+        try {
+            const result = await db.query(`SELECT COUNT(*) as count FROM documents WHERE verification_status = 'VERIFIED'`);
+            return parseInt(result.rows[0]?.count) || 0;
+        } catch (error) {
+            console.error('Failed to get verified document count:', error);
+            throw new Error('Monitoring service: Failed to retrieve verified document count from database.');
+        }
     }
 
     // Get recent logs

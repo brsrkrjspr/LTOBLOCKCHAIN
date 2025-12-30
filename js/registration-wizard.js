@@ -436,37 +436,49 @@ function updateProgressBar() {
 }
 
 function updateReviewData() {
-    // Update review section with form data
-    const make = document.getElementById('make').value;
-    const model = document.getElementById('model').value;
-    const year = document.getElementById('year').value;
-    const color = document.getElementById('color').value;
-    const vehicleType = document.getElementById('vehicleType').value;
-    const plate = document.getElementById('plateNumber').value;
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
-    const email = document.getElementById('email').value;
-    const phone = document.getElementById('phone').value;
-    const idType = document.getElementById('idType').value;
+    // Update review section with form data (with null safety)
+    const make = document.getElementById('make')?.value || '';
+    const model = document.getElementById('model')?.value || '';
+    const year = document.getElementById('year')?.value || '';
+    const color = document.getElementById('color')?.value || '';
+    const vehicleType = document.getElementById('vehicleType')?.value || 'PASSENGER_CAR';
+    const plate = document.getElementById('plateNumber')?.value || '';
+    const firstName = document.getElementById('firstName')?.value || '';
+    const lastName = document.getElementById('lastName')?.value || '';
+    const email = document.getElementById('email')?.value || '';
+    const phone = document.getElementById('phone')?.value || '';
+    const idType = document.getElementById('idType')?.value || '';
 
-    // Map vehicle type value to display name
+    // Map vehicle type value to display name (handle both PASSENGER and PASSENGER_CAR)
     const vehicleTypeMap = {
-        'PASSENGER': 'Passenger Car',
+        'PASSENGER_CAR': 'Passenger Car',
+        'PASSENGER': 'Passenger Car', // Backward compatibility
         'MOTORCYCLE': 'Motorcycle',
         'UTILITY_VEHICLE': 'Utility Vehicle',
         'TRUCK': 'Truck',
         'BUS': 'Bus'
     };
 
-    document.getElementById('review-make-model').textContent = `${make} ${model}`;
-    document.getElementById('review-year').textContent = year;
-    document.getElementById('review-color').textContent = color;
-    document.getElementById('review-vehicle-type').textContent = vehicleTypeMap[vehicleType] || vehicleType || '-';
-    document.getElementById('review-plate').textContent = plate;
-    document.getElementById('review-name').textContent = `${firstName} ${lastName}`;
-    document.getElementById('review-email').textContent = email;
-    document.getElementById('review-phone').textContent = phone;
-    document.getElementById('review-id-type').textContent = idType;
+    // Safely update review elements with null checks
+    const reviewMakeModel = document.getElementById('review-make-model');
+    const reviewYear = document.getElementById('review-year');
+    const reviewColor = document.getElementById('review-color');
+    const reviewVehicleType = document.getElementById('review-vehicle-type');
+    const reviewPlate = document.getElementById('review-plate');
+    const reviewName = document.getElementById('review-name');
+    const reviewEmail = document.getElementById('review-email');
+    const reviewPhone = document.getElementById('review-phone');
+    const reviewIdType = document.getElementById('review-id-type');
+
+    if (reviewMakeModel) reviewMakeModel.textContent = (make && model) ? `${make} ${model}` : '-';
+    if (reviewYear) reviewYear.textContent = year || '-';
+    if (reviewColor) reviewColor.textContent = color || '-';
+    if (reviewVehicleType) reviewVehicleType.textContent = vehicleTypeMap[vehicleType] || vehicleType || '-';
+    if (reviewPlate) reviewPlate.textContent = plate || '-';
+    if (reviewName) reviewName.textContent = (firstName && lastName) ? `${firstName} ${lastName}` : '-';
+    if (reviewEmail) reviewEmail.textContent = email || '-';
+    if (reviewPhone) reviewPhone.textContent = phone || '-';
+    if (reviewIdType) reviewIdType.textContent = idType || '-';
 }
 
 async function submitApplication() {
@@ -624,55 +636,6 @@ async function submitApplication() {
         allButtons.forEach(btn => btn.disabled = false);
         currentAbortController = null;
     }
-}
-
-function collectApplicationData() {
-    // Generate unique application ID
-    const applicationId = 'APP-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
-    
-    // Collect vehicle information
-    const vehicleInfo = {
-        make: document.getElementById('make').value,
-        model: document.getElementById('model').value,
-        year: document.getElementById('year').value,
-        color: document.getElementById('color').value,
-        engineNumber: document.getElementById('engineNumber').value,
-        chassisNumber: document.getElementById('chassisNumber').value,
-        plateNumber: document.getElementById('plateNumber').value
-    };
-    
-    // Collect owner information
-    const ownerInfo = {
-        firstName: document.getElementById('firstName').value,
-        lastName: document.getElementById('lastName').value,
-        email: document.getElementById('email').value,
-        phone: document.getElementById('phone').value,
-        address: document.getElementById('address').value,
-        idType: document.getElementById('idType').value,
-        idNumber: document.getElementById('idNumber').value
-    };
-    
-    // Collect document information
-    const documents = {
-        registrationCert: document.getElementById('registrationCert').files[0]?.name || 'Not uploaded',
-        insuranceCert: document.getElementById('insuranceCert').files[0]?.name || 'Not uploaded',
-        emissionCert: document.getElementById('emissionCert').files[0]?.name || 'Not uploaded',
-        ownerId: document.getElementById('ownerId').files[0]?.name || 'Not uploaded'
-    };
-    
-    return {
-        id: applicationId,
-        vehicle: vehicleInfo,
-        owner: ownerInfo,
-        documents: documents,
-        status: 'submitted',
-        submittedDate: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        priority: 'medium',
-        adminNotes: '',
-        verifierNotes: '',
-        insuranceNotes: ''
-    };
 }
 
 function storeApplication(applicationData) {
@@ -936,7 +899,7 @@ function collectApplicationData() {
         engineNumber: document.getElementById('engineNumber')?.value || '',
         chassisNumber: document.getElementById('chassisNumber')?.value || '',
         plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
-        vehicleType: document.getElementById('vehicleType')?.value || 'PASSENGER',
+        vehicleType: document.getElementById('vehicleType')?.value || 'PASSENGER_CAR',
         fuelType: 'GASOLINE', // Default fuel type
         transmission: 'AUTOMATIC', // Default transmission
         engineDisplacement: '1.5L' // Default displacement

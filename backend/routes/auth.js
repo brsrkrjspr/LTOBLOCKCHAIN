@@ -6,6 +6,11 @@ const router = express.Router();
 const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
+}
+
 // Register new user
 router.post('/register', async (req, res) => {
     try {
@@ -51,7 +56,7 @@ router.post('/register', async (req, res) => {
                 email: newUser.email, 
                 role: newUser.role 
             },
-            process.env.JWT_SECRET || 'fallback-secret',
+            process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
         );
 
@@ -123,7 +128,7 @@ router.post('/login', async (req, res) => {
                 email: user.email, 
                 role: user.role 
             },
-            process.env.JWT_SECRET || 'fallback-secret',
+            process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
         );
 

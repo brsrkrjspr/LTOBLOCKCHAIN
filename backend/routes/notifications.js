@@ -3,30 +3,45 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const router = express.Router();
 
-// Mock notification service (in production, use real email/SMS services)
-class MockNotificationService {
-    static async sendEmail(to, subject, message) {
-        console.log(`Mock Email sent to: ${to}`);
-        console.log(`Subject: ${subject}`);
-        console.log(`Message: ${message}`);
-        
-        return {
-            success: true,
-            messageId: 'msg_' + Date.now(),
-            timestamp: new Date().toISOString()
-        };
-    }
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
+}
 
-    static async sendSMS(to, message) {
-        console.log(`Mock SMS sent to: ${to}`);
-        console.log(`Message: ${message}`);
-        
-        return {
-            success: true,
-            messageId: 'sms_' + Date.now(),
-            timestamp: new Date().toISOString()
-        };
+// Real email service - requires SMTP configuration
+async function sendEmail(to, subject, message) {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        throw new Error('Email service not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.');
     }
+    
+    const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+        }
+    });
+    
+    const info = await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: to,
+        subject: subject,
+        text: message,
+        html: message.replace(/\n/g, '<br>')
+    });
+    
+    return {
+        success: true,
+        messageId: info.messageId,
+        timestamp: new Date().toISOString()
+    };
+}
+
+// SMS service - throw error if not implemented
+async function sendSMS(to, message) {
+    throw new Error('SMS service not implemented. Configure SMS provider in environment variables.');
 }
 
 // Send notification
@@ -54,9 +69,9 @@ router.post('/send', authenticateToken, async (req, res) => {
         let result;
 
         if (type === 'email') {
-            result = await MockNotificationService.sendEmail(recipient, subject || 'TrustChain Notification', message);
+            result = await sendEmail(recipient, subject || 'TrustChain Notification', message);
         } else if (type === 'sms') {
-            result = await MockNotificationService.sendSMS(recipient, message);
+            result = await sendSMS(recipient, message);
         }
 
         // Log notification
@@ -121,7 +136,7 @@ Best regards,
 LTO Lipa City Team
         `;
 
-        const result = await MockNotificationService.sendEmail(ownerEmail, subject, message);
+        const result = await sendEmail(ownerEmail, subject, message);
 
         res.json({
             success: true,
@@ -187,7 +202,7 @@ Best regards,
 LTO Lipa City Team
         `;
 
-        const result = await MockNotificationService.sendEmail(ownerEmail, subject, message);
+        const result = await sendEmail(ownerEmail, subject, message);
 
         res.json({
             success: true,
@@ -266,8 +281,8 @@ Best regards,
 LTO Lipa City Team
         `;
 
-        const previousOwnerResult = await MockNotificationService.sendEmail(previousOwnerEmail, previousOwnerSubject, previousOwnerMessage);
-        const newOwnerResult = await MockNotificationService.sendEmail(newOwnerEmail, newOwnerSubject, newOwnerMessage);
+        const previousOwnerResult = await sendEmail(previousOwnerEmail, previousOwnerSubject, previousOwnerMessage);
+        const newOwnerResult = await sendEmail(newOwnerEmail, newOwnerSubject, newOwnerMessage);
 
         res.json({
             success: true,
@@ -333,7 +348,7 @@ Best regards,
 LTO Lipa City Team
         `;
 
-        const result = await MockNotificationService.sendEmail(ownerEmail, subject, message);
+        const result = await sendEmail(ownerEmail, subject, message);
 
         res.json({
             success: true,
@@ -451,7 +466,7 @@ function authenticateToken(req, res, next) {
     }
 
     const jwt = require('jsonwebtoken');
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(403).json({
                 success: false,

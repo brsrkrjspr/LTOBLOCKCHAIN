@@ -6,6 +6,7 @@ const db = require('../database/services');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const crypto = require('crypto');
+const { sendEmail } = require('./notifications');
 
 // Get all vehicles (admin only)
 router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -776,6 +777,42 @@ router.post('/register', optionalAuth, async (req, res) => {
         const fullVehicle = await db.getVehicleById(newVehicle.id);
         fullVehicle.verifications = await db.getVehicleVerifications(newVehicle.id);
         fullVehicle.documents = await db.getDocumentsByVehicle(newVehicle.id);
+
+        // Send email notification to owner
+        try {
+            const ownerName = `${ownerUser.first_name || owner.firstName} ${ownerUser.last_name || owner.lastName}`.trim() || ownerUser.email;
+            const subject = 'Vehicle Registration Submitted - TrustChain LTO';
+            const message = `
+Dear ${ownerName},
+
+Your vehicle registration has been successfully submitted to the TrustChain LTO System.
+
+Vehicle Details:
+- VIN: ${vehicle.vin}
+- Plate Number: ${vehicle.plateNumber}
+- Make/Model: ${vehicle.make} ${vehicle.model}
+- Year: ${vehicle.year}
+- Color: ${vehicle.color}
+- Vehicle Type: ${vehicle.vehicleType || 'Passenger Car'}
+- Registration Date: ${new Date().toLocaleDateString()}
+
+Your registration is now being processed. You will receive updates on the verification status of your documents.
+
+You can track your registration status by logging into your TrustChain account at ${process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org'}.
+
+Thank you for using TrustChain LTO System.
+
+Best regards,
+LTO Lipa City Team
+            `.trim();
+
+            await sendEmail(ownerUser.email, subject, message);
+            console.log('✅ Registration confirmation email sent to:', ownerUser.email);
+        } catch (emailError) {
+            console.error('❌ Failed to send registration email:', emailError);
+            // Don't fail the registration if email fails - registration is still successful
+            // Email is a notification, not critical to the registration process
+        }
 
         res.json({
             success: true,

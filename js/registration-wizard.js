@@ -121,9 +121,25 @@ function validateVehicleInfo() {
     const engineNumber = document.getElementById('engineNumber')?.value.trim() || '';
     const chassisNumber = document.getElementById('chassisNumber')?.value.trim() || '';
     const vin = document.getElementById('vin')?.value.trim().toUpperCase() || '';
+    const vehicleType = document.getElementById('vehicleType')?.value || '';
     
     let isValid = true;
     let errors = [];
+    
+    // Validate vehicle type (required field)
+    const vehicleTypeField = document.getElementById('vehicleType');
+    if (!vehicleType || !vehicleType.trim()) {
+        if (vehicleTypeField) {
+            vehicleTypeField.classList.add('invalid');
+            showFieldError(vehicleTypeField, 'Please select a vehicle type');
+        }
+        errors.push('Vehicle type is required');
+        isValid = false;
+    } else if (vehicleTypeField) {
+        vehicleTypeField.classList.remove('invalid');
+        vehicleTypeField.classList.add('valid');
+        hideFieldError(vehicleTypeField);
+    }
     
     // Validate VIN (17 characters, alphanumeric, no I, O, Q)
     const vinField = document.getElementById('vin');
@@ -441,7 +457,9 @@ function updateReviewData() {
     const model = document.getElementById('model')?.value || '';
     const year = document.getElementById('year')?.value || '';
     const color = document.getElementById('color')?.value || '';
-    const vehicleType = document.getElementById('vehicleType')?.value || 'PASSENGER_CAR';
+    // Fix: Handle empty string case - if empty, use default
+    const vehicleTypeRaw = document.getElementById('vehicleType')?.value || '';
+    const vehicleType = vehicleTypeRaw.trim() || 'PASSENGER_CAR';
     const plate = document.getElementById('plateNumber')?.value || '';
     const firstName = document.getElementById('firstName')?.value || '';
     const lastName = document.getElementById('lastName')?.value || '';
@@ -473,7 +491,11 @@ function updateReviewData() {
     if (reviewMakeModel) reviewMakeModel.textContent = (make && model) ? `${make} ${model}` : '-';
     if (reviewYear) reviewYear.textContent = year || '-';
     if (reviewColor) reviewColor.textContent = color || '-';
-    if (reviewVehicleType) reviewVehicleType.textContent = vehicleTypeMap[vehicleType] || vehicleType || '-';
+    // Fix: Map vehicle type value to display name with better fallback
+    const displayVehicleType = vehicleType && vehicleTypeMap[vehicleType] 
+        ? vehicleTypeMap[vehicleType] 
+        : (vehicleType || 'Passenger Car'); // Show the value or default display name
+    if (reviewVehicleType) reviewVehicleType.textContent = displayVehicleType;
     if (reviewPlate) reviewPlate.textContent = plate || '-';
     if (reviewName) reviewName.textContent = (firstName && lastName) ? `${firstName} ${lastName}` : '-';
     if (reviewEmail) reviewEmail.textContent = email || '-';

@@ -478,4 +478,8 @@ function authenticateToken(req, res, next) {
     });
 }
 
+// Export router as default (for backward compatibility with server.js)
 module.exports = router;
+// Also export functions so they can be imported by other routes
+module.exports.sendEmail = sendEmail;
+module.exports.sendSMS = sendSMS;

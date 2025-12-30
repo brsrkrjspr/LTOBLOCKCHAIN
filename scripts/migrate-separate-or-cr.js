@@ -11,22 +11,13 @@
  * 
  * Prerequisites:
  *   - Database migration (database/separate-or-cr.sql) must be run first
- *   - Database connection configured in backend/database/config.js
+ *   - Database connection configured in backend/database/db.js
  */
 
 const db = require('../backend/database/services');
-const { Pool } = require('pg');
+const dbModule = require('../backend/database/db'); // Use existing DB connection
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
-
-// Database connection
-const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'lto_blockchain',
-    user: process.env.DB_USER || 'lto_user',
-    password: process.env.DB_PASSWORD || 'lto_password'
-});
 
 async function migrateSeparateOrCr() {
     console.log('🚀 Starting OR/CR separation migration...\n');
@@ -36,8 +27,14 @@ async function migrateSeparateOrCr() {
     let errorCount = 0;
     
     try {
+        // Test database connection first
+        const connected = await dbModule.testConnection();
+        if (!connected) {
+            throw new Error('Failed to connect to database. Please check your .env file or environment variables.');
+        }
+        
         // Step 1: Get all vehicles
-        const vehiclesResult = await pool.query(`
+        const vehiclesResult = await dbModule.query(`
             SELECT id, vin, plate_number, or_cr_number, or_number, cr_number, 
                    or_cr_issued_at, registration_date, status
             FROM vehicles
@@ -63,7 +60,7 @@ async function migrateSeparateOrCr() {
                     const crNumber = vehicle.or_cr_number.replace('ORCR-', 'CR-');
                     const issuedAt = vehicle.or_cr_issued_at || vehicle.registration_date || new Date();
                     
-                    await pool.query(`
+                    await dbModule.query(`
                         UPDATE vehicles 
                         SET or_number = $1,
                             cr_number = $2,
@@ -83,7 +80,7 @@ async function migrateSeparateOrCr() {
                     const crNumber = await db.generateCrNumber();
                     const issuedAt = vehicle.registration_date || new Date();
                     
-                    await pool.query(`
+                    await dbModule.query(`
                         UPDATE vehicles 
                         SET or_number = $1,
                             cr_number = $2,
@@ -115,7 +112,7 @@ async function migrateSeparateOrCr() {
         
         // Step 4: Verification
         console.log('🔍 Verifying migration...\n');
-        const verificationResult = await pool.query(`
+        const verificationResult = await dbModule.query(`
             SELECT 
                 COUNT(*) as total,
                 COUNT(or_number) as with_or,
@@ -141,7 +138,7 @@ async function migrateSeparateOrCr() {
         console.error('❌ Migration failed:', error);
         throw error;
     } finally {
-        await pool.end();
+        await dbModule.close();
     }
 }
 
@@ -159,4 +156,3 @@ if (require.main === module) {
 }
 
 module.exports = { migrateSeparateOrCr };
-

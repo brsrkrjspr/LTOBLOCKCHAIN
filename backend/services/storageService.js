@@ -164,8 +164,6 @@ class StorageService {
                 console.error('❌ IPFS retrieval failed:', error);
                 throw new Error(`IPFS storage is required (STORAGE_MODE=ipfs) but document retrieval from IPFS failed: ${error.message}`);
             }
-                throw new Error(`Document retrieval failed: ${error.message}`);
-            }
         } else {
             // Use local file path from database
             if (document.file_path && fs.existsSync(document.file_path)) {

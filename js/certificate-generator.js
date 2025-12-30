@@ -114,29 +114,50 @@ const CertificateGenerator = {
     createCertificateHtml(vehicle, owner) {
         console.log('createCertificateHtml called');
         
-        const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
-        const regDate = vehicle.registration_date || vehicle.approved_at || vehicle.created_at;
+        // Separate OR and CR numbers (new format)
+        const orNumber = vehicle.or_number || vehicle.orNumber || vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
+        const crNumber = vehicle.cr_number || vehicle.crNumber || vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
+        
+        // Date of registration (separate from date issued)
+        // Enhanced fallback chain: date_of_registration -> registration_date -> or_issued_at -> cr_issued_at -> approved_at -> created_at -> current date
+        const dateOfRegistration = vehicle.date_of_registration || vehicle.registration_date || vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.approved_at || vehicle.created_at || new Date();
+        // Date issued - prefer OR/CR issued dates as they're more accurate
+        // Fallback chain: or_issued_at -> cr_issued_at -> registration_date -> approved_at -> created_at -> current date
+        const regDate = vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.registration_date || vehicle.approved_at || vehicle.created_at || new Date();
+        
         const regDateFormatted = regDate ?  
             new Date(regDate).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric'
-            }) : 'N/A';
+            }) : new Date().toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
         
         const regDateShort = regDate ?  
             new Date(regDate).toLocaleDateString('en-US', {
                 year: 'numeric', month: '2-digit', day: '2-digit'
-            }) : 'N/A';
+            }) : new Date().toLocaleDateString('en-US', {
+                year: 'numeric', month: '2-digit', day: '2-digit'
+            });
         
-        // Calculate validity date (3 years from registration)
-        const validityDate = regDate ?  
-            new Date(new Date(regDate).setFullYear(new Date(regDate).getFullYear() + 3)).toLocaleDateString('en-US', {
+        const dateOfRegFormatted = dateOfRegistration ?  
+            new Date(dateOfRegistration).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric'
-            }) : 'N/A';
+            }) : regDateFormatted;
+        
+        // Calculate validity date (1 year from registration - LTO standard)
+        // Use dateOfRegistration for expiration calculation as it represents when vehicle was registered
+        // Always calculate from dateOfRegistration (which now always has a value)
+        const validityDate = new Date(new Date(dateOfRegistration).setFullYear(new Date(dateOfRegistration).getFullYear() + 1)).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
         
         const ownerName = owner ?  
             `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email || 'N/A'
             : 'N/A';
         
-        const ownerAddress = owner?.address || owner?.full_address || 'N/A';
+        // Get address from owner object (from profile) or vehicle owner data (from vehicle response)
+        // Enhanced fallback: owner.address -> owner.full_address -> vehicle.owner.address -> vehicle.ownerAddress -> 'N/A'
+        const ownerAddress = owner?.address || owner?.full_address || (vehicle && vehicle.owner && vehicle.owner.address) || (vehicle && vehicle.ownerAddress) || 'N/A';
         const transactionType = vehicle.transaction_type || 'NEW REGISTRATION';
         const blockchainTxId = vehicle.blockchain_tx_id || vehicle.id || 'N/A';
         const verificationUrl = `${window.location.origin}/verify/${blockchainTxId}`;
@@ -154,9 +175,11 @@ const CertificateGenerator = {
         const fuelType = vehicle.fuel_type || vehicle.fuelType || 'N/A';
         const displacement = vehicle.displacement || vehicle.piston_displacement || 'N/A';
         const grossWeight = vehicle.gross_weight || vehicle.grossWeight || 'N/A';
+        const netWeight = vehicle.net_weight || vehicle.netWeight || 'N/A';
+        const registrationType = vehicle.registration_type || vehicle.registrationType || 'PRIVATE';
+        const vehicleClassification = vehicle.vehicle_classification || vehicle.vehicleClassification || 'N/A';
         
         // Payment details (if available)
-        const orNumber = vehicle.or_number || orCrNumber;
         const paymentDate = regDateShort;
         const paymentMode = vehicle.payment_mode || 'ONLINE';
         const amountPaid = vehicle.amount_paid || vehicle.total_amount || 'N/A';
@@ -165,8 +188,22 @@ const CertificateGenerator = {
         // Issuing office
         const issuingOffice = vehicle.issuing_office || 'LTO MAIN OFFICE';
         
+        // Inspection data (from LTO inspection or fallback to CR/OR dates)
+        // Enhanced fallback chain: inspection_date -> cr_issued_at -> or_issued_at -> regDate -> current date
+        const inspectionDate = vehicle.inspection_date || vehicle.inspectionDate || vehicle.cr_issued_at || vehicle.or_issued_at || regDate || new Date();
+        const inspectionDateFormatted = new Date(inspectionDate).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const inspectionResult = vehicle.inspection_result || vehicle.inspectionResult || 'PASS';
+        // Show 'PENDING' instead of 'N/A' if MVIR not generated yet (more user-friendly)
+        const mvirNumber = vehicle.mvir_number || vehicle.mvirNumber || 'PENDING';
+        const inspectionOfficer = vehicle.inspection_officer || vehicle.inspectionOfficer || 'LTO INSPECTION OFFICER';
+        const roadworthinessStatus = vehicle.roadworthiness_status || vehicle.roadworthinessStatus || 'ROADWORTHY';
+        const emissionCompliance = vehicle.emission_compliance || vehicle.emissionCompliance || 'COMPLIANT';
+        
         console.log('Certificate data:', {
-            orCrNumber,
+            orNumber,
+            crNumber,
             regDateFormatted,
             ownerName,
             plateNumber
@@ -411,16 +448,16 @@ const CertificateGenerator = {
 
         <div class="top-info-bar">
             <div class="col">
-                <span class="label">OR/CR Reference No.</span>
-                <span class="value">${this.escapeHtml(orCrNumber)}</span>
+                <span class="label">OR Number</span>
+                <span class="value">${this.escapeHtml(orNumber)}</span>
+            </div>
+            <div class="col">
+                <span class="label">CR Number</span>
+                <span class="value">${this.escapeHtml(crNumber)}</span>
             </div>
             <div class="col">
                 <span class="label">Date Issued</span>
                 <span class="value">${regDateShort}</span>
-            </div>
-            <div class="col">
-                <span class="label">Issuing Office</span>
-                <span class="value">${this.escapeHtml(issuingOffice)}</span>
             </div>
             <div class="col">
                 <span class="label">Registration Validity</span>
@@ -503,12 +540,56 @@ const CertificateGenerator = {
                         <span class="label">Gross Wt.</span>
                         <span class="value">${this.escapeHtml(grossWeight)}</span>
                     </div>
+                    <div class="col-third">
+                        <span class="label">Net Wt.</span>
+                        <span class="value">${this.escapeHtml(netWeight)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Registration Type</span>
+                        <span class="value">${this.escapeHtml(registrationType)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Classification</span>
+                        <span class="value">${this.escapeHtml(vehicleClassification)}</span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="section-box">
-            <div class="section-header">OFFICIAL RECEIPT DETAILS</div>
+            <div class="section-header">MOTOR VEHICLE INSPECTION REPORT (MVIR)</div>
+            <div class="section-body">
+                <div class="grid-row">
+                    <div class="col-half">
+                        <span class="label">Inspection Date</span>
+                        <span class="value">${inspectionDateFormatted}</span>
+                    </div>
+                    <div class="col-half">
+                        <span class="label">Inspection Result</span>
+                        <span class="value highlight">${this.escapeHtml(inspectionResult)}</span>
+                    </div>
+                    <div class="col-half">
+                        <span class="label">MVIR Number</span>
+                        <span class="value">${this.escapeHtml(mvirNumber)}</span>
+                    </div>
+                    <div class="col-half">
+                        <span class="label">Inspection Officer</span>
+                        <span class="value">${this.escapeHtml(inspectionOfficer)}</span>
+                    </div>
+                    <div class="col-full" style="margin-top: 10px;">
+                        <span class="label">Roadworthiness Status</span>
+                        <span class="value">${this.escapeHtml(roadworthinessStatus)}</span>
+                    </div>
+                    <div class="col-full">
+                        <span class="label">Emission Compliance</span>
+                        <span class="value">${this.escapeHtml(emissionCompliance)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-header">OFFICIAL RECEIPT (OR) DETAILS</div>
             <div class="section-body">
                 <div class="grid-row">
                     <div class="col-quarter">
@@ -530,6 +611,39 @@ const CertificateGenerator = {
                     <div class="col-full" style="margin-top: 10px;">
                         <span class="label">Purpose of Payment</span>
                         <span class="value">${this.escapeHtml(paymentPurpose)}</span>
+                    </div>
+                    <div class="col-full" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0;">
+                        <span class="label" style="font-size: 10px; margin-bottom: 5px;">Fee Breakdown:</span>
+                        <div style="font-size: 11px; color: #666;">
+                            <div>Registration Fee: ${this.escapeHtml(amountPaid !== 'N/A' ? 'Included' : 'N/A')}</div>
+                            <div>Insurance Fee: ${this.escapeHtml(amountPaid !== 'N/A' ? 'Included' : 'N/A')}</div>
+                            <div>Computer Fee: ${this.escapeHtml(amountPaid !== 'N/A' ? 'Included' : 'N/A')}</div>
+                            <div>Legal Research Fee: ${this.escapeHtml(amountPaid !== 'N/A' ? 'Included' : 'N/A')}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-header">CERTIFICATE OF REGISTRATION (CR) DETAILS</div>
+            <div class="section-body">
+                <div class="grid-row">
+                    <div class="col-half">
+                        <span class="label">CR Number</span>
+                        <span class="value">${this.escapeHtml(crNumber)}</span>
+                    </div>
+                    <div class="col-half">
+                        <span class="label">Date of Registration</span>
+                        <span class="value">${dateOfRegFormatted}</span>
+                    </div>
+                    <div class="col-half">
+                        <span class="label">Date Issued</span>
+                        <span class="value">${regDateFormatted}</span>
+                    </div>
+                    <div class="col-half">
+                        <span class="label">Expiration Date</span>
+                        <span class="value highlight">${validityDate}</span>
                     </div>
                 </div>
             </div>

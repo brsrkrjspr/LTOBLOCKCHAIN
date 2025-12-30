@@ -9,7 +9,7 @@ const { authenticateToken } = require('../middleware/auth');
 // Register new user
 router.post('/register', async (req, res) => {
     try {
-        const { email, password, firstName, lastName, role, organization, phone } = req.body;
+        const { email, password, firstName, lastName, role, organization, phone, address } = req.body;
 
         // Validate required fields
         if (!email || !password || !firstName || !lastName) {
@@ -40,7 +40,8 @@ router.post('/register', async (req, res) => {
             lastName,
             role: role || 'vehicle_owner',
             organization: organization || 'Individual',
-            phone
+            phone,
+            address
         });
 
         // Generate JWT token
@@ -66,6 +67,7 @@ router.post('/register', async (req, res) => {
                 role: newUser.role,
                 organization: newUser.organization,
                 phone: newUser.phone,
+                address: newUser.address,
                 createdAt: newUser.created_at
             },
             token
@@ -181,6 +183,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
                 role: user.role,
                 organization: user.organization,
                 phone: user.phone,
+                address: user.address,
                 isActive: user.is_active,
                 emailVerified: user.email_verified,
                 createdAt: user.created_at
@@ -199,7 +202,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
 // Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
     try {
-        const { firstName, lastName, organization, phone } = req.body;
+        const { firstName, lastName, organization, phone, address } = req.body;
         const user = await db.getUserById(req.user.userId);
         
         if (!user) {
@@ -215,6 +218,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
         if (lastName) updateData.last_name = lastName;
         if (organization) updateData.organization = organization;
         if (phone !== undefined) updateData.phone = phone;
+        if (address !== undefined) updateData.address = address;
 
         if (Object.keys(updateData).length > 0) {
             const dbModule = require('../database/db');
@@ -236,7 +240,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
                 lastName: updatedUser.last_name,
                 role: updatedUser.role,
                 organization: updatedUser.organization,
-                phone: updatedUser.phone
+                phone: updatedUser.phone,
+                address: updatedUser.address
             }
         });
 

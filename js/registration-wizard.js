@@ -441,6 +441,7 @@ function updateReviewData() {
     const model = document.getElementById('model').value;
     const year = document.getElementById('year').value;
     const color = document.getElementById('color').value;
+    const vehicleType = document.getElementById('vehicleType').value;
     const plate = document.getElementById('plateNumber').value;
     const firstName = document.getElementById('firstName').value;
     const lastName = document.getElementById('lastName').value;
@@ -448,9 +449,19 @@ function updateReviewData() {
     const phone = document.getElementById('phone').value;
     const idType = document.getElementById('idType').value;
 
+    // Map vehicle type value to display name
+    const vehicleTypeMap = {
+        'PASSENGER': 'Passenger Car',
+        'MOTORCYCLE': 'Motorcycle',
+        'UTILITY_VEHICLE': 'Utility Vehicle',
+        'TRUCK': 'Truck',
+        'BUS': 'Bus'
+    };
+
     document.getElementById('review-make-model').textContent = `${make} ${model}`;
     document.getElementById('review-year').textContent = year;
     document.getElementById('review-color').textContent = color;
+    document.getElementById('review-vehicle-type').textContent = vehicleTypeMap[vehicleType] || vehicleType || '-';
     document.getElementById('review-plate').textContent = plate;
     document.getElementById('review-name').textContent = `${firstName} ${lastName}`;
     document.getElementById('review-email').textContent = email;
@@ -925,7 +936,7 @@ function collectApplicationData() {
         engineNumber: document.getElementById('engineNumber')?.value || '',
         chassisNumber: document.getElementById('chassisNumber')?.value || '',
         plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
-        vehicleType: 'PASSENGER', // Default type
+        vehicleType: document.getElementById('vehicleType')?.value || 'PASSENGER',
         fuelType: 'GASOLINE', // Default fuel type
         transmission: 'AUTOMATIC', // Default transmission
         engineDisplacement: '1.5L' // Default displacement

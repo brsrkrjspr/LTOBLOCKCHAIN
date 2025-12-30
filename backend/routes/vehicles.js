@@ -1047,10 +1047,21 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                         engineDisplacement: vehicle.engine_displacement || null,
                         status: vehicle.status || null,
                         registrationDate: vehicle.registration_date || null,
-                        or_cr_number: vehicle.or_cr_number || null,
-                        orCrNumber: vehicle.or_cr_number || null,  // camelCase for frontend compatibility
-                        or_cr_issued_at: vehicle.or_cr_issued_at || null,
-                        orCrIssuedAt: vehicle.or_cr_issued_at || null  // camelCase for frontend compatibility
+                        // Separate OR and CR numbers (new format)
+                        orNumber: vehicle.or_number || null,
+                        crNumber: vehicle.cr_number || null,
+                        orIssuedAt: vehicle.or_issued_at || null,
+                        crIssuedAt: vehicle.cr_issued_at || null,
+                        // Backward compatibility (deprecated)
+                        or_cr_number: vehicle.or_number || vehicle.or_cr_number || null,
+                        orCrNumber: vehicle.or_number || vehicle.or_cr_number || null,  // camelCase for frontend compatibility
+                        or_cr_issued_at: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,
+                        orCrIssuedAt: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,  // camelCase for frontend compatibility
+                        // Additional fields
+                        dateOfRegistration: vehicle.date_of_registration || vehicle.registration_date || null,
+                        netWeight: vehicle.net_weight || null,
+                        registrationType: vehicle.registration_type || 'PRIVATE',
+                        vehicleClassification: vehicle.vehicle_classification || null
                     },
                     history: Array.isArray(history) ? history : []
                 });
@@ -1410,11 +1421,22 @@ function formatVehicleResponse(vehicle) {
         owner: ownerInfo,
         status: vehicle.status,
         registrationDate: vehicle.registration_date,
+        dateOfRegistration: vehicle.date_of_registration || vehicle.registration_date,
         lastUpdated: vehicle.last_updated,
-        orCrNumber: vehicle.or_cr_number || vehicle.orCrNumber,
-        or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber,
-        orCrIssuedAt: vehicle.or_cr_issued_at || vehicle.orCrIssuedAt,
-        or_cr_issued_at: vehicle.or_cr_issued_at || vehicle.orCrIssuedAt,
+        // Separate OR and CR numbers (new format)
+        orNumber: vehicle.or_number || null,
+        crNumber: vehicle.cr_number || null,
+        orIssuedAt: vehicle.or_issued_at || null,
+        crIssuedAt: vehicle.cr_issued_at || null,
+        // Backward compatibility (deprecated)
+        orCrNumber: vehicle.or_number || vehicle.or_cr_number || vehicle.orCrNumber || null,
+        or_cr_number: vehicle.or_number || vehicle.or_cr_number || null,
+        orCrIssuedAt: vehicle.or_issued_at || vehicle.or_cr_issued_at || vehicle.orCrIssuedAt || null,
+        or_cr_issued_at: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,
+        // Additional CR fields
+        netWeight: vehicle.net_weight || null,
+        registrationType: vehicle.registration_type || 'PRIVATE',
+        vehicleClassification: vehicle.vehicle_classification || null,
         verificationStatus: verificationStatus,
         verifications: vehicle.verifications || [],
         documents: formattedDocuments, // Use formatted documents with proper structure

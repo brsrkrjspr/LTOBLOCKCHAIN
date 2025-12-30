@@ -44,9 +44,11 @@ class VehicleRegistrationContract extends Contract {
             const txId = ctx.stub.getTxID();
             const timestamp = new Date().toISOString();
 
-            // Create vehicle record
+            // Create vehicle record (CR - Certificate of Registration - permanent identity)
             const vehicleRecord = {
+                docType: 'CR', // Certificate of Registration
                 vin: vehicle.vin,
+                crNumber: vehicle.crNumber || '', // Separate CR number
                 plateNumber: vehicle.plateNumber || '',
                 make: vehicle.make,
                 model: vehicle.model,
@@ -72,6 +74,7 @@ class VehicleRegistrationContract extends Contract {
                     emission: ''
                 },
                 registrationDate: timestamp,
+                dateOfRegistration: vehicle.dateOfRegistration || timestamp,
                 lastUpdated: timestamp,
                 priority: vehicle.priority || 'MEDIUM',
                 history: [{
@@ -83,11 +86,38 @@ class VehicleRegistrationContract extends Contract {
                 }],
                 blockchainTxId: txId,
                 createdBy: ctx.clientIdentity.getMSPID(),
-                createdAt: timestamp
+                createdAt: timestamp,
+                // Backward compatibility
+                orCrNumber: vehicle.crNumber || vehicle.orCrNumber || ''
             };
 
-            // Store vehicle in world state
+            // Store CR (Certificate of Registration) in world state
             await ctx.stub.putState(vehicle.vin, Buffer.from(JSON.stringify(vehicleRecord)));
+
+            // Create separate OR (Official Receipt) asset if OR number is provided
+            if (vehicle.orNumber) {
+                const orRecord = {
+                    docType: 'OR', // Official Receipt
+                    orNumber: vehicle.orNumber,
+                    relatedCR: vehicle.vin, // Link to CR via VIN
+                    crNumber: vehicle.crNumber || '',
+                    amountPaid: vehicle.amountPaid || 0,
+                    paymentDate: timestamp,
+                    expiryDate: vehicle.expiryDate || '',
+                    status: 'ACTIVE',
+                    registrationType: vehicle.registrationType || 'PRIVATE',
+                    issuedAt: timestamp,
+                    blockchainTxId: txId,
+                    createdBy: ctx.clientIdentity.getMSPID()
+                };
+                
+                // Store OR asset with OR number as key
+                await ctx.stub.putState(vehicle.orNumber, Buffer.from(JSON.stringify(orRecord)));
+                
+                // Create composite key for OR lookup by CR
+                const orCrKey = ctx.stub.createCompositeKey('or~cr', [vehicle.orNumber, vehicle.vin]);
+                await ctx.stub.putState(orCrKey, Buffer.from(vehicle.orNumber));
+            }
 
             // Create composite key for owner lookup
             const ownerKey = ctx.stub.createCompositeKey('owner~vin', [vehicle.owner.email, vehicle.vin]);
@@ -97,6 +127,12 @@ class VehicleRegistrationContract extends Contract {
             if (vehicle.plateNumber) {
                 const plateKey = ctx.stub.createCompositeKey('plate~vin', [vehicle.plateNumber, vehicle.vin]);
                 await ctx.stub.putState(plateKey, Buffer.from(vehicle.vin));
+            }
+            
+            // Create composite key for CR number lookup
+            if (vehicle.crNumber) {
+                const crKey = ctx.stub.createCompositeKey('cr~vin', [vehicle.crNumber, vehicle.vin]);
+                await ctx.stub.putState(crKey, Buffer.from(vehicle.vin));
             }
 
             // Emit event (payload must be Buffer/Uint8Array per Fabric spec)

@@ -87,13 +87,13 @@
         }
         
         /* OR/CR Number readonly styling */
-        #toOrCrNumber[readonly] {
+        #toOrNumber[readonly], #toCrNumber[readonly] {
             background-color: #f0f8ff;
             border-color: #3498db;
             cursor: not-allowed;
         }
         
-        #toOrCrNumber[readonly]:focus {
+        #toOrNumber[readonly]:focus, #toCrNumber[readonly]:focus {
             outline: none;
             box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
         }
@@ -325,13 +325,25 @@
                                         </div>
                                         <div class="form-group">
                                             <label>
-                                                OR/CR Number 
-                                                <span class="orcr-info-badge" id="orcrBadge" style="display: none;">
+                                                OR Number 
+                                                <span class="orcr-info-badge" id="orBadge" style="display: none;">
                                                     <i class="fas fa-lock"></i> System Assigned
                                                 </span>
                                             </label>
-                                            <input type="text" id="toOrCrNumber" placeholder="e.g., ORCR-2025-000001">
-                                            <small class="form-text text-muted" id="orcrHelpText">
+                                            <input type="text" id="toOrNumber" placeholder="e.g., OR-2025-000001" readonly>
+                                            <small class="form-text text-muted" id="orHelpText">
+                                                This will be auto-filled when you select a registered vehicle.
+                                            </small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                CR Number 
+                                                <span class="orcr-info-badge" id="crBadge" style="display: none;">
+                                                    <i class="fas fa-lock"></i> System Assigned
+                                                </span>
+                                            </label>
+                                            <input type="text" id="toCrNumber" placeholder="e.g., CR-2025-000001" readonly>
+                                            <small class="form-text text-muted" id="crHelpText">
                                                 This will be auto-filled when you select a registered vehicle.
                                             </small>
                                         </div>
@@ -494,7 +506,8 @@
                                                 <li><strong>Engine No.:</strong> <span id="summaryEngine">—</span></li>
                                                 <li><strong>Chassis No.:</strong> <span id="summaryChassis">—</span></li>
                                                 <li><strong>Type:</strong> <span id="summaryType">—</span></li>
-                                                <li><strong>OR/CR No.:</strong> <span id="summaryOrCr">—</span></li>
+                                                <li><strong>OR No.:</strong> <span id="summaryOr">—</span></li>
+                                                <li><strong>CR No.:</strong> <span id="summaryCr">—</span></li>
                                             </ul>
                                         </div>
                                         <div class="summary-card">
@@ -871,36 +884,46 @@
                 document.getElementById('toChassisNumber').value = vehicle.chassis_number || vehicle.chassisNumber || vehicle.vin || '';
                 document.getElementById('toVehicleType').value = vehicle.vehicle_type || vehicle.vehicleType || '';
                 
-                // Auto-fill OR/CR Number from vehicle record
-                const orCrField = document.getElementById('toOrCrNumber');
-                const orcrBadge = document.getElementById('orcrBadge');
-                const orcrHelpText = document.getElementById('orcrHelpText');
+                // Auto-fill separate OR and CR Numbers from vehicle record
+                const orField = document.getElementById('toOrNumber');
+                const crField = document.getElementById('toCrNumber');
+                const orBadge = document.getElementById('orBadge');
+                const crBadge = document.getElementById('crBadge');
+                const orHelpText = document.getElementById('orHelpText');
+                const crHelpText = document.getElementById('crHelpText');
                 
-                if (orCrField) {
-                    // Try multiple possible field names (camelCase and snake_case)
-                    const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || vehicle.orcr_number || '';
-                    orCrField.value = orCrNumber;
-                    
-                    // Make OR/CR field readonly if it has a value (system-assigned)
-                    if (orCrNumber) {
-                        orCrField.readOnly = true;
-                        orCrField.style.backgroundColor = '#f0f8ff';
-                        orCrField.title = 'OR/CR Number is assigned by the system and cannot be edited';
-                        
-                        // Show badge and hide help text
-                        if (orcrBadge) orcrBadge.style.display = 'inline-block';
-                        if (orcrHelpText) orcrHelpText.style.display = 'none';
+                // Get separate OR and CR numbers (new format)
+                const orNumber = vehicle.or_number || vehicle.orNumber || '';
+                const crNumber = vehicle.cr_number || vehicle.crNumber || '';
+                // Backward compatibility
+                const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || vehicle.orcr_number || '';
+                
+                if (orField) {
+                    orField.value = orNumber || (orCrNumber ? orCrNumber.replace('ORCR-', 'OR-') : '');
+                    if (orNumber || orCrNumber) {
+                        orField.style.backgroundColor = '#f0f8ff';
+                        if (orBadge) orBadge.style.display = 'inline-block';
+                        if (orHelpText) orHelpText.style.display = 'none';
                     } else {
-                        // If no OR/CR exists (edge case), allow manual entry
-                        orCrField.readOnly = false;
-                        orCrField.style.backgroundColor = '';
-                        orCrField.title = '';
-                        
-                        // Hide badge and show help text
-                        if (orcrBadge) orcrBadge.style.display = 'none';
-                        if (orcrHelpText) {
-                            orcrHelpText.style.display = 'block';
-                            orcrHelpText.textContent = 'No OR/CR number found for this vehicle. You may enter it manually if needed.';
+                        if (orBadge) orBadge.style.display = 'none';
+                        if (orHelpText) {
+                            orHelpText.style.display = 'block';
+                            orHelpText.textContent = 'No OR number found for this vehicle.';
+                        }
+                    }
+                }
+                
+                if (crField) {
+                    crField.value = crNumber || (orCrNumber ? orCrNumber.replace('ORCR-', 'CR-') : '');
+                    if (crNumber || orCrNumber) {
+                        crField.style.backgroundColor = '#f0f8ff';
+                        if (crBadge) crBadge.style.display = 'inline-block';
+                        if (crHelpText) crHelpText.style.display = 'none';
+                    } else {
+                        if (crBadge) crBadge.style.display = 'none';
+                        if (crHelpText) {
+                            crHelpText.style.display = 'block';
+                            crHelpText.textContent = 'No CR number found for this vehicle.';
                         }
                     }
                 }
@@ -1129,7 +1152,8 @@
                 const engine = document.getElementById('toEngineNumber');
                 const chassis = document.getElementById('toChassisNumber');
                 const type = document.getElementById('toVehicleType');
-                const orcr = document.getElementById('toOrCrNumber');
+                const orNumber = document.getElementById('toOrNumber');
+                const crNumber = document.getElementById('toCrNumber');
                 
                 // Validate required fields
                 if (!plate?.value.trim()) markInvalid(plate);

@@ -180,8 +180,11 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
     const color = vehicle.color ? ` • ${vehicle.color}` : '';
     const vehicleType = vehicle.vehicleType || vehicle.vehicle_type ? ` • ${vehicle.vehicleType || vehicle.vehicle_type}` : '';
 
-    // Get OR/CR Number
-    const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber || null;
+    // Get separate OR and CR Numbers (new format)
+    const orNumber = vehicle.or_number || vehicle.orNumber || null;
+    const crNumber = vehicle.cr_number || vehicle.crNumber || null;
+    // Backward compatibility
+    const orCrNumber = orNumber || vehicle.or_cr_number || vehicle.orCrNumber || null;
     const registrationDate = vehicle.registration_date || vehicle.registrationDate || null;
     // Normalize status for comparison (handle both uppercase and lowercase)
     const status = (vehicle.status || '').toUpperCase().trim();
@@ -218,15 +221,25 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
                 </div>
                 ` : ''}
                 
-                <!-- OR/CR Number - Prominently displayed -->
-                ${orCrNumber ? `
-                <div class="orcr-badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; margin-top: 1rem; text-align: center;">
-                    <small style="opacity: 0.8; display: block; font-size: 0.7rem; margin-bottom: 0.25rem;">OR/CR NUMBER</small>
-                    <strong style="font-size: 1.1rem; letter-spacing: 1px;">${escapeHtml(orCrNumber)}</strong>
+                <!-- Separate OR and CR Numbers - Prominently displayed -->
+                ${(orNumber || crNumber) ? `
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    ${orNumber ? `
+                    <div class="orcr-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
+                        <small style="opacity: 0.8; display: block; font-size: 0.7rem; margin-bottom: 0.25rem;">OR NUMBER</small>
+                        <strong style="font-size: 1.1rem; letter-spacing: 1px;">${escapeHtml(orNumber)}</strong>
+                    </div>
+                    ` : ''}
+                    ${crNumber ? `
+                    <div class="orcr-badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
+                        <small style="opacity: 0.8; display: block; font-size: 0.7rem; margin-bottom: 0.25rem;">CR NUMBER</small>
+                        <strong style="font-size: 1.1rem; letter-spacing: 1px;">${escapeHtml(crNumber)}</strong>
+                    </div>
+                    ` : ''}
                 </div>
                 ` : isRegistered ? `
                 <div style="background: #fff3cd; color: #856404; padding: 0.5rem 1rem; border-radius: 8px; margin-top: 1rem; text-align: center; font-size: 0.85rem;">
-                    <i class="fas fa-clock"></i> OR/CR Number: Pending Assignment
+                    <i class="fas fa-clock"></i> OR/CR Numbers: Pending Assignment
                 </div>
                 ` : ''}
                 
@@ -248,8 +261,8 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
                 ${isCurrent ? 'Current Owner' : 'Previous Owner'}
             </span>
             <div class="vehicle-actions">
-                ${isRegistered && orCrNumber ? `
-                    <button class="btn btn-certificate btn-download-cert" onclick="downloadVehicleCertificate('${escapeHtml(vehicle.id)}', '${escapeHtml(orCrNumber)}')" title="Download Registration Certificate">
+                ${isRegistered && (orNumber || crNumber || orCrNumber) ? `
+                    <button class="btn btn-certificate btn-download-cert" onclick="downloadVehicleCertificate('${escapeHtml(vehicle.id)}', '${escapeHtml(orNumber || crNumber || orCrNumber)}')" title="Download Registration Certificate">
                         <i class="fas fa-download"></i> Certificate
                     </button>
                 ` : ''}

@@ -86,14 +86,29 @@ class OptimizedFabricService {
         }
     }
 
-    // Register vehicle - Fabric only
+    // Register vehicle - Fabric only (with separate OR and CR)
     async registerVehicle(vehicleData) {
         if (!this.isConnected || this.mode !== 'fabric') {
             throw new Error('Not connected to Fabric network. Cannot register vehicle.');
         }
 
         try {
-            const vehicleJson = JSON.stringify(vehicleData);
+            // Ensure vehicleData includes separate OR and CR numbers
+            const vehiclePayload = {
+                ...vehicleData,
+                orNumber: vehicleData.orNumber || vehicleData.or_number || '',
+                crNumber: vehicleData.crNumber || vehicleData.cr_number || '',
+                dateOfRegistration: vehicleData.dateOfRegistration || vehicleData.date_of_registration || new Date().toISOString(),
+                registrationType: vehicleData.registrationType || vehicleData.registration_type || 'PRIVATE',
+                // Calculate expiry date (1 year from registration)
+                expiryDate: vehicleData.expiryDate || vehicleData.expiry_date || (() => {
+                    const expiry = new Date(vehicleData.dateOfRegistration || vehicleData.date_of_registration || new Date());
+                    expiry.setFullYear(expiry.getFullYear() + 1);
+                    return expiry.toISOString();
+                })()
+            };
+            
+            const vehicleJson = JSON.stringify(vehiclePayload);
             const fabricResult = await this.contract.submitTransaction('RegisterVehicle', vehicleJson);
             
             const result = {

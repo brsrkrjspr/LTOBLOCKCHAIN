@@ -540,7 +540,9 @@ function renderVehicleInfo(request) {
     const vehicleTypeEl = document.querySelector('[data-field="vehicle-type"]');
     const makeModelEl = document.querySelector('[data-field="make-model"]');
     const yearModelEl = document.querySelector('[data-field="year-model"]');
-    const orCrNumberEl = document.querySelector('[data-field="or-cr-number"]');
+    const orNumberEl = document.querySelector('[data-field="or-number"]');
+    const crNumberEl = document.querySelector('[data-field="cr-number"]');
+    const orCrNumberEl = document.querySelector('[data-field="or-cr-number"]'); // Backward compatibility
     const orDocEl = document.querySelector('[data-field="or-doc"]');
     const crDocEl = document.querySelector('[data-field="cr-doc"]');
 
@@ -552,9 +554,37 @@ function renderVehicleInfo(request) {
     if (yearModelEl) yearModelEl.textContent = vehicle.year || 'N/A';
     
     // Display OR/CR Number if available
+    // Display separate OR and CR numbers (new format)
+    const orNumber = vehicle.or_number || vehicle.orNumber;
+    const crNumber = vehicle.cr_number || vehicle.crNumber;
+    // Backward compatibility
+    const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber;
+    
+    if (orNumberEl) {
+        if (orNumber) {
+            orNumberEl.innerHTML = `<strong style="color: #667eea; font-size: 1.1em;">OR: ${orNumber}</strong>`;
+        } else if (orCrNumber) {
+            orNumberEl.innerHTML = `<strong style="color: #667eea; font-size: 1.1em;">OR: ${orCrNumber.replace('ORCR-', 'OR-')}</strong>`;
+        } else {
+            orNumberEl.textContent = 'Not yet assigned';
+        }
+    }
+    
+    if (crNumberEl) {
+        if (crNumber) {
+            crNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">CR: ${crNumber}</strong>`;
+        } else if (orCrNumber) {
+            crNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">CR: ${orCrNumber.replace('ORCR-', 'CR-')}</strong>`;
+        } else {
+            crNumberEl.textContent = 'Not yet assigned';
+        }
+    }
+    
+    // Backward compatibility - update old field if it exists
     if (orCrNumberEl) {
-        const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber;
-        if (orCrNumber) {
+        if (orNumber && crNumber) {
+            orCrNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">OR: ${orNumber} | CR: ${crNumber}</strong>`;
+        } else if (orCrNumber) {
             orCrNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">${orCrNumber}</strong>`;
         } else {
             orCrNumberEl.textContent = 'Not yet assigned';

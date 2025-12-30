@@ -19,9 +19,46 @@ const CertificateGenerator = {
                 throw new Error('Vehicle data is required');
             }
             
-            // Create certificate HTML
+            // Get real blockchain transaction ID from API
+            let blockchainTxId = vehicleData.blockchain_tx_id || vehicleData.id || 'N/A';
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const txResponse = await apiClient.get(`/api/vehicles/${vehicleData.id}/transaction-id`);
+                if (txResponse.success && txResponse.transactionId && txResponse.source === 'blockchain') {
+                    blockchainTxId = txResponse.transactionId;
+                    console.log('✅ Using blockchain transaction ID:', blockchainTxId);
+                } else {
+                    console.log('⚠️ Using fallback transaction ID:', blockchainTxId);
+                }
+            } catch (error) {
+                console.warn('Could not fetch transaction ID, using fallback:', error);
+                // Continue with fallback
+            }
+            
+            // Generate QR code for verification URL
+            const verificationUrl = `${window.location.origin}/verify/${blockchainTxId}`;
+            let qrCodeDataUrl = '';
+            try {
+                if (typeof QRCode !== 'undefined') {
+                    qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {
+                        width: 200,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#FFFFFF'
+                        }
+                    });
+                    console.log('✅ QR code generated successfully');
+                } else {
+                    console.warn('⚠️ QRCode library not loaded');
+                }
+            } catch (qrError) {
+                console.warn('⚠️ QR code generation failed:', qrError);
+            }
+            
+            // Create certificate HTML with real transaction ID and QR code
             console.log('Creating certificate HTML...');
-            const certificateHtml = this.createCertificateHtml(vehicleData, ownerData);
+            const certificateHtml = this.createCertificateHtml(vehicleData, ownerData, blockchainTxId, qrCodeDataUrl);
             console.log('Certificate HTML created, length:', certificateHtml.length);
             
             // Try to open print window
@@ -111,8 +148,12 @@ const CertificateGenerator = {
         }
     },
 
-    createCertificateHtml(vehicle, owner) {
+    createCertificateHtml(vehicle, owner, blockchainTxId, qrCodeDataUrl) {
         console.log('createCertificateHtml called');
+        
+        // Use provided transaction ID or fallback
+        const txId = blockchainTxId || vehicle.blockchain_tx_id || vehicle.id || 'N/A';
+        const verificationUrl = `${window.location.origin}/verify/${txId}`;
         
         // Separate OR and CR numbers (new format)
         const orNumber = vehicle.or_number || vehicle.orNumber || vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
@@ -159,8 +200,7 @@ const CertificateGenerator = {
         // Enhanced fallback: owner.address -> owner.full_address -> vehicle.owner.address -> vehicle.ownerAddress -> 'N/A'
         const ownerAddress = owner?.address || owner?.full_address || (vehicle && vehicle.owner && vehicle.owner.address) || (vehicle && vehicle.ownerAddress) || 'N/A';
         const transactionType = vehicle.transaction_type || 'NEW REGISTRATION';
-        const blockchainTxId = vehicle.blockchain_tx_id || vehicle.id || 'N/A';
-        const verificationUrl = `${window.location.origin}/verify/${blockchainTxId}`;
+        // blockchainTxId and verificationUrl are now passed as parameters
         
         // Vehicle details
         const plateNumber = vehicle.plate_number || vehicle.plateNumber || 'N/A';
@@ -653,13 +693,33 @@ const CertificateGenerator = {
             <div class="section-header">BLOCKCHAIN VERIFICATION</div>
             <div class="section-body">
                 <div class="blockchain-container">
-                    <div class="qr-box">
-                        [QR PLACEHOLDER]
+                    <div class="qr-box" style="text-align: center; margin-bottom: 20px;">
+                        ${qrCodeDataUrl ? `
+                        <div style="display: inline-block; padding: 15px; background: white; border: 2px solid #003366; border-radius: 8px;">
+                            <img src="${qrCodeDataUrl}" 
+                                 alt="Blockchain Verification QR Code" 
+                                 style="width: 200px; height: 200px; display: block;">
+                            <p style="margin-top: 10px; font-size: 11px; color: #666;">
+                                Scan to verify on blockchain
+                            </p>
+                        </div>
+                        ` : `
+                        <div style="display: inline-block; padding: 15px; background: #f0f0f0; border: 2px dashed #ccc; border-radius: 8px; color: #999; font-size: 11px;">
+                            QR Code unavailable
+                        </div>
+                        `}
                     </div>
                     <div class="hash-container">
-                        <span class="label">Blockchain Transaction Hash</span>
-                        <div class="hash-code">${this.escapeHtml(blockchainTxId)}</div>
-                        <div class="notice-text">
+                        <span class="label">Blockchain Transaction ID</span>
+                        <div class="hash-code">${this.escapeHtml(txId)}</div>
+                        <div style="margin-top: 10px; text-align: center;">
+                            <a href="${verificationUrl}" 
+                               target="_blank"
+                               style="display: inline-block; padding: 8px 16px; background: #003366; color: white; text-decoration: none; border-radius: 4px; font-size: 12px;">
+                                <i class="fas fa-external-link-alt"></i> Verify Online
+                            </a>
+                        </div>
+                        <div class="notice-text" style="margin-top: 15px;">
                             SYSTEM NOTICE: This document is digitally generated and secured via the LTO Private Blockchain. 
                             The QR code above contains the cryptographic proof of ownership and registration validity. 
                             No physical signature is required. This document is tamper-proof.
@@ -671,7 +731,7 @@ const CertificateGenerator = {
 
         <div class="footer">
             <h3>AUTHORIZED BY: LAND TRANSPORTATION OFFICE</h3>
-            <p>Digitally Signed: ${new Date().toLocaleString()} | Server ID: ${this.escapeHtml(blockchainTxId)}</p>
+            <p>Digitally Signed: ${new Date().toLocaleString()} | Transaction ID: ${this.escapeHtml(txId)}</p>
         </div>
 
     </div>

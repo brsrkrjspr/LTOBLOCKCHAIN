@@ -9,11 +9,23 @@ document.addEventListener('DOMContentLoaded', function() {
 let isSubmitting = false;
 let currentAbortController = null;
 
+// Store vehicle type value when selected
+let storedVehicleType = null;
+
 function initializeRegistrationWizard() {
     // Initialize wizard functionality
     initializeFormValidation();
     initializeFileUploads();
     initializeProgressTracking();
+    
+    // Store vehicle type when it changes
+    const vehicleTypeSelect = document.getElementById('vehicleType');
+    if (vehicleTypeSelect) {
+        vehicleTypeSelect.addEventListener('change', function() {
+            storedVehicleType = this.value;
+            console.log('Vehicle type selected and stored:', storedVehicleType);
+        });
+    }
     
     // Initialize auto-save
     const form = document.querySelector('.wizard-form');
@@ -40,7 +52,10 @@ function nextStep() {
             
             // Update review data if on final step
             if (currentStep === 4) {
-                updateReviewData();
+                // Use setTimeout to ensure DOM is fully rendered before updating
+                setTimeout(() => {
+                    updateReviewData();
+                }, 100);
             }
             
             // Scroll to top of form
@@ -458,8 +473,16 @@ function updateReviewData() {
     const year = document.getElementById('year')?.value || '';
     const color = document.getElementById('color')?.value || '';
     // Fix: Handle empty string case - if empty, use default
+    // Try to get value from element first, then from stored value
     const vehicleTypeElement = document.getElementById('vehicleType');
-    const vehicleTypeRaw = vehicleTypeElement?.value || '';
+    let vehicleTypeRaw = vehicleTypeElement?.value || '';
+    
+    // If element value is empty, try stored value
+    if (!vehicleTypeRaw && storedVehicleType) {
+        vehicleTypeRaw = storedVehicleType;
+        console.log('Using stored vehicle type:', storedVehicleType);
+    }
+    
     const vehicleType = vehicleTypeRaw.trim() || 'PASSENGER_CAR';
     const plate = document.getElementById('plateNumber')?.value || '';
     const firstName = document.getElementById('firstName')?.value || '';
@@ -501,23 +524,49 @@ function updateReviewData() {
     if (reviewMakeModel) reviewMakeModel.textContent = (make && model) ? `${make} ${model}` : '-';
     if (reviewYear) reviewYear.textContent = year || '-';
     if (reviewColor) reviewColor.textContent = color || '-';
+    
     // Fix: Map vehicle type value to display name with better fallback
     // If vehicleType is empty or not in map, use default 'Passenger Car'
     let displayVehicleType = 'Passenger Car'; // Default
-    if (vehicleType && vehicleTypeMap[vehicleType]) {
-        displayVehicleType = vehicleTypeMap[vehicleType];
-    } else if (vehicleType) {
-        // If we have a value but it's not in the map, try to use the selected option text
-        const selectedOption = vehicleTypeElement?.options[vehicleTypeElement?.selectedIndex];
-        if (selectedOption && selectedOption.text && selectedOption.value) {
+    
+    // First, try to get the value from the select element directly
+    if (vehicleTypeElement) {
+        const selectedValue = vehicleTypeElement.value;
+        const selectedIndex = vehicleTypeElement.selectedIndex;
+        const selectedOption = vehicleTypeElement.options[selectedIndex];
+        
+        console.log('updateReviewData - select element details:', {
+            selectedValue,
+            selectedIndex,
+            selectedOptionText: selectedOption?.text,
+            selectedOptionValue: selectedOption?.value
+        });
+        
+        // If we have a selected option with a value, use it
+        if (selectedValue && selectedValue.trim()) {
+            if (vehicleTypeMap[selectedValue]) {
+                displayVehicleType = vehicleTypeMap[selectedValue];
+            } else if (selectedOption && selectedOption.text) {
+                // Use the option text as fallback
+                displayVehicleType = selectedOption.text;
+            }
+        } else if (selectedOption && selectedOption.text && selectedOption.value) {
+            // Fallback to option text if value is empty but option exists
             displayVehicleType = selectedOption.text;
-        } else {
-            displayVehicleType = vehicleType; // Fallback to raw value
+        }
+    } else {
+        // If element not found, try using the vehicleType variable
+        if (vehicleType && vehicleTypeMap[vehicleType]) {
+            displayVehicleType = vehicleTypeMap[vehicleType];
+        } else if (vehicleType) {
+            displayVehicleType = vehicleType;
         }
     }
-    console.log('updateReviewData - displayVehicleType:', displayVehicleType);
+    
+    console.log('updateReviewData - final displayVehicleType:', displayVehicleType);
     if (reviewVehicleType) {
         reviewVehicleType.textContent = displayVehicleType;
+        console.log('updateReviewData - set textContent to:', displayVehicleType);
     } else {
         console.error('review-vehicle-type element not found!');
     }

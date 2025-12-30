@@ -372,4 +372,104 @@ function authorizeRole(allowedRoles) {
     };
 }
 
+// GET /api/blockchain/transactions/:txId - Get transaction details by ID
+router.get('/transactions/:txId', authenticateToken, optionalAuth, async (req, res) => {
+    try {
+        const { txId } = req.params;
+        
+        if (!txId || txId === 'undefined' || txId === 'null') {
+            return res.status(400).json({
+                success: false,
+                error: 'Transaction ID is required'
+            });
+        }
+        
+        const db = require('../database/db');
+        
+        // Check if Fabric is available
+        if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
+            // If not connected, try to get transaction info from vehicle_history
+            const historyResult = await db.query(
+                `SELECT vh.*, v.vin, v.plate_number 
+                 FROM vehicle_history vh
+                 JOIN vehicles v ON vh.vehicle_id = v.id
+                 WHERE vh.transaction_id = $1
+                 ORDER BY vh.performed_at DESC
+                 LIMIT 1`,
+                [txId]
+            );
+            
+            if (historyResult.rows.length > 0) {
+                const history = historyResult.rows[0];
+                return res.json({
+                    success: true,
+                    transaction: {
+                        txId: history.transaction_id,
+                        timestamp: history.performed_at,
+                        vehicleVin: history.vin,
+                        vehiclePlate: history.plate_number,
+                        action: history.action,
+                        description: history.description,
+                        source: 'database'
+                    }
+                });
+            }
+            
+            return res.status(404).json({
+                success: false,
+                error: 'Transaction not found'
+            });
+        }
+        
+        // Get transaction details from Fabric
+        try {
+            const transaction = await fabricService.getTransaction(txId);
+            res.json({
+                success: true,
+                transaction: {
+                    ...transaction,
+                    source: 'blockchain'
+                }
+            });
+        } catch (fabricError) {
+            // Fallback to database if Fabric query fails
+            const db = require('../database/db');
+            const historyResult = await db.query(
+                `SELECT vh.*, v.vin, v.plate_number 
+                 FROM vehicle_history vh
+                 JOIN vehicles v ON vh.vehicle_id = v.id
+                 WHERE vh.transaction_id = $1
+                 ORDER BY vh.performed_at DESC
+                 LIMIT 1`,
+                [txId]
+            );
+            
+            if (historyResult.rows.length > 0) {
+                const history = historyResult.rows[0];
+                return res.json({
+                    success: true,
+                    transaction: {
+                        txId: history.transaction_id,
+                        timestamp: history.performed_at,
+                        vehicleVin: history.vin,
+                        vehiclePlate: history.plate_number,
+                        action: history.action,
+                        description: history.description,
+                        source: 'database'
+                    }
+                });
+            }
+            
+            throw fabricError;
+        }
+        
+    } catch (error) {
+        console.error('Error getting transaction:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to retrieve transaction'
+        });
+    }
+});
+
 module.exports = router;

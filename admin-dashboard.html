@@ -461,6 +461,22 @@
 
                 <!-- Quick Actions -->
                 <div class="section-header">
+                    <!-- Transaction Search Section -->
+                    <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                        <h3><i class="fas fa-search"></i> Search Transaction</h3>
+                        <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details</p>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                            <input type="text" 
+                                   id="txSearchInput" 
+                                   placeholder="Enter Transaction ID" 
+                                   style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                            <button onclick="searchTransaction()" class="btn-primary" style="padding: 0.75rem 1.5rem;">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                        <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in blockchain records.</small>
+                    </div>
+
                     <h2 class="section-title">Quick Actions</h2>
                     <p class="section-subtitle">Access frequently used features</p>
                 </div>
@@ -935,6 +951,31 @@
         
         // Call loadDashboardStats on page load
         loadDashboardStats();
+    </script>
+    <script>
+        // Transaction search function
+        async function searchTransaction() {
+            const txId = document.getElementById('txSearchInput').value.trim();
+            if (!txId) {
+                alert('Please enter a Transaction ID');
+                return;
+            }
+            
+            // Redirect to blockchain viewer with transaction ID
+            window.location.href = `admin-blockchain-viewer.html?txId=${encodeURIComponent(txId)}`;
+        }
+        
+        // Allow Enter key to trigger search
+        document.addEventListener('DOMContentLoaded', function() {
+            const txSearchInput = document.getElementById('txSearchInput');
+            if (txSearchInput) {
+                txSearchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchTransaction();
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

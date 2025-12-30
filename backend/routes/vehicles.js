@@ -198,6 +198,57 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
 });
 
 // Get vehicle by ID (for admin/owner viewing by UUID)
+// GET /api/vehicles/:id/transaction-id - Get blockchain transaction ID for vehicle
+router.get('/:id/transaction-id', authenticateToken, optionalAuth, async (req, res) => {
+    try {
+        const vehicleId = req.params.id;
+        
+        // Get vehicle to verify it exists
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+        
+        // Get latest blockchain transaction ID from vehicle history
+        const history = await db.getVehicleHistory(vehicleId, 50);
+        
+        // Find the most recent transaction with a transaction_id
+        // Priority: BLOCKCHAIN_REGISTERED > REGISTERED > any other with transaction_id
+        let transactionId = null;
+        
+        // First, try to find BLOCKCHAIN_REGISTERED
+        const blockchainRegistered = history.find(h => 
+            h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id
+        );
+        if (blockchainRegistered) {
+            transactionId = blockchainRegistered.transaction_id;
+        } else {
+            // Fallback to any transaction with transaction_id
+            const anyTx = history.find(h => h.transaction_id);
+            if (anyTx) {
+                transactionId = anyTx.transaction_id;
+            }
+        }
+        
+        // If no transaction ID found, return vehicle ID as fallback (for backward compatibility)
+        res.json({
+            success: true,
+            transactionId: transactionId || vehicle.id,
+            source: transactionId ? 'blockchain' : 'vehicle_id'
+        });
+        
+    } catch (error) {
+        console.error('Error getting vehicle transaction ID:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to get transaction ID'
+        });
+    }
+});
+
 router.get('/id/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;

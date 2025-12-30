@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Transaction - TrustChain LTO</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .verification-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .transaction-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+        .status-verified {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        code {
+            background: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        .btn-primary {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="verification-container">
+        <h1><i class="fas fa-shield-alt"></i> Blockchain Transaction Verification</h1>
+        <div id="transactionDetails">
+            <p>Loading transaction details...</p>
+        </div>
+    </div>
+    
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script>
+        // Get transaction ID from URL
+        const urlPath = window.location.pathname;
+        let txId = urlPath.split('/').pop();
+        
+        // Remove .html if present
+        if (txId.endsWith('.html')) {
+            txId = txId.replace('.html', '');
+        }
+        
+        // Also check query parameter
+        if (!txId || txId === 'verify') {
+            txId = new URLSearchParams(window.location.search).get('txId');
+        }
+        
+        if (txId && txId !== 'verify') {
+            loadTransactionDetails(txId);
+        } else {
+            document.getElementById('transactionDetails').innerHTML = 
+                '<div class="transaction-card"><p style="color: red;">No transaction ID provided.</p></div>';
+        }
+        
+        async function loadTransactionDetails(txId) {
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                
+                // Try to get transaction (may require auth for full details)
+                let response;
+                try {
+                    response = await apiClient.get(`/api/blockchain/transactions/${txId}`);
+                } catch (authError) {
+                    // If auth fails, show basic info (public view)
+                    document.getElementById('transactionDetails').innerHTML = `
+                        <div class="transaction-card">
+                            <h3>Transaction ID: <code>${txId}</code></h3>
+                            <div class="status-badge status-pending">
+                                <i class="fas fa-clock"></i> VERIFICATION PENDING
+                            </div>
+                            <p style="margin-top: 1rem;">This transaction ID exists in the system.</p>
+                            <p>Please <a href="login-signup.html">log in</a> to view full transaction details and blockchain verification.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                if (response.success && response.transaction) {
+                    displayTransaction(response.transaction, txId);
+                } else {
+                    document.getElementById('transactionDetails').innerHTML = 
+                        `<div class="transaction-card">
+                            <div class="status-badge status-error">
+                                <i class="fas fa-times-circle"></i> NOT FOUND
+                            </div>
+                            <p style="margin-top: 1rem;">Transaction not found: <code>${txId}</code></p>
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById('transactionDetails').innerHTML = 
+                    `<div class="transaction-card">
+                        <div class="status-badge status-error">
+                            <i class="fas fa-exclamation-triangle"></i> ERROR
+                        </div>
+                        <p style="margin-top: 1rem;">Error loading transaction: ${error.message}</p>
+                    </div>`;
+            }
+        }
+        
+        function displayTransaction(tx, txId) {
+            const html = `
+                <div class="transaction-card">
+                    <div class="status-badge status-verified">
+                        <i class="fas fa-check-circle"></i> VERIFIED
+                    </div>
+                    <h2 style="margin-top: 1rem;">Transaction Verified on Blockchain</h2>
+                    <p><strong>Transaction ID:</strong> <code>${txId}</code></p>
+                    <p><strong>Timestamp:</strong> ${tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'N/A'}</p>
+                    <p><strong>Validation Code:</strong> ${tx.validationCode || 'VALID'}</p>
+                    ${tx.vehicleVin ? `<p><strong>Vehicle VIN:</strong> ${tx.vehicleVin}</p>` : ''}
+                    ${tx.vehiclePlate ? `<p><strong>Plate Number:</strong> ${tx.vehiclePlate}</p>` : ''}
+                    ${tx.action ? `<p><strong>Action:</strong> ${tx.action}</p>` : ''}
+                    ${tx.description ? `<p><strong>Description:</strong> ${tx.description}</p>` : ''}
+                    ${tx.blockNumber ? `<p><strong>Block Number:</strong> ${tx.blockNumber}</p>` : ''}
+                    <p><strong>Source:</strong> ${tx.source === 'blockchain' ? 'Hyperledger Fabric Blockchain' : 'Database Record'}</p>
+                    <div style="margin-top: 1.5rem;">
+                        <a href="admin-blockchain-viewer.html?txId=${txId}" class="btn-primary">
+                            <i class="fas fa-external-link-alt"></i> View Full Details
+                        </a>
+                    </div>
+                </div>
+            `;
+            document.getElementById('transactionDetails').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
+

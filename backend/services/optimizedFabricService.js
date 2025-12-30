@@ -567,6 +567,33 @@ class OptimizedFabricService {
     }
 }
 
+    // Get transaction details by transaction ID
+    async getTransaction(txId) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network');
+        }
+        
+        try {
+            // Get channel from network
+            const channel = this.network.getChannel();
+            
+            // Query transaction by ID
+            const transaction = await channel.queryTransaction(txId);
+            
+            return {
+                txId: transaction.transactionId,
+                timestamp: transaction.timestamp,
+                validationCode: transaction.validationCode,
+                blockNumber: transaction.blockNumber,
+                // Add more details as available
+            };
+        } catch (error) {
+            console.error('Error getting transaction from Fabric:', error);
+            throw new Error(`Failed to get transaction: ${error.message}`);
+        }
+    }
+}
+
 // Create singleton instance
 const optimizedFabricService = new OptimizedFabricService();
 

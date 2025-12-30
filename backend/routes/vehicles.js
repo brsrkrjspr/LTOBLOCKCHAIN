@@ -7,6 +7,7 @@ const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const crypto = require('crypto');
 const { sendEmail } = require('./notifications');
+const { sendMail } = require('../services/gmailApiService');
 
 // Get all vehicles (admin only)
 router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -778,11 +779,13 @@ router.post('/register', optionalAuth, async (req, res) => {
         fullVehicle.verifications = await db.getVehicleVerifications(newVehicle.id);
         fullVehicle.documents = await db.getDocumentsByVehicle(newVehicle.id);
 
-        // Send email notification to owner
+        // Send email notification to owner (using Gmail API like transfer of ownership)
         try {
             const ownerName = `${ownerUser.first_name || owner.firstName} ${ownerUser.last_name || owner.lastName}`.trim() || ownerUser.email;
             const subject = 'Vehicle Registration Submitted - TrustChain LTO';
-            const message = `
+            const registrationUrl = `${process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org'}`;
+            
+            const text = `
 Dear ${ownerName},
 
 Your vehicle registration has been successfully submitted to the TrustChain LTO System.
@@ -798,7 +801,7 @@ Vehicle Details:
 
 Your registration is now being processed. You will receive updates on the verification status of your documents.
 
-You can track your registration status by logging into your TrustChain account at ${process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org'}.
+You can track your registration status by logging into your TrustChain account at ${registrationUrl}.
 
 Thank you for using TrustChain LTO System.
 
@@ -806,7 +809,111 @@ Best regards,
 LTO Lipa City Team
             `.trim();
 
-            await sendEmail(ownerUser.email, subject, message);
+            const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #667eea;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .vehicle-details {
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .vehicle-details p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        .vehicle-details strong {
+            color: #667eea;
+        }
+        .footer {
+            text-align: center;
+            color: #666666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #667eea;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>TrustChain LTO System</h1>
+        </div>
+        <div class="content">
+            <p>Dear ${ownerName},</p>
+            <p>Your vehicle registration has been successfully submitted to the TrustChain LTO System.</p>
+            
+            <div class="vehicle-details">
+                <p><strong>VIN:</strong> ${vehicle.vin}</p>
+                <p><strong>Plate Number:</strong> ${vehicle.plateNumber}</p>
+                <p><strong>Make/Model:</strong> ${vehicle.make} ${vehicle.model}</p>
+                <p><strong>Year:</strong> ${vehicle.year}</p>
+                <p><strong>Color:</strong> ${vehicle.color}</p>
+                <p><strong>Vehicle Type:</strong> ${vehicle.vehicleType || 'Passenger Car'}</p>
+                <p><strong>Registration Date:</strong> ${new Date().toLocaleDateString()}</p>
+            </div>
+            
+            <p>Your registration is now being processed. You will receive updates on the verification status of your documents.</p>
+            
+            <p style="text-align: center;">
+                <a href="${registrationUrl}" class="button">Track Registration Status</a>
+            </p>
+            
+            <p>Thank you for using TrustChain LTO System.</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br>LTO Lipa City Team</p>
+        </div>
+    </div>
+</body>
+</html>
+            `.trim();
+
+            await sendMail({ to: ownerUser.email, subject, text, html });
             console.log('✅ Registration confirmation email sent to:', ownerUser.email);
         } catch (emailError) {
             console.error('❌ Failed to send registration email:', emailError);

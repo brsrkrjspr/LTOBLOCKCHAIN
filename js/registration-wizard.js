@@ -458,7 +458,8 @@ function updateReviewData() {
     const year = document.getElementById('year')?.value || '';
     const color = document.getElementById('color')?.value || '';
     // Fix: Handle empty string case - if empty, use default
-    const vehicleTypeRaw = document.getElementById('vehicleType')?.value || '';
+    const vehicleTypeElement = document.getElementById('vehicleType');
+    const vehicleTypeRaw = vehicleTypeElement?.value || '';
     const vehicleType = vehicleTypeRaw.trim() || 'PASSENGER_CAR';
     const plate = document.getElementById('plateNumber')?.value || '';
     const firstName = document.getElementById('firstName')?.value || '';
@@ -466,6 +467,15 @@ function updateReviewData() {
     const email = document.getElementById('email')?.value || '';
     const phone = document.getElementById('phone')?.value || '';
     const idType = document.getElementById('idType')?.value || '';
+
+    // Debug logging
+    console.log('updateReviewData - vehicleType:', {
+        element: vehicleTypeElement,
+        rawValue: vehicleTypeRaw,
+        trimmedValue: vehicleType,
+        selectedIndex: vehicleTypeElement?.selectedIndex,
+        selectedOption: vehicleTypeElement?.options[vehicleTypeElement?.selectedIndex]?.text
+    });
 
     // Map vehicle type value to display name (handle both PASSENGER and PASSENGER_CAR)
     const vehicleTypeMap = {
@@ -492,10 +502,25 @@ function updateReviewData() {
     if (reviewYear) reviewYear.textContent = year || '-';
     if (reviewColor) reviewColor.textContent = color || '-';
     // Fix: Map vehicle type value to display name with better fallback
-    const displayVehicleType = vehicleType && vehicleTypeMap[vehicleType] 
-        ? vehicleTypeMap[vehicleType] 
-        : (vehicleType || 'Passenger Car'); // Show the value or default display name
-    if (reviewVehicleType) reviewVehicleType.textContent = displayVehicleType;
+    // If vehicleType is empty or not in map, use default 'Passenger Car'
+    let displayVehicleType = 'Passenger Car'; // Default
+    if (vehicleType && vehicleTypeMap[vehicleType]) {
+        displayVehicleType = vehicleTypeMap[vehicleType];
+    } else if (vehicleType) {
+        // If we have a value but it's not in the map, try to use the selected option text
+        const selectedOption = vehicleTypeElement?.options[vehicleTypeElement?.selectedIndex];
+        if (selectedOption && selectedOption.text && selectedOption.value) {
+            displayVehicleType = selectedOption.text;
+        } else {
+            displayVehicleType = vehicleType; // Fallback to raw value
+        }
+    }
+    console.log('updateReviewData - displayVehicleType:', displayVehicleType);
+    if (reviewVehicleType) {
+        reviewVehicleType.textContent = displayVehicleType;
+    } else {
+        console.error('review-vehicle-type element not found!');
+    }
     if (reviewPlate) reviewPlate.textContent = plate || '-';
     if (reviewName) reviewName.textContent = (firstName && lastName) ? `${firstName} ${lastName}` : '-';
     if (reviewEmail) reviewEmail.textContent = email || '-';

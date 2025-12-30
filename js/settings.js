@@ -6,25 +6,60 @@ let currentUser = null;
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Settings page initializing...');
+    
     // Check authentication
     if (!AuthUtils.isAuthenticated()) {
+        console.log('Not authenticated, redirecting to login');
         window.location.href = 'login.html';
         return;
     }
 
+    console.log('User authenticated, proceeding...');
+
+    // Ensure profile tab is visible
+    const profileTab = document.getElementById('profileTab');
+    if (profileTab) {
+        profileTab.classList.add('active');
+        console.log('Profile tab made active');
+    } else {
+        console.error('Profile tab element not found!');
+    }
+
     // Initialize sidebar
-    initializeSidebar();
+    try {
+        initializeSidebar();
+        console.log('Sidebar initialized');
+    } catch (error) {
+        console.error('Error initializing sidebar:', error);
+    }
     
-    // Load user profile
-    await loadUserProfile();
-    
-    // Setup form handlers
-    setupFormHandlers();
+    // Setup form handlers first (so form is functional even if API fails)
+    try {
+        setupFormHandlers();
+        console.log('Form handlers setup');
+    } catch (error) {
+        console.error('Error setting up form handlers:', error);
+    }
     
     // Setup logout handler
-    setupLogoutHandler();
-
-    // Ensure profile tab content is visible
+    try {
+        setupLogoutHandler();
+        console.log('Logout handler setup');
+    } catch (error) {
+        console.error('Error setting up logout handler:', error);
+    }
+    
+    // Load user profile (this will populate the form)
+    try {
+        await loadUserProfile();
+        console.log('Profile loaded');
+    } catch (error) {
+        console.error('Error loading profile:', error);
+        // Don't prevent page from showing - form will just be empty
+    }
+    
+    // Ensure profile tab content is visible (fallback after all initialization)
     setTimeout(() => {
         const profileTab = document.getElementById('profileTab');
         if (profileTab) {
@@ -35,6 +70,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.warn('profileTab element not found when forcing visibility');
         }
     }, 100);
+    
+    console.log('Settings page initialization complete');
 });
 
 // Initialize sidebar
@@ -82,17 +119,39 @@ async function loadUserProfile() {
     try {
         showLoading('Loading profile...');
         
-        const response = await window.apiClient.get('/api/auth/profile');
+        // Ensure apiClient is available
+        const apiClient = window.apiClient || new (window.APIClient || APIClient)();
         
-        if (response.success && response.user) {
+        const response = await apiClient.get('/api/auth/profile');
+        
+        console.log('Profile API response:', response);
+        
+        if (response && response.success && response.user) {
             currentUser = response.user;
-            populateProfileForm(response.user);
-            updateProfileDisplay(response.user);
+            console.log('Current user data:', currentUser);
+            
+            try {
+                populateProfileForm(response.user);
+            } catch (populateError) {
+                console.error('Error populating form:', populateError);
+            }
+            
+            try {
+                updateProfileDisplay(response.user);
+            } catch (displayError) {
+                console.error('Error updating display:', displayError);
+            }
         } else {
+            console.error('Profile load failed:', response);
             showAlert('Failed to load profile information', 'error');
         }
     } catch (error) {
         console.error('Load profile error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            apiClientAvailable: typeof window.apiClient !== 'undefined'
+        });
         showAlert('Failed to load profile information. Please try again.', 'error');
     } finally {
         hideLoading();
@@ -101,11 +160,72 @@ async function loadUserProfile() {
 
 // Populate profile form with user data
 function populateProfileForm(user) {
-    document.getElementById('firstName').value = user.firstName || '';
-    document.getElementById('lastName').value = user.lastName || '';
-    document.getElementById('email').value = user.email || '';
-    document.getElementById('phone').value = user.phone || '';
-    document.getElementById('organization').value = user.organization || '';
+    console.log('Populating form with user data:', user);
+    
+    if (!user) {
+        console.error('No user data provided to populateProfileForm');
+        return;
+    }
+    
+    const firstNameField = document.getElementById('firstName');
+    const lastNameField = document.getElementById('lastName');
+    const emailField = document.getElementById('email');
+    const phoneField = document.getElementById('phone');
+    const organizationField = document.getElementById('organization');
+    const addressField = document.getElementById('address');
+    
+    console.log('Form fields found:', {
+        firstName: !!firstNameField,
+        lastName: !!lastNameField,
+        email: !!emailField,
+        phone: !!phoneField,
+        organization: !!organizationField,
+        address: !!addressField
+    });
+    
+    if (firstNameField) {
+        firstNameField.value = user.firstName || '';
+        console.log('Set firstName to:', firstNameField.value);
+    } else {
+        console.error('firstName field not found!');
+    }
+    
+    if (lastNameField) {
+        lastNameField.value = user.lastName || '';
+        console.log('Set lastName to:', lastNameField.value);
+    } else {
+        console.error('lastName field not found!');
+    }
+    
+    if (emailField) {
+        emailField.value = user.email || '';
+        console.log('Set email to:', emailField.value);
+    } else {
+        console.error('email field not found!');
+    }
+    
+    if (phoneField) {
+        phoneField.value = user.phone || '';
+        console.log('Set phone to:', phoneField.value);
+    } else {
+        console.error('phone field not found!');
+    }
+    
+    if (organizationField) {
+        organizationField.value = user.organization || '';
+        console.log('Set organization to:', organizationField.value);
+    } else {
+        console.error('organization field not found!');
+    }
+    
+    if (addressField) {
+        addressField.value = user.address || '';
+        console.log('Set address to:', addressField.value);
+    } else {
+        console.error('address field not found!');
+    }
+    
+    console.log('Form populated successfully');
 }
 
 // Update profile display (avatar, name, etc.)
@@ -178,7 +298,8 @@ async function handleProfileSubmit(e) {
             firstName: document.getElementById('firstName').value.trim(),
             lastName: document.getElementById('lastName').value.trim(),
             phone: document.getElementById('phone').value.trim() || null,
-            organization: document.getElementById('organization').value.trim() || null
+            organization: document.getElementById('organization').value.trim() || null,
+            address: document.getElementById('address').value.trim() || null
         };
         
         // Validate
@@ -203,6 +324,7 @@ async function handleProfileSubmit(e) {
                 userInfo.lastName = response.user.lastName;
                 userInfo.phone = response.user.phone;
                 userInfo.organization = response.user.organization;
+                userInfo.address = response.user.address;
                 AuthUtils.updateUser(userInfo);
             }
         } else {

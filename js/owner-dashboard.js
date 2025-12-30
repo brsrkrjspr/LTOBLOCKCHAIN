@@ -966,13 +966,34 @@ function initializeKeyboardShortcuts() {
 
 function createUserApplicationRow(application) {
     const row = document.createElement('tr');
-    const orCrNumber = application.or_cr_number || application.vehicle?.or_cr_number || '-';
+    // Get separate OR and CR numbers (new format)
+    const orNumber = application.or_number || application.orNumber || application.vehicle?.or_number || application.vehicle?.orNumber || null;
+    const crNumber = application.cr_number || application.crNumber || application.vehicle?.cr_number || application.vehicle?.crNumber || null;
+    // Backward compatibility
+    const orCrNumber = orNumber || crNumber || application.or_cr_number || application.vehicle?.or_cr_number || '-';
     const isApproved = application.status === 'approved' || application.status === 'registered';
     const appId = (application.id || '').substring(0, 8) + '...';
     
     // Get verification status display
     const verificationStatus = application.verificationStatus || {};
     const verificationStatusText = getVerificationStatusDisplay(verificationStatus);
+    
+    // Format OR/CR display
+    let orCrDisplay = '-';
+    if (isApproved && (orNumber || crNumber)) {
+        if (orNumber && crNumber) {
+            orCrDisplay = `<div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="background: #667eea; color: white; padding: 3px 6px; border-radius: 4px; font-size: 0.8rem;">OR: ${escapeHtml(orNumber)}</span>
+                <span style="background: #11998e; color: white; padding: 3px 6px; border-radius: 4px; font-size: 0.8rem;">CR: ${escapeHtml(crNumber)}</span>
+            </div>`;
+        } else if (orNumber) {
+            orCrDisplay = `<span style="background: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.9rem;">OR: ${escapeHtml(orNumber)}</span>`;
+        } else if (crNumber) {
+            orCrDisplay = `<span style="background: #11998e; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.9rem;">CR: ${escapeHtml(crNumber)}</span>`;
+        }
+    } else if (isApproved && orCrNumber !== '-') {
+        orCrDisplay = `<span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.9rem;">${escapeHtml(orCrNumber)}</span>`;
+    }
     
     row.innerHTML = `
         <td>
@@ -983,17 +1004,14 @@ function createUserApplicationRow(application) {
         </td>
         <td><code style="font-size: 0.85rem;">${appId}</code></td>
         <td>
-            ${isApproved && orCrNumber !== '-' ? 
-                `<span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.9rem;">${escapeHtml(orCrNumber)}</span>` :
-                `<span style="color: #6c757d;">-</span>`
-            }
+            ${orCrDisplay !== '-' ? orCrDisplay : `<span style="color: #6c757d;">-</span>`}
         </td>
         <td>${application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : '-'}</td>
         <td>${verificationStatusText}</td>
         <td><span class="status-badge status-${application.status}">${getStatusText(application.status)}</span></td>
         <td>
             <button class="btn-secondary btn-sm" onclick="viewUserApplication('${application.id}')">View Details</button>
-            ${isApproved && orCrNumber !== '-' ? `<button class="btn-primary btn-sm" onclick="downloadVehicleCertificate('${application.id}', '${escapeHtml(orCrNumber)}')">Download Certificate</button>` : ''}
+            ${isApproved && (orNumber || crNumber || orCrNumber !== '-') ? `<button class="btn-primary btn-sm" onclick="downloadVehicleCertificate('${application.id}', '${escapeHtml(orNumber || crNumber || orCrNumber)}')">Download Certificate</button>` : ''}
         </td>
     `;
     return row;

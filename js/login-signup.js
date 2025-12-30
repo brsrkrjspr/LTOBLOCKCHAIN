@@ -319,14 +319,15 @@
             const lastName = document.getElementById('lastName')?.value?.trim();
             const email = document.getElementById('signupEmail')?.value?.trim();
             const phone = document.getElementById('phone')?.value?.trim();
+            const address = document.getElementById('address')?.value?.trim() || null;
             const password = document.getElementById('signupPassword')?.value;
             const confirmPassword = document.getElementById('confirmPassword')?.value;
             const termsCheckbox = document.querySelector('input[name="terms"]');
             const terms = termsCheckbox ? termsCheckbox.checked : false;
 
-            // Basic validation
+            // Basic validation (address is optional, so not included in required fields check)
             if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) {
-                showNotification('Please fill in all fields', 'error');
+                showNotification('Please fill in all required fields', 'error');
                 return false;
             }
 
@@ -375,6 +376,7 @@
                     firstName,
                     lastName,
                     phone,
+                    address: address || null,
                     role: 'vehicle_owner',
                     organization: 'Individual'
                 })

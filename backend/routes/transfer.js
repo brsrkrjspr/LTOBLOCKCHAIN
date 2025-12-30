@@ -539,6 +539,14 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             });
         }
         
+        // Prevent seller from transferring to themselves
+        if (buyerEmail && buyerEmail.toLowerCase() === req.user.email.toLowerCase()) {
+            return res.status(400).json({
+                success: false,
+                error: 'You cannot transfer ownership to yourself. Please enter a different buyer email address.'
+            });
+        }
+        
         // Validate seller profile - ensure seller has complete profile information
         const seller = await db.getUserById(req.user.userId);
         if (!seller) {

@@ -452,15 +452,16 @@ router.post('/register', optionalAuth, async (req, res) => {
             if (ownerUser && (
                 ownerUser.first_name !== owner.firstName ||
                 ownerUser.last_name !== owner.lastName ||
-                (owner.phone && ownerUser.phone !== owner.phone)
+                (owner.phone && ownerUser.phone !== owner.phone) ||
+                (owner.address && ownerUser.address !== owner.address)
             )) {
                 // Update user details
                 const dbModule = require('../database/db');
                 await dbModule.query(
                     `UPDATE users 
-                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $4`,
-                    [owner.firstName, owner.lastName, owner.phone || null, ownerUser.id]
+                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), address = COALESCE($4, address), updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $5`,
+                    [owner.firstName, owner.lastName, owner.phone || null, owner.address || null, ownerUser.id]
                 );
                 // Refresh user data
                 ownerUser = await db.getUserById(req.user.userId);
@@ -482,7 +483,8 @@ router.post('/register', optionalAuth, async (req, res) => {
                     lastName: owner.lastName,
                     role: 'vehicle_owner',
                     organization: 'Individual',
-                    phone: owner.phone
+                    phone: owner.phone,
+                    address: owner.address
                 });
                 console.log(`✅ Created new user account for vehicle owner: ${owner.email}`);
             } else {
@@ -490,9 +492,9 @@ router.post('/register', optionalAuth, async (req, res) => {
                 const dbModule = require('../database/db');
                 await dbModule.query(
                     `UPDATE users 
-                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $4`,
-                    [owner.firstName, owner.lastName, owner.phone || null, ownerUser.id]
+                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), address = COALESCE($4, address), updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $5`,
+                    [owner.firstName, owner.lastName, owner.phone || null, owner.address || null, ownerUser.id]
                 );
                 // Refresh user data
                 ownerUser = await db.getUserById(ownerUser.id);
@@ -1047,10 +1049,21 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                         engineDisplacement: vehicle.engine_displacement || null,
                         status: vehicle.status || null,
                         registrationDate: vehicle.registration_date || null,
-                        or_cr_number: vehicle.or_cr_number || null,
-                        orCrNumber: vehicle.or_cr_number || null,  // camelCase for frontend compatibility
-                        or_cr_issued_at: vehicle.or_cr_issued_at || null,
-                        orCrIssuedAt: vehicle.or_cr_issued_at || null  // camelCase for frontend compatibility
+                        // Separate OR and CR numbers (new format)
+                        orNumber: vehicle.or_number || null,
+                        crNumber: vehicle.cr_number || null,
+                        orIssuedAt: vehicle.or_issued_at || null,
+                        crIssuedAt: vehicle.cr_issued_at || null,
+                        // Backward compatibility (deprecated)
+                        or_cr_number: vehicle.or_number || vehicle.or_cr_number || null,
+                        orCrNumber: vehicle.or_number || vehicle.or_cr_number || null,  // camelCase for frontend compatibility
+                        or_cr_issued_at: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,
+                        orCrIssuedAt: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,  // camelCase for frontend compatibility
+                        // Additional fields
+                        dateOfRegistration: vehicle.date_of_registration || vehicle.registration_date || null,
+                        netWeight: vehicle.net_weight || null,
+                        registrationType: vehicle.registration_type || 'PRIVATE',
+                        vehicleClassification: vehicle.vehicle_classification || null
                     },
                     history: Array.isArray(history) ? history : []
                 });
@@ -1350,6 +1363,7 @@ function formatVehicleResponse(vehicle) {
         name: vehicle.owner_name,
         email: vehicle.owner_email,
         phone: vehicle.owner_phone,
+        address: vehicle.owner_address,
         organization: vehicle.owner_organization
     };
 
@@ -1405,16 +1419,28 @@ function formatVehicleResponse(vehicle) {
         ownerPhone: vehicle.owner_phone,
         ownerFirstName: vehicle.owner_first_name || (vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null),
         ownerLastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
+        ownerAddress: vehicle.owner_address,
         ownerOrganization: vehicle.owner_organization,
         // Include full owner object for convenience
         owner: ownerInfo,
         status: vehicle.status,
         registrationDate: vehicle.registration_date,
+        dateOfRegistration: vehicle.date_of_registration || vehicle.registration_date,
         lastUpdated: vehicle.last_updated,
-        orCrNumber: vehicle.or_cr_number || vehicle.orCrNumber,
-        or_cr_number: vehicle.or_cr_number || vehicle.orCrNumber,
-        orCrIssuedAt: vehicle.or_cr_issued_at || vehicle.orCrIssuedAt,
-        or_cr_issued_at: vehicle.or_cr_issued_at || vehicle.orCrIssuedAt,
+        // Separate OR and CR numbers (new format)
+        orNumber: vehicle.or_number || null,
+        crNumber: vehicle.cr_number || null,
+        orIssuedAt: vehicle.or_issued_at || null,
+        crIssuedAt: vehicle.cr_issued_at || null,
+        // Backward compatibility (deprecated)
+        orCrNumber: vehicle.or_number || vehicle.or_cr_number || vehicle.orCrNumber || null,
+        or_cr_number: vehicle.or_number || vehicle.or_cr_number || null,
+        orCrIssuedAt: vehicle.or_issued_at || vehicle.or_cr_issued_at || vehicle.orCrIssuedAt || null,
+        or_cr_issued_at: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,
+        // Additional CR fields
+        netWeight: vehicle.net_weight || null,
+        registrationType: vehicle.registration_type || 'PRIVATE',
+        vehicleClassification: vehicle.vehicle_classification || null,
         verificationStatus: verificationStatus,
         verifications: vehicle.verifications || [],
         documents: formattedDocuments, // Use formatted documents with proper structure

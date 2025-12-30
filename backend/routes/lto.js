@@ -431,6 +431,180 @@ router.post('/send-to-emission', authenticateToken, authorizeRole(['admin']), as
     }
 });
 
+// Perform LTO vehicle inspection
+router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { vehicleId, inspectionResult, roadworthinessStatus, emissionCompliance, inspectionOfficer, inspectionNotes } = req.body;
+        
+        if (!vehicleId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Vehicle ID is required'
+            });
+        }
+
+        // Validate required fields
+        if (!inspectionResult || !roadworthinessStatus || !emissionCompliance) {
+            return res.status(400).json({
+                success: false,
+                error: 'Inspection result, roadworthiness status, and emission compliance are required'
+            });
+        }
+
+        // Validate values
+        const validResults = ['PASS', 'FAIL', 'PENDING'];
+        const validRoadworthiness = ['ROADWORTHY', 'NOT_ROADWORTHY'];
+        const validCompliance = ['COMPLIANT', 'NON_COMPLIANT'];
+
+        if (!validResults.includes(inspectionResult)) {
+            return res.status(400).json({
+                success: false,
+                error: `Invalid inspection result. Must be one of: ${validResults.join(', ')}`
+            });
+        }
+
+        if (!validRoadworthiness.includes(roadworthinessStatus)) {
+            return res.status(400).json({
+                success: false,
+                error: `Invalid roadworthiness status. Must be one of: ${validRoadworthiness.join(', ')}`
+            });
+        }
+
+        if (!validCompliance.includes(emissionCompliance)) {
+            return res.status(400).json({
+                success: false,
+                error: `Invalid emission compliance. Must be one of: ${validCompliance.join(', ')}`
+            });
+        }
+
+        // Get vehicle
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check if inspection already exists
+        if (vehicle.mvir_number) {
+            return res.status(409).json({
+                success: false,
+                error: 'Vehicle already has an inspection record',
+                mvirNumber: vehicle.mvir_number,
+                inspectionDate: vehicle.inspection_date
+            });
+        }
+
+        // Get current user for inspection officer if not provided
+        const currentUser = await db.getUserById(req.user.userId);
+        const officerName = inspectionOfficer || `${currentUser.first_name} ${currentUser.last_name}`;
+
+        // Assign MVIR number and inspection data
+        const inspectionResult_data = await db.assignMvirNumber(vehicleId, {
+            inspectionResult,
+            roadworthinessStatus,
+            emissionCompliance,
+            inspectionOfficer: officerName,
+            inspectionNotes: inspectionNotes || null
+        });
+
+        // Log inspection to vehicle history
+        await db.addVehicleHistory({
+            vehicleId,
+            action: 'LTO_INSPECTION_COMPLETED',
+            description: `LTO inspection completed. Result: ${inspectionResult}, Roadworthiness: ${roadworthinessStatus}, Emission: ${emissionCompliance}. MVIR: ${inspectionResult_data.mvirNumber}`,
+            performedBy: req.user.userId,
+            transactionId: null,
+            metadata: {
+                mvirNumber: inspectionResult_data.mvirNumber,
+                inspectionResult,
+                roadworthinessStatus,
+                emissionCompliance,
+                inspectionOfficer: officerName
+            }
+        });
+
+        // Get updated vehicle
+        const updatedVehicle = await db.getVehicleById(vehicleId);
+
+        res.json({
+            success: true,
+            message: 'Vehicle inspection completed successfully',
+            inspection: {
+                mvirNumber: inspectionResult_data.mvirNumber,
+                inspectionDate: inspectionResult_data.inspectionDate,
+                inspectionResult,
+                roadworthinessStatus,
+                emissionCompliance,
+                inspectionOfficer: officerName,
+                inspectionNotes: inspectionNotes || null
+            },
+            vehicle: updatedVehicle
+        });
+
+    } catch (error) {
+        console.error('Error performing LTO inspection:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to perform inspection: ' + error.message
+        });
+    }
+});
+
+// Get inspection data for a vehicle
+router.get('/inspection/:vehicleId', authenticateToken, authorizeRole(['admin', 'vehicle_owner']), async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check if user has permission (admin or vehicle owner)
+        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'You do not have permission to view this vehicle inspection'
+            });
+        }
+
+        // Return inspection data if exists
+        if (!vehicle.mvir_number) {
+            return res.json({
+                success: true,
+                hasInspection: false,
+                message: 'No inspection record found for this vehicle'
+            });
+        }
+
+        res.json({
+            success: true,
+            hasInspection: true,
+            inspection: {
+                mvirNumber: vehicle.mvir_number,
+                inspectionDate: vehicle.inspection_date,
+                inspectionResult: vehicle.inspection_result,
+                roadworthinessStatus: vehicle.roadworthiness_status,
+                emissionCompliance: vehicle.emission_compliance,
+                inspectionOfficer: vehicle.inspection_officer,
+                inspectionNotes: vehicle.inspection_notes
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting inspection data:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get inspection data: ' + error.message
+        });
+    }
+});
+
 // Approve clearance (final approval after all verifications complete)
 router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
@@ -527,23 +701,71 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
         // All verifications complete - approve and register on blockchain
         console.log(`[LTO Approval] All verifications approved for vehicle ${vehicleId}. Proceeding with approval.`);
 
-        // Generate OR/CR Number - MANDATORY for approval
-        let orCrNumber = null;
-        let orCrIssuedAt = null;
+        // Generate separate OR and CR Numbers - MANDATORY for approval
+        let orNumber = null;
+        let crNumber = null;
+        let orIssuedAt = null;
+        let crIssuedAt = null;
         try {
-            const orCrResult = await db.assignOrCrNumber(vehicleId);
-            orCrNumber = orCrResult.orCrNumber;
-            orCrIssuedAt = orCrResult.issuedAt;
-            console.log(`[LTO Approval] OR/CR number assigned: ${orCrNumber}`);
+            const orCrResult = await db.assignOrAndCrNumbers(vehicleId);
+            orNumber = orCrResult.orNumber;
+            crNumber = orCrResult.crNumber;
+            orIssuedAt = orCrResult.orIssuedAt;
+            crIssuedAt = orCrResult.crIssuedAt;
+            console.log(`[LTO Approval] OR number assigned: ${orNumber}, CR number assigned: ${crNumber}`);
         } catch (orCrError) {
-            console.error('Failed to generate OR/CR number:', orCrError);
+            console.error('Failed to generate OR/CR numbers:', orCrError);
             // OR/CR assignment is mandatory - fail approval if it cannot be generated
             return res.status(500).json({
                 success: false,
-                error: 'Failed to generate OR/CR number. Approval cannot proceed without OR/CR assignment.',
+                error: 'Failed to generate OR/CR numbers. Approval cannot proceed without OR/CR assignment.',
                 details: orCrError.message,
                 vehicleId: vehicleId
             });
+        }
+
+        // Auto-generate inspection if missing (Option A: Auto-inspection on approval)
+        let mvirNumber = vehicle.mvir_number;
+        let inspectionDate = vehicle.inspection_date;
+        if (!vehicle.mvir_number) {
+            try {
+                // Get current user for inspection officer
+                const currentUser = await db.getUserById(req.user.userId);
+                const officerName = `${currentUser.first_name} ${currentUser.last_name}`;
+                
+                // Auto-generate inspection with default values (PASS, ROADWORTHY, COMPLIANT)
+                const inspectionResult = await db.assignMvirNumber(vehicleId, {
+                    inspectionResult: 'PASS',
+                    roadworthinessStatus: 'ROADWORTHY',
+                    emissionCompliance: 'COMPLIANT',
+                    inspectionOfficer: officerName,
+                    inspectionNotes: 'Auto-generated during approval process'
+                });
+                
+                mvirNumber = inspectionResult.mvirNumber;
+                inspectionDate = inspectionResult.inspectionDate;
+                
+                console.log(`[LTO Approval] Auto-generated inspection: MVIR ${mvirNumber}`);
+                
+                // Log auto-inspection to vehicle history
+                await db.addVehicleHistory({
+                    vehicleId,
+                    action: 'LTO_INSPECTION_AUTO_GENERATED',
+                    description: `LTO inspection auto-generated during approval. MVIR: ${mvirNumber}`,
+                    performedBy: req.user.userId,
+                    transactionId: null,
+                    metadata: {
+                        mvirNumber,
+                        autoGenerated: true
+                    }
+                });
+            } catch (inspectionError) {
+                // Log error but don't fail approval - inspection can be added manually later
+                console.warn(`[LTO Approval] Failed to auto-generate inspection: ${inspectionError.message}`);
+                console.warn('   Approval will proceed without inspection. Inspection can be added manually.');
+            }
+        } else {
+            console.log(`[LTO Approval] Vehicle already has inspection: MVIR ${vehicle.mvir_number}`);
         }
 
         // Update vehicle status to APPROVED (with OR/CR number if generated)
@@ -569,7 +791,8 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     transmission: vehicle.transmission,
                     engineDisplacement: vehicle.engine_displacement,
                     owner: vehicle.owner_name || vehicle.owner_email,
-                    orCrNumber: orCrNumber, // Include OR/CR in blockchain record
+                    orNumber: orNumber, // Include separate OR number in blockchain record
+                    crNumber: crNumber, // Include separate CR number in blockchain record
                     documents: {}
                 };
 
@@ -588,39 +811,53 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             });
         }
 
-        // Add to history (include OR/CR number in metadata)
+        // Add to history (include separate OR/CR numbers in metadata)
         await db.addVehicleHistory({
             vehicleId,
             action: 'CLEARANCE_APPROVED',
-            description: `Clearance approved by ${req.user.email}. OR/CR: ${orCrNumber || 'Pending'}. ${notes || 'All verifications complete.'}`,
+            description: `Clearance approved by ${req.user.email}. OR: ${orNumber || 'Pending'}, CR: ${crNumber || 'Pending'}, MVIR: ${mvirNumber || 'Pending'}. ${notes || 'All verifications complete.'}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId,
             metadata: { 
                 notes,
                 blockchainTxId,
-                orCrNumber,
-                orCrIssuedAt,
+                orNumber,
+                crNumber,
+                orIssuedAt,
+                crIssuedAt,
+                mvirNumber,
+                inspectionDate,
+                // Keep backward compatibility
+                orCrNumber: orNumber, // For backward compatibility
+                orCrIssuedAt: orIssuedAt, // For backward compatibility
                 verifications: verifications.map(v => ({ type: v.verification_type, status: v.status }))
             }
         });
 
-        // Create notification for owner (include OR/CR number)
+        // Create notification for owner (include separate OR/CR numbers)
         if (vehicle.owner_id) {
             await db.createNotification({
                 userId: vehicle.owner_id,
                 title: 'Vehicle Registration Approved',
-                message: `Your vehicle registration (${vehicle.plate_number || vehicle.vin}) has been approved! OR/CR Number: ${orCrNumber || 'Processing'}`,
+                message: `Your vehicle registration (${vehicle.plate_number || vehicle.vin}) has been approved! OR: ${orNumber || 'Processing'}, CR: ${crNumber || 'Processing'}`,
                 type: 'success'
             });
         }
 
-        // Return response with OR/CR number
+        // Return response with separate OR/CR numbers and MVIR
         res.json({
             success: true,
             message: 'Clearance approved successfully',
             vehicleId,
-            orCrNumber,
-            orCrIssuedAt,
+            orNumber,
+            crNumber,
+            orIssuedAt,
+            crIssuedAt,
+            mvirNumber: mvirNumber || null,
+            inspectionDate: inspectionDate || null,
+            // Backward compatibility
+            orCrNumber: orNumber, // For backward compatibility
+            orCrIssuedAt: orIssuedAt, // For backward compatibility
             blockchainTxId,
             status: blockchainTxId ? 'REGISTERED' : 'APPROVED'
         });

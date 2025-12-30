@@ -24,12 +24,12 @@ async function getUserById(id) {
 }
 
 async function createUser(userData) {
-    const { email, passwordHash, firstName, lastName, role, organization, phone } = userData;
+    const { email, passwordHash, firstName, lastName, role, organization, phone, address } = userData;
     const result = await db.query(
-        `INSERT INTO users (email, password_hash, first_name, last_name, role, organization, phone)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, email, first_name, last_name, role, organization, phone, created_at`,
-        [email, passwordHash, firstName, lastName, role || 'vehicle_owner', organization, phone]
+        `INSERT INTO users (email, password_hash, first_name, last_name, role, organization, phone, address)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, email, first_name, last_name, role, organization, phone, address, created_at`,
+        [email, passwordHash, firstName, lastName, role || 'vehicle_owner', organization, phone, address || null]
     );
     return result.rows[0];
 }
@@ -1443,6 +1443,142 @@ async function assignOrCrNumber(vehicleId) {
     };
 }
 
+// ============================================
+// MVIR NUMBER OPERATIONS
+// ============================================
+
+/**
+ * Generate a unique MVIR (Motor Vehicle Inspection Report) number
+ * Format: MVIR-YYYY-XXXXXX (e.g., MVIR-2025-000001)
+ * Uses database sequence for atomic increment
+ * 
+ * @returns {Promise<string>} The generated MVIR number
+ */
+async function generateMvirNumber() {
+    const year = new Date().getFullYear();
+    
+    try {
+        // Use database sequence for atomic increment
+        // This prevents race conditions when multiple inspections happen simultaneously
+        const result = await db.query(
+            `SELECT nextval('mvir_number_seq') as seq_num`
+        );
+        
+        const sequenceNumber = parseInt(result.rows[0].seq_num);
+        
+        // Format: MVIR-YYYY-XXXXXX (6 digits, zero-padded)
+        const mvirNumber = `MVIR-${year}-${String(sequenceNumber).padStart(6, '0')}`;
+        
+        // Verify uniqueness (safety check - should never fail with sequence)
+        const existingCheck = await db.query(
+            'SELECT id FROM vehicles WHERE mvir_number = $1',
+            [mvirNumber]
+        );
+        
+        if (existingCheck.rows.length > 0) {
+            // Extremely rare case - retry with next sequence number
+            console.warn(`MVIR number collision detected: ${mvirNumber}. Retrying...`);
+            return generateMvirNumber(); // Recursive retry
+        }
+        
+        console.log(`[MVIR] Generated new number: ${mvirNumber}`);
+        return mvirNumber;
+        
+    } catch (error) {
+        // If sequence doesn't exist (first run before migration), fall back to count-based
+        if (error.message && error.message.includes('mvir_number_seq')) {
+            console.warn('MVIR sequence not found, using fallback method');
+            return generateMvirNumberFallback();
+        }
+        throw error;
+    }
+}
+
+/**
+ * Fallback MVIR number generation (used if sequence doesn't exist)
+ * Less atomic but works without migration
+ */
+async function generateMvirNumberFallback() {
+    const year = new Date().getFullYear();
+    
+    // Get the highest sequence number for this year
+    const result = await db.query(
+        `SELECT COALESCE(MAX(CAST(SPLIT_PART(mvir_number, '-', 3) AS INTEGER)), 0) as max_seq
+         FROM vehicles 
+         WHERE mvir_number LIKE $1`,
+        [`MVIR-${year}-%`]
+    );
+    
+    let sequence = 1;
+    if (result.rows.length > 0 && result.rows[0].max_seq) {
+        sequence = parseInt(result.rows[0].max_seq) + 1;
+    }
+    
+    // Format: MVIR-YYYY-XXXXXX (6 digits)
+    const mvirNumber = `MVIR-${year}-${String(sequence).padStart(6, '0')}`;
+    
+    console.log(`[MVIR] Generated new number (fallback): ${mvirNumber}`);
+    return mvirNumber;
+}
+
+/**
+ * Assign MVIR number and inspection data to a vehicle
+ * Updates the vehicle record with inspection information
+ * 
+ * @param {string} vehicleId - The vehicle UUID
+ * @param {Object} inspectionData - Inspection data object
+ * @param {string} inspectionData.inspectionResult - PASS, FAIL, PENDING
+ * @param {string} inspectionData.roadworthinessStatus - ROADWORTHY, NOT_ROADWORTHY
+ * @param {string} inspectionData.emissionCompliance - COMPLIANT, NON_COMPLIANT
+ * @param {string} inspectionData.inspectionOfficer - Name of inspecting officer
+ * @param {string} [inspectionData.inspectionNotes] - Optional inspection notes
+ * @returns {Promise<{mvirNumber: string, inspectionDate: Date}>}
+ */
+async function assignMvirNumber(vehicleId, inspectionData) {
+    const {
+        inspectionResult,
+        roadworthinessStatus,
+        emissionCompliance,
+        inspectionOfficer,
+        inspectionNotes
+    } = inspectionData;
+    
+    // Generate MVIR number
+    const mvirNumber = await generateMvirNumber();
+    const inspectionDate = new Date();
+    
+    // Update vehicle with inspection data
+    await db.query(
+        `UPDATE vehicles 
+         SET mvir_number = $1,
+             inspection_date = $2,
+             inspection_result = $3,
+             roadworthiness_status = $4,
+             emission_compliance = $5,
+             inspection_officer = $6,
+             inspection_notes = $7,
+             last_updated = CURRENT_TIMESTAMP
+         WHERE id = $8`,
+        [
+            mvirNumber,
+            inspectionDate,
+            inspectionResult || 'PASS',
+            roadworthinessStatus || 'ROADWORTHY',
+            emissionCompliance || 'COMPLIANT',
+            inspectionOfficer || 'LTO INSPECTION OFFICER',
+            inspectionNotes || null,
+            vehicleId
+        ]
+    );
+    
+    console.log(`[MVIR] Assigned MVIR: ${mvirNumber} to vehicle ${vehicleId}`);
+    
+    return {
+        mvirNumber,
+        inspectionDate
+    };
+}
+
 module.exports = {
     // User operations
     getUserByEmail,
@@ -1516,6 +1652,11 @@ module.exports = {
     // Deprecated functions (kept for backward compatibility)
     generateOrCrNumber,
     generateOrCrNumberFallback,
-    assignOrCrNumber
+    assignOrCrNumber,
+    
+    // MVIR Number operations
+    generateMvirNumber,
+    generateMvirNumberFallback,
+    assignMvirNumber
 };
 

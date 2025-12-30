@@ -1132,6 +1132,17 @@
                     valid = false;
                 }
                 
+                // Prevent seller from transferring to themselves
+                if (typeof AuthUtils !== 'undefined') {
+                    const currentUser = AuthUtils.getCurrentUser();
+                    const currentUserEmail = currentUser?.email;
+                    if (currentUserEmail && buyerEmail?.value.trim().toLowerCase() === currentUserEmail.toLowerCase()) {
+                        markInvalid(buyerEmail);
+                        showWizardError(2, 'You cannot transfer ownership to yourself. Please enter a different email address.');
+                        return;
+                    }
+                }
+                
                 if (!valid) {
                     showWizardError(2, 'Please enter a valid buyer email address.');
                     return;

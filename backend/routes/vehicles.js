@@ -452,15 +452,16 @@ router.post('/register', optionalAuth, async (req, res) => {
             if (ownerUser && (
                 ownerUser.first_name !== owner.firstName ||
                 ownerUser.last_name !== owner.lastName ||
-                (owner.phone && ownerUser.phone !== owner.phone)
+                (owner.phone && ownerUser.phone !== owner.phone) ||
+                (owner.address && ownerUser.address !== owner.address)
             )) {
                 // Update user details
                 const dbModule = require('../database/db');
                 await dbModule.query(
                     `UPDATE users 
-                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $4`,
-                    [owner.firstName, owner.lastName, owner.phone || null, ownerUser.id]
+                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), address = COALESCE($4, address), updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $5`,
+                    [owner.firstName, owner.lastName, owner.phone || null, owner.address || null, ownerUser.id]
                 );
                 // Refresh user data
                 ownerUser = await db.getUserById(req.user.userId);
@@ -482,7 +483,8 @@ router.post('/register', optionalAuth, async (req, res) => {
                     lastName: owner.lastName,
                     role: 'vehicle_owner',
                     organization: 'Individual',
-                    phone: owner.phone
+                    phone: owner.phone,
+                    address: owner.address
                 });
                 console.log(`✅ Created new user account for vehicle owner: ${owner.email}`);
             } else {
@@ -490,9 +492,9 @@ router.post('/register', optionalAuth, async (req, res) => {
                 const dbModule = require('../database/db');
                 await dbModule.query(
                     `UPDATE users 
-                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $4`,
-                    [owner.firstName, owner.lastName, owner.phone || null, ownerUser.id]
+                     SET first_name = $1, last_name = $2, phone = COALESCE($3, phone), address = COALESCE($4, address), updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $5`,
+                    [owner.firstName, owner.lastName, owner.phone || null, owner.address || null, ownerUser.id]
                 );
                 // Refresh user data
                 ownerUser = await db.getUserById(ownerUser.id);

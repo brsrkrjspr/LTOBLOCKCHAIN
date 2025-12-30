@@ -67,6 +67,7 @@ router.post('/register', async (req, res) => {
                 role: newUser.role,
                 organization: newUser.organization,
                 phone: newUser.phone,
+                address: newUser.address,
                 createdAt: newUser.created_at
             },
             token
@@ -182,6 +183,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
                 role: user.role,
                 organization: user.organization,
                 phone: user.phone,
+                address: user.address,
                 isActive: user.is_active,
                 emailVerified: user.email_verified,
                 createdAt: user.created_at

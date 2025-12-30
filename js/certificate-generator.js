@@ -119,19 +119,25 @@ const CertificateGenerator = {
         const crNumber = vehicle.cr_number || vehicle.crNumber || vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
         
         // Date of registration (separate from date issued)
-        const dateOfRegistration = vehicle.date_of_registration || vehicle.registration_date || vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.approved_at || vehicle.created_at;
+        // Enhanced fallback chain: date_of_registration -> registration_date -> or_issued_at -> cr_issued_at -> approved_at -> created_at -> current date
+        const dateOfRegistration = vehicle.date_of_registration || vehicle.registration_date || vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.approved_at || vehicle.created_at || new Date();
         // Date issued - prefer OR/CR issued dates as they're more accurate
-        const regDate = vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.registration_date || vehicle.approved_at || vehicle.created_at;
+        // Fallback chain: or_issued_at -> cr_issued_at -> registration_date -> approved_at -> created_at -> current date
+        const regDate = vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.registration_date || vehicle.approved_at || vehicle.created_at || new Date();
         
         const regDateFormatted = regDate ?  
             new Date(regDate).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric'
-            }) : 'N/A';
+            }) : new Date().toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
         
         const regDateShort = regDate ?  
             new Date(regDate).toLocaleDateString('en-US', {
                 year: 'numeric', month: '2-digit', day: '2-digit'
-            }) : 'N/A';
+            }) : new Date().toLocaleDateString('en-US', {
+                year: 'numeric', month: '2-digit', day: '2-digit'
+            });
         
         const dateOfRegFormatted = dateOfRegistration ?  
             new Date(dateOfRegistration).toLocaleDateString('en-US', {
@@ -140,19 +146,18 @@ const CertificateGenerator = {
         
         // Calculate validity date (1 year from registration - LTO standard)
         // Use dateOfRegistration for expiration calculation as it represents when vehicle was registered
-        const validityDate = dateOfRegistration ?  
-            new Date(new Date(dateOfRegistration).setFullYear(new Date(dateOfRegistration).getFullYear() + 1)).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric'
-            }) : (regDate ? 
-            new Date(new Date(regDate).setFullYear(new Date(regDate).getFullYear() + 1)).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric'
-            }) : 'N/A');
+        // Always calculate from dateOfRegistration (which now always has a value)
+        const validityDate = new Date(new Date(dateOfRegistration).setFullYear(new Date(dateOfRegistration).getFullYear() + 1)).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
         
         const ownerName = owner ?  
             `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email || 'N/A'
             : 'N/A';
         
-        const ownerAddress = owner?.address || owner?.full_address || 'N/A';
+        // Get address from owner object (from profile) or vehicle owner data (from vehicle response)
+        // Enhanced fallback: owner.address -> owner.full_address -> vehicle.owner.address -> vehicle.ownerAddress -> 'N/A'
+        const ownerAddress = owner?.address || owner?.full_address || (vehicle && vehicle.owner && vehicle.owner.address) || (vehicle && vehicle.ownerAddress) || 'N/A';
         const transactionType = vehicle.transaction_type || 'NEW REGISTRATION';
         const blockchainTxId = vehicle.blockchain_tx_id || vehicle.id || 'N/A';
         const verificationUrl = `${window.location.origin}/verify/${blockchainTxId}`;
@@ -184,12 +189,11 @@ const CertificateGenerator = {
         const issuingOffice = vehicle.issuing_office || 'LTO MAIN OFFICE';
         
         // Inspection data (from LTO inspection or fallback to CR/OR dates)
-        // Enhanced fallback chain: inspection_date -> cr_issued_at -> or_issued_at -> regDate
-        const inspectionDate = vehicle.inspection_date || vehicle.inspectionDate || vehicle.cr_issued_at || vehicle.or_issued_at || regDate;
-        const inspectionDateFormatted = inspectionDate ?  
-            new Date(inspectionDate).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric'
-            }) : 'N/A';
+        // Enhanced fallback chain: inspection_date -> cr_issued_at -> or_issued_at -> regDate -> current date
+        const inspectionDate = vehicle.inspection_date || vehicle.inspectionDate || vehicle.cr_issued_at || vehicle.or_issued_at || regDate || new Date();
+        const inspectionDateFormatted = new Date(inspectionDate).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
         const inspectionResult = vehicle.inspection_result || vehicle.inspectionResult || 'PASS';
         // Show 'PENDING' instead of 'N/A' if MVIR not generated yet (more user-friendly)
         const mvirNumber = vehicle.mvir_number || vehicle.mvirNumber || 'PENDING';

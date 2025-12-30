@@ -1363,6 +1363,7 @@ function formatVehicleResponse(vehicle) {
         name: vehicle.owner_name,
         email: vehicle.owner_email,
         phone: vehicle.owner_phone,
+        address: vehicle.owner_address,
         organization: vehicle.owner_organization
     };
 
@@ -1418,6 +1419,7 @@ function formatVehicleResponse(vehicle) {
         ownerPhone: vehicle.owner_phone,
         ownerFirstName: vehicle.owner_first_name || (vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null),
         ownerLastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
+        ownerAddress: vehicle.owner_address,
         ownerOrganization: vehicle.owner_organization,
         // Include full owner object for convenience
         owner: ownerInfo,

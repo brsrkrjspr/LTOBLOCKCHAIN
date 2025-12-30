@@ -17,7 +17,7 @@ async function getUserByEmail(email) {
 
 async function getUserById(id) {
     const result = await db.query(
-        'SELECT id, email, first_name, last_name, role, organization, phone, is_active, email_verified, created_at FROM users WHERE id = $1',
+        'SELECT id, email, first_name, last_name, role, organization, phone, address, is_active, email_verified, created_at FROM users WHERE id = $1',
         [id]
     );
     return result.rows[0] || null;
@@ -72,6 +72,7 @@ async function getVehicleById(id) {
                 u.first_name || ' ' || u.last_name as owner_name, 
                 u.email as owner_email,
                 u.phone as owner_phone,
+                u.address as owner_address,
                 u.organization as owner_organization
          FROM vehicles v
          LEFT JOIN users u ON v.owner_id = u.id

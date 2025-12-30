@@ -23,6 +23,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Setup logout handler
     setupLogoutHandler();
+
+    // Ensure profile tab content is visible
+    setTimeout(() => {
+        const profileTab = document.getElementById('profileTab');
+        if (profileTab) {
+            profileTab.style.display = 'block';
+            profileTab.classList.add('active');
+            console.log('Profile tab forced visible');
+        } else {
+            console.warn('profileTab element not found when forcing visibility');
+        }
+    }, 100);
 });
 
 // Initialize sidebar

@@ -111,7 +111,9 @@
         }
 
         .tab-content.active {
-            display: block;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         .settings-section {
@@ -120,6 +122,22 @@
             padding: 2rem;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             margin-bottom: 2rem;
+            display: block !important;
+            visibility: visible !important;
+        }
+
+        /* Temporary debug - remove after verification */
+        #profileTab {
+            border: 2px solid red !important; /* Visual indicator */
+            min-height: 200px !important;
+        }
+
+        .settings-section {
+            border: 2px solid blue !important; /* Visual indicator */
+        }
+
+        #profileForm {
+            border: 2px solid green !important; /* Visual indicator */
         }
 
         .settings-section-header {
@@ -457,7 +475,7 @@
                         </div>
 
                         <!-- Profile Tab Content -->
-                        <div id="profileTab" class="tab-content active">
+                        <div id="profileTab" class="tab-content active" style="display: block !important;">
                         <!-- Profile Information Section -->
                         <div class="settings-section">
                             <div class="settings-section-header">
@@ -496,6 +514,12 @@
                                     <label for="phone">Phone Number</label>
                                     <input type="tel" id="phone" name="phone" placeholder="+63 9XX XXX XXXX">
                                     <div class="help-text">Enter your contact number</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="address">Complete Address</label>
+                                    <textarea id="address" name="address" rows="3" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila"></textarea>
+                                    <div class="help-text">Include: House/Unit No., Street, Barangay, City/Municipality, Province</div>
                                 </div>
 
                                 <div class="form-group">

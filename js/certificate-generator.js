@@ -35,6 +35,16 @@ const CertificateGenerator = {
                 // Continue with fallback
             }
             
+            // Wait for QRCode library to load if not already loaded
+            if (typeof QRCode === 'undefined') {
+                console.log('⏳ QRCode library not loaded, waiting...');
+                try {
+                    await this.waitForQRCodeLibrary();
+                } catch (waitError) {
+                    console.warn('⚠️ QRCode library did not load within timeout:', waitError);
+                }
+            }
+            
             // Generate QR code for verification URL
             const verificationUrl = `${window.location.origin}/verify/${blockchainTxId}`;
             let qrCodeDataUrl = '';
@@ -50,7 +60,7 @@ const CertificateGenerator = {
                     });
                     console.log('✅ QR code generated successfully');
                 } else {
-                    console.warn('⚠️ QRCode library not loaded');
+                    console.warn('⚠️ QRCode library not loaded after wait');
                 }
             } catch (qrError) {
                 console.warn('⚠️ QR code generation failed:', qrError);
@@ -746,6 +756,35 @@ const CertificateGenerator = {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+
+    /**
+     * Wait for QRCode library to load
+     * @param {number} maxWait - Maximum wait time in milliseconds (default: 5000)
+     * @returns {Promise} Resolves when library is loaded or rejects after timeout
+     */
+    waitForQRCodeLibrary(maxWait = 5000) {
+        return new Promise((resolve, reject) => {
+            // If already loaded, resolve immediately
+            if (typeof QRCode !== 'undefined') {
+                console.log('✅ QRCode library already loaded');
+                resolve();
+                return;
+            }
+            
+            const startTime = Date.now();
+            const checkInterval = setInterval(() => {
+                if (typeof QRCode !== 'undefined') {
+                    clearInterval(checkInterval);
+                    console.log('✅ QRCode library loaded after waiting');
+                    resolve();
+                } else if (Date.now() - startTime > maxWait) {
+                    clearInterval(checkInterval);
+                    console.warn('⚠️ QRCode library did not load within timeout');
+                    reject(new Error('QRCode library timeout'));
+                }
+            }, 100);
+        });
     }
 };
 

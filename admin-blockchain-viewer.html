@@ -1368,9 +1368,21 @@
             if (blocksTab) blocksTab.style.display = 'none';
             if (searchTab) searchTab.style.display = 'none';
             
+            // Check for txId in URL and load specific transaction
+            const urlParams = new URLSearchParams(window.location.search);
+            const txIdFromUrl = urlParams.get('txId');
+            
             // Load initial data
             loadLedgerStats();
             loadTransactions();
+            
+            // If txId is in URL, load that specific transaction after initial data loads
+            if (txIdFromUrl) {
+                // Wait a bit for transactions to load, then load specific transaction
+                setTimeout(() => {
+                    loadSpecificTransaction(txIdFromUrl);
+                }, 1500);
+            }
         });
 
         // Show tab
@@ -1552,7 +1564,7 @@
                                 const txId = tx.id || tx.transactionId || `tx_${index + 1}`;
                                 
                                 return `
-                                    <div class="transaction-item" style="margin-bottom: 15px;">
+                                    <div class="transaction-item" data-tx-id="${txId}" style="margin-bottom: 15px;">
                                         <div class="transaction-header">
                                             <div style="display: flex; flex-direction: column; gap: 8px;">
                                                 <span class="transaction-id" title="${txId}">
@@ -2101,6 +2113,167 @@
                 console.error('Error loading workflow:', error);
                 container.innerHTML = `<div class="error">Error loading workflow: ${error.message}</div>`;
             }
+        }
+
+        // Load specific transaction by ID
+        async function loadSpecificTransaction(txId) {
+            try {
+                console.log('Loading specific transaction:', txId);
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.get(`/api/blockchain/transactions/${txId}`);
+                
+                if (response.success && response.transaction) {
+                    // Display transaction prominently
+                    displayTransactionDetails(response.transaction, txId);
+                    
+                    // Scroll to and highlight transaction in list after it loads
+                    setTimeout(() => {
+                        const txElement = document.querySelector(`[data-tx-id="${txId}"]`);
+                        if (txElement) {
+                            txElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            txElement.style.border = '3px solid #667eea';
+                            txElement.style.boxShadow = '0 0 15px rgba(102, 126, 234, 0.5)';
+                            txElement.style.borderRadius = '8px';
+                            txElement.style.transition = 'all 0.3s ease';
+                        }
+                    }, 2000);
+                } else {
+                    // Transaction not found - show error message
+                    const transactionsContainer = document.getElementById('transactionsList');
+                    if (transactionsContainer) {
+                        const errorHtml = `
+                            <div style="padding: 2rem; text-align: center; background: white; border-radius: 8px; margin-bottom: 2rem; border: 2px solid #e74c3c;">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #e74c3c; margin-bottom: 1rem;"></i>
+                                <h3 style="color: #e74c3c; margin-bottom: 0.5rem;">Transaction Not Found</h3>
+                                <p style="color: #666; margin-bottom: 0.5rem;">Transaction ID: <code style="background: #f8f9fa; padding: 0.25rem 0.5rem; border-radius: 4px; font-family: monospace;">${txId}</code></p>
+                                <p style="color: #666; margin-bottom: 1rem;">This transaction ID was not found in the blockchain or database.</p>
+                                <button onclick="loadTransactions(); window.history.replaceState({}, document.title, window.location.pathname);" 
+                                        class="btn-primary" 
+                                        style="padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                                    <i class="fas fa-list"></i> View All Transactions
+                                </button>
+                            </div>
+                        `;
+                        transactionsContainer.insertAdjacentHTML('afterbegin', errorHtml);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading specific transaction:', error);
+                const transactionsContainer = document.getElementById('transactionsList');
+                if (transactionsContainer) {
+                    const errorHtml = `
+                        <div style="padding: 2rem; text-align: center; background: white; border-radius: 8px; margin-bottom: 2rem; border: 2px solid #e74c3c;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #e74c3c; margin-bottom: 1rem;"></i>
+                            <h3 style="color: #e74c3c; margin-bottom: 0.5rem;">Error Loading Transaction</h3>
+                            <p style="color: #666; margin-bottom: 1rem;">${error.message || 'Failed to load transaction details'}</p>
+                            <button onclick="loadTransactions(); window.history.replaceState({}, document.title, window.location.pathname);" 
+                                    class="btn-primary" 
+                                    style="padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                                <i class="fas fa-list"></i> View All Transactions
+                            </button>
+                        </div>
+                    `;
+                    transactionsContainer.insertAdjacentHTML('afterbegin', errorHtml);
+                }
+            }
+        }
+
+        // Display transaction details prominently
+        function displayTransactionDetails(transaction, txId) {
+            const transactionsContainer = document.getElementById('transactionsList');
+            if (!transactionsContainer) return;
+            
+            // Format timestamp
+            let timestampStr = 'N/A';
+            try {
+                if (transaction.timestamp) {
+                    const date = new Date(transaction.timestamp);
+                    timestampStr = date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                }
+            } catch (e) {
+                timestampStr = String(transaction.timestamp || 'N/A');
+            }
+            
+            const detailsHtml = `
+                <div class="transaction-item" data-tx-id="${txId}" style="border: 3px solid #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); margin-bottom: 2rem; border-radius: 8px; background: linear-gradient(to bottom, #f8f9ff 0%, white 10%);">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 8px 8px 0 0;">
+                        <h3 style="margin: 0; display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="fas fa-search"></i> Searched Transaction
+                        </h3>
+                    </div>
+                    <div style="padding: 1.5rem;">
+                        <div class="transaction-header" style="margin-bottom: 1.5rem;">
+                            <div>
+                                <span class="transaction-id" title="${txId}" style="font-size: 1.1rem; font-weight: 600;">
+                                    <i class="fas fa-hashtag"></i>
+                                    ${txId}
+                                </span>
+                                <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
+                                    <strong>Source:</strong> ${transaction.source === 'blockchain' ? 'Hyperledger Fabric Blockchain' : 'Database Record'}
+                                </p>
+                            </div>
+                            <span class="status-badge status-confirmed" style="font-size: 1rem; padding: 0.5rem 1rem;">
+                                <i class="fas fa-check-circle"></i>
+                                VERIFIED
+                            </span>
+                        </div>
+                        <div class="transaction-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+                            ${timestampStr !== 'N/A' ? `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                                <strong style="display: block; color: #666; margin-bottom: 0.5rem; font-size: 0.9rem;">Timestamp</strong>
+                                <span style="color: #2c3e50; font-size: 1rem;">${timestampStr}</span>
+                            </div>
+                            ` : ''}
+                            ${transaction.vehicleVin ? `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                                <strong style="display: block; color: #666; margin-bottom: 0.5rem; font-size: 0.9rem;">Vehicle VIN</strong>
+                                <span style="color: #2c3e50; font-family: monospace; font-weight: 600; font-size: 1rem;">${transaction.vehicleVin}</span>
+                            </div>
+                            ` : ''}
+                            ${transaction.vehiclePlate ? `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                                <strong style="display: block; color: #666; margin-bottom: 0.5rem; font-size: 0.9rem;">Plate Number</strong>
+                                <span style="color: #3498db; font-weight: 600; font-size: 1rem;">${transaction.vehiclePlate}</span>
+                            </div>
+                            ` : ''}
+                            ${transaction.action ? `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                                <strong style="display: block; color: #666; margin-bottom: 0.5rem; font-size: 0.9rem;">Action</strong>
+                                <span style="color: #2c3e50; font-size: 1rem;">${transaction.action}</span>
+                            </div>
+                            ` : ''}
+                            ${transaction.validationCode ? `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                                <strong style="display: block; color: #666; margin-bottom: 0.5rem; font-size: 0.9rem;">Validation Code</strong>
+                                <span style="color: #27ae60; font-weight: 600; font-size: 1rem;">${transaction.validationCode}</span>
+                            </div>
+                            ` : ''}
+                            ${transaction.blockNumber ? `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                                <strong style="display: block; color: #666; margin-bottom: 0.5rem; font-size: 0.9rem;">Block Number</strong>
+                                <span style="color: #2c3e50; font-size: 1rem;">${transaction.blockNumber}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ${transaction.description ? `
+                        <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #667eea;">
+                            <strong style="display: block; color: #666; margin-bottom: 0.5rem; font-size: 0.9rem;">Description</strong>
+                            <p style="color: #2c3e50; margin: 0; line-height: 1.6;">${transaction.description}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            // Insert at the top of transactions container
+            transactionsContainer.insertAdjacentHTML('afterbegin', detailsHtml);
         }
 
         // Auto-refresh stats every 30 seconds

@@ -40,6 +40,23 @@
             background: #f8d7da;
             color: #721c24;
         }
+        .status-tampered {
+            background: #f8d7da;
+            color: #721c24;
+            animation: flash 1s infinite;
+        }
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .status-mismatch {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-not-registered {
+            background: #e2e3e5;
+            color: #383d41;
+        }
         code {
             background: white;
             padding: 0.25rem 0.5rem;
@@ -58,6 +75,88 @@
         }
         .btn-primary:hover {
             background: #5568d3;
+        }
+        .integrity-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+        }
+        .comparison-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+        .comparison-table tr:hover {
+            background: #f8f9fa;
+        }
+        .match-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        .match-indicator.match {
+            background: #28a745;
+        }
+        .match-indicator.mismatch {
+            background: #dc3545;
+        }
+        .match-indicator.critical {
+            background: #dc3545;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .field-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .critical-field {
+            background: #fff5f5;
+        }
+        .blockchain-proof {
+            background: #e7f3ff;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            border-left: 3px solid #0066cc;
+        }
+        .approval-chain {
+            margin-top: 1rem;
+        }
+        .approval-step {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            background: white;
+            border-radius: 4px;
+        }
+        .approval-step i {
+            margin-right: 0.5rem;
+            color: #28a745;
         }
     </style>
 </head>
@@ -129,6 +228,10 @@
                 
                 if (response.success && response.transaction) {
                     displayTransaction(response.transaction, txId);
+                    // If we have a VIN, also load integrity check
+                    if (response.transaction.vehicleVin) {
+                        loadIntegrityCheck(response.transaction.vehicleVin, txId);
+                    }
                 } else {
                     document.getElementById('transactionDetails').innerHTML = 
                         `<div class="transaction-card">
@@ -171,8 +274,132 @@
                         </a>
                     </div>
                 </div>
+                <div id="integrityCheckSection"></div>
             `;
             document.getElementById('transactionDetails').innerHTML = html;
+        }
+        
+        async function loadIntegrityCheck(vin, txId) {
+            const integritySection = document.getElementById('integrityCheckSection');
+            if (!integritySection) return;
+            
+            integritySection.innerHTML = '<div class="integrity-section"><p><i class="fas fa-spinner fa-spin"></i> Checking data integrity...</p></div>';
+            
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const integrityResponse = await apiClient.get(`/api/integrity/check/${vin}`);
+                
+                if (integrityResponse.success) {
+                    displayIntegrityCheck(integrityResponse, txId);
+                } else {
+                    integritySection.innerHTML = `
+                        <div class="integrity-section">
+                            <p style="color: #856404;"><i class="fas fa-exclamation-triangle"></i> Could not perform integrity check: ${integrityResponse.message || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.warn('Integrity check failed:', error);
+                integritySection.innerHTML = `
+                    <div class="integrity-section">
+                        <p style="color: #856404;"><i class="fas fa-info-circle"></i> Integrity check unavailable: ${error.message || 'Service temporarily unavailable'}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayIntegrityCheck(integrityData, txId) {
+            const status = integrityData.status;
+            let statusClass = 'status-verified';
+            let statusIcon = 'fa-check-circle';
+            let statusText = 'VERIFIED';
+            
+            if (status === 'TAMPERED') {
+                statusClass = 'status-tampered';
+                statusIcon = 'fa-exclamation-triangle';
+                statusText = 'TAMPERED';
+            } else if (status === 'MISMATCH') {
+                statusClass = 'status-mismatch';
+                statusIcon = 'fa-exclamation-circle';
+                statusText = 'MISMATCH';
+            } else if (status === 'NOT_REGISTERED') {
+                statusClass = 'status-not-registered';
+                statusIcon = 'fa-info-circle';
+                statusText = 'NOT REGISTERED';
+            } else if (status === 'ERROR') {
+                statusClass = 'status-error';
+                statusIcon = 'fa-times-circle';
+                statusText = 'ERROR';
+            }
+            
+            let comparisonTable = '';
+            if (integrityData.comparisons && integrityData.comparisons.length > 0) {
+                comparisonTable = `
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">
+                        <i class="fas fa-balance-scale"></i> Data Comparison
+                    </h3>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Database (PostgreSQL)</th>
+                                <th>Blockchain (Hyperledger Fabric)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${integrityData.comparisons.map(comp => {
+                                const indicatorClass = comp.matches ? 'match' : (comp.isCritical ? 'critical' : 'mismatch');
+                                const indicatorIcon = comp.matches ? 'fa-check' : (comp.isCritical ? 'fa-exclamation-triangle' : 'fa-times');
+                                const rowClass = comp.isCritical && !comp.matches ? 'critical-field' : '';
+                                return `
+                                    <tr class="${rowClass}">
+                                        <td>
+                                            <span class="field-label">${comp.label}</span>
+                                            ${comp.isCritical ? '<br><small style="color: #dc3545;">Critical Field</small>' : ''}
+                                        </td>
+                                        <td><code>${comp.dbValue || '(empty)'}</code></td>
+                                        <td><code>${comp.blockchainValue || '(empty)'}</code></td>
+                                        <td>
+                                            <span class="match-indicator ${indicatorClass}">
+                                                <i class="fas ${indicatorIcon}" style="color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; height: 100%;"></i>
+                                            </span>
+                                            ${comp.matches ? 'Match' : (comp.isCritical ? 'TAMPERED' : 'Mismatch')}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+            
+            let blockchainProof = '';
+            if (integrityData.transactionId || txId) {
+                blockchainProof = `
+                    <div class="blockchain-proof">
+                        <h4 style="margin-top: 0;"><i class="fas fa-link"></i> Blockchain Proof</h4>
+                        <p><strong>Transaction ID:</strong> <code>${integrityData.transactionId || txId}</code></p>
+                        <p><strong>Checked At:</strong> ${integrityData.checkedAt ? new Date(integrityData.checkedAt).toLocaleString() : 'N/A'}</p>
+                        <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
+                            <i class="fas fa-info-circle"></i> This transaction is permanently recorded on the Hyperledger Fabric blockchain and cannot be altered.
+                        </p>
+                    </div>
+                `;
+            }
+            
+            const html = `
+                <div class="integrity-section">
+                    <div class="status-badge ${statusClass}" style="margin-bottom: 1rem;">
+                        <i class="fas ${statusIcon}"></i> DATA INTEGRITY: ${statusText}
+                    </div>
+                    <p><strong>Status:</strong> ${integrityData.message || 'Unknown'}</p>
+                    ${comparisonTable}
+                    ${blockchainProof}
+                </div>
+            `;
+            
+            document.getElementById('integrityCheckSection').innerHTML = html;
         }
     </script>
 </body>

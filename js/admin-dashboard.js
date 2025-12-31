@@ -88,30 +88,26 @@ function initializeAdminDashboard() {
         return; // Stop initialization if demo account detected
     }
     
-    // Initialize real-time stats updates
-    updateSystemStats();
-    
-    // Initialize user management functionality
-    initializeUserManagement();
-    
-    // Initialize organization management
-    initializeOrganizationManagement();
-    
-    // Initialize audit logs
-    initializeAuditLogs();
-    
-    // Initialize reports
-    initializeReports();
-    
-    // Initialize submitted applications
+    // PRIORITY 1: Load applications first (most important)
     initializeSubmittedApplications();
     
-    // Initialize organization verification tracker
-    loadOrgVerificationStatus();
+    // PRIORITY 2: Load stats (defer slightly)
+    setTimeout(() => {
+        updateSystemStats();
+    }, 500);
     
-    // Set up auto-refresh for data
-    setInterval(updateSystemStats, 30000); // Update every 30 seconds
-    setInterval(loadOrgVerificationStatus, 60000); // Update verification status every 60 seconds
+    // PRIORITY 3: Defer non-critical features
+    setTimeout(() => {
+        initializeUserManagement();
+        initializeOrganizationManagement();
+        initializeAuditLogs();
+        initializeReports();
+        loadOrgVerificationStatus();
+    }, 2000); // Load after 2 seconds
+    
+    // Set up auto-refresh (less aggressive)
+    setInterval(updateSystemStats, 120000); // Every 2 minutes instead of 30 seconds
+    setInterval(loadOrgVerificationStatus, 300000); // Every 5 minutes instead of 60 seconds
 }
 
 // Load organization verification statuses from API
@@ -782,11 +778,11 @@ function initializeSubmittedApplications() {
     loadRegistrationApplications();
     loadTransferApplications();
     
-    // Set up auto-refresh for applications
+    // Set up auto-refresh for applications (less aggressive)
     setInterval(() => {
         loadRegistrationApplications();
         loadTransferApplications();
-    }, 10000); // Update every 10 seconds
+    }, 120000); // Update every 2 minutes instead of 10 seconds
 }
 
 async function loadSubmittedApplications() {
@@ -794,7 +790,7 @@ async function loadSubmittedApplications() {
     if (!tbody) return;
     
     // Show loading state
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
     
     try {
         // Check for demo account first
@@ -814,26 +810,15 @@ async function loadSubmittedApplications() {
         if (token && typeof APIClient !== 'undefined') {
             try {
                 const apiClient = new APIClient();
-                // Query for both SUBMITTED and PENDING_BLOCKCHAIN statuses
-                // Try SUBMITTED first
-                let response = await apiClient.get('/api/vehicles?status=SUBMITTED&limit=100');
+                // Use combined status query with optimized limit
+                let response = await apiClient.get('/api/vehicles?status=SUBMITTED,PENDING_BLOCKCHAIN&limit=50&page=1');
                 let allVehicles = response && response.success && response.vehicles ? response.vehicles : [];
                 
-                // Also get PENDING_BLOCKCHAIN vehicles
-                try {
-                    const pendingResponse = await apiClient.get('/api/vehicles?status=PENDING_BLOCKCHAIN&limit=100');
-                    if (pendingResponse && pendingResponse.success && pendingResponse.vehicles) {
-                        allVehicles = [...allVehicles, ...pendingResponse.vehicles];
-                    }
-                } catch (pendingError) {
-                    console.warn('Could not fetch PENDING_BLOCKCHAIN vehicles:', pendingError);
-                }
-                
-                // Update response with combined vehicles
                 if (allVehicles.length > 0) {
                     response = {
                         success: true,
-                        vehicles: allVehicles
+                        vehicles: allVehicles,
+                        pagination: response.pagination || null
                     };
                 }
                 
@@ -872,7 +857,9 @@ async function loadSubmittedApplications() {
                             // Add flat status properties for insurance verifier compatibility
                             insuranceStatus: verificationStatus.insurance || 'pending',
                             emissionStatus: verificationStatus.emission || 'pending',
-                            hpgStatus: verificationStatus.hpg || 'pending'
+                            hpgStatus: verificationStatus.hpg || 'pending',
+                            // Ensure status is lowercase for filter matching
+                            status: (vehicle.status || 'SUBMITTED').toLowerCase()
                         });
                     });
                     
@@ -986,7 +973,7 @@ async function loadSubmittedApplications() {
         renderApplications();
     } catch (error) {
         console.error('Error loading applications:', error);
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error loading applications. Please refresh the page.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: red;">Error loading applications. Please refresh the page.</td></tr>';
     }
 }
 
@@ -1004,13 +991,17 @@ function applyFilters(applications) {
             app.id.toLowerCase().includes(searchTerm) ||
             `${app.vehicle.make} ${app.vehicle.model}`.toLowerCase().includes(searchTerm) ||
             `${app.owner.firstName} ${app.owner.lastName}`.toLowerCase().includes(searchTerm) ||
-            app.vehicle.plateNumber.toLowerCase().includes(searchTerm)
+            (app.vehicle.plateNumber && app.vehicle.plateNumber.toLowerCase().includes(searchTerm))
         );
     }
     
-    // Apply status filter
+    // Apply status filter (case-insensitive comparison)
     if (statusFilter && statusFilter.value !== 'all') {
-        filtered = filtered.filter(app => app.status === statusFilter.value);
+        const filterStatus = statusFilter.value.toLowerCase();
+        filtered = filtered.filter(app => {
+            const appStatus = (app.status || '').toLowerCase();
+            return appStatus === filterStatus;
+        });
     }
     
     return filtered;
@@ -1026,7 +1017,7 @@ function renderApplications() {
     if (filteredApplications.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 20px; color: #666;">
+                <td colspan="8" style="text-align: center; padding: 20px; color: #666;">
                     No applications found
                 </td>
             </tr>
@@ -1083,13 +1074,20 @@ function initializePagination() {
         // Add event listeners
         document.getElementById('applicationSearch')?.addEventListener('input', () => {
             currentPage = 1;
-            loadSubmittedApplications();
+            filteredApplications = applyFilters(allApplications);
+            updatePagination();
+            renderApplications();
         });
         
         document.getElementById('statusFilter')?.addEventListener('change', () => {
             currentPage = 1;
-            loadSubmittedApplications();
+            filteredApplications = applyFilters(allApplications);
+            updatePagination();
+            renderApplications();
         });
+        
+        // Add refresh button
+        addRefreshButton();
     }
     
     // Add pagination container
@@ -1115,6 +1113,95 @@ function updatePagination() {
     }
 }
 
+// Load integrity status for a vehicle
+async function loadIntegrityStatus(vehicleId, vin, cellElement) {
+    if (!cellElement || !vin) return;
+    
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/integrity/check/${vin}`);
+        
+        if (response.success) {
+            const status = response.status;
+            let badgeClass = 'verified';
+            let badgeIcon = 'fa-check-circle';
+            let badgeText = 'VERIFIED';
+            
+            if (status === 'TAMPERED') {
+                badgeClass = 'tampered';
+                badgeIcon = 'fa-exclamation-triangle';
+                badgeText = 'TAMPERED';
+            } else if (status === 'MISMATCH') {
+                badgeClass = 'mismatch';
+                badgeIcon = 'fa-exclamation-circle';
+                badgeText = 'MISMATCH';
+            } else if (status === 'NOT_REGISTERED') {
+                badgeClass = 'not-registered';
+                badgeIcon = 'fa-info-circle';
+                badgeText = 'NOT REGISTERED';
+            } else if (status === 'ERROR') {
+                badgeClass = 'error';
+                badgeIcon = 'fa-times-circle';
+                badgeText = 'ERROR';
+            }
+            
+            cellElement.innerHTML = `
+                <span class="integrity-badge ${badgeClass}" title="${response.message || ''}">
+                    <i class="fas ${badgeIcon}"></i> ${badgeText}
+                </span>
+            `;
+        } else {
+            cellElement.innerHTML = '<span class="integrity-badge error"><i class="fas fa-times-circle"></i> ERROR</span>';
+        }
+    } catch (error) {
+        console.warn(`Integrity check failed for VIN ${vin}:`, error);
+        cellElement.innerHTML = '<span class="integrity-badge error"><i class="fas fa-times-circle"></i> ERROR</span>';
+    }
+}
+
+// Add refresh button to force reload from API
+function addRefreshButton() {
+    const tableContainer = document.querySelector('.dashboard-card:has(#submitted-applications-tbody)');
+    if (!tableContainer) return;
+    
+    // Check if refresh button already exists
+    if (document.getElementById('refreshApplicationsBtn')) return;
+    
+    const toolbar = tableContainer.querySelector('.management-toolbar');
+    if (toolbar) {
+        const refreshBtn = document.createElement('button');
+        refreshBtn.id = 'refreshApplicationsBtn';
+        refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+        refreshBtn.className = 'btn btn-primary';
+        refreshBtn.style.marginLeft = '1rem';
+        refreshBtn.style.padding = '0.5rem 1rem';
+        refreshBtn.style.cursor = 'pointer';
+        refreshBtn.onclick = async () => {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            
+            // Clear localStorage to force fresh API load
+            localStorage.removeItem('submittedApplications');
+            localStorage.removeItem('submittedApplications_v2');
+            
+            // Reload applications
+            await loadSubmittedApplications();
+            
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+            
+            // Show notification
+            if (typeof showNotification !== 'undefined') {
+                showNotification('Applications refreshed', 'success');
+            } else if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Applications refreshed', 'success');
+            }
+        };
+        
+        toolbar.appendChild(refreshBtn);
+    }
+}
+
 function initializeKeyboardShortcuts() {
     document.addEventListener('keydown', function(e) {
         // Ctrl+F or Cmd+F to focus search
@@ -1136,6 +1223,9 @@ function initializeKeyboardShortcuts() {
 
 function createApplicationRow(application) {
     const row = document.createElement('tr');
+    const vehicleId = application.id;
+    const vin = application.vehicle?.vin || '';
+    
     row.innerHTML = `
         <td>${application.id}</td>
         <td>
@@ -1148,12 +1238,25 @@ function createApplicationRow(application) {
         <td>${new Date(application.submittedDate).toLocaleDateString()}</td>
         <td><span class="status-badge status-${(application.status || '').toLowerCase()}">${getStatusText(application.status)}</span></td>
         <td><span class="priority-badge priority-${application.priority}">${application.priority}</span></td>
+        <td class="integrity-status-cell" data-vehicle-id="${vehicleId}" data-vin="${vin}">
+            <span class="integrity-badge loading">
+                <i class="fas fa-spinner fa-spin"></i> Checking...
+            </span>
+        </td>
         <td>
             <button class="btn-secondary btn-sm" onclick="viewApplication('${application.id}')">View</button>
             <button class="btn-primary btn-sm" onclick="approveApplication('${application.id}')">Approve</button>
             <button class="btn-danger btn-sm" onclick="rejectApplication('${application.id}')">Reject</button>
         </td>
     `;
+    
+    // Lazy load integrity status after row is created
+    if (vin) {
+        setTimeout(() => loadIntegrityStatus(vehicleId, vin, row.querySelector('.integrity-status-cell')), 100);
+    } else {
+        row.querySelector('.integrity-status-cell').innerHTML = '<span class="integrity-badge error"><i class="fas fa-question"></i> N/A</span>';
+    }
+    
     return row;
 }
 
@@ -2121,7 +2224,7 @@ async function loadRegistrationApplications() {
         if (!response.success || !response.vehicles || response.vehicles.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                         <i class="fas fa-inbox"></i> No registration applications found
                     </td>
                 </tr>
@@ -2138,6 +2241,8 @@ async function loadRegistrationApplications() {
                 v.lastUpdated || v.last_updated ||
                 v.createdAt || v.created_at;
             const formattedDate = submittedDate ? new Date(submittedDate).toLocaleDateString() : 'N/A';
+            const vin = v.vin || '';
+            const vehicleId = v.id || '';
             
             console.log('[loadRegistrationApplications] Vehicle row:', {
                 id: v.id,
@@ -2158,17 +2263,36 @@ async function loadRegistrationApplications() {
                     <td>${formattedDate}</td>
                     <td>${renderOrgStatusIndicators(v)}</td>
                     <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${v.status || 'N/A'}</span></td>
+                    <td class="integrity-status-cell" data-vehicle-id="${vehicleId}" data-vin="${vin}">
+                        <span class="integrity-badge loading">
+                            <i class="fas fa-spinner fa-spin"></i> Checking...
+                        </span>
+                    </td>
                     <td>
                         <button class="btn-secondary btn-sm" onclick="viewApplication('${v.id}')">View</button>
                     </td>
                 </tr>
             `;
         }).join('');
+        
+        // Load integrity status for all rows after table is rendered
+        setTimeout(() => {
+            const integrityCells = document.querySelectorAll('.integrity-status-cell[data-vin]');
+            integrityCells.forEach((cell, index) => {
+                const vehicleId = cell.getAttribute('data-vehicle-id');
+                const vin = cell.getAttribute('data-vin');
+                if (vin) {
+                    setTimeout(() => loadIntegrityStatus(vehicleId, vin, cell), index * 200); // Stagger requests
+                } else {
+                    cell.innerHTML = '<span class="integrity-badge error"><i class="fas fa-question"></i> N/A</span>';
+                }
+            });
+        }, 500);
     } catch (error) {
         console.error('Error loading registration applications:', error);
         const tbody = document.getElementById('registration-applications-tbody');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Error loading applications</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #e74c3c;">Error loading applications</td></tr>';
         }
     }
 }

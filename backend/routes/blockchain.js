@@ -78,7 +78,7 @@ router.get('/vehicles/:vin', authenticateToken, async (req, res) => {
         if (result.success) {
             res.json({
                 success: true,
-                vehicle: result.result
+                vehicle: result.vehicle
             });
         } else {
             res.status(404).json({

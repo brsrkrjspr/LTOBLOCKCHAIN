@@ -79,16 +79,54 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
             totalCount = parseInt(countResult.rows[0].count);
         }
 
-        // Get verifications and documents for each vehicle
-        for (let vehicle of vehicles) {
-            vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
-            vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
+        // Get verifications and documents for each vehicle (BATCH QUERIES - fixes N+1 problem)
+        if (vehicles.length > 0) {
+            const vehicleIds = vehicles.map(v => v.id);
             
-            // Format verification status
-            vehicle.verificationStatus = {};
-            vehicle.verifications.forEach(v => {
-                vehicle.verificationStatus[v.verification_type] = v.status;
+            // Batch fetch all verifications at once
+            const verificationsQuery = `
+                SELECT * FROM vehicle_verifications 
+                WHERE vehicle_id = ANY($1::uuid[])
+                ORDER BY created_at DESC
+            `;
+            const verificationsResult = await dbModule.query(verificationsQuery, [vehicleIds]);
+            
+            // Batch fetch all documents at once
+            const documentsQuery = `
+                SELECT * FROM documents 
+                WHERE vehicle_id = ANY($1::uuid[])
+                ORDER BY uploaded_at DESC
+            `;
+            const documentsResult = await dbModule.query(documentsQuery, [vehicleIds]);
+            
+            // Group verifications and documents by vehicle_id
+            const verificationsByVehicle = {};
+            verificationsResult.rows.forEach(v => {
+                if (!verificationsByVehicle[v.vehicle_id]) {
+                    verificationsByVehicle[v.vehicle_id] = [];
+                }
+                verificationsByVehicle[v.vehicle_id].push(v);
             });
+            
+            const documentsByVehicle = {};
+            documentsResult.rows.forEach(d => {
+                if (!documentsByVehicle[d.vehicle_id]) {
+                    documentsByVehicle[d.vehicle_id] = [];
+                }
+                documentsByVehicle[d.vehicle_id].push(d);
+            });
+            
+            // Attach to vehicles
+            for (let vehicle of vehicles) {
+                vehicle.verifications = verificationsByVehicle[vehicle.id] || [];
+                vehicle.documents = documentsByVehicle[vehicle.id] || [];
+                
+                // Format verification status
+                vehicle.verificationStatus = {};
+                vehicle.verifications.forEach(v => {
+                    vehicle.verificationStatus[v.verification_type] = v.status;
+                });
+            }
         }
 
         console.log('[API /api/vehicles] Success:', {

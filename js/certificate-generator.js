@@ -776,7 +776,7 @@ const CertificateGenerator = {
             const scriptTags = document.querySelectorAll('script[src*="qrcode"]');
             if (scriptTags.length === 0) {
                 console.error('❌ QRCode script tag not found in DOM');
-                reject(new Error('QRCode script tag not found. Please ensure js/qrcode.min.js exists on the server.'));
+                reject(new Error('QRCode script tag not found. Please ensure js/qrcodejs.min.js exists on the server.'));
                 return;
             }
             
@@ -793,7 +793,7 @@ const CertificateGenerator = {
                     clearInterval(checkInterval);
                     console.error('❌ QRCode library did not load within timeout');
                     console.error('💡 Troubleshooting:');
-                    console.error('   1. Check if js/qrcode.min.js exists on server');
+                    console.error('   1. Check if js/qrcodejs.min.js exists on server');
                     console.error('   2. Check browser Network tab for 404 errors');
                     console.error('   3. Verify static file serving is configured correctly');
                     console.error('   4. Try hard refresh (Ctrl+Shift+R) to clear cache');

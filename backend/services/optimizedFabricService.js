@@ -573,18 +573,28 @@ class OptimizedFabricService {
         }
         
         try {
-            // Get channel from network
-            const channel = this.network.getChannel();
+            // Use getAllTransactions() and filter by ID (same approach as /api/ledger/transactions/id/:transactionId)
+            const allTransactions = await this.getAllTransactions();
+            const transaction = allTransactions.find(tx => 
+                tx.id === txId || tx.transactionId === txId
+            );
             
-            // Query transaction by ID
-            const transaction = await channel.queryTransaction(txId);
+            if (!transaction) {
+                throw new Error(`Transaction ${txId} not found on Fabric ledger`);
+            }
             
+            // Return transaction with consistent format
             return {
-                txId: transaction.transactionId,
+                txId: transaction.id || transaction.transactionId,
                 timestamp: transaction.timestamp,
-                validationCode: transaction.validationCode,
-                blockNumber: transaction.blockNumber,
-                // Add more details as available
+                validationCode: transaction.status === 'CONFIRMED' ? 'VALID' : 'INVALID',
+                blockNumber: transaction.blockNumber || null,
+                vehicleVin: transaction.vin || null,
+                vehiclePlate: transaction.plateNumber || null,
+                action: transaction.type || 'UNKNOWN',
+                description: `Transaction ${transaction.type || 'UNKNOWN'}`,
+                // Include all transaction fields
+                ...transaction
             };
         } catch (error) {
             console.error('Error getting transaction from Fabric:', error);

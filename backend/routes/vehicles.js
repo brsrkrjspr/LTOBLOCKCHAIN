@@ -6,6 +6,7 @@ const db = require('../database/services');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 const { sendEmail } = require('./notifications');
 const { sendMail } = require('../services/gmailApiService');
 
@@ -291,6 +292,9 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
         vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
         vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
         vehicle.history = await db.getVehicleHistory(vehicle.id);
+        
+        // Generate QR code server-side
+        vehicle.qr_code_base64 = await generateVehicleQRCode(vehicle);
 
         res.json({
             success: true,
@@ -1538,6 +1542,49 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
     }
 });
 
+// Helper function to generate QR code for vehicle
+async function generateVehicleQRCode(vehicle) {
+    try {
+        // Get transaction ID (same logic as transaction-id endpoint)
+        let transactionId = vehicle.blockchain_tx_id || vehicle.id;
+        
+        // Try to get from history if available
+        if (vehicle.history && vehicle.history.length > 0) {
+            const blockchainRegistered = vehicle.history.find(h => 
+                h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id
+            );
+            if (blockchainRegistered) {
+                transactionId = blockchainRegistered.transaction_id;
+            } else {
+                const anyTx = vehicle.history.find(h => h.transaction_id);
+                if (anyTx) {
+                    transactionId = anyTx.transaction_id;
+                }
+            }
+        }
+        
+        // Generate verification URL
+        const baseUrl = process.env.FRONTEND_URL || 'https://ltoblockchain.duckdns.org';
+        const verifyUrl = `${baseUrl}/verify/${transactionId}`;
+        
+        // Generate QR code as base64 data URL
+        const qrCodeBase64 = await QRCode.toDataURL(verifyUrl, {
+            width: 200,
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            },
+            errorCorrectionLevel: 'H'
+        });
+        
+        return qrCodeBase64;
+    } catch (error) {
+        console.error('Error generating QR code:', error);
+        return null; // Return null if generation fails
+    }
+}
+
 // Helper function to format vehicle response
 function formatVehicleResponse(vehicle) {
     if (!vehicle) return null;
@@ -1640,7 +1687,9 @@ function formatVehicleResponse(vehicle) {
         verifications: vehicle.verifications || [],
         documents: formattedDocuments, // Use formatted documents with proper structure
         history: vehicle.history || [],
-        notes: vehicle.notes
+        notes: vehicle.notes,
+        // QR code (server-generated)
+        qr_code_base64: vehicle.qr_code_base64 || null
     };
 }
 

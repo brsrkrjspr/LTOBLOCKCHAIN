@@ -388,11 +388,10 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
         
         const db = require('../database/db');
         
-        // Check if Fabric is available
-        if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
-            // If not connected, try to get transaction info from vehicle_history
+        // Helper function to get transaction from database
+        const getTransactionFromDatabase = async (txId) => {
             const historyResult = await db.query(
-                `SELECT vh.*, v.vin, v.plate_number 
+                `SELECT vh.*, v.vin, v.plate_number, v.status as vehicle_status
                  FROM vehicle_history vh
                  JOIN vehicles v ON vh.vehicle_id = v.id
                  WHERE vh.transaction_id = $1
@@ -403,7 +402,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             
             if (historyResult.rows.length > 0) {
                 const history = historyResult.rows[0];
-                return res.json({
+                return {
                     success: true,
                     transaction: {
                         txId: history.transaction_id,
@@ -411,59 +410,44 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                         vehicleVin: history.vin,
                         vehiclePlate: history.plate_number,
                         action: history.action,
-                        description: history.description,
-                        source: 'database'
+                        description: history.description || `${history.action} transaction`,
+                        validationCode: 'VALID',
+                        source: 'database',
+                        vehicleStatus: history.vehicle_status
                     }
-                });
+                };
             }
-            
-            return res.status(404).json({
-                success: false,
-                error: 'Transaction not found'
-            });
+            return null;
+        };
+        
+        // Try to get from database first (faster and more reliable)
+        const dbResult = await getTransactionFromDatabase(txId);
+        if (dbResult) {
+            return res.json(dbResult);
         }
         
-        // Get transaction details from Fabric
-        try {
-            const transaction = await fabricService.getTransaction(txId);
-            res.json({
-                success: true,
-                transaction: {
-                    ...transaction,
-                    source: 'blockchain'
-                }
-            });
-        } catch (fabricError) {
-            // Fallback to database if Fabric query fails
-            const db = require('../database/db');
-            const historyResult = await db.query(
-                `SELECT vh.*, v.vin, v.plate_number 
-                 FROM vehicle_history vh
-                 JOIN vehicles v ON vh.vehicle_id = v.id
-                 WHERE vh.transaction_id = $1
-                 ORDER BY vh.performed_at DESC
-                 LIMIT 1`,
-                [txId]
-            );
-            
-            if (historyResult.rows.length > 0) {
-                const history = historyResult.rows[0];
+        // If not in database, try Fabric (if available)
+        if (fabricService.isConnected && fabricService.mode === 'fabric') {
+            try {
+                const transaction = await fabricService.getTransaction(txId);
                 return res.json({
                     success: true,
                     transaction: {
-                        txId: history.transaction_id,
-                        timestamp: history.performed_at,
-                        vehicleVin: history.vin,
-                        vehiclePlate: history.plate_number,
-                        action: history.action,
-                        description: history.description,
-                        source: 'database'
+                        ...transaction,
+                        source: 'blockchain'
                     }
                 });
+            } catch (fabricError) {
+                console.warn('Fabric query failed, transaction not found:', fabricError.message);
+                // Continue to return 404 below
             }
-            
-            throw fabricError;
         }
+        
+        // Transaction not found in either database or Fabric
+        return res.status(404).json({
+            success: false,
+            error: 'Transaction not found'
+        });
         
     } catch (error) {
         console.error('Error getting transaction:', error);

@@ -97,22 +97,33 @@
             try {
                 const apiClient = window.apiClient || new APIClient();
                 
-                // Try to get transaction (may require auth for full details)
+                // Try to get transaction (public endpoint, no auth required)
                 let response;
                 try {
                     response = await apiClient.get(`/api/blockchain/transactions/${txId}`);
-                } catch (authError) {
-                    // If auth fails, show basic info (public view)
-                    document.getElementById('transactionDetails').innerHTML = `
-                        <div class="transaction-card">
-                            <h3>Transaction ID: <code>${txId}</code></h3>
-                            <div class="status-badge status-pending">
-                                <i class="fas fa-clock"></i> VERIFICATION PENDING
+                } catch (apiError) {
+                    // Check if it's a 404 (not found) vs 500 (server error)
+                    if (apiError.status === 404 || (apiError.response && apiError.response.status === 404)) {
+                        document.getElementById('transactionDetails').innerHTML = 
+                            `<div class="transaction-card">
+                                <div class="status-badge status-error">
+                                    <i class="fas fa-times-circle"></i> NOT FOUND
+                                </div>
+                                <p style="margin-top: 1rem;">Transaction not found: <code>${txId}</code></p>
+                                <p>This transaction ID does not exist in the system.</p>
+                            </div>`;
+                        return;
+                    }
+                    
+                    // For other errors (500, network errors, etc.), show error message
+                    document.getElementById('transactionDetails').innerHTML = 
+                        `<div class="transaction-card">
+                            <div class="status-badge status-error">
+                                <i class="fas fa-exclamation-triangle"></i> ERROR
                             </div>
-                            <p style="margin-top: 1rem;">This transaction ID exists in the system.</p>
-                            <p>Please <a href="/login-signup.html">log in</a> to view full transaction details and blockchain verification.</p>
-                        </div>
-                    `;
+                            <p style="margin-top: 1rem;">Error loading transaction: ${apiError.message || 'Unknown error'}</p>
+                            <p>Please try again later or <a href="/login-signup.html">log in</a> for additional details.</p>
+                        </div>`;
                     return;
                 }
                 
@@ -133,7 +144,7 @@
                         <div class="status-badge status-error">
                             <i class="fas fa-exclamation-triangle"></i> ERROR
                         </div>
-                        <p style="margin-top: 1rem;">Error loading transaction: ${error.message}</p>
+                        <p style="margin-top: 1rem;">Error loading transaction: ${error.message || 'Unknown error'}</p>
                     </div>`;
             }
         }

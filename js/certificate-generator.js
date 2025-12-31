@@ -763,7 +763,7 @@ const CertificateGenerator = {
      * @param {number} maxWait - Maximum wait time in milliseconds (default: 5000)
      * @returns {Promise} Resolves when library is loaded or rejects after timeout
      */
-    waitForQRCodeLibrary(maxWait = 5000) {
+    waitForQRCodeLibrary(maxWait = 10000) {
         return new Promise((resolve, reject) => {
             // If already loaded, resolve immediately
             if (typeof QRCode !== 'undefined') {
@@ -771,6 +771,17 @@ const CertificateGenerator = {
                 resolve();
                 return;
             }
+            
+            // Check if script tag exists
+            const scriptTags = document.querySelectorAll('script[src*="qrcode"]');
+            if (scriptTags.length === 0) {
+                console.error('❌ QRCode script tag not found in DOM');
+                reject(new Error('QRCode script tag not found. Please ensure js/qrcode.min.js exists on the server.'));
+                return;
+            }
+            
+            console.log(`⏳ Waiting for QRCode library to load (max ${maxWait}ms)...`);
+            console.log(`📝 Found ${scriptTags.length} QRCode script tag(s):`, Array.from(scriptTags).map(s => s.src));
             
             const startTime = Date.now();
             const checkInterval = setInterval(() => {
@@ -780,8 +791,13 @@ const CertificateGenerator = {
                     resolve();
                 } else if (Date.now() - startTime > maxWait) {
                     clearInterval(checkInterval);
-                    console.warn('⚠️ QRCode library did not load within timeout');
-                    reject(new Error('QRCode library timeout'));
+                    console.error('❌ QRCode library did not load within timeout');
+                    console.error('💡 Troubleshooting:');
+                    console.error('   1. Check if js/qrcode.min.js exists on server');
+                    console.error('   2. Check browser Network tab for 404 errors');
+                    console.error('   3. Verify static file serving is configured correctly');
+                    console.error('   4. Try hard refresh (Ctrl+Shift+R) to clear cache');
+                    reject(new Error('QRCode library timeout - file may not exist or failed to load. Check browser console Network tab for errors.'));
                 }
             }, 100);
         });

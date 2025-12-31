@@ -49,16 +49,40 @@ const CertificateGenerator = {
             const verificationUrl = `${window.location.origin}/verify/${blockchainTxId}`;
             let qrCodeDataUrl = '';
             try {
+                // qrcodejs library uses constructor API - create temporary div
                 if (typeof QRCode !== 'undefined') {
-                    qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {
+                    // Create a temporary hidden div for QR code rendering
+                    const tempDiv = document.createElement('div');
+                    tempDiv.style.position = 'absolute';
+                    tempDiv.style.left = '-9999px';
+                    tempDiv.style.width = '200px';
+                    tempDiv.style.height = '200px';
+                    document.body.appendChild(tempDiv);
+                    
+                    // Create QR code instance
+                    const qr = new QRCode(tempDiv, {
+                        text: verificationUrl,
                         width: 200,
-                        margin: 2,
-                        color: {
-                            dark: '#000000',
-                            light: '#FFFFFF'
-                        }
+                        height: 200,
+                        colorDark: '#000000',
+                        colorLight: '#FFFFFF',
+                        correctLevel: QRCode.CorrectLevel.H
                     });
-                    console.log('✅ QR code generated successfully');
+                    
+                    // Wait for QR code to render
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // Extract canvas from the QR code (qrcodejs renders to a canvas inside the div)
+                    const canvas = tempDiv.querySelector('canvas');
+                    if (canvas) {
+                        qrCodeDataUrl = canvas.toDataURL('image/png');
+                        console.log('✅ QR code generated successfully');
+                    } else {
+                        console.warn('⚠️ QR code canvas not found');
+                    }
+                    
+                    // Clean up temporary div
+                    document.body.removeChild(tempDiv);
                 } else {
                     console.warn('⚠️ QRCode library not loaded after wait');
                 }
@@ -776,7 +800,7 @@ const CertificateGenerator = {
             const scriptTags = document.querySelectorAll('script[src*="qrcode"]');
             if (scriptTags.length === 0) {
                 console.error('❌ QRCode script tag not found in DOM');
-                reject(new Error('QRCode script tag not found. Please ensure js/qrcodejs.min.js exists on the server.'));
+                reject(new Error('QRCode script tag not found. Please ensure the QRCode library is loaded from CDN.'));
                 return;
             }
             
@@ -793,11 +817,11 @@ const CertificateGenerator = {
                     clearInterval(checkInterval);
                     console.error('❌ QRCode library did not load within timeout');
                     console.error('💡 Troubleshooting:');
-                    console.error('   1. Check if js/qrcodejs.min.js exists on server');
-                    console.error('   2. Check browser Network tab for 404 errors');
-                    console.error('   3. Verify static file serving is configured correctly');
-                    console.error('   4. Try hard refresh (Ctrl+Shift+R) to clear cache');
-                    reject(new Error('QRCode library timeout - file may not exist or failed to load. Check browser console Network tab for errors.'));
+                    console.error('   1. Check browser Network tab for 404 or CSP errors');
+                    console.error('   2. Verify CSP allows cdnjs.cloudflare.com for scripts');
+                    console.error('   3. Try hard refresh (Ctrl+Shift+R) to clear cache');
+                    console.error('   4. Check if nginx and backend containers are restarted');
+                    reject(new Error('QRCode library timeout - check CSP settings and network tab for errors.'));
                 }
             }, 100);
         });

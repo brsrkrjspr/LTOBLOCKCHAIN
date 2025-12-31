@@ -149,7 +149,8 @@ app.get('/document-viewer', (req, res) => {
 });
 
 // Route for verify page with transaction ID
-app.get('/verify/:transactionId', (req, res) => {
+// Only match if it's a valid transaction ID (long hex string, no file extension)
+app.get('/verify/:transactionId([a-f0-9]{40,})', (req, res) => {
     res.sendFile(path.join(__dirname, 'verify.html'));
 });
 

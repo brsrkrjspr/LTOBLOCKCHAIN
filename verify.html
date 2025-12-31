@@ -110,7 +110,7 @@
                                 <i class="fas fa-clock"></i> VERIFICATION PENDING
                             </div>
                             <p style="margin-top: 1rem;">This transaction ID exists in the system.</p>
-                            <p>Please <a href="login-signup.html">log in</a> to view full transaction details and blockchain verification.</p>
+                            <p>Please <a href="/login-signup.html">log in</a> to view full transaction details and blockchain verification.</p>
                         </div>
                     `;
                     return;
@@ -155,7 +155,7 @@
                     ${tx.blockNumber ? `<p><strong>Block Number:</strong> ${tx.blockNumber}</p>` : ''}
                     <p><strong>Source:</strong> ${tx.source === 'blockchain' ? 'Hyperledger Fabric Blockchain' : 'Database Record'}</p>
                     <div style="margin-top: 1.5rem;">
-                        <a href="admin-blockchain-viewer.html?txId=${txId}" class="btn-primary">
+                        <a href="/admin-blockchain-viewer.html?txId=${txId}" class="btn-primary">
                             <i class="fas fa-external-link-alt"></i> View Full Details
                         </a>
                     </div>

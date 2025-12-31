@@ -682,10 +682,10 @@ const CertificateGenerator = {
                 <div class="blockchain-container">
                     <div class="qr-box" style="text-align: center; margin-bottom: 20px;">
                         ${qrCodeDataUrl ? `
-                        <div style="display: inline-block; padding: 15px; background: white; border: 2px solid #003366; border-radius: 8px;">
+                        <div style="display: inline-block; padding: 10px; background: white; border: 2px solid #003366; border-radius: 8px;">
                             <img src="${qrCodeDataUrl}" 
                                  alt="Blockchain Verification QR Code" 
-                                 style="width: 200px; height: 200px; display: block;">
+                                 style="width: 120px; height: 120px; display: block;">
                             <p style="margin-top: 10px; font-size: 11px; color: #666;">
                                 Scan to verify on blockchain
                             </p>

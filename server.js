@@ -148,6 +148,11 @@ app.get('/document-viewer', (req, res) => {
     res.sendFile(path.join(__dirname, 'document-viewer.html'));
 });
 
+// Route for verify page with transaction ID
+app.get('/verify/:transactionId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'verify.html'));
+});
+
 app.get('/admin-blockchain-viewer', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin-blockchain-viewer.html'));
 });

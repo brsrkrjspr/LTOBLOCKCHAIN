@@ -565,7 +565,6 @@ class OptimizedFabricService {
             console.error('❌ Error disconnecting from network:', error);
         }
     }
-}
 
     // Get transaction details by transaction ID
     async getTransaction(txId) {

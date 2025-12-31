@@ -199,7 +199,7 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
 
 // Get vehicle by ID (for admin/owner viewing by UUID)
 // GET /api/vehicles/:id/transaction-id - Get blockchain transaction ID for vehicle
-router.get('/:id/transaction-id', authenticateToken, optionalAuth, async (req, res) => {
+router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
     try {
         const vehicleId = req.params.id;
         

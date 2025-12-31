@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const fabricService = require('../services/optimizedFabricService');
+const { optionalAuth } = require('../middleware/auth');
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -373,7 +374,8 @@ function authorizeRole(allowedRoles) {
 }
 
 // GET /api/blockchain/transactions/:txId - Get transaction details by ID
-router.get('/transactions/:txId', authenticateToken, optionalAuth, async (req, res) => {
+// Public endpoint - optional auth for enhanced details
+router.get('/transactions/:txId', optionalAuth, async (req, res) => {
     try {
         const { txId } = req.params;
         

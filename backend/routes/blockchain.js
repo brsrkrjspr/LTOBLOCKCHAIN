@@ -258,7 +258,7 @@ router.get('/status', optionalAuth, (req, res) => {
             channelName: process.env.FABRIC_CHANNEL_NAME || 'trustchain-channel',
             chaincodeName: process.env.FABRIC_CHAINCODE_NAME || 'vehicle-registration',
             chaincodeVersion: process.env.FABRIC_CHAINCODE_VERSION || '1.0',
-            status: fabricStatus.connected ? 'CONNECTED' : 'DISCONNECTED',
+            status: fabricStatus.isConnected ? 'CONNECTED' : 'DISCONNECTED',
             network: fabricStatus.network,
             channel: fabricStatus.channel,
             contract: fabricStatus.contract,
@@ -266,23 +266,23 @@ router.get('/status', optionalAuth, (req, res) => {
             peers: [
                 {
                     name: 'peer0.lto.example.com',
-                    status: fabricStatus.connected ? 'UP' : 'DOWN',
+                    status: fabricStatus.isConnected ? 'UP' : 'DOWN',
                     port: 7051
                 },
                 {
                     name: 'peer0.insurance.example.com',
-                    status: fabricStatus.connected ? 'UP' : 'DOWN',
+                    status: fabricStatus.isConnected ? 'UP' : 'DOWN',
                     port: 8051
                 },
                 {
                     name: 'peer0.emission.example.com',
-                    status: fabricStatus.connected ? 'UP' : 'DOWN',
+                    status: fabricStatus.isConnected ? 'UP' : 'DOWN',
                     port: 9051
                 }
             ],
             orderer: {
                 name: 'orderer.example.com',
-                status: fabricStatus.connected ? 'UP' : 'DOWN',
+                status: fabricStatus.isConnected ? 'UP' : 'DOWN',
                 port: 7050
             }
         };

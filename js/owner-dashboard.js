@@ -2575,107 +2575,191 @@ function downloadFinalPapers() {
     }, 2000);
 }
 
+// Enhanced timeline update function - works with new timeline structure
 function updateProgressTimeline() {
-    // Try new selector first, fallback to old
+    // Try new enhanced timeline first
+    const enhancedTimeline = document.getElementById('workflowTimeline');
+    if (enhancedTimeline) {
+        // Use API-based update if vehicle ID is available
+        const urlParams = new URLSearchParams(window.location.search);
+        const vehicleId = urlParams.get('vehicleId');
+        if (vehicleId) {
+            updateRegistrationTimeline(vehicleId);
+            return;
+        }
+        
+        // Fallback to localStorage-based update
+        updateTimelineFromState();
+        return;
+    }
+    
+    // Fallback to old timeline structure
     let timelineItems = document.querySelectorAll('.timeline-item-modern');
     if (!timelineItems || timelineItems.length === 0) {
         timelineItems = document.querySelectorAll('.timeline-item');
     }
     if (!timelineItems || timelineItems.length === 0) return;
     
-    // Update timeline based on workflow state
+    // Update old timeline based on workflow state
     timelineItems.forEach((item, index) => {
-        // Try new selectors first
-        let icon = item.querySelector('.timeline-icon-modern');
-        if (!icon) {
-            icon = item.querySelector('.timeline-icon');
-        }
-        let content = item.querySelector('.timeline-content-modern h4');
-        if (!content) {
-            content = item.querySelector('.timeline-content h4');
-        }
-        
+        let icon = item.querySelector('.timeline-icon-modern') || item.querySelector('.timeline-icon');
+        let content = item.querySelector('.timeline-content-modern h4') || item.querySelector('.timeline-content h4');
         if (!icon || !content) return;
         
-        // Reset all to pending
         item.classList.remove('completed', 'pending', 'active');
         item.classList.add('pending');
         icon.classList.remove('completed', 'pending', 'active');
         icon.classList.add('pending');
         
-        // Update based on progress
-        if (index === 0) {
-            // Application Submitted - always completed if registration requested
-            if (userWorkflowState.registrationRequested) {
-                item.classList.remove('pending');
-                item.classList.add('completed');
-                icon.classList.remove('pending');
-                icon.classList.add('completed');
-                icon.innerHTML = '<i class="fas fa-check"></i>';
-                let dateEl = item.querySelector('.timeline-date-modern');
-                if (!dateEl) dateEl = item.querySelector('.timeline-date');
-                if (dateEl) dateEl.textContent = new Date().toLocaleDateString();
-            }
-        } else if (index === 1) {
-            // Emission Test
-            content.textContent = 'Emission Test';
-            // Check if emission is received (from LTO workflow state)
-            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
-            if (ltoState.emissionReceived) {
-                item.classList.remove('pending');
-                item.classList.add('completed');
-                icon.classList.remove('pending');
-                icon.classList.add('completed');
-                icon.innerHTML = '<i class="fas fa-check"></i>';
-            }
-        } else if (index === 2) {
-            // Insurance Verification
-            content.textContent = 'Insurance Verification';
-            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
-            if (ltoState.insuranceReceived) {
-                item.classList.remove('pending');
-                item.classList.add('completed');
-                icon.classList.remove('pending');
-                icon.classList.add('completed');
-                icon.innerHTML = '<i class="fas fa-check"></i>';
-            }
-        } else if (index === 3) {
-            // HPG Clearance
-            content.textContent = 'HPG Clearance';
-            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
-            if (ltoState.hpgReceived) {
-                item.classList.remove('pending');
-                item.classList.add('completed');
-                icon.classList.remove('pending');
-                icon.classList.add('completed');
-                icon.innerHTML = '<i class="fas fa-check"></i>';
-            }
-        } else if (index === 4) {
-            // Finalization
-            content.textContent = 'Finalization';
-            const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
-            if (ltoState.emissionReceived && ltoState.insuranceReceived && ltoState.hpgReceived) {
-                item.classList.remove('pending');
-                item.classList.add('active');
-                icon.classList.remove('pending');
-                icon.classList.add('active');
-                icon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            }
-        } else if (index === 5) {
-            // Completed
-            content.textContent = 'Completed';
-            if (userWorkflowState.registrationCompleted) {
-                item.classList.remove('pending');
-                item.classList.add('completed');
-                icon.classList.remove('pending');
-                icon.classList.add('completed');
-                icon.innerHTML = '<i class="fas fa-award"></i>';
-                let dateEl = item.querySelector('.timeline-date-modern');
-                if (!dateEl) dateEl = item.querySelector('.timeline-date');
-                if (dateEl) dateEl.textContent = new Date().toLocaleDateString();
+        if (index === 0 && userWorkflowState.registrationRequested) {
+            item.classList.add('completed');
+            icon.classList.add('completed');
+            icon.innerHTML = '<i class="fas fa-check"></i>';
+        }
+    });
+}
+
+// Update registration timeline based on vehicle progress (API-based)
+async function updateRegistrationTimeline(vehicleId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/vehicles/${vehicleId}/progress`);
+        
+        if (response.success && response.progress) {
+            renderTimeline(response.progress, response.vehicle);
+        } else {
+            // Fallback to state-based update
+            updateTimelineFromState();
+        }
+    } catch (error) {
+        console.warn('Failed to load timeline from API, using state-based update:', error);
+        updateTimelineFromState();
+    }
+}
+
+// Render timeline based on progress data
+function renderTimeline(progress, vehicle) {
+    const steps = {
+        submitted: { key: 'applicationSubmitted', step: 'submitted' },
+        hpg: { key: 'hpgClearance', step: 'hpg' },
+        insurance: { key: 'insuranceVerification', step: 'insurance' },
+        emission: { key: 'emissionTest', step: 'emission' },
+        inspection: { key: 'ltoInspection', step: 'inspection' },
+        blockchain: { key: 'blockchainRegistration', step: 'blockchain' },
+        complete: { key: 'completed', step: 'complete' }
+    };
+    
+    Object.keys(steps).forEach(stepKey => {
+        const stepElement = document.querySelector(`.timeline-step[data-step="${stepKey}"]`);
+        if (!stepElement) return;
+        
+        const progressData = progress[steps[stepKey].key];
+        const statusIndicator = stepElement.querySelector('.status-indicator');
+        const dateElement = stepElement.querySelector('.step-date');
+        
+        // Reset classes
+        stepElement.classList.remove('completed', 'active', 'rejected');
+        statusIndicator.classList.remove('completed', 'active', 'rejected');
+        
+        if (progressData) {
+            if (progressData.status === 'completed') {
+                stepElement.classList.add('completed');
+                statusIndicator.classList.add('completed');
+                if (progressData.date) {
+                    dateElement.textContent = new Date(progressData.date).toLocaleString();
+                }
+            } else if (progressData.status === 'pending') {
+                stepElement.classList.add('active');
+                statusIndicator.classList.add('active');
+                dateElement.textContent = 'In Progress...';
+            } else if (progressData.status === 'rejected') {
+                stepElement.classList.add('rejected');
+                statusIndicator.classList.add('rejected');
+                dateElement.textContent = 'Rejected';
             }
         }
     });
+    
+    // Special handling for blockchain step
+    if (vehicle && vehicle.status === 'REGISTERED') {
+        const blockchainStep = document.querySelector('.timeline-step[data-step="blockchain"]');
+        if (blockchainStep) {
+            blockchainStep.classList.add('completed');
+            const txSpan = blockchainStep.querySelector('.blockchain-tx');
+            if (txSpan && vehicle.blockchain_tx_id) {
+                txSpan.style.display = 'block';
+                txSpan.textContent = `TX: ${vehicle.blockchain_tx_id.substring(0, 20)}...`;
+            }
+        }
+    }
+}
+
+// Fallback: Update timeline from localStorage state
+function updateTimelineFromState() {
+    const steps = document.querySelectorAll('.timeline-step');
+    if (!steps || steps.length === 0) return;
+    
+    const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
+    
+    // Step 1: Application Submitted
+    const submittedStep = document.querySelector('.timeline-step[data-step="submitted"]');
+    if (submittedStep && userWorkflowState.registrationRequested) {
+        submittedStep.classList.add('completed');
+        submittedStep.querySelector('.status-indicator').classList.add('completed');
+        submittedStep.querySelector('.step-date').textContent = new Date().toLocaleDateString();
+    }
+    
+    // Step 2: HPG Clearance
+    const hpgStep = document.querySelector('.timeline-step[data-step="hpg"]');
+    if (hpgStep && ltoState.hpgReceived) {
+        hpgStep.classList.add('completed');
+        hpgStep.querySelector('.status-indicator').classList.add('completed');
+    } else if (hpgStep && ltoState.hpgPending) {
+        hpgStep.classList.add('active');
+        hpgStep.querySelector('.status-indicator').classList.add('active');
+    }
+    
+    // Step 3: Insurance Verification
+    const insuranceStep = document.querySelector('.timeline-step[data-step="insurance"]');
+    if (insuranceStep && ltoState.insuranceReceived) {
+        insuranceStep.classList.add('completed');
+        insuranceStep.querySelector('.status-indicator').classList.add('completed');
+    } else if (insuranceStep && ltoState.insurancePending) {
+        insuranceStep.classList.add('active');
+        insuranceStep.querySelector('.status-indicator').classList.add('active');
+    }
+    
+    // Step 4: Emission Test
+    const emissionStep = document.querySelector('.timeline-step[data-step="emission"]');
+    if (emissionStep && ltoState.emissionReceived) {
+        emissionStep.classList.add('completed');
+        emissionStep.querySelector('.status-indicator').classList.add('completed');
+    } else if (emissionStep && ltoState.emissionPending) {
+        emissionStep.classList.add('active');
+        emissionStep.querySelector('.status-indicator').classList.add('active');
+    }
+    
+    // Step 5: LTO Inspection
+    const inspectionStep = document.querySelector('.timeline-step[data-step="inspection"]');
+    if (inspectionStep && ltoState.inspectionCompleted) {
+        inspectionStep.classList.add('completed');
+        inspectionStep.querySelector('.status-indicator').classList.add('completed');
+    }
+    
+    // Step 6: Blockchain Registration
+    const blockchainStep = document.querySelector('.timeline-step[data-step="blockchain"]');
+    if (blockchainStep && userWorkflowState.registrationCompleted) {
+        blockchainStep.classList.add('completed');
+        blockchainStep.querySelector('.status-indicator').classList.add('completed');
+    }
+    
+    // Step 7: Complete
+    const completeStep = document.querySelector('.timeline-step[data-step="complete"]');
+    if (completeStep && userWorkflowState.registrationCompleted) {
+        completeStep.classList.add('completed');
+        completeStep.querySelector('.status-indicator').classList.add('completed');
+        completeStep.querySelector('.step-date').textContent = new Date().toLocaleDateString();
+    }
 }
 
 // Initialize workflow state on page load
@@ -2693,10 +2777,66 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 5000);
 });
 
+// Helper function to get days until expiry
+function getDaysUntilExpiry(expiryDate) {
+    if (!expiryDate) return null;
+    const expiry = new Date(expiryDate);
+    const now = new Date();
+    const diffTime = expiry - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+}
+
+// Helper function to format expiry date
+function formatExpiryDate(expiryDate) {
+    if (!expiryDate) return 'N/A';
+    return new Date(expiryDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+// Helper function to generate expiry badge HTML
+function generateExpiryBadge(vehicle) {
+    if (!vehicle.registration_expiry_date) return '';
+    
+    const daysUntilExpiry = getDaysUntilExpiry(vehicle.registration_expiry_date);
+    if (daysUntilExpiry === null || daysUntilExpiry < 0) return '';
+    
+    let badgeClass = '';
+    let urgencyText = '';
+    
+    if (daysUntilExpiry <= 1) {
+        badgeClass = 'urgent';
+        urgencyText = 'URGENT';
+    } else if (daysUntilExpiry <= 7) {
+        badgeClass = 'warning';
+        urgencyText = 'Expiring Soon';
+    } else if (daysUntilExpiry <= 30) {
+        badgeClass = 'warning';
+        urgencyText = 'Expiring Soon';
+    }
+    
+    return `
+        <div class="expiry-info">
+            <div class="expiry-badge ${badgeClass}">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Expires: ${formatExpiryDate(vehicle.registration_expiry_date)}</span>
+                ${daysUntilExpiry <= 30 ? 
+                    `<span class="expiry-countdown">(${daysUntilExpiry} ${daysUntilExpiry === 1 ? 'day' : 'days'} left)</span>` : ''}
+            </div>
+        </div>
+    `;
+}
+
 // Export functions for potential external use
 window.OwnerDashboard = {
     updateOwnerStats,
     handleViewApplication,
+    generateExpiryBadge,
+    getDaysUntilExpiry,
+    formatExpiryDate,
     showNotification,
     startNewRegistration,
     viewAllApplications,

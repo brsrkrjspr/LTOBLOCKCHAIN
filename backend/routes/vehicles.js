@@ -407,6 +407,183 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
     }
 });
 
+// Get vehicle registration progress for timeline
+router.get('/:id/progress', authenticateToken, async (req, res) => {
+    try {
+        const vehicleId = req.params.id;
+        const vehicle = await db.getVehicleById(vehicleId);
+        
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+        
+        // Check permission
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        
+        // Get vehicle history and verifications
+        const history = await db.getVehicleHistory(vehicleId);
+        const verifications = await db.getVehicleVerifications(vehicleId);
+        
+        // Get clearance requests
+        const dbModule = require('../database/db');
+        const clearanceQuery = await dbModule.query(
+            `SELECT * FROM clearance_requests WHERE vehicle_id = $1 ORDER BY created_at DESC`,
+            [vehicleId]
+        );
+        const clearanceRequests = clearanceQuery.rows;
+        
+        // Build progress object
+        const progress = {
+            applicationSubmitted: {
+                status: vehicle.status !== 'DRAFT' ? 'completed' : 'pending',
+                date: vehicle.created_at || null
+            },
+            hpgClearance: {
+                status: 'pending',
+                date: null
+            },
+            insuranceVerification: {
+                status: 'pending',
+                date: null
+            },
+            emissionTest: {
+                status: 'pending',
+                date: null
+            },
+            ltoInspection: {
+                status: 'pending',
+                date: null
+            },
+            blockchainRegistration: {
+                status: 'pending',
+                date: null
+            },
+            completed: {
+                status: vehicle.status === 'REGISTERED' ? 'completed' : 'pending',
+                date: vehicle.status === 'REGISTERED' ? (vehicle.last_updated || vehicle.created_at) : null
+            }
+        };
+        
+        // Check HPG clearance
+        const hpgClearance = clearanceRequests.find(cr => cr.type === 'hpg');
+        if (hpgClearance) {
+            if (hpgClearance.status === 'APPROVED') {
+                progress.hpgClearance = {
+                    status: 'completed',
+                    date: hpgClearance.updated_at || hpgClearance.created_at
+                };
+            } else if (hpgClearance.status === 'PENDING') {
+                progress.hpgClearance = {
+                    status: 'pending',
+                    date: hpgClearance.created_at
+                };
+            } else if (hpgClearance.status === 'REJECTED') {
+                progress.hpgClearance = {
+                    status: 'rejected',
+                    date: hpgClearance.updated_at
+                };
+            }
+        }
+        
+        // Check Insurance verification
+        const insuranceVerification = verifications.find(v => v.organization_type === 'insurance');
+        if (insuranceVerification) {
+            if (insuranceVerification.status === 'APPROVED') {
+                progress.insuranceVerification = {
+                    status: 'completed',
+                    date: insuranceVerification.verified_at || insuranceVerification.created_at
+                };
+            } else if (insuranceVerification.status === 'PENDING') {
+                progress.insuranceVerification = {
+                    status: 'pending',
+                    date: insuranceVerification.created_at
+                };
+            } else if (insuranceVerification.status === 'REJECTED') {
+                progress.insuranceVerification = {
+                    status: 'rejected',
+                    date: insuranceVerification.verified_at
+                };
+            }
+        }
+        
+        // Check Emission test
+        const emissionVerification = verifications.find(v => v.organization_type === 'emission');
+        if (emissionVerification) {
+            if (emissionVerification.status === 'APPROVED') {
+                progress.emissionTest = {
+                    status: 'completed',
+                    date: emissionVerification.verified_at || emissionVerification.created_at
+                };
+            } else if (emissionVerification.status === 'PENDING') {
+                progress.emissionTest = {
+                    status: 'pending',
+                    date: emissionVerification.created_at
+                };
+            } else if (emissionVerification.status === 'REJECTED') {
+                progress.emissionTest = {
+                    status: 'rejected',
+                    date: emissionVerification.verified_at
+                };
+            }
+        }
+        
+        // Check LTO Inspection (MVIR)
+        const inspectionHistory = history.find(h => h.action === 'INSPECTION_COMPLETED' || h.action === 'MVIR_GENERATED');
+        if (inspectionHistory) {
+            progress.ltoInspection = {
+                status: 'completed',
+                date: inspectionHistory.performed_at
+            };
+        } else if (vehicle.mvir_number && vehicle.mvir_number !== 'PENDING') {
+            progress.ltoInspection = {
+                status: 'completed',
+                date: vehicle.inspection_date || vehicle.last_updated
+            };
+        }
+        
+        // Check Blockchain Registration
+        const blockchainHistory = history.find(h => 
+            h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id && !h.transaction_id.includes('-')
+        );
+        if (blockchainHistory) {
+            progress.blockchainRegistration = {
+                status: 'completed',
+                date: blockchainHistory.performed_at
+            };
+        } else if (vehicle.status === 'REGISTERED') {
+            // Vehicle is registered but blockchain entry might be missing
+            progress.blockchainRegistration = {
+                status: 'pending',
+                date: null
+            };
+        }
+        
+        res.json({
+            success: true,
+            progress,
+            vehicle: formatVehicleResponse(vehicle)
+        });
+        
+    } catch (error) {
+        console.error('Error getting vehicle progress:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to get progress'
+        });
+    }
+});
+
 router.get('/id/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;

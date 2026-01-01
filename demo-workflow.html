@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustChain Workflow Demo - Blockchain Vehicle Registration</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .demo-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* Header */
+        .demo-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .demo-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .demo-header p {
+            color: #a0aec0;
+            font-size: 1.1rem;
+        }
+        
+        /* Main Workflow */
+        .workflow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: relative;
+        }
+        
+        /* Workflow Row */
+        .workflow-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 1rem 0;
+        }
+        
+        /* Actor Card */
+        .actor-card {
+            width: 180px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.5s ease;
+            position: relative;
+        }
+        
+        .actor-card.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .actor-card.completed {
+            border-color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+        }
+        
+        .actor-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.75rem;
+        }
+        
+        .actor-card.owner .actor-icon { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .actor-card.lto .actor-icon { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .actor-card.hpg .actor-icon { background: linear-gradient(135deg, #2c3e50, #34495e); }
+        .actor-card.insurance .actor-icon { background: linear-gradient(135deg, #27ae60, #229954); }
+        .actor-card.emission .actor-icon { background: linear-gradient(135deg, #f39c12, #d68910); }
+        .actor-card.blockchain .actor-icon { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        
+        .actor-name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .actor-role {
+            font-size: 0.75rem;
+            color: #a0aec0;
+        }
+        
+        /* Arrow Connector */
+        .arrow-connector {
+            width: 80px;
+            height: 4px;
+            background: #2d3748;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .arrow-connector::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            border: 8px solid transparent;
+            border-left-color: #2d3748;
+        }
+        
+        .arrow-connector.active {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            animation: flow 1s ease-in-out infinite;
+        }
+        
+        .arrow-connector.active::after {
+            border-left-color: #764ba2;
+        }
+        
+        .arrow-connector.completed {
+            background: #27ae60;
+        }
+        
+        .arrow-connector.completed::after {
+            border-left-color: #27ae60;
+        }
+        
+        @keyframes flow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Data Packet Animation */
+        .data-packet {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 4px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            animation: movePacket 1s ease-in-out forwards;
+        }
+        
+        .arrow-connector.active .data-packet {
+            display: flex;
+        }
+        
+        @keyframes movePacket {
+            0% { left: 0; }
+            100% { left: calc(100% - 20px); }
+        }
+        
+        /* Step Info Panel */
+        .step-info-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 2rem;
+            border-left: 4px solid #667eea;
+        }
+        
+        .step-info-panel h3 {
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+        
+        .step-info-panel p {
+            color: #a0aec0;
+            line-height: 1.6;
+        }
+        
+        /* Blockchain Visual */
+        .blockchain-chain {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .block {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #2d3748, #1a202c);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #4a5568;
+            transition: all 0.3s ease;
+        }
+        
+        .block.new {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            animation: newBlock 0.5s ease-out;
+        }
+        
+        @keyframes newBlock {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .block-number {
+            font-size: 0.7rem;
+            color: #a0aec0;
+        }
+        
+        .block-hash {
+            font-size: 0.6rem;
+            color: #718096;
+            font-family: monospace;
+        }
+        
+        .chain-link {
+            width: 30px;
+            height: 4px;
+            background: #4a5568;
+        }
+        
+        /* Controls */
+        .demo-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .demo-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .demo-btn.primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .demo-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .demo-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid #4a5568;
+        }
+        
+        .demo-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Step Counter */
+        .step-counter {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .step-counter span {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            border-radius: 50%;
+            background: #2d3748;
+            margin: 0 5px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .step-counter span.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            transform: scale(1.2);
+        }
+        
+        .step-counter span.completed {
+            background: #27ae60;
+        }
+        
+        /* Log Panel */
+        .log-panel {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #21262d;
+        }
+        
+        .log-entry .timestamp {
+            color: #8b949e;
+        }
+        
+        .log-entry .action {
+            color: #58a6ff;
+        }
+        
+        .log-entry .success {
+            color: #3fb950;
+        }
+        
+        .log-entry .info {
+            color: #a0aec0;
+        }
+        
+        /* Responsive */
+        @media (max-width: 900px) {
+            .workflow-row {
+                flex-direction: column;
+            }
+            
+            .arrow-connector {
+                width: 4px;
+                height: 40px;
+            }
+            
+            .arrow-connector::after {
+                right: auto;
+                bottom: -8px;
+                border: 8px solid transparent;
+                border-top-color: #2d3748;
+                border-left-color: transparent;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <!-- Header -->
+        <div class="demo-header">
+            <h1><i class="fas fa-link"></i> TrustChain LTO</h1>
+            <p>Blockchain-Based Vehicle Registration System - Workflow Demonstration</p>
+        </div>
+        
+        <!-- Step Counter -->
+        <div class="step-counter">
+            <span class="active" data-step="1">1</span>
+            <span data-step="2">2</span>
+            <span data-step="3">3</span>
+            <span data-step="4">4</span>
+            <span data-step="5">5</span>
+            <span data-step="6">6</span>
+            <span data-step="7">7</span>
+        </div>
+        
+        <!-- Main Workflow Visualization -->
+        <div class="workflow-container">
+            <!-- Row 1: Owner to LTO -->
+            <div class="workflow-row">
+                <div class="actor-card owner active" data-actor="owner">
+                    <div class="actor-icon"><i class="fas fa-user"></i></div>
+                    <div class="actor-name">Vehicle Owner</div>
+                    <div class="actor-role">Applicant</div>
+                </div>
+                
+                <div class="arrow-connector" data-arrow="owner-lto">
+                    <div class="data-packet"><i class="fas fa-file"></i></div>
+                </div>
+                
+                <div class="actor-card lto" data-actor="lto">
+                    <div class="actor-icon"><i class="fas fa-building"></i></div>
+                    <div class="actor-name">LTO Admin</div>
+                    <div class="actor-role">Registration Authority</div>
+                </div>
+            </div>
+            
+            <!-- Row 2: LTO to Organizations -->
+            <div class="workflow-row">
+                <div class="actor-card hpg" data-actor="hpg">
+                    <div class="actor-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="actor-name">HPG</div>
+                    <div class="actor-role">Vehicle Clearance</div>
+                </div>
+                
+                <div class="arrow-connector" data-arrow="lto-hpg"></div>
+                
+                <div class="actor-card insurance" data-actor="insurance">
+                    <div class="actor-icon"><i class="fas fa-file-contract"></i></div>
+                    <div class="actor-name">Insurance</div>
+                    <div class="actor-role">CTPL Verification</div>
+                </div>
+                
+                <div class="arrow-connector" data-arrow="lto-insurance"></div>
+                
+                <div class="actor-card emission" data-actor="emission">
+                    <div class="actor-icon"><i class="fas fa-smog"></i></div>
+                    <div class="actor-name">Emission</div>
+                    <div class="actor-role">Compliance Test</div>
+                </div>
+            </div>
+            
+            <!-- Row 3: To Blockchain -->
+            <div class="workflow-row">
+                <div class="actor-card blockchain" data-actor="blockchain">
+                    <div class="actor-icon"><i class="fas fa-cubes"></i></div>
+                    <div class="actor-name">Hyperledger Fabric</div>
+                    <div class="actor-role">Blockchain Network</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Blockchain Chain Visualization -->
+        <div class="blockchain-chain" id="blockchainChain">
+            <div class="block">
+                <div class="block-number">Block 0</div>
+                <div class="block-hash">Genesis</div>
+            </div>
+            <div class="chain-link"></div>
+            <div class="block">
+                <div class="block-number">Block 1</div>
+                <div class="block-hash">0x7a3f...</div>
+            </div>
+            <div class="chain-link"></div>
+            <div class="block">
+                <div class="block-number">Block 2</div>
+                <div class="block-hash">0x9c1b...</div>
+            </div>
+        </div>
+        
+        <!-- Step Info Panel -->
+        <div class="step-info-panel" id="stepInfo">
+            <h3><i class="fas fa-info-circle"></i> Step 1: Application Submission</h3>
+            <p>The vehicle owner submits their registration application with required documents (Sales Invoice, Insurance Certificate, Emission Test Result, Owner ID). Documents are hashed and stored on IPFS, with hashes recorded for verification.</p>
+        </div>
+        
+        <!-- Log Panel -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry">
+                <span class="timestamp">[00:00:00]</span>
+                <span class="info">TrustChain Workflow Demo initialized</span>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="demo-controls">
+            <button class="demo-btn secondary" id="resetBtn" onclick="resetDemo()">
+                <i class="fas fa-redo"></i> Reset
+            </button>
+            <button class="demo-btn primary" id="nextBtn" onclick="nextStep()">
+                <i class="fas fa-play"></i> Next Step
+            </button>
+            <button class="demo-btn secondary" id="autoBtn" onclick="autoPlay()">
+                <i class="fas fa-forward"></i> Auto Play
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 7;
+        let autoPlaying = false;
+        
+        const stepData = [
+            {
+                step: 1,
+                title: "Step 1: Application Submission",
+                description: "The vehicle owner submits their registration application with required documents (Sales Invoice, Insurance Certificate, Emission Test Result, Owner ID). Documents are hashed and stored on IPFS, with hashes recorded for verification.",
+                actors: ['owner'],
+                arrows: [],
+                log: "Vehicle owner submits application with documents"
+            },
+            {
+                step: 2,
+                title: "Step 2: LTO Review & Distribution",
+                description: "LTO Admin reviews the application and forwards verification requests to HPG, Insurance Company, and Emission Testing Center. Each organization receives only the documents relevant to their verification scope.",
+                actors: ['owner', 'lto'],
+                arrows: ['owner-lto'],
+                log: "LTO Admin receives application, distributing to verification organizations"
+            },
+            {
+                step: 3,
+                title: "Step 3: HPG Clearance",
+                description: "Highway Patrol Group verifies the vehicle is not stolen, has no encumbrances, and clears the engine/chassis numbers. This prevents 'technical carnapping' by creating an immutable clearance record.",
+                actors: ['owner', 'lto', 'hpg'],
+                arrows: ['owner-lto', 'lto-hpg'],
+                log: "HPG verifies vehicle clearance - Engine/Chassis check PASSED"
+            },
+            {
+                step: 4,
+                title: "Step 4: Insurance Verification",
+                description: "Insurance company verifies the Compulsory Third-Party Liability (CTPL) policy is valid and covers the registered vehicle. Policy details are cryptographically verified.",
+                actors: ['owner', 'lto', 'hpg', 'insurance'],
+                arrows: ['owner-lto', 'lto-hpg', 'lto-insurance'],
+                log: "Insurance verification completed - CTPL policy validated"
+            },
+            {
+                step: 5,
+                title: "Step 5: Emission Compliance",
+                description: "Emission Testing Center confirms the vehicle meets environmental compliance standards. Test results are recorded with tamper-proof timestamps.",
+                actors: ['owner', 'lto', 'hpg', 'insurance', 'emission'],
+                arrows: ['owner-lto', 'lto-hpg', 'lto-insurance', 'lto-emission'],
+                log: "Emission test completed - Vehicle is COMPLIANT"
+            },
+            {
+                step: 6,
+                title: "Step 6: Blockchain Registration",
+                description: "With all verifications complete, LTO Admin triggers the smart contract to register the vehicle on Hyperledger Fabric. This creates an immutable, tamper-proof record that can never be altered.",
+                actors: ['owner', 'lto', 'hpg', 'insurance', 'emission', 'blockchain'],
+                arrows: ['owner-lto', 'lto-hpg', 'lto-insurance', 'lto-emission'],
+                log: "Smart contract executed - Vehicle registered on blockchain",
+                addBlock: true
+            },
+            {
+                step: 7,
+                title: "Step 7: OR/CR Issuance Complete",
+                description: "The Official Receipt (OR) and Certificate of Registration (CR) are generated with blockchain verification. The owner can now download their tamper-proof digital certificate with QR code for instant verification.",
+                actors: ['owner', 'lto', 'hpg', 'insurance', 'emission', 'blockchain'],
+                arrows: ['owner-lto', 'lto-hpg', 'lto-insurance', 'lto-emission'],
+                log: "Registration complete! OR/CR issued with blockchain proof"
+            }
+        ];
+        
+        function updateStep(stepNum) {
+            const step = stepData[stepNum - 1];
+            
+            // Update step counter
+            document.querySelectorAll('.step-counter span').forEach((el, index) => {
+                el.classList.remove('active', 'completed');
+                if (index + 1 < stepNum) el.classList.add('completed');
+                if (index + 1 === stepNum) el.classList.add('active');
+            });
+            
+            // Update actors
+            document.querySelectorAll('.actor-card').forEach(card => {
+                const actor = card.dataset.actor;
+                card.classList.remove('active', 'completed');
+                if (step.actors.includes(actor)) {
+                    if (actor === step.actors[step.actors.length - 1]) {
+                        card.classList.add('active');
+                    } else {
+                        card.classList.add('completed');
+                    }
+                }
+            });
+            
+            // Update arrows
+            document.querySelectorAll('.arrow-connector').forEach(arrow => {
+                const arrowId = arrow.dataset.arrow;
+                arrow.classList.remove('active', 'completed');
+                if (step.arrows.includes(arrowId)) {
+                    arrow.classList.add('completed');
+                }
+            });
+            
+            // Update info panel
+            document.getElementById('stepInfo').innerHTML = `
+                <h3><i class="fas fa-info-circle"></i> ${step.title}</h3>
+                <p>${step.description}</p>
+            `;
+            
+            // Add log entry
+            addLog(step.log, stepNum === totalSteps ? 'success' : 'action');
+            
+            // Add block if needed
+            if (step.addBlock) {
+                addNewBlock();
+            }
+        }
+        
+        function addLog(message, type = 'info') {
+            const logPanel = document.getElementById('logPanel');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="timestamp">[${time}]</span>
+                <span class="${type}">${message}</span>
+            `;
+            logPanel.appendChild(entry);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+        
+        function addNewBlock() {
+            const chain = document.getElementById('blockchainChain');
+            
+            // Add link
+            const link = document.createElement('div');
+            link.className = 'chain-link';
+            chain.appendChild(link);
+            
+            // Add block
+            const blockNum = chain.querySelectorAll('.block').length;
+            const block = document.createElement('div');
+            block.className = 'block new';
+            block.innerHTML = `
+                <div class="block-number">Block ${blockNum}</div>
+                <div class="block-hash">0x${Math.random().toString(16).substr(2, 4)}...</div>
+            `;
+            chain.appendChild(block);
+            
+            addLog(`New block #${blockNum} added to ledger`, 'success');
+        }
+        
+        function nextStep() {
+            if (currentStep <= totalSteps) {
+                updateStep(currentStep);
+                currentStep++;
+                
+                if (currentStep > totalSteps) {
+                    document.getElementById('nextBtn').disabled = true;
+                    document.getElementById('nextBtn').innerHTML = '<i class="fas fa-check"></i> Complete';
+                }
+            }
+        }
+        
+        function resetDemo() {
+            currentStep = 1;
+            autoPlaying = false;
+            
+            // Reset UI
+            document.querySelectorAll('.actor-card').forEach(card => {
+                card.classList.remove('active', 'completed');
+            });
+            document.querySelector('.actor-card.owner').classList.add('active');
+            
+            document.querySelectorAll('.arrow-connector').forEach(arrow => {
+                arrow.classList.remove('active', 'completed');
+            });
+            
+            document.querySelectorAll('.step-counter span').forEach((el, index) => {
+                el.classList.remove('active', 'completed');
+                if (index === 0) el.classList.add('active');
+            });
+            
+            // Reset blockchain
+            const chain = document.getElementById('blockchainChain');
+            chain.innerHTML = `
+                <div class="block">
+                    <div class="block-number">Block 0</div>
+                    <div class="block-hash">Genesis</div>
+                </div>
+                <div class="chain-link"></div>
+                <div class="block">
+                    <div class="block-number">Block 1</div>
+                    <div class="block-hash">0x7a3f...</div>
+                </div>
+                <div class="chain-link"></div>
+                <div class="block">
+                    <div class="block-number">Block 2</div>
+                    <div class="block-hash">0x9c1b...</div>
+                </div>
+            `;
+            
+            // Reset info panel
+            document.getElementById('stepInfo').innerHTML = `
+                <h3><i class="fas fa-info-circle"></i> ${stepData[0].title}</h3>
+                <p>${stepData[0].description}</p>
+            `;
+            
+            // Reset log
+            document.getElementById('logPanel').innerHTML = `
+                <div class="log-entry">
+                    <span class="timestamp">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="info">Demo reset - Ready to begin</span>
+                </div>
+            `;
+            
+            // Reset button
+            document.getElementById('nextBtn').disabled = false;
+            document.getElementById('nextBtn').innerHTML = '<i class="fas fa-play"></i> Next Step';
+        }
+        
+        function autoPlay() {
+            if (autoPlaying) {
+                autoPlaying = false;
+                document.getElementById('autoBtn').innerHTML = '<i class="fas fa-forward"></i> Auto Play';
+                return;
+            }
+            
+            autoPlaying = true;
+            document.getElementById('autoBtn').innerHTML = '<i class="fas fa-pause"></i> Pause';
+            
+            function playNext() {
+                if (!autoPlaying || currentStep > totalSteps) {
+                    autoPlaying = false;
+                    document.getElementById('autoBtn').innerHTML = '<i class="fas fa-forward"></i> Auto Play';
+                    return;
+                }
+                
+                nextStep();
+                setTimeout(playNext, 2500);
+            }
+            
+            playNext();
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStep(1);
+            currentStep = 2;
+        });
+    </script>
+</body>
+</html>
+

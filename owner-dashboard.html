@@ -340,77 +340,122 @@
                     </div>
                 </div>
 
-                <!-- Registration Status Progress Timeline -->
+                <!-- Enhanced Registration Timeline -->
                 <div class="section-header">
-                    <h2 class="section-title">Registration Progress</h2>
-                    <p class="section-subtitle">Track your application status</p>
+                    <h2 class="section-title"><i class="fas fa-route"></i> Registration Progress</h2>
+                    <p class="section-subtitle">Track your application status through the blockchain workflow</p>
                 </div>
-                <div class="dashboard-card-modern timeline-card">
-                    <div class="progress-timeline-modern" id="progressTimeline">
-                        <div class="timeline-item-modern completed">
-                            <div class="timeline-connector"></div>
-                            <div class="timeline-icon-modern">
-                                <i class="fas fa-check"></i>
+                <div class="timeline-container-enhanced" id="registrationTimeline">
+                    <div class="workflow-timeline" id="workflowTimeline">
+                        <!-- Step 1: Application Submitted -->
+                        <div class="timeline-step" data-step="submitted">
+                            <div class="step-connector"></div>
+                            <div class="step-icon">
+                                <i class="fas fa-file-alt"></i>
                             </div>
-                            <div class="timeline-content-modern">
+                            <div class="step-content">
                                 <h4>Application Submitted</h4>
-                                <p>Your registration request has been submitted</p>
-                                <span class="timeline-date-modern">-</span>
+                                <p class="step-description">Documents uploaded and application submitted</p>
+                                <span class="step-date">-</span>
+                            </div>
+                            <div class="step-status">
+                                <span class="status-indicator pending"></span>
                             </div>
                         </div>
-                        <div class="timeline-item-modern pending">
-                            <div class="timeline-connector"></div>
-                            <div class="timeline-icon-modern">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="timeline-content-modern">
-                                <h4>Emission Test</h4>
-                                <p>Awaiting emission test result</p>
-                                <span class="timeline-date-modern">-</span>
-                            </div>
-                        </div>
-                        <div class="timeline-item-modern pending">
-                            <div class="timeline-connector"></div>
-                            <div class="timeline-icon-modern">
+                        
+                        <!-- Step 2: HPG Clearance -->
+                        <div class="timeline-step" data-step="hpg">
+                            <div class="step-connector"></div>
+                            <div class="step-icon">
                                 <i class="fas fa-shield-alt"></i>
                             </div>
-                            <div class="timeline-content-modern">
-                                <h4>Insurance Verification</h4>
-                                <p>Awaiting insurance verification</p>
-                                <span class="timeline-date-modern">-</span>
-                            </div>
-                        </div>
-                        <div class="timeline-item-modern pending">
-                            <div class="timeline-connector"></div>
-                            <div class="timeline-icon-modern">
-                                <i class="fas fa-certificate"></i>
-                            </div>
-                            <div class="timeline-content-modern">
+                            <div class="step-content">
                                 <h4>HPG Clearance</h4>
-                                <p>Awaiting HPG MV clearance certificate</p>
-                                <span class="timeline-date-modern">-</span>
+                                <p class="step-description">Highway Patrol Group verification</p>
+                                <span class="step-date">-</span>
+                            </div>
+                            <div class="step-status">
+                                <span class="status-indicator pending"></span>
                             </div>
                         </div>
-                        <div class="timeline-item-modern pending">
-                            <div class="timeline-connector"></div>
-                            <div class="timeline-icon-modern">
-                                <i class="fas fa-cog"></i>
+                        
+                        <!-- Step 3: Insurance Verification -->
+                        <div class="timeline-step" data-step="insurance">
+                            <div class="step-connector"></div>
+                            <div class="step-icon">
+                                <i class="fas fa-file-contract"></i>
                             </div>
-                            <div class="timeline-content-modern">
-                                <h4>Finalization</h4>
-                                <p>Registration finalization in progress</p>
-                                <span class="timeline-date-modern">-</span>
+                            <div class="step-content">
+                                <h4>Insurance Verification</h4>
+                                <p class="step-description">CTPL insurance validation</p>
+                                <span class="step-date">-</span>
+                            </div>
+                            <div class="step-status">
+                                <span class="status-indicator pending"></span>
                             </div>
                         </div>
-                        <div class="timeline-item-modern pending">
-                            <div class="timeline-connector"></div>
-                            <div class="timeline-icon-modern">
-                                <i class="fas fa-award"></i>
+                        
+                        <!-- Step 4: Emission Test -->
+                        <div class="timeline-step" data-step="emission">
+                            <div class="step-connector"></div>
+                            <div class="step-icon">
+                                <i class="fas fa-smog"></i>
                             </div>
-                            <div class="timeline-content-modern">
-                                <h4>Completed</h4>
-                                <p>Registration completed - Download papers</p>
-                                <span class="timeline-date-modern">-</span>
+                            <div class="step-content">
+                                <h4>Emission Test</h4>
+                                <p class="step-description">Emission compliance verification</p>
+                                <span class="step-date">-</span>
+                            </div>
+                            <div class="step-status">
+                                <span class="status-indicator pending"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 5: LTO Inspection -->
+                        <div class="timeline-step" data-step="inspection">
+                            <div class="step-connector"></div>
+                            <div class="step-icon">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+                            <div class="step-content">
+                                <h4>LTO Inspection</h4>
+                                <p class="step-description">Physical vehicle inspection (MVIR)</p>
+                                <span class="step-date">-</span>
+                            </div>
+                            <div class="step-status">
+                                <span class="status-indicator pending"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 6: Blockchain Registration -->
+                        <div class="timeline-step" data-step="blockchain">
+                            <div class="step-connector"></div>
+                            <div class="step-icon blockchain-icon">
+                                <i class="fas fa-link"></i>
+                            </div>
+                            <div class="step-content">
+                                <h4>Blockchain Registration</h4>
+                                <p class="step-description">Recorded on Hyperledger Fabric</p>
+                                <span class="step-date">-</span>
+                                <span class="blockchain-tx" style="display: none;"></span>
+                            </div>
+                            <div class="step-status">
+                                <span class="status-indicator pending"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 7: Complete -->
+                        <div class="timeline-step" data-step="complete">
+                            <div class="step-icon complete-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="step-content">
+                                <h4>Registration Complete</h4>
+                                <p class="step-description">OR/CR issued - Ready for download</p>
+                                <span class="step-date">-</span>
+                            </div>
+                            <div class="step-status">
+                                <span class="status-indicator pending"></span>
                             </div>
                         </div>
                     </div>

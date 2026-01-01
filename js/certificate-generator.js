@@ -761,9 +761,70 @@ const CertificateGenerator = {
             </div>
         </div>
 
+        ${hasValidTxId ? `
+        <!-- Blockchain Seal Section -->
+        <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; color: white;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="white">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div style="font-size: 14px; font-weight: bold; letter-spacing: 1px;">BLOCKCHAIN SECURED</div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Hyperledger Fabric v2.5</div>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 10px; opacity: 0.7; text-transform: uppercase;">Transaction Hash</div>
+                    <div style="font-family: 'Courier New', monospace; font-size: 9px; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 4px; margin-top: 3px;">
+                        ${txId.substring(0, 32)}...
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 10px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#27ae60">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                <span style="font-size: 11px; color: #27ae60;">Immutably recorded on distributed ledger</span>
+            </div>
+        </div>
+        ` : ''}
+
+        <!-- Digital Signature Section -->
+        <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px;">
+            <!-- LTO Official Signature -->
+            <div style="text-align: center;">
+                <div style="border-bottom: 2px solid #2c3e50; width: 200px; margin-bottom: 5px;"></div>
+                <div style="font-weight: bold; font-size: 12px;">LTO AUTHORIZED SIGNATORY</div>
+                <div style="font-size: 10px; color: #7f8c8d;">Land Transportation Office - Lipa City</div>
+            </div>
+            
+            ${hasValidTxId ? `
+            <!-- Blockchain Verification Stamp -->
+            <div style="position: relative;">
+                <div style="width: 100px; height: 100px; border: 3px solid #667eea; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(-15deg);">
+                    <div style="font-size: 8px; font-weight: bold; color: #667eea; text-transform: uppercase;">Blockchain</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #667eea;">✓</div>
+                    <div style="font-size: 8px; font-weight: bold; color: #667eea; text-transform: uppercase;">Verified</div>
+                </div>
+                <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); background: #667eea; color: white; padding: 2px 8px; border-radius: 10px; font-size: 7px; white-space: nowrap;">
+                    HYPERLEDGER FABRIC
+                </div>
+            </div>
+            ` : ''}
+            
+            <!-- Date Stamp -->
+            <div style="text-align: center;">
+                <div style="font-size: 10px; color: #7f8c8d;">Date of Issue</div>
+                <div style="font-weight: bold; font-size: 14px; color: #2c3e50;">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+        </div>
+
         <div class="footer">
             <h3>AUTHORIZED BY: LAND TRANSPORTATION OFFICE</h3>
-            <p>Digitally Signed: ${new Date().toLocaleString()} | Transaction ID: ${this.escapeHtml(txId)}</p>
+            <p>Digitally Signed: ${new Date().toLocaleString()}${hasValidTxId ? ` | Transaction ID: ${this.escapeHtml(txId)}` : ''}</p>
         </div>
 
     </div>

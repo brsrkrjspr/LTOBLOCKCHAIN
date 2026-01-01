@@ -165,6 +165,14 @@ app.get('/admin-blockchain-viewer', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin-blockchain-viewer.html'));
 });
 
+app.get('/public-transaction-viewer', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public-transaction-viewer.html'));
+});
+
+app.get('/demo-workflow', (req, res) => {
+    res.sendFile(path.join(__dirname, 'demo-workflow.html'));
+});
+
 app.get('/login-signup', (req, res) => {
     res.sendFile(path.join(__dirname, 'login-signup.html'));
 });

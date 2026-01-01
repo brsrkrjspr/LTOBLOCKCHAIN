@@ -810,6 +810,10 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                 status: 'REGISTERED'
             });
             
+            // Set registration expiry (1 year from now)
+            const expiryService = require('../services/expiryService');
+            await expiryService.setRegistrationExpiry(vehicleId, new Date());
+            
             // ✅ ADD: Create BLOCKCHAIN_REGISTERED history entry for certificate generator
             await db.addVehicleHistory({
                 vehicleId,

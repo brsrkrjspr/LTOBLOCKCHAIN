@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Transaction Proof - TrustChain LTO</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .viewer-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header-badge {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .header-badge h1 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 300;
+        }
+        .header-badge h1 span {
+            font-weight: 700;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Blockchain Visual */
+        .blockchain-visual {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .block {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7f8c8d;
+            font-size: 0.7rem;
+            border: 2px solid #34495e;
+            transition: all 0.3s ease;
+        }
+        .block.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: #667eea;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+        .block-connector {
+            width: 30px;
+            height: 3px;
+            background: linear-gradient(90deg, #34495e, #667eea);
+        }
+        
+        /* Main Card */
+        .proof-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+        }
+        .proof-header {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+        }
+        .proof-header.pending {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        .proof-header.error {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        .proof-header i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        .proof-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .proof-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        /* Verification Seal */
+        .verification-seal {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px dashed rgba(255,255,255,0.5);
+        }
+        .verification-seal i {
+            font-size: 2rem !important;
+            margin: 0 !important;
+        }
+        
+        /* Content */
+        .proof-content {
+            padding: 2rem;
+        }
+        .section {
+            margin-bottom: 2rem;
+        }
+        .section:last-child {
+            margin-bottom: 0;
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        .section-title i {
+            color: #667eea;
+        }
+        
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+        .info-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .info-item.highlight {
+            background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+            border-left-color: #27ae60;
+        }
+        .info-item label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7f8c8d;
+            margin-bottom: 0.25rem;
+        }
+        .info-item .value {
+            font-weight: 600;
+            color: #2c3e50;
+            word-break: break-all;
+            font-size: 0.95rem;
+        }
+        .info-item .value.small {
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+        }
+        .info-item .value.success {
+            color: #27ae60;
+        }
+        .info-item .value.large {
+            font-size: 1.25rem;
+            color: #27ae60;
+        }
+        
+        /* Transaction Hash Box */
+        .hash-box {
+            background: #1a1a2e;
+            color: #27ae60;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+            margin-top: 1rem;
+            position: relative;
+        }
+        .hash-box::before {
+            content: 'SHA-256 HASH';
+            position: absolute;
+            top: -0.5rem;
+            left: 1rem;
+            background: #1a1a2e;
+            padding: 0 0.5rem;
+            font-size: 0.6rem;
+            color: #7f8c8d;
+        }
+        
+        /* Blockchain Badge */
+        .blockchain-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            margin: 2rem auto 0;
+            max-width: fit-content;
+        }
+        
+        /* Footer */
+        .proof-footer {
+            background: #f8f9fa;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            border-top: 1px solid #ecf0f1;
+        }
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        .loading-state i {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        .loading-state p {
+            color: #7f8c8d;
+        }
+        
+        /* Integrity Section */
+        .integrity-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .integrity-badge.verified {
+            background: #d4edda;
+            color: #155724;
+        }
+        .integrity-badge.tampered {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .integrity-badge.mismatch {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+            .proof-header {
+                padding: 1.5rem;
+            }
+            .verification-seal {
+                display: none;
+            }
+            .blockchain-visual {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="viewer-container">
+        <!-- Header -->
+        <div class="header-badge">
+            <h1><span>TrustChain</span> LTO Blockchain Verification</h1>
+        </div>
+        
+        <!-- Blockchain Visual -->
+        <div class="blockchain-visual" id="blockchainVisual">
+            <div class="block">BLK 1</div>
+            <div class="block-connector"></div>
+            <div class="block">BLK 2</div>
+            <div class="block-connector"></div>
+            <div class="block">BLK 3</div>
+            <div class="block-connector"></div>
+            <div class="block active" id="activeBlock">TX</div>
+            <div class="block-connector"></div>
+            <div class="block">...</div>
+        </div>
+        
+        <!-- Main Card -->
+        <div class="proof-card">
+            <div id="content">
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Querying Hyperledger Fabric blockchain...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api-client.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const txId = urlParams.get('txId');
+        
+        if (txId) {
+            loadTransaction(txId);
+        } else {
+            showError('No transaction ID provided');
+        }
+        
+        async function loadTransaction(txId) {
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.get(`/api/blockchain/transactions/${txId}`);
+                
+                if (response.success && response.transaction) {
+                    displayTransaction(response.transaction, txId);
+                    
+                    // Load integrity check if VIN available
+                    if (response.transaction.vehicleVin) {
+                        loadIntegrity(response.transaction.vehicleVin);
+                    }
+                } else {
+                    showError('Transaction not found on blockchain');
+                }
+            } catch (error) {
+                if (error.status === 202) {
+                    showPending(txId);
+                } else if (error.status === 404) {
+                    showError('Transaction not found on blockchain ledger');
+                } else {
+                    showError(error.message || 'Failed to load transaction');
+                }
+            }
+        }
+        
+        function displayTransaction(tx, txId) {
+            document.getElementById('content').innerHTML = `
+                <div class="proof-header">
+                    <div class="verification-seal">
+                        <i class="fas fa-certificate"></i>
+                    </div>
+                    <i class="fas fa-check-circle"></i>
+                    <h2>BLOCKCHAIN VERIFIED</h2>
+                    <p>This transaction is permanently recorded on Hyperledger Fabric</p>
+                </div>
+                
+                <div class="proof-content">
+                    <!-- Transaction Info -->
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="fas fa-fingerprint"></i>
+                            Transaction Proof
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-item highlight">
+                                <label>Validation Status</label>
+                                <div class="value success">
+                                    <i class="fas fa-check-circle"></i> ${tx.validationCode || 'VALID'}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <label>Timestamp</label>
+                                <div class="value">${tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Block Number</label>
+                                <div class="value">${tx.blockNumber || 'Confirmed'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Source</label>
+                                <div class="value">${tx.source === 'blockchain' ? 'Hyperledger Fabric' : 'Database + Blockchain'}</div>
+                            </div>
+                        </div>
+                        <div class="hash-box">${txId}</div>
+                    </div>
+                    
+                    ${tx.vehicleVin || tx.vehiclePlate ? `
+                    <!-- Vehicle Info -->
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="fas fa-car"></i>
+                            Vehicle Information
+                        </div>
+                        <div class="info-grid">
+                            ${tx.vehiclePlate ? `
+                            <div class="info-item highlight">
+                                <label>Plate Number</label>
+                                <div class="value large">${tx.vehiclePlate}</div>
+                            </div>` : ''}
+                            ${tx.vehicleVin ? `
+                            <div class="info-item">
+                                <label>VIN</label>
+                                <div class="value small">${tx.vehicleVin}</div>
+                            </div>` : ''}
+                            ${tx.action ? `
+                            <div class="info-item">
+                                <label>Action</label>
+                                <div class="value">${tx.action.replace(/_/g, ' ')}</div>
+                            </div>` : ''}
+                        </div>
+                    </div>` : ''}
+                    
+                    <!-- Integrity Check Placeholder -->
+                    <div class="section" id="integritySection" style="display: none;">
+                        <div class="section-title">
+                            <i class="fas fa-shield-alt"></i>
+                            Data Integrity Check
+                        </div>
+                        <div id="integrityContent"></div>
+                    </div>
+                    
+                    <div class="blockchain-badge">
+                        <i class="fas fa-link"></i>
+                        Immutably Recorded on Hyperledger Fabric
+                    </div>
+                </div>
+                
+                <div class="proof-footer">
+                    <div class="footer-links">
+                        <a href="javascript:history.back()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <a href="javascript:window.print()">
+                            <i class="fas fa-print"></i> Print Proof
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function loadIntegrity(vin) {
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.get(`/api/integrity/check/${vin}`);
+                
+                if (response.success) {
+                    displayIntegrity(response);
+                }
+            } catch (error) {
+                console.warn('Integrity check unavailable:', error);
+            }
+        }
+        
+        function displayIntegrity(data) {
+            const section = document.getElementById('integritySection');
+            const content = document.getElementById('integrityContent');
+            
+            let badgeClass = 'verified';
+            let badgeIcon = 'fa-check-circle';
+            let badgeText = 'DATA VERIFIED';
+            
+            if (data.status === 'TAMPERED') {
+                badgeClass = 'tampered';
+                badgeIcon = 'fa-exclamation-triangle';
+                badgeText = 'DATA TAMPERED';
+            } else if (data.status === 'MISMATCH') {
+                badgeClass = 'mismatch';
+                badgeIcon = 'fa-exclamation-circle';
+                badgeText = 'DATA MISMATCH';
+            }
+            
+            content.innerHTML = `
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <span class="integrity-badge ${badgeClass}">
+                        <i class="fas ${badgeIcon}"></i> ${badgeText}
+                    </span>
+                </div>
+                <p style="text-align: center; color: #7f8c8d; font-size: 0.9rem;">
+                    ${data.message || 'Database and blockchain records have been compared.'}
+                </p>
+            `;
+            
+            section.style.display = 'block';
+        }
+        
+        function showError(message) {
+            document.getElementById('blockchainVisual').style.display = 'none';
+            document.getElementById('content').innerHTML = `
+                <div class="proof-header error">
+                    <i class="fas fa-times-circle"></i>
+                    <h2>VERIFICATION FAILED</h2>
+                    <p>${message}</p>
+                </div>
+                <div class="proof-content" style="text-align: center;">
+                    <p style="color: #7f8c8d; margin-bottom: 1.5rem;">
+                        The transaction could not be verified on the blockchain.
+                    </p>
+                    <a href="javascript:history.back()" style="color: #667eea;">
+                        <i class="fas fa-arrow-left"></i> Go Back
+                    </a>
+                </div>
+            `;
+        }
+        
+        function showPending(txId) {
+            document.getElementById('content').innerHTML = `
+                <div class="proof-header pending">
+                    <i class="fas fa-clock"></i>
+                    <h2>TRANSACTION PENDING</h2>
+                    <p>This transaction is being processed on the blockchain</p>
+                </div>
+                <div class="proof-content" style="text-align: center;">
+                    <p style="color: #7f8c8d; margin-bottom: 1.5rem;">
+                        The transaction is being confirmed on the Hyperledger Fabric network. This usually takes a few seconds.
+                    </p>
+                    <button onclick="loadTransaction('${txId}')" 
+                            style="padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        <i class="fas fa-sync-alt"></i> Check Again
+                    </button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

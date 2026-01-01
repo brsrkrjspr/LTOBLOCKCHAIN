@@ -567,38 +567,53 @@ class OptimizedFabricService {
     }
 
     // Get transaction details by transaction ID
+    // OPTIMIZED: This method should NOT be called directly for transaction lookup.
+    // The backend route (blockchain.js) uses DB-first approach. This method is kept
+    // for backward compatibility but should ideally not be used without DB lookup first.
     async getTransaction(txId) {
         if (!this.isConnected || this.mode !== 'fabric') {
             throw new Error('Not connected to Fabric network');
         }
         
+        // CRITICAL: Do NOT scan entire ledger - this is extremely inefficient
+        // Instead, throw an error indicating that DB-first lookup is required
+        // The backend route should use vehicle_history table to map txId -> vin first,
+        // then query Fabric by VIN if needed.
+        throw new Error(
+            'Direct transaction lookup by ID is not supported. ' +
+            'Use database-first approach: Query vehicle_history table to get VIN, ' +
+            'then query Fabric by VIN. Transaction IDs are not directly indexed in Fabric.'
+        );
+    }
+    
+    // Helper method: Get transaction by VIN (if chaincode supports it)
+    // This is more efficient than scanning all transactions
+    async getTransactionByVin(vin) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network');
+        }
+        
         try {
-            // Use getAllTransactions() and filter by ID (same approach as /api/ledger/transactions/id/:transactionId)
-            const allTransactions = await this.getAllTransactions();
-            const transaction = allTransactions.find(tx => 
-                tx.id === txId || tx.transactionId === txId
-            );
-            
-            if (!transaction) {
-                throw new Error(`Transaction ${txId} not found on Fabric ledger`);
+            // Query vehicle by VIN (this is indexed in chaincode)
+            const vehicle = await this.getVehicle(vin);
+            if (vehicle && vehicle.success && vehicle.vehicle) {
+                // Return transaction info from vehicle data
+                return {
+                    txId: vehicle.vehicle.lastTxId || vehicle.vehicle.transactionId || null,
+                    timestamp: vehicle.vehicle.timestamp || vehicle.vehicle.createdAt || null,
+                    validationCode: 'VALID',
+                    blockNumber: vehicle.vehicle.blockNumber || null,
+                    vehicleVin: vin,
+                    vehiclePlate: vehicle.vehicle.plateNumber || null,
+                    action: 'REGISTER_VEHICLE',
+                    description: 'Vehicle registration transaction',
+                    source: 'fabric'
+                };
             }
-            
-            // Return transaction with consistent format
-            return {
-                txId: transaction.id || transaction.transactionId,
-                timestamp: transaction.timestamp,
-                validationCode: transaction.status === 'CONFIRMED' ? 'VALID' : 'INVALID',
-                blockNumber: transaction.blockNumber || null,
-                vehicleVin: transaction.vin || null,
-                vehiclePlate: transaction.plateNumber || null,
-                action: transaction.type || 'UNKNOWN',
-                description: `Transaction ${transaction.type || 'UNKNOWN'}`,
-                // Include all transaction fields
-                ...transaction
-            };
+            throw new Error(`Vehicle with VIN ${vin} not found on Fabric`);
         } catch (error) {
-            console.error('Error getting transaction from Fabric:', error);
-            throw new Error(`Failed to get transaction: ${error.message}`);
+            console.error('Error getting transaction by VIN from Fabric:', error);
+            throw new Error(`Failed to get transaction by VIN: ${error.message}`);
         }
     }
 }

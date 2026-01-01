@@ -192,17 +192,45 @@
                 '<div class="transaction-card"><p style="color: red;">No transaction ID provided.</p></div>';
         }
         
-        async function loadTransactionDetails(txId) {
+        async function loadTransactionDetails(txId, retryCount = 0) {
             try {
                 const apiClient = window.apiClient || new APIClient();
                 
                 // Try to get transaction (public endpoint, no auth required)
                 let response;
+                let statusCode = 200;
                 try {
                     response = await apiClient.get(`/api/blockchain/transactions/${txId}`);
                 } catch (apiError) {
+                    statusCode = apiError.status || (apiError.response && apiError.response.status) || 500;
+                    
+                    // Handle 202 (Accepted) - Transaction is pending
+                    if (statusCode === 202) {
+                        const pendingData = apiError.response?.data || apiError.data || {};
+                        document.getElementById('transactionDetails').innerHTML = 
+                            `<div class="transaction-card">
+                                <div class="status-badge status-pending">
+                                    <i class="fas fa-clock"></i> TRANSACTION BROADCASTING
+                                </div>
+                                <h2 style="margin-top: 1rem;">Transaction Pending Blockchain Confirmation</h2>
+                                <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>
+                                <p>${pendingData.message || 'This transaction is being processed and will be recorded on the blockchain shortly.'}</p>
+                                <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
+                                    <i class="fas fa-info-circle"></i> The transaction is in the process of being confirmed on the Hyperledger Fabric network.
+                                </p>
+                                <div style="margin-top: 1.5rem;">
+                                    <button onclick="loadTransactionDetails('${txId}', ${retryCount + 1})" 
+                                            class="btn-primary"
+                                            style="cursor: pointer; border: none;">
+                                        <i class="fas fa-sync-alt"></i> Check Status Again
+                                    </button>
+                                </div>
+                            </div>`;
+                        return;
+                    }
+                    
                     // Check if it's a 404 (not found) vs 500 (server error)
-                    if (apiError.status === 404 || (apiError.response && apiError.response.status === 404)) {
+                    if (statusCode === 404) {
                         document.getElementById('transactionDetails').innerHTML = 
                             `<div class="transaction-card">
                                 <div class="status-badge status-error">
@@ -222,6 +250,30 @@
                             </div>
                             <p style="margin-top: 1rem;">Error loading transaction: ${apiError.message || 'Unknown error'}</p>
                             <p>Please try again later or <a href="/login-signup.html">log in</a> for additional details.</p>
+                        </div>`;
+                    return;
+                }
+                
+                // Handle 202 status (Accepted - pending)
+                if (response.status === 202 || (response.transaction && response.transaction.isPending)) {
+                    document.getElementById('transactionDetails').innerHTML = 
+                        `<div class="transaction-card">
+                            <div class="status-badge status-pending">
+                                <i class="fas fa-clock"></i> TRANSACTION BROADCASTING
+                            </div>
+                            <h2 style="margin-top: 1rem;">Transaction Pending Blockchain Confirmation</h2>
+                            <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>
+                            <p>${response.message || 'This transaction is being processed and will be recorded on the blockchain shortly.'}</p>
+                            <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
+                                <i class="fas fa-info-circle"></i> The transaction is in the process of being confirmed on the Hyperledger Fabric network.
+                            </p>
+                            <div style="margin-top: 1.5rem;">
+                                <button onclick="loadTransactionDetails('${txId}', ${retryCount + 1})" 
+                                        class="btn-primary"
+                                        style="cursor: pointer; border: none;">
+                                    <i class="fas fa-sync-alt"></i> Check Status Again
+                                </button>
+                            </div>
                         </div>`;
                     return;
                 }

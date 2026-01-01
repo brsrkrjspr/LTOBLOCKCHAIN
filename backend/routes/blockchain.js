@@ -402,6 +402,9 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             
             if (historyResult.rows.length > 0) {
                 const history = historyResult.rows[0];
+                const vehicleStatus = history.vehicle_status;
+                const isPending = vehicleStatus === 'PENDING_BLOCKCHAIN' || vehicleStatus === 'SUBMITTED';
+                
                 return {
                     success: true,
                     transaction: {
@@ -411,9 +414,10 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                         vehiclePlate: history.plate_number,
                         action: history.action,
                         description: history.description || `${history.action} transaction`,
-                        validationCode: 'VALID',
+                        validationCode: isPending ? 'PENDING' : 'VALID',
                         source: 'database',
-                        vehicleStatus: history.vehicle_status
+                        vehicleStatus: vehicleStatus,
+                        isPending: isPending
                     }
                 };
             }
@@ -423,30 +427,36 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
         // Try to get from database first (faster and more reliable)
         const dbResult = await getTransactionFromDatabase(txId);
         if (dbResult) {
+            // If transaction is pending, return 202 (Accepted) instead of 200
+            if (dbResult.transaction.isPending) {
+                return res.status(202).json({
+                    ...dbResult,
+                    message: 'Transaction is pending blockchain confirmation'
+                });
+            }
             return res.json(dbResult);
         }
         
-        // If not in database, try Fabric (if available)
-        if (fabricService.isConnected && fabricService.mode === 'fabric') {
-            try {
-                const transaction = await fabricService.getTransaction(txId);
-                return res.json({
-                    success: true,
-                    transaction: {
-                        ...transaction,
-                        source: 'blockchain'
-                    }
-                });
-            } catch (fabricError) {
-                console.warn('Fabric query failed, transaction not found:', fabricError.message);
-                // Continue to return 404 below
-            }
+        // If not in database, check if txId is a UUID (vehicle ID) - this means transaction hasn't been indexed yet
+        // UUIDs have format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (contains hyphens)
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(txId);
+        if (isUuid) {
+            // This is likely a vehicle ID, not a transaction ID - transaction is pending
+            return res.status(202).json({
+                success: false,
+                error: 'Transaction pending',
+                message: 'This appears to be a vehicle ID. The blockchain transaction is still being processed.',
+                isPending: true
+            });
         }
         
-        // Transaction not found in either database or Fabric
+        // For non-UUID transaction IDs not in DB, try to query Fabric by VIN if we can map it
+        // But since we don't have VIN from txId alone, we can't efficiently query Fabric
+        // Return 404 - transaction not found or not yet indexed
         return res.status(404).json({
             success: false,
-            error: 'Transaction not found'
+            error: 'Transaction not found',
+            message: 'Transaction ID not found in database. It may still be processing or may not exist.'
         });
         
     } catch (error) {

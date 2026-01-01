@@ -229,16 +229,61 @@
                         return;
                     }
                     
-                    // Check if it's a 404 (not found) vs 500 (server error)
-                    if (statusCode === 404) {
+                    // Handle 503 (Service Unavailable) - Blockchain service unavailable
+                    if (statusCode === 503) {
                         document.getElementById('transactionDetails').innerHTML = 
                             `<div class="transaction-card">
                                 <div class="status-badge status-error">
-                                    <i class="fas fa-times-circle"></i> NOT FOUND
+                                    <i class="fas fa-server"></i> SERVICE UNAVAILABLE
                                 </div>
-                                <p style="margin-top: 1rem;">Transaction not found: <code>${txId}</code></p>
-                                <p>This transaction ID does not exist in the system.</p>
+                                <h2 style="margin-top: 1rem;">Blockchain Service Unavailable</h2>
+                                <p style="margin-top: 1rem;">
+                                    The Hyperledger Fabric blockchain network is temporarily unavailable. 
+                                    Please try again later.
+                                </p>
+                                <div style="margin-top: 1.5rem;">
+                                    <button onclick="loadTransactionDetails('${txId}')" 
+                                            class="btn-primary"
+                                            style="cursor: pointer; border: none;">
+                                        <i class="fas fa-sync-alt"></i> Retry
+                                    </button>
+                                </div>
                             </div>`;
+                        return;
+                    }
+                    
+                    // Check if it's a 404 (not found) vs 500 (server error)
+                    if (statusCode === 404) {
+                        const errorData = apiError.response?.data || apiError.data || {};
+                        
+                        let errorHtml = `
+                            <div class="transaction-card">
+                                <div class="status-badge status-error">
+                                    <i class="fas fa-exclamation-triangle"></i> NOT FOUND
+                                </div>
+                                <h2 style="margin-top: 1rem;">Transaction Not Found</h2>
+                                <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>`;
+                        
+                        if (errorData.isVehicleId) {
+                            errorHtml += `
+                                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-top: 1rem;">
+                                    <p style="color: #856404; margin: 0;">
+                                        <i class="fas fa-info-circle"></i> 
+                                        This appears to be a vehicle ID, not a blockchain transaction ID.  
+                                        The vehicle may still be pending blockchain registration.
+                                    </p>
+                                </div>`;
+                        } else {
+                            errorHtml += `
+                                <p style="margin-top: 1rem; color: #666;">
+                                    This transaction ID was not found on the blockchain ledger.  
+                                    Please verify the ID is correct or contact LTO support.
+                                </p>`;
+                        }
+                        
+                        errorHtml += `</div>`;
+                        
+                        document.getElementById('transactionDetails').innerHTML = errorHtml;
                         return;
                     }
                     

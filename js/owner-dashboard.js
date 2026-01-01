@@ -42,12 +42,55 @@ let isUserInteracting = false;
 let lastInteractionTime = Date.now();
 let isPageVisible = true;
 
+// Check blockchain connection status
+async function updateBlockchainStatus() {
+    const badge = document.getElementById('blockchainStatusBadge');
+    if (!badge) return;
+    
+    const indicator = badge.querySelector('.status-indicator');
+    const text = badge.querySelector('.status-text');
+    
+    if (!indicator || !text) return;
+    
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/blockchain/status');
+        
+        if (response.success && response.blockchain) {
+            const blockchain = response.blockchain;
+            if (blockchain.status === 'CONNECTED') {
+                indicator.className = 'status-indicator connected';
+                const peerCount = blockchain.peers ? blockchain.peers.filter(p => p.status === 'UP').length : 1;
+                text.textContent = `Hyperledger Fabric: Connected (${peerCount} peers)`;
+                badge.title = `Network: ${blockchain.networkName || blockchain.network || 'ltochannel'}\nChaincode: ${blockchain.chaincodeName || 'vehicle-registration'}`;
+            } else {
+                indicator.className = 'status-indicator disconnected';
+                text.textContent = 'Blockchain: Disconnected';
+                badge.title = 'Hyperledger Fabric network is unavailable';
+            }
+        } else {
+            indicator.className = 'status-indicator disconnected';
+            text.textContent = 'Blockchain: Disconnected';
+            badge.title = 'Unable to check blockchain status';
+        }
+    } catch (error) {
+        indicator.className = 'status-indicator disconnected';
+        text.textContent = 'Blockchain: Error';
+        badge.title = 'Failed to check blockchain status';
+        console.error('Blockchain status check failed:', error);
+    }
+}
+
 function initializeOwnerDashboard() {
     // Initialize user information
     updateUserInfo();
     
     // Initialize dashboard functionality
     updateOwnerStats();
+    
+    // Initialize blockchain status
+    updateBlockchainStatus();
+    setInterval(updateBlockchainStatus, 30000);
     
     // Initialize application tracking
     initializeApplicationTracking();
@@ -997,6 +1040,179 @@ function initializeKeyboardShortcuts() {
     });
 }
 
+// Create blockchain proof section for vehicle cards
+function createBlockchainProofSection(vehicle) {
+    const hasBlockchainTx = vehicle.blockchainTxId || vehicle.blockchain_tx_id;
+    const txId = hasBlockchainTx || 'Pending...';
+    const isVerified = hasBlockchainTx && !['SUBMITTED', 'PENDING_BLOCKCHAIN'].includes(vehicle.status);
+    
+    return `
+        <div class="blockchain-proof-section ${isVerified ? 'verified' : 'pending'}">
+            <div class="proof-header">
+                <i class="fas fa-link"></i>
+                <span>Blockchain Proof</span>
+                ${isVerified ? 
+                    '<span class="proof-badge verified"><i class="fas fa-check-circle"></i> Immutable</span>' : 
+                    '<span class="proof-badge pending"><i class="fas fa-clock"></i> Pending</span>'
+                }
+            </div>
+            <div class="proof-details">
+                <div class="proof-item">
+                    <span class="proof-label">Transaction ID:</span>
+                    <code class="proof-value ${hasBlockchainTx ? 'clickable' : ''}" 
+                          ${hasBlockchainTx ? `onclick="viewBlockchainTransaction('${txId}')"` : ''}>
+                        ${hasBlockchainTx ? txId.substring(0, 16) + '...' : 'Awaiting confirmation'}
+                    </code>
+                </div>
+                ${isVerified ? `
+                <div class="proof-item">
+                    <span class="proof-label">Network:</span>
+                    <span class="proof-value">Hyperledger Fabric</span>
+                </div>
+                <div class="proof-item">
+                    <span class="proof-label">Status:</span>
+                    <span class="proof-value">
+                        <i class="fas fa-lock" style="color: #27ae60;"></i> 
+                        Tamper-Proof
+                    </span>
+                </div>
+                ` : `
+                <div class="proof-item">
+                    <span class="proof-label">Status:</span>
+                    <span class="proof-value">Broadcasting to network...</span>
+                </div>
+                `}
+            </div>
+            ${isVerified ? `
+            <button class="btn-verify-blockchain" onclick="verifyOnBlockchain('${vehicle.vin || vehicle.vehicle?.vin || ''}')">
+                <i class="fas fa-search"></i> Verify on Blockchain
+            </button>
+            ` : ''}
+        </div>
+    `;
+}
+
+// View blockchain transaction
+function viewBlockchainTransaction(txId) {
+    window.open(`/verify/${txId}`, '_blank');
+}
+
+// Verify on blockchain
+function verifyOnBlockchain(vin) {
+    if (!vin) {
+        console.error('VIN is required for blockchain verification');
+        return;
+    }
+    // Get transaction ID from vehicle data or query API
+    const apiClient = window.apiClient || new APIClient();
+    apiClient.get(`/api/vehicles?vin=${vin}`)
+        .then(response => {
+            if (response.success && response.vehicles && response.vehicles.length > 0) {
+                const vehicle = response.vehicles[0];
+                const txId = vehicle.blockchain_tx_id || vehicle.blockchainTxId;
+                if (txId) {
+                    window.open(`/verify/${txId}`, '_blank');
+                } else {
+                    alert('Blockchain transaction ID not found for this vehicle.');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching vehicle:', error);
+            alert('Could not fetch vehicle information for verification.');
+        });
+}
+
+// Render timeline item with blockchain icon support
+function renderTimelineItem(title, date, isCompleted, transactionId, action) {
+    const hasBlockchainTx = transactionId && !transactionId.includes('-'); // UUIDs contain hyphens
+    const isBlockchainAction = ['BLOCKCHAIN_REGISTERED', 'APPROVED', 'REGISTERED'].includes(action);
+    const isBlockchainRecorded = hasBlockchainTx && isBlockchainAction;
+    
+    return `
+        <div class="mini-timeline-item ${isCompleted ? 'completed' : ''} ${isBlockchainRecorded ? 'blockchain-recorded' : ''}">
+            <div class="mini-timeline-dot">
+                ${isBlockchainRecorded ? '<i class="fas fa-cube" style="font-size: 0.7rem;"></i>' : ''}
+            </div>
+            <div class="mini-timeline-content">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong>${title}</strong>
+                    ${isBlockchainRecorded ? '<span class="immutable-badge" style="font-size: 0.65rem; padding: 2px 6px;"><i class="fas fa-lock"></i> Immutable</span>' : ''}
+                </div>
+                <small>${date || 'Pending'}</small>
+                ${isBlockchainRecorded && transactionId ? `
+                    <div class="blockchain-tx-info" style="margin-top: 6px; font-size: 0.75rem;">
+                        <i class="fas fa-link" style="color: #3498db;"></i>
+                        <code onclick="viewBlockchainTransaction('${transactionId}')" 
+                              style="cursor: pointer; color: #3498db; text-decoration: underline;">
+                            ${transactionId.substring(0, 20)}...
+                        </code>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Render history item with blockchain icons (for use in history/audit sections)
+function renderHistoryItem(historyEntry) {
+    const hasBlockchainTx = historyEntry.transaction_id && !historyEntry.transaction_id.includes('-');
+    const isBlockchainAction = ['BLOCKCHAIN_REGISTERED', 'OWNERSHIP_TRANSFERRED', 'VERIFICATION_APPROVED'].includes(historyEntry.action);
+    
+    return `
+        <div class="history-item ${hasBlockchainTx ? 'blockchain-recorded' : 'database-only'}">
+            <div class="history-icon">
+                ${hasBlockchainTx ? 
+                    '<i class="fas fa-cube" title="Recorded on Blockchain"></i>' : 
+                    '<i class="fas fa-database" title="Database Record Only"></i>'
+                }
+            </div>
+            <div class="history-content">
+                <div class="history-header">
+                    <span class="history-action">${formatAction(historyEntry.action)}</span>
+                    <span class="history-timestamp">${formatDate(historyEntry.performed_at)}</span>
+                </div>
+                <p class="history-description">${historyEntry.description || ''}</p>
+                ${hasBlockchainTx ? `
+                    <div class="blockchain-tx-info">
+                        <i class="fas fa-link"></i>
+                        <code onclick="viewBlockchainTransaction('${historyEntry.transaction_id}')" 
+                              style="cursor: pointer; color: #3498db;">
+                            ${historyEntry.transaction_id.substring(0, 20)}...
+                        </code>
+                        <span class="immutable-badge">
+                            <i class="fas fa-lock"></i> Immutable
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Helper functions for history rendering
+function formatAction(action) {
+    const actionMap = {
+        'BLOCKCHAIN_REGISTERED': 'Blockchain Registration',
+        'SUBMITTED': 'Application Submitted',
+        'APPROVED': 'Application Approved',
+        'REJECTED': 'Application Rejected',
+        'OWNERSHIP_TRANSFERRED': 'Ownership Transferred',
+        'VERIFICATION_APPROVED': 'Verification Approved',
+        'STATUS_UPDATED': 'Status Updated'
+    };
+    return actionMap[action] || action.replace(/_/g, ' ');
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        return new Date(dateString).toLocaleString();
+    } catch (e) {
+        return dateString;
+    }
+}
+
 function createUserApplicationRow(application) {
     const row = document.createElement('tr');
     // Get separate OR and CR numbers (new format)
@@ -1472,6 +1688,9 @@ function showApplicationDetailsModal(application) {
                     </div>
                 </div>
                 
+                <!-- Blockchain Proof Section -->
+                ${createBlockchainProofSection(vehicle || application.vehicle || {})}
+                
                 <!-- Documents Section -->
                 <div class="detail-section">
                     <h4><i class="fas fa-folder-open"></i> Documents</h4>
@@ -1485,27 +1704,9 @@ function showApplicationDetailsModal(application) {
                 <div class="detail-section">
                     <h4><i class="fas fa-history"></i> Application Timeline</h4>
                     <div class="mini-timeline">
-                        <div class="mini-timeline-item ${status !== 'rejected' ? 'completed' : ''}">
-                            <div class="mini-timeline-dot"></div>
-                            <div class="mini-timeline-content">
-                                <strong>Submitted</strong>
-                                <small>${application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A'}</small>
-                            </div>
-                        </div>
-                        <div class="mini-timeline-item ${status === 'processing' || status === 'approved' || status === 'completed' ? 'completed' : ''}">
-                            <div class="mini-timeline-dot"></div>
-                            <div class="mini-timeline-content">
-                                <strong>Under Review</strong>
-                                <small>${status === 'processing' ? 'In Progress' : status === 'submitted' ? 'Pending' : 'Completed'}</small>
-                            </div>
-                        </div>
-                        <div class="mini-timeline-item ${status === 'approved' || status === 'completed' ? 'completed' : status === 'rejected' ? 'rejected' : ''}">
-                            <div class="mini-timeline-dot"></div>
-                            <div class="mini-timeline-content">
-                                <strong>${status === 'rejected' ? 'Rejected' : 'Approved'}</strong>
-                                <small>${status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : 'Pending'}</small>
-                            </div>
-                        </div>
+                        ${renderTimelineItem('Submitted', application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A', status !== 'rejected', application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId, 'SUBMITTED')}
+                        ${renderTimelineItem('Under Review', null, status === 'processing' || status === 'approved' || status === 'completed', null, status === 'processing' ? 'PROCESSING' : 'PENDING')}
+                        ${renderTimelineItem(status === 'rejected' ? 'Rejected' : 'Approved', status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : null, status === 'approved' || status === 'completed', (status === 'approved' || status === 'completed') ? (application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId) : null, status === 'rejected' ? 'REJECTED' : 'APPROVED')}
                     </div>
                 </div>
             </div>

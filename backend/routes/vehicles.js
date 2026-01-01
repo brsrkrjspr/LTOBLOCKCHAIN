@@ -255,28 +255,110 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
         const history = await db.getVehicleHistory(vehicleId, 50);
         
         // Find the most recent transaction with a transaction_id
-        // Priority: BLOCKCHAIN_REGISTERED > REGISTERED > any other with transaction_id
         let transactionId = null;
         
-        // First, try to find BLOCKCHAIN_REGISTERED
+        // Priority 1: BLOCKCHAIN_REGISTERED action
         const blockchainRegistered = history.find(h => 
             h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id
         );
         if (blockchainRegistered) {
             transactionId = blockchainRegistered.transaction_id;
-        } else {
-            // Fallback to any transaction with transaction_id
+        }
+        
+        // Priority 2: Any history entry with transaction_id
+        if (!transactionId) {
             const anyTx = history.find(h => h.transaction_id);
             if (anyTx) {
                 transactionId = anyTx.transaction_id;
             }
         }
         
-        // If no transaction ID found, return vehicle ID as fallback (for backward compatibility)
-        res.json({
-            success: true,
-            transactionId: transactionId || vehicle.id,
-            source: transactionId ? 'blockchain' : 'vehicle_id'
+        // Priority 3: For REGISTERED/APPROVED vehicles, query Fabric directly
+        if (!transactionId && ['REGISTERED', 'APPROVED'].includes(vehicle.status)) {
+            try {
+                const fabricService = require('../services/optimizedFabricService');
+                
+                // Ensure we're using real Fabric, not mock
+                if (fabricService.mode !== 'fabric') {
+                    console.error('❌ Mock blockchain service detected - real Fabric required');
+                    return res.status(503).json({
+                        success: false,
+                        error: 'Blockchain service unavailable',
+                        message: 'Real Hyperledger Fabric connection required'
+                    });
+                }
+                
+                // Query Fabric by VIN
+                const blockchainResult = await fabricService.getVehicle(vehicle.vin);
+                if (blockchainResult && blockchainResult.success && blockchainResult.vehicle) {
+                    // Try to get transaction ID from vehicle data
+                    // Chaincode may store it in different fields
+                    const fabricVehicle = blockchainResult.vehicle;
+                    transactionId = fabricVehicle.lastTxId || 
+                                   fabricVehicle.transactionId || 
+                                   fabricVehicle.blockchainTxId ||
+                                   null;
+                    
+                    // If we found a transaction ID, backfill to vehicle_history
+                    if (transactionId) {
+                        const dbServices = require('../database/services');
+                        await dbServices.addVehicleHistory({
+                            vehicleId: vehicleId,
+                            action: 'BLOCKCHAIN_REGISTERED',
+                            description: 'Transaction ID recovered from blockchain ledger',
+                            performedBy: null,
+                            transactionId: transactionId,
+                            metadata: JSON.stringify({ 
+                                recovered: true, 
+                                source: 'fabric_ledger_query', 
+                                vin: vehicle.vin,
+                                recoveredAt: new Date().toISOString()
+                            })
+                        });
+                        console.log(`✅ Recovered and backfilled transaction ID for ${vehicle.vin}: ${transactionId}`);
+                    }
+                }
+            } catch (fabricError) {
+                console.warn('⚠️ Could not query blockchain for transaction ID:', fabricError.message);
+                // Don't fallback - if Fabric fails, report the actual status
+            }
+        }
+        
+        // Return result based on what we found
+        if (transactionId) {
+            return res.json({
+                success: true,
+                transactionId: transactionId,
+                source: 'blockchain',
+                vehicleStatus: vehicle.status,
+                isPending: false
+            });
+        }
+        
+        // Determine if vehicle is actually pending
+        const isPending = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'PROCESSING'].includes(vehicle.status);
+        
+        if (isPending) {
+            // Vehicle is genuinely pending - this is expected
+            return res.json({
+                success: true,
+                transactionId: null,
+                source: 'pending',
+                vehicleStatus: vehicle.status,
+                isPending: true,
+                message: 'Vehicle registration is being processed on the blockchain'
+            });
+        }
+        
+        // Vehicle is REGISTERED/APPROVED but no transaction ID found - this is an error state
+        // Per Chapter 2 requirements: "all registrations are recorded on blockchain IMMEDIATELY"
+        console.error(`❌ Data integrity issue: Vehicle ${vehicle.vin} is ${vehicle.status} but has no blockchain transaction ID`);
+        return res.status(500).json({
+            success: false,
+            error: 'Blockchain record not found',
+            message: 'This vehicle is marked as registered but the blockchain transaction ID is missing. Please contact LTO support.',
+            vehicleStatus: vehicle.status,
+            vin: vehicle.vin
         });
         
     } catch (error) {

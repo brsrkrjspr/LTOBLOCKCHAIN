@@ -169,6 +169,45 @@ function setupAutoRefresh() {
     );
 }
 
+// Check blockchain connection status
+async function updateBlockchainStatus() {
+    const badge = document.getElementById('blockchainStatusBadge');
+    if (!badge) return;
+    
+    const indicator = badge.querySelector('.status-indicator');
+    const text = badge.querySelector('.status-text');
+    
+    if (!indicator || !text) return;
+    
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/blockchain/status');
+        
+        if (response.success && response.blockchain) {
+            const blockchain = response.blockchain;
+            if (blockchain.status === 'CONNECTED') {
+                indicator.className = 'status-indicator connected';
+                const peerCount = blockchain.peers ? blockchain.peers.filter(p => p.status === 'UP').length : 1;
+                text.textContent = `Hyperledger Fabric: Connected (${peerCount} peers)`;
+                badge.title = `Network: ${blockchain.networkName || blockchain.network || 'ltochannel'}\nChaincode: ${blockchain.chaincodeName || 'vehicle-registration'}`;
+            } else {
+                indicator.className = 'status-indicator disconnected';
+                text.textContent = 'Blockchain: Disconnected';
+                badge.title = 'Hyperledger Fabric network is unavailable';
+            }
+        } else {
+            indicator.className = 'status-indicator disconnected';
+            text.textContent = 'Blockchain: Disconnected';
+            badge.title = 'Unable to check blockchain status';
+        }
+    } catch (error) {
+        indicator.className = 'status-indicator disconnected';
+        text.textContent = 'Blockchain: Error';
+        badge.title = 'Failed to check blockchain status';
+        console.error('Blockchain status check failed:', error);
+    }
+}
+
 function initializeAdminDashboard() {
     // Check and clear demo accounts first
     if (!checkAndClearDemoAccount()) {
@@ -194,6 +233,10 @@ function initializeAdminDashboard() {
     
     // Set up smart auto-refresh (replaces old setInterval calls)
     setupAutoRefresh();
+    
+    // Initialize blockchain status
+    updateBlockchainStatus();
+    setInterval(updateBlockchainStatus, 30000);
 }
 
 // Load organization verification statuses from API
@@ -1362,6 +1405,9 @@ function createApplicationRow(application) {
             <button class="btn-secondary btn-sm" onclick="viewApplication('${application.id}')">View</button>
             <button class="btn-primary btn-sm" onclick="approveApplication('${application.id}')">Approve</button>
             <button class="btn-danger btn-sm" onclick="rejectApplication('${application.id}')">Reject</button>
+            ${vin ? `<button class="btn-info btn-sm" onclick="checkDataIntegrity('${vehicleId}', '${vin}')" title="Check Data Integrity">
+                <i class="fas fa-shield-alt"></i> Integrity
+            </button>` : ''}
         </td>
     `;
     
@@ -2584,5 +2630,192 @@ window.AdminDashboard = {
     requestInsuranceCorrection,
     approveHPGClearance,
     finalizeRegistration,
-    sendVerificationRequest
+    sendVerificationRequest,
+    checkDataIntegrity,
+    closeIntegrityModal
 };
+
+// Check data integrity for a vehicle
+async function checkDataIntegrity(vehicleId, vin) {
+    const modal = document.getElementById('integrityModal');
+    const statusDiv = document.getElementById('integrityStatus');
+    const dbValuesDiv = document.getElementById('databaseValues');
+    const blockchainValuesDiv = document.getElementById('blockchainValues');
+    const detailsDiv = document.getElementById('comparisonDetails');
+    const timestampSpan = document.getElementById('integrityTimestamp');
+    
+    if (!modal || !statusDiv) {
+        console.error('Integrity modal elements not found');
+        return;
+    }
+    
+    // Show modal with loading state
+    modal.style.display = 'flex';
+    statusDiv.innerHTML = '<div class="loading-spinner"></div> Checking integrity...';
+    if (dbValuesDiv) dbValuesDiv.innerHTML = '';
+    if (blockchainValuesDiv) blockchainValuesDiv.innerHTML = '';
+    if (detailsDiv) detailsDiv.innerHTML = '';
+    
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/integrity/check/${vin}`);
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Integrity check failed');
+        }
+        
+        // Render status badge
+        const statusClass = {
+            'VERIFIED': 'verified',
+            'TAMPERED': 'tampered',
+            'MISMATCH': 'mismatch',
+            'NOT_REGISTERED': 'not-registered'
+        }[response.integrityStatus] || 'error';
+        
+        const statusIcon = {
+            'VERIFIED': 'check-circle',
+            'TAMPERED': 'exclamation-triangle',
+            'MISMATCH': 'exclamation-circle',
+            'NOT_REGISTERED': 'question-circle'
+        }[response.integrityStatus] || 'times-circle';
+        
+        statusDiv.innerHTML = `
+            <div class="integrity-badge ${statusClass}">
+                <i class="fas fa-${statusIcon}"></i>
+                <span>${response.integrityStatus || 'ERROR'}</span>
+            </div>
+            <p class="integrity-message" style="margin-top: 10px; color: #666;">
+                ${response.integrityStatus === 'VERIFIED' ? 'All data matches between database and blockchain' : 
+                  response.integrityStatus === 'TAMPERED' ? 'Critical data mismatch detected - possible tampering' :
+                  response.integrityStatus === 'MISMATCH' ? 'Some fields do not match between database and blockchain' :
+                  response.integrityStatus === 'NOT_REGISTERED' ? 'Vehicle not found on blockchain' :
+                  'Error checking integrity'}
+            </p>
+        `;
+        
+        // Render database values
+        if (response.database && dbValuesDiv) {
+            dbValuesDiv.innerHTML = renderVehicleValues(response.database, 'database');
+        }
+        
+        // Render blockchain values
+        if (response.blockchain && blockchainValuesDiv) {
+            blockchainValuesDiv.innerHTML = renderVehicleValues(response.blockchain, 'blockchain');
+        }
+        
+        // Render field comparisons
+        if (detailsDiv) {
+            if (response.mismatches && response.mismatches.length > 0) {
+                detailsDiv.innerHTML = renderComparisonDetails(response.mismatches, response.database, response.blockchain);
+            } else {
+                detailsDiv.innerHTML = '<p style="text-align: center; color: #27ae60; padding: 20px;"><i class="fas fa-check-circle"></i> All fields match perfectly!</p>';
+            }
+        }
+        
+        if (timestampSpan) {
+            timestampSpan.textContent = `Checked at: ${new Date(response.timestamp || Date.now()).toLocaleString()}`;
+        }
+        
+    } catch (error) {
+        statusDiv.innerHTML = `
+            <div class="integrity-badge error">
+                <i class="fas fa-times-circle"></i>
+                <span>ERROR</span>
+            </div>
+            <p class="integrity-message" style="margin-top: 10px; color: #e74c3c;">${error.message}</p>
+        `;
+    }
+}
+
+function renderVehicleValues(vehicle, source) {
+    const fields = [
+        { key: 'vin', label: 'VIN' },
+        { key: 'plateNumber', label: 'Plate Number' },
+        { key: 'plate_number', label: 'Plate Number' },
+        { key: 'engineNumber', label: 'Engine Number' },
+        { key: 'engine_number', label: 'Engine Number' },
+        { key: 'chassisNumber', label: 'Chassis Number' },
+        { key: 'chassis_number', label: 'Chassis Number' },
+        { key: 'make', label: 'Make' },
+        { key: 'model', label: 'Model' },
+        { key: 'year', label: 'Year' }
+    ];
+    
+    const uniqueFields = [];
+    const seenLabels = new Set();
+    
+    fields.forEach(field => {
+        if (!seenLabels.has(field.label)) {
+            seenLabels.add(field.label);
+            uniqueFields.push(field);
+        }
+    });
+    
+    return uniqueFields.map(field => {
+        const value = vehicle[field.key] || 'N/A';
+        return `
+            <div class="value-row">
+                <span class="value-label">${field.label}:</span>
+                <span class="value-data">${value}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderComparisonDetails(mismatches, dbData, blockchainData) {
+    const allFields = [
+        { dbKey: 'vin', blockchainKey: 'vin', label: 'VIN' },
+        { dbKey: 'plate_number', blockchainKey: 'plateNumber', label: 'Plate Number' },
+        { dbKey: 'engine_number', blockchainKey: 'engineNumber', label: 'Engine Number' },
+        { dbKey: 'chassis_number', blockchainKey: 'chassisNumber', label: 'Chassis Number' },
+        { dbKey: 'make', blockchainKey: 'make', label: 'Make' },
+        { dbKey: 'model', blockchainKey: 'model', label: 'Model' },
+        { dbKey: 'year', blockchainKey: 'year', label: 'Year' }
+    ];
+    
+    return `
+        <h4 style="margin-top: 20px; margin-bottom: 15px;"><i class="fas fa-list-check"></i> Field-by-Field Comparison</h4>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Database</th>
+                    <th>Blockchain</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${allFields.map(field => {
+                    const dbValue = dbData?.[field.dbKey] || 'N/A';
+                    const blockchainValue = blockchainData?.[field.blockchainKey] || 'N/A';
+                    const isMismatch = mismatches.some(m => m.fieldKey === field.dbKey || m.field === field.label);
+                    const mismatch = mismatches.find(m => m.fieldKey === field.dbKey || m.field === field.label);
+                    
+                    return `
+                        <tr class="${isMismatch ? 'mismatch' : 'match'}">
+                            <td>
+                                ${field.label}
+                                ${mismatch && mismatch.critical ? '<span class="critical-badge">Critical</span>' : ''}
+                            </td>
+                            <td><code>${dbValue}</code></td>
+                            <td><code>${blockchainValue}</code></td>
+                            <td>
+                                ${isMismatch ? 
+                                    '<i class="fas fa-times-circle" style="color: #e74c3c;"></i>' : 
+                                    '<i class="fas fa-check-circle" style="color: #27ae60;"></i>'
+                                }
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function closeIntegrityModal() {
+    const modal = document.getElementById('integrityModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}

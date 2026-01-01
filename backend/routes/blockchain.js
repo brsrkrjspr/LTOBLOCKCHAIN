@@ -249,7 +249,7 @@ router.put('/vehicles/:vin/transfer', authenticateToken, async (req, res) => {
 });
 
 // Get blockchain network status
-router.get('/status', authenticateToken, (req, res) => {
+router.get('/status', optionalAuth, (req, res) => {
     try {
         const fabricStatus = fabricService.getStatus();
         
@@ -441,22 +441,72 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
         // UUIDs have format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (contains hyphens)
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(txId);
         if (isUuid) {
-            // This is likely a vehicle ID, not a transaction ID - transaction is pending
-            return res.status(202).json({
+            console.log(`🔍 Received UUID ${txId}, attempting vehicle lookup...`);
+            
+            try {
+                const vehicle = await db.getVehicleById(txId);
+                if (vehicle && vehicle.vin) {
+                    const fabricService = require('../services/optimizedFabricService');
+                    
+                    // Ensure real Fabric service
+                    if (fabricService.mode !== 'fabric') {
+                        return res.status(503).json({
+                            success: false,
+                            error: 'Blockchain service unavailable',
+                            message: 'Real Hyperledger Fabric connection required for verification'
+                        });
+                    }
+                    
+                    // Query Fabric by VIN
+                    const blockchainResult = await fabricService.getVehicle(vehicle.vin);
+                    if (blockchainResult && blockchainResult.success && blockchainResult.vehicle) {
+                        const blockchainVehicle = blockchainResult.vehicle;
+                        // Found on blockchain - return verification data
+                        return res.json({
+                            success: true,
+                            transaction: {
+                                txId: blockchainVehicle.lastTxId || blockchainVehicle.transactionId || blockchainVehicle.blockchainTxId || txId,
+                                timestamp: blockchainVehicle.lastUpdated || blockchainVehicle.registrationDate || blockchainVehicle.timestamp || vehicle.created_at,
+                                vehicleVin: vehicle.vin,
+                                vehiclePlate: vehicle.plate_number,
+                                action: 'VEHICLE_REGISTRATION',
+                                description: 'Vehicle registered on blockchain',
+                                validationCode: 'VALID',
+                                source: 'blockchain_ledger',
+                                vehicleStatus: vehicle.status,
+                                isPending: false,
+                                // Include blockchain proof data
+                                blockchainData: {
+                                    make: blockchainVehicle.make,
+                                    model: blockchainVehicle.model,
+                                    year: blockchainVehicle.year,
+                                    engineNumber: blockchainVehicle.engineNumber,
+                                    chassisNumber: blockchainVehicle.chassisNumber,
+                                    plateNumber: blockchainVehicle.plateNumber,
+                                    registrationDate: blockchainVehicle.registrationDate || blockchainVehicle.lastUpdated
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (lookupError) {
+                console.warn('UUID lookup failed:', lookupError.message);
+            }
+            
+            // UUID provided but vehicle not found on blockchain
+            return res.status(404).json({
                 success: false,
-                error: 'Transaction pending',
-                message: 'This appears to be a vehicle ID. The blockchain transaction is still being processed.',
-                isPending: true
+                error: 'Transaction not found',
+                message: 'This appears to be a vehicle ID. The blockchain transaction could not be located. The vehicle may not yet be registered on the blockchain.',
+                isVehicleId: true
             });
         }
         
-        // For non-UUID transaction IDs not in DB, try to query Fabric by VIN if we can map it
-        // But since we don't have VIN from txId alone, we can't efficiently query Fabric
-        // Return 404 - transaction not found or not yet indexed
+        // Original 404 response for non-UUID transaction IDs not found
         return res.status(404).json({
             success: false,
             error: 'Transaction not found',
-            message: 'Transaction ID not found in database. It may still be processing or may not exist.'
+            message: 'The specified transaction ID was not found on the blockchain ledger.'
         });
         
     } catch (error) {

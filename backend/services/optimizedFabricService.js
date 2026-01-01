@@ -129,7 +129,12 @@ class OptimizedFabricService {
 
     // Get vehicle - Fabric only
     async getVehicle(vin) {
-        if (!this.isConnected || this.mode !== 'fabric') {
+        // CRITICAL: Enforce real Fabric service - no mock fallbacks
+        if (this.mode !== 'fabric') {
+            throw new Error('CRITICAL: Mock blockchain service is not allowed. Real Hyperledger Fabric connection required.');
+        }
+        
+        if (!this.isConnected) {
             throw new Error('Not connected to Fabric network. Cannot query vehicle.');
         }
 
@@ -589,7 +594,12 @@ class OptimizedFabricService {
     // Helper method: Get transaction by VIN (if chaincode supports it)
     // This is more efficient than scanning all transactions
     async getTransactionByVin(vin) {
-        if (!this.isConnected || this.mode !== 'fabric') {
+        // CRITICAL: Enforce real Fabric service - no mock fallbacks
+        if (this.mode !== 'fabric') {
+            throw new Error('Real Hyperledger Fabric connection required');
+        }
+        
+        if (!this.isConnected) {
             throw new Error('Not connected to Fabric network');
         }
         

@@ -419,6 +419,11 @@
                         <div class="logo">
                             <h1>LTO MANAGEMENT SYSTEM</h1>
                         </div>
+                        <!-- Blockchain Status Badge -->
+                        <div id="blockchainStatusBadge" class="blockchain-status-badge">
+                            <div class="status-indicator loading"></div>
+                            <span class="status-text">Connecting to Blockchain...</span>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -1019,5 +1024,55 @@
             }
         });
     </script>
+    
+    <!-- Integrity Check Modal -->
+    <div id="integrityModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content integrity-modal">
+            <div class="modal-header">
+                <h2><i class="fas fa-shield-alt"></i> Data Integrity Verification</h2>
+                <button class="modal-close" onclick="closeIntegrityModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="integrityStatus" class="integrity-status">
+                    <!-- Status badge will be inserted here -->
+                </div>
+                <div class="integrity-comparison">
+                    <div class="comparison-column database">
+                        <div class="column-header">
+                            <i class="fas fa-database"></i>
+                            <span>PostgreSQL Database</span>
+                            <small>(Mutable)</small>
+                        </div>
+                        <div id="databaseValues" class="column-values">
+                            <!-- Database values inserted here -->
+                        </div>
+                    </div>
+                    <div class="comparison-divider">
+                        <div class="comparison-arrow">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <span>Compare</span>
+                    </div>
+                    <div class="comparison-column blockchain">
+                        <div class="column-header">
+                            <i class="fas fa-cube"></i>
+                            <span>Hyperledger Fabric</span>
+                            <small>(Immutable)</small>
+                        </div>
+                        <div id="blockchainValues" class="column-values">
+                            <!-- Blockchain values inserted here -->
+                        </div>
+                    </div>
+                </div>
+                <div id="comparisonDetails" class="comparison-details">
+                    <!-- Field-by-field comparison -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="integrityTimestamp" class="timestamp"></span>
+                <button class="btn-secondary" onclick="closeIntegrityModal()">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

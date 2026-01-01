@@ -223,6 +223,66 @@ app.listen(PORT, () => {
     console.log(`🌐 Frontend URL: ${frontendUrl}`);
     console.log(`📦 Storage Mode: ${process.env.STORAGE_MODE || 'auto'}`);
     console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'fabric'} (Fabric-only, no fallbacks)`);
+    
+    // Initialize scheduled tasks
+    initializeScheduledTasks();
 });
+
+// Initialize scheduled tasks (expiry notifications, etc.)
+function initializeScheduledTasks() {
+    // Only run scheduled tasks in production or if explicitly enabled
+    if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULED_TASKS === 'true') {
+        console.log('⏰ Initializing scheduled tasks...');
+        
+        // Load expiry service
+        const expiryService = require('./backend/services/expiryService');
+        
+        // Run expiry check immediately on startup (after 30 seconds to let DB connect)
+        setTimeout(() => {
+            console.log('🔔 Running initial expiry notification check...');
+            expiryService.checkExpiringRegistrations()
+                .then(results => {
+                    console.log(`✅ Initial expiry check complete: ${results.notificationsSent} notifications sent`);
+                })
+                .catch(error => {
+                    console.error('❌ Error in initial expiry check:', error);
+                });
+        }, 30000); // 30 seconds delay
+        
+        // Schedule daily expiry check (runs at 9:00 AM every day)
+        // Calculate milliseconds until next 9:00 AM
+        const now = new Date();
+        const nextCheck = new Date();
+        nextCheck.setHours(9, 0, 0, 0);
+        if (nextCheck <= now) {
+            nextCheck.setDate(nextCheck.getDate() + 1); // Move to tomorrow if already past 9 AM
+        }
+        const msUntilNextCheck = nextCheck - now;
+        
+        console.log(`⏰ Next expiry check scheduled for: ${nextCheck.toLocaleString()}`);
+        
+        // Set up interval to run daily at 9:00 AM
+        setInterval(() => {
+            const checkTime = new Date();
+            const currentHour = checkTime.getHours();
+            
+            // Only run if it's around 9 AM (between 9:00 and 9:59)
+            if (currentHour === 9) {
+                console.log('🔔 Running scheduled expiry notification check...');
+                expiryService.checkExpiringRegistrations()
+                    .then(results => {
+                        console.log(`✅ Scheduled expiry check complete: ${results.notificationsSent} notifications sent`);
+                    })
+                    .catch(error => {
+                        console.error('❌ Error in scheduled expiry check:', error);
+                    });
+            }
+        }, 60 * 60 * 1000); // Check every hour to catch 9 AM
+        
+        console.log('✅ Scheduled tasks initialized');
+    } else {
+        console.log('⏰ Scheduled tasks disabled (set ENABLE_SCHEDULED_TASKS=true to enable)');
+    }
+}
 
 module.exports = app;

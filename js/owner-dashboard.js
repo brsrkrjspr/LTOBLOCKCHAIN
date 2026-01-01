@@ -37,6 +37,11 @@ const itemsPerPage = 10;
 let allApplications = [];
 let filteredApplications = [];
 
+// Silent refresh system
+let isUserInteracting = false;
+let lastInteractionTime = Date.now();
+let isPageVisible = true;
+
 function initializeOwnerDashboard() {
     // Initialize user information
     updateUserInfo();
@@ -505,13 +510,32 @@ function initializeSubmittedApplications() {
         setTimeout(loadUserApplications, 100);
     }
     
-    // Set up auto-refresh for applications
+    // Set up auto-refresh for applications (silent background refresh)
     setInterval(() => {
-        loadUserApplications();
-    }, 30000); // Update every 30 seconds
+        // Only refresh if page is visible and user is not actively interacting
+        if (isPageVisible && !isUserInteracting && (Date.now() - lastInteractionTime) > 30000) {
+            loadUserApplications(true); // Silent refresh
+        }
+    }, 120000); // Update every 2 minutes instead of 30 seconds
 }
 
-async function loadUserApplications() {
+// Track user interactions to pause auto-refresh
+['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+    document.addEventListener(event, () => {
+        isUserInteracting = true;
+        lastInteractionTime = Date.now();
+        setTimeout(() => {
+            isUserInteracting = false;
+        }, 30000); // Consider inactive after 30 seconds
+    }, { passive: true });
+});
+
+// Track page visibility
+document.addEventListener('visibilitychange', () => {
+    isPageVisible = !document.hidden;
+});
+
+async function loadUserApplications(isSilent = false) {
     // Wait for DOM to be fully ready
     if (document.readyState === 'loading') {
         await new Promise(resolve => {
@@ -529,14 +553,16 @@ async function loadUserApplications() {
     if (!applicationsTable) {
         console.error('❌ Could not find registrations table (#my-registrations-tbody). Retrying...');
         // Retry after a short delay
-        setTimeout(loadUserApplications, 500);
+        setTimeout(() => loadUserApplications(isSilent), 500);
         return;
     }
     
     console.log('✅ Found registrations table (#my-registrations-tbody)');
     
-    // Show loading state
-    applicationsTable.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
+    // Only show loading if NOT silent refresh
+    if (!isSilent && applicationsTable) {
+        applicationsTable.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
+    }
     
     try {
         // Try to load from API first
@@ -840,7 +866,10 @@ function renderApplications() {
         return;
     }
     
-    applicationsTable.innerHTML = '';
+    // Only clear if table has content (prevents flicker during silent refresh)
+    if (applicationsTable.children.length > 0) {
+        applicationsTable.innerHTML = '';
+    }
     
     if (filteredApplications.length === 0) {
         applicationsTable.innerHTML = `
@@ -1041,10 +1070,18 @@ function getStatusText(status) {
 }
 
 function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
-    // If verificationStatus is empty but application is PENDING_BLOCKCHAIN, show all as Pending
-    const isEmpty = !verificationStatus || typeof verificationStatus !== 'object' || Object.keys(verificationStatus).length === 0;
-    const isPendingBlockchain = applicationStatus && (applicationStatus.toUpperCase() === 'PENDING_BLOCKCHAIN' || applicationStatus.toUpperCase() === 'SUBMITTED');
+    // Normalize status for comparison (handle both cases and separators)
+    const normalizedStatus = applicationStatus 
+        ? String(applicationStatus).toUpperCase().replace(/[-_]/g, '_').trim()
+        : '';
     
+    const isPendingBlockchain = normalizedStatus === 'PENDING_BLOCKCHAIN' || 
+                                 normalizedStatus === 'SUBMITTED' ||
+                                 normalizedStatus === 'PENDING';
+    
+    const isEmpty = !verificationStatus || typeof verificationStatus !== 'object' || Object.keys(verificationStatus).length === 0;
+    
+    // If verificationStatus is empty but application is PENDING_BLOCKCHAIN, show all as Pending
     if (isEmpty && !isPendingBlockchain) {
         return '<span style="color: #6c757d;">-</span>';
     }

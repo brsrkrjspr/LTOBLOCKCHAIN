@@ -40,6 +40,7 @@ const dbServices = require('../database/services');
 async function backfillBlockchainRegistered() {
     console.log('🔧 Starting BLOCKCHAIN_REGISTERED backfill...');
     console.log(`📊 Database: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'lto_blockchain'}`);
+    console.log(`   User: ${process.env.DB_USER || 'lto_user'}`);
     
     // Test database connection first
     try {
@@ -48,6 +49,11 @@ async function backfillBlockchainRegistered() {
     } catch (connError) {
         console.error('❌ Database connection failed:', connError.message);
         console.error('   Please check your database credentials and connection settings.');
+        if (connError.code === 'EAI_AGAIN' && process.env.DB_HOST === 'postgres') {
+            console.error('\n💡 TIP: The hostname "postgres" only works inside Docker containers.');
+            console.error('   If running on host machine, use: DB_HOST=localhost');
+            console.error('   Or run inside container: docker exec -it lto-app node backend/scripts/backfill-blockchain-registered.js');
+        }
         throw connError;
     }
     

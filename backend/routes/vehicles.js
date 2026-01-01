@@ -256,24 +256,61 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
         
         // Find the most recent transaction with a transaction_id
         let transactionId = null;
+        let transactionSource = null;
         
-        // Priority 1: BLOCKCHAIN_REGISTERED action
+        // Priority 1: BLOCKCHAIN_REGISTERED action (from initial registration or LTO approval)
         const blockchainRegistered = history.find(h => 
             h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id
         );
         if (blockchainRegistered) {
             transactionId = blockchainRegistered.transaction_id;
+            transactionSource = 'BLOCKCHAIN_REGISTERED';
+            console.log(`✅ Found transaction ID from BLOCKCHAIN_REGISTERED: ${transactionId}`);
         }
         
-        // Priority 2: Any history entry with transaction_id
+        // Priority 2: CLEARANCE_APPROVED action (LTO approval with blockchain - for backward compatibility)
         if (!transactionId) {
-            const anyTx = history.find(h => h.transaction_id);
-            if (anyTx) {
-                transactionId = anyTx.transaction_id;
+            const clearanceApproved = history.find(h => 
+                h.action === 'CLEARANCE_APPROVED' && h.transaction_id && !h.transaction_id.includes('-')
+            );
+            if (clearanceApproved) {
+                transactionId = clearanceApproved.transaction_id;
+                transactionSource = 'CLEARANCE_APPROVED';
+                console.log(`✅ Found transaction ID from CLEARANCE_APPROVED: ${transactionId}`);
+                
+                // Backfill: Create BLOCKCHAIN_REGISTERED entry for future lookups
+                try {
+                    const dbServices = require('../database/services');
+                    await dbServices.addVehicleHistory({
+                        vehicleId: vehicleId,
+                        action: 'BLOCKCHAIN_REGISTERED',
+                        description: 'Transaction ID recovered from CLEARANCE_APPROVED history',
+                        performedBy: null,
+                        transactionId: transactionId,
+                        metadata: JSON.stringify({ 
+                            recovered: true, 
+                            source: 'clearance_approved_backfill',
+                            recoveredAt: new Date().toISOString()
+                        })
+                    });
+                    console.log(`✅ Backfilled BLOCKCHAIN_REGISTERED entry for vehicle ${vehicleId}`);
+                } catch (backfillError) {
+                    console.warn('⚠️ Could not backfill BLOCKCHAIN_REGISTERED entry:', backfillError.message);
+                }
             }
         }
         
-        // Priority 3: For REGISTERED/APPROVED vehicles, query Fabric directly
+        // Priority 3: Any history entry with valid transaction_id (non-UUID)
+        if (!transactionId) {
+            const anyTx = history.find(h => h.transaction_id && !h.transaction_id.includes('-'));
+            if (anyTx) {
+                transactionId = anyTx.transaction_id;
+                transactionSource = anyTx.action;
+                console.log(`✅ Found transaction ID from ${anyTx.action}: ${transactionId}`);
+            }
+        }
+        
+        // Priority 4: For REGISTERED/APPROVED vehicles, query Fabric directly
         if (!transactionId && ['REGISTERED', 'APPROVED'].includes(vehicle.status)) {
             try {
                 const fabricService = require('../services/optimizedFabricService');

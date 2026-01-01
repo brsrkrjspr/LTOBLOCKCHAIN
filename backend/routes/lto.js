@@ -809,6 +809,25 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             await db.updateVehicle(vehicleId, {
                 status: 'REGISTERED'
             });
+            
+            // ✅ ADD: Create BLOCKCHAIN_REGISTERED history entry for certificate generator
+            await db.addVehicleHistory({
+                vehicleId,
+                action: 'BLOCKCHAIN_REGISTERED',
+                description: `Vehicle registered on Hyperledger Fabric. TX: ${blockchainTxId}`,
+                performedBy: req.user.userId,
+                transactionId: blockchainTxId,
+                metadata: {
+                    source: 'lto_final_approval',
+                    orNumber: orNumber,
+                    crNumber: crNumber,
+                    mvirNumber: mvirNumber,
+                    registeredAt: new Date().toISOString(),
+                    fabricNetwork: 'ltochannel',
+                    chaincode: 'vehicle-registration'
+                }
+            });
+            console.log(`✅ Created BLOCKCHAIN_REGISTERED history entry with txId: ${blockchainTxId}`);
         }
 
         // Add to history (include separate OR/CR numbers in metadata)

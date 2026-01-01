@@ -1,6 +1,7 @@
 // TrustChain - Certificate Expiry Notification Service
 const db = require('../database/db');
 const dbServices = require('../database/services');
+const { sendMail } = require('./gmailApiService');
 
 const NOTIFICATION_WINDOWS = {
     '30d': 30,
@@ -81,25 +82,257 @@ async function sendExpiryNotification(vehicle, notificationType, daysUntilExpiry
         '1d': 'URGENT'
     };
     
-    const title = `${urgencyLabels[notificationType]}: Vehicle Registration Expiring`;
-    const message = `Your vehicle registration for ${vehicle.plate_number || vehicle.vin} will expire in ${daysUntilExpiry} day(s) on ${new Date(vehicle.registration_expiry_date).toLocaleDateString()}. Please renew your registration to avoid penalties.`;
+    const urgencyColors = {
+        '30d': '#667eea',
+        '7d': '#f39c12',
+        '1d': '#e74c3c'
+    };
+    
+    const ownerName = `${vehicle.first_name || ''} ${vehicle.last_name || ''}`.trim() || vehicle.owner_email || 'Vehicle Owner';
+    const urgencyLabel = urgencyLabels[notificationType];
+    const urgencyColor = urgencyColors[notificationType];
+    const expiryDate = new Date(vehicle.registration_expiry_date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    const appUrl = process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
+    
+    const title = `${urgencyLabel}: Vehicle Registration Expiring`;
+    const subject = `${urgencyLabel}: Vehicle Registration Expiring - TrustChain LTO`;
+    
+    // Plain text email
+    const text = `
+Dear ${ownerName},
+
+${urgencyLabel === 'URGENT' ? '⚠️ URGENT: ' : ''}Your vehicle registration will expire in ${daysUntilExpiry} day(s).
+
+Vehicle Details:
+- Plate Number: ${vehicle.plate_number || vehicle.vin}
+- VIN: ${vehicle.vin}
+- Expiry Date: ${expiryDate}
+- Days Remaining: ${daysUntilExpiry} ${daysUntilExpiry === 1 ? 'day' : 'days'}
+
+Please renew your registration before the expiry date to avoid penalties and ensure your vehicle remains legally registered.
+
+You can renew your registration by logging into your TrustChain account at ${appUrl}.
+
+${urgencyLabel === 'URGENT' ? '\n⚠️ ACTION REQUIRED: Your registration expires very soon. Please renew immediately to avoid penalties.\n' : ''}
+
+Thank you for using TrustChain LTO System.
+
+Best regards,
+LTO Lipa City Team
+    `.trim();
+    
+    // HTML email
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid ${urgencyColor};
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: ${urgencyColor};
+            margin: 0;
+            font-size: 24px;
+        }
+        ${urgencyLabel === 'URGENT' ? `
+        .urgent-banner {
+            background-color: #fff3cd;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .urgent-banner strong {
+            color: #e74c3c;
+            font-size: 18px;
+        }
+        ` : ''}
+        .content {
+            margin-bottom: 30px;
+        }
+        .vehicle-details {
+            background-color: #f8f9fa;
+            border-left: 4px solid ${urgencyColor};
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .vehicle-details p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        .vehicle-details strong {
+            color: ${urgencyColor};
+        }
+        .expiry-warning {
+            background-color: ${urgencyLabel === 'URGENT' ? '#ffebee' : urgencyLabel === 'Important' ? '#fff3e0' : '#e8f5e9'};
+            border: 2px solid ${urgencyColor};
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .expiry-warning h2 {
+            color: ${urgencyColor};
+            margin: 0 0 10px 0;
+            font-size: 20px;
+        }
+        .expiry-warning .days-count {
+            font-size: 32px;
+            font-weight: bold;
+            color: ${urgencyColor};
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #666666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: ${urgencyColor};
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>${urgencyLabel}: Registration Expiring</h1>
+        </div>
+        <div class="content">
+            <p>Dear ${ownerName},</p>
+            
+            ${urgencyLabel === 'URGENT' ? `
+            <div class="urgent-banner">
+                <strong>⚠️ URGENT ACTION REQUIRED</strong>
+            </div>
+            ` : ''}
+            
+            <p>Your vehicle registration will expire in ${daysUntilExpiry} day(s).</p>
+            
+            <div class="expiry-warning">
+                <h2>Expiry Date</h2>
+                <div class="days-count">${daysUntilExpiry} ${daysUntilExpiry === 1 ? 'Day' : 'Days'}</div>
+                <p style="margin: 0;">Remaining until ${expiryDate}</p>
+            </div>
+            
+            <div class="vehicle-details">
+                <p><strong>Plate Number:</strong> ${vehicle.plate_number || vehicle.vin}</p>
+                <p><strong>VIN:</strong> ${vehicle.vin}</p>
+                <p><strong>Expiry Date:</strong> ${expiryDate}</p>
+            </div>
+            
+            <p>Please renew your registration before the expiry date to avoid penalties and ensure your vehicle remains legally registered.</p>
+            
+            ${urgencyLabel === 'URGENT' ? `
+            <p style="color: #e74c3c; font-weight: bold; text-align: center;">
+                ⚠️ ACTION REQUIRED: Your registration expires very soon. Please renew immediately to avoid penalties.
+            </p>
+            ` : ''}
+            
+            <p style="text-align: center;">
+                <a href="${appUrl}" class="button">Renew Registration Now</a>
+            </p>
+            
+            <p>You can track and manage your vehicle registrations by logging into your TrustChain account.</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br>LTO Lipa City Team</p>
+            <p style="margin-top: 10px; font-size: 11px; color: #999;">
+                This is an automated notification. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+    `.trim();
+    
+    let emailSent = false;
+    let emailError = null;
+    
+    // Send email via Gmail API
+    try {
+        await sendMail({ 
+            to: vehicle.owner_email, 
+            subject, 
+            text, 
+            html 
+        });
+        emailSent = true;
+        console.log(`[ExpiryService] ✅ Email sent via Gmail API for vehicle ${vehicle.plate_number || vehicle.vin} (${notificationType})`);
+    } catch (error) {
+        emailError = error.message;
+        console.error(`[ExpiryService] ❌ Failed to send email via Gmail API for vehicle ${vehicle.plate_number || vehicle.vin}:`, error.message);
+        // Continue with in-app notification even if email fails
+    }
     
     // Create in-app notification
-    await dbServices.createNotification({
-        userId: vehicle.owner_id,
-        title: title,
-        message: message,
-        type: daysUntilExpiry <= 1 ? 'warning' : 'info'
-    });
+    try {
+        await dbServices.createNotification({
+            userId: vehicle.owner_id,
+            title: title,
+            message: `Your vehicle registration for ${vehicle.plate_number || vehicle.vin} will expire in ${daysUntilExpiry} day(s) on ${expiryDate}. Please renew your registration to avoid penalties.`,
+            type: daysUntilExpiry <= 1 ? 'warning' : 'info'
+        });
+    } catch (notifError) {
+        console.error(`[ExpiryService] ⚠️ Failed to create in-app notification:`, notifError.message);
+    }
     
     // Log notification sent
-    await db.query(
-        `INSERT INTO expiry_notifications (vehicle_id, user_id, notification_type, email_sent)
-         VALUES ($1, $2, $3, $4)`,
-        [vehicle.id, vehicle.owner_id, `registration_${notificationType}`, false]
-    );
+    try {
+        await db.query(
+            `INSERT INTO expiry_notifications (vehicle_id, user_id, notification_type, email_sent, sent_at)
+             VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+            [vehicle.id, vehicle.owner_id, `registration_${notificationType}`, emailSent]
+        );
+    } catch (logError) {
+        console.error(`[ExpiryService] ⚠️ Failed to log notification:`, logError.message);
+    }
     
-    console.log(`[ExpiryService] Sent ${notificationType} notification for vehicle ${vehicle.plate_number}`);
+    if (emailError) {
+        // Don't throw - in-app notification was created successfully
+        console.warn(`[ExpiryService] ⚠️ Notification sent but email failed: ${emailError}`);
+    } else {
+        console.log(`[ExpiryService] ✅ Sent ${notificationType} notification (email + in-app) for vehicle ${vehicle.plate_number || vehicle.vin}`);
+    }
 }
 
 async function markNotificationSent(vehicleId, notificationType) {

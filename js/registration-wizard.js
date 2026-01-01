@@ -655,8 +655,7 @@ async function submitApplication() {
             // Clear saved form data
             FormPersistence.clear('registration-wizard');
             
-            // Store application locally as backup (only on success)
-            storeApplication(applicationData);
+            // Application stored in PostgreSQL via API (no localStorage backup)
             
             // Success animation
             const reviewSection = document.querySelector('.review-section');
@@ -717,14 +716,8 @@ async function submitApplication() {
             return; // Don't proceed with local storage
         }
         
-        // Fallback to local storage as backup (only for non-duplicate errors)
-        try {
-            const applicationData = collectApplicationData();
-            storeApplication(applicationData);
-            ToastNotification.show('Application saved locally as backup. Please try again later.', 'warning');
-        } catch (storageError) {
-            console.error('Failed to save application locally:', storageError);
-        }
+        // STRICT: No localStorage fallback - real services only
+        // If API fails, user must retry with working backend connection
         
     } finally {
         isSubmitting = false;
@@ -735,13 +728,13 @@ async function submitApplication() {
 }
 
 function storeApplication(applicationData) {
-    // REMOVED: Applications are now stored in PostgreSQL via API
-    // No longer storing in localStorage - data persists in database
-    // This function is kept for backward compatibility but does nothing
+    // STRICT: Applications are stored ONLY in PostgreSQL via API
+    // NO localStorage backup - real services only
+    // If API fails, the error will be thrown and handled by the caller
     
     // Only log in development to reduce console noise
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.log('Application registered successfully (stored in PostgreSQL):', { 
+        console.log('Application registered successfully (stored in PostgreSQL only):', { 
             id: applicationData.id, 
             vin: applicationData.vehicle?.vin 
         });
@@ -1026,7 +1019,7 @@ function collectApplicationData() {
         verificationStatus: {
             insurance: 'PENDING',
             emission: 'PENDING',
-            admin: 'PENDING'
+            hpg: 'PENDING'  // Changed from 'admin' to 'hpg' to match dashboard expectations
         },
         notes: {
             admin: '',

@@ -746,7 +746,7 @@
                     };
                 }
                 </script>
-                <div class="dashboard-card-modern table-card">
+                <div id="submitted-applications" class="dashboard-card-modern table-card">
                     <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <div class="filter-tabs">
                             <button class="filter-tab active" data-filter="all" onclick="window.filterRegistrations('all', this)">All</button>
@@ -754,7 +754,7 @@
                             <button class="filter-tab" data-filter="PROCESSING" onclick="window.filterRegistrations('PROCESSING', this)">Processing</button>
                             <button class="filter-tab" data-filter="APPROVED" onclick="window.filterRegistrations('APPROVED', this)">Approved</button>
                         </div>
-                        <a href="admin-registrations.html" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
+                        <a href="#submitted-applications" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
                     </div>
                     <div class="table-container-modern">
                         <table class="table-modern" id="registration-applications-table">

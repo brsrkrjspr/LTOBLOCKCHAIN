@@ -980,7 +980,7 @@ function createUserApplicationRow(application) {
     
     // Get verification status display
     const verificationStatus = application.verificationStatus || {};
-    const verificationStatusText = getVerificationStatusDisplay(verificationStatus);
+    const verificationStatusText = getVerificationStatusDisplay(verificationStatus, application.status);
     
     // Format OR/CR display
     let orCrDisplay = '-';
@@ -1040,9 +1040,18 @@ function getStatusText(status) {
     return statusMap[status] || status;
 }
 
-function getVerificationStatusDisplay(verificationStatus) {
-    if (!verificationStatus || typeof verificationStatus !== 'object' || Object.keys(verificationStatus).length === 0) {
+function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
+    // If verificationStatus is empty but application is PENDING_BLOCKCHAIN, show all as Pending
+    const isEmpty = !verificationStatus || typeof verificationStatus !== 'object' || Object.keys(verificationStatus).length === 0;
+    const isPendingBlockchain = applicationStatus && (applicationStatus.toUpperCase() === 'PENDING_BLOCKCHAIN' || applicationStatus.toUpperCase() === 'SUBMITTED');
+    
+    if (isEmpty && !isPendingBlockchain) {
         return '<span style="color: #6c757d;">-</span>';
+    }
+    
+    // For PENDING_BLOCKCHAIN, show all as Pending even if verificationStatus is empty
+    if (isEmpty && isPendingBlockchain) {
+        return '<span style="color: #ffc107;"><i class="fas fa-clock"></i> HPG</span> | <span style="color: #ffc107;"><i class="fas fa-clock"></i> Insurance</span> | <span style="color: #ffc107;"><i class="fas fa-clock"></i> Emission</span>';
     }
     
     const statuses = [];

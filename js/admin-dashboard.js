@@ -82,6 +82,93 @@ const itemsPerPage = 10;
 let allApplications = [];
 let filteredApplications = [];
 
+// Smart Auto-Refresh System
+let autoRefreshIntervals = [];
+let isAutoRefreshEnabled = true;
+let isPageVisible = true;
+let isUserInteracting = false;
+let lastInteractionTime = Date.now();
+
+// Page Visibility API - pause refresh when tab is hidden
+document.addEventListener('visibilitychange', () => {
+    isPageVisible = !document.hidden;
+    if (!isPageVisible) {
+        console.log('⏸️ Page hidden - pausing auto-refresh');
+    } else {
+        console.log('▶️ Page visible - resuming auto-refresh');
+    }
+});
+
+// Track user interaction - pause refresh during active use
+let interactionTimeout;
+['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+    document.addEventListener(event, () => {
+        isUserInteracting = true;
+        lastInteractionTime = Date.now();
+        clearTimeout(interactionTimeout);
+        interactionTimeout = setTimeout(() => {
+            isUserInteracting = false;
+        }, 30000); // Consider user inactive after 30 seconds
+    }, { passive: true });
+});
+
+// Smart interval wrapper - only runs when conditions are met
+function createSmartInterval(callback, interval, name) {
+    return setInterval(() => {
+        // Skip if auto-refresh disabled
+        if (!isAutoRefreshEnabled) {
+            return;
+        }
+        
+        // Skip if page is hidden
+        if (!isPageVisible) {
+            return;
+        }
+        
+        // Skip if user is actively interacting (within last 30 seconds)
+        if (isUserInteracting && (Date.now() - lastInteractionTime) < 30000) {
+            return;
+        }
+        
+        // Execute callback
+        callback();
+    }, interval);
+}
+
+// Function to clear all auto-refresh intervals
+function clearAllAutoRefresh() {
+    autoRefreshIntervals.forEach(interval => clearInterval(interval));
+    autoRefreshIntervals = [];
+}
+
+// Function to setup auto-refresh with smart intervals
+function setupAutoRefresh() {
+    clearAllAutoRefresh();
+    
+    if (!isAutoRefreshEnabled) return;
+    
+    // Stats: Every 5 minutes (was 2 minutes)
+    autoRefreshIntervals.push(
+        createSmartInterval(updateSystemStats, 300000, 'stats')
+    );
+    
+    // Org verification: Every 10 minutes (was 5 minutes)
+    autoRefreshIntervals.push(
+        createSmartInterval(loadOrgVerificationStatus, 600000, 'org-verification')
+    );
+    
+    // Applications: Every 5 minutes (was 2 minutes) - but only refresh if not actively viewing
+    autoRefreshIntervals.push(
+        createSmartInterval(() => {
+            // Only refresh if user hasn't interacted in last 2 minutes
+            if (Date.now() - lastInteractionTime > 120000) {
+                loadRegistrationApplications();
+                loadTransferApplications();
+            }
+        }, 300000, 'applications')
+    );
+}
+
 function initializeAdminDashboard() {
     // Check and clear demo accounts first
     if (!checkAndClearDemoAccount()) {

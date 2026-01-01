@@ -284,8 +284,12 @@ function initializeNotifications() {
         });
     }
     
-    // Set up auto-refresh for notifications
-    setInterval(loadUserNotifications, 5000); // Update every 5 seconds
+    // Set up auto-refresh for notifications (smart refresh - only when tab visible)
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            loadUserNotifications();
+        }
+    }, 120000); // Every 2 minutes instead of 5 seconds
 }
 
 function handleNotificationClick(e) {

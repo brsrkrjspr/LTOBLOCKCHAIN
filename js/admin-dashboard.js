@@ -105,9 +105,8 @@ function initializeAdminDashboard() {
         loadOrgVerificationStatus();
     }, 2000); // Load after 2 seconds
     
-    // Set up auto-refresh (less aggressive)
-    setInterval(updateSystemStats, 120000); // Every 2 minutes instead of 30 seconds
-    setInterval(loadOrgVerificationStatus, 300000); // Every 5 minutes instead of 60 seconds
+    // Set up smart auto-refresh (replaces old setInterval calls)
+    setupAutoRefresh();
 }
 
 // Load organization verification statuses from API
@@ -778,11 +777,8 @@ function initializeSubmittedApplications() {
     loadRegistrationApplications();
     loadTransferApplications();
     
-    // Set up auto-refresh for applications (less aggressive)
-    setInterval(() => {
-        loadRegistrationApplications();
-        loadTransferApplications();
-    }, 120000); // Update every 2 minutes instead of 10 seconds
+    // Auto-refresh is now handled by setupAutoRefresh() in initializeAdminDashboard
+    // No separate setInterval here anymore
 }
 
 async function loadSubmittedApplications() {
@@ -1169,6 +1165,7 @@ function addRefreshButton() {
     
     const toolbar = tableContainer.querySelector('.management-toolbar');
     if (toolbar) {
+        // Manual refresh button
         const refreshBtn = document.createElement('button');
         refreshBtn.id = 'refreshApplicationsBtn';
         refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
@@ -1198,7 +1195,38 @@ function addRefreshButton() {
             }
         };
         
+        // Auto-refresh toggle button
+        const autoRefreshToggle = document.createElement('button');
+        autoRefreshToggle.id = 'autoRefreshToggle';
+        autoRefreshToggle.innerHTML = isAutoRefreshEnabled 
+            ? '<i class="fas fa-pause"></i> Pause Auto-Refresh' 
+            : '<i class="fas fa-play"></i> Enable Auto-Refresh';
+        autoRefreshToggle.className = 'btn btn-secondary';
+        autoRefreshToggle.style.marginLeft = '0.5rem';
+        autoRefreshToggle.style.padding = '0.5rem 1rem';
+        autoRefreshToggle.onclick = () => {
+            isAutoRefreshEnabled = !isAutoRefreshEnabled;
+            if (isAutoRefreshEnabled) {
+                setupAutoRefresh();
+                autoRefreshToggle.innerHTML = '<i class="fas fa-pause"></i> Pause Auto-Refresh';
+                if (typeof showNotification !== 'undefined') {
+                    showNotification('Auto-refresh enabled', 'info');
+                } else if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Auto-refresh enabled', 'info');
+                }
+            } else {
+                clearAllAutoRefresh();
+                autoRefreshToggle.innerHTML = '<i class="fas fa-play"></i> Enable Auto-Refresh';
+                if (typeof showNotification !== 'undefined') {
+                    showNotification('Auto-refresh paused', 'info');
+                } else if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Auto-refresh paused', 'info');
+                }
+            }
+        };
+        
         toolbar.appendChild(refreshBtn);
+        toolbar.appendChild(autoRefreshToggle);
     }
 }
 
@@ -2214,10 +2242,10 @@ async function loadRegistrationApplications() {
         const tbody = document.getElementById('registration-applications-tbody');
         if (!tbody) return;
         
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
         
         const apiClient = window.apiClient || new APIClient();
-        const response = await apiClient.get('/api/vehicles?status=SUBMITTED,PROCESSING,APPROVED,REJECTED&limit=10');
+        const response = await apiClient.get('/api/vehicles?status=SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED&limit=50&page=1');
         
         console.log('[loadRegistrationApplications] API Response:', response);
         
@@ -2348,9 +2376,11 @@ async function loadTransferApplications() {
 
 // Render org status indicators for registration
 function renderOrgStatusIndicators(vehicle) {
-    const hpg = vehicle.hpg_clearance_status || vehicle.hpg_status || 'NOT_STARTED';
-    const insurance = vehicle.insurance_status || 'NOT_STARTED';
-    const emission = vehicle.emission_status || 'NOT_STARTED';
+    // Get verification status from the correct location (backend provides verificationStatus object)
+    const verificationStatus = vehicle.verificationStatus || {};
+    const hpg = verificationStatus.hpg || vehicle.hpg_clearance_status || vehicle.hpg_status || 'NOT_STARTED';
+    const insurance = verificationStatus.insurance || vehicle.insurance_status || 'NOT_STARTED';
+    const emission = verificationStatus.emission || vehicle.emission_status || 'NOT_STARTED';
     
     return `
         <div class="org-status-indicators">

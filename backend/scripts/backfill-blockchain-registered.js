@@ -1,13 +1,55 @@
 /**
  * Backfill BLOCKCHAIN_REGISTERED history entries from existing CLEARANCE_APPROVED entries
  * Run once: node backend/scripts/backfill-blockchain-registered.js
+ * 
+ * Environment variables required:
+ * - DB_HOST (default: localhost)
+ * - DB_PORT (default: 5432)
+ * - DB_NAME (default: lto_blockchain)
+ * - DB_USER (default: lto_user)
+ * - DB_PASSWORD or POSTGRES_PASSWORD
  */
+
+// Load environment variables first (try .env file, but don't fail if it doesn't exist)
+const path = require('path');
+const envPath = path.join(__dirname, '../../.env');
+try {
+    require('dotenv').config({ path: envPath });
+} catch (err) {
+    // .env file not found - that's okay if env vars are set directly (Docker/container)
+    console.log('ℹ️  .env file not found, using environment variables directly');
+}
+
+// Map POSTGRES_PASSWORD to DB_PASSWORD if needed
+if (process.env.POSTGRES_PASSWORD && !process.env.DB_PASSWORD) {
+    process.env.DB_PASSWORD = process.env.POSTGRES_PASSWORD;
+}
+
+// Validate required environment variables
+const requiredVars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+const missingVars = requiredVars.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+    console.error('❌ Missing required environment variables:', missingVars.join(', '));
+    console.error('   Please set these variables or create a .env file');
+    process.exit(1);
+}
 
 const db = require('../database/db');
 const dbServices = require('../database/services');
 
 async function backfillBlockchainRegistered() {
     console.log('🔧 Starting BLOCKCHAIN_REGISTERED backfill...');
+    console.log(`📊 Database: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'lto_blockchain'}`);
+    
+    // Test database connection first
+    try {
+        const testResult = await db.query('SELECT NOW()');
+        console.log(`✅ Database connection successful (${testResult.rows[0].now})`);
+    } catch (connError) {
+        console.error('❌ Database connection failed:', connError.message);
+        console.error('   Please check your database credentials and connection settings.');
+        throw connError;
+    }
     
     try {
         // Find CLEARANCE_APPROVED entries with transaction_id that don't have BLOCKCHAIN_REGISTERED
@@ -68,6 +110,14 @@ async function backfillBlockchainRegistered() {
     } catch (error) {
         console.error('❌ Fatal error:', error);
         throw error;
+    } finally {
+        // Close database connection pool
+        try {
+            await db.close();
+            console.log('✅ Database connection closed');
+        } catch (closeError) {
+            console.warn('⚠️ Error closing database connection:', closeError.message);
+        }
     }
 }
 

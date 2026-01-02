@@ -50,6 +50,18 @@
             transition: opacity 0.2s ease;
         }
         
+        /* Ensure all sidebar navigation icons are visible */
+        .dashboard-sidebar .nav-item i {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: inherit;
+        }
+        
+        .dashboard-sidebar .nav-item i::before {
+            display: inline-block;
+        }
+        
         /* Header Improvements */
         .dashboard-header .container {
             padding-left: 1.5rem;

@@ -3,143 +3,270 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login / Signup - LTO Blockchain</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Login / Signup - LTO Blockchain Management System</title>
+    <link rel="stylesheet" href="css/login-signup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <header class="header">
-        <div class="container">
-            <div class="logo">
-                <h1>LTO Blockchain</h1>
-                <p>Vehicle Registration System</p>
-            </div>
-            <nav class="nav">
-                <a href="index.html">Home</a>
-            </nav>
+    <div class="auth-page-wrapper">
+        <!-- Background with same design as index.html -->
+        <div class="auth-background">
+            <div class="blockchain-pattern"></div>
+            <div class="background-overlay"></div>
         </div>
-    </header>
 
-    <main class="auth-main">
-        <div class="auth-container">
-            <div class="auth-card">
-                <!-- Toggle Tabs -->
-                <div class="auth-tabs">
-                    <button class="tab-btn active" onclick="showLogin(); return false;">Login</button>
-                    <button class="tab-btn" onclick="showSignup(); return false;">Sign Up</button>
-                </div>
+        <!-- Header -->
+        <header class="auth-header-nav">
+            <div class="container">
+                <a href="index.html" class="auth-logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>LTO Blockchain</h1>
+                        <p>Management System</p>
+                    </div>
+                </a>
+                <nav class="auth-nav">
+                    <a href="index.html" class="nav-link">Home</a>
+                </nav>
+            </div>
+        </header>
 
-                <!-- Login Form -->
-                <div id="loginForm" class="auth-form-container">
-                    <div class="auth-header">
-                        <h2>Login to Your Account</h2>
-                        <p>Access your dashboard and manage your vehicle registrations</p>
+        <!-- Main Auth Container -->
+        <main class="auth-main">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <!-- Toggle Tabs -->
+                    <div class="auth-tabs">
+                        <button class="tab-btn active" onclick="showLogin(); return false;" id="loginTab">
+                            <span>Login</span>
+                        </button>
+                        <button class="tab-btn" onclick="showSignup(); return false;" id="signupTab">
+                            <span>Sign Up</span>
+                        </button>
+                        <div class="tab-indicator"></div>
                     </div>
 
-                    <!-- Account Information -->
-                    <div class="demo-credentials" style="background: #e8f5e9; border: 1px solid #4caf50; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                        <h4 style="color: #2e7d32; margin-bottom: 10px;">📋 Real Account Credentials:</h4>
-                        <p style="color: #555; font-size: 0.9em; margin-bottom: 10px;">All accounts use real database authentication. See <code>ACCOUNT_CREDENTIALS.md</code> for login details.</p>
-                        <div style="font-size: 0.85em; color: #666;">
-                            <p><strong>LTO Admin:</strong> admin@lto.gov.ph</p>
-                            <p><strong>HPG Admin:</strong> hpgadmin@hpg.gov.ph</p>
-                            <p><strong>Insurance Verifier:</strong> insurance@insurance.gov.ph</p>
-                            <p><strong>Emission Verifier:</strong> emission@emission.gov.ph</p>
-                            <p><strong>Vehicle Owner:</strong> owner@example.com</p>
-                        </div>
-                    </div>
-
-                    <form class="auth-form" onsubmit="handleLogin(event)">
-                        <div class="form-group">
-                            <label for="loginEmail">Email Address</label>
-                            <input type="email" id="loginEmail" name="email" placeholder="Enter your email" required>
+                    <!-- Login Form -->
+                    <div id="loginForm" class="auth-form-container">
+                        <div class="auth-header">
+                            <h2>Login to Your Account</h2>
+                            <p>Access your dashboard and manage your vehicle registrations</p>
                         </div>
 
-                        <div class="form-group">
-                            <label for="loginPassword">Password</label>
-                            <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
-                        </div>
-
-                        <div class="form-options">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="remember">
-                                <span class="checkmark"></span>
-                                Remember me
-                            </label>
-                            <a href="#" class="forgot-password">Forgot Password?</a>
-                        </div>
-
-                        <button type="submit" class="btn-primary btn-full">Login</button>
-                    </form>
-                </div>
-
-                <!-- Signup Form -->
-                <div id="signupForm" class="auth-form-container" style="display: none;">
-                    <div class="auth-header">
-                        <h2>Create Your Account</h2>
-                        <p>Join thousands of users managing their vehicle registrations securely</p>
-                    </div>
-
-                    <form class="auth-form" onsubmit="return validateSignup()">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="firstName">First Name</label>
-                                <input type="text" id="firstName" name="firstName" placeholder="Enter first name" required>
+                        <!-- Account Information -->
+                        <div class="demo-credentials">
+                            <div class="demo-header">
+                                <i class="fas fa-info-circle"></i>
+                                <h4>Real Account Credentials</h4>
                             </div>
-                            <div class="form-group">
-                                <label for="lastName">Last Name</label>
-                                <input type="text" id="lastName" name="lastName" placeholder="Enter last name" required>
+                            <p class="demo-description">All accounts use real database authentication. See <code>ACCOUNT_CREDENTIALS.md</code> for login details.</p>
+                            <div class="demo-list">
+                                <div class="demo-item">
+                                    <strong>LTO Admin:</strong> admin@lto.gov.ph
+                                </div>
+                                <div class="demo-item">
+                                    <strong>HPG Admin:</strong> hpgadmin@hpg.gov.ph
+                                </div>
+                                <div class="demo-item">
+                                    <strong>Insurance Verifier:</strong> insurance@insurance.gov.ph
+                                </div>
+                                <div class="demo-item">
+                                    <strong>Emission Verifier:</strong> emission@emission.gov.ph
+                                </div>
+                                <div class="demo-item">
+                                    <strong>Vehicle Owner:</strong> owner@example.com
+                                </div>
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="signupEmail">Email Address</label>
-                            <input type="email" id="signupEmail" name="email" placeholder="Enter your email" required>
-                            <small class="hint">We'll never share your email</small>
+                        <form class="auth-form" onsubmit="handleLogin(event)">
+                            <div class="form-group">
+                                <label for="loginEmail">Email Address</label>
+                                <div class="input-wrapper">
+                                    <input type="email" id="loginEmail" name="email" placeholder="Enter your email" required>
+                                    <i class="fas fa-envelope input-icon"></i>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="loginPassword">Password</label>
+                                <div class="input-wrapper password-wrapper">
+                                    <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
+                                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('loginPassword', this)">
+                                        <i class="fas fa-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="remember">
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-text">Remember me</span>
+                                </label>
+                                <a href="#" class="forgot-password">Forgot Password?</a>
+                            </div>
+
+                            <button type="submit" class="btn-primary btn-full">
+                                <span>Login</span>
+                                <i class="fas fa-sign-in-alt"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Signup Form -->
+                    <div id="signupForm" class="auth-form-container" style="display: none;">
+                        <div class="auth-header">
+                            <h2>Create Your Account</h2>
+                            <p>Join thousands of users managing their vehicle registrations securely</p>
                         </div>
 
-                        <div class="form-group">
-                            <label for="phone">Phone Number</label>
-                            <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
-                            <small class="hint">Format: +63 912 345 6789</small>
-                        </div>
+                        <form class="auth-form" onsubmit="return validateSignup()">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="firstName">First Name</label>
+                                    <div class="input-wrapper">
+                                        <input type="text" id="firstName" name="firstName" placeholder="Enter first name" required>
+                                        <i class="fas fa-user input-icon"></i>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="lastName">Last Name</label>
+                                    <div class="input-wrapper">
+                                        <input type="text" id="lastName" name="lastName" placeholder="Enter last name" required>
+                                        <i class="fas fa-user input-icon"></i>
+                                    </div>
+                                </div>
+                            </div>
 
-                        <div class="form-group">
-                            <label for="address">Complete Address</label>
-                            <textarea id="address" name="address" rows="3" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila"></textarea>
-                            <small class="hint">Include: House/Unit No., Street, Barangay, City/Municipality, Province (Optional)</small>
-                        </div>
+                            <div class="form-group">
+                                <label for="signupEmail">Email Address</label>
+                                <div class="input-wrapper">
+                                    <input type="email" id="signupEmail" name="email" placeholder="Enter your email" required>
+                                    <i class="fas fa-envelope input-icon"></i>
+                                </div>
+                                <small class="hint">We'll never share your email</small>
+                            </div>
 
-                        <div class="form-group">
-                            <label for="signupPassword">Password</label>
-                            <input type="password" id="signupPassword" name="password" placeholder="Create a password" required>
-                            <small class="hint">Minimum 8 characters with numbers and letters</small>
-                        </div>
+                            <div class="form-group">
+                                <label for="phone">Phone Number</label>
+                                <div class="input-wrapper">
+                                    <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
+                                    <i class="fas fa-phone input-icon"></i>
+                                </div>
+                                <small class="hint">Format: +63 912 345 6789</small>
+                            </div>
 
-                        <div class="form-group">
-                            <label for="confirmPassword">Confirm Password</label>
-                            <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password" required>
-                        </div>
+                            <div class="form-group">
+                                <label for="address">Complete Address</label>
+                                <div class="input-wrapper">
+                                    <textarea id="address" name="address" rows="3" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila" required></textarea>
+                                    <i class="fas fa-map-marker-alt textarea-icon"></i>
+                                </div>
+                                <small class="hint">Include: House/Unit No., Street, Barangay, City/Municipality, Province (Optional)</small>
+                            </div>
 
-                        <div class="form-options">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="terms" required>
-                                <span class="checkmark"></span>
-                                I agree to the <a href="#" class="terms-link">Terms of Service</a> and <a href="#" class="terms-link">Privacy Policy</a>
-                            </label>
-                        </div>
+                            <div class="form-group">
+                                <label for="signupPassword">Password</label>
+                                <div class="input-wrapper password-wrapper">
+                                    <input type="password" id="signupPassword" name="password" placeholder="Create a password" required>
+                                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('signupPassword', this)">
+                                        <i class="fas fa-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <small class="hint">Minimum 8 characters with numbers and letters</small>
+                            </div>
 
-                        <button type="submit" class="btn-primary btn-full">Create Account</button>
-                    </form>
-                </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirm Password</label>
+                                <div class="input-wrapper password-wrapper">
+                                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password" required>
+                                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('confirmPassword', this)">
+                                        <i class="fas fa-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
 
+                            <div class="form-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="terms" required>
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-text">I agree to the <a href="#" class="terms-link">Terms of Service</a> and <a href="#" class="terms-link">Privacy Policy</a></span>
+                                </label>
+                            </div>
 
-                <div class="auth-footer">
-                    <p id="authFooterText">Don't have an account? <a href="#" onclick="showSignup(); return false;">Sign up here</a></p>
+                            <button type="submit" class="btn-primary btn-full">
+                                <span>Create Account</span>
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="auth-footer">
+                        <p id="authFooterText">Don't have an account? <a href="#" onclick="showSignup(); return false;">Sign up here</a></p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
+    <script>
+        // Password visibility toggle (UI only - doesn't affect existing functionality)
+        function togglePasswordVisibility(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                button.setAttribute('aria-label', 'Hide password');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                button.setAttribute('aria-label', 'Show password');
+            }
+        }
+
+        // Tab indicator animation (UI only)
+        function updateTabIndicator() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            const indicator = document.querySelector('.tab-indicator');
+            if (!indicator) return;
+
+            tabs.forEach((tab, index) => {
+                if (tab.classList.contains('active')) {
+                    indicator.style.transform = `translateX(${index * 100}%)`;
+                }
+            });
+        }
+
+        // Update indicator on page load and when tabs change
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTabIndicator();
+            
+            // Override showLogin and showSignup to update indicator
+            const originalShowLogin = window.showLogin;
+            const originalShowSignup = window.showSignup;
+            
+            if (originalShowLogin) {
+                window.showLogin = function() {
+                    originalShowLogin();
+                    setTimeout(updateTabIndicator, 10);
+                };
+            }
+            
+            if (originalShowSignup) {
+                window.showSignup = function() {
+                    originalShowSignup();
+                    setTimeout(updateTabIndicator, 10);
+                };
+            }
+        });
+    </script>
     <script src="js/login-signup.js"></script>
 </body>
 </html>

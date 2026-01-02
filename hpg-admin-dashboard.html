@@ -58,7 +58,6 @@
         .dashboard-header .dashboard-nav {
             display: flex;
             align-items: center;
-            justify-content: space-between;
         }
         
         .dashboard-header .logo {
@@ -72,12 +71,6 @@
             font-size: 1.5rem;
             font-weight: 600;
             color: var(--gray-900, #111827);
-        }
-        
-        .dashboard-header .header-right {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
         }
     </style>
     <script>
@@ -139,7 +132,7 @@
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
                 <a href="hpg-document-viewer.html" class="nav-item">
-                    <i class="fas fa-file-certificate"></i>
+                    <i class="fas fa-file-alt"></i>
                     <span>Document Viewer</span>
                 </a>
                 <a href="hpg-verification-form.html" class="nav-item">
@@ -186,12 +179,6 @@
                     <div class="dashboard-nav">
                         <div class="logo">
                             <h1>HPG Admin Dashboard</h1>
-                        </div>
-                        <div class="header-right">
-                            <div class="notifications-icon" id="notificationsIcon">
-                                <i class="fas fa-bell"></i>
-                                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
-                            </div>
                         </div>
                     </div>
                 </div>

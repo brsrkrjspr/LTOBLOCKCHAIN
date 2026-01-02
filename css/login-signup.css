@@ -290,9 +290,10 @@ body {
     left: 0;
     height: 3px;
     background: linear-gradient(135deg, var(--lto-blue) 0%, var(--lto-blue-light) 100%);
-    transition: transform var(--transition-normal), width var(--transition-normal);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 3px 3px 0 0;
     width: 50%;
+    transform: translateX(0%);
 }
 
 /* Move indicator when signup tab is active */

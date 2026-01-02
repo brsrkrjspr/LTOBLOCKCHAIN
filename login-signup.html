@@ -239,13 +239,16 @@
 
             tabs.forEach((tab, index) => {
                 if (tab.classList.contains('active')) {
-                    indicator.style.transform = `translateX(${index * 100}%)`;
+                    // Calculate position: 0% for Login (index 0), 100% for Sign Up (index 1)
+                    const position = index * 100;
+                    indicator.style.transform = `translateX(${position}%)`;
                 }
             });
         }
 
         // Update indicator on page load and when tabs change
         document.addEventListener('DOMContentLoaded', function() {
+            // Initial position
             updateTabIndicator();
             
             // Override showLogin and showSignup to update indicator
@@ -255,16 +258,32 @@
             if (originalShowLogin) {
                 window.showLogin = function() {
                     originalShowLogin();
-                    setTimeout(updateTabIndicator, 10);
+                    // Small delay to ensure DOM is updated
+                    requestAnimationFrame(function() {
+                        updateTabIndicator();
+                    });
                 };
             }
             
             if (originalShowSignup) {
                 window.showSignup = function() {
                     originalShowSignup();
-                    setTimeout(updateTabIndicator, 10);
+                    // Small delay to ensure DOM is updated
+                    requestAnimationFrame(function() {
+                        updateTabIndicator();
+                    });
                 };
             }
+            
+            // Also listen for tab button clicks directly
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    requestAnimationFrame(function() {
+                        updateTabIndicator();
+                    });
+                });
+            });
         });
     </script>
     <script src="js/login-signup.js"></script>

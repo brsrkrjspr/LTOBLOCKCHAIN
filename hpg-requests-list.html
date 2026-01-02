@@ -51,17 +51,20 @@
         }
         
         /* Header Improvements */
-        .dashboard-header {
+        .dashboard-header .container {
             padding-left: 1.5rem;
+            padding-right: 1.5rem;
         }
         
-        .dashboard-header .header-content {
-            padding: 0;
-        }
-        
-        .dashboard-header .header-left {
+        .dashboard-header .dashboard-nav {
             display: flex;
             align-items: center;
+        }
+        
+        .dashboard-header .logo {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
         }
         
         .dashboard-header h1 {
@@ -175,12 +178,11 @@
         <div class="dashboard-main">
             <!-- Top Navigation -->
             <header class="dashboard-header">
-                <div class="header-content">
-                    <div class="header-left">
-                        <h1>LTO → HPG Requests</h1>
-                    </div>
-                    <div class="header-right">
-                        <!-- User info moved to sidebar footer -->
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <div class="logo">
+                            <h1>LTO → HPG Requests</h1>
+                        </div>
                     </div>
                 </div>
             </header>

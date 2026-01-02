@@ -50,18 +50,21 @@
         }
         
         /* Header Improvements */
-        .dashboard-header {
+        .dashboard-header .container {
             padding-left: 1.5rem;
+            padding-right: 1.5rem;
         }
         
-        .dashboard-header .header-content {
-            padding: 0;
-        }
-        
-        .dashboard-header .header-left {
+        .dashboard-header .dashboard-nav {
             display: flex;
             align-items: center;
-            gap: var(--spacing-md, 1.5rem);
+            justify-content: space-between;
+        }
+        
+        .dashboard-header .logo {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
         }
         
         .dashboard-header h1 {
@@ -69,6 +72,12 @@
             font-size: 1.5rem;
             font-weight: 600;
             color: var(--gray-900, #111827);
+        }
+        
+        .dashboard-header .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
         }
     </style>
     <script>
@@ -173,14 +182,16 @@
         <div class="dashboard-main">
             <!-- Top Navigation -->
             <header class="dashboard-header">
-                <div class="header-content">
-                    <div class="header-left">
-                        <h1>HPG Admin Dashboard</h1>
-                    </div>
-                    <div class="header-right">
-                        <div class="notifications-icon" id="notificationsIcon">
-                            <i class="fas fa-bell"></i>
-                            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <div class="logo">
+                            <h1>HPG Admin Dashboard</h1>
+                        </div>
+                        <div class="header-right">
+                            <div class="notifications-icon" id="notificationsIcon">
+                                <i class="fas fa-bell"></i>
+                                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                            </div>
                         </div>
                     </div>
                 </div>

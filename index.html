@@ -3,224 +3,520 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LTO Blockchain - Vehicle Registration System</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <meta name="description" content="LTO Blockchain Management System - Secure, transparent, and decentralized vehicle registration powered by blockchain technology.">
+    <title>LTO Blockchain Management System | Secure Vehicle Registration</title>
+    <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <header class="header">
+    <!-- Header / Navigation -->
+    <header class="main-header" id="mainHeader">
         <div class="container">
-            <div class="logo">
-                <h1>LTO Blockchain</h1>
-                <p>Vehicle Registration System</p>
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>LTO Blockchain</h1>
+                        <p>Management System</p>
+                    </div>
+                </div>
+                
+                <nav class="main-nav" id="mainNav">
+                    <a href="#home" class="nav-link active">Home</a>
+                    <a href="#features" class="nav-link">Features</a>
+                    <a href="#how-it-works" class="nav-link">How It Works</a>
+                    <a href="#services" class="nav-link">Services</a>
+                    <a href="#about" class="nav-link">About</a>
+                    <a href="#contact" class="nav-link">Contact</a>
+                </nav>
+                
+                <div class="header-actions">
+                    <a href="login-signup.html" class="btn-login">Login</a>
+                    <a href="login-signup.html" class="btn-register">Register</a>
+                </div>
+                
+                <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle mobile menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
             </div>
-            <nav class="nav">
-                <a href="#about">About</a>
-                <a href="#requirements">Requirements</a>
-                <a href="#services">Services</a>
-            </nav>
         </div>
     </header>
 
-    <main>
-        <!-- Hero Section -->
-        <section class="hero">
-            <div class="container">
-                <div class="hero-content">
-                    <h2>Secure Vehicle Registration on Blockchain</h2>
-                    <p>Transparent, tamper-proof vehicle registration and verification system powered by LTO Network blockchain technology.</p>
-                    <div class="hero-buttons">
-                        <a href="login-signup.html" class="btn-primary">Get Started</a>
-                        <a href="search.html" class="btn-secondary">Verify Document</a>
-                    </div>
-                </div>
-                <div class="hero-image">
-                    <div class="blockchain-visualization">
-                        <div class="blockchain-network">
-                            <div class="block-node center">
-                                <div class="block-content">
-                                    <div class="block-label">LTO Network</div>
-                                </div>
-                            </div>
-
-                            <div class="block-node top-left">
-                                <div class="block-content">
-                                    <div class="block-label">Vehicle Data</div>
-                                </div>
-                            </div>
-
-                            <div class="block-node top-right">
-                                <div class="block-content">
-                                    <div class="block-label">OR/CR Docs</div>
-                                </div>
-                            </div>
-
-                            <div class="block-node bottom-left">
-                                <div class="block-content">
-                                    <div class="block-label">Encrypted</div>
-                                </div>
-                            </div>
-
-                            <div class="block-node bottom-right">
-                                <div class="block-content">
-                                    <div class="block-label">Verified</div>
-                                </div>
-                            </div>
-
-                            <!-- Connecting lines -->
-                            <div class="connection-line line1"></div>
-                            <div class="connection-line line2"></div>
-                            <div class="connection-line line3"></div>
-                            <div class="connection-line line4"></div>
-                            <div class="connection-line line5"></div>
-                        </div>
-
-                        <div class="blockchain-info">
-                            <div class="info-item">
-                                <span class="info-number">1,245</span>
-                                <span class="info-label">Vehicles Registered</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-number">15,678</span>
-                                <span class="info-label">Documents Verified</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-number">99.9%</span>
-                                <span class="info-label">Uptime</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Login Section -->
-        <section id="login" class="section bg-light">
-            <div class="container">
-                <h2>Access Your Dashboard</h2>
-                <p style="text-align: center; margin-bottom: 2rem; color: #7f8c8d;">Select your role to login to your dashboard</p>
-                <div class="login-buttons-grid">
-                    <a href="login-signup.html?role=admin" class="login-button">
-                        <div class="login-icon">
-                            <i class="fas fa-building"></i>
-                        </div>
-                        <h3>Login as LTO</h3>
-                        <p>LTO Admin Dashboard</p>
-                    </a>
-                    <a href="login-signup.html?role=insurance_verifier" class="login-button">
-                        <div class="login-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <h3>Login as Insurance</h3>
-                        <p>Insurance Verifier Dashboard</p>
-                    </a>
-                    <a href="login-signup.html?role=emission_verifier" class="login-button">
-                        <div class="login-icon">
-                            <i class="fas fa-leaf"></i>
-                        </div>
-                        <h3>Login as Emission</h3>
-                        <p>Emission Verifier Dashboard</p>
-                    </a>
-                    <a href="login-signup.html?role=vehicle_owner" class="login-button">
-                        <div class="login-icon">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <h3>Login as User</h3>
-                        <p>Vehicle Owner Dashboard</p>
-                    </a>
-                    <a href="login-signup.html?role=hpg_admin" class="login-button login-button-hpg">
-                        <div class="login-icon">
-                            <i class="fas fa-shield"></i>
-                        </div>
-                        <h3>Login as HPG Admin</h3>
-                        <p>Highway Patrol Group Admin</p>
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- About Section -->
-        <section id="about" class="section">
-            <div class="container">
-                <h2>About Our Service</h2>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <h3>Secure & Immutable</h3>
-                        <p>All vehicle documents are stored on blockchain ensuring data integrity and preventing tampering.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Fast Processing</h3>
-                        <p>Streamlined registration process with real-time status updates and notifications.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Easy Verification</h3>
-                        <p>Third parties can instantly verify document authenticity using CID lookup.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Digital Documents</h3>
-                        <p>Access your OR/CR documents digitally with QR codes for easy verification.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Requirements Section -->
-        <section id="requirements" class="section bg-light">
-            <div class="container">
-                <h2>Registration Requirements</h2>
-                <div class="requirements-list">
-                    <div class="requirement-item">
-                        <h3>For Vehicle Owners</h3>
-                        <ul>
-                            <li>Valid government-issued ID</li>
-                            <li>Proof of ownership</li>
-                            <li>Vehicle inspection certificate</li>
-                            <li>Insurance documentation</li>
-                        </ul>
-                    </div>
-                    <div class="requirement-item">
-                        <h3>For Organizations</h3>
-                        <ul>
-                            <li>Business registration documents</li>
-                            <li>Authorized representative ID</li>
-                            <li>Fleet management records</li>
-                            <li>Insurance coverage details</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Services Section -->
-        <section id="services" class="section">
-            <div class="container">
-                <h2>Our Services</h2>
-                <div class="services-grid">
-                    <div class="service-card">
-                        <h3>Vehicle Registration</h3>
-                        <p>Complete vehicle registration process with digital document storage</p>
-                    </div>
-                    <div class="service-card">
-                        <h3>Document Verification</h3>
-                        <p>Public verification system for third-party document validation</p>
-                    </div>
-                    <div class="service-card">
-                        <h3>Digital OR/CR</h3>
-                        <p>Digital official receipt and certificate of registration with QR codes</p>
-                    </div>
-                    <div class="service-card">
-                        <h3>Audit Trail</h3>
-                        <p>Complete transaction history and approval timeline tracking</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="footer">
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-background">
+            <div class="blockchain-pattern"></div>
+        </div>
         <div class="container">
-            <p>&copy; 2024 LTO Blockchain Vehicle Registration System. All rights reserved.</p>
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h2 class="hero-title">
+                        Secure. Transparent. Decentralized Vehicle Records
+                    </h2>
+                    <p class="hero-subtitle">
+                        A blockchain-powered system for vehicle registration, ownership transfer, insurance, and compliance. 
+                        Experience the future of government services with immutable, tamper-proof records.
+                    </p>
+                    <div class="hero-cta">
+                        <a href="login-signup.html" class="btn-primary btn-large">
+                            <span>Get Started</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        <a href="login-signup.html" class="btn-secondary btn-large">
+                            <span>Login to Portal</span>
+                            <i class="fas fa-sign-in-alt"></i>
+                        </a>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <div class="stat-number">10,000+</div>
+                            <div class="stat-label">Vehicles Registered</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">99.9%</div>
+                            <div class="stat-label">System Uptime</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">100%</div>
+                            <div class="stat-label">Tamper-Proof</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="blockchain-animation">
+                        <div class="blockchain-node node-center">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>LTO Network</span>
+                        </div>
+                        <div class="blockchain-node node-1">
+                            <i class="fas fa-car"></i>
+                            <span>Vehicle Data</span>
+                        </div>
+                        <div class="blockchain-node node-2">
+                            <i class="fas fa-file-alt"></i>
+                            <span>OR/CR Docs</span>
+                        </div>
+                        <div class="blockchain-node node-3">
+                            <i class="fas fa-lock"></i>
+                            <span>Encrypted</span>
+                        </div>
+                        <div class="blockchain-node node-4">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Verified</span>
+                        </div>
+                        <svg class="connection-lines" viewBox="0 0 400 400">
+                            <line x1="200" y1="200" x2="100" y2="100" class="connection-line"/>
+                            <line x1="200" y1="200" x2="300" y2="100" class="connection-line"/>
+                            <line x1="200" y1="200" x2="100" y2="300" class="connection-line"/>
+                            <line x1="200" y1="200" x2="300" y2="300" class="connection-line"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Key Features</h2>
+                <p class="section-subtitle">Powerful capabilities built on blockchain technology</p>
+            </div>
+            <div class="features-grid">
+                <article class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <h3>Blockchain-Secured Records</h3>
+                    <p>All vehicle records are stored on an immutable blockchain, ensuring data integrity and preventing unauthorized modifications.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-car"></i>
+                    </div>
+                    <h3>Vehicle Registration & Ownership Transfer</h3>
+                    <p>Streamlined registration process and secure ownership transfers with complete transaction history and verification.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Insurance & HPG Verification</h3>
+                    <p>Integrated verification system for insurance providers and Highway Patrol Group clearance with real-time status updates.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-certificate"></i>
+                    </div>
+                    <h3>OR/CR Digital Certificates</h3>
+                    <p>Digital Official Receipt and Certificate of Registration with QR codes for instant verification and easy access.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>Fast & Tamper-Proof Transactions</h3>
+                    <p>Lightning-fast processing with complete transparency. Every transaction is recorded on the blockchain for audit purposes.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h3>Multi-Role Access Control</h3>
+                    <p>Secure access for vehicle owners, LTO administrators, insurance verifiers, emission centers, and HPG personnel.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-subtitle">Simple, secure, and transparent process</p>
+            </div>
+            <div class="process-flow">
+                <div class="process-step">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h3>User Registers Vehicle</h3>
+                    <p>Vehicle owner submits registration documents through the secure portal with all required information.</p>
+                </div>
+                <div class="step-connector">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <h3>LTO Admin Verifies</h3>
+                    <p>LTO administrators review and verify all submitted documents for accuracy and compliance.</p>
+                </div>
+                <div class="step-connector">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h3>HPG & Insurance Approval</h3>
+                    <p>Highway Patrol Group and Insurance providers verify clearance and coverage requirements.</p>
+                </div>
+                <div class="step-connector">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">4</div>
+                    <div class="step-icon">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <h3>Blockchain Record Creation</h3>
+                    <p>Verified data is permanently recorded on the LTO Network blockchain, creating an immutable record.</p>
+                </div>
+                <div class="step-connector">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">5</div>
+                    <div class="step-icon">
+                        <i class="fas fa-certificate"></i>
+                    </div>
+                    <h3>Digital OR/CR Issued</h3>
+                    <p>Digital Official Receipt and Certificate of Registration are generated and made available to the owner.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services / Modules Section -->
+    <section class="services" id="services">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">System Modules</h2>
+                <p class="section-subtitle">Comprehensive solutions for vehicle management</p>
+            </div>
+            <div class="services-grid">
+                <article class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h3>Vehicle Registration</h3>
+                    <p>Complete vehicle registration workflow with document management, verification, and approval processes.</p>
+                    <a href="#" class="service-link">Learn More <i class="fas fa-arrow-right"></i></a>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h3>Transfer of Ownership</h3>
+                    <p>Secure ownership transfer process with buyer verification, document validation, and blockchain recording.</p>
+                    <a href="#" class="service-link">Learn More <i class="fas fa-arrow-right"></i></a>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-file-shield"></i>
+                    </div>
+                    <h3>Insurance Validation</h3>
+                    <p>Real-time insurance verification and validation system integrated with insurance provider networks.</p>
+                    <a href="#" class="service-link">Learn More <i class="fas fa-arrow-right"></i></a>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <h3>Emission & HPG Clearance</h3>
+                    <p>Streamlined clearance verification from emission testing centers and Highway Patrol Group.</p>
+                    <a href="#" class="service-link">Learn More <i class="fas fa-arrow-right"></i></a>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <h3>User & Admin Dashboards</h3>
+                    <p>Comprehensive dashboards for vehicle owners, administrators, and verifiers with role-based access.</p>
+                    <a href="#" class="service-link">Learn More <i class="fas fa-arrow-right"></i></a>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>Document Verification</h3>
+                    <p>Public verification system allowing third parties to verify document authenticity using blockchain records.</p>
+                    <a href="#" class="service-link">Learn More <i class="fas fa-arrow-right"></i></a>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust & Transparency Section -->
+    <section class="trust-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Trust & Transparency</h2>
+                <p class="section-subtitle">Built on principles of security and accountability</p>
+            </div>
+            <div class="trust-grid">
+                <div class="trust-card">
+                    <div class="trust-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h3>100% Tamper-Proof Records</h3>
+                    <p>Blockchain technology ensures that once recorded, vehicle data cannot be altered or deleted.</p>
+                    <div class="trust-badge">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Secure</span>
+                    </div>
+                </div>
+                <div class="trust-card">
+                    <div class="trust-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h3>Government-Backed System</h3>
+                    <p>Official LTO system with full government support and regulatory compliance.</p>
+                    <div class="trust-badge">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Verified</span>
+                    </div>
+                </div>
+                <div class="trust-card">
+                    <div class="trust-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <h3>Blockchain-Verified Transactions</h3>
+                    <p>Every transaction is verified and recorded on the LTO Network blockchain for complete transparency.</p>
+                    <div class="trust-badge">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Immutable</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call-to-Action Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2 class="cta-title">Experience the Future of Vehicle Registration</h2>
+                <p class="cta-subtitle">Join thousands of vehicle owners who trust our blockchain-powered system for secure, transparent vehicle management.</p>
+                <div class="cta-buttons">
+                    <a href="login-signup.html" class="btn-primary btn-large">
+                        <span>Register Now</span>
+                        <i class="fas fa-user-plus"></i>
+                    </a>
+                    <a href="login-signup.html" class="btn-secondary btn-large">
+                        <span>Login</span>
+                        <i class="fas fa-sign-in-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="main-footer" id="contact">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <div class="logo-icon">
+                            <i class="fas fa-link"></i>
+                        </div>
+                        <div class="logo-text">
+                            <h3>LTO Blockchain</h3>
+                            <p>Management System</p>
+                        </div>
+                    </div>
+                    <p class="footer-description">
+                        A secure, transparent, and decentralized vehicle registration system powered by blockchain technology. 
+                        Transforming government services for the digital age.
+                    </p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul class="footer-links">
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#how-it-works">How It Works</a></li>
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#about">About</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Services</h4>
+                    <ul class="footer-links">
+                        <li><a href="#services">Vehicle Registration</a></li>
+                        <li><a href="#services">Transfer of Ownership</a></li>
+                        <li><a href="#services">Document Verification</a></li>
+                        <li><a href="#services">Digital OR/CR</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <ul class="footer-contact">
+                        <li>
+                            <i class="fas fa-envelope"></i>
+                            <span>info@ltoblockchain.gov.ph</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-phone"></i>
+                            <span>+63 (2) 1234-5678</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>LTO Main Office, Quezon City, Philippines</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 LTO Blockchain Management System. All rights reserved.</p>
+                <div class="footer-badges">
+                    <span class="badge-item">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Secure</span>
+                    </span>
+                    <span class="badge-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Verified</span>
+                    </span>
+                    <span class="badge-item">
+                        <i class="fas fa-link"></i>
+                        <span>Blockchain</span>
+                    </span>
+                </div>
+            </div>
         </div>
     </footer>
+
+    <script>
+        // Mobile menu toggle
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const mainNav = document.getElementById('mainNav');
+        const mainHeader = document.getElementById('mainHeader');
+
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', function() {
+                mainNav.classList.toggle('mobile-open');
+                mobileMenuToggle.classList.toggle('active');
+                document.body.classList.toggle('menu-open');
+            });
+        }
+
+        // Close mobile menu when clicking on a link
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    mainNav.classList.remove('mobile-open');
+                    mobileMenuToggle.classList.remove('active');
+                    document.body.classList.remove('menu-open');
+                }
+            });
+        });
+
+        // Sticky header on scroll
+        let lastScroll = 0;
+        window.addEventListener('scroll', function() {
+            const currentScroll = window.pageYOffset;
+            if (currentScroll > 100) {
+                mainHeader.classList.add('scrolled');
+            } else {
+                mainHeader.classList.remove('scrolled');
+            }
+            lastScroll = currentScroll;
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (href !== '#' && href !== '#home') {
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) {
+                        const headerOffset = 80;
+                        const elementPosition = target.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                        window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            });
+        });
+
+        // Active nav link on scroll
+        const sections = document.querySelectorAll('section[id]');
+        window.addEventListener('scroll', function() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (window.pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

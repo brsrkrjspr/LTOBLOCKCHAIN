@@ -73,6 +73,332 @@
             font-weight: 600;
             color: var(--gray-900, #111827);
         }
+        
+        /* ============================================
+           REQUEST DETAILS MODAL UI/UX ENHANCEMENTS
+           ============================================ */
+        
+        /* Enhanced Modal Styling */
+        #requestDetailsModal .modal-content {
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        #requestDetailsModal .modal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 2px solid #e9ecef;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        #requestDetailsModal .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        #requestDetailsModal .modal-close {
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        #requestDetailsModal .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+        
+        #requestDetailsModal .modal-body {
+            padding: 2rem;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        /* Enhanced Request Details Container */
+        .request-details {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .request-details h3 {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2c3e50;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        /* Enhanced Detail Row Styling */
+        .detail-row {
+            display: flex;
+            align-items: flex-start;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+        
+        .detail-row:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transform: translateX(4px);
+        }
+        
+        .detail-row strong {
+            min-width: 140px;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-right: 1rem;
+        }
+        
+        .detail-row:not(:has(strong)) {
+            padding-left: 1.5rem;
+        }
+        
+        .detail-row span,
+        .detail-row {
+            color: #212529;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        
+        /* Enhanced Badge Styling */
+        .badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Enhanced Information Banner */
+        .info-banner {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            margin: 1.5rem 0;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 10px;
+            border-left: 4px solid #2196f3;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+        }
+        
+        .info-banner i {
+            font-size: 1.25rem;
+            color: #2196f3;
+            margin-right: 0.75rem;
+        }
+        
+        .info-banner span {
+            color: #1565c0;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        
+        /* Enhanced Button Styling */
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(23, 162, 184, 0.4);
+            background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+        }
+        
+        .btn-info:active {
+            transform: translateY(0);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 0.875rem 1.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+            background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+        }
+        
+        .btn-success:active {
+            transform: translateY(0);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: none;
+            padding: 0.875rem 1.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+        }
+        
+        .btn-danger:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #495057;
+            border: 2px solid #dee2e6;
+            padding: 0.875rem 1.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.875rem 1.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        /* Action Buttons Container */
+        .action-buttons-container {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        /* Enhanced Modal Footer */
+        #requestDetailsModal .modal-footer {
+            padding: 1.5rem 2rem;
+            border-top: 2px solid #e9ecef;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            background: #f8f9fa;
+            border-radius: 0 0 12px 12px;
+        }
+        
+        /* Document Section Styling */
+        .document-section {
+            margin-top: 1.5rem;
+            padding: 1.25rem;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .document-section strong {
+            display: block;
+            margin-bottom: 0.75rem;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        /* Warning Message Styling */
+        .warning-message {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            margin-top: 1rem;
+            background: #fff3cd;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            font-size: 0.9rem;
+        }
+        
+        .warning-message i {
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+        }
     </style>
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
@@ -753,56 +1079,67 @@
                         <div class="request-details">
                             <h3>Request Information</h3>
                             <div class="detail-row">
-                                <strong>Request ID:</strong> ${request.id}
+                                <strong>Request ID:</strong>
+                                <span>${request.id}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Vehicle ID:</strong> ${request.vehicle_id || 'N/A'}
+                                <strong>Vehicle ID:</strong>
+                                <span>${request.vehicle_id || 'N/A'}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>VIN:</strong> ${metadata.vehicleVin || request.vin || 'N/A'}
+                                <strong>VIN:</strong>
+                                <span>${metadata.vehicleVin || request.vin || 'N/A'}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Owner Name:</strong> ${metadata.ownerName || 'N/A'}
+                                <strong>Owner Name:</strong>
+                                <span>${metadata.ownerName || 'N/A'}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Owner Email:</strong> ${metadata.ownerEmail || 'N/A'}
+                                <strong>Owner Email:</strong>
+                                <span>${metadata.ownerEmail || 'N/A'}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Plate Number:</strong> ${metadata.vehiclePlate || request.plate_number || 'N/A'}
+                                <strong>Plate Number:</strong>
+                                <span>${metadata.vehiclePlate || request.plate_number || 'N/A'}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Vehicle:</strong> ${metadata.vehicleMake || ''} ${metadata.vehicleModel || ''} ${metadata.vehicleYear || ''}
+                                <strong>Vehicle:</strong>
+                                <span>${metadata.vehicleMake || ''} ${metadata.vehicleModel || ''} ${metadata.vehicleYear || ''}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Purpose:</strong> ${request.purpose || 'Insurance verification'}
+                                <strong>Purpose:</strong>
+                                <span>${request.purpose || 'Insurance verification'}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Request Date:</strong> ${new Date(request.created_at).toLocaleString()}
+                                <strong>Request Date:</strong>
+                                <span>${new Date(request.created_at).toLocaleString()}</span>
                             </div>
                             <div class="detail-row">
-                                <strong>Status:</strong> <span class="badge badge-${getStatusBadgeClass(request.status)}">${request.status}</span>
+                                <strong>Status:</strong>
+                                <span class="badge badge-${getStatusBadgeClass(request.status)}">${request.status}</span>
                             </div>
-                            <div class="detail-row" style="margin-top: 1rem; padding: 0.75rem; background: #eaf2f8; border-radius: 8px; border-left: 4px solid #3498db;">
-                                <i class="fas fa-info-circle" style="color: #3498db;"></i>
-                                <span style="margin-left: 0.5rem; color: #2c3e50;">
-                                    <strong>Insurance receives only:</strong> Insurance Certificate
-                                </span>
+                            
+                            <div class="info-banner">
+                                <i class="fas fa-info-circle"></i>
+                                <span><strong>Insurance receives only:</strong> Insurance Certificate</span>
                             </div>
+                            
                             ${metadata.documentCid || metadata.documentPath ? `
-                                <div class="detail-row" style="margin-top: 1rem;">
+                                <div class="document-section">
                                     <strong>Attached Document:</strong>
-                                    <button class="btn-info btn-sm" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')" style="margin-left: 10px;">
-                                        <i class="fas fa-shield-alt"></i> View Insurance Certificate
+                                    <button class="btn-info" onclick="viewDocument('${request.id}', '${metadata.documentId || ''}', '${metadata.documentCid || ''}')">
+                                        <i class="fas fa-eye"></i> View Insurance Certificate
                                     </button>
                                 </div>
                             ` : `
-                                <div class="detail-row" style="margin-top: 1rem; color: #e67e22;">
-                                    <i class="fas fa-exclamation-triangle"></i> No Insurance Certificate attached to this request
+                                <div class="warning-message">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>No Insurance Certificate attached to this request</span>
                                 </div>
                             `}
                         </div>
                         ${request.status === 'PENDING' ? `
-                            <div style="margin-top: 1.5rem; display: flex; gap: 10px;">
+                            <div class="action-buttons-container">
                                 <button class="btn-success" onclick="approveInsurance('${request.id}'); closeModal('requestDetailsModal');">
                                     <i class="fas fa-check"></i> Approve Verification
                                 </button>

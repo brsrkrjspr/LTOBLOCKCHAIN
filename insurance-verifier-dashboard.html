@@ -6,6 +6,73 @@
     <title>Insurance Verifier Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ============================================
+           INSURANCE SIDEBAR TOGGLE & HEADER IMPROVEMENTS
+           ============================================ */
+        
+        /* Smooth Sidebar Transitions */
+        .dashboard-sidebar {
+            transition: width 0.3s ease-in-out;
+        }
+        
+        .dashboard-main {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        
+        /* Insurance Icon Toggle Styling */
+        .dashboard-sidebar .logo-icon {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .dashboard-sidebar .logo-icon:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        
+        .dashboard-sidebar .logo-icon:active {
+            transform: scale(0.95);
+        }
+        
+        .dashboard-sidebar .logo-icon:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.5);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+        
+        .dashboard-sidebar .logo-text {
+            transition: opacity 0.2s ease, width 0.3s ease;
+        }
+        
+        .dashboard-sidebar .nav-item span {
+            transition: opacity 0.2s ease;
+        }
+        
+        /* Header Improvements */
+        .dashboard-header .container {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        
+        .dashboard-header .dashboard-nav {
+            display: flex;
+            align-items: center;
+        }
+        
+        .dashboard-header .logo {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--gray-900, #111827);
+        }
+    </style>
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
         (function() {
@@ -43,7 +110,7 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">IV</div>
+                    <div class="logo-icon" id="insuranceSidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">IV</div>
                     <div class="logo-text">
                         <h2>Insurance</h2>
                         <p>Verifier Dashboard</p>
@@ -97,17 +164,13 @@
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
-                        <button class="sidebar-toggle" id="sidebarToggle">
-                            <i class="fas fa-bars"></i>
-                        </button>
                         <div class="logo">
                             <h1>LTO Blockchain</h1>
                             <p>Insurance Verifier Dashboard</p>
                         </div>
-                    <!-- User info moved to sidebar footer -->
+                    </div>
                 </div>
-            </div>
-        </header>
+            </header>
 
         <main class="dashboard-content">
             <div class="container">
@@ -271,11 +334,11 @@
                 sidebar.classList.add('collapsed');
             }
 
-            // Sidebar toggle
-            const sidebarToggle = document.getElementById('sidebarToggle');
+            // Sidebar toggle via IV icon
+            const insuranceSidebarToggleIcon = document.getElementById('insuranceSidebarToggleIcon');
             
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function(e) {
+            if (insuranceSidebarToggleIcon && sidebar) {
+                const toggleSidebar = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
@@ -283,6 +346,13 @@
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('insuranceVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                };
+                
+                insuranceSidebarToggleIcon.addEventListener('click', toggleSidebar);
+                insuranceSidebarToggleIcon.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
                 });
             }
 

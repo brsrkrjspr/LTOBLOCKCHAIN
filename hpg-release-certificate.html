@@ -6,6 +6,62 @@
     <title>Release MV Clearance Certificate - HPG Admin</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ============================================
+           HPG SIDEBAR TOGGLE & HEADER IMPROVEMENTS
+           ============================================ */
+        
+        /* Smooth Sidebar Transitions */
+        .dashboard-sidebar {
+            transition: width 0.3s ease-in-out;
+        }
+        
+        .dashboard-main {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        
+        /* HPG Icon Toggle Styling */
+        .dashboard-sidebar .logo-icon {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .dashboard-sidebar .logo-icon:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        
+        .dashboard-sidebar .logo-icon:active {
+            transform: scale(0.95);
+        }
+        
+        .dashboard-sidebar .logo-icon:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.5);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+        
+        .dashboard-sidebar .logo-text {
+            transition: opacity 0.2s ease, width 0.3s ease;
+        }
+        
+        .dashboard-sidebar .nav-item span {
+            transition: opacity 0.2s ease;
+        }
+        
+        /* Header Improvements */
+        .dashboard-header .header-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--gray-900, #111827);
+        }
+    </style>
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
         (function() {
@@ -47,7 +103,7 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">HPG</div>
+                    <div class="logo-icon" id="hpgSidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">HPG</div>
                     <div class="logo-text">
                         <h2>HPG Admin</h2>
                         <p>Highway Patrol Group</p>
@@ -110,9 +166,6 @@
             <header class="dashboard-header">
                 <div class="header-content">
                     <div class="header-left">
-                        <button class="sidebar-toggle" id="sidebarToggle">
-                            <i class="fas fa-bars"></i>
-                        </button>
                         <h1>Release MV Clearance Certificate</h1>
                     </div>
                     <div class="header-right">
@@ -388,11 +441,11 @@
                 sidebar.classList.add('collapsed');
             }
 
-            // Sidebar toggle
-            const sidebarToggle = document.getElementById('sidebarToggle');
+            // Sidebar toggle via HPG icon
+            const hpgSidebarToggleIcon = document.getElementById('hpgSidebarToggleIcon');
             
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function(e) {
+            if (hpgSidebarToggleIcon && sidebar) {
+                const toggleSidebar = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
@@ -400,6 +453,13 @@
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('hpgSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                };
+                
+                hpgSidebarToggleIcon.addEventListener('click', toggleSidebar);
+                hpgSidebarToggleIcon.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
                 });
             }
 

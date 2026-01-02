@@ -54,11 +54,28 @@
             display: inline-block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            color: inherit;
+            color: inherit !important;
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
         }
         
         .dashboard-sidebar .nav-item i::before {
-            display: inline-block;
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .dashboard-sidebar .nav-item.active i {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: white !important;
+        }
+        
+        .dashboard-sidebar .nav-item.active i::before {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         /* Header Improvements */
@@ -144,7 +161,7 @@
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
                 <a href="hpg-document-viewer.html" class="nav-item">
-                    <i class="fas fa-file-certificate"></i>
+                    <i class="fas fa-file-alt" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; font-family: 'Font Awesome 6 Free' !important; font-weight: 900 !important;"></i>
                     <span>Document Viewer</span>
                 </a>
                 <a href="hpg-verification-form.html" class="nav-item active">

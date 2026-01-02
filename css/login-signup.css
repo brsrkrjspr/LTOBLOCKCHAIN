@@ -85,7 +85,7 @@ body {
     right: 0;
     bottom: 0;
     z-index: 0;
-    background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%);
+    background: #f5f5f5; /* Light gray government-style background */
 }
 
 .blockchain-pattern {
@@ -96,11 +96,26 @@ body {
     bottom: 0;
     width: 100%;
     height: 100%;
+    /* Government-style grid with black vertical and horizontal lines */
+    /* Desktop: 40px grid spacing with 8% opacity black lines */
     background-image: 
-        repeating-linear-gradient(0deg, transparent, transparent 2px, var(--lto-blue) 2px, var(--lto-blue) 4px),
-        repeating-linear-gradient(90deg, transparent, transparent 2px, var(--lto-blue) 2px, var(--lto-blue) 4px));
+        /* Horizontal lines */
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 39px,
+            rgba(0, 0, 0, 0.08) 39px,
+            rgba(0, 0, 0, 0.08) 40px
+        ),
+        /* Vertical lines */
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 39px,
+            rgba(0, 0, 0, 0.08) 39px,
+            rgba(0, 0, 0, 0.08) 40px
+        );
     background-size: 40px 40px;
-    opacity: 0.05;
     z-index: 1;
 }
 
@@ -110,7 +125,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.4);
     backdrop-filter: blur(0.5px);
     z-index: 2;
 }
@@ -215,12 +230,14 @@ body {
 }
 
 .auth-card {
-    background: var(--white);
+    background: rgba(255, 255, 255, 0.95); /* Semi-transparent white for clean contrast above grid */
+    backdrop-filter: blur(10px);
     border-radius: 20px;
     box-shadow: var(--shadow-xl);
     padding: var(--spacing-xl);
     position: relative;
     overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.8); /* Subtle border for definition */
 }
 
 /* ============================================
@@ -666,6 +683,26 @@ body {
     .auth-card {
         padding: var(--spacing-lg);
     }
+    
+    /* Slightly increased grid spacing for tablet */
+    .blockchain-pattern {
+        background-image: 
+            repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 49px,
+                rgba(0, 0, 0, 0.08) 49px,
+                rgba(0, 0, 0, 0.08) 50px
+            ),
+            repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 49px,
+                rgba(0, 0, 0, 0.08) 49px,
+                rgba(0, 0, 0, 0.08) 50px
+            );
+        background-size: 50px 50px;
+    }
 }
 
 /* Mobile (max-width: 768px) */
@@ -686,6 +723,32 @@ body {
     .auth-card {
         padding: var(--spacing-md);
         border-radius: 16px;
+        background: rgba(255, 255, 255, 0.98); /* Stronger white background for better contrast on mobile */
+        box-shadow: var(--shadow-xl);
+    }
+    
+    /* Reduced grid density for mobile to avoid clutter */
+    .blockchain-pattern {
+        background-image: 
+            repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 59px,
+                rgba(0, 0, 0, 0.06) 59px,
+                rgba(0, 0, 0, 0.06) 60px
+            ),
+            repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 59px,
+                rgba(0, 0, 0, 0.06) 59px,
+                rgba(0, 0, 0, 0.06) 60px
+            );
+        background-size: 60px 60px;
+    }
+    
+    .background-overlay {
+        background: rgba(255, 255, 255, 0.5); /* Stronger overlay on mobile for better readability */
     }
 
     .auth-header h2 {

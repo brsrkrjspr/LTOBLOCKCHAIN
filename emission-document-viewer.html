@@ -73,6 +73,35 @@
             color: var(--gray-900, #111827);
         }
         
+        /* Ensure all sidebar navigation icons are visible */
+        .dashboard-sidebar .nav-item i {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: inherit !important;
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+        }
+        
+        .dashboard-sidebar .nav-item i::before {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .dashboard-sidebar .nav-item.active i {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: white !important;
+        }
+        
+        .dashboard-sidebar .nav-item.active i::before {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
         /* Modern Emission Document Viewer Styles */
         .emission-viewer {
             padding: 2rem;
@@ -802,7 +831,7 @@
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
                 <a href="emission-document-viewer.html" class="nav-item active">
-                    <i class="fas fa-file-leaf"></i>
+                    <i class="fas fa-file-leaf" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; font-family: 'Font Awesome 6 Free' !important; font-weight: 900 !important;"></i>
                     <span>Document Viewer</span>
                 </a>
                 <a href="#emission" class="nav-item">

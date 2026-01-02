@@ -65,6 +65,12 @@
         .dashboard-header .nav-left {
             display: flex;
             align-items: center;
+            flex: 1;
+        }
+        
+        .dashboard-header .logo {
+            display: flex;
+            align-items: center;
         }
         
         .dashboard-header .logo h1 {
@@ -72,6 +78,13 @@
             font-size: 1.5rem;
             font-weight: 600;
             color: var(--gray-900, #111827);
+            line-height: 1.2;
+        }
+        
+        .dashboard-header .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
     </style>
 </head>
@@ -142,9 +155,6 @@
                             </div>
                         </div>
                         <div class="nav-right">
-                            <button class="header-profile-btn" id="headerProfileBtn" aria-label="Profile">
-                                <i class="fas fa-user-circle"></i>
-                            </button>
                         </div>
                     </div>
                 </div>

@@ -445,11 +445,27 @@
             const errorDiv = document.createElement('div');
             errorDiv.className = 'field-error';
             errorDiv.textContent = message;
-            errorDiv.style.color = '#e74c3c';
-            errorDiv.style.fontSize = '0.875rem';
-            errorDiv.style.marginTop = '0.25rem';
             
-            if (field && field.parentElement) {
+            // Find the form-group container
+            const formGroup = field.closest('.form-group');
+            
+            if (formGroup) {
+                // Find the input-wrapper to insert error before it
+                const inputWrapper = formGroup.querySelector('.input-wrapper');
+                if (inputWrapper) {
+                    // Insert error message before the input-wrapper (after label, before input)
+                    formGroup.insertBefore(errorDiv, inputWrapper);
+                } else {
+                    // Fallback: if no input-wrapper, insert after label
+                    const label = formGroup.querySelector('label');
+                    if (label && label.nextSibling) {
+                        formGroup.insertBefore(errorDiv, label.nextSibling);
+                    } else {
+                        formGroup.appendChild(errorDiv);
+                    }
+                }
+            } else if (field && field.parentElement) {
+                // Fallback: append to parent
                 field.parentElement.appendChild(errorDiv);
             }
         } catch (error) {
@@ -459,7 +475,22 @@
 
     function hideFieldError(field) {
         try {
-            if (field && field.parentElement) {
+            // Find the form-group container
+            let formGroup = field.closest('.form-group');
+            if (!formGroup) {
+                // Fallback: try to find parent with form-group class
+                formGroup = field.parentElement;
+                while (formGroup && !formGroup.classList.contains('form-group')) {
+                    formGroup = formGroup.parentElement;
+                }
+            }
+            
+            if (formGroup) {
+                const existingError = formGroup.querySelector('.field-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+            } else if (field && field.parentElement) {
                 const existingError = field.parentElement.querySelector('.field-error');
                 if (existingError) {
                     existingError.remove();

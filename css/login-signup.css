@@ -1018,7 +1018,36 @@ a:focus {
     }
 }
 
-/* Error state placeholder (for future use) */
+/* Field Error Messages */
+.field-error {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    animation: slideDown 0.2s ease-out;
+}
+
+.field-error::before {
+    content: "⚠";
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Error state for inputs */
 .input-wrapper input.error,
 .input-wrapper textarea.error {
     border-color: #ef4444;
@@ -1027,6 +1056,15 @@ a:focus {
 .input-wrapper input.error:focus,
 .input-wrapper textarea.error:focus {
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Adjust form-group spacing when error is present */
+.form-group:has(.field-error) {
+    margin-bottom: 0.5rem;
+}
+
+.form-group:has(.field-error) .hint {
+    margin-top: 0.25rem;
 }
 
 /* Success state placeholder (for future use) */

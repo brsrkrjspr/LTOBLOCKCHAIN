@@ -104,13 +104,15 @@
             box-sizing: border-box !important;
         }
         
-        /* Ensure View Details button has border and extra padding */
+        /* Ensure View Details button has border and same size as Download Certificate */
         #my-applications-tbody .btn-secondary.btn-sm {
             border: 2px solid #3b82f6 !important;
             background-color: #ffffff !important;
             color: #3b82f6 !important;
-            padding: 0.75rem 1.5rem !important;
+            padding: 0.5rem 1rem !important;
             margin: 0 auto !important;
+            height: 36px !important;
+            min-height: 36px !important;
         }
         
         #my-applications-tbody .btn-secondary.btn-sm:hover {
@@ -137,6 +139,9 @@
             max-width: 180px !important;
             margin-left: auto !important;
             margin-right: auto !important;
+            height: 36px !important;
+            min-height: 36px !important;
+            padding: 0.5rem 1rem !important;
         }
         
         /* Ensure Download Certificate button is also centered with additional spacing */
@@ -144,6 +149,9 @@
             margin-left: auto !important;
             margin-right: auto !important;
             margin-top: 0.75rem !important;
+            height: 36px !important;
+            min-height: 36px !important;
+            padding: 0.5rem 1rem !important;
         }
         
         /* Ensure View Details button is perfectly centered */
@@ -633,7 +641,7 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo" id="logoToggle" role="button" aria-label="Toggle sidebar" tabindex="0">
-                    <img src="Logo/Land_Transportation_Office.svg.png" alt="LTO Logo" class="logo-image">
+                    <img src="css/logo.png" alt="LTO Logo" class="logo-image">
                 </div>
             </div>
             <nav class="sidebar-nav">

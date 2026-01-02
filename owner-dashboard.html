@@ -44,10 +44,30 @@
         
         .dashboard-sidebar .logo-image {
             transition: transform 0.2s ease;
+            max-width: 80px !important;
+            width: 80px !important;
+            height: auto !important;
         }
         
         .dashboard-sidebar .logo#logoToggle:hover .logo-image {
             transform: scale(1.05);
+        }
+        
+        /* Center logo at top of sidebar and remove extra spacing */
+        .dashboard-sidebar .sidebar-header {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            padding: 0.75rem 0 !important;
+            margin: 0 !important;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
         }
         
         /* Header Improvements */

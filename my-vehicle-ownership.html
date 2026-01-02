@@ -21,40 +21,6 @@
             transition: margin-left 0.3s ease-in-out;
         }
         
-        /* Logo Toggle Styling */
-        .dashboard-sidebar .logo#logoToggle {
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            cursor: pointer;
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:hover {
-            opacity: 0.9;
-            transform: scale(1.05);
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:active {
-            transform: scale(0.95);
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:focus {
-            outline: 2px solid rgba(255, 255, 255, 0.5);
-            outline-offset: 2px;
-            border-radius: 4px;
-        }
-        
-        .dashboard-sidebar .logo-image {
-            transition: transform 0.2s ease;
-            max-width: 80px !important;
-            width: 80px !important;
-            height: auto !important;
-            display: block !important;
-            margin: 0 auto !important;
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:hover .logo-image {
-            transform: scale(1.05);
-        }
-        
         /* Center logo at top of sidebar and remove extra spacing */
         .dashboard-sidebar .sidebar-header {
             display: flex !important;
@@ -64,12 +30,42 @@
             margin: 0 !important;
         }
         
+        /* Logo Toggle Styling */
         .dashboard-sidebar .logo#logoToggle {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             margin: 0 auto !important;
             padding: 0 !important;
+            transition: opacity 0.2s ease, transform 0.2s ease !important;
+            cursor: pointer !important;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:hover {
+            opacity: 0.9 !important;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:active {
+            transform: scale(0.95) !important;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.5) !important;
+            outline-offset: 2px !important;
+            border-radius: 4px !important;
+        }
+        
+        .dashboard-sidebar .logo-image {
+            transition: transform 0.2s ease !important;
+            max-width: 80px !important;
+            width: 80px !important;
+            height: auto !important;
+            display: block !important;
+            margin: 0 auto !important;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:hover .logo-image {
+            transform: scale(1.05) !important;
         }
         
         /* Header Improvements */

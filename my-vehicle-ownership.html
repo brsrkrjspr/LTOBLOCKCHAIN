@@ -50,6 +50,30 @@
             transform: scale(1.05);
         }
         
+        /* Center logo at top of sidebar and remove extra spacing */
+        .dashboard-sidebar .sidebar-header {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            padding: 0.75rem 0 !important;
+            margin: 0 !important;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+        }
+        
+        .dashboard-sidebar .logo-image {
+            display: block !important;
+            margin: 0 auto !important;
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
         /* Header Improvements */
         .dashboard-header .container {
             padding-left: 1.5rem;
@@ -1150,7 +1174,7 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo" id="logoToggle" role="button" aria-label="Toggle sidebar" tabindex="0">
-                    <img src="Logo/Land_Transportation_Office.svg.png" alt="LTO Logo" class="logo-image">
+                    <img src="css/logo.png" alt="LTO Logo" class="logo-image">
                 </div>
             </div>
             <nav class="sidebar-nav">

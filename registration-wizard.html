@@ -7,6 +7,73 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ============================================
+           OWNER DASHBOARD SIDEBAR TOGGLE & HEADER IMPROVEMENTS
+           ============================================ */
+        
+        /* Smooth Sidebar Transitions */
+        .dashboard-sidebar {
+            transition: width 0.3s ease-in-out;
+        }
+        
+        .dashboard-main {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        
+        /* Logo Toggle Styling */
+        .dashboard-sidebar .logo#logoToggle {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:active {
+            transform: scale(0.95);
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.5);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+        
+        .dashboard-sidebar .logo-image {
+            transition: transform 0.2s ease;
+        }
+        
+        .dashboard-sidebar .logo#logoToggle:hover .logo-image {
+            transform: scale(1.05);
+        }
+        
+        /* Header Improvements */
+        .dashboard-header .container {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        
+        .dashboard-header .dashboard-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .dashboard-header .nav-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        .dashboard-header .logo h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--gray-900, #111827);
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard">
@@ -70,9 +137,6 @@
                 <div class="container">
                     <div class="dashboard-nav">
                         <div class="nav-left">
-                            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
-                                <i class="fas fa-bars"></i>
-                            </button>
                             <div class="logo">
                                 <h1>LTO MANAGEMENT SYSTEM</h1>
                             </div>
@@ -487,12 +551,13 @@
         
         // Initialize mobile navigation
         function initializeMobileNavigation() {
-            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const logoToggle = document.getElementById('logoToggle');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
             const sidebar = document.querySelector('.dashboard-sidebar');
             
-            if (mobileMenuToggle && sidebar) {
-                mobileMenuToggle.addEventListener('click', function(e) {
+            // Use logo toggle for mobile sidebar
+            if (logoToggle && sidebar && window.innerWidth <= 768) {
+                logoToggle.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     toggleMobileSidebar();
@@ -520,7 +585,6 @@
         function toggleMobileSidebar() {
             const sidebar = document.querySelector('.dashboard-sidebar');
             const overlay = document.getElementById('sidebarOverlay');
-            const toggleBtn = document.getElementById('mobileMenuToggle');
             
             if (!sidebar) return;
             
@@ -535,7 +599,6 @@
         function openMobileSidebar() {
             const sidebar = document.querySelector('.dashboard-sidebar');
             const overlay = document.getElementById('sidebarOverlay');
-            const toggleBtn = document.getElementById('mobileMenuToggle');
             
             if (sidebar) {
                 sidebar.classList.add('mobile-open');
@@ -546,20 +609,12 @@
                 overlay.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
-            
-            if (toggleBtn) {
-                const icon = toggleBtn.querySelector('i');
-                if (icon) {
-                    icon.className = 'fas fa-times';
-                }
-            }
         }
         
         // Close mobile sidebar
         function closeMobileSidebar() {
             const sidebar = document.querySelector('.dashboard-sidebar');
             const overlay = document.getElementById('sidebarOverlay');
-            const toggleBtn = document.getElementById('mobileMenuToggle');
             
             if (sidebar) {
                 sidebar.classList.remove('mobile-open');
@@ -568,13 +623,6 @@
             if (overlay) {
                 overlay.classList.remove('active');
                 document.body.style.overflow = '';
-            }
-            
-            if (toggleBtn) {
-                const icon = toggleBtn.querySelector('i');
-                if (icon) {
-                    icon.className = 'fas fa-bars';
-                }
             }
         }
     </script>

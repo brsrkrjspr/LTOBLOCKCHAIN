@@ -1279,6 +1279,30 @@
                 });
             });
 
+            // Handle hash navigation when page loads with a hash (e.g., from other pages)
+            function scrollToHashSection() {
+                const hash = window.location.hash;
+                if (hash && (hash === '#applications' || hash === '#notifications')) {
+                    const targetId = hash.substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                        // Wait a bit for page to fully load, then scroll
+                        setTimeout(() => {
+                            targetElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start'
+                            });
+                        }, 300);
+                    }
+                }
+            }
+
+            // Scroll to section if hash is present on page load
+            scrollToHashSection();
+
+            // Also handle hash changes (in case user navigates with back/forward buttons)
+            window.addEventListener('hashchange', scrollToHashSection);
+
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {

@@ -701,11 +701,39 @@
         }
 
         .orcr-badge.or {
-            background: #9b59b6;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important;
         }
 
         .orcr-badge.cr {
-            background: #27ae60;
+            background: linear-gradient(135deg, #166534 0%, #27ae60 100%) !important;
+        }
+
+        /* Override inline styles from JavaScript for government colors */
+        /* OR badge (first badge) - Blue government color */
+        .vehicle-card .orcr-badge:first-of-type,
+        .vehicle-info .orcr-badge:first-of-type,
+        .vehicle-details .orcr-badge:first-of-type,
+        .orcr-numbers .orcr-badge:first-child {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important;
+        }
+
+        /* CR badge (second badge) - Green government color */
+        .vehicle-card .orcr-badge:last-of-type:not(:only-child),
+        .vehicle-info .orcr-badge:last-of-type:not(:only-child),
+        .vehicle-details .orcr-badge:last-of-type:not(:only-child),
+        .orcr-numbers .orcr-badge:last-child:not(:only-child) {
+            background: linear-gradient(135deg, #166534 0%, #27ae60 100%) !important;
+        }
+
+        /* Target badges in flex containers created by JavaScript */
+        .vehicle-details > div[style*="flex"] > .orcr-badge:nth-child(1),
+        .vehicle-info > div[style*="flex"] > .orcr-badge:nth-child(1) {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important;
+        }
+
+        .vehicle-details > div[style*="flex"] > .orcr-badge:nth-child(2),
+        .vehicle-info > div[style*="flex"] > .orcr-badge:nth-child(2) {
+            background: linear-gradient(135deg, #166534 0%, #27ae60 100%) !important;
         }
 
         .orcr-badge small {
@@ -811,15 +839,17 @@
             white-space: nowrap;
         }
 
-        .btn-certificate {
-            background: #9b59b6;
+        .btn-certificate,
+        .btn-download-cert {
+            background: #3b82f6;
             color: white;
         }
 
-        .btn-certificate:hover {
-            background: #8e44ad;
+        .btn-certificate:hover,
+        .btn-download-cert:hover {
+            background: #2563eb;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
         .btn-transfer {
@@ -835,15 +865,15 @@
 
         .btn-history,
         .btn-view-history {
-            background: #3498db;
+            background: #3b82f6;
             color: white;
         }
 
         .btn-history:hover,
         .btn-view-history:hover {
-            background: #2980b9;
+            background: #2563eb;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
         .vehicle-actions-secondary {

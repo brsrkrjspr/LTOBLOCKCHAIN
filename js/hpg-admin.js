@@ -14,29 +14,62 @@ const HPGDashboard = {
 
     loadDashboardStats: async function() {
         try {
-            // Stats are not displayed - all numbers removed
-            // Placeholder: Replace with actual API call when needed
-            const stats = {
+            // Call API to get HPG dashboard statistics
+            let stats = {
                 pending: 0,
                 verified: 0,
                 completed: 0,
                 rejected: 0
             };
 
-            // Keep elements but don't display numbers
+            if (typeof APIClient !== 'undefined') {
+                const apiClient = new APIClient();
+                const response = await apiClient.get('/api/hpg/stats');
+                
+                if (response && response.success && response.stats) {
+                    stats = response.stats;
+                }
+            } else if (typeof window.apiClient !== 'undefined') {
+                const response = await window.apiClient.get('/api/hpg/stats');
+                
+                if (response && response.success && response.stats) {
+                    stats = response.stats;
+                }
+            }
+
+            // Update DOM elements with real stats
             const pendingEl = document.getElementById('pendingRequests');
             const verifiedEl = document.getElementById('verifiedRequests');
             const completedEl = document.getElementById('completedCertificates');
             const rejectedEl = document.getElementById('rejectedRequests');
             const badgeEl = document.getElementById('pendingRequestsBadge');
             
+            if (pendingEl) pendingEl.textContent = stats.pending || 0;
+            if (verifiedEl) verifiedEl.textContent = stats.verified || 0;
+            if (completedEl) completedEl.textContent = stats.completed || 0;
+            if (rejectedEl) rejectedEl.textContent = stats.rejected || 0;
+            
+            // Show/hide badge based on pending count
+            if (badgeEl) {
+                if (stats.pending > 0) {
+                    badgeEl.textContent = stats.pending;
+                    badgeEl.style.display = 'inline-block';
+                } else {
+                    badgeEl.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Error loading dashboard stats:', error);
+            // Fallback to showing dashes on error
+            const pendingEl = document.getElementById('pendingRequests');
+            const verifiedEl = document.getElementById('verifiedRequests');
+            const completedEl = document.getElementById('completedCertificates');
+            const rejectedEl = document.getElementById('rejectedRequests');
+            
             if (pendingEl) pendingEl.textContent = '-';
             if (verifiedEl) verifiedEl.textContent = '-';
             if (completedEl) completedEl.textContent = '-';
             if (rejectedEl) rejectedEl.textContent = '-';
-            if (badgeEl) badgeEl.style.display = 'none';
-        } catch (error) {
-            console.error('Error loading dashboard stats:', error);
         }
     },
 

@@ -43,25 +43,57 @@ function initializeVerifierDashboard() {
     setInterval(updateVerifierStats, 60000); // Update every minute
 }
 
-function updateVerifierStats() {
-    // Placeholder: Replace with actual API call
-    // Example: const response = await APIClient.get('/api/emission-verifier/stats');
-    // const stats = await response.json();
-    
-    // Update stat cards - data will be loaded from API
-    const statCards = document.querySelectorAll('.stat-card .stat-number');
-    if (statCards.length >= 4) {
-        // Set to "-" if no data available
-        statCards[0].textContent = '-';
-        statCards[1].textContent = '-';
-        statCards[2].textContent = '-';
-        statCards[3].textContent = '-';
-        
-        // If API call succeeds, populate with real data:
-        // statCards[0].textContent = stats.assignedTasks || '-';
-        // statCards[1].textContent = stats.completedToday || '-';
-        // statCards[2].textContent = stats.thisWeek || '-';
-        // statCards[3].textContent = stats.accuracyRate || '-';
+async function updateVerifierStats() {
+    try {
+        // Call API to get emission dashboard statistics
+        let stats = {
+            assignedTasks: 0,
+            completedToday: 0,
+            completedThisWeek: 0
+        };
+
+        if (typeof APIClient !== 'undefined') {
+            const apiClient = new APIClient();
+            const response = await apiClient.get('/api/emission/stats');
+            
+            if (response && response.success && response.stats) {
+                stats = response.stats;
+            }
+        } else if (typeof window.apiClient !== 'undefined') {
+            const response = await window.apiClient.get('/api/emission/stats');
+            
+            if (response && response.success && response.stats) {
+                stats = response.stats;
+            }
+        }
+
+        // Update stat cards - find by label text since IDs may not exist
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach(card => {
+            const label = card.querySelector('.stat-label');
+            const number = card.querySelector('.stat-number');
+            
+            if (label && number) {
+                const labelText = label.textContent.trim();
+                if (labelText === 'Assigned Tasks') {
+                    number.textContent = stats.assignedTasks || 0;
+                } else if (labelText === 'Completed Today') {
+                    number.textContent = stats.completedToday || 0;
+                } else if (labelText === 'This Week') {
+                    number.textContent = stats.completedThisWeek || 0;
+                }
+                // Accuracy Rate stays as is (if present)
+            }
+        });
+    } catch (error) {
+        console.error('Error loading emission stats:', error);
+        // Fallback: show dashes on error
+        const statCards = document.querySelectorAll('.stat-card .stat-number');
+        statCards.forEach((card, index) => {
+            if (index < 3) { // Don't change accuracy rate if present
+                card.textContent = '-';
+            }
+        });
     }
 }
 

@@ -166,6 +166,17 @@ function displayVehiclesList(ownershipHistory) {
     }
 }
 
+// Create origin type badge helper function
+function createOriginTypeBadge(vehicle) {
+    const originType = vehicle.origin_type || vehicle.originType || 'NEW_REG';
+    
+    if (originType === 'TRANSFER') {
+        return '<span class="badge badge-green" style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fas fa-exchange-alt"></i> Transferred</span>';
+    } else {
+        return '<span class="badge badge-blue" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fas fa-file-alt"></i> New Registration</span>';
+    }
+}
+
 function createVehicleCard(vehicle, isCurrent, historyCount) {
     const card = document.createElement('div');
     card.className = `vehicle-card ${isCurrent ? 'current' : ''}`;
@@ -198,7 +209,10 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
 
     card.innerHTML = `
         <div class="vehicle-info">
-            <div class="vehicle-plate">${escapeHtml(vehicle.plateNumber || vehicle.plate_number || 'N/A')}</div>
+            <div class="vehicle-plate" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                <span>${escapeHtml(vehicle.plateNumber || vehicle.plate_number || 'N/A')}</span>
+                ${createOriginTypeBadge(vehicle)}
+            </div>
             <div class="vehicle-details">
                 <div class="vehicle-detail-item">
                     <i class="fas fa-car"></i>

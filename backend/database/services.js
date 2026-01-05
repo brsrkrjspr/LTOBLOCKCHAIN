@@ -85,18 +85,18 @@ async function getVehicleById(id) {
 async function createVehicle(vehicleData) {
     const {
         vin, plateNumber, make, model, year, color, engineNumber, chassisNumber,
-        vehicleType, fuelType, transmission, engineDisplacement, ownerId, status, notes
+        vehicleType, fuelType, transmission, engineDisplacement, ownerId, status, notes, originType
     } = vehicleData;
 
     const result = await db.query(
         `INSERT INTO vehicles (
             vin, plate_number, make, model, year, color, engine_number, chassis_number,
-            vehicle_type, fuel_type, transmission, engine_displacement, owner_id, status, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            vehicle_type, fuel_type, transmission, engine_displacement, owner_id, status, notes, origin_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING *`,
         [vin, plateNumber, make, model, year, color, engineNumber, chassisNumber,
          vehicleType || 'PASSENGER', fuelType || 'GASOLINE', transmission || 'MANUAL',
-         engineDisplacement, ownerId, status || 'SUBMITTED', notes]
+         engineDisplacement, ownerId, status || 'SUBMITTED', notes, originType || 'NEW_REG']
     );
     return result.rows[0];
 }

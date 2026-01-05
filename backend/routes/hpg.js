@@ -8,6 +8,34 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const storageService = require('../services/storageService');
 
+// Get HPG dashboard statistics
+router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        // Get all HPG requests
+        const requests = await db.getClearanceRequestsByType('hpg');
+        
+        // Count by status
+        const stats = {
+            pending: requests.filter(r => r.status === 'PENDING' || r.status === 'pending').length,
+            verified: requests.filter(r => r.status === 'VERIFIED' || r.status === 'verified' || r.status === 'APPROVED' || r.status === 'approved').length,
+            completed: requests.filter(r => r.status === 'COMPLETED' || r.status === 'completed').length,
+            rejected: requests.filter(r => r.status === 'REJECTED' || r.status === 'rejected').length
+        };
+
+        res.json({
+            success: true,
+            stats: stats
+        });
+
+    } catch (error) {
+        console.error('Error getting HPG stats:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get HPG stats: ' + error.message
+        });
+    }
+});
+
 // Get all HPG clearance requests
 // Note: 'hpg_admin' role doesn't exist in enum, so we allow 'admin' role and check email pattern
 router.get('/requests', authenticateToken, authorizeRole(['admin']), async (req, res) => {

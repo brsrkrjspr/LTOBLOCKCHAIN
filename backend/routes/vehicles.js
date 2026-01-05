@@ -916,7 +916,8 @@ router.post('/register', optionalAuth, async (req, res) => {
             engineDisplacement: vehicle.engineDisplacement,
             ownerId: ownerUser.id,
             status: 'SUBMITTED',
-            notes: registrationData.notes
+            notes: registrationData.notes,
+            originType: 'NEW_REG'
         });
 
         // Add to history

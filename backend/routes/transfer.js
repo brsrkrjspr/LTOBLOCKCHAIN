@@ -1635,8 +1635,8 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             });
         }
         
-        // Update vehicle ownership
-        await db.updateVehicle(request.vehicle_id, { ownerId: buyerId });
+        // Update vehicle ownership and set origin type to TRANSFER for the new owner
+        await db.updateVehicle(request.vehicle_id, { ownerId: buyerId, originType: 'TRANSFER' });
         
         // Transfer ownership on blockchain
         let blockchainTxId = null;

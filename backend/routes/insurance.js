@@ -7,6 +7,68 @@ const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 
+// Get insurance dashboard statistics
+router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
+    try {
+        const dbModule = require('../database/db');
+        
+        // Get start of current week (Monday)
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        // Get start of today
+        const startOfToday = new Date(now);
+        startOfToday.setHours(0, 0, 0, 0);
+        
+        // Query for assigned tasks (pending requests)
+        const assignedTasksResult = await dbModule.query(
+            `SELECT COUNT(*) as count 
+             FROM clearance_requests 
+             WHERE request_type = 'insurance' 
+             AND (status = 'PENDING' OR status = 'SENT' OR status = 'IN_PROGRESS')`
+        );
+        
+        // Query for completed today
+        const completedTodayResult = await dbModule.query(
+            `SELECT COUNT(*) as count 
+             FROM clearance_requests 
+             WHERE request_type = 'insurance' 
+             AND status = 'COMPLETED' 
+             AND completed_at >= $1`,
+            [startOfToday]
+        );
+        
+        // Query for completed this week
+        const completedThisWeekResult = await dbModule.query(
+            `SELECT COUNT(*) as count 
+             FROM clearance_requests 
+             WHERE request_type = 'insurance' 
+             AND status = 'COMPLETED' 
+             AND completed_at >= $1`,
+            [startOfWeek]
+        );
+        
+        const stats = {
+            assignedTasks: parseInt(assignedTasksResult.rows[0].count) || 0,
+            completedToday: parseInt(completedTodayResult.rows[0].count) || 0,
+            completedThisWeek: parseInt(completedThisWeekResult.rows[0].count) || 0
+        };
+
+        res.json({
+            success: true,
+            stats: stats
+        });
+    } catch (error) {
+        console.error('Error getting insurance stats:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get insurance stats: ' + error.message
+        });
+    }
+});
+
 // Get all insurance verification requests
 router.get('/requests', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {

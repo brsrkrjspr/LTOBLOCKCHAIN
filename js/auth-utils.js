@@ -5,14 +5,29 @@
 // UI DEVELOPMENT MODE - DISABLE AUTHENTICATION
 // Set to true to bypass all authentication checks for UI development
 // Set to false to re-enable authentication (when backend is available)
+// 
+// ⚠️ WARNING: DO NOT ENABLE IN PRODUCTION
+// This bypasses all security checks and should ONLY be used for local UI development.
+// In production, this MUST remain false for security compliance.
 // ============================================
 const DISABLE_AUTH = false; // ✅ Authentication enabled for production
 
-// Expose DISABLE_AUTH globally so other scripts can access it
-window.DISABLE_AUTH = DISABLE_AUTH;
+// Production safeguard: Force disable auth bypass in production environments
+const isProduction = window.location.hostname !== 'localhost' && 
+                     window.location.hostname !== '127.0.0.1' && 
+                     !window.location.hostname.includes('.local');
+if (isProduction && DISABLE_AUTH) {
+    console.error('%c🚨 SECURITY WARNING: Authentication bypass is enabled in production!', 'color: #e74c3c; font-weight: bold; font-size: 14px;');
+    console.error('%cThis is a security risk. Authentication bypass has been automatically disabled.', 'color: #e74c3c; font-size: 12px;');
+    // Force disable in production
+    window.DISABLE_AUTH = false;
+} else {
+    // Expose DISABLE_AUTH globally so other scripts can access it
+    window.DISABLE_AUTH = DISABLE_AUTH;
+}
 
-// Log when dev mode is active
-if (DISABLE_AUTH) {
+// Log when dev mode is active (only in development)
+if (DISABLE_AUTH && !isProduction) {
     console.log('%c🔓 AUTHENTICATION DISABLED - UI Development Mode', 'color: #f39c12; font-weight: bold; font-size: 14px;');
     console.log('%cAll authentication checks are bypassed. Set DISABLE_AUTH = false in auth-utils.js to re-enable.', 'color: #7f8c8d; font-size: 12px;');
 }

@@ -36,23 +36,57 @@ function initializeInsuranceVerifierDashboard() {
     setInterval(loadInsuranceVerificationTasks, 30000); // Update tasks every 30 seconds
 }
 
-function updateInsuranceStats() {
-    // Get applications from localStorage
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    
-    // Calculate stats based on actual data
-    const totalApplications = applications.length;
-    const pendingInsurance = applications.filter(app => app.insuranceStatus === 'pending' || !app.insuranceStatus).length;
-    const approvedInsurance = applications.filter(app => app.insuranceStatus === 'approved').length;
-    const rejectedInsurance = applications.filter(app => app.insuranceStatus === 'rejected').length;
-    
-    // Update stat cards
-    const statCards = document.querySelectorAll('.stat-card .stat-number');
-    if (statCards.length >= 4) {
-        statCards[0].textContent = pendingInsurance;
-        statCards[1].textContent = approvedInsurance;
-        statCards[2].textContent = totalApplications;
-        statCards[3].textContent = '98%';
+async function updateInsuranceStats() {
+    try {
+        // Call API to get insurance dashboard statistics
+        let stats = {
+            assignedTasks: 0,
+            completedToday: 0,
+            completedThisWeek: 0
+        };
+
+        if (typeof APIClient !== 'undefined') {
+            const apiClient = new APIClient();
+            const response = await apiClient.get('/api/insurance/stats');
+            
+            if (response && response.success && response.stats) {
+                stats = response.stats;
+            }
+        } else if (typeof window.apiClient !== 'undefined') {
+            const response = await window.apiClient.get('/api/insurance/stats');
+            
+            if (response && response.success && response.stats) {
+                stats = response.stats;
+            }
+        }
+
+        // Update stat cards - find by label text since IDs may not exist
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach(card => {
+            const label = card.querySelector('.stat-label');
+            const number = card.querySelector('.stat-number');
+            
+            if (label && number) {
+                const labelText = label.textContent.trim();
+                if (labelText === 'Assigned Tasks') {
+                    number.textContent = stats.assignedTasks || 0;
+                } else if (labelText === 'Completed Today') {
+                    number.textContent = stats.completedToday || 0;
+                } else if (labelText === 'This Week') {
+                    number.textContent = stats.completedThisWeek || 0;
+                }
+                // Accuracy Rate stays as is (98%)
+            }
+        });
+    } catch (error) {
+        console.error('Error loading insurance stats:', error);
+        // Fallback: show dashes on error
+        const statCards = document.querySelectorAll('.stat-card .stat-number');
+        statCards.forEach((card, index) => {
+            if (index < 3) { // Don't change accuracy rate
+                card.textContent = '-';
+            }
+        });
     }
 }
 

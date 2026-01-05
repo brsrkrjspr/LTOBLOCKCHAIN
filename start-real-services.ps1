@@ -109,19 +109,6 @@ try {
     Write-Host "⚠️  Starting..." -ForegroundColor Yellow
 }
 
-# Check Redis
-Write-Host -NoNewline "Redis: "
-try {
-    $redisStatus = docker exec redis redis-cli --raw ping 2>&1
-    if ($redisStatus -eq "PONG") {
-        Write-Host "✅ Healthy" -ForegroundColor Green
-    } else {
-        Write-Host "⚠️  Starting..." -ForegroundColor Yellow
-    }
-} catch {
-    Write-Host "⚠️  Starting..." -ForegroundColor Yellow
-}
-
 # Check IPFS
 Write-Host -NoNewline "IPFS Node 1: "
 try {
@@ -165,7 +152,6 @@ Write-Host "🌐 Access Information:" -ForegroundColor Cyan
 Write-Host "====================" -ForegroundColor Cyan
 Write-Host "Application:     http://localhost:3001" -ForegroundColor White
 Write-Host "PostgreSQL:      localhost:5432" -ForegroundColor White
-Write-Host "Redis:           localhost:6379" -ForegroundColor White
 Write-Host "IPFS Gateway:    http://localhost:8080" -ForegroundColor White
 Write-Host "IPFS API:        http://localhost:5001" -ForegroundColor White
 Write-Host "Fabric Peer:     localhost:7051" -ForegroundColor White

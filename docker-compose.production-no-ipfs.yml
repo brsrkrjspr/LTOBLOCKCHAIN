@@ -1,5 +1,5 @@
 # TrustChain LTO - Production Docker Compose (Without IPFS)
-# Production-ready setup with PostgreSQL, Redis, and monitoring
+# Production-ready setup with PostgreSQL and monitoring
 # Uses local file storage instead of IPFS
 
 version: '3.8'
@@ -23,9 +23,6 @@ services:
       - DB_NAME=lto_blockchain
       - DB_USER=lto_user
       - DB_PASSWORD=lto_password
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=redis_password
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production-jwt-secret-key}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-this-32-character-encryption-key}
       - BLOCKCHAIN_MODE=${BLOCKCHAIN_MODE:-mock}
@@ -43,8 +40,6 @@ services:
       - ./.env:/app/.env:ro
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - lto-network
@@ -96,29 +91,6 @@ services:
       -c min_wal_size=1GB
       -c max_wal_size=4GB
       -c max_connections=200
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: redis-prod
-    command: >
-      redis-server
-      --appendonly yes
-      --requirepass redis_password
-      --maxmemory 512mb
-      --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - lto-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
 
   # ===========================================
   # MONITORING & LOGGING
@@ -212,8 +184,6 @@ services:
 volumes:
   # Database Volumes
   postgres-data:
-    driver: local
-  redis-data:
     driver: local
   
   # Monitoring Volumes

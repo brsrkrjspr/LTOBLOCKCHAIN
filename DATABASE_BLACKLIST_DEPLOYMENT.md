@@ -1,7 +1,7 @@
 # Database Blacklist Implementation - Deployment Guide
 
 ## Overview
-This document describes the migration from Redis/in-memory blacklist to a **database-only blacklist** with optimized performance.
+This document describes the **database-only blacklist** implementation. Redis has been completely removed from the system. Token blacklisting is now handled exclusively by PostgreSQL with optimized performance.
 
 ## Changes Summary
 
@@ -22,7 +22,8 @@ This document describes the migration from Redis/in-memory blacklist to a **data
    - Refresh tokens: 7 days (unchanged)
 
 4. **No Redis Dependency**
-   - Database-only blacklist
+   - Redis has been completely removed from the system
+   - Database-only blacklist (PostgreSQL)
    - Works across multiple servers
    - Automatic cleanup
 
@@ -37,8 +38,10 @@ This document describes the migration from Redis/in-memory blacklist to a **data
 - ✅ `backend/middleware/auth.js` - Uses `isBlacklistedByJTI()` (optimized)
 - ✅ `backend/routes/auth.js` - Uses `addToBlacklistByJTI()` (optimized)
 - ✅ `backend/config/jwt.js` - Changed expiry to `10m`
-- ✅ `server.js` - Replaced Redis init with blacklist cleanup job
-- ✅ `ENV.example` - Updated with new expiry and removed Redis config
+- ✅ `server.js` - Uses database blacklist cleanup job (no Redis)
+- ✅ `ENV.example` - Updated with new expiry (no Redis config needed)
+- ✅ `package.json` - Redis dependency removed
+- ✅ All docker-compose files - Redis containers removed
 
 ## DigitalOcean Deployment Steps
 
@@ -82,10 +85,8 @@ nano .env
 JWT_ACCESS_EXPIRY=10m
 JWT_REFRESH_EXPIRY=7d
 
-# Remove Redis variables (if present):
-# REDIS_URL=...
-# REDIS_HOST=...
-# REDIS_PASSWORD=...
+# Note: Redis is no longer used. Token blacklist is stored in PostgreSQL.
+# No Redis environment variables are needed.
 ```
 
 ### Step 4: Restart Services
@@ -145,21 +146,20 @@ git checkout HEAD~1 backend/routes/auth.js
 git checkout HEAD~1 server.js
 git checkout HEAD~1 backend/config/jwt.js
 
-# 3. Restore Redis config (if needed)
-# Copy backend/config/redis.js back
-
-# 4. Restart
+# 3. Restart
 docker compose -f docker-compose.unified.yml restart lto-app
 ```
 
 ## Benefits
 
-✅ **No Redis dependency** - Simpler infrastructure  
+✅ **No Redis dependency** - Redis completely removed, simpler infrastructure  
 ✅ **Immediate logout** - Tokens revoked instantly in database  
 ✅ **Reasonable token lifetime** - 10 min = good UX  
 ✅ **Works across servers** - Shared database blacklist  
 ✅ **Automatic cleanup** - Runs every 15 minutes  
 ✅ **Optimized performance** - Single decode, PK lookup  
+✅ **Reduced memory footprint** - No Redis container (~128-256MB saved)  
+✅ **Simpler deployment** - One less service to manage  
 
 ## Troubleshooting
 

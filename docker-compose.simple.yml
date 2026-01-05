@@ -16,8 +16,6 @@ services:
       - DB_NAME=lto_blockchain
       - DB_USER=lto_user
       - DB_PASSWORD=lto_password
-      - REDIS_HOST=localhost
-      - REDIS_PORT=6379
       - JWT_SECRET=your-jwt-secret-here
       - ENCRYPTION_KEY=your-encryption-key-here
       - BLOCKCHAIN_MODE=mock

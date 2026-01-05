@@ -260,9 +260,6 @@ services:
       - DB_NAME=lto_blockchain
       - DB_USER=lto_user
       - DB_PASSWORD=lto_password
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=redis_password
       - IPFS_HOST=ipfs-node-1
       - IPFS_PORT=5001
       - IPFS_PROTOCOL=http
@@ -281,7 +278,6 @@ services:
       - app-logs:/app/logs
     depends_on:
       - postgres
-      - redis
       - ipfs-cluster
       - peer0.lto.gov.ph
     networks:
@@ -306,19 +302,6 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - lto-network
-    restart: unless-stopped
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server --appendonly yes --requirepass redis_password
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
     networks:
       - lto-network
     restart: unless-stopped
@@ -470,7 +453,6 @@ volumes:
   
   # Database Volumes
   postgres-data:
-  redis-data:
   
   # Monitoring Volumes
   prometheus-data:

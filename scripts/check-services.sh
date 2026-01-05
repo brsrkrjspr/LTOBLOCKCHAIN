@@ -7,7 +7,7 @@ echo ""
 # Check Docker containers
 echo "📦 Docker Containers:"
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -1
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "ipfs|postgres|redis|orderer|peer|cli" || echo "❌ No Fabric/services containers found"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "ipfs|postgres|orderer|peer|cli" || echo "❌ No Fabric/services containers found"
 
 echo ""
 echo "🔗 Testing Connections:"

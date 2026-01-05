@@ -54,15 +54,6 @@ else
     ALL_OK=false
 fi
 
-# Check Redis
-print_status "Checking Redis..."
-if docker exec redis redis-cli -a redis_password ping > /dev/null 2>&1; then
-    print_success "Redis is responding to ping"
-else
-    print_error "Redis is not responding"
-    ALL_OK=false
-fi
-
 # Check Fabric Peer
 print_status "Checking Fabric Peer..."
 if docker exec peer0.lto.gov.ph peer node status > /dev/null 2>&1; then
@@ -105,7 +96,7 @@ fi
 
 # Check Docker Containers
 print_status "Checking Docker Containers..."
-REQUIRED_CONTAINERS=("postgres" "ipfs" "redis" "peer0.lto.gov.ph" "orderer1.lto.gov.ph" "cli")
+REQUIRED_CONTAINERS=("postgres" "ipfs" "peer0.lto.gov.ph" "orderer1.lto.gov.ph" "cli")
 MISSING_CONTAINERS=()
 
 for container in "${REQUIRED_CONTAINERS[@]}"; do
@@ -127,7 +118,6 @@ if [ "$ALL_OK" = true ] && [ ${#MISSING_CONTAINERS[@]} -eq 0 ]; then
     echo "Services Summary:"
     echo "  ✓ PostgreSQL: Ready"
     echo "  ✓ IPFS: Running"
-    echo "  ✓ Redis: Responding"
     echo "  ✓ Fabric Peer: Running"
     echo "  ✓ Fabric Channel: Joined"
     echo "  ✓ Docker Containers: All running"

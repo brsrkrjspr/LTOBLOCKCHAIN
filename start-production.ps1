@@ -60,16 +60,6 @@ try {
     Write-Host "⚠️  PostgreSQL: Starting..." -ForegroundColor Yellow
 }
 
-# Check Redis
-try {
-    $redisStatus = docker exec redis-prod redis-cli --raw incr ping 2>&1
-    if ($redisStatus -eq "1") {
-        Write-Host "✅ Redis: Healthy" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "⚠️  Redis: Starting..." -ForegroundColor Yellow
-}
-
 # Check Application
 Start-Sleep -Seconds 15
 try {
@@ -87,7 +77,6 @@ Write-Host "Application:  http://localhost:3001" -ForegroundColor White
 Write-Host "Prometheus:   http://localhost:9090" -ForegroundColor White
 Write-Host "Grafana:      http://localhost:3000 (admin/admin)" -ForegroundColor White
 Write-Host "PostgreSQL:   localhost:5432" -ForegroundColor White
-Write-Host "Redis:        localhost:6379" -ForegroundColor White
 
 Write-Host "`n📝 Default Login Credentials:" -ForegroundColor Cyan
 Write-Host "Admin:    admin@lto.gov.ph / admin123" -ForegroundColor White

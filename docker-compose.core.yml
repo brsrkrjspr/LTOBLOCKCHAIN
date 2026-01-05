@@ -1,6 +1,7 @@
 # TrustChain LTO - Core Services Docker Compose
 # Production-ready local deployment with PostgreSQL, IPFS, and Hyperledger Fabric
 # All services are FREE - no payment required
+# Note: Token blacklist uses PostgreSQL database (no Redis needed)
 
 version: '3.8'
 
@@ -45,24 +46,6 @@ services:
       -c min_wal_size=512MB
       -c max_wal_size=2GB
       -c max_connections=100
-
-  # Redis Cache (Optional but recommended)
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server --appendonly yes --requirepass redis_password --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - lto-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
 
   # ===========================================
   # IPFS STORAGE
@@ -306,8 +289,6 @@ services:
 volumes:
   # Database Volumes
   postgres-data:
-    driver: local
-  redis-data:
     driver: local
   
   # IPFS Volumes

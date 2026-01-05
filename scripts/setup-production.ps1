@@ -223,10 +223,7 @@ DB_NAME=lto_blockchain
 DB_USER=lto_user
 DB_PASSWORD=lto_password
 
-# Redis Configuration
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=redis_password
+# Note: Redis is no longer used. Token blacklist is stored in PostgreSQL.
 
 # IPFS Configuration
 IPFS_HOST=ipfs-cluster
@@ -497,10 +494,6 @@ scrape_configs:
     static_configs:
       - targets: ['postgres:5432']
 
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-
   - job_name: 'ipfs'
     static_configs:
       - targets: ['ipfs-node-1:5001', 'ipfs-node-2:5002', 'ipfs-node-3:5003']
@@ -695,15 +688,6 @@ try {
     Write-Host "❌ Database connection failed" -ForegroundColor Red
 }
 
-# Check Redis connection
-Write-Host "🔴 Checking Redis connection..." -ForegroundColor Cyan
-try {
-    docker-compose -f docker-compose.production.yml exec -T redis redis-cli ping
-    Write-Host "✅ Redis connection check passed" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Redis connection failed" -ForegroundColor Red
-}
-
 # Check IPFS nodes
 Write-Host "📁 Checking IPFS nodes..." -ForegroundColor Cyan
 try {
@@ -805,7 +789,6 @@ The production system includes:
 - **Hyperledger Fabric Network**: 3 orderers (Raft consensus), 1 LTO peer
 - **IPFS Cluster**: 3 nodes for decentralized document storage
 - **PostgreSQL**: Primary database
-- **Redis**: Caching and session storage
 - **Monitoring**: Prometheus, Grafana, ELK Stack
 - **Load Balancer**: Nginx reverse proxy
 
@@ -814,8 +797,7 @@ The production system includes:
 | Service | Port | Description |
 |---------|------|-------------|
 | LTO App | 3001 | Main application |
-| PostgreSQL | 5432 | Database |
-| Redis | 6379 | Cache |
+| PostgreSQL | 5432 | Database (includes token blacklist) |
 | IPFS | 4001-4003 | Document storage |
 | Prometheus | 9090 | Metrics |
 | Grafana | 3000 | Dashboards |

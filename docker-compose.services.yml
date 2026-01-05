@@ -1,5 +1,5 @@
 # TrustChain LTO - Core Services Only
-# PostgreSQL, IPFS, and Redis
+# PostgreSQL and IPFS
 # Use with docker-compose.fabric-simple.yml
 
 version: '3.8'
@@ -35,26 +35,6 @@ services:
       -c effective_cache_size=1GB
       -c maintenance_work_mem=64MB
       -c max_connections=100
-
-  # ===========================================
-  # REDIS CACHE
-  # ===========================================
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server --appendonly yes --requirepass redis_password --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - lto-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
 
   # ===========================================
   # IPFS STORAGE
@@ -98,8 +78,6 @@ services:
 
 volumes:
   postgres-data:
-    driver: local
-  redis-data:
     driver: local
   ipfs-data:
     driver: local

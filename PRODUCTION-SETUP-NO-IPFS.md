@@ -4,11 +4,12 @@
 
 This guide provides instructions for setting up a production-ready TrustChain LTO system **without IPFS**. The system uses:
 - **Local file storage** instead of IPFS
-- **PostgreSQL** for database
-- **Redis** for caching
+- **PostgreSQL** for database (token blacklist stored in database)
 - **Mock blockchain** (can be upgraded to Hyperledger Fabric)
 - **Prometheus & Grafana** for monitoring
 - **Nginx** as reverse proxy
+
+**Note:** Redis has been completely removed. Token blacklisting is now handled by PostgreSQL.
 
 ## Prerequisites
 
@@ -38,7 +39,8 @@ Edit `.env` and update the following critical values:
 - `JWT_SECRET` - Use a strong random string (minimum 32 characters)
 - `ENCRYPTION_KEY` - Use a 32-character encryption key
 - `DB_PASSWORD` - Strong database password
-- `REDIS_PASSWORD` - Strong Redis password
+
+**Note:** Redis is no longer used. Token blacklist is stored in PostgreSQL.
 
 ### 3. Start Production Services
 
@@ -73,7 +75,6 @@ docker-compose -f docker-compose.production-no-ipfs.yml logs -f
 | **Prometheus** | http://localhost:9090 | N/A |
 | **Grafana** | http://localhost:3000 | admin / admin |
 | **PostgreSQL** | localhost:5432 | lto_user / lto_password |
-| **Redis** | localhost:6379 | redis_password |
 
 ## Default Users
 
@@ -101,12 +102,12 @@ docker-compose -f docker-compose.production-no-ipfs.yml logs -f
 │  (Node.js) │
 └──────┬──────┘
        │
-   ┌───┴───┬───────────┐
-   │       │           │
-┌──▼──┐ ┌─▼──┐    ┌───▼────┐
-│Post │ │Redis│    │Blockchain│
-│gres │ │Cache│    │  (Mock) │
-└─────┘ └────┘    └─────────┘
+   ┌───┴───────────┐
+   │               │
+┌──▼──┐      ┌───▼────┐
+│Post │      │Blockchain│
+│gres │      │  (Mock) │
+└─────┘      └─────────┘
 ```
 
 ## Services
@@ -116,8 +117,7 @@ docker-compose -f docker-compose.production-no-ipfs.yml logs -f
 - **Image:** Custom build from Dockerfile.laptop
 - **Storage:** Local file system (`./uploads`)
 - **Blockchain:** Mock blockchain service
-- **Database:** PostgreSQL
-- **Cache:** Redis
+- **Database:** PostgreSQL (includes token blacklist)
 
 ### PostgreSQL (postgres-prod)
 - **Port:** 5432
@@ -126,11 +126,7 @@ docker-compose -f docker-compose.production-no-ipfs.yml logs -f
 - **Password:** lto_password (change in production)
 - **Optimized:** For 8GB+ RAM systems
 
-### Redis (redis-prod)
-- **Port:** 6379
-- **Password:** redis_password
-- **Memory:** 512MB max
-- **Purpose:** Session management, caching
+**Note:** Redis has been removed. Token blacklisting is now handled by PostgreSQL.
 
 ### Prometheus (prometheus-prod)
 - **Port:** 9090
@@ -336,12 +332,6 @@ Edit `docker-compose.production-no-ipfs.yml`:
 - Tune `effective_cache_size`
 - Adjust `max_connections`
 
-### Redis
-
-Edit `docker-compose.production-no-ipfs.yml`:
-- Adjust `--maxmemory`
-- Tune `--maxmemory-policy`
-
 ### Application
 
 - Increase worker processes in Nginx
@@ -360,7 +350,6 @@ Edit `docker-compose.production-no-ipfs.yml`:
 
 1. Increase container resource limits
 2. Adjust database settings
-3. Add more memory to Redis
 
 ## Upgrade Path
 

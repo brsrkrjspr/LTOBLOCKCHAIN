@@ -35,9 +35,3 @@ scrape_configs:
       - targets: ['postgres:5432']
     scrape_interval: 30s
 
-  # Redis exporter (if available)
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-    scrape_interval: 30s
-

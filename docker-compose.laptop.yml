@@ -21,8 +21,6 @@ services:
       - DB_NAME=lto_blockchain
       - DB_USER=lto_user
       - DB_PASSWORD=lto_password
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - JWT_SECRET=your-jwt-secret-here
       - ENCRYPTION_KEY=your-encryption-key-here
       - BLOCKCHAIN_MODE=mock
@@ -35,7 +33,6 @@ services:
       - ./blockchain-ledger:/app/blockchain-ledger
     depends_on:
       - postgres
-      - redis
     restart: unless-stopped
     deploy:
       resources:
@@ -86,25 +83,6 @@ services:
       -c work_mem=4MB
       -c min_wal_size=1GB
       -c max_wal_size=4GB
-
-  # Redis Cache (Minimal Configuration)
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
 
   # ===========================================
   # IPFS STORAGE
@@ -159,7 +137,6 @@ services:
 
 volumes:
   postgres-data:
-  redis-data:
   ipfs-data:
 
 networks:

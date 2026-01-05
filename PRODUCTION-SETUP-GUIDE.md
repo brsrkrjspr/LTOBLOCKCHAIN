@@ -201,10 +201,7 @@ DB_NAME=lto_blockchain
 DB_USER=lto_user
 DB_PASSWORD=your-secure-password
 
-# Redis
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=your-redis-password
+# Note: Redis is no longer used. Token blacklist is stored in PostgreSQL.
 
 # IPFS
 IPFS_HOST=ipfs-cluster

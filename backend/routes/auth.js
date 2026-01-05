@@ -217,16 +217,40 @@ router.post('/login', async (req, res) => {
 
     } catch (error) {
         console.error('Login error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            table: error.table
+        });
+        
         // Log full error details in development/production for debugging
         const errorMessage = process.env.NODE_ENV === 'production' 
             ? 'Internal server error' 
             : error.message || 'Internal server error';
         const errorStack = process.env.NODE_ENV === 'development' ? error.stack : undefined;
         
+        // Provide more helpful error messages for common database errors
+        let userFriendlyError = errorMessage;
+        if (error.code === '42P01') { // Table does not exist
+            userFriendlyError = 'Database tables missing. Please run migrations: refresh_tokens and sessions tables are required.';
+        } else if (error.code === '23505') { // Unique violation
+            userFriendlyError = 'A record with this information already exists.';
+        } else if (error.code === '23503') { // Foreign key violation
+            userFriendlyError = 'Database integrity error. Please contact support.';
+        }
+        
         res.status(500).json({
             success: false,
-            error: errorMessage,
-            ...(errorStack && { stack: errorStack })
+            error: userFriendlyError,
+            ...(errorStack && { stack: errorStack }),
+            ...(process.env.NODE_ENV === 'development' && { 
+                code: error.code,
+                detail: error.detail,
+                hint: error.hint
+            })
         });
     }
 });

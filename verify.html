@@ -385,13 +385,74 @@
         
         async function loadTransactionDetails(txId, retryCount = 0) {
             try {
+                // Validate transaction ID format (should be a blockchain hash, not UUID)
+                if (!txId || txId === 'undefined' || txId === 'null' || txId.length < 10) {
+                    document.getElementById('transactionDetails').innerHTML = 
+                        `<div class="transaction-card">
+                            <div class="status-badge status-error">
+                                <i class="fas fa-exclamation-triangle"></i> INVALID TRANSACTION ID
+                            </div>
+                            <h2 style="margin-top: 1rem;">Invalid Transaction ID</h2>
+                            <p style="margin-top: 1rem;">The scanned QR code contains an invalid transaction ID: <code>${txId || 'empty'}</code></p>
+                            <p>This may indicate that the vehicle registration is still pending blockchain confirmation.</p>
+                            <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
+                                <i class="fas fa-info-circle"></i> QR codes are only generated for vehicles that have been successfully registered on the blockchain.
+                            </p>
+                        </div>`;
+                    return;
+                }
+                
+                // Check if it's a UUID (contains hyphens) - these are not blockchain transaction IDs
+                if (txId.includes('-') && txId.length === 36) {
+                    document.getElementById('transactionDetails').innerHTML = 
+                        `<div class="transaction-card">
+                            <div class="status-badge status-pending">
+                                <i class="fas fa-clock"></i> VERIFICATION PENDING
+                            </div>
+                            <h2 style="margin-top: 1rem;">Registration Pending</h2>
+                            <p style="margin-top: 1rem;">This vehicle registration is still being processed.</p>
+                            <p>The QR code will be available once the vehicle is successfully registered on the blockchain.</p>
+                            <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
+                                <i class="fas fa-info-circle"></i> Blockchain transaction IDs are generated when the registration is confirmed on Hyperledger Fabric.
+                            </p>
+                        </div>`;
+                    return;
+                }
+                
                 const apiClient = window.apiClient || new APIClient();
                 
                 // Try to get transaction (public endpoint, no auth required)
+                // Don't send auth token for public verification
                 let response;
                 let statusCode = 200;
                 try {
-                    response = await apiClient.get(`/api/blockchain/transactions/${txId}`);
+                    // Make request without auth header for public verification
+                    const token = apiClient.getAuthToken();
+                    const originalHeaders = {};
+                    if (token) {
+                        // Temporarily remove auth for public endpoint
+                        originalHeaders['Authorization'] = `Bearer ${token}`;
+                    }
+                    
+                    // Call without auth token (public endpoint) - use fetch directly
+                    const fetchResponse = await fetch(`${window.location.origin}/api/blockchain/transactions/${encodeURIComponent(txId)}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                            // Intentionally NOT including Authorization header for public verification
+                        }
+                    });
+                    
+                    if (!fetchResponse.ok) {
+                        const errorData = await fetchResponse.json().catch(() => ({}));
+                        throw {
+                            status: fetchResponse.status,
+                            response: { data: errorData },
+                            message: errorData.error || `HTTP ${fetchResponse.status}`
+                        };
+                    }
+                    
+                    response = await fetchResponse.json();
                 } catch (apiError) {
                     statusCode = apiError.status || (apiError.response && apiError.response.status) || 500;
                     
@@ -431,6 +492,30 @@
                                 <p style="margin-top: 1rem;">
                                     The Hyperledger Fabric blockchain network is temporarily unavailable. 
                                     Please try again later.
+                                </p>
+                                <div style="margin-top: 1.5rem;">
+                                    <button onclick="loadTransactionDetails('${txId}')" 
+                                            class="btn-primary"
+                                            style="cursor: pointer; border: none;">
+                                        <i class="fas fa-sync-alt"></i> Retry
+                                    </button>
+                                </div>
+                            </div>`;
+                        return;
+                    }
+                    
+                    // Handle 401 (Unauthorized) - Should not happen for public endpoint, but handle gracefully
+                    if (statusCode === 401) {
+                        document.getElementById('transactionDetails').innerHTML = 
+                            `<div class="transaction-card">
+                                <div class="status-badge status-error">
+                                    <i class="fas fa-exclamation-triangle"></i> AUTHENTICATION ERROR
+                                </div>
+                                <h2 style="margin-top: 1rem;">Verification Error</h2>
+                                <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>
+                                <p>The verification endpoint requires public access. This may be a configuration issue.</p>
+                                <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
+                                    <i class="fas fa-info-circle"></i> QR code verification should work without login. Please try again or contact support.
                                 </p>
                                 <div style="margin-top: 1.5rem;">
                                     <button onclick="loadTransactionDetails('${txId}')" 

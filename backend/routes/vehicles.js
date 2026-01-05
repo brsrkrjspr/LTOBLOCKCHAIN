@@ -1879,27 +1879,53 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
 // Helper function to generate QR code for vehicle
 async function generateVehicleQRCode(vehicle) {
     try {
-        // Get transaction ID (same logic as transaction-id endpoint)
-        let transactionId = vehicle.blockchain_tx_id || vehicle.id;
+        // CRITICAL: Only use real blockchain transaction IDs, NOT vehicle.id (UUID)
+        // QR codes must point to verifiable blockchain transactions
+        let transactionId = null;
         
-        // Try to get from history if available
-        if (vehicle.history && vehicle.history.length > 0) {
+        // Priority 1: Check blockchain_tx_id field (if it's a real transaction ID, not UUID)
+        if (vehicle.blockchain_tx_id && 
+            !vehicle.blockchain_tx_id.includes('-') && 
+            vehicle.blockchain_tx_id.length >= 40) {
+            // Valid blockchain transaction ID (no hyphens, long enough)
+            transactionId = vehicle.blockchain_tx_id;
+        }
+        
+        // Priority 2: Check history for BLOCKCHAIN_REGISTERED entry
+        if (!transactionId && vehicle.history && vehicle.history.length > 0) {
             const blockchainRegistered = vehicle.history.find(h => 
-                h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id
+                h.action === 'BLOCKCHAIN_REGISTERED' && 
+                h.transaction_id && 
+                !h.transaction_id.includes('-') &&
+                h.transaction_id.length >= 40
             );
             if (blockchainRegistered) {
                 transactionId = blockchainRegistered.transaction_id;
             } else {
-                const anyTx = vehicle.history.find(h => h.transaction_id);
+                // Priority 3: Any history entry with valid transaction_id (non-UUID)
+                const anyTx = vehicle.history.find(h => 
+                    h.transaction_id && 
+                    !h.transaction_id.includes('-') &&
+                    h.transaction_id.length >= 40
+                );
                 if (anyTx) {
                     transactionId = anyTx.transaction_id;
                 }
             }
         }
         
+        // If no valid blockchain transaction ID found, return null
+        // QR code should only be generated for vehicles with blockchain transactions
+        if (!transactionId) {
+            console.log(`[QR Code] No blockchain transaction ID found for vehicle ${vehicle.id || vehicle.vin}. QR code not generated.`);
+            return null;
+        }
+        
         // Generate verification URL
-        const baseUrl = process.env.FRONTEND_URL || 'https://ltoblockchain.duckdns.org';
+        const baseUrl = process.env.FRONTEND_URL || process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
         const verifyUrl = `${baseUrl}/verify/${transactionId}`;
+        
+        console.log(`[QR Code] Generating QR code for vehicle ${vehicle.id || vehicle.vin} with transaction ID: ${transactionId.substring(0, 20)}...`);
         
         // Generate QR code as base64 data URL
         const qrCodeBase64 = await QRCode.toDataURL(verifyUrl, {

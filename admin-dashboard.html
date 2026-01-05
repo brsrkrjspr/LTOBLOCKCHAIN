@@ -37,8 +37,19 @@
             }
         })();
     </script>
+    <script src="js/auth-manager.js"></script>
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
+    <script>
+        // Initialize AuthManager on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.authManager !== 'undefined') {
+                window.authManager.init().catch(error => {
+                    console.error('AuthManager init error:', error);
+                });
+            }
+        });
+    </script>
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
@@ -907,11 +918,15 @@
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (typeof AuthUtils !== 'undefined') {
-                        AuthUtils.logout();
-                    } else {
-                        localStorage.clear();
-                        window.location.href = 'index.html';
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof window.authManager !== 'undefined') {
+                            window.authManager.logout();
+                        } else if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                        }
                     }
                 });
             }

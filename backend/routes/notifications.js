@@ -2,6 +2,8 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const router = express.Router();
+const db = require('../database/services');
+const { authenticateToken } = require('../middleware/auth');
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -374,19 +376,79 @@ LTO Lipa City Team
 });
 
 // Get user notifications (for dashboard)
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
-        // Return empty notifications array for now
-        // In production, fetch from database based on req.user.userId
+        const { limit = 50, unreadOnly = false } = req.query;
+        const userId = req.user.userId;
+
+        const notifications = await db.getUserNotifications(
+            userId,
+            parseInt(limit),
+            unreadOnly === 'true'
+        );
+
         res.json({
             success: true,
-            notifications: []
+            notifications: notifications.map(notif => ({
+                id: notif.id,
+                title: notif.title,
+                message: notif.message,
+                type: notif.type,
+                read: notif.read,
+                sentAt: notif.sent_at,
+                readAt: notif.read_at
+            }))
         });
     } catch (error) {
         console.error('Get notifications error:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to get notifications'
+        });
+    }
+});
+
+// Mark notification as read
+router.patch('/:id/read', authenticateToken, async (req, res) => {
+    try {
+        const notificationId = req.params.id;
+        const userId = req.user.userId;
+
+        // Update notification and verify ownership in single query
+        const result = await db.query(
+            `UPDATE notifications
+             SET read = true, read_at = CURRENT_TIMESTAMP
+             WHERE id = $1 AND user_id = $2
+             RETURNING *`,
+            [notificationId, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Notification not found or access denied'
+            });
+        }
+
+        const notification = result.rows[0];
+
+        res.json({
+            success: true,
+            notification: {
+                id: notification.id,
+                title: notification.title,
+                message: notification.message,
+                type: notification.type,
+                read: notification.read,
+                sentAt: notification.sent_at,
+                readAt: notification.read_at
+            }
+        });
+    } catch (error) {
+        console.error('Mark notification as read error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to mark notification as read'
         });
     }
 });
@@ -453,30 +515,6 @@ router.get('/history', authenticateToken, (req, res) => {
     }
 });
 
-// Middleware to authenticate JWT token
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            error: 'Access token required'
-        });
-    }
-
-    const jwt = require('jsonwebtoken');
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({
-                success: false,
-                error: 'Invalid or expired token'
-            });
-        }
-        req.user = user;
-        next();
-    });
-}
 
 // Export router as default (for backward compatibility with server.js)
 module.exports = router;

@@ -158,7 +158,9 @@ async function updateOwnerStats() {
     
     try {
         // Get real stats from API
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         
         // Check if it's a demo token - if so, skip API calls and use localStorage data
         if (token && token.startsWith('demo-token-')) {
@@ -351,7 +353,7 @@ function handleNotificationClick(e) {
     showNotification(`Notification "${title}" marked as read`, 'success');
 }
 
-function loadUserNotifications() {
+async function loadUserNotifications() {
     // Try multiple selectors
     let notificationsList = null;
     const selectors = [
@@ -371,29 +373,19 @@ function loadUserNotifications() {
         return;
     }
     
-    // Try to load from API first
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-    
-    if (token && !token.startsWith('demo-token-') && typeof APIClient !== 'undefined') {
-        try {
-            const apiClient = new APIClient();
-            apiClient.get('/api/notifications').then(response => {
-                if (response && response.success && response.notifications) {
-                    localStorage.setItem('userNotifications', JSON.stringify(response.notifications));
-                    renderNotifications(response.notifications);
-                } else {
-                    renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
-                }
-            }).catch(err => {
-                console.warn('Failed to load notifications from API:', err);
-                renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
-            });
-        } catch (error) {
-            console.warn('Error loading notifications:', error);
-            renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
+    // Load from API only (no localStorage fallback)
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/notifications');
+        
+        if (response && response.success && response.notifications) {
+            renderNotifications(response.notifications);
+        } else {
+            renderNotifications([]);
         }
-    } else {
-        renderNotifications(JSON.parse(localStorage.getItem('userNotifications') || '[]'));
+    } catch (err) {
+        console.error('Failed to load notifications from API:', err);
+        renderNotifications([]);
     }
 }
 
@@ -428,8 +420,8 @@ function createNotificationElement(notification) {
     const element = document.createElement('div');
     element.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
     
-    const icon = notification.type === 'approved' ? '✅' : '❌';
-    const timeAgo = getTimeAgo(notification.timestamp);
+    const icon = notification.type === 'approved' ? '✅' : notification.type === 'info' ? 'ℹ️' : '❌';
+    const timeAgo = getTimeAgo(notification.sentAt || notification.timestamp);
     
     element.innerHTML = `
         <div class="notification-icon">${icon}</div>
@@ -441,10 +433,12 @@ function createNotificationElement(notification) {
     `;
     
     // Mark as read when clicked
-    element.addEventListener('click', function() {
-        markNotificationAsRead(notification.id);
-        element.classList.remove('unread');
-        element.classList.add('read');
+    element.addEventListener('click', async function() {
+        if (!notification.read) {
+            await markNotificationAsRead(notification.id);
+            element.classList.remove('unread');
+            element.classList.add('read');
+        }
     });
     
     return element;
@@ -461,13 +455,23 @@ function getTimeAgo(timestamp) {
     return `${Math.floor(diffInSeconds / 86400)} days ago`;
 }
 
-function markNotificationAsRead(notificationId) {
-    let notifications = JSON.parse(localStorage.getItem('userNotifications') || '[]');
-    const notification = notifications.find(n => n.id === notificationId);
-    
-    if (notification) {
-        notification.read = true;
-        localStorage.setItem('userNotifications', JSON.stringify(notifications));
+async function markNotificationAsRead(notificationId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.request(`/api/notifications/${notificationId}/read`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response && response.success) {
+            // Reload notifications to reflect the change
+            await loadUserNotifications();
+        }
+    } catch (error) {
+        console.error('Failed to mark notification as read:', error);
+        showNotification('Failed to mark notification as read', 'error');
     }
 }
 
@@ -609,7 +613,9 @@ async function loadUserApplications(isSilent = false) {
     
     try {
         // Try to load from API first
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         console.log('🔍 Loading applications. Token exists:', !!token);
         
         // Check if it's a demo token - if so, skip API calls
@@ -1404,7 +1410,9 @@ async function viewUserApplication(applicationId) {
     // Try to load documents from API if it's a real vehicle
     if (isUUID) {
         try {
-            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            const token = (typeof window !== 'undefined' && window.authManager) 
+                ? window.authManager.getAccessToken() 
+                : (localStorage.getItem('authToken') || localStorage.getItem('token'));
             console.log('📂 Fetching documents from API for vehicle:', applicationId);
             
             const response = await fetch(`/api/documents/vehicle-id/${applicationId}`, {

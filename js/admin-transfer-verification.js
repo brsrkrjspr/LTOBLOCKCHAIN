@@ -420,7 +420,9 @@ function updateDocumentDisplay(doc) {
 // Load image with authentication
 async function loadAuthenticatedImage(documentId, docName, containerEl) {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         if (!token) {
             throw new Error('Not authenticated');
         }
@@ -458,7 +460,9 @@ async function loadAuthenticatedImage(documentId, docName, containerEl) {
 // Load PDF with authentication
 async function loadAuthenticatedPdf(documentId, docName, containerEl) {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         if (!token) {
             throw new Error('Not authenticated');
         }
@@ -496,7 +500,9 @@ async function loadAuthenticatedPdf(documentId, docName, containerEl) {
 // Open document in new tab with authentication
 async function openDocumentAuthenticated(documentId, docName) {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         if (!token) {
             showError('Please log in to view documents');
             return;
@@ -532,7 +538,9 @@ async function openDocumentAuthenticated(documentId, docName) {
 // Download document with authentication
 async function downloadDocumentAuthenticated(documentId, docName) {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         if (!token) {
             showError('Please log in to download documents');
             return;

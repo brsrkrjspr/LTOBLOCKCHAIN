@@ -27,6 +27,14 @@ class APIClient {
             return 'dev-token-bypass';
         }
         
+        // Check AuthManager first (memory), then localStorage (backward compatibility)
+        if (typeof window !== 'undefined' && window.authManager) {
+            const token = window.authManager.getAccessToken();
+            if (token) {
+                return token;
+            }
+        }
+        
         const token = localStorage.getItem('authToken');
         if (!token) {
             return null;
@@ -82,6 +90,11 @@ class APIClient {
             return;
         }
         
+        // Clear AuthManager
+        if (typeof window !== 'undefined' && window.authManager) {
+            window.authManager.accessToken = null;
+        }
+        
         // Check if it's a demo token before clearing
         const token = localStorage.getItem('authToken');
         if (token && token.startsWith('demo-token-')) {
@@ -119,12 +132,21 @@ class APIClient {
             headers: {
                 'Content-Type': 'application/json',
             },
-            timeout: this.timeout
+            timeout: this.timeout,
+            credentials: 'include' // Include cookies for refresh token
         };
 
         // Add authorization header if token exists
         if (token) {
             defaultOptions.headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        // Add CSRF token if available
+        if (typeof window !== 'undefined' && window.authManager) {
+            const csrfToken = window.authManager.getCsrfToken();
+            if (csrfToken) {
+                defaultOptions.headers['X-XSRF-TOKEN'] = csrfToken;
+            }
         }
 
         // Merge options
@@ -150,9 +172,36 @@ class APIClient {
             if (response.status === 401) {
                 // Only redirect if auth is not disabled
                 if (!isAuthDisabled()) {
-                    this.clearAuth();
-                    window.location.href = 'login-signup.html?expired=true';
-                    throw new Error('Session expired. Please login again.');
+                    // Try to refresh token using AuthManager
+                    if (typeof window !== 'undefined' && window.authManager) {
+                        try {
+                            await window.authManager.refreshAccessToken();
+                            // Retry request with new token
+                            const newToken = window.authManager.getAccessToken();
+                            if (newToken) {
+                                requestOptions.headers['Authorization'] = `Bearer ${newToken}`;
+                                const retryResponse = await fetch(url, requestOptions);
+                                clearTimeout(timeoutId);
+                                if (retryResponse.ok) {
+                                    const retryData = await retryResponse.json();
+                                    return retryData;
+                                }
+                            }
+                        } catch (refreshError) {
+                            // Refresh failed, logout
+                            if (typeof window !== 'undefined' && window.authManager) {
+                                window.authManager.logout();
+                            } else {
+                                this.clearAuth();
+                                window.location.href = 'login-signup.html?expired=true';
+                            }
+                            throw new Error('Session expired. Please login again.');
+                        }
+                    } else {
+                        this.clearAuth();
+                        window.location.href = 'login-signup.html?expired=true';
+                        throw new Error('Session expired. Please login again.');
+                    }
                 } else {
                     // In dev mode, just log the error and continue
                     console.warn('🔓 [DEV MODE] Received 401 but auth is disabled - continuing anyway');
@@ -353,10 +402,25 @@ class APIClient {
         }
 
         const url = `${this.baseURL}${endpoint}`;
+        const headers = {};
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        // Add CSRF token if available
+        if (typeof window !== 'undefined' && window.authManager) {
+            const csrfToken = window.authManager.getCsrfToken();
+            if (csrfToken) {
+                headers['X-XSRF-TOKEN'] = csrfToken;
+            }
+        }
+        
         const requestOptions = {
             method: 'POST',
             body: formData,
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            headers,
+            credentials: 'include' // Include cookies for refresh token
         };
 
         const controller = new AbortController();

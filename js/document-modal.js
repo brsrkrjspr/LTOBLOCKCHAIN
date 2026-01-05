@@ -477,7 +477,9 @@
     
     // Get auth token
     function getAuthToken() {
-        return localStorage.getItem('token') || localStorage.getItem('authToken');
+        return (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
     }
     
     // Get document type label
@@ -880,7 +882,9 @@ window.viewDocument = function(docOrId, allDocs) {
 // Helper to view all documents for a vehicle
 window.viewVehicleDocuments = async function(vehicleId) {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         const response = await fetch(`/api/vehicles/${vehicleId}/documents`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });

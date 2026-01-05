@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 require('dotenv').config();
 
@@ -75,6 +76,9 @@ const limiter = rateLimit({
     }
 });
 app.use(limiter);
+
+// Cookie parsing middleware
+app.use(cookieParser());
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -199,6 +203,10 @@ app.use((err, req, res, next) => {
         message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
     });
 });
+
+// Initialize token blacklist cleanup job
+const blacklistConfig = require('./backend/config/blacklist');
+blacklistConfig.startCleanupJob();
 
 // Initialize storage service on startup (non-blocking)
 const storageService = require('./backend/services/storageService');

@@ -179,6 +179,14 @@ class AuthUtils {
             return 'dev-token-bypass';
         }
         
+        // Check AuthManager first (memory), then localStorage (backward compatibility)
+        if (typeof window !== 'undefined' && window.authManager) {
+            const token = window.authManager.getAccessToken();
+            if (token) {
+                return token;
+            }
+        }
+        
         const token = localStorage.getItem('authToken');
         if (!token) return null;
 
@@ -213,6 +221,11 @@ class AuthUtils {
 
     // Clear authentication
     static clearAuth() {
+        // Clear AuthManager
+        if (typeof window !== 'undefined' && window.authManager) {
+            window.authManager.accessToken = null;
+        }
+        
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
     }

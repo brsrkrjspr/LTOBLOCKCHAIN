@@ -16,7 +16,9 @@ function goBack() {
         }
     } else {
         // AuthUtils not available, check token manually
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         if (!token || token === 'dev-token-bypass' || token.startsWith('demo-token-')) {
             // No valid token, redirect to login
             localStorage.clear();
@@ -107,7 +109,9 @@ async function loadDocumentData() {
         // Try to load from API first
         if (documentId && typeof APIClient !== 'undefined') {
             try {
-                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
                 if (!token) {
                     throw new Error('Not authenticated');
                 }
@@ -152,7 +156,9 @@ async function loadDocumentData() {
         // Try to load vehicle by VIN or vehicleId
         if (vin || vehicleId) {
             try {
-                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
                 if (token) {
                     let vehicleResponse;
                     if (vin) {
@@ -575,7 +581,9 @@ function displayDocumentFromAPI(doc, vehicle, type) {
 // Load document in iframe with authentication
 async function loadDocumentInIframe(documentId, documentUrl) {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         if (!token) {
             throw new Error('Not authenticated. Please log in to view documents.');
         }
@@ -897,7 +905,9 @@ async function viewFullDocument(documentId, documentUrl) {
     try {
         showNotification('Opening document...', 'info');
         
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         if (!token) {
             showNotification('Please log in to view documents', 'error');
             return;
@@ -971,7 +981,9 @@ async function downloadDocument() {
         
         if (documentId) {
             // Download from API
-            const token = localStorage.getItem('token');
+            const token = (typeof window !== 'undefined' && window.authManager) 
+                ? window.authManager.getAccessToken() 
+                : (localStorage.getItem('authToken') || localStorage.getItem('token'));
             if (!token) {
                 showNotification('Please log in to download documents', 'error');
                 return;

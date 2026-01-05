@@ -222,16 +222,24 @@
                 console.log('Login response:', result);
 
                 if (result.success) {
-                    // Store user data and token
+                    // Store user data in localStorage (non-sensitive)
                     if (result.user) {
                         localStorage.setItem('currentUser', JSON.stringify(result.user));
                     }
-                    if (result.token) {
+                    
+                    // Store access token in AuthManager (memory), NOT localStorage
+                    if (result.token && typeof window !== 'undefined' && window.authManager) {
                         // IMPORTANT: Clear any demo tokens first
                         if (localStorage.getItem('authToken')?.startsWith('demo-token-')) {
                             localStorage.removeItem('authToken');
                             localStorage.removeItem('token');
                         }
+                        // Store in AuthManager memory
+                        window.authManager.setAccessToken(result.token);
+                        // Keep localStorage for backward compatibility during transition
+                        localStorage.setItem('authToken', result.token);
+                    } else if (result.token) {
+                        // Fallback if AuthManager not available
                         localStorage.setItem('authToken', result.token);
                         localStorage.setItem('token', result.token);
                     }

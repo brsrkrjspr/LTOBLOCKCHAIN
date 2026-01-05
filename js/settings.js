@@ -424,8 +424,12 @@ function setupLogoutHandler() {
         logoutBtn.addEventListener('click', function(e) {
             e.preventDefault();
             if (confirm('Are you sure you want to logout?')) {
-                AuthUtils.logout();
-                window.location.href = 'login.html';
+                if (typeof window.authManager !== 'undefined') {
+                    window.authManager.logout();
+                } else {
+                    AuthUtils.logout();
+                    window.location.href = 'login.html';
+                }
             }
         });
     }

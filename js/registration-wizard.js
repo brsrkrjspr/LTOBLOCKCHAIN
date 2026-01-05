@@ -942,7 +942,9 @@ async function uploadDocuments(signal) {
 function getAuthToken() {
     // Get token from localStorage or sessionStorage
     // Get token and check authentication
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    const token = (typeof window !== 'undefined' && window.authManager) 
+        ? window.authManager.getAccessToken() 
+        : (localStorage.getItem('authToken') || sessionStorage.getItem('authToken'));
     if (!token) {
         // Not authenticated, redirect to login
         window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);

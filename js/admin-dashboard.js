@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // In production, always require authentication regardless of DISABLE_AUTH setting
         if (isProduction) {
             // Check for token directly
-            const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+            const token = (typeof window !== 'undefined' && window.authManager) 
+                ? window.authManager.getAccessToken() 
+                : (localStorage.getItem('authToken') || localStorage.getItem('token'));
             if (!token || token === 'dev-token-bypass' || token.startsWith('demo-token-')) {
                 console.warn('❌ No valid authentication token - redirecting to login');
                 window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
@@ -920,7 +922,9 @@ async function loadSubmittedApplications() {
     
     try {
         // Check for demo account first
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         
         if (token && token.startsWith('demo-token-')) {
             console.warn('Demo token detected - cannot load applications');
@@ -1440,7 +1444,9 @@ async function viewApplication(applicationId) {
     console.log('🔍 viewApplication called with ID:', applicationId);
     try {
         // Check authentication first
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         
         if (!token) {
             console.warn('❌ No token found');
@@ -1821,7 +1827,9 @@ async function approveApplication(applicationId) {
         
         try {
             // Call API to update vehicle status
-            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
             if (token && typeof APIClient !== 'undefined') {
                 const apiClient = new APIClient();
                 const response = await apiClient.put(`/api/vehicles/id/${applicationId}/status`, {
@@ -1900,7 +1908,9 @@ async function rejectApplication(applicationId) {
             
             try {
                 // Call API to update vehicle status
-                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const token = (typeof window !== 'undefined' && window.authManager) 
+            ? window.authManager.getAccessToken() 
+            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
                 if (token && typeof APIClient !== 'undefined') {
                     const apiClient = new APIClient();
                     const response = await apiClient.put(`/api/vehicles/id/${applicationId}/status`, {

@@ -1,10 +1,14 @@
 // TrustChain Authentication Routes
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const router = express.Router();
 const db = require('../database/services');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, verifyCsrf } = require('../middleware/auth');
+const { generateAccessToken, generateRefreshToken, decodeToken } = require('../config/jwt');
+const { addToBlacklistByJTI } = require('../config/blacklist');
+const blacklistConfig = require('../config/blacklist');
+const refreshTokenService = require('../services/refreshToken');
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -49,16 +53,42 @@ router.post('/register', async (req, res) => {
             address
         });
 
-        // Generate JWT token
-        const token = jwt.sign(
-            { 
-                userId: newUser.id, 
-                email: newUser.email, 
-                role: newUser.role 
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-        );
+        // Generate access token with JTI
+        const accessToken = generateAccessToken({
+            userId: newUser.id,
+            email: newUser.email,
+            role: newUser.role
+        });
+
+        // Generate refresh token
+        const refreshToken = generateRefreshToken({
+            userId: newUser.id,
+            email: newUser.email,
+            role: newUser.role
+        });
+
+        // Store refresh token in database
+        await refreshTokenService.createRefreshToken(newUser.id, refreshToken);
+
+        // Generate CSRF token
+        const csrfToken = crypto.randomBytes(32).toString('hex');
+
+        // Set refresh token as HttpOnly cookie
+        const isProduction = process.env.NODE_ENV === 'production';
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        // Set CSRF token as readable cookie
+        res.cookie('XSRF-TOKEN', csrfToken, {
+            httpOnly: false,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
 
         // Return user data (without password)
         res.status(201).json({
@@ -75,7 +105,7 @@ router.post('/register', async (req, res) => {
                 address: newUser.address,
                 createdAt: newUser.created_at
             },
-            token
+            token: accessToken
         });
 
     } catch (error) {
@@ -121,16 +151,50 @@ router.post('/login', async (req, res) => {
         // Update last login
         await db.updateUserLastLogin(user.id);
 
-        // Generate JWT token
-        const token = jwt.sign(
-            { 
-                userId: user.id, 
-                email: user.email, 
-                role: user.role 
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+        // Generate access token with JTI
+        const accessToken = generateAccessToken({
+            userId: user.id,
+            email: user.email,
+            role: user.role
+        });
+
+        // Generate refresh token
+        const refreshToken = generateRefreshToken({
+            userId: user.id,
+            email: user.email,
+            role: user.role
+        });
+
+        // Store refresh token in database
+        const refreshTokenRecord = await refreshTokenService.createRefreshToken(user.id, refreshToken);
+
+        // Create or update session
+        await refreshTokenService.createOrUpdateSession(
+            user.id,
+            refreshTokenRecord.id,
+            req.ip || req.connection.remoteAddress,
+            req.get('user-agent') || ''
         );
+
+        // Generate CSRF token
+        const csrfToken = crypto.randomBytes(32).toString('hex');
+
+        // Set refresh token as HttpOnly cookie
+        const isProduction = process.env.NODE_ENV === 'production';
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        // Set CSRF token as readable cookie
+        res.cookie('XSRF-TOKEN', csrfToken, {
+            httpOnly: false,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
 
         // Return user data (without password)
         res.json({
@@ -148,7 +212,7 @@ router.post('/login', async (req, res) => {
                 emailVerified: user.email_verified,
                 createdAt: user.created_at
             },
-            token
+            token: accessToken
         });
 
     } catch (error) {
@@ -313,12 +377,159 @@ router.put('/change-password', authenticateToken, async (req, res) => {
     }
 });
 
-// Logout (client-side token removal)
-router.post('/logout', authenticateToken, (req, res) => {
-    res.json({
-        success: true,
-        message: 'Logged out successfully'
-    });
+// Refresh access token
+router.post('/refresh', verifyCsrf, async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'Refresh token required'
+            });
+        }
+
+        // Verify refresh token
+        const verificationResult = await refreshTokenService.verifyRefreshToken(refreshToken);
+        if (!verificationResult) {
+            return res.status(403).json({
+                success: false,
+                error: 'Invalid or expired refresh token'
+            });
+        }
+
+        const { user, tokenRecord } = verificationResult;
+
+        // Generate new access token
+        const newAccessToken = generateAccessToken({
+            userId: user.id,
+            email: user.email,
+            role: user.role
+        });
+
+        // Update session last activity
+        await refreshTokenService.createOrUpdateSession(
+            user.id,
+            tokenRecord.id,
+            req.ip || req.connection.remoteAddress,
+            req.get('user-agent') || ''
+        );
+
+        res.json({
+            success: true,
+            token: newAccessToken
+        });
+
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to refresh token'
+        });
+    }
+});
+
+// Logout - revoke refresh token and blacklist access token
+router.post('/logout', authenticateToken, verifyCsrf, async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+        const accessToken = req.headers['authorization']?.split(' ')[1];
+
+        // Revoke refresh token if present
+        if (refreshToken) {
+            const tokenHash = refreshTokenService.hashToken(refreshToken);
+            await refreshTokenService.revokeRefreshToken(tokenHash);
+        }
+
+        // Blacklist access token by JTI (optimized - no decode needed)
+        if (req.tokenJti && accessToken) {
+            const decoded = decodeToken(accessToken);
+            const expirySeconds = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+            if (expirySeconds > 0) {
+                const tokenHash = blacklistConfig.hashToken(accessToken);
+                await addToBlacklistByJTI(req.tokenJti, tokenHash, expirySeconds, 'logout');
+            }
+        }
+
+        // Clear cookies
+        res.clearCookie('refreshToken');
+        res.clearCookie('XSRF-TOKEN');
+
+        res.json({
+            success: true,
+            message: 'Logged out successfully'
+        });
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to logout'
+        });
+    }
+});
+
+// Logout all sessions
+router.post('/logout-all', authenticateToken, verifyCsrf, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        // Revoke all refresh tokens for user
+        await refreshTokenService.revokeAllUserTokens(userId);
+
+        // Blacklist current access token by JTI (optimized)
+        const accessToken = req.headers['authorization']?.split(' ')[1];
+        if (req.tokenJti && accessToken) {
+            const decoded = decodeToken(accessToken);
+            const expirySeconds = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+            if (expirySeconds > 0) {
+                const tokenHash = blacklistConfig.hashToken(accessToken);
+                await addToBlacklistByJTI(req.tokenJti, tokenHash, expirySeconds, 'logout-all');
+            }
+        }
+
+        // Clear cookies
+        res.clearCookie('refreshToken');
+        res.clearCookie('XSRF-TOKEN');
+
+        res.json({
+            success: true,
+            message: 'All sessions logged out successfully'
+        });
+
+    } catch (error) {
+        console.error('Logout all error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to logout all sessions'
+        });
+    }
+});
+
+// Get user's active sessions
+router.get('/sessions', authenticateToken, async (req, res) => {
+    try {
+        const sessions = await refreshTokenService.getUserSessions(req.user.userId);
+
+        res.json({
+            success: true,
+            sessions: sessions.map(session => ({
+                id: session.id,
+                ipAddress: session.ip_address,
+                userAgent: session.user_agent,
+                createdAt: session.created_at,
+                lastActivity: session.last_activity,
+                expiresAt: session.expires_at
+            }))
+        });
+
+    } catch (error) {
+        console.error('Get sessions error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get sessions'
+        });
+    }
 });
 
 module.exports = router;

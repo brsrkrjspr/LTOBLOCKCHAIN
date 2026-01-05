@@ -155,9 +155,17 @@ app.get('/document-viewer', (req, res) => {
 app.get('/verify/:transactionId', (req, res) => {
     // Validate transaction ID is not empty and doesn't contain path traversal
     const transactionId = req.params.transactionId;
+    
+    // Reject common invalid transaction IDs (like login-signup.html when redirected)
+    const invalidIds = ['login-signup', 'login', 'signup', 'verify'];
+    if (invalidIds.includes(transactionId)) {
+        return res.status(400).send('Invalid transaction ID');
+    }
+    
     if (!transactionId || transactionId.includes('..') || transactionId.includes('/')) {
         return res.status(400).send('Invalid transaction ID');
     }
+    
     res.sendFile(path.join(__dirname, 'verify.html'));
 });
 

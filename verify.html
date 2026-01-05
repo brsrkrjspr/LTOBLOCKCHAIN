@@ -371,9 +371,34 @@
             txId = txId.replace('.html', '');
         }
         
-        // Also check query parameter
-        if (!txId || txId === 'verify') {
-            txId = new URLSearchParams(window.location.search).get('txId');
+        // Check if we were redirected from login (invalid transaction ID extracted)
+        const invalidTxIds = ['login-signup', 'login', 'signup', 'verify', 'undefined', 'null'];
+        if (invalidTxIds.includes(txId)) {
+            txId = null; // Reset to null so we can check other sources
+        }
+        
+        // Priority 1: Check redirect query parameter (if redirected from login)
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectParam = urlParams.get('redirect');
+        if (redirectParam) {
+            // Extract transaction ID from redirect URL like /verify/<txId>
+            const redirectMatch = redirectParam.match(/\/verify\/([^/?]+)/);
+            if (redirectMatch && redirectMatch[1]) {
+                txId = redirectMatch[1];
+                console.log('Extracted transaction ID from redirect parameter:', txId);
+            }
+        }
+        
+        // Priority 2: Check txId query parameter
+        if (!txId || invalidTxIds.includes(txId)) {
+            txId = urlParams.get('txId');
+        }
+        
+        // Validate transaction ID before proceeding
+        if (!txId || invalidTxIds.includes(txId) || txId.length < 10) {
+            document.getElementById('transactionDetails').innerHTML = 
+                '<div class="transaction-card"><p style="color: red;">No valid transaction ID provided.</p></div>';
+            return;
         }
         
         if (txId && txId !== 'verify') {

@@ -554,6 +554,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
+            gap: 1.25rem;
         }
 
         /* Pending vehicles get orange border */
@@ -565,8 +566,23 @@
             border-left-color: #ff9800;
         }
 
+        .vehicle-card .card-sections {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            width: 100%;
+        }
+
+        @media (min-width: 1025px) {
+            .vehicle-card .card-sections {
+                grid-template-columns: minmax(0, 1fr) 240px;
+                align-items: start;
+            }
+        }
+
         .vehicle-info {
             flex: 1;
+            min-width: 0;
         }
 
         .vehicle-plate {
@@ -574,27 +590,33 @@
             font-weight: 700;
             color: #2c3e50;
             margin-bottom: 0.75rem;
+            line-height: 1.1;
+        }
+
+        .vehicle-plate::before {
+            content: "Plate Number:";
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
         }
 
         .vehicle-status {
             display: flex;
             flex-direction: column;
-            align-items: flex-end;
-            gap: 1rem;
-            margin-top: 0;
+            gap: 0.75rem;
+            align-items: stretch;
+            min-width: 220px;
         }
 
-        /* Make card use flexbox to position info and status side by side - Desktop only */
-        @media (min-width: 769px) {
-            .vehicle-card {
-                flex-direction: row;
-                align-items: flex-start;
+        @media (min-width: 1025px) {
+            .vehicle-status {
+                width: 240px;
+                flex: 0 0 240px;
             }
-        }
-
-        .vehicle-info {
-            flex: 1;
-            min-width: 0;
         }
 
         /* Owner badge styling */
@@ -609,12 +631,16 @@
             white-space: nowrap;
         }
 
-        /* Actions at bottom */
+        /* Actions - fixed slots */
         .vehicle-status .vehicle-actions {
-            margin-top: 1rem;
-            padding-top: 1rem;
+            margin-top: 0.25rem;
+            padding-top: 0.75rem;
             border-top: 1px solid #e9ecef;
             width: 100%;
+            display: grid;
+            grid-template-rows: repeat(3, 1fr);
+            gap: 0.65rem;
+            align-items: stretch;
         }
 
         .vehicle-card:hover {
@@ -814,31 +840,28 @@
             margin-top: 1rem;
         }
 
-        .vehicle-status {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        /* Vehicle Actions - Redesigned */
+        /* Vehicle Actions - Fixed height slots */
         .vehicle-actions {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-rows: repeat(3, 1fr);
+            gap: 0.65rem;
+            align-items: stretch;
         }
 
         .vehicle-actions button {
-            padding: 0.75rem 1.25rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.875rem;
+            padding: 0 1.1rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
             border: none;
             white-space: nowrap;
+            height: 44px;
         }
 
         .btn-certificate,
@@ -877,6 +900,24 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
+
+        /* Placeholder slots keep layout even when buttons are hidden */
+        .action-placeholder {
+            height: 44px;
+            border-radius: 10px;
+            border: 1px dashed transparent;
+            background: transparent;
+            visibility: hidden;
+        }
+
+        .vehicle-actions .btn-certificate,
+        .vehicle-actions .btn-download-cert { order: 1; }
+        .vehicle-actions .btn-transfer { order: 2; }
+        .vehicle-actions .btn-history,
+        .vehicle-actions .btn-view-history { order: 3; }
+        .vehicle-actions .placeholder-cert { order: 1; }
+        .vehicle-actions .placeholder-transfer { order: 2; }
+        .vehicle-actions .placeholder-history { order: 3; }
 
         .vehicle-actions-secondary {
             display: flex;
@@ -1949,6 +1990,12 @@
             
             // Initialize mobile navigation
             initializeMobileNavigation();
+            
+            // Ensure action buttons keep fixed layout by inserting placeholders
+            normalizeVehicleActions();
+            const vehiclesObserver = new MutationObserver(normalizeVehicleActions);
+            const targets = [document.getElementById('myVehiclesContent'), document.getElementById('pendingVehiclesContent')];
+            targets.forEach(t => { if (t) vehiclesObserver.observe(t, { childList: true, subtree: true }); });
         });
         
         // Initialize mobile navigation
@@ -2151,6 +2198,32 @@
             } else {
                 alert(message);
             }
+        }
+
+        // UI helper: keep action slots stable across statuses
+        function normalizeVehicleActions() {
+            const containers = document.querySelectorAll('.vehicle-actions');
+            containers.forEach(container => {
+                const hasCert = container.querySelector('.btn-certificate, .btn-download-cert');
+                const hasTransfer = container.querySelector('.btn-transfer');
+                const hasHistory = container.querySelector('.btn-history, .btn-view-history');
+
+                if (!hasCert && !container.querySelector('.placeholder-cert')) {
+                    const slot = document.createElement('div');
+                    slot.className = 'action-placeholder placeholder-cert';
+                    container.appendChild(slot);
+                }
+                if (!hasTransfer && !container.querySelector('.placeholder-transfer')) {
+                    const slot = document.createElement('div');
+                    slot.className = 'action-placeholder placeholder-transfer';
+                    container.appendChild(slot);
+                }
+                if (!hasHistory && !container.querySelector('.placeholder-history')) {
+                    const slot = document.createElement('div');
+                    slot.className = 'action-placeholder placeholder-history';
+                    container.appendChild(slot);
+                }
+            });
         }
     </script>
 </body>

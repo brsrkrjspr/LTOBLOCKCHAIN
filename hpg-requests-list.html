@@ -239,6 +239,11 @@
             background: linear-gradient(135deg, var(--hpg-navy) 0%, var(--hpg-navy-light) 100%);
         }
         
+        /* Requests Table Header - Match Sidebar */
+        #requestsTable thead {
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%);
+        }
+        
         table th,
         .table th,
         .table-modern th {
@@ -250,6 +255,30 @@
             font-size: 0.875rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        
+        /* Requests Table Header Cells - High Contrast */
+        #requestsTable thead th {
+            color: var(--hpg-white);
+            background: transparent !important;
+            font-weight: 700;
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 2px solid var(--hpg-gold);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Prevent hover effects on table header */
+        #requestsTable thead:hover,
+        #requestsTable thead th:hover {
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
+        }
+        
+        #requestsTable thead th:hover {
+            background: transparent !important;
+            color: var(--hpg-white) !important;
         }
         
         table tbody tr,

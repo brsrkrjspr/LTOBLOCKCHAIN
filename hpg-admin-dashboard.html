@@ -221,7 +221,7 @@
         /* Pending Verification Requests Table Header Cells - High Contrast */
         #pendingRequestsTable thead th {
             color: var(--hpg-white);
-            background: transparent;
+            background: transparent !important;
             font-weight: 700;
             padding: 1rem;
             text-align: left;
@@ -229,6 +229,17 @@
             font-size: 0.875rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        
+        /* Prevent hover effects on table header */
+        #pendingRequestsTable thead:hover,
+        #pendingRequestsTable thead th:hover {
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
+        }
+        
+        #pendingRequestsTable thead th:hover {
+            background: transparent !important;
+            color: var(--hpg-white) !important;
         }
         
         table tbody tr,

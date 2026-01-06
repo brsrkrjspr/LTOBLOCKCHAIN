@@ -685,8 +685,26 @@
         .wizard-step {
             width: 100%;
             max-width: 1200px;
-            display: flex;
+            display: none; /* Hidden by default */
             justify-content: center;
+        }
+        
+        /* Show active step */
+        .wizard-step.active {
+            display: flex;
+        }
+        
+        /* Hide progress indicators for steps 2, 3, and 4 until previous step is completed */
+        .progress-step[data-step="2"]:not(.accessible),
+        .progress-step[data-step="3"]:not(.accessible),
+        .progress-step[data-step="4"]:not(.accessible) {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        .progress-step.accessible {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .wizard-step .form-container {
@@ -1054,7 +1072,7 @@
                 <div class="container">
                 <!-- Progress Steps -->
                 <div class="wizard-progress">
-                    <div class="progress-step active" data-step="1">
+                    <div class="progress-step active accessible" data-step="1">
                         <div class="step-number">1</div>
                         <div class="step-label">Vehicle Info</div>
                     </div>

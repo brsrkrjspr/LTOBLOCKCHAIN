@@ -18,6 +18,31 @@ function initializeRegistrationWizard() {
     initializeFileUploads();
     initializeProgressTracking();
     
+    // Ensure only step 1 is visible initially
+    // Steps 2, 3, and 4 should be hidden until their previous step is completed
+    for (let i = 2; i <= totalSteps; i++) {
+        const stepElement = document.getElementById(`step-${i}`);
+        const progressStep = document.querySelector(`[data-step="${i}"]`);
+        
+        if (stepElement) {
+            stepElement.classList.remove('active');
+        }
+        if (progressStep) {
+            progressStep.classList.remove('active', 'accessible');
+        }
+    }
+    
+    // Ensure step 1 is visible and accessible
+    const step1Element = document.getElementById('step-1');
+    const progressStep1 = document.querySelector('[data-step="1"]');
+    
+    if (step1Element) {
+        step1Element.classList.add('active');
+    }
+    if (progressStep1) {
+        progressStep1.classList.add('active', 'accessible');
+    }
+    
     // Store vehicle type when it changes
     const vehicleTypeSelect = document.getElementById('vehicleType');
     if (vehicleTypeSelect) {
@@ -40,15 +65,27 @@ const totalSteps = 4;
 function nextStep() {
     if (validateCurrentStep()) {
         if (currentStep < totalSteps) {
+            // Mark current step as completed
+            const currentStepElement = document.getElementById(`step-${currentStep}`);
+            const currentProgressStep = document.querySelector(`[data-step="${currentStep}"]`);
+            
             // Hide current step
-            document.getElementById(`step-${currentStep}`).classList.remove('active');
-            document.querySelector(`[data-step="${currentStep}"]`).classList.remove('active');
+            currentStepElement.classList.remove('active');
+            currentProgressStep.classList.remove('active');
+            currentProgressStep.classList.add('completed');
             
             currentStep++;
             
+            // Make next step accessible and show it
+            const nextStepElement = document.getElementById(`step-${currentStep}`);
+            const nextProgressStep = document.querySelector(`[data-step="${currentStep}"]`);
+            
+            // Mark next step as accessible (visible in progress indicator)
+            nextProgressStep.classList.add('accessible');
+            
             // Show next step
-            document.getElementById(`step-${currentStep}`).classList.add('active');
-            document.querySelector(`[data-step="${currentStep}"]`).classList.add('active');
+            nextStepElement.classList.add('active');
+            nextProgressStep.classList.add('active');
             
             // Update review data if on final step
             if (currentStep === 4) {
@@ -67,14 +104,21 @@ function nextStep() {
 function prevStep() {
     if (currentStep > 1) {
         // Hide current step
-        document.getElementById(`step-${currentStep}`).classList.remove('active');
-        document.querySelector(`[data-step="${currentStep}"]`).classList.remove('active');
+        const currentStepElement = document.getElementById(`step-${currentStep}`);
+        const currentProgressStep = document.querySelector(`[data-step="${currentStep}"]`);
+        
+        currentStepElement.classList.remove('active');
+        currentProgressStep.classList.remove('active');
         
         currentStep--;
         
-        // Show previous step
-        document.getElementById(`step-${currentStep}`).classList.add('active');
-        document.querySelector(`[data-step="${currentStep}"]`).classList.add('active');
+        // Show previous step (it's already accessible since we've been there)
+        const prevStepElement = document.getElementById(`step-${currentStep}`);
+        const prevProgressStep = document.querySelector(`[data-step="${currentStep}"]`);
+        
+        prevStepElement.classList.add('active');
+        prevProgressStep.classList.add('active');
+        prevProgressStep.classList.remove('completed'); // Remove completed status when going back
         
         // Scroll to top of form
         window.scrollTo({ top: 0, behavior: 'smooth' });

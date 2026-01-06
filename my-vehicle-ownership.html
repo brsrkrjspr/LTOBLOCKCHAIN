@@ -568,62 +568,40 @@
 
         .vehicle-card .card-sections {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 240px;
+            grid-template-columns: 1fr;
             gap: 1.25rem;
             width: 100%;
-            align-items: start;
         }
 
-        @media (max-width: 1024px) {
+        @media (min-width: 1025px) {
             .vehicle-card .card-sections {
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(0, 1fr) 240px;
+                align-items: start;
             }
-        }
-
-        .vehicle-main {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .vehicle-header-line {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .vehicle-plate-block {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .plate-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: #94a3b8;
-        }
-
-        .vehicle-plate-text {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: #0f172a;
-            line-height: 1.1;
-            word-break: break-word;
-        }
-
-        .vehicle-ref {
-            font-size: 0.85rem;
-            color: #64748b;
         }
 
         .vehicle-info {
             flex: 1;
             min-width: 0;
+        }
+
+        .vehicle-plate {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 0.75rem;
+            line-height: 1.1;
+        }
+
+        .vehicle-plate::before {
+            content: "Plate Number:";
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
         }
 
         .vehicle-status {
@@ -632,12 +610,12 @@
             gap: 0.75rem;
             align-items: stretch;
             min-width: 220px;
-            width: 240px;
         }
 
-        @media (max-width: 1024px) {
+        @media (min-width: 1025px) {
             .vehicle-status {
-                width: 100%;
+                width: 240px;
+                flex: 0 0 240px;
             }
         }
 
@@ -660,7 +638,7 @@
             border-top: 1px solid #e9ecef;
             width: 100%;
             display: grid;
-            grid-template-rows: repeat(3, 44px);
+            grid-template-rows: repeat(3, 1fr);
             gap: 0.65rem;
             align-items: stretch;
         }
@@ -713,77 +691,6 @@
             flex-direction: column;
             gap: 0.5rem;
             margin-bottom: 1rem;
-        }
-
-        .vehicle-details-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 0.65rem 1rem;
-        }
-
-        .vehicle-docs-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 0.75rem;
-            margin-top: 0.5rem;
-        }
-
-        .doc-card {
-            border-radius: 10px;
-            padding: 0.9rem 1rem;
-            color: #fff;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-            text-align: left;
-        }
-
-        .doc-card small {
-            display: block;
-            font-size: 0.75rem;
-            letter-spacing: 0.04em;
-            opacity: 0.9;
-            margin-bottom: 0.35rem;
-            text-transform: uppercase;
-        }
-
-        .doc-card strong {
-            font-size: 1.05rem;
-            letter-spacing: 0.5px;
-            word-break: break-word;
-        }
-
-        .or-card { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); }
-        .cr-card { background: linear-gradient(135deg, #166534 0%, #27ae60 100%); }
-
-        .vehicle-header-line .status-chip.subtle {
-            align-self: flex-start;
-        }
-
-        .status-chip {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.45rem 0.85rem;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-            min-width: 120px;
-            text-align: center;
-            color: #0f172a;
-            background: #e2e8f0;
-        }
-
-        .status-chip.approved {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #34d399;
-        }
-
-        .status-chip.pending {
-            background: #fff3cd;
-            color: #92400e;
-            border: 1px solid #fcd34d;
         }
 
         .vehicle-identification-item {
@@ -936,7 +843,7 @@
         /* Vehicle Actions - Fixed height slots */
         .vehicle-actions {
             display: grid;
-            grid-template-rows: repeat(3, 44px);
+            grid-template-rows: repeat(3, 1fr);
             gap: 0.65rem;
             align-items: stretch;
         }
@@ -955,7 +862,6 @@
             border: none;
             white-space: nowrap;
             height: 44px;
-            width: 100%;
         }
 
         .btn-certificate,
@@ -1002,7 +908,6 @@
             border: 1px dashed transparent;
             background: transparent;
             visibility: hidden;
-            width: 100%;
         }
 
         .vehicle-actions .btn-certificate,
@@ -1013,14 +918,6 @@
         .vehicle-actions .placeholder-cert { order: 1; }
         .vehicle-actions .placeholder-transfer { order: 2; }
         .vehicle-actions .placeholder-history { order: 3; }
-
-        .vehicle-actions button.disabled-slot {
-            background: #e2e8f0;
-            color: #94a3b8;
-            border: 1px solid #e2e8f0;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
 
         .vehicle-actions-secondary {
             display: flex;

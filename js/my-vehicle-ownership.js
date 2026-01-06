@@ -207,86 +207,87 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
             year: 'numeric', month: 'short', day: 'numeric' 
         }) : 'N/A';
 
+    const plate = vehicle.plateNumber || vehicle.plate_number || 'N/A';
+    const refNumber = vehicle.applicationNumber || vehicle.referenceNumber || vehicle.id || 'N/A';
+    const statusClass = isRegistered ? 'approved' : (status.includes('PENDING') ? 'pending' : 'pending');
+
     card.innerHTML = `
-        <div class="vehicle-info">
-            <div class="vehicle-plate" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-                <span>${escapeHtml(vehicle.plateNumber || vehicle.plate_number || 'N/A')}</span>
-                ${createOriginTypeBadge(vehicle)}
-            </div>
-            <div class="vehicle-details">
-                <div class="vehicle-detail-item">
-                    <i class="fas fa-car"></i>
-                    <span>${escapeHtml(vehicleDesc + color + vehicleType)}</span>
+        <div class="card-sections">
+            <div class="vehicle-main">
+                <div class="vehicle-header-line">
+                    <div class="vehicle-plate-block">
+                        <div class="plate-label">Plate Number:</div>
+                        <div class="vehicle-plate-text">${escapeHtml(plate)}</div>
+                        <div class="vehicle-ref">Ref: ${escapeHtml(refNumber)}</div>
+                    </div>
+                    <div class="status-chip ${statusClass}">
+                        ${escapeHtml(vehicle.status || 'N/A')}
+                    </div>
                 </div>
-                <div class="vehicle-detail-item">
-                    <i class="fas fa-barcode"></i>
-                    <span>VIN: ${escapeHtml(vehicle.vin || 'N/A')}</span>
-                </div>
-                ${vehicle.engineNumber || vehicle.engine_number ? `
-                <div class="vehicle-detail-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Engine: ${escapeHtml(vehicle.engineNumber || vehicle.engine_number)}</span>
-                </div>
-                ` : ''}
-                ${vehicle.chassisNumber || vehicle.chassis_number ? `
-                <div class="vehicle-detail-item">
-                    <i class="fas fa-wrench"></i>
-                    <span>Chassis: ${escapeHtml(vehicle.chassisNumber || vehicle.chassis_number)}</span>
-                </div>
-                ` : ''}
-                
-                <!-- Separate OR and CR Numbers - Prominently displayed -->
-                ${(orNumber || crNumber) ? `
-                <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    ${orNumber ? `
-                    <div class="orcr-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
-                        <small style="opacity: 0.8; display: block; font-size: 0.7rem; margin-bottom: 0.25rem;">OR NUMBER</small>
-                        <strong style="font-size: 1.1rem; letter-spacing: 1px;">${escapeHtml(orNumber)}</strong>
+                <div class="vehicle-details-grid">
+                    <div class="vehicle-detail-item">
+                        <i class="fas fa-car"></i>
+                        <span>${escapeHtml(vehicleDesc + color + vehicleType)}</span>
+                    </div>
+                    <div class="vehicle-detail-item">
+                        <i class="fas fa-barcode"></i>
+                        <span>VIN: ${escapeHtml(vehicle.vin || 'N/A')}</span>
+                    </div>
+                    ${vehicle.engineNumber || vehicle.engine_number ? `
+                    <div class="vehicle-detail-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Engine: ${escapeHtml(vehicle.engineNumber || vehicle.engine_number)}</span>
                     </div>
                     ` : ''}
-                    ${crNumber ? `
-                    <div class="orcr-badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
-                        <small style="opacity: 0.8; display: block; font-size: 0.7rem; margin-bottom: 0.25rem;">CR NUMBER</small>
-                        <strong style="font-size: 1.1rem; letter-spacing: 1px;">${escapeHtml(crNumber)}</strong>
+                    ${vehicle.chassisNumber || vehicle.chassis_number ? `
+                    <div class="vehicle-detail-item">
+                        <i class="fas fa-wrench"></i>
+                        <span>Chassis: ${escapeHtml(vehicle.chassisNumber || vehicle.chassis_number)}</span>
                     </div>
                     ` : ''}
+                    <div class="vehicle-detail-item">
+                        <i class="fas fa-palette"></i>
+                        <span>Color: ${escapeHtml(vehicle.color || 'N/A')}</span>
+                    </div>
+                    <div class="vehicle-detail-item">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>Type: ${escapeHtml(vehicle.vehicleType || vehicle.vehicle_type || 'N/A')}</span>
+                    </div>
+                    <div class="vehicle-detail-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Registered: ${regDateFormatted}</span>
+                    </div>
                 </div>
-                ` : isRegistered ? `
-                <div style="background: #fff3cd; color: #856404; padding: 0.5rem 1rem; border-radius: 8px; margin-top: 1rem; text-align: center; font-size: 0.85rem;">
-                    <i class="fas fa-clock"></i> OR/CR Numbers: Pending Assignment
-                </div>
-                ` : ''}
-                
-                <!-- Registration Date -->
-                <div class="vehicle-detail-item">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Registered: ${regDateFormatted}</span>
-                </div>
-                
-                <!-- Status -->
-                <div class="vehicle-detail-item">
-                    <i class="fas fa-info-circle"></i>
-                    <span>Status: <span class="status-badge-inline ${(vehicle.status || '').toLowerCase()}">${escapeHtml(vehicle.status || 'N/A')}</span></span>
+
+                <div class="vehicle-docs-row">
+                    <div class="doc-card or-card">
+                        <small>OR Number</small>
+                        <strong>${escapeHtml(orNumber || 'Pending')}</strong>
+                    </div>
+                    <div class="doc-card cr-card">
+                        <small>CR Number</small>
+                        <strong>${escapeHtml(crNumber || 'Pending')}</strong>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="vehicle-status">
-            <span class="status-badge ${isCurrent ? 'current' : 'previous'}">
-                ${isCurrent ? 'Current Owner' : 'Previous Owner'}
-            </span>
-            <div class="vehicle-actions">
-                ${isRegistered && (orNumber || crNumber || orCrNumber) ? `
-                    <button class="btn btn-certificate btn-download-cert" onclick="downloadVehicleCertificate('${escapeHtml(vehicle.id)}', '${escapeHtml(orNumber || crNumber || orCrNumber)}')" title="Download Registration Certificate">
+
+            <div class="vehicle-status">
+                <div class="status-chip ${statusClass} subtle">${escapeHtml(vehicle.status || 'N/A')}</div>
+                <div class="vehicle-actions">
+                    <button class="btn btn-certificate btn-download-cert ${isRegistered && (orNumber || crNumber || orCrNumber) ? '' : 'disabled-slot'}"
+                        ${isRegistered && (orNumber || crNumber || orCrNumber) ? '' : 'disabled'}
+                        title="Download Registration Certificate"
+                        ${isRegistered && (orNumber || crNumber || orCrNumber) ? `onclick="downloadVehicleCertificate('${escapeHtml(vehicle.id)}', '${escapeHtml(orNumber || crNumber || orCrNumber || '')}')"` : ''}>
                         <i class="fas fa-download"></i> Certificate
                     </button>
-                ` : ''}
-                <div class="vehicle-actions-secondary">
-                    ${isCurrent && isRegistered ? `
-                        <button class="btn btn-transfer" onclick="transferVehicle('${escapeHtml(vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')" title="Transfer Ownership">
-                            <i class="fas fa-exchange-alt"></i> Transfer
-                        </button>
-                    ` : ''}
-                    <button class="btn btn-history btn-view-history" onclick="viewOwnershipHistory('${escapeHtml(vehicle.vin || vehicle.id)}', '${escapeHtml(vehicle.plateNumber || vehicle.plate_number || '')}')">
+                    <button class="btn btn-transfer ${isCurrent && isRegistered ? '' : 'disabled-slot'}"
+                        ${isCurrent && isRegistered ? '' : 'disabled'}
+                        title="Transfer Ownership"
+                        ${isCurrent && isRegistered ? `onclick="transferVehicle('${escapeHtml(vehicle.id)}', '${escapeHtml(plate)}')"` : ''}>
+                        <i class="fas fa-exchange-alt"></i> Transfer
+                    </button>
+                    <button class="btn btn-history btn-view-history"
+                        onclick="viewOwnershipHistory('${escapeHtml(vehicle.vin || vehicle.id)}', '${escapeHtml(plate)}')">
                         <i class="fas fa-history"></i> History
                     </button>
                 </div>

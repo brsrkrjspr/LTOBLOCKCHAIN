@@ -51,9 +51,9 @@
            Clean, Professional, Trustworthy
            ============================================ */
         
-        /* Light Sidebar - White/Very Light */
+        /* Light Sidebar - White with Subtle Blue Gradient */
         .dashboard-sidebar {
-            background: #ffffff !important;
+            background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 40%, #ffffff 100%) !important;
             border-right: 1px solid #e0f2fe;
             transition: width 0.3s ease-in-out;
             box-shadow: 2px 0 8px rgba(0,0,0,0.04);
@@ -147,6 +147,21 @@
         .dashboard-content .container {
             max-width: 100%;
             padding: 0;
+        }
+
+        /* Ensure all dashboard text is dark and readable on white background */
+        .dashboard-content,
+        .dashboard-content h1,
+        .dashboard-content h2,
+        .dashboard-content h3,
+        .dashboard-content h4,
+        .dashboard-content h5,
+        .dashboard-content p,
+        .dashboard-content span,
+        .dashboard-content label,
+        .dashboard-content td,
+        .dashboard-content th {
+            color: #0f172a;
         }
         
         /* White Header with Subtle Shadow */

@@ -1,0 +1,746 @@
+/* Insurance Theme CSS - Professional Blue/Teal */
+/* This file contains the complete insurance theme CSS */
+
+:root {
+    /* Insurance Color Palette */
+    --insurance-blue: #0066cc;
+    --insurance-blue-dark: #0052a3;
+    --insurance-blue-light: #1a7fd9;
+    --insurance-teal: #00a8a8;
+    --insurance-teal-dark: #008888;
+    --insurance-teal-light: #00c4c4;
+    --insurance-green: #00b894;
+    --insurance-green-dark: #009975;
+    --insurance-green-light: #00d4a8;
+    --insurance-light-blue: #4da6ff;
+    --insurance-white: #ffffff;
+    --insurance-gray-light: #f5f7fa;
+    --insurance-gray: #e1e8ed;
+    --insurance-gray-dark: #657786;
+    --insurance-charcoal: #14171a;
+    --insurance-success: #00b894;
+    --insurance-warning: #fdcb6e;
+    --insurance-danger: #e74c3c;
+    --insurance-info: #4da6ff;
+}
+
+/* Sidebar - Insurance Blue/Teal Gradient */
+.dashboard-sidebar {
+    background: linear-gradient(180deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 50%, var(--insurance-teal) 100%);
+    border-right: 2px solid var(--insurance-teal-light);
+    transition: width 0.3s ease-in-out;
+}
+
+.dashboard-sidebar .logo-icon {
+    background: linear-gradient(135deg, var(--insurance-teal-light) 0%, var(--insurance-light-blue) 100%);
+    color: var(--insurance-white);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+}
+
+.dashboard-sidebar .logo-icon:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+    background: linear-gradient(135deg, var(--insurance-light-blue) 0%, var(--insurance-teal-light) 100%);
+}
+
+.dashboard-sidebar .logo-icon:active {
+    transform: scale(0.95);
+}
+
+.dashboard-sidebar .logo-icon:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.dashboard-sidebar .logo-text h2,
+.dashboard-sidebar .logo-text p {
+    color: var(--insurance-white);
+}
+
+.dashboard-sidebar .nav-item {
+    color: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
+}
+
+.dashboard-sidebar .nav-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--insurance-white);
+}
+
+.dashboard-sidebar .nav-item.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--insurance-white);
+    border-left: 3px solid var(--insurance-teal-light);
+}
+
+.dashboard-sidebar .sidebar-user-name,
+.dashboard-sidebar .sidebar-user-role {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.dashboard-main {
+    transition: margin-left 0.3s ease-in-out;
+    background: var(--insurance-gray-light);
+}
+
+/* Header - White with Blue Accents */
+.dashboard-header {
+    background: var(--insurance-white);
+    border-bottom: 2px solid var(--insurance-blue);
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
+}
+
+.dashboard-header .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.dashboard-header .dashboard-nav {
+    display: flex;
+    align-items: center;
+}
+
+.dashboard-header .logo {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.dashboard-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--insurance-blue-dark);
+}
+
+.dashboard-header p {
+    color: var(--insurance-gray-dark);
+    font-size: 0.9rem;
+}
+
+/* Typography & Content */
+.dashboard-content {
+    padding: 1.5rem;
+    color: var(--insurance-charcoal);
+    line-height: 1.6;
+}
+
+.dashboard-content h1,
+.dashboard-content .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.5rem 0;
+    color: var(--insurance-blue-dark);
+}
+
+.dashboard-content h2,
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0 0 0.5rem 0;
+    color: var(--insurance-blue-dark);
+}
+
+.dashboard-content h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0 0 0.75rem 0;
+    color: var(--insurance-charcoal);
+}
+
+.section-subtitle,
+.dashboard-content p.subtitle {
+    font-size: 0.9375rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--insurance-gray-dark);
+    margin: 0 0 1.5rem 0;
+}
+
+.section-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--insurance-gray);
+}
+
+/* Buttons - Insurance Blue Primary */
+button,
+.btn,
+.btn-primary,
+.btn-success,
+.btn-danger,
+.btn-warning,
+.btn-info,
+.btn-sm,
+.btn-lg,
+a.btn,
+a.btn-primary {
+    height: 44px;
+    min-height: 44px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.5;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+    color: var(--insurance-white);
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+.btn-secondary,
+a.btn-secondary {
+    height: 44px;
+    min-height: 44px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.5;
+    border-radius: 8px;
+    border: 2px solid var(--insurance-light-blue);
+    background-color: var(--insurance-white);
+    color: var(--insurance-blue);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn-secondary:hover,
+a.btn-secondary:hover {
+    background-color: var(--insurance-light-blue);
+    background: linear-gradient(135deg, var(--insurance-light-blue) 0%, var(--insurance-teal-light) 100%);
+    border-color: var(--insurance-blue);
+    color: var(--insurance-white);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--insurance-green) 0%, var(--insurance-green-dark) 100%);
+    color: var(--insurance-white);
+    box-shadow: 0 2px 8px rgba(0, 184, 148, 0.2);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, var(--insurance-green-dark) 0%, var(--insurance-green) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--insurance-danger) 0%, #c0392b 100%);
+    color: var(--insurance-white);
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.2);
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+    color: var(--insurance-white);
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+.btn-sm {
+    height: 36px;
+    min-height: 36px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.btn-lg {
+    height: 52px;
+    min-height: 52px;
+    padding: 1rem 2rem;
+    font-size: 1.0625rem;
+}
+
+.btn-group,
+.button-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Cards - White with Subtle Shadows */
+.dashboard-card-modern,
+.card,
+.dashboard-card {
+    background: var(--insurance-white);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--insurance-gray);
+    transition: all 0.3s ease;
+}
+
+.dashboard-card-modern:hover,
+.card:hover,
+.dashboard-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 102, 204, 0.12);
+    border-color: var(--insurance-light-blue);
+}
+
+.stat-card {
+    background: var(--insurance-white);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid var(--insurance-blue);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 102, 204, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Tables - Blue Headers, Striped Rows */
+.table-modern,
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--insurance-white);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table-modern thead,
+table thead {
+    background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+}
+
+.table-modern th,
+table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--insurance-white);
+    border-bottom: 2px solid var(--insurance-teal-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table-modern tbody tr,
+table tbody tr {
+    border-bottom: 1px solid var(--insurance-gray);
+    transition: all 0.2s ease;
+}
+
+.table-modern tbody tr:nth-child(even),
+table tbody tr:nth-child(even) {
+    background: var(--insurance-gray-light);
+}
+
+.table-modern tbody tr:hover,
+table tbody tr:hover {
+    background: rgba(77, 166, 255, 0.1);
+}
+
+.table-modern td,
+table td {
+    padding: 1rem;
+    font-size: 0.9375rem;
+    color: var(--insurance-charcoal);
+}
+
+/* Status Badges - Insurance Colors */
+.badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-pending,
+.badge-warning {
+    background: rgba(253, 203, 110, 0.2);
+    color: #d68910;
+    border: 1px solid var(--insurance-warning);
+}
+
+.badge-approved,
+.badge-success {
+    background: rgba(0, 184, 148, 0.2);
+    color: var(--insurance-green-dark);
+    border: 1px solid var(--insurance-green);
+}
+
+.badge-rejected,
+.badge-danger {
+    background: rgba(231, 76, 60, 0.2);
+    color: #c0392b;
+    border: 1px solid var(--insurance-danger);
+}
+
+/* Forms - Clean Inputs with Blue Focus */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label,
+label {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--insurance-charcoal);
+    margin-bottom: 0.5rem;
+    display: block;
+    line-height: 1.5;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="file"],
+textarea,
+select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--insurance-gray);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    color: var(--insurance-charcoal);
+    background: var(--insurance-white);
+    transition: all 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--insurance-blue);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.hint,
+small.hint,
+.form-group small {
+    font-size: 0.8125rem;
+    color: var(--insurance-gray-dark);
+    margin-top: 0.25rem;
+    display: block;
+    line-height: 1.4;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Modal Styles - Insurance Theme */
+#requestDetailsModal .modal-content {
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+#requestDetailsModal .modal-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 2px solid var(--insurance-teal-light);
+    background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+    color: var(--insurance-white);
+    border-radius: 12px 12px 0 0;
+}
+
+#requestDetailsModal .modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--insurance-white);
+}
+
+#requestDetailsModal .modal-close {
+    color: var(--insurance-white);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+#requestDetailsModal .modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+#requestDetailsModal .modal-body {
+    padding: 2rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: var(--insurance-gray-light);
+}
+
+#requestDetailsModal .modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 2px solid var(--insurance-gray);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    background: var(--insurance-white);
+    border-radius: 0 0 12px 12px;
+}
+
+.request-details {
+    background: var(--insurance-white);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--insurance-gray);
+}
+
+.request-details h3 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--insurance-blue-dark);
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--insurance-gray);
+}
+
+.detail-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background: var(--insurance-white);
+    border-radius: 8px;
+    border-left: 4px solid var(--insurance-blue);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.detail-row:hover {
+    box-shadow: 0 4px 8px rgba(0, 102, 204, 0.1);
+    transform: translateX(4px);
+    border-left-color: var(--insurance-teal);
+}
+
+.detail-row strong {
+    min-width: 140px;
+    color: var(--insurance-charcoal);
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-right: 1rem;
+}
+
+.detail-row span {
+    color: var(--insurance-charcoal);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.info-banner {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    background: linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 168, 168, 0.1) 100%);
+    border-radius: 10px;
+    border-left: 4px solid var(--insurance-blue);
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.15);
+}
+
+.info-banner i {
+    font-size: 1.25rem;
+    color: var(--insurance-blue);
+    margin-right: 0.75rem;
+}
+
+.info-banner span {
+    color: var(--insurance-blue-dark);
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.warning-message {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    margin-top: 1rem;
+    background: rgba(253, 203, 110, 0.2);
+    border-radius: 8px;
+    border-left: 4px solid var(--insurance-warning);
+    color: #d68910;
+    font-size: 0.9rem;
+}
+
+.warning-message i {
+    margin-right: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.document-section {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background: var(--insurance-white);
+    border-radius: 10px;
+    border: 1px solid var(--insurance-gray);
+}
+
+.document-section strong {
+    display: block;
+    margin-bottom: 0.75rem;
+    color: var(--insurance-charcoal);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.action-buttons-container {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--insurance-gray);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-content {
+        padding: 1rem;
+    }
+    
+    .dashboard-content h1,
+    .dashboard-content .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .dashboard-content h2,
+    .section-title {
+        font-size: 1.25rem;
+    }
+    
+    .dashboard-content h3 {
+        font-size: 1.125rem;
+    }
+    
+    button,
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-success,
+    .btn-danger {
+        width: 100%;
+        margin-bottom: 0.75rem;
+    }
+    
+    .btn-group,
+    .button-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .dashboard-card-modern,
+    .card,
+    .dashboard-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .section-header {
+        margin-bottom: 1rem;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .action-buttons-container {
+        flex-direction: column;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .form-row {
+        gap: 1rem;
+    }
+    
+    .btn-group,
+    .button-group {
+        flex-wrap: wrap;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (min-width: 1025px) {
+    .dashboard-content .container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+/* Utility Classes */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.flex { display: flex; }
+.flex-column { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 0.5rem; }
+.gap-2 { gap: 1rem; }
+.gap-3 { gap: 1.5rem; }
+

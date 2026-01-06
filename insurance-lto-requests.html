@@ -9,20 +9,45 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
-           INSURANCE SIDEBAR TOGGLE & HEADER IMPROVEMENTS
+           INSURANCE THEME - PROFESSIONAL BLUE/TEAL
            ============================================ */
         
-        /* Smooth Sidebar Transitions */
+        :root {
+            /* Insurance Color Palette */
+            --insurance-blue: #0066cc;
+            --insurance-blue-dark: #0052a3;
+            --insurance-blue-light: #1a7fd9;
+            --insurance-teal: #00a8a8;
+            --insurance-teal-dark: #008888;
+            --insurance-teal-light: #00c4c4;
+            --insurance-green: #00b894;
+            --insurance-green-dark: #009975;
+            --insurance-green-light: #00d4a8;
+            --insurance-light-blue: #4da6ff;
+            --insurance-white: #ffffff;
+            --insurance-gray-light: #f5f7fa;
+            --insurance-gray: #e1e8ed;
+            --insurance-gray-dark: #657786;
+            --insurance-charcoal: #14171a;
+            --insurance-success: #00b894;
+            --insurance-warning: #fdcb6e;
+            --insurance-danger: #e74c3c;
+            --insurance-info: #4da6ff;
+        }
+        
+        /* ============================================
+           SIDEBAR - INSURANCE BLUE/TEAL GRADIENT
+           ============================================ */
+        
         .dashboard-sidebar {
+            background: linear-gradient(180deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 50%, var(--insurance-teal) 100%);
+            border-right: 2px solid var(--insurance-teal-light);
             transition: width 0.3s ease-in-out;
         }
         
-        .dashboard-main {
-            transition: margin-left 0.3s ease-in-out;
-        }
-        
-        /* Insurance Icon Toggle Styling */
         .dashboard-sidebar .logo-icon {
+            background: linear-gradient(135deg, var(--insurance-teal-light) 0%, var(--insurance-light-blue) 100%);
+            color: var(--insurance-white);
             transition: opacity 0.2s ease, transform 0.2s ease;
             cursor: pointer;
         }
@@ -30,6 +55,7 @@
         .dashboard-sidebar .logo-icon:hover {
             opacity: 0.9;
             transform: scale(1.05);
+            background: linear-gradient(135deg, var(--insurance-light-blue) 0%, var(--insurance-teal-light) 100%);
         }
         
         .dashboard-sidebar .logo-icon:active {
@@ -42,15 +68,47 @@
             border-radius: 4px;
         }
         
-        .dashboard-sidebar .logo-text {
-            transition: opacity 0.2s ease, width 0.3s ease;
+        .dashboard-sidebar .logo-text h2,
+        .dashboard-sidebar .logo-text p {
+            color: var(--insurance-white);
         }
         
-        .dashboard-sidebar .nav-item span {
-            transition: opacity 0.2s ease;
+        .dashboard-sidebar .nav-item {
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
         }
         
-        /* Header Improvements */
+        .dashboard-sidebar .nav-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--insurance-white);
+        }
+        
+        .dashboard-sidebar .nav-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--insurance-white);
+            border-left: 3px solid var(--insurance-teal-light);
+        }
+        
+        .dashboard-sidebar .sidebar-user-name,
+        .dashboard-sidebar .sidebar-user-role {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .dashboard-main {
+            transition: margin-left 0.3s ease-in-out;
+            background: var(--insurance-gray-light);
+        }
+        
+        /* ============================================
+           HEADER - WHITE WITH BLUE ACCENTS
+           ============================================ */
+        
+        .dashboard-header {
+            background: var(--insurance-white);
+            border-bottom: 2px solid var(--insurance-blue);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
+        }
+        
         .dashboard-header .container {
             padding-left: 1.5rem;
             padding-right: 1.5rem;
@@ -71,14 +129,388 @@
             margin: 0;
             font-size: 1.5rem;
             font-weight: 600;
-            color: var(--gray-900, #111827);
+            color: var(--insurance-blue-dark);
+        }
+        
+        .dashboard-header p {
+            color: var(--insurance-gray-dark);
+            font-size: 0.9rem;
         }
         
         /* ============================================
-           REQUEST DETAILS MODAL UI/UX ENHANCEMENTS
+           TYPOGRAPHY & CONTENT
            ============================================ */
         
-        /* Enhanced Modal Styling */
+        .dashboard-content {
+            padding: 1.5rem;
+            color: var(--insurance-charcoal);
+            line-height: 1.6;
+        }
+        
+        .dashboard-content h1,
+        .dashboard-content .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin: 0 0 0.5rem 0;
+            color: var(--insurance-blue-dark);
+        }
+        
+        .dashboard-content h2,
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin: 0 0 0.5rem 0;
+            color: var(--insurance-blue-dark);
+        }
+        
+        .dashboard-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.4;
+            margin: 0 0 0.75rem 0;
+            color: var(--insurance-charcoal);
+        }
+        
+        .section-subtitle,
+        .dashboard-content p.subtitle {
+            font-size: 0.9375rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--insurance-gray-dark);
+            margin: 0 0 1.5rem 0;
+        }
+        
+        .section-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--insurance-gray);
+        }
+        
+        /* ============================================
+           BUTTONS - INSURANCE BLUE PRIMARY
+           ============================================ */
+        
+        button,
+        .btn,
+        .btn-primary,
+        .btn-success,
+        .btn-danger,
+        .btn-warning,
+        .btn-info,
+        .btn-sm,
+        .btn-lg,
+        a.btn,
+        a.btn-primary {
+            height: 44px;
+            min-height: 44px;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            line-height: 1.5;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+            color: var(--insurance-white);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        
+        .btn-secondary,
+        a.btn-secondary {
+            height: 44px;
+            min-height: 44px;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            line-height: 1.5;
+            border-radius: 8px;
+            border: 2px solid var(--insurance-light-blue);
+            background-color: var(--insurance-white);
+            color: var(--insurance-blue);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        .btn-secondary:hover,
+        a.btn-secondary:hover {
+            background-color: var(--insurance-light-blue);
+            background: linear-gradient(135deg, var(--insurance-light-blue) 0%, var(--insurance-teal-light) 100%);
+            border-color: var(--insurance-blue);
+            color: var(--insurance-white);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--insurance-green) 0%, var(--insurance-green-dark) 100%);
+            color: var(--insurance-white);
+            box-shadow: 0 2px 8px rgba(0, 184, 148, 0.2);
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, var(--insurance-green-dark) 0%, var(--insurance-green) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--insurance-danger) 0%, #c0392b 100%);
+            color: var(--insurance-white);
+            box-shadow: 0 2px 8px rgba(231, 76, 60, 0.2);
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+            color: var(--insurance-white);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
+        }
+        
+        .btn-info:hover {
+            background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        
+        .btn-sm {
+            height: 36px;
+            min-height: 36px;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-lg {
+            height: 52px;
+            min-height: 52px;
+            padding: 1rem 2rem;
+            font-size: 1.0625rem;
+        }
+        
+        .btn-group,
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        /* ============================================
+           CARDS - WHITE WITH SUBTLE SHADOWS
+           ============================================ */
+        
+        .dashboard-card-modern,
+        .card,
+        .dashboard-card {
+            background: var(--insurance-white);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--insurance-gray);
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-card-modern:hover,
+        .card:hover,
+        .dashboard-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 102, 204, 0.12);
+            border-color: var(--insurance-light-blue);
+        }
+        
+        .stat-card {
+            background: var(--insurance-white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-left: 4px solid var(--insurance-blue);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 102, 204, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        /* ============================================
+           TABLES - BLUE HEADERS, STRIPED ROWS
+           ============================================ */
+        
+        .table-modern,
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--insurance-white);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .table-modern thead,
+        table thead {
+            background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+        }
+        
+        .table-modern th,
+        table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: var(--insurance-white);
+            border-bottom: 2px solid var(--insurance-teal-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .table-modern tbody tr,
+        table tbody tr {
+            border-bottom: 1px solid var(--insurance-gray);
+            transition: all 0.2s ease;
+        }
+        
+        .table-modern tbody tr:nth-child(even),
+        table tbody tr:nth-child(even) {
+            background: var(--insurance-gray-light);
+        }
+        
+        .table-modern tbody tr:hover,
+        table tbody tr:hover {
+            background: rgba(77, 166, 255, 0.1);
+        }
+        
+        .table-modern td,
+        table td {
+            padding: 1rem;
+            font-size: 0.9375rem;
+            color: var(--insurance-charcoal);
+        }
+        
+        /* ============================================
+           STATUS BADGES - INSURANCE COLORS
+           ============================================ */
+        
+        .badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-pending,
+        .badge-warning {
+            background: rgba(253, 203, 110, 0.2);
+            color: #d68910;
+            border: 1px solid var(--insurance-warning);
+        }
+        
+        .badge-approved,
+        .badge-success {
+            background: rgba(0, 184, 148, 0.2);
+            color: var(--insurance-green-dark);
+            border: 1px solid var(--insurance-green);
+        }
+        
+        .badge-rejected,
+        .badge-danger {
+            background: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+            border: 1px solid var(--insurance-danger);
+        }
+        
+        /* ============================================
+           FORMS - CLEAN INPUTS WITH BLUE FOCUS
+           ============================================ */
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label,
+        label {
+            font-size: 0.9375rem;
+            font-weight: 500;
+            color: var(--insurance-charcoal);
+            margin-bottom: 0.5rem;
+            display: block;
+            line-height: 1.5;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        input[type="date"],
+        input[type="file"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--insurance-gray);
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            color: var(--insurance-charcoal);
+            background: var(--insurance-white);
+            transition: all 0.2s ease;
+        }
+        
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--insurance-blue);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+        
+        .hint,
+        small.hint,
+        .form-group small {
+            font-size: 0.8125rem;
+            color: var(--insurance-gray-dark);
+            margin-top: 0.25rem;
+            display: block;
+            line-height: 1.4;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* ============================================
+           MODAL STYLES - INSURANCE THEME
+           ============================================ */
+        
         #requestDetailsModal .modal-content {
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -86,9 +518,9 @@
         
         #requestDetailsModal .modal-header {
             padding: 1.5rem 2rem;
-            border-bottom: 2px solid #e9ecef;
-            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-            color: white;
+            border-bottom: 2px solid var(--insurance-teal-light);
+            background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+            color: var(--insurance-white);
             border-radius: 12px 12px 0 0;
         }
         
@@ -96,11 +528,11 @@
             margin: 0;
             font-size: 1.5rem;
             font-weight: 600;
-            color: white;
+            color: var(--insurance-white);
         }
         
         #requestDetailsModal .modal-close {
-            color: white;
+            color: var(--insurance-white);
             background: rgba(255, 255, 255, 0.2);
             border: none;
             width: 36px;
@@ -118,280 +550,100 @@
             padding: 2rem;
             max-height: 70vh;
             overflow-y: auto;
+            background: var(--insurance-gray-light);
         }
         
-        /* Enhanced Request Details Container */
+        #requestDetailsModal .modal-footer {
+            padding: 1.5rem 2rem;
+            border-top: 2px solid var(--insurance-gray);
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            background: var(--insurance-white);
+            border-radius: 0 0 12px 12px;
+        }
+        
         .request-details {
-            background: #f8f9fa;
+            background: var(--insurance-white);
             border-radius: 12px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
+            border: 1px solid var(--insurance-gray);
         }
         
         .request-details h3 {
             margin: 0 0 1.5rem 0;
             font-size: 1.25rem;
             font-weight: 600;
-            color: #2c3e50;
+            color: var(--insurance-blue-dark);
             padding-bottom: 0.75rem;
-            border-bottom: 2px solid #e9ecef;
+            border-bottom: 2px solid var(--insurance-gray);
         }
         
-        /* Enhanced Detail Row Styling */
         .detail-row {
             display: flex;
             align-items: flex-start;
             padding: 1rem;
             margin-bottom: 0.75rem;
-            background: white;
+            background: var(--insurance-white);
             border-radius: 8px;
-            border-left: 4px solid #2196f3;
+            border-left: 4px solid var(--insurance-blue);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             transition: all 0.2s ease;
         }
         
         .detail-row:hover {
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px rgba(0, 102, 204, 0.1);
             transform: translateX(4px);
+            border-left-color: var(--insurance-teal);
         }
         
         .detail-row strong {
             min-width: 140px;
-            color: #495057;
+            color: var(--insurance-charcoal);
             font-weight: 600;
             font-size: 0.9rem;
             margin-right: 1rem;
         }
         
-        .detail-row:not(:has(strong)) {
-            padding-left: 1.5rem;
-        }
-        
-        .detail-row span,
-        .detail-row {
-            color: #212529;
+        .detail-row span {
+            color: var(--insurance-charcoal);
             font-size: 0.95rem;
             line-height: 1.6;
         }
         
-        /* Enhanced Badge Styling */
-        .badge {
-            display: inline-block;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .badge-pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .badge-approved {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .badge-rejected {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        /* Enhanced Information Banner */
         .info-banner {
             display: flex;
             align-items: center;
             padding: 1rem 1.25rem;
             margin: 1.5rem 0;
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            background: linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 168, 168, 0.1) 100%);
             border-radius: 10px;
-            border-left: 4px solid #2196f3;
-            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+            border-left: 4px solid var(--insurance-blue);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.15);
         }
         
         .info-banner i {
             font-size: 1.25rem;
-            color: #2196f3;
+            color: var(--insurance-blue);
             margin-right: 0.75rem;
         }
         
         .info-banner span {
-            color: #1565c0;
+            color: var(--insurance-blue-dark);
             font-weight: 500;
             font-size: 0.95rem;
         }
         
-        /* Enhanced Button Styling */
-        .btn-info {
-            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .btn-info:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
-            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-        }
-        
-        .btn-info:active {
-            transform: translateY(0);
-        }
-        
-        .btn-success {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            border: none;
-            padding: 0.875rem 1.75rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
-            background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
-        }
-        
-        .btn-success:active {
-            transform: translateY(0);
-        }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-            color: white;
-            border: none;
-            padding: 0.875rem 1.75rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
-            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
-        }
-        
-        .btn-danger:active {
-            transform: translateY(0);
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: #495057;
-            border: 2px solid #dee2e6;
-            padding: 0.875rem 1.75rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-secondary:hover {
-            background: #f8f9fa;
-            border-color: #adb5bd;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-            color: white;
-            border: none;
-            padding: 0.875rem 1.75rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
-            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-        }
-        
-        .btn-primary:active {
-            transform: translateY(0);
-        }
-        
-        /* Action Buttons Container */
-        .action-buttons-container {
-            display: flex;
-            gap: 1rem;
-            margin-top: 2rem;
-            padding-top: 1.5rem;
-            border-top: 2px solid #e9ecef;
-        }
-        
-        /* Enhanced Modal Footer */
-        #requestDetailsModal .modal-footer {
-            padding: 1.5rem 2rem;
-            border-top: 2px solid #e9ecef;
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-            background: #f8f9fa;
-            border-radius: 0 0 12px 12px;
-        }
-        
-        /* Document Section Styling */
-        .document-section {
-            margin-top: 1.5rem;
-            padding: 1.25rem;
-            background: white;
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
-        }
-        
-        .document-section strong {
-            display: block;
-            margin-bottom: 0.75rem;
-            color: #495057;
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-        
-        /* Warning Message Styling */
         .warning-message {
             display: flex;
             align-items: center;
             padding: 1rem 1.25rem;
             margin-top: 1rem;
-            background: #fff3cd;
+            background: rgba(253, 203, 110, 0.2);
             border-radius: 8px;
-            border-left: 4px solid #ffc107;
-            color: #856404;
+            border-left: 4px solid var(--insurance-warning);
+            color: #d68910;
             font-size: 0.9rem;
         }
         
@@ -400,237 +652,39 @@
             font-size: 1.1rem;
         }
         
-        /* ============================================
-           COMPREHENSIVE UI/UX IMPROVEMENTS
-           ============================================ */
-        
-        /* 1. TEXT PLACEMENT & READABILITY */
-        /* Typography Hierarchy */
-        .dashboard-content h1,
-        .dashboard-content .page-title {
-            font-size: 2rem;
-            font-weight: 700;
-            line-height: 1.2;
-            margin: 0 0 0.5rem 0;
-            color: #111827;
+        .document-section {
+            margin-top: 1.5rem;
+            padding: 1.25rem;
+            background: var(--insurance-white);
+            border-radius: 10px;
+            border: 1px solid var(--insurance-gray);
         }
         
-        .dashboard-content h2,
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            line-height: 1.3;
-            margin: 0 0 0.5rem 0;
-            color: #1f2937;
-        }
-        
-        .dashboard-content h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            line-height: 1.4;
-            margin: 0 0 0.75rem 0;
-            color: #374151;
-        }
-        
-        .section-subtitle,
-        .dashboard-content p.subtitle {
-            font-size: 0.9375rem;
-            font-weight: 400;
-            line-height: 1.5;
-            color: #6b7280;
-            margin: 0 0 1.5rem 0;
-        }
-        
-        .section-header {
-            margin-bottom: 1.5rem;
-        }
-        
-        .section-header h2 {
-            margin-bottom: 0.25rem;
-        }
-        
-        /* Form Labels */
-        .form-group label,
-        label {
-            font-size: 0.9375rem;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 0.5rem;
+        .document-section strong {
             display: block;
-            line-height: 1.5;
-        }
-        
-        /* Helper Text */
-        .hint,
-        small.hint,
-        .form-group small {
-            font-size: 0.8125rem;
-            color: #6b7280;
-            margin-top: 0.25rem;
-            display: block;
-            line-height: 1.4;
-        }
-        
-        /* 2. BUTTON CONSISTENCY */
-        /* Unified Button System */
-        button,
-        .btn,
-        .btn-primary,
-        .btn-success,
-        .btn-danger,
-        .btn-warning,
-        .btn-info,
-        .btn-sm,
-        .btn-lg,
-        .btn-card-primary,
-        .btn-card-secondary,
-        .btn-card-success,
-        .btn-card-transfer,
-        a.btn,
-        a.btn-primary {
-            /* Base Properties */
-            height: 44px;
-            min-height: 44px;
-            padding: 0.75rem 1.5rem;
-            font-size: 0.9375rem;
+            margin-bottom: 0.75rem;
+            color: var(--insurance-charcoal);
             font-weight: 600;
-            line-height: 1.5;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-            text-decoration: none;
-            white-space: nowrap;
+            font-size: 0.95rem;
         }
         
-        /* Secondary buttons have border */
-        .btn-secondary,
-        a.btn-secondary {
-            height: 44px;
-            min-height: 44px;
-            padding: 0.75rem 1.5rem;
-            font-size: 0.9375rem;
-            font-weight: 600;
-            line-height: 1.5;
-            border-radius: 8px;
-            border: 2px solid #3b82f6;
-            background-color: #ffffff;
-            color: #3b82f6;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-            text-decoration: none;
-            white-space: nowrap;
-        }
-        
-        .btn-secondary:hover,
-        a.btn-secondary:hover {
-            background-color: #eff6ff;
-            border-color: #2563eb;
-            color: #2563eb;
-        }
-        
-        /* Small Buttons */
-        .btn-sm {
-            height: 36px;
-            min-height: 36px;
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-        }
-        
-        /* Large Buttons */
-        .btn-lg {
-            height: 52px;
-            min-height: 52px;
-            padding: 1rem 2rem;
-            font-size: 1.0625rem;
-        }
-        
-        /* Icon Buttons - Square */
-        button.icon-btn,
-        .btn-icon {
-            width: 44px;
-            min-width: 44px;
-            height: 44px;
-            min-height: 44px;
-            padding: 0;
-        }
-        
-        /* Button Alignment */
-        .btn-group,
-        .button-group {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .btn-group .btn,
-        .button-group button {
-            flex: 0 0 auto;
-        }
-        
-        /* Button Hover States */
-        .btn-primary:hover,
-        .btn-secondary:hover,
-        .btn-success:hover,
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        .btn-primary:active,
-        .btn-secondary:active,
-        .btn-success:active,
-        .btn-danger:active {
-            transform: translateY(0);
-        }
-        
-        /* 3. LAYOUT & SPACING */
-        /* Unified Spacing System (8px base) */
-        .dashboard-content {
-            padding: 1.5rem;
-        }
-        
-        .dashboard-card-modern,
-        .card,
-        .dashboard-card {
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-row {
+        .action-buttons-container {
             display: flex;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--insurance-gray);
         }
         
-        /* Prevent Edge Touching */
-        .dashboard-content .container {
-            max-width: 100%;
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
+        /* ============================================
+           RESPONSIVE DESIGN
+           ============================================ */
         
-        /* 4. RESPONSIVE DESIGN */
-        /* Mobile (≤ 768px) */
         @media (max-width: 768px) {
-            /* Typography */
+            .dashboard-content {
+                padding: 1rem;
+            }
+            
             .dashboard-content h1,
             .dashboard-content .page-title {
                 font-size: 1.5rem;
@@ -645,7 +699,6 @@
                 font-size: 1.125rem;
             }
             
-            /* Buttons - Full Width */
             button,
             .btn,
             .btn-primary,
@@ -662,19 +715,9 @@
                 width: 100%;
             }
             
-            .btn-group .btn:last-child,
-            .button-group button:last-child {
-                margin-bottom: 0;
-            }
-            
-            /* Layout - Stack Vertically */
             .form-row {
                 flex-direction: column;
                 gap: 0;
-            }
-            
-            .dashboard-content {
-                padding: 1rem;
             }
             
             .dashboard-card-modern,
@@ -688,14 +731,19 @@
                 margin-bottom: 1rem;
             }
             
-            /* Prevent Text Overflow */
-            .dashboard-content {
-                word-wrap: break-word;
-                overflow-wrap: break-word;
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+            }
+            
+            .action-buttons-container {
+                flex-direction: column;
             }
         }
         
-        /* Tablet (768px - 1024px) */
         @media (min-width: 769px) and (max-width: 1024px) {
             .form-row {
                 gap: 1rem;
@@ -705,78 +753,29 @@
             .button-group {
                 flex-wrap: wrap;
             }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
         }
         
-        /* Desktop (≥ 1025px) */
         @media (min-width: 1025px) {
             .dashboard-content .container {
                 max-width: 1400px;
                 margin: 0 auto;
             }
             
-            /* Grid Layouts */
-            .grid-2 {
+            .stats-grid {
                 display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 1.5rem;
-            }
-            
-            .grid-3 {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(4, 1fr);
                 gap: 1.5rem;
             }
         }
         
-        /* 5. VISUAL CLEANLINESS */
-        /* Improved Contrast */
-        .dashboard-content {
-            color: #1f2937;
-            line-height: 1.6;
-        }
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
         
-        /* Input Focus States */
-        input:focus,
-        textarea:focus,
-        select:focus {
-            outline: 2px solid #3b82f6;
-            outline-offset: 2px;
-            border-color: #3b82f6;
-        }
-        
-        /* Card Hover States */
-        .dashboard-card-modern:hover,
-        .card:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-            transition: box-shadow 0.2s ease;
-        }
-        
-        /* Table Improvements */
-        .table-modern,
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .table-modern th,
-        table th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        
-        .table-modern td,
-        table td {
-            padding: 1rem;
-            font-size: 0.9375rem;
-            color: #1f2937;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        
-        /* Alignment Helpers */
         .text-left { text-align: left; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }

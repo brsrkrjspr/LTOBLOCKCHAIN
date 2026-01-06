@@ -591,6 +591,437 @@
         .gap-1 { gap: 0.5rem; }
         .gap-2 { gap: 1rem; }
         .gap-3 { gap: 1.5rem; }
+
+        /* ============================================
+           Modern User Portal Theme Overrides
+           ============================================ */
+        :root {
+            --brand-primary: #2d7ff9;
+            --brand-secondary: #17c3b2;
+            --brand-surface: #f6f9fc;
+            --brand-card: #ffffff;
+            --brand-text: #0f172a;
+            --brand-muted: #64748b;
+            --brand-border: #e2e8f0;
+            --brand-gradient: linear-gradient(135deg, #2d7ff9 0%, #17c3b2 100%);
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: var(--brand-surface);
+            color: var(--brand-text);
+        }
+
+        .dashboard {
+            background: var(--brand-surface);
+            min-height: 100vh;
+        }
+
+        .dashboard-sidebar {
+            background: #0b1f3a;
+            border-right: 1px solid rgba(255,255,255,0.08);
+            padding: 1.25rem 1rem;
+        }
+
+        .dashboard-sidebar .sidebar-header {
+            padding: 0;
+            margin-bottom: 1.25rem;
+        }
+
+        .dashboard-sidebar .logo-image {
+            width: 72px !important;
+            height: auto !important;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .sidebar-nav .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 0.9rem;
+            border-radius: 12px;
+            color: #cbd5e1;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-nav .nav-item i {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .sidebar-nav .nav-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        .sidebar-nav .nav-item.active {
+            background: linear-gradient(135deg, #2d7ff9, #17c3b2);
+            color: #fff;
+            box-shadow: 0 10px 25px rgba(45,127,249,0.25);
+        }
+
+        .sidebar-nav .nav-item.active i {
+            background: rgba(255,255,255,0.18);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 1rem;
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+        }
+
+        .sidebar-user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #e2e8f0;
+        }
+
+        .sidebar-user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--brand-gradient);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .sidebar-user-details .sidebar-user-name {
+            font-weight: 700;
+        }
+
+        .sidebar-action-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #cbd5e1;
+            padding: 0.6rem 0.5rem;
+            border-radius: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .sidebar-action-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        .dashboard-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--brand-border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .dashboard-header .container {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        .dashboard-nav {
+            padding: 1rem 0;
+        }
+
+        .dashboard-header .logo h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .blockchain-status-badge {
+            background: #f1f5f9;
+            color: #0f172a;
+            border: 1px solid var(--brand-border);
+            padding: 0.5rem 0.75rem;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .user-portal-profile {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: #f8fafc;
+            border: 1px solid var(--brand-border);
+            padding: 0.45rem 0.75rem;
+            border-radius: 999px;
+            position: relative;
+            cursor: pointer;
+            min-width: 190px;
+        }
+
+        .user-portal-profile .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--brand-gradient);
+            color: #fff;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(45,127,249,0.25);
+        }
+
+        .user-portal-profile .user-meta {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .user-meta .user-name {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .user-meta .user-role {
+            font-size: 0.8rem;
+            color: var(--brand-muted);
+        }
+
+        .profile-caret {
+            background: none;
+            border: none;
+            color: #475569;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .profile-dropdown {
+            position: absolute;
+            top: 110%;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid var(--brand-border);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            min-width: 200px;
+            padding: 0.5rem 0;
+            display: none;
+        }
+
+        .profile-dropdown a,
+        .profile-dropdown button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            text-align: left;
+            color: #0f172a;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .profile-dropdown a:hover,
+        .profile-dropdown button:hover {
+            background: #f8fafc;
+        }
+
+        .user-portal-profile.open .profile-dropdown {
+            display: block;
+        }
+
+        .dashboard-content {
+            padding: 2rem 1.5rem;
+        }
+
+        .welcome-section {
+            background: #ffffff;
+            border: 1px solid var(--brand-border);
+            border-radius: 18px;
+            padding: 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            box-shadow: 0 8px 25px rgba(15,23,42,0.06);
+        }
+
+        .welcome-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0 0 0.35rem 0;
+        }
+
+        .welcome-subtitle {
+            margin: 0;
+            color: var(--brand-muted);
+        }
+
+        .stats-grid-modern {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0 0.5rem 0;
+        }
+
+        .stat-card-modern {
+            background: #ffffff;
+            border: 1px solid var(--brand-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1rem;
+            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+        }
+
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--brand-gradient);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(45,127,249,0.25);
+        }
+
+        .stat-number-modern {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .stat-label-modern {
+            color: var(--brand-muted);
+            font-weight: 600;
+        }
+
+        .dashboard-grid-modern {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+
+        .dashboard-card-modern {
+            background: #ffffff;
+            border: 1px solid var(--brand-border);
+            border-radius: 16px;
+            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+        }
+
+        .card-header-modern h3 {
+            margin: 0;
+            color: #0f172a;
+        }
+
+        .card-description {
+            color: var(--brand-muted);
+        }
+
+        .btn-card-primary,
+        .btn-card-secondary,
+        .btn-card-success,
+        .btn-card-transfer,
+        .btn-card-info {
+            width: 100%;
+            justify-content: center;
+            border-radius: 12px;
+        }
+
+        .btn-primary,
+        a.btn-primary {
+            background: var(--brand-gradient);
+            border: none;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(45,127,249,0.25);
+        }
+
+        .btn-primary:hover,
+        a.btn-primary:hover {
+            filter: brightness(1.03);
+        }
+
+        .table-card {
+            border: 1px solid var(--brand-border);
+        }
+
+        .application-tabs {
+            background: #f8fafc;
+            border: 1px solid var(--brand-border);
+            border-radius: 12px;
+            padding: 0.4rem;
+            display: inline-flex;
+            gap: 0.35rem;
+        }
+
+        .application-tabs .app-tab {
+            border-radius: 10px;
+            border: none;
+            background: transparent;
+            color: #0f172a;
+            padding: 0.75rem 1.1rem;
+            font-weight: 700;
+        }
+
+        .application-tabs .app-tab.active {
+            background: #ffffff;
+            box-shadow: 0 6px 12px rgba(15,23,42,0.06);
+            color: #0f172a;
+        }
+
+        .status-indicator.pending { background: #fbbf24; }
+        .status-indicator.success { background: #22c55e; }
+        .status-indicator.danger { background: #ef4444; }
+
+        .mobile-application-card,
+        .notifications-card {
+            border: 1px solid var(--brand-border);
+            border-radius: 16px;
+            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-content {
+                padding: 1.25rem 1rem;
+            }
+
+            .welcome-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .nav-actions {
+                gap: 0.75rem;
+            }
+
+            .user-portal-profile {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
     </style>
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
@@ -692,25 +1123,25 @@
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="registration-wizard.html" class="nav-item">
-                    <i class="fas fa-car"></i>
-                    <span>New Registration</span>
-                </a>
-                <a href="transfer-ownership.html" class="nav-item">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span>Transfer of Ownership</span>
+                <a href="#applications" class="nav-item">
+                    <i class="fas fa-list"></i>
+                    <span>My Applications</span>
                 </a>
                 <a href="my-vehicle-ownership.html" class="nav-item">
                     <i class="fas fa-car"></i>
                     <span>My Vehicles</span>
                 </a>
-                <a href="#applications" class="nav-item">
-                    <i class="fas fa-list"></i>
-                    <span>My Applications</span>
+                <a href="registration-wizard.html" class="nav-item">
+                    <i class="fas fa-car-side"></i>
+                    <span>New Registration</span>
                 </a>
                 <a href="#notifications" class="nav-item">
                     <i class="fas fa-bell"></i>
                     <span>Notifications</span>
+                </a>
+                <a href="transfer-ownership.html" class="nav-item">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
                 </a>
             </nav>
             
@@ -746,10 +1177,27 @@
                             </div>
                         </div>
                         <div class="nav-right">
-                            <!-- Blockchain Status Badge -->
-                            <div id="blockchainStatusBadge" class="blockchain-status-badge">
-                                <div class="status-indicator loading"></div>
-                                <span class="status-text">Connecting to Blockchain...</span>
+                            <div class="nav-actions">
+                                <!-- Blockchain Status Badge -->
+                                <div id="blockchainStatusBadge" class="blockchain-status-badge">
+                                    <div class="status-indicator loading"></div>
+                                    <span class="status-text">Connecting to Blockchain...</span>
+                                </div>
+                                <div class="user-portal-profile" id="userProfileMenu">
+                                    <div class="user-avatar" id="userAvatar">OU</div>
+                                    <div class="user-meta">
+                                        <span class="user-name" id="userName">Owner</span>
+                                        <span class="user-role" id="userRole">Vehicle Owner</span>
+                                    </div>
+                                    <button class="profile-caret" aria-label="Open profile menu">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                    <div class="profile-dropdown" id="profileDropdown">
+                                        <a href="profile.html"><i class="fas fa-user"></i> Profile</a>
+                                        <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
+                                        <button id="profileLogoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1317,6 +1765,38 @@
                             localStorage.clear();
                             window.location.href = 'index.html';
                         }
+                    }
+                });
+            }
+            
+            // Profile dropdown + logout
+            const profileMenu = document.getElementById('userProfileMenu');
+            const profileDropdown = document.getElementById('profileDropdown');
+            const profileLogoutBtn = document.getElementById('profileLogoutBtn');
+
+            if (profileMenu) {
+                profileMenu.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    profileMenu.classList.toggle('open');
+                });
+            }
+
+            document.addEventListener('click', function() {
+                if (profileMenu) profileMenu.classList.remove('open');
+            });
+
+            if (profileLogoutBtn) {
+                profileLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof window.authManager !== 'undefined') {
+                            window.authManager.logout();
+                        } else if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                        }
+                        window.location.href = 'index.html';
                     }
                 });
             }

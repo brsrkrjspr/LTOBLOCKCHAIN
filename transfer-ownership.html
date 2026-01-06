@@ -574,6 +574,203 @@
         .orcr-info-badge i {
             margin-right: 4px;
         }
+
+        /* ============================================
+           Modern User Portal Theme Overrides
+           ============================================ */
+        :root {
+            --brand-primary: #2d7ff9;
+            --brand-secondary: #17c3b2;
+            --brand-surface: #f6f9fc;
+            --brand-card: #ffffff;
+            --brand-text: #0f172a;
+            --brand-muted: #64748b;
+            --brand-border: #e2e8f0;
+            --brand-gradient: linear-gradient(135deg, #2d7ff9 0%, #17c3b2 100%);
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: var(--brand-surface);
+            color: var(--brand-text);
+        }
+
+        .dashboard {
+            background: var(--brand-surface);
+            min-height: 100vh;
+        }
+
+        .dashboard-sidebar {
+            background: #0b1f3a;
+            border-right: 1px solid rgba(255,255,255,0.08);
+            padding: 1.25rem 1rem;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .sidebar-nav .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 0.9rem;
+            border-radius: 12px;
+            color: #cbd5e1;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-nav .nav-item i {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .sidebar-nav .nav-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        .sidebar-nav .nav-item.active {
+            background: linear-gradient(135deg, #2d7ff9, #17c3b2);
+            color: #fff;
+            box-shadow: 0 10px 25px rgba(45,127,249,0.25);
+        }
+
+        .sidebar-nav .nav-item.active i { background: rgba(255,255,255,0.18); }
+
+        .dashboard-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--brand-border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .dashboard-nav { padding: 1rem 0; }
+
+        .dashboard-header .logo h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-portal-profile {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: #f8fafc;
+            border: 1px solid var(--brand-border);
+            padding: 0.45rem 0.75rem;
+            border-radius: 999px;
+            position: relative;
+            cursor: pointer;
+            min-width: 190px;
+        }
+
+        .user-portal-profile .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--brand-gradient);
+            color: #fff;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(45,127,249,0.25);
+        }
+
+        .user-portal-profile .user-meta {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .user-meta .user-name { font-weight: 700; color: #0f172a; }
+        .user-meta .user-role { font-size: 0.8rem; color: var(--brand-muted); }
+
+        .profile-caret {
+            background: none;
+            border: none;
+            color: #475569;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .profile-dropdown {
+            position: absolute;
+            top: 110%;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid var(--brand-border);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            min-width: 200px;
+            padding: 0.5rem 0;
+            display: none;
+        }
+
+        .profile-dropdown a,
+        .profile-dropdown button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            text-align: left;
+            color: #0f172a;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .profile-dropdown a:hover,
+        .profile-dropdown button:hover { background: #f8fafc; }
+
+        .user-portal-profile.open .profile-dropdown { display: block; }
+
+        .dashboard-content { padding: 2rem 1.5rem; }
+        .transfer-card { border: 1px solid var(--brand-border); border-radius: 16px; box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
+        .wizard-progress { background: #fff; border: 1px solid var(--brand-border); border-radius: 16px; padding: 1rem; }
+
+        .btn-primary,
+        a.btn-primary {
+            background: var(--brand-gradient);
+            border: none;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(45,127,249,0.25);
+        }
+
+        .btn-secondary,
+        a.btn-secondary {
+            border: 2px solid #2d7ff9;
+            color: #2d7ff9;
+            background: #ffffff;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-content { padding: 1.25rem 1rem; }
+            .nav-actions { gap: 0.75rem; }
+            .user-portal-profile { width: 100%; justify-content: space-between; }
+        }
     </style>
 </head>
 <body>
@@ -590,25 +787,25 @@
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="registration-wizard.html" class="nav-item">
-                    <i class="fas fa-car"></i>
-                    <span>New Registration</span>
-                </a>
-                <a href="transfer-ownership.html" class="nav-item active">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span>Transfer of Ownership</span>
+                <a href="owner-dashboard.html#applications" class="nav-item">
+                    <i class="fas fa-list"></i>
+                    <span>My Applications</span>
                 </a>
                 <a href="my-vehicle-ownership.html" class="nav-item">
                     <i class="fas fa-car"></i>
                     <span>My Vehicles</span>
                 </a>
-                <a href="owner-dashboard.html#applications" class="nav-item">
-                    <i class="fas fa-list"></i>
-                    <span>My Applications</span>
+                <a href="registration-wizard.html" class="nav-item">
+                    <i class="fas fa-car-side"></i>
+                    <span>New Registration</span>
                 </a>
                 <a href="owner-dashboard.html#notifications" class="nav-item">
                     <i class="fas fa-bell"></i>
                     <span>Notifications</span>
+                </a>
+                <a href="transfer-ownership.html" class="nav-item active">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
                 </a>
             </nav>
             
@@ -643,6 +840,23 @@
                             </div>
                         </div>
                         <div class="nav-right">
+                            <div class="nav-actions">
+                                <div class="user-portal-profile" id="userProfileMenu">
+                                    <div class="user-avatar" id="userAvatar">OU</div>
+                                    <div class="user-meta">
+                                        <span class="user-name" id="userName">Owner</span>
+                                        <span class="user-role" id="userRole">Vehicle Owner</span>
+                                    </div>
+                                    <button class="profile-caret" aria-label="Open profile menu">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                    <div class="profile-dropdown" id="profileDropdown">
+                                        <a href="profile.html"><i class="fas fa-user"></i> Profile</a>
+                                        <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
+                                        <button id="profileLogoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1088,6 +1302,35 @@
             
             // Initialize mobile navigation
             initializeMobileNavigation();
+            
+            // Profile dropdown + logout
+            const profileMenu = document.getElementById('userProfileMenu');
+            const profileLogoutBtn = document.getElementById('profileLogoutBtn');
+
+            if (profileMenu) {
+                profileMenu.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    profileMenu.classList.toggle('open');
+                });
+            }
+
+            document.addEventListener('click', function() {
+                if (profileMenu) profileMenu.classList.remove('open');
+            });
+
+            if (profileLogoutBtn) {
+                profileLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                        }
+                        window.location.href = 'index.html';
+                    }
+                });
+            }
             
             } catch (error) {
                 console.error('❌ Initialization error:', error);

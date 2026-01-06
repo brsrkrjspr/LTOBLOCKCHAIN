@@ -656,6 +656,12 @@
             padding: 2rem 1.5rem;
         }
 
+        /* Ensure container uses full width for landscape layout */
+        .dashboard-content .container {
+            max-width: 100% !important;
+            width: 100%;
+        }
+
         /* ============================================
            Landscape Registration Wizard Design
            ============================================ */
@@ -674,20 +680,31 @@
             border-radius: 16px;
             box-shadow: 0 6px 16px rgba(15,23,42,0.06);
             padding: 1.5rem;
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
         }
 
-        /* Landscape Form Layout - Use More Horizontal Space */
+        /* Landscape Form Layout - Use More Horizontal Space - Override base styles */
         .wizard-form {
-            max-width: 100%;
-            margin: 0;
+            max-width: 100% !important;
+            margin: 0 !important;
+            width: 100%;
         }
 
-        /* Form Rows - 3-4 Columns for Landscape */
-        .wizard-form .form-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-bottom: 1rem;
+        /* Form Rows - 3 Columns for Landscape - Override base 2-column layout */
+        .wizard-form .form-row,
+        .wizard-step .form-row,
+        .form-container .form-row,
+        .wizard-step .form-container .wizard-form .form-row,
+        #step-1 .form-row,
+        #step-2 .form-row,
+        #step-3 .form-row,
+        #step-4 .form-row {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 1rem !important;
+            margin-bottom: 1rem !important;
         }
 
         /* Full-width fields (like address, VIN) */
@@ -847,8 +864,10 @@
 
         /* Responsive: Tablet - 2 columns */
         @media (min-width: 769px) and (max-width: 1200px) {
-            .wizard-form .form-row {
-                grid-template-columns: repeat(2, 1fr);
+            .wizard-form .form-row,
+            .wizard-step .form-row,
+            .form-container .form-row {
+                grid-template-columns: repeat(2, 1fr) !important;
             }
 
             .review-section .review-grid {
@@ -858,9 +877,11 @@
 
         /* Responsive: Mobile - Stack vertically */
         @media (max-width: 768px) {
-            .wizard-form .form-row {
-                grid-template-columns: 1fr;
-                gap: 0.75rem;
+            .wizard-form .form-row,
+            .wizard-step .form-row,
+            .form-container .form-row {
+                grid-template-columns: 1fr !important;
+                gap: 0.75rem !important;
             }
 
             .upload-item {

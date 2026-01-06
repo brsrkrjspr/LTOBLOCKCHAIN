@@ -341,14 +341,19 @@
         
         /* Section Headers */
         .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
         }
         
         .section-title {
             font-size: 1.5rem;
             font-weight: 700;
             color: #0f172a;
-            margin: 0 0 0.5rem 0;
+            margin: 0;
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -358,6 +363,7 @@
             font-size: 0.9375rem;
             color: #64748b;
             margin: 0;
+            font-weight: 400;
         }
         
         /* Action Cards */
@@ -842,6 +848,9 @@
 
             /* Section Headers - Better Spacing */
             .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
                 margin-bottom: 1.5rem;
             }
 
@@ -1116,24 +1125,24 @@
                     </div>
                 </div>
 
+                <!-- Transaction Search Section -->
+                <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                    <h3><i class="fas fa-search"></i> Search Transaction</h3>
+                    <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details</p>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="text" 
+                               id="txSearchInput" 
+                               placeholder="Enter Transaction ID" 
+                               style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                        <button onclick="searchTransaction()" class="btn-primary" style="padding: 0.75rem 1.5rem;">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                    <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in blockchain records.</small>
+                </div>
+
                 <!-- Quick Actions -->
                 <div class="section-header">
-                    <!-- Transaction Search Section -->
-                    <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
-                        <h3><i class="fas fa-search"></i> Search Transaction</h3>
-                        <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details</p>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                            <input type="text" 
-                                   id="txSearchInput" 
-                                   placeholder="Enter Transaction ID" 
-                                   style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
-                            <button onclick="searchTransaction()" class="btn-primary" style="padding: 0.75rem 1.5rem;">
-                                <i class="fas fa-search"></i> Search
-                            </button>
-                        </div>
-                        <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in blockchain records.</small>
-                    </div>
-
                     <h2 class="section-title">Quick Actions</h2>
                     <p class="section-subtitle">Access frequently used features</p>
                 </div>

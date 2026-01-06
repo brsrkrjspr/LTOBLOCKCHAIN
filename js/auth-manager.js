@@ -13,12 +13,45 @@ class AuthManager {
      */
     async init() {
         try {
-            // Check if user has a refresh token cookie (indicates logged in)
+            // FIRST: Load existing token from localStorage if available
+            // This ensures the token is available immediately on page load
+            const storedToken = localStorage.getItem('authToken');
+            if (storedToken && !storedToken.startsWith('demo-token-') && storedToken !== 'dev-token-bypass') {
+                // Validate token format and expiration before using it
+                try {
+                    const parts = storedToken.split('.');
+                    if (parts.length === 3) {
+                        const payload = JSON.parse(atob(parts[1]));
+                        const expiration = payload.exp * 1000;
+                        
+                        // Only use token if it's not expired (with 30 second buffer)
+                        if (expiration > Date.now() + 30000) {
+                            this.accessToken = storedToken;
+                            this.scheduleTokenRefresh();
+                            console.log('✅ Loaded existing access token from localStorage');
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse stored token:', e);
+                }
+            }
+            
+            // THEN: Check if user has a refresh token cookie (indicates logged in)
             const hasRefreshToken = this.getCookie('refreshToken');
             
             if (hasRefreshToken) {
-                // User is logged in, refresh token immediately
-                await this.refreshAccessToken();
+                // If we don't have a valid token, refresh immediately
+                if (!this.accessToken) {
+                    console.log('🔄 No valid access token, refreshing...');
+                    await this.refreshAccessToken();
+                } else {
+                    // If we have a token, refresh it in the background (non-blocking)
+                    // This ensures we have a fresh token but doesn't block page load
+                    this.refreshAccessToken().catch(error => {
+                        console.warn('Background token refresh failed:', error);
+                        // Don't clear token if refresh fails - user might still have valid token
+                    });
+                }
             }
         } catch (error) {
             console.error('AuthManager init error:', error);
@@ -31,6 +64,12 @@ class AuthManager {
      */
     setAccessToken(token) {
         this.accessToken = token;
+        
+        // Also persist to localStorage for page reloads
+        if (token && !token.startsWith('demo-token-') && token !== 'dev-token-bypass') {
+            localStorage.setItem('authToken', token);
+        }
+        
         this.scheduleTokenRefresh();
     }
 

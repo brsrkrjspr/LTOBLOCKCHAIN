@@ -1841,6 +1841,8 @@
             padding: 1.25rem 1.5rem;
             margin-bottom: 1rem;
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+            display: block;
+            gap: 0;
         }
 
         .vehicle-card.pending,
@@ -1854,6 +1856,17 @@
             grid-template-areas: "identity main actions";
             gap: 1.25rem;
             align-items: stretch;
+        }
+
+        /* Override legacy stacked layouts to force landscape structure */
+        .vehicle-card .card-sections,
+        .vehicle-card .vehicle-info,
+        .vehicle-card .vehicle-status {
+            display: contents;
+        }
+
+        .vehicle-card .vehicle-actions {
+            grid-template-rows: repeat(3, 48px);
         }
 
         .vehicle-identity {

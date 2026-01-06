@@ -9,19 +9,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
-           SIDEBAR TRANSITIONS & HEADER IMPROVEMENTS
+           ENTERPRISE ADMIN THEME - DOCUMENT VIEWER
+           Professional, Data-Focused, Efficient
            ============================================ */
         
-        /* Smooth Sidebar Transitions */
+        /* Dark Professional Sidebar */
         .dashboard-sidebar {
+            background: #0f172a !important; /* Navy/Charcoal */
+            border-right: 1px solid rgba(255,255,255,0.08);
             transition: width 0.3s ease-in-out;
         }
         
-        .dashboard-main {
-            transition: margin-left 0.3s ease-in-out;
+        .dashboard-sidebar .sidebar-header {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
         .dashboard-sidebar .logo-icon {
+            background: rgba(255,255,255,0.1);
+            color: #ffffff;
             transition: opacity 0.2s ease, transform 0.2s ease;
             cursor: pointer;
         }
@@ -29,6 +34,7 @@
         .dashboard-sidebar .logo-icon:hover {
             opacity: 0.9;
             transform: scale(1.05);
+            background: rgba(255,255,255,0.15);
         }
         
         .dashboard-sidebar .logo-icon:active {
@@ -39,11 +45,52 @@
             transition: opacity 0.2s ease, width 0.3s ease;
         }
         
-        .dashboard-sidebar .nav-item span {
+        .dashboard-sidebar .logo-text h2 {
+            color: #ffffff;
+        }
+        
+        .dashboard-sidebar .logo-text p {
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .dashboard-sidebar .nav-item {
+            color: rgba(255,255,255,0.85);
             transition: opacity 0.2s ease;
         }
         
-        /* Header Logo Positioning */
+        .dashboard-sidebar .nav-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: #ffffff;
+        }
+        
+        .dashboard-sidebar .nav-item.active {
+            background: rgba(37, 99, 235, 0.2);
+            color: #60a5fa;
+            border-left: 3px solid #2563eb;
+        }
+        
+        .dashboard-sidebar .sidebar-footer {
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Main Content - Light & Spacious */
+        .dashboard-main {
+            background: #f8fafc;
+            transition: margin-left 0.3s ease-in-out;
+        }
+        
+        .dashboard-content {
+            padding: 2rem;
+            max-width: 100%;
+        }
+        
+        /* Professional Header */
+        .dashboard-header {
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
         .dashboard-header .logo {
             display: flex;
             align-items: center;
@@ -53,34 +100,57 @@
         .dashboard-header .logo h1 {
             margin: 0;
             font-size: 1.25rem;
-            font-weight: 600;
-            color: #1a1a1a;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.01em;
         }
         
+        /* Document Viewer - Maximize Width */
         .document-viewer-admin {
-            padding: 20px;
-            max-width: 1600px;
-            margin: 0 auto;
+            padding: 0;
+            max-width: 100%;
+            margin: 0;
+        }
+        
+        .document-viewer-admin .container {
+            max-width: 100%;
+            padding: 0;
         }
         .viewer-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            padding: 1.5rem 2rem;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
+        
+        .viewer-header h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .viewer-header p {
+            color: #64748b;
+            font-size: 0.9375rem;
+            margin: 0;
+        }
+        
         .document-filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem 2rem;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .filter-group {
             display: flex;
@@ -101,16 +171,25 @@
         }
         .documents-grid {
             display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 20px;
+            grid-template-columns: 320px 1fr;
+            gap: 1.5rem;
         }
+        
         .documents-list {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 20px;
-            max-height: 800px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            max-height: calc(100vh - 300px);
             overflow-y: auto;
+        }
+        
+        .documents-list h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin: 0 0 1.5rem 0;
         }
         .document-item {
             padding: 15px;
@@ -160,10 +239,11 @@
             margin-top: 5px;
         }
         .document-viewer-panel {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 30px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            padding: 2rem;
             min-height: 600px;
         }
         .document-preview-area {

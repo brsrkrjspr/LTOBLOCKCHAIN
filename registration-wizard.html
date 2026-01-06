@@ -728,12 +728,13 @@
         .wizard-form {
             max-width: 100%;
             margin: 0 auto;
+            width: 100%;
         }
-
-        /* Form Rows - 3-4 Columns for Landscape */
+        
+        /* Form Rows - Responsive columns that fill available space */
         .wizard-form .form-row {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
             gap: 1rem;
             margin-bottom: 1rem;
         }
@@ -1130,9 +1131,6 @@
                                     <input type="text" id="color" name="color" placeholder="e.g., White, Black, Silver" required>
                                     <small class="form-hint">Example: White, Black, Silver, Red, Blue</small>
                                 </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
-                                </div>
                             </div>
 
                             <div class="form-row">
@@ -1145,9 +1143,6 @@
                                     <label for="chassisNumber">Chassis Number <span class="required">*</span></label>
                                     <input type="text" id="chassisNumber" name="chassisNumber" placeholder="e.g., JT1234567890" required>
                                     <small class="form-hint">Example: JT1234567890, 1HGBH41JXMN123456</small>
-                                </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 
@@ -1164,12 +1159,6 @@
                                     </select>
                                     <small class="form-hint">Select the primary classification of the vehicle.</small>
                                 </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
-                                </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
-                                </div>
                             </div>
 
                             <div class="form-row">
@@ -1182,9 +1171,6 @@
                                     <label for="plateNumber">License Plate Number <span class="required">*</span></label>
                                     <input type="text" id="plateNumber" name="plateNumber" placeholder="ABC-1234" required>
                                     <small class="form-hint">Format: 3 letters, dash, 4 numbers (e.g., ABC-1234, XYZ-5678)</small>
-                                </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 
@@ -1211,9 +1197,6 @@
                                     <input type="text" id="lastName" name="lastName" placeholder="e.g., Dela Cruz" required>
                                     <small class="form-hint">Example: Dela Cruz, Santos, Garcia</small>
                                 </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
-                                </div>
                             </div>
 
                             <div class="form-row">
@@ -1226,9 +1209,6 @@
                                     <label for="phone">Phone Number <span class="required">*</span></label>
                                     <input type="tel" id="phone" name="phone" placeholder="e.g., +63 912 345 6789" required>
                                     <small class="form-hint">Example: +63 912 345 6789, 0912-345-6789</small>
-                                </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 
@@ -1256,9 +1236,6 @@
                                     <label for="idNumber">ID Number <span class="required">*</span></label>
                                     <input type="text" id="idNumber" name="idNumber" placeholder="e.g., A01-23-456789" required>
                                     <small class="form-hint">Example: A01-23-456789, N123456789, PP1234567</small>
-                                </div>
-                                <div class="form-group">
-                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 

@@ -200,10 +200,28 @@
             background: linear-gradient(135deg, var(--hpg-navy) 0%, var(--hpg-navy-light) 100%);
         }
         
+        /* Pending Verification Requests Table Header - Match Sidebar */
+        #pendingRequestsTable thead {
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%);
+        }
+        
         table th,
         .table th,
         .table-modern th {
             color: var(--hpg-white);
+            font-weight: 700;
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 2px solid var(--hpg-gold);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Pending Verification Requests Table Header Cells - High Contrast */
+        #pendingRequestsTable thead th {
+            color: var(--hpg-white);
+            background: transparent;
             font-weight: 700;
             padding: 1rem;
             text-align: left;

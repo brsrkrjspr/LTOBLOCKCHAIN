@@ -942,7 +942,7 @@
             .btn-card-transfer {
                 width: 100% !important;
                 justify-content: center !important;
-            }
+        }
         
 
         /* Small Mobile (up to 480px) */
@@ -983,34 +983,34 @@
                 </div>
             </div>
             <nav class="sidebar-nav">
-                <a href="lto-inspection-form.html" class="nav-item">
-                    <i class="fas fa-clipboard-check"></i>
-                    <span>Vehicle Inspection</span>
+                <a href="admin-blockchain-viewer.html" class="nav-item">
+                    <i class="fas fa-link"></i>
+                    <span>Blockchain Ledger</span>
                 </a>
                 <a href="admin-dashboard.html" class="nav-item active">
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="user-management.html" class="nav-item">
-                    <i class="fas fa-users"></i>
-                    <span>User Management</span>
+                <a href="admin-document-viewer.html" class="nav-item">
+                    <i class="fas fa-eye"></i>
+                    <span>Document Viewer</span>
                 </a>
-                <a href="admin-blockchain-viewer.html" class="nav-item">
-                    <i class="fas fa-link"></i>
-                    <span>Blockchain Ledger</span>
+                <a href="vehicle-ownership-trace.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Ownership Trace</span>
                 </a>
                 <a href="admin-transfer-requests.html" class="nav-item">
                     <i class="fas fa-exchange-alt"></i>
                     <span>Transfer of Ownership</span>
                     <span class="badge" id="transferBadge" style="display: none;">3</span>
                 </a>
-                <a href="vehicle-ownership-trace.html" class="nav-item">
-                    <i class="fas fa-history"></i>
-                    <span>Ownership Trace</span>
+                <a href="user-management.html" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
                 </a>
-                <a href="admin-document-viewer.html" class="nav-item">
-                    <i class="fas fa-eye"></i>
-                    <span>Document Viewer</span>
+                <a href="lto-inspection-form.html" class="nav-item">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Vehicle Inspection</span>
                 </a>
             </nav>
             
@@ -1125,21 +1125,21 @@
                     </div>
                 </div>
 
-                <!-- Transaction Search Section -->
-                <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
-                    <h3><i class="fas fa-search"></i> Search Transaction</h3>
-                    <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details</p>
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                        <input type="text" 
-                               id="txSearchInput" 
-                               placeholder="Enter Transaction ID" 
-                               style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
-                        <button onclick="searchTransaction()" class="btn-primary" style="padding: 0.75rem 1.5rem;">
-                            <i class="fas fa-search"></i> Search
-                        </button>
+                    <!-- Transaction Search Section -->
+                    <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                        <h3><i class="fas fa-search"></i> Search Transaction</h3>
+                        <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details</p>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                            <input type="text" 
+                                   id="txSearchInput" 
+                                   placeholder="Enter Transaction ID" 
+                                   style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                            <button onclick="searchTransaction()" class="btn-primary" style="padding: 0.75rem 1.5rem;">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                        <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in blockchain records.</small>
                     </div>
-                    <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in blockchain records.</small>
-                </div>
 
                 <!-- Quick Actions -->
                 <div class="section-header">

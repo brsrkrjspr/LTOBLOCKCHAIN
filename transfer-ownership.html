@@ -840,23 +840,7 @@
                             </div>
                         </div>
                         <div class="nav-right">
-                            <div class="nav-actions">
-                                <div class="user-portal-profile" id="userProfileMenu">
-                                    <div class="user-avatar" id="userAvatar">OU</div>
-                                    <div class="user-meta">
-                                        <span class="user-name" id="userName">Owner</span>
-                                        <span class="user-role" id="userRole">Vehicle Owner</span>
-                                    </div>
-                                    <button class="profile-caret" aria-label="Open profile menu">
-                                        <i class="fas fa-chevron-down"></i>
-                                    </button>
-                                    <div class="profile-dropdown" id="profileDropdown">
-                                        <a href="profile.html"><i class="fas fa-user"></i> Profile</a>
-                                        <a href="settings.html"><i class="fas fa-cog"></i> Settings</a>
-                                        <button id="profileLogoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- Header user dropdown removed per UI requirements -->
                         </div>
                     </div>
                 </div>
@@ -1302,35 +1286,6 @@
             
             // Initialize mobile navigation
             initializeMobileNavigation();
-            
-            // Profile dropdown + logout
-            const profileMenu = document.getElementById('userProfileMenu');
-            const profileLogoutBtn = document.getElementById('profileLogoutBtn');
-
-            if (profileMenu) {
-                profileMenu.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    profileMenu.classList.toggle('open');
-                });
-            }
-
-            document.addEventListener('click', function() {
-                if (profileMenu) profileMenu.classList.remove('open');
-            });
-
-            if (profileLogoutBtn) {
-                profileLogoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
-                        if (typeof AuthUtils !== 'undefined') {
-                            AuthUtils.logout();
-                        } else {
-                            localStorage.clear();
-                        }
-                        window.location.href = 'index.html';
-                    }
-                });
-            }
             
             } catch (error) {
                 console.error('❌ Initialization error:', error);

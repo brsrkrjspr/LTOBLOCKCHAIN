@@ -656,32 +656,37 @@
             padding: 2rem 1.5rem;
         }
 
-        /* Ensure container uses full width for landscape layout */
+        /* ============================================
+           Landscape Registration Wizard Design - Centered
+           ============================================ */
+        
+        /* Center the wizard container */
         .dashboard-content .container {
-            max-width: 100% !important;
-            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        /* ============================================
-           Landscape Registration Wizard Design
-           ============================================ */
         .wizard-progress {
             background: #fff;
             border: 1px solid var(--brand-border);
             border-radius: 16px;
-            padding: 1rem;
+            padding: 1rem 2rem;
             box-shadow: 0 6px 16px rgba(15,23,42,0.06);
-            margin: 0 auto 1.5rem auto;
-            max-width: 1400px;
+            margin-bottom: 1.5rem;
             width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
         }
 
-        /* Center all wizard step containers */
         .wizard-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
         }
 
         .wizard-step .form-container {
@@ -689,38 +694,30 @@
             border: 1px solid var(--brand-border);
             border-radius: 16px;
             box-shadow: 0 6px 16px rgba(15,23,42,0.06);
-            padding: 1.5rem;
-            max-width: 1400px !important;
+            padding: 2rem;
             width: 100%;
-            margin: 0 auto !important;
+            max-width: 1200px;
         }
 
-        /* Center form headings */
         .wizard-step .form-container h2 {
             text-align: center;
             margin-bottom: 1.5rem;
+            color: #0f172a;
+            font-size: 1.5rem;
         }
 
-        /* Landscape Form Layout - Use More Horizontal Space - Override base styles */
+        /* Landscape Form Layout - Centered */
         .wizard-form {
-            max-width: 100% !important;
-            margin: 0 auto !important;
-            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
         }
 
-        /* Form Rows - 3 Columns for Landscape - Override base 2-column layout */
-        .wizard-form .form-row,
-        .wizard-step .form-row,
-        .form-container .form-row,
-        .wizard-step .form-container .wizard-form .form-row,
-        #step-1 .form-row,
-        #step-2 .form-row,
-        #step-3 .form-row,
-        #step-4 .form-row {
-            display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 1rem !important;
-            margin-bottom: 1rem !important;
+        /* Form Rows - 3-4 Columns for Landscape */
+        .wizard-form .form-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
         }
 
         /* Full-width fields (like address, VIN) */
@@ -756,12 +753,6 @@
         /* Upload Items - Horizontal Layout */
         .upload-section {
             margin-bottom: 1rem;
-            width: 100%;
-        }
-
-        .upload-section h3 {
-            text-align: center;
-            margin-bottom: 1.5rem;
         }
 
         .upload-item {
@@ -819,13 +810,13 @@
         /* Review Cards - Horizontal Grid */
         .review-section {
             margin-bottom: 1rem;
-            width: 100%;
         }
 
         .review-section h3 {
             font-size: 1.125rem;
             margin-bottom: 1rem;
             text-align: center;
+            color: #0f172a;
         }
 
         .review-section .review-grid {
@@ -868,15 +859,16 @@
             display: flex;
             justify-content: center;
             gap: 0.75rem;
-            margin-top: 1.25rem;
-            padding-top: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
             border-top: 1px solid var(--brand-border);
         }
 
         /* Terms Agreement - Centered */
         .terms-agreement {
-            margin: 1rem 0;
-            text-align: center;
+            margin: 1.5rem 0;
+            display: flex;
+            justify-content: center;
         }
 
         .checkbox-label {
@@ -885,14 +877,24 @@
             align-items: flex-start;
             gap: 0.75rem;
             cursor: pointer;
+            max-width: 600px;
+            text-align: left;
         }
 
         /* Responsive: Tablet - 2 columns */
         @media (min-width: 769px) and (max-width: 1200px) {
-            .wizard-form .form-row,
-            .wizard-step .form-row,
-            .form-container .form-row {
-                grid-template-columns: repeat(2, 1fr) !important;
+            .wizard-progress {
+                max-width: 100%;
+                padding: 1rem 1.5rem;
+            }
+
+            .wizard-step .form-container {
+                max-width: 100%;
+                padding: 1.5rem;
+            }
+
+            .wizard-form .form-row {
+                grid-template-columns: repeat(2, 1fr);
             }
 
             .review-section .review-grid {
@@ -900,13 +902,30 @@
             }
         }
 
-        /* Responsive: Mobile - Stack vertically */
+        /* Responsive: Mobile - Stack vertically, maintain centering */
         @media (max-width: 768px) {
-            .wizard-form .form-row,
-            .wizard-step .form-row,
-            .form-container .form-row {
-                grid-template-columns: 1fr !important;
-                gap: 0.75rem !important;
+            .dashboard-content .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .wizard-progress {
+                max-width: 100%;
+                padding: 1rem;
+            }
+
+            .wizard-step .form-container {
+                max-width: 100%;
+                padding: 1.25rem;
+            }
+
+            .wizard-step .form-container h2 {
+                font-size: 1.25rem;
+            }
+
+            .wizard-form .form-row {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
             }
 
             .upload-item {
@@ -924,6 +943,15 @@
 
             .form-actions button {
                 width: 100%;
+                max-width: 300px;
+            }
+
+            .terms-agreement {
+                justify-content: flex-start;
+            }
+
+            .checkbox-label {
+                max-width: 100%;
             }
         }
 

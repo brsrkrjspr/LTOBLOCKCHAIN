@@ -242,13 +242,16 @@
         /* Requests Table Header - Match Sidebar */
         #requestsTable thead {
             background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
+            transition: none !important;
         }
         
-        /* Ensure thead background never changes on hover */
+        /* Ensure thead background never changes on hover - disable all transitions */
         #requestsTable thead:hover,
         #requestsTable thead:active,
-        #requestsTable thead:focus {
+        #requestsTable thead:focus,
+        #requestsTable thead tr:hover {
             background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
+            transition: none !important;
         }
         
         table th,
@@ -268,6 +271,7 @@
         #requestsTable thead th {
             color: var(--hpg-white) !important;
             background: transparent !important;
+            background-color: transparent !important;
             font-weight: 700;
             padding: 1rem;
             text-align: left;
@@ -275,16 +279,40 @@
             font-size: 0.875rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            transition: none !important;
         }
         
-        /* Prevent ALL hover effects on table header cells */
+        /* Prevent ALL hover effects on table header cells - completely disable transitions */
         #requestsTable thead th:hover,
         #requestsTable thead th:active,
         #requestsTable thead th:focus,
         #requestsTable thead tr:hover th,
-        #requestsTable thead tr th:hover {
+        #requestsTable thead tr th:hover,
+        #requestsTable thead tr:hover th:hover {
             background: transparent !important;
+            background-color: transparent !important;
             color: var(--hpg-white) !important;
+            transition: none !important;
+            opacity: 1 !important;
+        }
+        
+        /* Ensure thead tr maintains background - override external CSS */
+        #requestsTable thead tr {
+            background: transparent !important;
+            background-color: transparent !important;
+            transition: none !important;
+        }
+        
+        #requestsTable thead tr:hover {
+            background: transparent !important;
+            background-color: transparent !important;
+            transition: none !important;
+        }
+        
+        /* Override external CSS .table tr:hover rule for header */
+        #requestsTable.table thead tr:hover,
+        #requestsTable.table thead tr {
+            background: transparent !important;
             background-color: transparent !important;
         }
         

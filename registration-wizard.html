@@ -656,12 +656,16 @@
             padding: 2rem 1.5rem;
         }
 
+        /* ============================================
+           Landscape Registration Wizard Design
+           ============================================ */
         .wizard-progress {
             background: #fff;
             border: 1px solid var(--brand-border);
             border-radius: 16px;
             padding: 1rem;
             box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+            margin-bottom: 1.5rem;
         }
 
         .wizard-step .form-container {
@@ -669,6 +673,212 @@
             border: 1px solid var(--brand-border);
             border-radius: 16px;
             box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+            padding: 1.5rem;
+        }
+
+        /* Landscape Form Layout - Use More Horizontal Space */
+        .wizard-form {
+            max-width: 100%;
+            margin: 0;
+        }
+
+        /* Form Rows - 3-4 Columns for Landscape */
+        .wizard-form .form-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Full-width fields (like address, VIN) */
+        .wizard-form .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Form Groups - Compact Vertical Spacing */
+        .wizard-form .form-group {
+            margin-bottom: 0;
+        }
+
+        .wizard-form .form-group label {
+            font-size: 0.875rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .wizard-form .form-group input,
+        .wizard-form .form-group select,
+        .wizard-form .form-group textarea {
+            font-size: 0.9375rem;
+            padding: 0.65rem 0.85rem;
+            height: auto;
+            min-height: 42px;
+        }
+
+        .wizard-form .form-group small.form-hint {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            line-height: 1.3;
+        }
+
+        /* Upload Items - Horizontal Layout */
+        .upload-section {
+            margin-bottom: 1rem;
+        }
+
+        .upload-item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border: 2px solid var(--brand-border);
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .upload-item:hover {
+            border-color: #2d7ff9;
+            box-shadow: 0 2px 8px rgba(45,127,249,0.1);
+        }
+
+        .upload-info h4 {
+            font-size: 0.9375rem;
+            margin: 0 0 0.25rem 0;
+            color: #0f172a;
+        }
+
+        .upload-info p {
+            font-size: 0.8125rem;
+            margin: 0;
+            color: #64748b;
+        }
+
+        .upload-area {
+            flex-shrink: 0;
+        }
+
+        .upload-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: var(--brand-gradient);
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .upload-label:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(45,127,249,0.3);
+        }
+
+        /* Review Cards - Horizontal Grid */
+        .review-section {
+            margin-bottom: 1rem;
+        }
+
+        .review-section h3 {
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+        }
+
+        .review-section .review-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .review-card {
+            background: #f8fafc;
+            border: 1px solid var(--brand-border);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .review-card h4 {
+            font-size: 0.9375rem;
+            margin: 0 0 0.75rem 0;
+            color: #0f172a;
+            font-weight: 700;
+        }
+
+        .review-details {
+            font-size: 0.875rem;
+        }
+
+        .review-details p {
+            margin: 0.4rem 0;
+            color: #475569;
+        }
+
+        .review-details strong {
+            color: #0f172a;
+            font-weight: 600;
+        }
+
+        /* Form Actions - Compact */
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--brand-border);
+        }
+
+        /* Terms Agreement - Compact */
+        .terms-agreement {
+            margin: 1rem 0;
+        }
+
+        .checkbox-label {
+            font-size: 0.875rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+
+        /* Responsive: Tablet - 2 columns */
+        @media (min-width: 769px) and (max-width: 1200px) {
+            .wizard-form .form-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .review-section .review-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Responsive: Mobile - Stack vertically */
+        @media (max-width: 768px) {
+            .wizard-form .form-row {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+
+            .upload-item {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+
+            .review-section .review-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-actions {
+                flex-direction: column-reverse;
+            }
+
+            .form-actions button {
+                width: 100%;
+            }
         }
 
         .btn-primary,
@@ -828,6 +1038,9 @@
                                     <input type="text" id="color" name="color" placeholder="e.g., White, Black, Silver" required>
                                     <small class="form-hint">Example: White, Black, Silver, Red, Blue</small>
                                 </div>
+                                <div class="form-group">
+                                    <!-- Empty for 3-column layout -->
+                                </div>
                             </div>
 
                             <div class="form-row">
@@ -840,6 +1053,9 @@
                                     <label for="chassisNumber">Chassis Number <span class="required">*</span></label>
                                     <input type="text" id="chassisNumber" name="chassisNumber" placeholder="e.g., JT1234567890" required>
                                     <small class="form-hint">Example: JT1234567890, 1HGBH41JXMN123456</small>
+                                </div>
+                                <div class="form-group">
+                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 
@@ -857,7 +1073,10 @@
                                     <small class="form-hint">Select the primary classification of the vehicle.</small>
                                 </div>
                                 <div class="form-group">
-                                    <!-- Empty div to maintain 2-column layout -->
+                                    <!-- Empty for 3-column layout -->
+                                </div>
+                                <div class="form-group">
+                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 
@@ -871,6 +1090,9 @@
                                     <label for="plateNumber">License Plate Number <span class="required">*</span></label>
                                     <input type="text" id="plateNumber" name="plateNumber" placeholder="ABC-1234" required>
                                     <small class="form-hint">Format: 3 letters, dash, 4 numbers (e.g., ABC-1234, XYZ-5678)</small>
+                                </div>
+                                <div class="form-group">
+                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 
@@ -897,6 +1119,9 @@
                                     <input type="text" id="lastName" name="lastName" placeholder="e.g., Dela Cruz" required>
                                     <small class="form-hint">Example: Dela Cruz, Santos, Garcia</small>
                                 </div>
+                                <div class="form-group">
+                                    <!-- Empty for 3-column layout -->
+                                </div>
                             </div>
 
                             <div class="form-row">
@@ -910,11 +1135,14 @@
                                     <input type="tel" id="phone" name="phone" placeholder="e.g., +63 912 345 6789" required>
                                     <small class="form-hint">Example: +63 912 345 6789, 0912-345-6789</small>
                                 </div>
+                                <div class="form-group">
+                                    <!-- Empty for 3-column layout -->
+                                </div>
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group full-width">
                                 <label for="address">Complete Address <span class="required">*</span></label>
-                                <textarea id="address" name="address" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila" rows="3" required></textarea>
+                                <textarea id="address" name="address" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila" rows="2" required></textarea>
                                 <small class="form-hint">Include: House/Unit No., Street, Barangay, City/Municipality, Province</small>
                             </div>
 
@@ -936,6 +1164,9 @@
                                     <label for="idNumber">ID Number <span class="required">*</span></label>
                                     <input type="text" id="idNumber" name="idNumber" placeholder="e.g., A01-23-456789" required>
                                     <small class="form-hint">Example: A01-23-456789, N123456789, PP1234567</small>
+                                </div>
+                                <div class="form-group">
+                                    <!-- Empty for 3-column layout -->
                                 </div>
                             </div>
 
@@ -1027,34 +1258,36 @@
                         <div class="review-section">
                             <h3>Please review your information before submitting:</h3>
                             
-                            <div class="review-card">
-                                <h4>Vehicle Information</h4>
-                                <div class="review-details">
-                                    <p><strong>Make/Model:</strong> <span id="review-make-model">-</span></p>
-                                    <p><strong>Year:</strong> <span id="review-year">-</span></p>
-                                    <p><strong>Color:</strong> <span id="review-color">-</span></p>
-                                    <p><strong>Vehicle Type:</strong> <span id="review-vehicle-type">-</span></p>
-                                    <p><strong>License Plate:</strong> <span id="review-plate">-</span></p>
+                            <div class="review-grid">
+                                <div class="review-card">
+                                    <h4>Vehicle Information</h4>
+                                    <div class="review-details">
+                                        <p><strong>Make/Model:</strong> <span id="review-make-model">-</span></p>
+                                        <p><strong>Year:</strong> <span id="review-year">-</span></p>
+                                        <p><strong>Color:</strong> <span id="review-color">-</span></p>
+                                        <p><strong>Vehicle Type:</strong> <span id="review-vehicle-type">-</span></p>
+                                        <p><strong>License Plate:</strong> <span id="review-plate">-</span></p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="review-card">
-                                <h4>Owner Information</h4>
-                                <div class="review-details">
-                                    <p><strong>Name:</strong> <span id="review-name">-</span></p>
-                                    <p><strong>Email:</strong> <span id="review-email">-</span></p>
-                                    <p><strong>Phone:</strong> <span id="review-phone">-</span></p>
-                                    <p><strong>ID Type:</strong> <span id="review-id-type">-</span></p>
+                                <div class="review-card">
+                                    <h4>Owner Information</h4>
+                                    <div class="review-details">
+                                        <p><strong>Name:</strong> <span id="review-name">-</span></p>
+                                        <p><strong>Email:</strong> <span id="review-email">-</span></p>
+                                        <p><strong>Phone:</strong> <span id="review-phone">-</span></p>
+                                        <p><strong>ID Type:</strong> <span id="review-id-type">-</span></p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="review-card">
-                                <h4>Uploaded Documents</h4>
-                                <div class="review-details">
-                                    <p>✅ Vehicle Registration Certificate</p>
-                                    <p>✅ Insurance Certificate</p>
-                                    <p>✅ Emission Test Certificate</p>
-                                    <p>✅ Owner's ID</p>
+                                <div class="review-card">
+                                    <h4>Uploaded Documents</h4>
+                                    <div class="review-details">
+                                        <p>✅ Vehicle Registration Certificate</p>
+                                        <p>✅ Insurance Certificate</p>
+                                        <p>✅ Emission Test Certificate</p>
+                                        <p>✅ Owner's ID</p>
+                                    </div>
                                 </div>
                             </div>
 

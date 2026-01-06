@@ -241,7 +241,14 @@
         
         /* Requests Table Header - Match Sidebar */
         #requestsTable thead {
-            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%);
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
+        }
+        
+        /* Ensure thead background never changes on hover */
+        #requestsTable thead:hover,
+        #requestsTable thead:active,
+        #requestsTable thead:focus {
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
         }
         
         table th,
@@ -259,7 +266,7 @@
         
         /* Requests Table Header Cells - High Contrast */
         #requestsTable thead th {
-            color: var(--hpg-white);
+            color: var(--hpg-white) !important;
             background: transparent !important;
             font-weight: 700;
             padding: 1rem;
@@ -270,15 +277,15 @@
             letter-spacing: 0.5px;
         }
         
-        /* Prevent hover effects on table header */
-        #requestsTable thead:hover,
-        #requestsTable thead th:hover {
-            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
-        }
-        
-        #requestsTable thead th:hover {
+        /* Prevent ALL hover effects on table header cells */
+        #requestsTable thead th:hover,
+        #requestsTable thead th:active,
+        #requestsTable thead th:focus,
+        #requestsTable thead tr:hover th,
+        #requestsTable thead tr th:hover {
             background: transparent !important;
             color: var(--hpg-white) !important;
+            background-color: transparent !important;
         }
         
         table tbody tr,

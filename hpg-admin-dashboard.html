@@ -202,7 +202,14 @@
         
         /* Pending Verification Requests Table Header - Match Sidebar */
         #pendingRequestsTable thead {
-            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%);
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
+        }
+        
+        /* Ensure thead background never changes on hover */
+        #pendingRequestsTable thead:hover,
+        #pendingRequestsTable thead:active,
+        #pendingRequestsTable thead:focus {
+            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
         }
         
         table th,
@@ -220,7 +227,7 @@
         
         /* Pending Verification Requests Table Header Cells - High Contrast */
         #pendingRequestsTable thead th {
-            color: var(--hpg-white);
+            color: var(--hpg-white) !important;
             background: transparent !important;
             font-weight: 700;
             padding: 1rem;
@@ -231,15 +238,15 @@
             letter-spacing: 0.5px;
         }
         
-        /* Prevent hover effects on table header */
-        #pendingRequestsTable thead:hover,
-        #pendingRequestsTable thead th:hover {
-            background: linear-gradient(180deg, var(--hpg-navy-dark) 0%, var(--hpg-navy) 50%, var(--hpg-navy-light) 100%) !important;
-        }
-        
-        #pendingRequestsTable thead th:hover {
+        /* Prevent ALL hover effects on table header cells */
+        #pendingRequestsTable thead th:hover,
+        #pendingRequestsTable thead th:active,
+        #pendingRequestsTable thead th:focus,
+        #pendingRequestsTable thead tr:hover th,
+        #pendingRequestsTable thead tr th:hover {
             background: transparent !important;
             color: var(--hpg-white) !important;
+            background-color: transparent !important;
         }
         
         table tbody tr,

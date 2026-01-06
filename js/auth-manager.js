@@ -23,12 +23,21 @@ class AuthManager {
                     if (parts.length === 3) {
                         const payload = JSON.parse(atob(parts[1]));
                         const expiration = payload.exp * 1000;
+                        const now = Date.now();
                         
-                        // Only use token if it's not expired (with 30 second buffer)
-                        if (expiration > Date.now() + 30000) {
+                        // Use token if it's not expired (allow tokens with at least 5 seconds left)
+                        // We'll refresh it in the background anyway
+                        if (expiration > now + 5000) {
                             this.accessToken = storedToken;
                             this.scheduleTokenRefresh();
                             console.log('✅ Loaded existing access token from localStorage');
+                        } else if (expiration > now) {
+                            // Token is valid but expiring soon - use it anyway and refresh immediately
+                            this.accessToken = storedToken;
+                            console.log('⚠️ Token expiring soon, will refresh immediately');
+                            // Don't schedule refresh, we'll do it immediately below
+                        } else {
+                            console.log('⚠️ Token expired, will attempt refresh');
                         }
                     }
                 } catch (e) {
@@ -43,14 +52,44 @@ class AuthManager {
                 // If we don't have a valid token, refresh immediately
                 if (!this.accessToken) {
                     console.log('🔄 No valid access token, refreshing...');
-                    await this.refreshAccessToken();
+                    try {
+                        await this.refreshAccessToken();
+                    } catch (error) {
+                        console.warn('Token refresh failed, but continuing with page load:', error);
+                        // Don't throw - allow page to load even if refresh fails
+                    }
                 } else {
-                    // If we have a token, refresh it in the background (non-blocking)
-                    // This ensures we have a fresh token but doesn't block page load
-                    this.refreshAccessToken().catch(error => {
-                        console.warn('Background token refresh failed:', error);
-                        // Don't clear token if refresh fails - user might still have valid token
-                    });
+                    // If we have a token, check if it needs immediate refresh
+                    const decoded = this.decodeToken(this.accessToken);
+                    if (decoded && decoded.exp) {
+                        const expiration = decoded.exp * 1000;
+                        const timeUntilExpiry = expiration - Date.now();
+                        
+                        // If token expires in less than 2 minutes, refresh immediately
+                        if (timeUntilExpiry < 120000) {
+                            console.log('🔄 Token expiring soon, refreshing immediately...');
+                            try {
+                                await this.refreshAccessToken();
+                            } catch (error) {
+                                console.warn('Immediate token refresh failed:', error);
+                                // Continue with existing token - it might still be valid
+                            }
+                        } else {
+                            // Token is still fresh, refresh in the background (non-blocking)
+                            this.refreshAccessToken().catch(error => {
+                                console.warn('Background token refresh failed:', error);
+                                // Don't clear token if refresh fails - user might still have valid token
+                            });
+                        }
+                    } else {
+                        // Can't decode token, try to refresh
+                        console.log('🔄 Cannot decode token, attempting refresh...');
+                        try {
+                            await this.refreshAccessToken();
+                        } catch (error) {
+                            console.warn('Token refresh failed:', error);
+                        }
+                    }
                 }
             }
         } catch (error) {

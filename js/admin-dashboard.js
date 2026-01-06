@@ -1,9 +1,22 @@
 // Admin Dashboard JavaScript
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // SECURITY: Require authentication before initializing dashboard
     // Always check authentication in production (non-localhost)
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const isProduction = !isLocalhost;
+    
+    // Wait for AuthManager to initialize and load token from localStorage
+    if (typeof window !== 'undefined' && window.authManager) {
+        try {
+            // Wait for init to complete (it loads token from localStorage)
+            console.log('🔄 Initializing AuthManager...');
+            await window.authManager.init();
+            console.log('✅ AuthManager initialized');
+        } catch (error) {
+            console.error('AuthManager initialization error:', error);
+            // Continue anyway - init() doesn't throw, but token might not be loaded
+        }
+    }
     
     if (typeof AuthUtils !== 'undefined') {
         // Check if auth is disabled (dev mode)
@@ -11,12 +24,27 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // In production, always require authentication regardless of DISABLE_AUTH setting
         if (isProduction) {
-            // Check for token directly
-            const token = (typeof window !== 'undefined' && window.authManager) 
-                ? window.authManager.getAccessToken() 
-                : (localStorage.getItem('authToken') || localStorage.getItem('token'));
+            // Check for token - AuthManager first, then localStorage fallback
+            let token = null;
+            if (typeof window !== 'undefined' && window.authManager) {
+                token = window.authManager.getAccessToken();
+                console.log('🔍 Token from AuthManager:', token ? 'Found' : 'Not found');
+            }
+            // Fallback to localStorage if AuthManager doesn't have token
+            if (!token) {
+                token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                console.log('🔍 Token from localStorage:', token ? 'Found' : 'Not found');
+            }
+            
             if (!token || token === 'dev-token-bypass' || token.startsWith('demo-token-')) {
                 console.warn('❌ No valid authentication token - redirecting to login');
+                console.log('Debug info:', {
+                    hasAuthManager: typeof window !== 'undefined' && !!window.authManager,
+                    authManagerToken: typeof window !== 'undefined' && window.authManager ? window.authManager.getAccessToken() : null,
+                    localStorageToken: localStorage.getItem('authToken'),
+                    localStorageTokenAlt: localStorage.getItem('token'),
+                    currentUser: localStorage.getItem('currentUser')
+                });
                 window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
                 return;
             }

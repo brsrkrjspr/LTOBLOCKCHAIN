@@ -286,8 +286,14 @@ const CertificateGenerator = {
         const issuingOffice = vehicle.issuing_office || 'LTO MAIN OFFICE';
         
         // Inspection data (from LTO inspection or fallback to CR/OR dates)
-        // Enhanced fallback chain: inspection_date -> cr_issued_at -> or_issued_at -> regDate -> current date
-        const inspectionDate = vehicle.inspection_date || vehicle.inspectionDate || vehicle.cr_issued_at || vehicle.or_issued_at || regDate || new Date();
+        // Enhanced fallback chain: inspection_date -> cr_issued_at -> or_issued_at -> rawDateOfRegistration -> current date
+        const inspectionDate =
+            vehicle.inspection_date ||
+            vehicle.inspectionDate ||
+            vehicle.cr_issued_at ||
+            vehicle.or_issued_at ||
+            rawDateOfRegistration ||
+            new Date();
         const inspectionDateFormatted = new Date(inspectionDate).toLocaleDateString('en-US', {
             year: 'numeric', month: 'long', day: 'numeric'
         });
@@ -301,7 +307,7 @@ const CertificateGenerator = {
         console.log('Certificate data:', {
             orNumber,
             crNumber,
-            regDateFormatted,
+            dateOfRegFormatted,
             ownerName,
             plateNumber
         });
@@ -736,7 +742,7 @@ const CertificateGenerator = {
                     </div>
                     <div class="col-half">
                         <span class="label">Date Issued</span>
-                        <span class="value">${regDateFormatted}</span>
+                        <span class="value">${crIssuedFormatted}</span>
                     </div>
                     <div class="col-half">
                         <span class="label">Expiration Date</span>

@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Always check authentication in production (non-localhost)
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const isProduction = !isLocalhost;
+
+    // Small delay to allow scripts/localStorage writes to settle after redirects
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Wait for AuthManager to initialize and load token from localStorage
     if (typeof window !== 'undefined' && window.authManager) {
@@ -24,16 +27,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // In production, always require authentication regardless of DISABLE_AUTH setting
         if (isProduction) {
-            // Check for token - AuthManager first, then localStorage fallback
-            let token = null;
-            if (typeof window !== 'undefined' && window.authManager) {
+            // Check for token - localStorage FIRST (most reliable), then AuthManager
+            let token = localStorage.getItem('authToken') || localStorage.getItem('token');
+            console.log('🔍 Token from localStorage:', token ? 'Found' : 'Not found');
+
+            if (!token && typeof window !== 'undefined' && window.authManager) {
                 token = window.authManager.getAccessToken();
                 console.log('🔍 Token from AuthManager:', token ? 'Found' : 'Not found');
-            }
-            // Fallback to localStorage if AuthManager doesn't have token
-            if (!token) {
-                token = localStorage.getItem('authToken') || localStorage.getItem('token');
-                console.log('🔍 Token from localStorage:', token ? 'Found' : 'Not found');
             }
             
             if (!token || token === 'dev-token-bypass' || token.startsWith('demo-token-')) {

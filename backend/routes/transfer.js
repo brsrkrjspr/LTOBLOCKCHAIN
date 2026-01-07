@@ -1673,19 +1673,30 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             notes: notes || null
         });
         
-        // Add to vehicle history
+        // Get full owner details for history
+        const previousOwner = await db.getUserById(request.seller_id);
+        const newOwner = await db.getUserById(buyerId);
+        
+        // Add to vehicle history with enhanced metadata
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
             action: 'OWNERSHIP_TRANSFERRED',
-            description: `Ownership transferred via transfer request ${id}. Approved by ${req.user.email}`,
+            description: `Ownership transferred from ${previousOwner ? `${previousOwner.first_name} ${previousOwner.last_name}` : 'Unknown'} to ${newOwner ? `${newOwner.first_name} ${newOwner.last_name}` : 'Unknown'}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId,
-            metadata: {
+            metadata: JSON.stringify({
                 transferRequestId: id,
                 previousOwnerId: request.seller_id,
+                previousOwnerName: previousOwner ? `${previousOwner.first_name} ${previousOwner.last_name}` : null,
+                previousOwnerEmail: previousOwner ? previousOwner.email : null,
                 newOwnerId: buyerId,
-                approvedBy: req.user.userId
-            }
+                newOwnerName: newOwner ? `${newOwner.first_name} ${newOwner.last_name}` : null,
+                newOwnerEmail: newOwner ? newOwner.email : null,
+                transferReason: request.reason || 'Sale',
+                transferDate: new Date().toISOString(),
+                approvedBy: req.user.userId,
+                blockchainTxId: blockchainTxId
+            })
         });
         
         // Create notifications

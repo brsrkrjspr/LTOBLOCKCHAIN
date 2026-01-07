@@ -229,6 +229,32 @@ class OptimizedFabricService {
         }
     }
 
+    // Scrap vehicle - Marks vehicle as end-of-life while preserving history
+    async scrapVehicle(vin, scrapReason) {
+        if (this.mode !== 'fabric') {
+            throw new Error('Blockchain service is not available. BLOCKCHAIN_MODE must be fabric.');
+        }
+        
+        if (!this.isConnected || !this.contract) {
+            throw new Error('Not connected to Fabric network. Cannot scrap vehicle.');
+        }
+        
+        try {
+            const result = await this.contract.submitTransaction('ScrapVehicle', vin, scrapReason);
+            const parsedResult = JSON.parse(result.toString());
+            
+            return {
+                success: true,
+                message: 'Vehicle scrapped successfully on blockchain',
+                transactionId: parsedResult.transactionId,
+                vin: vin
+            };
+        } catch (error) {
+            console.error('ScrapVehicle chaincode error:', error);
+            throw error;
+        }
+    }
+
     // Get vehicles by owner - Fabric only
     async getVehiclesByOwner(ownerEmail) {
         if (!this.isConnected || this.mode !== 'fabric') {

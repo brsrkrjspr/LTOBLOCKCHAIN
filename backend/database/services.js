@@ -970,27 +970,31 @@ async function getOwnershipHistory(vehicleId) {
             return [];
         }
         
-        // Get ownership-related history (both REGISTERED and OWNERSHIP_TRANSFERRED)
-        // Use standard JOIN (not LEFT JOIN) to only get actual history records
+        // Enhanced query with previous and new owner information
         let result;
         try {
             result = await db.query(
                 `SELECT vh.*,
-                        COALESCE(u.first_name || ' ' || u.last_name, 'System') as performed_by_name,
+                        COALESCE(performer.first_name || ' ' || performer.last_name, 'System') as performed_by_name,
+                        performer.email as performer_email,
                         v.vin, v.plate_number,
-                        COALESCE(owner.first_name || ' ' || owner.last_name, 'Unknown') as owner_name,
-                        COALESCE(owner.email, '') as owner_email
+                        -- Current owner at time of record
+                        COALESCE(current_owner.first_name || ' ' || current_owner.last_name, 'Unknown') as current_owner_name,
+                        current_owner.email as current_owner_email,
+                        -- Extract previous/new owner from metadata if available
+                        vh.metadata->>'previousOwnerName' as previous_owner_name,
+                        vh.metadata->>'previousOwnerEmail' as previous_owner_email,
+                        vh.metadata->>'newOwnerName' as new_owner_name,
+                        vh.metadata->>'newOwnerEmail' as new_owner_email,
+                        vh.metadata->>'transferReason' as transfer_reason,
+                        vh.metadata->>'transferDate' as transfer_date
                  FROM vehicle_history vh
                  JOIN vehicles v ON vh.vehicle_id = v.id
-                 LEFT JOIN users u ON vh.performed_by = u.id
-                 LEFT JOIN users owner ON v.owner_id = owner.id
+                 LEFT JOIN users performer ON vh.performed_by = performer.id
+                 LEFT JOIN users current_owner ON v.owner_id = current_owner.id
                  WHERE vh.vehicle_id = $1 
-                   AND (vh.action = 'OWNERSHIP_TRANSFERRED' 
-                        OR vh.action = 'REGISTERED'
-                        OR (vh.metadata IS NOT NULL 
-                            AND vh.metadata::text != 'null'
-                            AND vh.metadata::text != ''
-                            AND vh.metadata::text LIKE '%previousOwnerId%'))
+                   AND (vh.action IN ('OWNERSHIP_TRANSFERRED', 'REGISTERED', 'BLOCKCHAIN_REGISTERED', 'CLEARANCE_APPROVED')
+                        OR vh.metadata::text LIKE '%previousOwner%')
                  ORDER BY vh.performed_at ASC NULLS LAST`,
                 [vehicleId]
             );
@@ -1006,18 +1010,60 @@ async function getOwnershipHistory(vehicleId) {
             result = { rows: [] };
         }
         
-        // Safely parse metadata for each history record
-        const history = result.rows.map(row => {
+        // Format history with enhanced owner information
+        const history = result.rows.map((h, index) => {
             try {
+                const metadata = h.metadata ? (typeof h.metadata === 'string' ? JSON.parse(h.metadata) : h.metadata) : {};
                 return {
-                    ...row,
-                    metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {}
+                    id: h.id,
+                    vehicleId: h.vehicle_id,
+                    action: h.action,
+                    description: h.description,
+                    timestamp: h.performed_at,
+                    performedBy: h.performed_by,
+                    performerName: h.performed_by_name,
+                    performerEmail: h.performer_email,
+                    transactionId: h.transaction_id,
+                    vin: h.vin,
+                    plateNumber: h.plate_number,
+                    // Enhanced owner tracking
+                    currentOwnerName: h.current_owner_name,
+                    currentOwnerEmail: h.current_owner_email,
+                    previousOwnerName: h.previous_owner_name || metadata.previousOwnerName || null,
+                    previousOwnerEmail: h.previous_owner_email || metadata.previousOwnerEmail || null,
+                    newOwnerName: h.new_owner_name || metadata.newOwnerName || null,
+                    newOwnerEmail: h.new_owner_email || metadata.newOwnerEmail || null,
+                    transferReason: h.transfer_reason || metadata.transferReason || null,
+                    transferDate: h.transfer_date || metadata.transferDate || null,
+                    // Full metadata for detailed view
+                    metadata: metadata,
+                    // Sequence number for timeline
+                    sequenceNumber: index + 1
                 };
             } catch (parseError) {
-                console.warn(`Error parsing metadata for history record ${row.id}:`, parseError);
+                console.warn(`Error parsing metadata for history record ${h.id}:`, parseError);
                 return {
-                    ...row,
-                    metadata: {}
+                    id: h.id,
+                    vehicleId: h.vehicle_id,
+                    action: h.action,
+                    description: h.description,
+                    timestamp: h.performed_at,
+                    performedBy: h.performed_by,
+                    performerName: h.performed_by_name,
+                    performerEmail: h.performer_email,
+                    transactionId: h.transaction_id,
+                    vin: h.vin,
+                    plateNumber: h.plate_number,
+                    currentOwnerName: h.current_owner_name,
+                    currentOwnerEmail: h.current_owner_email,
+                    previousOwnerName: h.previous_owner_name || null,
+                    previousOwnerEmail: h.previous_owner_email || null,
+                    newOwnerName: h.new_owner_name || null,
+                    newOwnerEmail: h.new_owner_email || null,
+                    transferReason: h.transfer_reason || null,
+                    transferDate: h.transfer_date || null,
+                    metadata: {},
+                    sequenceNumber: index + 1
                 };
             }
         });

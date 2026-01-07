@@ -170,7 +170,10 @@ const CertificateGenerator = {
         // Use provided transaction ID - DO NOT fallback to vehicle.id (UUID)
         const txId = blockchainTxId || vehicle.blockchain_tx_id || null;
         const hasValidTxId = txId && txId !== 'N/A' && !txId.includes('-'); // UUIDs contain hyphens, blockchain tx IDs don't
-        const verificationUrl = hasValidTxId ? `${window.location.origin}/verify/${txId}` : null;
+        // Enhanced - add view mode parameter for certificate download
+        const verificationUrl = hasValidTxId 
+            ? `${window.location.origin}/verify/${txId}?view=certificate` 
+            : null;
         
         // Separate OR and CR numbers (new format)
         const orNumber = vehicle.or_number || vehicle.orNumber || vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';

@@ -168,15 +168,19 @@ async function updateOwnerStats() {
             // Load from localStorage if available
             const localApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
             if (localApplications.length > 0) {
-                stats.registeredVehicles = localApplications.filter(v => 
-                    v.status === 'approved' || v.status === 'APPROVED'
-                ).length;
-                stats.pendingApplications = localApplications.filter(v => 
-                    v.status === 'submitted' || v.status === 'SUBMITTED' || v.status === 'pending'
-                ).length;
-                stats.approvedApplications = localApplications.filter(v => 
-                    v.status === 'approved' || v.status === 'APPROVED'
-                ).length;
+                // FIX: Case-insensitive comparison
+                stats.registeredVehicles = localApplications.filter(v => {
+                    const status = (v.status || '').toUpperCase();
+                    return status === 'APPROVED' || status === 'REGISTERED';
+                }).length;
+                stats.pendingApplications = localApplications.filter(v => {
+                    const status = (v.status || '').toUpperCase();
+                    return status === 'SUBMITTED' || status === 'PENDING' || status === 'PENDING_BLOCKCHAIN';
+                }).length;
+                stats.approvedApplications = localApplications.filter(v => {
+                    const status = (v.status || '').toUpperCase();
+                    return status === 'APPROVED' || status === 'REGISTERED';
+                }).length;
             }
         } else if (token) {
             // Only make API call if it's not a demo token
@@ -191,15 +195,30 @@ async function updateOwnerStats() {
                     const data = await response.json();
                     if (data.success && data.vehicles) {
                         const vehicles = data.vehicles;
-                        stats.registeredVehicles = vehicles.filter(v => 
-                            v.status === 'REGISTERED' || v.status === 'APPROVED'
-                        ).length;
-                        stats.pendingApplications = vehicles.filter(v => 
-                            v.status === 'SUBMITTED' || v.status === 'PENDING_BLOCKCHAIN' || v.status === 'PROCESSING'
-                        ).length;
-                        stats.approvedApplications = vehicles.filter(v => 
-                            v.status === 'APPROVED' || v.status === 'REGISTERED'
-                        ).length;
+                        
+                        // FIX: Use case-insensitive status comparison
+                        stats.registeredVehicles = vehicles.filter(v => {
+                            const status = (v.status || '').toUpperCase();
+                            return status === 'REGISTERED' || status === 'APPROVED';
+                        }).length;
+                        
+                        stats.pendingApplications = vehicles.filter(v => {
+                            const status = (v.status || '').toUpperCase();
+                            return status === 'SUBMITTED' || status === 'PENDING_BLOCKCHAIN' || status === 'PROCESSING' || status === 'PENDING';
+                        }).length;
+                        
+                        stats.approvedApplications = vehicles.filter(v => {
+                            const status = (v.status || '').toUpperCase();
+                            return status === 'APPROVED' || status === 'REGISTERED';
+                        }).length;
+                        
+                        console.log('✅ Stats calculated:', {
+                            total: vehicles.length,
+                            registered: stats.registeredVehicles,
+                            pending: stats.pendingApplications,
+                            approved: stats.approvedApplications,
+                            statuses: vehicles.map(v => v.status)
+                        });
                     }
                 }
             } catch (apiError) {
@@ -240,15 +259,19 @@ async function updateOwnerStats() {
         console.warn('Error loading dashboard stats:', error);
         // Fallback to localStorage if API fails
         const localApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
-        stats.registeredVehicles = localApplications.filter(v => 
-            v.status === 'approved' || v.status === 'APPROVED'
-        ).length;
-        stats.pendingApplications = localApplications.filter(v => 
-            v.status === 'submitted' || v.status === 'SUBMITTED' || v.status === 'pending'
-        ).length;
-        stats.approvedApplications = localApplications.filter(v => 
-            v.status === 'approved' || v.status === 'APPROVED'
-        ).length;
+        // FIX: Case-insensitive comparison
+        stats.registeredVehicles = localApplications.filter(v => {
+            const status = (v.status || '').toUpperCase();
+            return status === 'APPROVED' || status === 'REGISTERED';
+        }).length;
+        stats.pendingApplications = localApplications.filter(v => {
+            const status = (v.status || '').toUpperCase();
+            return status === 'SUBMITTED' || status === 'PENDING' || status === 'PENDING_BLOCKCHAIN';
+        }).length;
+        stats.approvedApplications = localApplications.filter(v => {
+            const status = (v.status || '').toUpperCase();
+            return status === 'APPROVED' || status === 'REGISTERED';
+        }).length;
         const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
         stats.notifications = localNotifs.filter(n => !n.read).length;
     }
@@ -1351,10 +1374,23 @@ function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
 
 function updateStatsFromApplications(applications) {
     const stats = {
-        registeredVehicles: applications.filter(app => app.status === 'approved').length,
-        pendingApplications: applications.filter(app => app.status === 'submitted').length,
-        approvedApplications: applications.filter(app => app.status === 'approved').length,
-        notifications: applications.filter(app => app.status === 'submitted' || app.status === 'rejected').length
+        // FIX: Case-insensitive comparison
+        registeredVehicles: applications.filter(app => {
+            const status = (app.status || '').toUpperCase();
+            return status === 'APPROVED' || status === 'REGISTERED';
+        }).length,
+        pendingApplications: applications.filter(app => {
+            const status = (app.status || '').toUpperCase();
+            return status === 'SUBMITTED' || status === 'PENDING' || status === 'PENDING_BLOCKCHAIN';
+        }).length,
+        approvedApplications: applications.filter(app => {
+            const status = (app.status || '').toUpperCase();
+            return status === 'APPROVED' || status === 'REGISTERED';
+        }).length,
+        notifications: applications.filter(app => {
+            const status = (app.status || '').toUpperCase();
+            return status === 'SUBMITTED' || status === 'REJECTED';
+        }).length
     };
     
     // Update stat cards (using new IDs)

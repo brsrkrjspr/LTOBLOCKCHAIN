@@ -1415,6 +1415,25 @@ function createApplicationRow(application) {
     const row = document.createElement('tr');
     const vehicleId = application.id;
     const vin = application.vehicle?.vin || '';
+    const vehicle = application.vehicle || {};
+    
+    // Check inspection status - check both application.vehicle and application itself
+    const hasInspection = vehicle.mvir_number || application.mvir_number || vehicle.mvirNumber || application.mvirNumber;
+    const mvirNumber = vehicle.mvir_number || application.mvir_number || vehicle.mvirNumber || application.mvirNumber;
+    
+    const inspectionStatus = hasInspection 
+        ? `<span class="badge badge-success" title="MVIR: ${mvirNumber}" style="margin-top: 0.25rem; display: inline-block;">
+            <i class="fas fa-check-circle"></i> Inspected
+           </span>`
+        : `<span class="badge badge-warning" title="Inspection required before approval" style="margin-top: 0.25rem; display: inline-block;">
+            <i class="fas fa-exclamation-triangle"></i> Not Inspected
+           </span>`;
+    
+    // Determine if approval should be disabled (allow admin override for now)
+    const canApprove = true; // Set to false to enforce strict requirement
+    const approveButtonClass = canApprove ? 'btn-primary' : 'btn-secondary';
+    const approveButtonDisabled = canApprove ? '' : 'disabled';
+    const approveButtonTitle = canApprove ? 'Approve application' : 'Inspection required before approval';
     
     row.innerHTML = `
         <td>${application.id}</td>
@@ -1434,12 +1453,28 @@ function createApplicationRow(application) {
             </span>
         </td>
         <td>
-            <button class="btn-secondary btn-sm" onclick="viewApplication('${application.id}')">View</button>
-            <button class="btn-primary btn-sm" onclick="approveApplication('${application.id}')">Approve</button>
-            <button class="btn-danger btn-sm" onclick="rejectApplication('${application.id}')">Reject</button>
-            ${vin ? `<button class="btn-info btn-sm" onclick="checkDataIntegrity('${vehicleId}', '${vin}')" title="Check Data Integrity">
-                <i class="fas fa-shield-alt"></i> Integrity
-            </button>` : ''}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start;">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn-secondary btn-sm" onclick="viewApplication('${application.id}')">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="btn-info btn-sm" onclick="inspectVehicle('${vehicleId}')" title="${hasInspection ? 'View inspection details' : 'Perform vehicle inspection'}">
+                        <i class="fas fa-clipboard-check"></i> ${hasInspection ? 'View Inspection' : 'Inspect'}
+                    </button>
+                    ${vin ? `<button class="btn-info btn-sm" onclick="checkDataIntegrity('${vehicleId}', '${vin}')" title="Check Data Integrity">
+                        <i class="fas fa-shield-alt"></i> Integrity
+                    </button>` : ''}
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="${approveButtonClass} btn-sm" onclick="approveApplication('${application.id}')" ${approveButtonDisabled} title="${approveButtonTitle}">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="btn-danger btn-sm" onclick="rejectApplication('${application.id}')">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </div>
+                ${inspectionStatus}
+            </div>
         </td>
     `;
     
@@ -1840,9 +1875,41 @@ function showApplicationModal(application) {
 }
 
 async function approveApplication(applicationId) {
+    // First check if vehicle has inspection
+    try {
+        const apiClient = new APIClient();
+        const vehicleResponse = await apiClient.get(`/api/vehicles/id/${applicationId}`);
+        
+        if (!vehicleResponse.success || !vehicleResponse.vehicle) {
+            throw new Error('Failed to load vehicle data');
+        }
+        
+        const vehicle = vehicleResponse.vehicle;
+        
+        // Check if inspection is required but missing
+        if (!vehicle.mvir_number) {
+            const proceedWithoutInspection = await ConfirmationDialog.show({
+                title: 'Inspection Required',
+                message: 'This vehicle has not been inspected yet. Inspection is required before approval per LTO Citizen Charter. Do you want to proceed anyway? (Inspection will be auto-generated)',
+                confirmText: 'Proceed with Auto-Inspection',
+                cancelText: 'Cancel',
+                confirmColor: '#f59e0b',
+                type: 'warning'
+            });
+            
+            if (!proceedWithoutInspection) {
+                return;
+            }
+        }
+    } catch (error) {
+        console.error('Error checking inspection status:', error);
+        ToastNotification.show('Failed to check inspection status. Please try again.', 'error');
+        return;
+    }
+    
     const confirmed = await ConfirmationDialog.show({
         title: 'Approve Application',
-        message: 'Are you sure you want to approve this application? The user will be notified immediately.',
+        message: 'Are you sure you want to approve this application? This will assign OR/CR numbers, register on blockchain, and notify the user.',
         confirmText: 'Approve',
         cancelText: 'Cancel',
         confirmColor: '#27ae60',
@@ -1854,46 +1921,35 @@ async function approveApplication(applicationId) {
         if (button) LoadingManager.show(button, 'Approving...');
         
         try {
-            // Call API to update vehicle status
-            const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
-            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
-            if (token && typeof APIClient !== 'undefined') {
-                const apiClient = new APIClient();
-                const response = await apiClient.put(`/api/vehicles/id/${applicationId}/status`, {
-                    status: 'APPROVED',
-                    notes: 'Application approved by admin'
-                });
-                
-                if (response && response.success) {
-                    ToastNotification.show('Application approved successfully! User will be notified.', 'success');
-                    
-                    // Update local storage
-                    updateApplicationStatus(applicationId, 'approved', 'Application approved by admin');
-                    
-                    // Add notification for user
-                    addUserNotification(applicationId, 'approved', 'Your application has been approved! You can now download your certificate.');
-                    
-                    // Close any open modals
-                    const openModal = document.querySelector('.modal');
-                    if (openModal) {
-                        openModal.remove();
-                    }
-                    
-                    // Refresh the table
-                    await loadSubmittedApplications();
+            const apiClient = new APIClient();
+            // FIX: Use approve-clearance endpoint instead of status update
+            const response = await apiClient.post(`/api/lto/approve-clearance`, {
+                vehicleId: applicationId,
+                notes: 'Application approved by admin'
+            });
+            
+            if (response && response.success) {
+                const message = `Application approved successfully! OR: ${response.orNumber || 'N/A'}, CR: ${response.crNumber || 'N/A'}`;
+                if (response.mvirNumber) {
+                    ToastNotification.show(`${message} MVIR: ${response.mvirNumber}`, 'success');
                 } else {
-                    throw new Error(response?.error || 'Failed to approve application');
+                    ToastNotification.show(message, 'success');
                 }
-            } else {
-                // Fallback to localStorage only if no API client
-                updateApplicationStatus(applicationId, 'approved', 'Application approved by admin');
-                ToastNotification.show('Application approved (local only). Please refresh to sync with server.', 'warning');
+                
+                // Close any open modals
+                const openModal = document.querySelector('.modal');
+                if (openModal) {
+                    openModal.remove();
+                }
+                
+                // Refresh the table
                 await loadSubmittedApplications();
+            } else {
+                throw new Error(response?.error || 'Failed to approve application');
             }
         } catch (error) {
             console.error('Error approving application:', error);
-            ToastNotification.show('Failed to approve application: ' + (error.message || 'Please try again.'), 'error');
+            ToastNotification.show(`Failed to approve application: ${error.message || 'Please try again.'}`, 'error');
         } finally {
             if (button) LoadingManager.hide(button);
         }
@@ -1990,6 +2046,181 @@ async function rejectApplication(applicationId) {
             }
         };
     });
+}
+
+// Perform vehicle inspection
+async function inspectVehicle(vehicleId) {
+    try {
+        // Get vehicle details first
+        const apiClient = new APIClient();
+        const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
+        
+        if (!vehicleResponse.success || !vehicleResponse.vehicle) {
+            throw new Error('Failed to load vehicle data');
+        }
+        
+        const vehicle = vehicleResponse.vehicle;
+        
+        // Check if already inspected
+        if (vehicle.mvir_number) {
+            // Show inspection details modal instead
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-clipboard-check"></i> Inspection Details</h3>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Vehicle:</strong> ${vehicle.plateNumber || vehicle.vin || 'N/A'}<br>
+                            <strong>Make/Model:</strong> ${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}
+                        </div>
+                        <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <h4 style="margin-top: 0; color: #0369a1;">Inspection Information</h4>
+                            <p><strong>MVIR Number:</strong> ${vehicle.mvir_number || 'N/A'}</p>
+                            <p><strong>Inspection Date:</strong> ${vehicle.inspection_date ? new Date(vehicle.inspection_date).toLocaleDateString() : 'N/A'}</p>
+                            <p><strong>Result:</strong> <span class="badge badge-${vehicle.inspection_result === 'PASS' ? 'success' : 'danger'}">${vehicle.inspection_result || 'N/A'}</span></p>
+                            <p><strong>Roadworthiness:</strong> <span class="badge badge-${vehicle.roadworthiness_status === 'ROADWORTHY' ? 'success' : 'danger'}">${vehicle.roadworthiness_status || 'N/A'}</span></p>
+                            <p><strong>Emission Compliance:</strong> <span class="badge badge-${vehicle.emission_compliance === 'COMPLIANT' ? 'success' : 'danger'}">${vehicle.emission_compliance || 'N/A'}</span></p>
+                            ${vehicle.inspection_officer ? `<p><strong>Inspected By:</strong> ${vehicle.inspection_officer}</p>` : ''}
+                            ${vehicle.inspection_notes ? `<p><strong>Notes:</strong> ${vehicle.inspection_notes}</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            return;
+        }
+        
+        // Create inspection modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-clipboard-check"></i> Vehicle Inspection</h3>
+                    <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 1rem;">
+                        <strong>Vehicle:</strong> ${vehicle.plateNumber || vehicle.vin || 'N/A'}<br>
+                        <strong>Make/Model:</strong> ${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Inspection Result <span style="color: red;">*</span>
+                        </label>
+                        <select id="inspectionResult" class="form-control" required>
+                            <option value="">Select result...</option>
+                            <option value="PASS">PASS</option>
+                            <option value="FAIL">FAIL</option>
+                            <option value="PENDING">PENDING</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Roadworthiness Status <span style="color: red;">*</span>
+                        </label>
+                        <select id="roadworthinessStatus" class="form-control" required>
+                            <option value="">Select status...</option>
+                            <option value="ROADWORTHY">ROADWORTHY</option>
+                            <option value="NOT_ROADWORTHY">NOT_ROADWORTHY</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Emission Compliance <span style="color: red;">*</span>
+                        </label>
+                        <select id="emissionCompliance" class="form-control" required>
+                            <option value="">Select compliance...</option>
+                            <option value="COMPLIANT">COMPLIANT</option>
+                            <option value="NON_COMPLIANT">NON_COMPLIANT</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Inspection Officer
+                        </label>
+                        <input type="text" id="inspectionOfficer" class="form-control" placeholder="Leave blank to use your name">
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Inspection Notes
+                        </label>
+                        <textarea id="inspectionNotes" class="form-control" rows="3" placeholder="Additional notes about the inspection..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button class="btn-primary" id="confirmInspect">
+                        <i class="fas fa-check"></i> Complete Inspection
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle form submission
+        modal.querySelector('#confirmInspect').onclick = async function() {
+            const inspectionResult = document.getElementById('inspectionResult').value;
+            const roadworthinessStatus = document.getElementById('roadworthinessStatus').value;
+            const emissionCompliance = document.getElementById('emissionCompliance').value;
+            const inspectionOfficer = document.getElementById('inspectionOfficer').value.trim();
+            const inspectionNotes = document.getElementById('inspectionNotes').value.trim();
+            
+            // Validate required fields
+            if (!inspectionResult || !roadworthinessStatus || !emissionCompliance) {
+                ToastNotification.show('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const button = this;
+            LoadingManager.show(button, 'Processing...');
+            
+            try {
+                const response = await apiClient.post(`/api/lto/inspect`, {
+                    vehicleId: vehicleId,
+                    inspectionResult: inspectionResult,
+                    roadworthinessStatus: roadworthinessStatus,
+                    emissionCompliance: emissionCompliance,
+                    inspectionOfficer: inspectionOfficer || undefined,
+                    inspectionNotes: inspectionNotes || undefined
+                });
+                
+                if (response && response.success) {
+                    ToastNotification.show(
+                        `Inspection completed! MVIR: ${response.inspection.mvirNumber}`, 
+                        'success'
+                    );
+                    
+                    modal.remove();
+                    await loadSubmittedApplications();
+                } else {
+                    throw new Error(response?.error || 'Failed to complete inspection');
+                }
+            } catch (error) {
+                console.error('Inspection error:', error);
+                ToastNotification.show(`Failed to complete inspection: ${error.message}`, 'error');
+            } finally {
+                LoadingManager.hide(button);
+            }
+        };
+        
+    } catch (error) {
+        console.error('Error opening inspection modal:', error);
+        ToastNotification.show(`Error: ${error.message}`, 'error');
+    }
 }
 
 function updateApplicationStatus(applicationId, newStatus, notes) {
@@ -2660,6 +2891,7 @@ window.AdminDashboard = {
     viewApplication,
     approveApplication,
     rejectApplication,
+    inspectVehicle,
     requestEmissionTest,
     requestInsuranceProof,
     requestHPGClearance,
@@ -2672,6 +2904,9 @@ window.AdminDashboard = {
     checkDataIntegrity,
     closeIntegrityModal
 };
+
+// Make inspectVehicle globally available
+window.inspectVehicle = inspectVehicle;
 
 // Check data integrity for a vehicle
 async function checkDataIntegrity(vehicleId, vin) {

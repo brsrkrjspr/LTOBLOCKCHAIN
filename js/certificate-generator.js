@@ -184,27 +184,30 @@ const CertificateGenerator = {
         // Prefer explicit registration / CR dates, otherwise show PENDING instead of current date.
 
         // Priority for CR issued: cr_issued_at > date_of_registration > registration_date > approved_at
+        // Check both snake_case (from DB) and camelCase (from API response)
         const crIssuedDate =
-            vehicle.cr_issued_at ||
-            vehicle.date_of_registration ||
-            vehicle.registration_date ||
-            vehicle.approved_at ||
+            vehicle.cr_issued_at || vehicle.crIssuedAt ||
+            vehicle.date_of_registration || vehicle.dateOfRegistration ||
+            vehicle.registration_date || vehicle.registrationDate ||
+            vehicle.approved_at || vehicle.approvedAt ||
             null;
 
         // OR issued: or_issued_at if available, else fall back to CR/registration dates
+        // Check both snake_case (from DB) and camelCase (from API response)
         const orIssuedDate =
-            vehicle.or_issued_at ||
-            vehicle.cr_issued_at ||
-            vehicle.date_of_registration ||
-            vehicle.registration_date ||
+            vehicle.or_issued_at || vehicle.orIssuedAt ||
+            vehicle.cr_issued_at || vehicle.crIssuedAt ||
+            vehicle.date_of_registration || vehicle.dateOfRegistration ||
+            vehicle.registration_date || vehicle.registrationDate ||
             null;
 
         // Date of registration: when the vehicle was first registered
+        // Check both snake_case (from DB) and camelCase (from API response)
         const rawDateOfRegistration =
-            vehicle.date_of_registration ||
-            vehicle.registration_date ||
-            vehicle.cr_issued_at ||
-            vehicle.created_at ||
+            vehicle.date_of_registration || vehicle.dateOfRegistration ||
+            vehicle.registration_date || vehicle.registrationDate ||
+            vehicle.cr_issued_at || vehicle.crIssuedAt ||
+            vehicle.created_at || vehicle.createdAt ||
             null;
 
         const formatDate = (value, fallbackText = 'PENDING') => {
@@ -288,10 +291,9 @@ const CertificateGenerator = {
         // Inspection data (from LTO inspection or fallback to CR/OR dates)
         // Enhanced fallback chain: inspection_date -> cr_issued_at -> or_issued_at -> rawDateOfRegistration -> current date
         const inspectionDate =
-            vehicle.inspection_date ||
-            vehicle.inspectionDate ||
-            vehicle.cr_issued_at ||
-            vehicle.or_issued_at ||
+            vehicle.inspection_date || vehicle.inspectionDate ||
+            vehicle.cr_issued_at || vehicle.crIssuedAt ||
+            vehicle.or_issued_at || vehicle.orIssuedAt ||
             rawDateOfRegistration ||
             new Date();
         const inspectionDateFormatted = new Date(inspectionDate).toLocaleDateString('en-US', {

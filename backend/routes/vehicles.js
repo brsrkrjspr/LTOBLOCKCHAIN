@@ -1944,9 +1944,9 @@ async function generateVehicleQRCode(vehicle) {
             return null;
         }
         
-        // Generate verification URL
+        // Generate verification URL with certificate view parameter
         const baseUrl = process.env.FRONTEND_URL || process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
-        const verifyUrl = `${baseUrl}/verify/${transactionId}`;
+        const verifyUrl = `${baseUrl}/verify/${transactionId}?view=certificate`;
         
         console.log(`[QR Code] Generating QR code for vehicle ${vehicle.id || vehicle.vin} with transaction ID: ${transactionId.substring(0, 20)}...`);
         

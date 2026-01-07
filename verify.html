@@ -362,51 +362,54 @@
     <script src="/js/auth-utils.js"></script>
     <script src="/js/api-client.js"></script>
     <script>
-        // Get transaction ID from URL
-        const urlPath = window.location.pathname;
-        let txId = urlPath.split('/').pop();
-        
-        // Remove .html if present
-        if (txId.endsWith('.html')) {
-            txId = txId.replace('.html', '');
-        }
-        
-        // Check if we were redirected from login (invalid transaction ID extracted)
-        const invalidTxIds = ['login-signup', 'login', 'signup', 'verify', 'undefined', 'null'];
-        if (invalidTxIds.includes(txId)) {
-            txId = null; // Reset to null so we can check other sources
-        }
-        
-        // Priority 1: Check redirect query parameter (if redirected from login)
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectParam = urlParams.get('redirect');
-        if (redirectParam) {
-            // Extract transaction ID from redirect URL like /verify/<txId>
-            const redirectMatch = redirectParam.match(/\/verify\/([^/?]+)/);
-            if (redirectMatch && redirectMatch[1]) {
-                txId = redirectMatch[1];
-                console.log('Extracted transaction ID from redirect parameter:', txId);
+        // Initialize verification on page load
+        (function() {
+            // Get transaction ID from URL
+            const urlPath = window.location.pathname;
+            let txId = urlPath.split('/').pop();
+            
+            // Remove .html if present
+            if (txId.endsWith('.html')) {
+                txId = txId.replace('.html', '');
             }
-        }
-        
-        // Priority 2: Check txId query parameter
-        if (!txId || invalidTxIds.includes(txId)) {
-            txId = urlParams.get('txId');
-        }
-        
-        // Validate transaction ID before proceeding
-        if (!txId || invalidTxIds.includes(txId) || txId.length < 10) {
-            document.getElementById('transactionDetails').innerHTML = 
-                '<div class="transaction-card"><p style="color: red;">No valid transaction ID provided.</p></div>';
-            return;
-        }
-        
-        if (txId && txId !== 'verify') {
-            loadTransactionDetails(txId);
-        } else {
-            document.getElementById('transactionDetails').innerHTML = 
-                '<div class="transaction-card"><p style="color: red;">No transaction ID provided.</p></div>';
-        }
+            
+            // Check if we were redirected from login (invalid transaction ID extracted)
+            const invalidTxIds = ['login-signup', 'login', 'signup', 'verify', 'undefined', 'null'];
+            if (invalidTxIds.includes(txId)) {
+                txId = null; // Reset to null so we can check other sources
+            }
+            
+            // Priority 1: Check redirect query parameter (if redirected from login)
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectParam = urlParams.get('redirect');
+            if (redirectParam) {
+                // Extract transaction ID from redirect URL like /verify/<txId>
+                const redirectMatch = redirectParam.match(/\/verify\/([^/?]+)/);
+                if (redirectMatch && redirectMatch[1]) {
+                    txId = redirectMatch[1];
+                    console.log('Extracted transaction ID from redirect parameter:', txId);
+                }
+            }
+            
+            // Priority 2: Check txId query parameter
+            if (!txId || invalidTxIds.includes(txId)) {
+                txId = urlParams.get('txId');
+            }
+            
+            // Validate transaction ID before proceeding
+            if (!txId || invalidTxIds.includes(txId) || txId.length < 10) {
+                document.getElementById('transactionDetails').innerHTML = 
+                    '<div class="transaction-card"><p style="color: red;">No valid transaction ID provided.</p></div>';
+                return; // Now this return is inside a function, so it's valid
+            }
+            
+            if (txId && txId !== 'verify') {
+                loadTransactionDetails(txId);
+            } else {
+                document.getElementById('transactionDetails').innerHTML = 
+                    '<div class="transaction-card"><p style="color: red;">No transaction ID provided.</p></div>';
+            }
+        })();
         
         async function loadTransactionDetails(txId, retryCount = 0) {
             try {

@@ -15,7 +15,7 @@
         
         body {
             font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #001f3f 0%, #003366 50%, #001a33 100%);
             min-height: 100vh;
             padding: 2rem 1rem;
             position: relative;
@@ -31,9 +31,9 @@
             right: 0;
             bottom: 0;
             background-image: 
-                radial-gradient(circle at 20% 50%, rgba(255,255,255,0.05) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(255,255,255,0.05) 0%, transparent 50%),
-                radial-gradient(circle at 40% 20%, rgba(255,255,255,0.03) 0%, transparent 50%);
+                radial-gradient(circle at 20% 50%, rgba(255,255,255,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255,255,255,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255,255,255,0.05) 0%, transparent 50%);
             animation: float 20s ease-in-out infinite;
             pointer-events: none;
         }
@@ -71,17 +71,18 @@
         .header-icon {
             width: 90px;
             height: 90px;
-            background: rgba(255,255,255,0.15);
+            background: white;
             backdrop-filter: blur(10px);
-            border: 2px solid rgba(255,255,255,0.3);
+            border: 3px solid rgba(255,255,255,0.9);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 1.5rem;
             font-size: 2.5rem;
+            color: #001f3f;
             animation: pulse 2s infinite, rotate 10s linear infinite;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.2);
         }
         
         @keyframes pulse {
@@ -118,12 +119,13 @@
         .transaction-card {
             background: white;
             padding: 3rem;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.1);
             margin: 1.5rem 0;
             animation: slideUp 0.6s ease-out;
             position: relative;
             overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.1);
         }
         
         .transaction-card::before {
@@ -132,8 +134,8 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 5px;
-            background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+            height: 6px;
+            background: linear-gradient(90deg, #001f3f, #003366, #004080, #003366, #001f3f);
             background-size: 200% 100%;
             animation: gradientShift 3s ease infinite;
         }
@@ -209,21 +211,21 @@
         }
         
         .status-verified {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
             color: white;
-            box-shadow: 0 6px 30px rgba(17, 153, 142, 0.5);
+            box-shadow: 0 6px 30px rgba(0, 31, 63, 0.6), 0 0 20px rgba(0, 51, 102, 0.3);
         }
         
         .status-pending {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
             color: white;
-            box-shadow: 0 6px 30px rgba(245, 87, 108, 0.5);
+            box-shadow: 0 6px 30px rgba(74, 85, 104, 0.5);
         }
         
         .status-error {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            background: linear-gradient(135deg, #c53030 0%, #e53e3e 100%);
             color: white;
-            box-shadow: 0 6px 30px rgba(250, 112, 154, 0.5);
+            box-shadow: 0 6px 30px rgba(197, 48, 48, 0.5);
         }
         
         .status-tampered {
@@ -272,25 +274,28 @@
         
         .info-item {
             padding: 1.5rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 12px;
-            border-left: 4px solid #667eea;
+            background: white;
+            border-radius: 16px;
+            border: 2px solid #e2e8f0;
+            border-left: 5px solid #001f3f;
             transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         }
         
         .info-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,31,63,0.2);
+            border-left-color: #003366;
         }
         
         .info-item strong {
             display: block;
-            color: #667eea;
+            color: #001f3f;
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 0.5rem;
-            font-weight: 600;
+            font-weight: 700;
         }
         
         .info-item code {
@@ -315,7 +320,7 @@
             align-items: center;
             gap: 0.75rem;
             padding: 1rem 2rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
             color: white;
             text-decoration: none;
             border-radius: 50px;
@@ -325,12 +330,13 @@
             border: none;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 31, 63, 0.4);
         }
         
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+            box-shadow: 0 6px 25px rgba(0, 51, 102, 0.6);
+            background: linear-gradient(135deg, #003366 0%, #004080 100%);
         }
         
         .btn-primary:active {
@@ -418,12 +424,12 @@
             display: grid;
             grid-template-columns: 1fr 80px 1fr;
             gap: 1.5rem;
-            padding: 1rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 12px 12px 0 0;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+            border-radius: 16px 16px 0 0;
             font-weight: 700;
             font-size: 0.9rem;
-            color: #495057;
+            color: white;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -439,20 +445,20 @@
         }
         
         .comparison-col.db-col {
-            color: #3498db;
+            color: white;
         }
         
         .comparison-col.bc-col {
-            color: #9b59b6;
+            color: white;
         }
         
         .comparison-col.status-col {
             justify-content: center;
-            color: #7f8c8d;
+            color: white;
         }
         
         .comparison-row {
-            border: 2px solid #ecf0f1;
+            border: 2px solid #e2e8f0;
             border-top: none;
             padding: 1.5rem;
             background: white;
@@ -460,11 +466,12 @@
         }
         
         .comparison-row:hover {
-            background: #f8f9fa;
+            background: #f7fafc;
+            box-shadow: 0 4px 15px rgba(0,31,63,0.1);
         }
         
         .comparison-row:last-child {
-            border-radius: 0 0 12px 12px;
+            border-radius: 0 0 16px 16px;
         }
         
         .comparison-row.mismatch {
@@ -568,28 +575,30 @@
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1.5rem;
             padding: 1.5rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 12px;
-            border: 2px solid #dee2e6;
+            background: #f7fafc;
+            border-radius: 16px;
+            border: 2px solid #e2e8f0;
         }
         
         .proof-item {
             display: flex;
             align-items: flex-start;
             gap: 1rem;
-            padding: 1rem;
+            padding: 1.5rem;
             background: white;
-            border-radius: 10px;
+            border-radius: 12px;
             transition: all 0.3s ease;
+            border: 1px solid #e2e8f0;
         }
         
         .proof-item:hover {
             transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 20px rgba(0,31,63,0.15);
+            border-color: #001f3f;
         }
         
         .proof-item i {
-            color: #667eea;
+            color: #001f3f;
             font-size: 1.5rem;
             margin-top: 0.25rem;
         }
@@ -651,8 +660,8 @@
             display: inline-block;
             width: 50px;
             height: 50px;
-            border: 5px solid rgba(102, 126, 234, 0.3);
-            border-top-color: #667eea;
+            border: 5px solid rgba(0, 31, 63, 0.2);
+            border-top-color: #001f3f;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -749,7 +758,7 @@
         <div id="transactionDetails">
             <div class="transaction-card" style="text-align: center;">
                 <div class="loading-spinner"></div>
-                <p style="margin-top: 1rem; color: #667eea; font-size: 1.1rem;">Loading transaction details...</p>
+                <p style="margin-top: 1rem; color: #001f3f; font-size: 1.1rem; font-weight: 600;">Loading transaction details...</p>
             </div>
         </div>
     </div>
@@ -1139,7 +1148,7 @@
             integritySection.innerHTML = `
                 <div class="transaction-card" style="text-align: center;">
                     <div class="loading-spinner"></div>
-                    <p style="margin-top: 1rem; color: #667eea; font-size: 1.1rem;">Checking data integrity...</p>
+                    <p style="margin-top: 1rem; color: #001f3f; font-size: 1.1rem; font-weight: 600;">Checking data integrity...</p>
                 </div>
             `;
             

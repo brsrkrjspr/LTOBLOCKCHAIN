@@ -171,20 +171,44 @@ function displayOwnershipTimeline(vehicleData) {
     if (emptyState) emptyState.style.display = 'none';
     if (timelineContainer) timelineContainer.style.display = 'block';
 
-    // Update vehicle info summary
+    // Update vehicle info summary (all vehicle identifiers grouped together)
     if (vehicleInfoSummary) {
+        const plateNumber = vehicleData.plate_number || vehicleData.plateNumber || 'N/A';
+        const vin = vehicleData.vin || 'N/A';
+        const vehicleLabel = `${vehicleData.year || ''} ${vehicleData.make || ''} ${vehicleData.model || ''}`.trim() || 'N/A';
+        const engineNo = vehicleData.engine_no || vehicleData.engineNo || 'N/A';
+        const chassisNo = vehicleData.chassis_no || vehicleData.chassisNo || 'N/A';
+        const registrationDate = vehicleData.registration_date || vehicleData.registrationDate || vehicleData.firstRegistrationDate || 'N/A';
+        const orCr = vehicleData.or_cr || vehicleData.orCr || 'N/A';
+
         vehicleInfoSummary.innerHTML = `
             <div class="vehicle-info-item">
                 <div class="vehicle-info-label">Plate Number</div>
-                <div class="vehicle-info-value">${vehicleData.plate_number || vehicleData.plateNumber || 'N/A'}</div>
+                <div class="vehicle-info-value">${plateNumber}</div>
             </div>
             <div class="vehicle-info-item">
                 <div class="vehicle-info-label">VIN</div>
-                <div class="vehicle-info-value">${vehicleData.vin || 'N/A'}</div>
+                <div class="vehicle-info-value">${vin}</div>
             </div>
             <div class="vehicle-info-item">
                 <div class="vehicle-info-label">Vehicle</div>
-                <div class="vehicle-info-value">${vehicleData.year || ''} ${vehicleData.make || ''} ${vehicleData.model || ''}</div>
+                <div class="vehicle-info-value">${vehicleLabel}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Engine No.</div>
+                <div class="vehicle-info-value">${engineNo}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Chassis No.</div>
+                <div class="vehicle-info-value">${chassisNo}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Registration Date</div>
+                <div class="vehicle-info-value">${registrationDate}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">OR/CR</div>
+                <div class="vehicle-info-value">${orCr}</div>
             </div>
         `;
     }

@@ -336,15 +336,17 @@
         }
 
         .vehicle-info-summary {
-            display: flex;
-            gap: 2rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1.5rem;
+            width: 100%;
         }
 
         .vehicle-info-item {
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
+            min-width: 0;
         }
 
         .vehicle-info-label {
@@ -359,6 +361,8 @@
             font-size: 1rem;
             color: #2c3e50;
             font-weight: 600;
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
         }
 
         .timeline {
@@ -779,6 +783,12 @@
            Desktop/Tablet: Unchanged
            ============================================ */
 
+        @media (max-width: 1024px) {
+            .vehicle-info-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         @media (max-width: 768px) {
             /* Mobile Header - Hamburger on Left */
             .dashboard-header {
@@ -954,7 +964,7 @@
             }
 
             .vehicle-info-summary {
-                flex-direction: column !important;
+                grid-template-columns: 1fr !important;
                 gap: 1rem !important;
                 width: 100%;
             }

@@ -373,6 +373,26 @@
                 word-wrap: break-word;
                 overflow-wrap: break-word;
             }
+            
+            /* Upload Items - Stack Vertically on Mobile */
+            .transfer-upload-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .transfer-upload-info {
+                width: 100%;
+            }
+            
+            .transfer-upload-area {
+                width: 100%;
+                min-width: 100%;
+            }
+            
+            .transfer-upload-label {
+                width: 100%;
+            }
         }
         
         /* Collapsed Sidebar - Responsive Adjustments */
@@ -1157,12 +1177,28 @@
                                                 <p>Notarized deed of sale document</p>
                                             </div>
                                             <div class="transfer-upload-area">
-                                                <input type="file" id="deedOfSale" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'deedOfSale')">
+                                                <input type="file" id="deedOfSale" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'deedOfSale')" required>
                                                 <label for="deedOfSale" class="transfer-upload-label" id="label-deedOfSale">
                                                     <span class="transfer-upload-icon">📄</span>
                                                     <span class="transfer-upload-text">Choose File</span>
                                                 </label>
                                                 <div class="transfer-file-name" id="filename-deedOfSale"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Deed of Sale (Additional Copy) -->
+                                        <div class="transfer-upload-item" id="upload-item-deedOfSale2">
+                                            <div class="transfer-upload-info">
+                                                <h4>📝 Deed of Sale <span style="color: #e74c3c;">*</span></h4>
+                                                <p>Additional copy of notarized deed of sale document</p>
+                                            </div>
+                                            <div class="transfer-upload-area">
+                                                <input type="file" id="deedOfSale2" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'deedOfSale2')" required>
+                                                <label for="deedOfSale2" class="transfer-upload-label" id="label-deedOfSale2">
+                                                    <span class="transfer-upload-icon">📄</span>
+                                                    <span class="transfer-upload-text">Choose File</span>
+                                                </label>
+                                                <div class="transfer-file-name" id="filename-deedOfSale2"></div>
                                             </div>
                                         </div>
 
@@ -1762,6 +1798,7 @@
             // Transfer uses specific roles, but we need to map to logical types for upload
             const docTypeMap = {
                 'deedOfSale': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
+                'deedOfSale2': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
                 'sellerId': DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID,
                 'buyerId': DocumentUploadUtils.DOCUMENT_TYPES.BUYER_ID,
                 'orCr': DocumentUploadUtils.DOCUMENT_TYPES.REGISTRATION_CERT, // OR/CR is a registration cert
@@ -1931,7 +1968,7 @@
                 }
             } else if (step === 4) {
                 // Check required documents
-                const requiredDocs = ['deedOfSale', 'sellerId', 'buyerId', 'orCr'];
+                const requiredDocs = ['deedOfSale', 'deedOfSale2', 'sellerId', 'buyerId', 'orCr'];
                 // Enhanced validation: Check that documents exist AND have IDs
                 const missingDocs = requiredDocs.filter(doc => {
                     const docData = transferData.documents[doc];
@@ -1941,6 +1978,7 @@
                 if (missingDocs.length > 0) {
                     const docNames = {
                         'deedOfSale': 'Deed of Sale',
+                        'deedOfSale2': 'Deed of Sale (Copy)',
                         'sellerId': 'Seller ID',
                         'buyerId': 'Buyer ID',
                         'orCr': 'OR/CR'
@@ -1995,6 +2033,7 @@
             if (uploadsList) {
                 const docNames = {
                     'deedOfSale': 'Deed of Sale',
+                    'deedOfSale2': 'Deed of Sale (Copy)',
                     'sellerId': 'Seller Valid ID',
                     'buyerId': 'Buyer Valid ID',
                     'orCr': 'Latest OR/CR',

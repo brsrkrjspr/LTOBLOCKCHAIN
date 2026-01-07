@@ -1,672 +1,370 @@
-            const html = `
-                <div class="transaction-card">
-                    <div class="card-header">
-                        <div class="verified-pill">
-                            <i class="fas fa-check"></i>
-                            <span>Verified</span>
-                        </div>
-                    </div>
-                    <h1 class="card-title">Blockchain Transaction Verification</h1>
-                    <p class="card-subtitle">Transaction successfully verified on blockchain</p>
-                    <div class="section-divider"></div>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Transaction ID</span>
-                            <span class="info-value code">${shortTxId}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Timestamp</span>
-                            <span class="info-value">${formattedTs}</span>
-                        </div>
-                        ${tx.vehicleVin ? `
-                        <div class="info-item">
-                            <span class="info-label">Vehicle VIN</span>
-                            <span class="info-value code">${tx.vehicleVin}</span>
-                        </div>` : ''}
-                        ${tx.vehiclePlate ? `
-                        <div class="info-item">
-                            <span class="info-label">Plate Number</span>
-                            <span class="info-value">${tx.vehiclePlate}</span>
-                        </div>` : ''}
-                        ${tx.action ? `
-                        <div class="info-item">
-                            <span class="info-label">Action</span>
-                            <span class="info-value">${tx.action}</span>
-                        </div>` : ''}
-                        ${tx.description ? `
-                        <div class="info-item" style="grid-column: span 2;">
-                            <span class="info-label">Description</span>
-                            <span class="info-value">${tx.description}</span>
-                        </div>` : ''}
-                        ${tx.source ? `
-                        <div class="info-item">
-                            <span class="info-label">Source</span>
-                            <span class="info-value">${tx.source === 'blockchain' ? 'Hyperledger Fabric Blockchain' : 'Database Record'}</span>
-                        </div>` : ''}
-                    </div>
-                    <div class="section-divider"></div>
-                    <div id="integrityCheckSection"></div>
-                    <div class="card-footer">
-                        <a href="/public-transaction-viewer.html?txId=${txId}" class="btn-primary">View Full Details</a>
-                    </div>
-                </div>
-            `;
-        .header-section .subtitle {
-            font-size: 1.1rem;
-            opacity: 0.95;
-            font-weight: 300;
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Transaction Verification</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --card-bg: linear-gradient(165deg, #1a2940 0%, #152538 100%);
+            --panel-bg: #1f324d;
+            --border: rgba(255, 255, 255, 0.06);
+            --text: #e2e8f0;
+            --muted: #9fb2cc;
+            --accent: #3b82f6;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
         }
-        
-        .header-icon {
-            width: 80px;
-            height: 80px;
-            background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(10px);
-            border-radius: 50%;
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            background: radial-gradient(120% 120% at 20% 20%, rgba(59, 130, 246, 0.12), transparent),
+                        linear-gradient(160deg, #0f172a 0%, #0b1222 45%, #0a1020 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .page {
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
-            font-size: 2rem;
-            animation: pulse 2s infinite;
+            padding: 32px 18px;
         }
-        
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(255,255,255,0.4);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 0 0 10px rgba(255,255,255,0);
-            }
+
+        .verification-shell {
+            width: min(1080px, 100%);
+            margin: 0 auto;
         }
-        
+
+        #transactionDetails {
+            width: 100%;
+        }
+
         .transaction-card {
-            background: linear-gradient(165deg, #1a2940 0%, #16263b 100%);
+            background: var(--card-bg);
             padding: 2.5rem;
             border-radius: 22px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.35);
-            margin: 1.5rem 0;
-            position: relative;
-            border: 1px solid rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+            color: var(--text);
         }
-        
+
         .card-header {
-            margin-bottom: 1.75rem;
             display: flex;
-            justify-content: flex-start;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
         }
-        
+
         .verified-pill {
             display: inline-flex;
             align-items: center;
-            gap: 0.45rem;
-            background: rgba(34,197,94,0.12);
-            color: #16c47f;
-            border: 1px solid rgba(22,196,127,0.3);
-            padding: 0.45rem 0.9rem;
+            gap: 0.5rem;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            padding: 0.55rem 0.9rem;
             border-radius: 999px;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        .card-title {
-            font-size: 1.85rem;
             font-weight: 700;
-            color: white;
-            margin: 0 0 0.4rem 0;
+            letter-spacing: 0.01em;
+            text-transform: uppercase;
+            font-size: 0.85rem;
         }
-        
+
+        .card-title {
+            margin: 0;
+            font-size: 1.9rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
         .card-subtitle {
-            color: #a7b5c9;
+            margin: 0.15rem 0 0;
+            color: var(--muted);
             font-size: 1rem;
-            margin-bottom: 1.25rem;
+            font-weight: 500;
         }
-        
-        .transaction-card p {
-            color: white;
-            margin: 0.6rem 0;
-            font-size: 0.98rem;
+
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+            margin: 1.5rem 0;
         }
-        
-        .transaction-card p strong {
-            color: #93a5be;
-            font-weight: 600;
-        }
-        
-        .transaction-card code {
-            background: #1f324d;
-            color: #d5e3ff;
-            padding: 0.45rem 0.6rem;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-        
+
         .info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 1rem;
-            margin: 1.5rem 0 1.25rem 0;
+            margin: 1.25rem 0 1rem;
         }
-        
+
         .info-item {
-            background: #1f324d;
-            border: 1px solid rgba(255,255,255,0.05);
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 0.9rem 1rem;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+            padding: 1rem;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
-        
+
         .info-label {
             display: block;
             font-size: 0.8rem;
-            color: #9fb2cc;
+            color: var(--muted);
             margin-bottom: 0.35rem;
             letter-spacing: 0.2px;
         }
-        
+
         .info-value {
             display: block;
-            color: white;
+            color: #fff;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             word-break: break-word;
         }
-        
+
         .info-value.code {
-            font-family: 'Courier New', monospace;
+            font-family: "SFMono-Regular", "Consolas", "Courier New", monospace;
             background: #203553;
             padding: 0.45rem 0.6rem;
             border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        
-        .section-divider {
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
-            margin: 1.25rem 0;
-        }
-        
+
         .card-footer {
             display: flex;
             justify-content: flex-end;
-            margin-top: 0.5rem;
+            margin-top: 1.25rem;
         }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.9rem 1.6rem;
+            background: var(--accent);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35);
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
         }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 36px rgba(59, 130, 246, 0.45);
+        }
+
+        .btn-primary i {
+            font-size: 0.95rem;
+        }
+
         .status-badge {
-            display: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 0.8rem;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
+
+        .status-success { background: rgba(34, 197, 94, 0.12); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.35); }
+        .status-pending { background: rgba(245, 158, 11, 0.12); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.35); }
+        .status-error { background: rgba(239, 68, 68, 0.12); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.35); }
+
         code {
             background: #1f324d;
             padding: 0.25rem 0.45rem;
             border-radius: 6px;
-            font-family: 'Courier New', monospace;
+            font-family: "SFMono-Regular", "Consolas", "Courier New", monospace;
             word-break: break-all;
             color: #d5e3ff;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .btn-primary {
-            display: inline-flex;
+
+        .integrity-section-enhanced {
+            background: linear-gradient(165deg, #192a42 0%, #142132 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            margin-top: 1.25rem;
+        }
+
+        .integrity-header {
+            display: flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.875rem 1.75rem;
-            background: #3b82f6;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            margin-top: 1.5rem;
-            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .integrity-header h3 {
+            margin: 0;
+            font-size: 1.35rem;
+            color: #fff;
+        }
+
+        .integrity-header p {
+            margin: 0;
+            color: var(--muted);
             font-size: 0.95rem;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
         }
-        .btn-primary:hover {
-            background: #2563eb;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
-        .integrity-section {
-            margin-top: 2rem;
-            padding: 2.5rem;
-            background: #1e293b;
-            border-radius: 20px;
-        }
-        
-        .integrity-section h3 {
-            color: white;
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
+
         .comparison-table {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
             gap: 1rem;
-            margin: 1rem 0;
+            margin-top: 1rem;
         }
-        
+
         .comparison-card {
-            background: #1f324d;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 1.25rem;
+            padding: 1.1rem;
             position: relative;
-            border: 1px solid rgba(255,255,255,0.05);
+            min-height: 120px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
         }
-        
+
         .comparison-card strong {
             display: block;
             color: #94a3b8;
-            font-size: 0.8rem;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-        
-        .comparison-card span {
-            color: white;
-            font-size: 1rem;
+            font-size: 0.82rem;
+            margin-bottom: 0.35rem;
             font-weight: 600;
         }
-        
+
+        .comparison-card span {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            word-break: break-word;
+        }
+
         .match-badge {
             position: absolute;
-            top: 1rem;
-            right: 1rem;
-            display: flex;
+            top: 0.85rem;
+            right: 0.85rem;
+            display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            color: #10b981;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .comparison-table th {
-            display: none;
-        }
-        .comparison-table td {
-            display: none;
-        }
-        .comparison-table tr:last-child td {
-            display: none;
-        }
-        .comparison-table tr:hover {
-            display: none;
-        }
-        .match-indicator {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-        .match-indicator.match {
-            background: #28a745;
-        }
-        .match-indicator.mismatch {
-            background: #dc3545;
-        }
-        .match-indicator.critical {
-            background: #dc3545;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        .field-label {
-            font-weight: 600;
-            color: #495057;
-        }
-        .critical-field {
-            background: #fff5f5;
-        }
-        .blockchain-proof {
-            background: #e7f3ff;
-            padding: 1rem;
-            border-radius: 6px;
-            margin-top: 1rem;
-            border-left: 3px solid #0066cc;
-        }
-        .approval-chain {
-            margin-top: 1rem;
-        }
-        .approval-step {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem;
-            margin: 0.25rem 0;
-            background: white;
-            border-radius: 4px;
-        }
-        .approval-step i {
-            margin-right: 0.5rem;
-            color: #28a745;
-        }
-        
-        /* Enhanced Integrity Section */
-        .integrity-section-enhanced {
-            margin-top: 0;
-            background: linear-gradient(165deg, #1a2940 0%, #16263b 100%);
-            border-radius: 18px;
-            padding: 2rem;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
-            border: 1px solid rgba(255,255,255,0.04);
-        }
-        
-        .integrity-header {
-            margin-bottom: 2rem;
-        }
-        
-        .integrity-header h3 {
-            color: white;
-            font-size: 1.5rem;
+            padding: 0.4rem 0.65rem;
+            border-radius: 999px;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            font-size: 0.78rem;
             font-weight: 700;
         }
-        
-        .integrity-icon {
-            display: none;
-        }
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-        
-        .integrity-title h3 {
-            margin: 0;
-            font-size: 1.25rem;
-        }
-        
-        .integrity-title p {
-            margin: 0.25rem 0 0;
-            opacity: 0.9;
-            font-size: 0.9rem;
-        }
-        
-        .integrity-body {
-            background: white;
-            padding: 1.5rem;
-        }
-        
-        .integrity-comparison {
-            margin-bottom: 1.5rem;
-        }
-        
-        .comparison-header {
-            display: grid;
-            grid-template-columns: 1fr 60px 1fr;
-            gap: 1rem;
-            padding: 0.75rem;
-            background: #f8f9fa;
-            border-radius: 8px 8px 0 0;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: #7f8c8d;
-        }
-        
-        .comparison-col {
+
+        .loading-row {
+            color: var(--muted);
             display: flex;
             align-items: center;
             gap: 0.5rem;
-        }
-        
-        .comparison-col.db-col {
-            color: #3498db;
-        }
-        
-        .comparison-col.bc-col {
-            color: #9b59b6;
-        }
-        
-        .comparison-col.status-col {
-            justify-content: center;
-        }
-        
-        .comparison-row {
-            border: 1px solid #ecf0f1;
-            border-top: none;
-            padding: 0.75rem;
-        }
-        
-        .comparison-row:last-child {
-            border-radius: 0 0 8px 8px;
-        }
-        
-        .comparison-row.mismatch {
-            background: #fff5f5;
-        }
-        
-        .comparison-row.mismatch.critical {
-            background: #fce4e4;
-            border-color: #e74c3c;
-        }
-        
-        .comparison-label {
             font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
-        
-        .critical-badge {
-            background: #e74c3c;
-            color: white;
-            font-size: 0.6rem;
-            padding: 0.15rem 0.4rem;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-        
-        .comparison-values {
-            display: grid;
-            grid-template-columns: 1fr 60px 1fr;
-            gap: 1rem;
-        }
-        
-        .comparison-values code {
-            font-size: 0.85rem;
-            background: #f8f9fa;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            word-break: break-all;
-        }
-        
-        .match-icon {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
-        }
-        
-        .match-icon.success {
-            background: #d4edda;
-            color: #27ae60;
-        }
-        
-        .match-icon.error {
-            background: #f8d7da;
-            color: #e74c3c;
-            animation: shake 0.5s ease-in-out;
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-        
-        .blockchain-proof-enhanced {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            padding: 1rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-        
-        .proof-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-        
-        .proof-item i {
-            color: #667eea;
-            font-size: 1.25rem;
-            margin-top: 0.25rem;
-        }
-        
-        .proof-item label {
-            display: block;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            color: #7f8c8d;
-            letter-spacing: 0.5px;
-        }
-        
-        .proof-item code,
-        .proof-item span {
-            font-size: 0.85rem;
-            color: #2c3e50;
-            word-break: break-all;
+
+        .muted { color: var(--muted); }
+
+        @media (max-width: 720px) {
+            .transaction-card { padding: 1.5rem; }
+            .info-grid { grid-template-columns: 1fr; }
+            .card-title { font-size: 1.5rem; }
         }
     </style>
 </head>
 <body>
-    <div class="verification-container">
-        <h1><i class="fas fa-shield-alt"></i> Blockchain Transaction Verification</h1>
-        <div id="transactionDetails">
-            <p>Loading transaction details...</p>
+    <div class="page">
+        <div class="verification-shell">
+            <div id="transactionDetails">
+                <div class="transaction-card">
+                    <div class="loading-row">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Loading transaction details...</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
+
     <script src="/js/auth-utils.js"></script>
     <script src="/js/api-client.js"></script>
     <script>
-        // Initialize verification on page load
-        (function() {
-            // Get transaction ID from URL
+        (function initVerification() {
             const urlPath = window.location.pathname;
             let txId = urlPath.split('/').pop();
-            
-            // Remove .html if present
+
             if (txId.endsWith('.html')) {
                 txId = txId.replace('.html', '');
             }
-            
-            // Check if we were redirected from login (invalid transaction ID extracted)
+
             const invalidTxIds = ['login-signup', 'login', 'signup', 'verify', 'undefined', 'null'];
-            if (invalidTxIds.includes(txId)) {
-                txId = null; // Reset to null so we can check other sources
-            }
-            
-            // Priority 1: Check redirect query parameter (if redirected from login)
             const urlParams = new URLSearchParams(window.location.search);
+
             const redirectParam = urlParams.get('redirect');
             if (redirectParam) {
-                // Extract transaction ID from redirect URL like /verify/<txId>
                 const redirectMatch = redirectParam.match(/\/verify\/([^/?]+)/);
                 if (redirectMatch && redirectMatch[1]) {
                     txId = redirectMatch[1];
-                    console.log('Extracted transaction ID from redirect parameter:', txId);
                 }
             }
-            
-            // Priority 2: Check txId query parameter
+
             if (!txId || invalidTxIds.includes(txId)) {
                 txId = urlParams.get('txId');
             }
-            
-            // Validate transaction ID before proceeding
+
             if (!txId || invalidTxIds.includes(txId) || txId.length < 10) {
-                document.getElementById('transactionDetails').innerHTML = 
-                    '<div class="transaction-card"><p style="color: red;">No valid transaction ID provided.</p></div>';
-                return; // Now this return is inside a function, so it's valid
+                renderMessage('No valid transaction ID provided.', 'error', txId);
+                return;
             }
-            
-            if (txId && txId !== 'verify') {
-                loadTransactionDetails(txId);
-            } else {
-                document.getElementById('transactionDetails').innerHTML = 
-                    '<div class="transaction-card"><p style="color: red;">No transaction ID provided.</p></div>';
-            }
+
+            loadTransactionDetails(txId);
         })();
-        
+
         async function loadTransactionDetails(txId, retryCount = 0) {
             try {
-                // Validate transaction ID format (should be a blockchain hash, not UUID)
                 if (!txId || txId === 'undefined' || txId === 'null' || txId.length < 10) {
-                    document.getElementById('transactionDetails').innerHTML = 
-                        `<div class="transaction-card">
-                            <div class="status-badge status-error">
-                                <i class="fas fa-exclamation-triangle"></i> INVALID TRANSACTION ID
-                            </div>
-                            <h2 style="margin-top: 1rem;">Invalid Transaction ID</h2>
-                            <p style="margin-top: 1rem;">The scanned QR code contains an invalid transaction ID: <code>${txId || 'empty'}</code></p>
-                            <p>This may indicate that the vehicle registration is still pending blockchain confirmation.</p>
-                            <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
-                                <i class="fas fa-info-circle"></i> QR codes are only generated for vehicles that have been successfully registered on the blockchain.
-                            </p>
-                        </div>`;
+                    renderMessage(`The scanned QR code contains an invalid transaction ID: ${txId || 'empty'}`, 'error');
                     return;
                 }
-                
-                // Check if it's a UUID (contains hyphens) - these are not blockchain transaction IDs
+
                 if (txId.includes('-') && txId.length === 36) {
-                    document.getElementById('transactionDetails').innerHTML = 
-                        `<div class="transaction-card">
+                    document.getElementById('transactionDetails').innerHTML = `
+                        <div class="transaction-card">
                             <div class="status-badge status-pending">
-                                <i class="fas fa-clock"></i> VERIFICATION PENDING
+                                <i class="fas fa-clock"></i> Verification Pending
                             </div>
-                            <h2 style="margin-top: 1rem;">Registration Pending</h2>
-                            <p style="margin-top: 1rem;">This vehicle registration is still being processed.</p>
-                            <p>The QR code will be available once the vehicle is successfully registered on the blockchain.</p>
-                            <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
-                                <i class="fas fa-info-circle"></i> Blockchain transaction IDs are generated when the registration is confirmed on Hyperledger Fabric.
-                            </p>
+                            <h2 style="margin: 1rem 0 0.5rem;">Registration Pending</h2>
+                            <p class="muted" style="margin: 0 0 0.5rem;">This vehicle registration is still being processed.</p>
+                            <p class="muted">The QR code will be available once the vehicle is registered on the blockchain.</p>
                         </div>`;
                     return;
                 }
-                
-                const apiClient = window.apiClient || new APIClient();
-                
-                // Try to get transaction (public endpoint, no auth required)
-                // Don't send auth token for public verification
+
                 let response;
                 let statusCode = 200;
+
                 try {
-                    // Make request without auth header for public verification
-                    const token = apiClient.getAuthToken();
-                    const originalHeaders = {};
-                    if (token) {
-                        // Temporarily remove auth for public endpoint
-                        originalHeaders['Authorization'] = `Bearer ${token}`;
-                    }
-                    
-                    // Call without auth token (public endpoint) - use fetch directly
                     const fetchResponse = await fetch(`${window.location.origin}/api/blockchain/transactions/${encodeURIComponent(txId)}`, {
                         method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json'
-                            // Intentionally NOT including Authorization header for public verification
-                        }
+                        headers: { 'Content-Type': 'application/json' }
                     });
-                    
+
                     if (!fetchResponse.ok) {
                         const errorData = await fetchResponse.json().catch(() => ({}));
                         throw {
@@ -675,166 +373,105 @@
                             message: errorData.error || `HTTP ${fetchResponse.status}`
                         };
                     }
-                    
+
                     response = await fetchResponse.json();
                 } catch (apiError) {
                     statusCode = apiError.status || (apiError.response && apiError.response.status) || 500;
-                    
-                    // Handle 202 (Accepted) - Transaction is pending
+
                     if (statusCode === 202) {
                         const pendingData = apiError.response?.data || apiError.data || {};
-                        document.getElementById('transactionDetails').innerHTML = 
-                            `<div class="transaction-card">
+                        document.getElementById('transactionDetails').innerHTML = `
+                            <div class="transaction-card">
                                 <div class="status-badge status-pending">
-                                    <i class="fas fa-clock"></i> TRANSACTION BROADCASTING
+                                    <i class="fas fa-clock"></i> Transaction Broadcasting
                                 </div>
-                                <h2 style="margin-top: 1rem;">Transaction Pending Blockchain Confirmation</h2>
-                                <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>
-                                <p>${pendingData.message || 'This transaction is being processed and will be recorded on the blockchain shortly.'}</p>
-                                <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
-                                    <i class="fas fa-info-circle"></i> The transaction is in the process of being confirmed on the Hyperledger Fabric network.
-                                </p>
-                                <div style="margin-top: 1.5rem;">
-                                    <button onclick="loadTransactionDetails('${txId}', ${retryCount + 1})" 
-                                            class="btn-primary"
-                                            style="cursor: pointer; border: none;">
+                                <h2 style="margin: 1rem 0 0.5rem;">Transaction Pending Confirmation</h2>
+                                <p class="muted" style="margin: 0 0 0.5rem;">Transaction ID: <code>${txId}</code></p>
+                                <p class="muted">${pendingData.message || 'This transaction is being processed and will be recorded shortly.'}</p>
+                                <div style="margin-top: 1.25rem;">
+                                    <button class="btn-primary" onclick="loadTransactionDetails('${txId}', ${retryCount + 1})">
                                         <i class="fas fa-sync-alt"></i> Check Status Again
                                     </button>
                                 </div>
                             </div>`;
                         return;
                     }
-                    
-                    // Handle 503 (Service Unavailable) - Blockchain service unavailable
+
                     if (statusCode === 503) {
-                        document.getElementById('transactionDetails').innerHTML = 
-                            `<div class="transaction-card">
-                                <div class="status-badge status-error">
-                                    <i class="fas fa-server"></i> SERVICE UNAVAILABLE
-                                </div>
-                                <h2 style="margin-top: 1rem;">Blockchain Service Unavailable</h2>
-                                <p style="margin-top: 1rem;">
-                                    The Hyperledger Fabric blockchain network is temporarily unavailable. 
-                                    Please try again later.
-                                </p>
-                                <div style="margin-top: 1.5rem;">
-                                    <button onclick="loadTransactionDetails('${txId}')" 
-                                            class="btn-primary"
-                                            style="cursor: pointer; border: none;">
-                                        <i class="fas fa-sync-alt"></i> Retry
-                                    </button>
-                                </div>
-                            </div>`;
-                        return;
-                    }
-                    
-                    // Handle 401 (Unauthorized) - Should not happen for public endpoint, but handle gracefully
-                    if (statusCode === 401) {
-                        document.getElementById('transactionDetails').innerHTML = 
-                            `<div class="transaction-card">
-                                <div class="status-badge status-error">
-                                    <i class="fas fa-exclamation-triangle"></i> AUTHENTICATION ERROR
-                                </div>
-                                <h2 style="margin-top: 1rem;">Verification Error</h2>
-                                <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>
-                                <p>The verification endpoint requires public access. This may be a configuration issue.</p>
-                                <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
-                                    <i class="fas fa-info-circle"></i> QR code verification should work without login. Please try again or contact support.
-                                </p>
-                                <div style="margin-top: 1.5rem;">
-                                    <button onclick="loadTransactionDetails('${txId}')" 
-                                            class="btn-primary"
-                                            style="cursor: pointer; border: none;">
-                                        <i class="fas fa-sync-alt"></i> Retry
-                                    </button>
-                                </div>
-                            </div>`;
-                        return;
-                    }
-                    
-                    // Check if it's a 404 (not found) vs 500 (server error)
-                    if (statusCode === 404) {
-                        const errorData = apiError.response?.data || apiError.data || {};
-                        
-                        let errorHtml = `
+                        document.getElementById('transactionDetails').innerHTML = `
                             <div class="transaction-card">
                                 <div class="status-badge status-error">
-                                    <i class="fas fa-exclamation-triangle"></i> NOT FOUND
+                                    <i class="fas fa-server"></i> Service Unavailable
                                 </div>
-                                <h2 style="margin-top: 1rem;">Transaction Not Found</h2>
-                                <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>`;
-                        
-                        if (errorData.isVehicleId) {
-                            errorHtml += `
-                                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-top: 1rem;">
-                                    <p style="color: #856404; margin: 0;">
-                                        <i class="fas fa-info-circle"></i> 
-                                        This appears to be a vehicle ID, not a blockchain transaction ID.  
-                                        The vehicle may still be pending blockchain registration.
-                                    </p>
-                                </div>`;
-                        } else {
-                            errorHtml += `
-                                <p style="margin-top: 1rem; color: #666;">
-                                    This transaction ID was not found on the blockchain ledger.  
-                                    Please verify the ID is correct or contact LTO support.
-                                </p>`;
-                        }
-                        
-                        errorHtml += `</div>`;
-                        
-                        document.getElementById('transactionDetails').innerHTML = errorHtml;
+                                <h2 style="margin: 1rem 0 0.5rem;">Blockchain Service Unavailable</h2>
+                                <p class="muted">The blockchain network is temporarily unavailable. Please try again later.</p>
+                                <div style="margin-top: 1.25rem;">
+                                    <button class="btn-primary" onclick="loadTransactionDetails('${txId}')">
+                                        <i class="fas fa-sync-alt"></i> Retry
+                                    </button>
+                                </div>
+                            </div>`;
                         return;
                     }
-                    
-                    // For other errors (500, network errors, etc.), show error message
-                    document.getElementById('transactionDetails').innerHTML = 
-                        `<div class="transaction-card">
+
+                    if (statusCode === 401) {
+                        renderMessage('Verification endpoint requires public access. Please try again.', 'error', txId);
+                        return;
+                    }
+
+                    if (statusCode === 404) {
+                        const errorData = apiError.response?.data || apiError.data || {};
+                        let extra = '';
+                        if (errorData.isVehicleId) {
+                            extra = `<div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px; margin-top: 0.75rem; color: ${'var(--warning)'};">This appears to be a vehicle ID, not a blockchain transaction ID.</div>`;
+                        }
+                        document.getElementById('transactionDetails').innerHTML = `
+                            <div class="transaction-card">
+                                <div class="status-badge status-error">
+                                    <i class="fas fa-exclamation-triangle"></i> Not Found
+                                </div>
+                                <h2 style="margin: 1rem 0 0.5rem;">Transaction Not Found</h2>
+                                <p class="muted">Transaction ID: <code>${txId}</code></p>
+                                ${extra}
+                            </div>`;
+                        return;
+                    }
+
+                    document.getElementById('transactionDetails').innerHTML = `
+                        <div class="transaction-card">
                             <div class="status-badge status-error">
-                                <i class="fas fa-exclamation-triangle"></i> ERROR
+                                <i class="fas fa-exclamation-triangle"></i> Error
                             </div>
-                            <p style="margin-top: 1rem;">Error loading transaction: ${apiError.message || 'Unknown error'}</p>
-                            <p>Please try again later or <a href="/login-signup.html">log in</a> for additional details.</p>
+                            <p class="muted" style="margin: 1rem 0 0;">Error loading transaction: ${apiError.message || 'Unknown error'}</p>
                         </div>`;
                     return;
                 }
-                
-                // Handle 202 status (Accepted - pending)
+
                 if (response.status === 202 || (response.transaction && response.transaction.isPending)) {
-                    document.getElementById('transactionDetails').innerHTML = 
-                        `<div class="transaction-card">
+                    document.getElementById('transactionDetails').innerHTML = `
+                        <div class="transaction-card">
                             <div class="status-badge status-pending">
-                                <i class="fas fa-clock"></i> TRANSACTION BROADCASTING
+                                <i class="fas fa-clock"></i> Transaction Broadcasting
                             </div>
-                            <h2 style="margin-top: 1rem;">Transaction Pending Blockchain Confirmation</h2>
-                            <p style="margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>
-                            <p>${response.message || 'This transaction is being processed and will be recorded on the blockchain shortly.'}</p>
-                            <p style="color: #856404; font-size: 0.9rem; margin-top: 1rem;">
-                                <i class="fas fa-info-circle"></i> The transaction is in the process of being confirmed on the Hyperledger Fabric network.
-                            </p>
-                            <div style="margin-top: 1.5rem;">
-                                <button onclick="loadTransactionDetails('${txId}', ${retryCount + 1})" 
-                                        class="btn-primary"
-                                        style="cursor: pointer; border: none;">
+                            <h2 style="margin: 1rem 0 0.5rem;">Transaction Pending Confirmation</h2>
+                            <p class="muted">Transaction ID: <code>${txId}</code></p>
+                            <div style="margin-top: 1.25rem;">
+                                <button class="btn-primary" onclick="loadTransactionDetails('${txId}', ${retryCount + 1})">
                                     <i class="fas fa-sync-alt"></i> Check Status Again
                                 </button>
                             </div>
                         </div>`;
                     return;
                 }
-                
+
                 if (response.success && response.transaction) {
                     displayTransaction(response.transaction, txId);
-                    // If we have a VIN, also load integrity check
                     if (response.transaction.vehicleVin) {
                         loadIntegrityCheck(response.transaction.vehicleVin, txId);
                     }
-                    
-                    // Check URL parameter for view mode
+
                     const urlParams = new URLSearchParams(window.location.search);
                     const viewMode = urlParams.get('view');
-                    
-                    // If user wants certificate view, try to load certificate
                     if (viewMode === 'certificate') {
                         try {
                             const certResponse = await fetch(`/api/certificates/verify/${txId}`);
@@ -849,25 +486,13 @@
                         }
                     }
                 } else {
-                    document.getElementById('transactionDetails').innerHTML = 
-                        `<div class="transaction-card">
-                            <div class="status-badge status-error">
-                                <i class="fas fa-times-circle"></i> NOT FOUND
-                            </div>
-                            <p style="margin-top: 1rem;">Transaction not found: <code>${txId}</code></p>
-                        </div>`;
+                    renderMessage(`Transaction not found: ${txId}`, 'error');
                 }
             } catch (error) {
-                document.getElementById('transactionDetails').innerHTML = 
-                    `<div class="transaction-card">
-                        <div class="status-badge status-error">
-                            <i class="fas fa-exclamation-triangle"></i> ERROR
-                        </div>
-                        <p style="margin-top: 1rem;">Error loading transaction: ${error.message || 'Unknown error'}</p>
-                    </div>`;
+                renderMessage(`Error loading transaction: ${error.message || 'Unknown error'}`, 'error');
             }
         }
-        
+
         function displayTransaction(tx, txId) {
             const shortTxId = txId && txId.length > 24 ? `${txId.slice(0, 12)}...${txId.slice(-8)}` : txId;
             const formattedTs = tx.timestamp ? new Date(tx.timestamp).toLocaleString('en-US', {
@@ -924,68 +549,76 @@
                             <span class="info-value">${tx.source === 'blockchain' ? 'Hyperledger Fabric Blockchain' : 'Database Record'}</span>
                         </div>
                     </div>
+                    <div id="integrityCheckSection"></div>
                     <div class="card-footer">
-                        <a href="/public-transaction-viewer.html?txId=${txId}" class="btn-primary">View Full Details</a>
+                        <a class="btn-primary" href="/public-transaction-viewer.html?txId=${txId}">
+                            <i class="fas fa-arrow-right"></i>
+                            View Full Details
+                        </a>
                     </div>
                 </div>
-                <div id="integrityCheckSection"></div>
             `;
+
             document.getElementById('transactionDetails').innerHTML = html;
         }
-        
+
         async function loadIntegrityCheck(vin, txId) {
             const integritySection = document.getElementById('integrityCheckSection');
             if (!integritySection) return;
-            
+
             integritySection.innerHTML = `
-                <div class="integrity-section-enhanced" style="padding: 1.5rem;">
-                    <p style="color: #94a3b8; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <div class="integrity-section-enhanced">
+                    <div class="loading-row">
                         <i class="fas fa-spinner fa-spin"></i>
-                        Checking data integrity...
-                    </p>
-                </div>
-            `;
-            
+                        <span>Checking data integrity...</span>
+                    </div>
+                </div>`;
+
             try {
                 const apiClient = window.apiClient || new APIClient();
                 const integrityResponse = await apiClient.get(`/api/integrity/check/${vin}`);
-                
+
                 if (integrityResponse.success) {
                     displayIntegrityCheck(integrityResponse, txId);
                 } else {
                     integritySection.innerHTML = `
-                        <div class="integrity-section">
-                            <p style="color: #856404;"><i class="fas fa-exclamation-triangle"></i> Could not perform integrity check: ${integrityResponse.message || 'Unknown error'}</p>
-                        </div>
-                    `;
+                        <div class="integrity-section-enhanced">
+                            <p class="muted"><i class="fas fa-exclamation-triangle"></i> Could not perform integrity check: ${integrityResponse.message || 'Unknown error'}</p>
+                        </div>`;
                 }
             } catch (error) {
                 console.warn('Integrity check failed:', error);
                 integritySection.innerHTML = `
-                    <div class="integrity-section">
-                        <p style="color: #856404;"><i class="fas fa-info-circle"></i> Integrity check unavailable: ${error.message || 'Service temporarily unavailable'}</p>
-                    </div>
-                `;
+                    <div class="integrity-section-enhanced">
+                        <p class="muted"><i class="fas fa-info-circle"></i> Integrity check unavailable: ${error.message || 'Service temporarily unavailable'}</p>
+                    </div>`;
             }
         }
-        
+
         function displayIntegrityCheck(integrityData, txId) {
             const status = integrityData.status;
-            let statusText = 'DATA INTEGRITY VERIFIED';
-            let statusColor = '#10b981';
-            
+            let statusText = 'Data Integrity Verified';
+            let statusColor = 'rgba(34, 197, 94, 0.12)';
+            let statusBorder = 'rgba(34, 197, 94, 0.35)';
+            let statusFont = 'var(--success)';
+
             if (status === 'TAMPERED') {
-                statusText = 'DATA TAMPERING DETECTED';
-                statusColor = '#ef4444';
+                statusText = 'Data Tampering Detected';
+                statusColor = 'rgba(239, 68, 68, 0.12)';
+                statusBorder = 'rgba(239, 68, 68, 0.35)';
+                statusFont = 'var(--error)';
             } else if (status === 'MISMATCH') {
-                statusText = 'DATA MISMATCH FOUND';
-                statusColor = '#f59e0b';
+                statusText = 'Data Mismatch Found';
+                statusColor = 'rgba(245, 158, 11, 0.12)';
+                statusBorder = 'rgba(245, 158, 11, 0.35)';
+                statusFont = 'var(--warning)';
             } else if (status === 'NOT_REGISTERED') {
-                statusText = 'NOT ON BLOCKCHAIN';
-                statusColor = '#6b7280';
+                statusText = 'Not On Blockchain';
+                statusColor = 'rgba(148, 163, 184, 0.12)';
+                statusBorder = 'rgba(148, 163, 184, 0.25)';
+                statusFont = '#cbd5e1';
             }
-            
-            // Build visual comparison cards
+
             let comparisonHtml = '';
             if (integrityData.comparisons && integrityData.comparisons.length > 0) {
                 comparisonHtml = `
@@ -997,49 +630,55 @@
                                 <span>${comp.dbValue || comp.blockchainValue || 'N/A'}</span>
                             </div>
                         `).join('')}
-                    </div>
-                `;
+                    </div>`;
             }
-            
+
             const html = `
                 <div class="integrity-section-enhanced">
-                    <div class="card-header" style="margin-bottom: 1rem;">
-                        <div class="verified-pill" style="color: ${statusColor}; border-color: rgba(22,196,127,0.25); background: rgba(22,196,127,0.1);">
-                            <i class="fas fa-check"></i>
+                    <div class="integrity-header">
+                        <div class="verified-pill" style="background: ${statusColor}; border-color: ${statusBorder}; color: ${statusFont}; text-transform: none;">
+                            <i class="fas fa-shield-check"></i>
                             <span>${statusText}</span>
                         </div>
                     </div>
-                    <h3 class="card-title" style="font-size: 1.4rem; margin-bottom: 0.35rem;">Data Integrity Verification</h3>
-                    <p class="card-subtitle" style="margin-bottom: 1.25rem;">${integrityData.message || 'All fields match between database and blockchain'}</p>
+                    <p class="card-subtitle" style="margin-bottom: 1.1rem;">${integrityData.message || 'All fields match between database and blockchain'}</p>
                     ${comparisonHtml}
-                </div>
-            `;
-            
-            document.getElementById('integrityCheckSection').innerHTML = html;
+                </div>`;
+
+            const integritySection = document.getElementById('integrityCheckSection');
+            if (integritySection) {
+                integritySection.innerHTML = html;
+            }
         }
-        
+
         function displayCertificateDownload(certificate, txId) {
             const certSection = document.createElement('div');
-            certSection.className = 'certificate-section';
-            certSection.style.cssText = 'background: #e8f5e9; padding: 1.5rem; border-radius: 8px; margin-top: 1rem; text-align: center;';
+            certSection.className = 'integrity-section-enhanced';
+            certSection.style.marginTop = '1.25rem';
             certSection.innerHTML = `
-                <h3 style="color: #2e7d32; margin-bottom: 1rem;">
-                    <i class="fas fa-file-pdf"></i> Digital Certificate Available
-                </h3>
-                <p style="margin-bottom: 1rem;">Your verified registration certificate is ready for download.</p>
-                <a href="${certificate.downloadUrl}" 
-                   target="_blank"
-                   class="btn-primary" 
-                   style="display: inline-block; padding: 0.75rem 1.5rem; text-decoration: none;">
+                <h3 style="margin: 0 0 0.5rem; color: #fff;"><i class="fas fa-file-pdf"></i> Digital Certificate Available</h3>
+                <p class="muted" style="margin: 0 0 0.75rem;">Your verified registration certificate is ready for download.</p>
+                <a class="btn-primary" href="${certificate.downloadUrl}" target="_blank" rel="noopener">
                     <i class="fas fa-download"></i> Download Certificate
-                </a>
-            `;
+                </a>`;
             const transactionDetails = document.getElementById('transactionDetails');
             if (transactionDetails) {
                 transactionDetails.appendChild(certSection);
             }
         }
+
+        function renderMessage(message, level = 'info', txId) {
+            const levelClass = level === 'error' ? 'status-error' : level === 'warning' ? 'status-pending' : 'status-success';
+            document.getElementById('transactionDetails').innerHTML = `
+                <div class="transaction-card">
+                    <div class="status-badge ${levelClass}">
+                        <i class="fas ${level === 'error' ? 'fa-exclamation-triangle' : level === 'warning' ? 'fa-info-circle' : 'fa-check'}"></i>
+                        ${level === 'error' ? 'Error' : 'Notice'}
+                    </div>
+                    <p class="muted" style="margin: 1rem 0 0;">${message}</p>
+                    ${txId ? `<p class="muted" style="margin: 0.5rem 0 0;">Transaction ID: <code>${txId}</code></p>` : ''}
+                </div>`;
+        }
     </script>
 </body>
 </html>
-

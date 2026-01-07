@@ -14,8 +14,8 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
             min-height: 100vh;
             padding: 2rem 1rem;
         }
@@ -23,31 +23,14 @@
         .verification-container {
             max-width: 900px;
             margin: 0 auto;
-            animation: fadeIn 0.6s ease-out;
-        }
-        
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
         
         .header-section {
-            text-align: center;
-            margin-bottom: 2rem;
-            color: white;
+            display: none;
         }
         
         .header-section h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none;
         }
         
         .header-section .subtitle {
@@ -82,12 +65,56 @@
         }
         
         .transaction-card {
-            background: white;
+            background: #1e293b;
             padding: 2.5rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             margin: 1.5rem 0;
-            animation: slideUp 0.5s ease-out;
+            position: relative;
+        }
+        
+        .card-header {
+            margin-bottom: 2rem;
+        }
+        
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #10b981;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .card-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-subtitle {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+        
+        .transaction-card p {
+            color: white;
+            margin: 0.75rem 0;
+            font-size: 1rem;
+        }
+        
+        .transaction-card p strong {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        
+        .transaction-card code {
+            background: #334155;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
         }
         
         @keyframes slideUp {
@@ -101,40 +128,7 @@
             }
         }
         .status-badge {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-weight: bold;
-            margin: 0.5rem 0;
-        }
-        .status-verified {
-            background: #d4edda;
-            color: #155724;
-        }
-        .status-pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .status-error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .status-tampered {
-            background: #f8d7da;
-            color: #721c24;
-            animation: flash 1s infinite;
-        }
-        @keyframes flash {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        .status-mismatch {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .status-not-registered {
-            background: #e2e3e5;
-            color: #383d41;
+            display: none;
         }
         code {
             background: white;
@@ -144,48 +138,88 @@
             word-break: break-all;
         }
         .btn-primary {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background: #667eea;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1.75rem;
+            background: #3b82f6;
             color: white;
             text-decoration: none;
-            border-radius: 4px;
-            margin-top: 1rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
         .btn-primary:hover {
-            background: #5568d3;
+            background: #2563eb;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
         .integrity-section {
             margin-top: 2rem;
-            padding: 1.5rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
+            padding: 2.5rem;
+            background: #1e293b;
+            border-radius: 20px;
+        }
+        
+        .integrity-section h3 {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
         }
         .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
             margin: 1rem 0;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
         }
-        .comparison-table th {
-            background: #667eea;
+        
+        .comparison-card {
+            background: #334155;
+            border-radius: 12px;
+            padding: 1.25rem;
+            position: relative;
+        }
+        
+        .comparison-card strong {
+            display: block;
+            color: #94a3b8;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .comparison-card span {
             color: white;
-            padding: 0.75rem;
-            text-align: left;
+            font-size: 1rem;
             font-weight: 600;
         }
+        
+        .match-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            color: #10b981;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .comparison-table th {
+            display: none;
+        }
         .comparison-table td {
-            padding: 0.75rem;
-            border-bottom: 1px solid #e9ecef;
+            display: none;
         }
         .comparison-table tr:last-child td {
-            border-bottom: none;
+            display: none;
         }
         .comparison-table tr:hover {
-            background: #f8f9fa;
+            display: none;
         }
         .match-indicator {
             display: inline-block;
@@ -241,24 +275,24 @@
         /* Enhanced Integrity Section */
         .integrity-section-enhanced {
             margin-top: 2rem;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 2.5rem;
         }
         
         .integrity-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .integrity-header h3 {
             color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
         }
         
         .integrity-icon {
-            width: 60px;
-            height: 60px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50%;
+            display: none;
+        }
             display: flex;
             align-items: center;
             justify-content: center;
@@ -754,10 +788,13 @@
         function displayTransaction(tx, txId) {
             const html = `
                 <div class="transaction-card">
-                    <div class="status-badge status-verified">
-                        <i class="fas fa-check-circle"></i> VERIFIED
+                    <div class="card-header">
+                        <div class="verified-badge">
+                            <i class="fas fa-check"></i>
+                            <span>VERIFIED</span>
+                        </div>
+                        <h1 class="card-title">Transaction Verified on Blockchain</h1>
                     </div>
-                    <h2 style="margin-top: 1rem;">Transaction Verified on Blockchain</h2>
                     <p><strong>Transaction ID:</strong> <code>${txId}</code></p>
                     <p><strong>Timestamp:</strong> ${tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'N/A'}</p>
                     <p><strong>Validation Code:</strong> ${tx.validationCode || 'VALID'}</p>
@@ -769,7 +806,7 @@
                     <p><strong>Source:</strong> ${tx.source === 'blockchain' ? 'Hyperledger Fabric Blockchain' : 'Database Record'}</p>
                     <div style="margin-top: 1.5rem;">
                         <a href="/public-transaction-viewer.html?txId=${txId}" class="btn-primary">
-                            <i class="fas fa-external-link-alt"></i> View Full Details
+                            View Full Details
                         </a>
                     </div>
                 </div>
@@ -809,65 +846,30 @@
         
         function displayIntegrityCheck(integrityData, txId) {
             const status = integrityData.status;
-            let statusClass = 'status-verified';
-            let statusIcon = 'fa-shield-alt';
             let statusText = 'DATA INTEGRITY VERIFIED';
-            let statusColor = '#27ae60';
+            let statusColor = '#10b981';
             
             if (status === 'TAMPERED') {
-                statusClass = 'status-tampered';
-                statusIcon = 'fa-exclamation-triangle';
                 statusText = 'DATA TAMPERING DETECTED';
-                statusColor = '#e74c3c';
+                statusColor = '#ef4444';
             } else if (status === 'MISMATCH') {
-                statusClass = 'status-mismatch';
-                statusIcon = 'fa-exclamation-circle';
                 statusText = 'DATA MISMATCH FOUND';
-                statusColor = '#f39c12';
+                statusColor = '#f59e0b';
             } else if (status === 'NOT_REGISTERED') {
-                statusClass = 'status-not-registered';
-                statusIcon = 'fa-info-circle';
                 statusText = 'NOT ON BLOCKCHAIN';
-                statusColor = '#7f8c8d';
+                statusColor = '#6b7280';
             }
             
-            // Build visual comparison table
+            // Build visual comparison cards
             let comparisonHtml = '';
             if (integrityData.comparisons && integrityData.comparisons.length > 0) {
                 comparisonHtml = `
-                    <div class="integrity-comparison">
-                        <div class="comparison-header">
-                            <div class="comparison-col db-col">
-                                <i class="fas fa-database"></i>
-                                <span>PostgreSQL Database</span>
-                            </div>
-                            <div class="comparison-col status-col">
-                                <i class="fas fa-exchange-alt"></i>
-                            </div>
-                            <div class="comparison-col bc-col">
-                                <i class="fas fa-link"></i>
-                                <span>Hyperledger Fabric</span>
-                            </div>
-                        </div>
+                    <div class="comparison-table">
                         ${integrityData.comparisons.map(comp => `
-                            <div class="comparison-row ${comp.matches ? 'match' : 'mismatch'} ${comp.isCritical ? 'critical' : ''}">
-                                <div class="comparison-label">
-                                    ${comp.label}
-                                    ${comp.isCritical ? '<span class="critical-badge">CRITICAL</span>' : ''}
-                                </div>
-                                <div class="comparison-values">
-                                    <div class="comparison-col db-col">
-                                        <code>${comp.dbValue || '(empty)'}</code>
-                                    </div>
-                                    <div class="comparison-col status-col">
-                                        <div class="match-icon ${comp.matches ? 'success' : 'error'}">
-                                            <i class="fas ${comp.matches ? 'fa-check' : 'fa-times'}"></i>
-                                        </div>
-                                    </div>
-                                    <div class="comparison-col bc-col">
-                                        <code>${comp.blockchainValue || '(empty)'}</code>
-                                    </div>
-                                </div>
+                            <div class="comparison-card">
+                                ${comp.matches ? `<div class="match-badge"><i class="fas fa-check"></i> Match</div>` : ''}
+                                <strong>${comp.label}</strong>
+                                <span>${comp.dbValue || comp.blockchainValue || 'N/A'}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -876,36 +878,11 @@
             
             const html = `
                 <div class="integrity-section-enhanced">
-                    <div class="integrity-header" style="background: ${statusColor};">
-                        <div class="integrity-icon">
-                            <i class="fas ${statusIcon}"></i>
-                        </div>
-                        <div class="integrity-title">
-                            <h3>${statusText}</h3>
-                            <p>${integrityData.message || 'Comparison complete'}</p>
-                        </div>
+                    <div class="integrity-header">
+                        <h3>${statusText}</h3>
+                        <p style="color: #94a3b8; margin-top: 0.5rem;">${integrityData.message || 'All fields match between database and blockchain'}</p>
                     </div>
-                    
-                    <div class="integrity-body">
-                        ${comparisonHtml}
-                        
-                        <div class="blockchain-proof-enhanced">
-                            <div class="proof-item">
-                                <i class="fas fa-fingerprint"></i>
-                                <div>
-                                    <label>Transaction Hash</label>
-                                    <code>${integrityData.transactionId || txId}</code>
-                                </div>
-                            </div>
-                            <div class="proof-item">
-                                <i class="fas fa-clock"></i>
-                                <div>
-                                    <label>Verified At</label>
-                                    <span>${integrityData.checkedAt ? new Date(integrityData.checkedAt).toLocaleString() : 'Just now'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    ${comparisonHtml}
                 </div>
             `;
             

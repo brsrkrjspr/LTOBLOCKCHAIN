@@ -171,20 +171,100 @@ function displayOwnershipTimeline(vehicleData) {
     if (emptyState) emptyState.style.display = 'none';
     if (timelineContainer) timelineContainer.style.display = 'block';
 
-    // Update vehicle info summary
+    // Update vehicle info summary (map DB fields correctly, avoid raw N/A spam)
     if (vehicleInfoSummary) {
+        // Primary identifiers
+        const plateNumber = vehicleData.plate_number || vehicleData.plateNumber || 'Pending Assignment';
+        const vin = vehicleData.vin || 'Not Available';
+
+        // Vehicle description
+        const year = vehicleData.year || '';
+        const make = vehicleData.make || '';
+        const model = vehicleData.model || '';
+        const vehicleLabel = [year, make, model].filter(Boolean).join(' ') || 'Vehicle Details Pending';
+
+        // Correct engine/chassis field names (match DB schema)
+        const engineNo =
+            vehicleData.engine_number ||
+            vehicleData.engineNumber ||
+            vehicleData.engine_no ||
+            vehicleData.engineNo ||
+            'Not Recorded';
+
+        const chassisNo =
+            vehicleData.chassis_number ||
+            vehicleData.chassisNumber ||
+            vehicleData.chassis_no ||
+            vehicleData.chassisNo ||
+            vin ||
+            'Not Recorded';
+
+        // Registration date – prefer explicit registration / CR dates, never "today" as a fake fallback
+        const rawRegistrationDate =
+            vehicleData.date_of_registration ||
+            vehicleData.registration_date ||
+            vehicleData.registrationDate ||
+            vehicleData.cr_issued_at ||
+            vehicleData.or_issued_at ||
+            vehicleData.created_at ||
+            null;
+
+        const formattedRegDate =
+            rawRegistrationDate && !Number.isNaN(new Date(rawRegistrationDate).getTime())
+                ? new Date(rawRegistrationDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                  })
+                : 'Pending Registration';
+
+        // OR / CR numbers – show both when available
+        const orNumber = vehicleData.or_number || vehicleData.orNumber || '';
+        const crNumber = vehicleData.cr_number || vehicleData.crNumber || '';
+        const orCrDisplay =
+            [orNumber, crNumber]
+                .filter(Boolean)
+                .join(' / ') || 'Pending Assignment';
+
+        const color = vehicleData.color || 'Not Specified';
+        const vehicleType = vehicleData.vehicle_type || vehicleData.vehicleType || 'Passenger';
+
         vehicleInfoSummary.innerHTML = `
             <div class="vehicle-info-item">
                 <div class="vehicle-info-label">Plate Number</div>
-                <div class="vehicle-info-value">${vehicleData.plate_number || vehicleData.plateNumber || 'N/A'}</div>
+                <div class="vehicle-info-value">${escapeHtml(plateNumber)}</div>
             </div>
             <div class="vehicle-info-item">
                 <div class="vehicle-info-label">VIN</div>
-                <div class="vehicle-info-value">${vehicleData.vin || 'N/A'}</div>
+                <div class="vehicle-info-value">${escapeHtml(vin)}</div>
             </div>
             <div class="vehicle-info-item">
                 <div class="vehicle-info-label">Vehicle</div>
-                <div class="vehicle-info-value">${vehicleData.year || ''} ${vehicleData.make || ''} ${vehicleData.model || ''}</div>
+                <div class="vehicle-info-value">${escapeHtml(vehicleLabel)}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Engine No.</div>
+                <div class="vehicle-info-value">${escapeHtml(engineNo)}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Chassis No.</div>
+                <div class="vehicle-info-value">${escapeHtml(chassisNo)}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Color</div>
+                <div class="vehicle-info-value">${escapeHtml(color)}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Vehicle Type</div>
+                <div class="vehicle-info-value">${escapeHtml(vehicleType)}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">Registration Date</div>
+                <div class="vehicle-info-value">${escapeHtml(formattedRegDate)}</div>
+            </div>
+            <div class="vehicle-info-item">
+                <div class="vehicle-info-label">OR/CR Numbers</div>
+                <div class="vehicle-info-value">${escapeHtml(orCrDisplay)}</div>
             </div>
         `;
     }

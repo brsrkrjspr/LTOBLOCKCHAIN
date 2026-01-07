@@ -1682,7 +1682,29 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
             vehicle: {
                 id: vehicle.id,
                 vin: vehicle.vin,
-                plateNumber: vehicle.plate_number
+                plate_number: vehicle.plate_number,
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year,
+                color: vehicle.color,
+                engine_number: vehicle.engine_number,
+                chassis_number: vehicle.chassis_number,
+                vehicle_type: vehicle.vehicle_type,
+                fuel_type: vehicle.fuel_type,
+                transmission: vehicle.transmission,
+                engine_displacement: vehicle.engine_displacement,
+                registration_date: vehicle.registration_date,
+                date_of_registration: vehicle.date_of_registration,
+                or_number: vehicle.or_number,
+                cr_number: vehicle.cr_number,
+                or_issued_at: vehicle.or_issued_at,
+                cr_issued_at: vehicle.cr_issued_at,
+                inspection_date: vehicle.inspection_date,
+                inspection_result: vehicle.inspection_result,
+                mvir_number: vehicle.mvir_number,
+                status: vehicle.status,
+                owner_name: vehicle.owner_name || null,
+                owner_email: vehicle.owner_email || null
             },
             ownershipHistory
         });

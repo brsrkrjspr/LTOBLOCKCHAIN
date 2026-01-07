@@ -179,38 +179,75 @@ const CertificateGenerator = {
         const orNumber = vehicle.or_number || vehicle.orNumber || vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
         const crNumber = vehicle.cr_number || vehicle.crNumber || vehicle.or_cr_number || vehicle.orCrNumber || 'NOT ASSIGNED';
         
-        // Date of registration (separate from date issued)
-        // Enhanced fallback chain: date_of_registration -> registration_date -> or_issued_at -> cr_issued_at -> approved_at -> created_at -> current date
-        const dateOfRegistration = vehicle.date_of_registration || vehicle.registration_date || vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.approved_at || vehicle.created_at || new Date();
-        // Date issued - prefer OR/CR issued dates as they're more accurate
-        // Fallback chain: or_issued_at -> cr_issued_at -> registration_date -> approved_at -> created_at -> current date
-        const regDate = vehicle.or_issued_at || vehicle.cr_issued_at || vehicle.registration_date || vehicle.approved_at || vehicle.created_at || new Date();
-        
-        const regDateFormatted = regDate ?  
-            new Date(regDate).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric'
-            }) : new Date().toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric'
+        // ===== DATE LOGIC (no fake "today" fallbacks) =====
+        // CR Date Issued should reflect when the vehicle was actually registered / approved.
+        // Prefer explicit registration / CR dates, otherwise show PENDING instead of current date.
+
+        // Priority for CR issued: cr_issued_at > date_of_registration > registration_date > approved_at
+        const crIssuedDate =
+            vehicle.cr_issued_at ||
+            vehicle.date_of_registration ||
+            vehicle.registration_date ||
+            vehicle.approved_at ||
+            null;
+
+        // OR issued: or_issued_at if available, else fall back to CR/registration dates
+        const orIssuedDate =
+            vehicle.or_issued_at ||
+            vehicle.cr_issued_at ||
+            vehicle.date_of_registration ||
+            vehicle.registration_date ||
+            null;
+
+        // Date of registration: when the vehicle was first registered
+        const rawDateOfRegistration =
+            vehicle.date_of_registration ||
+            vehicle.registration_date ||
+            vehicle.cr_issued_at ||
+            vehicle.created_at ||
+            null;
+
+        const formatDate = (value, fallbackText = 'PENDING') => {
+            if (!value) return fallbackText;
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return fallbackText;
+            return d.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
-        
-        const regDateShort = regDate ?  
-            new Date(regDate).toLocaleDateString('en-US', {
-                year: 'numeric', month: '2-digit', day: '2-digit'
-            }) : new Date().toLocaleDateString('en-US', {
-                year: 'numeric', month: '2-digit', day: '2-digit'
+        };
+
+        const formatDateShort = (value, fallbackText = 'PENDING') => {
+            if (!value) return fallbackText;
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return fallbackText;
+            return d.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
             });
-        
-        const dateOfRegFormatted = dateOfRegistration ?  
-            new Date(dateOfRegistration).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric'
-            }) : regDateFormatted;
-        
-        // Calculate validity date (1 year from registration - LTO standard)
-        // Use dateOfRegistration for expiration calculation as it represents when vehicle was registered
-        // Always calculate from dateOfRegistration (which now always has a value)
-        const validityDate = new Date(new Date(dateOfRegistration).setFullYear(new Date(dateOfRegistration).getFullYear() + 1)).toLocaleDateString('en-US', {
-            year: 'numeric', month: 'long', day: 'numeric'
-        });
+        };
+
+        const crIssuedFormatted = formatDate(crIssuedDate);
+        const orIssuedFormatted = formatDate(orIssuedDate);
+        const dateOfRegFormatted = formatDate(rawDateOfRegistration);
+        const regDateShort = formatDateShort(orIssuedDate);
+
+        // Calculate validity/expiration date (1 year from registration) – only if we have a valid registration date
+        let validityDate = 'PENDING';
+        if (rawDateOfRegistration) {
+            const base = new Date(rawDateOfRegistration);
+            if (!Number.isNaN(base.getTime())) {
+                const expiry = new Date(base);
+                expiry.setFullYear(expiry.getFullYear() + 1);
+                validityDate = expiry.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+        }
         
         const ownerName = owner ?  
             `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email || 'N/A'

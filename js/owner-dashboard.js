@@ -2394,13 +2394,16 @@ function showUserApplicationModal(application) {
 }
 
 function downloadCertificate(applicationId) {
-    showNotification('Preparing certificate download...', 'info');
-    
-    // Simulate certificate generation
-    setTimeout(() => {
-        showNotification('Certificate downloaded successfully!', 'success');
-        // In a real app, this would trigger actual certificate download
-    }, 2000);
+    console.warn('downloadCertificate is deprecated. Redirecting to downloadVehicleCertificate.');
+    // Delegate to the real certificate download flow which uses CertificateGenerator
+    try {
+        downloadVehicleCertificate(applicationId, null);
+    } catch (e) {
+        console.error('downloadCertificate fallback error:', e);
+        if (typeof showNotification === 'function') {
+            showNotification('Unable to generate certificate. Please try again.', 'error');
+        }
+    }
 }
 
 async function resubmitApplication(applicationId) {

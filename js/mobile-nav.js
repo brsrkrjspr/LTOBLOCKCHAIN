@@ -67,8 +67,17 @@
     
     // Create overlay
     function createOverlay() {
-        if (document.querySelector('.sidebar-overlay')) return;
+        // If an overlay already exists in the DOM (e.g. from page HTML),
+        // reuse it and wire up the close handler so we don't end up with
+        // a null reference when toggling on mobile.
+        const existingOverlay = document.querySelector('.sidebar-overlay');
+        if (existingOverlay) {
+            overlay = existingOverlay;
+            overlay.addEventListener('click', closeMobileSidebar);
+            return;
+        }
         
+        // Otherwise, create a new overlay element
         overlay = document.createElement('div');
         overlay.className = 'sidebar-overlay';
         overlay.style.cssText = `

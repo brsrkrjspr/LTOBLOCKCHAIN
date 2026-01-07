@@ -1957,13 +1957,15 @@
                 // Validate required fields
                 if (!plate?.value.trim()) markInvalid(plate);
                 if (!chassis?.value.trim()) markInvalid(chassis);
-                if (!orcr?.value.trim()) markInvalid(orcr);  // ✅ OR/CR validation added
+                if (!orNumber?.value.trim()) markInvalid(orNumber);
+                if (!crNumber?.value.trim()) markInvalid(crNumber);
                 
                 if (!valid) {
                     const missingFields = [];
                     if (!plate?.value.trim()) missingFields.push('Plate Number');
                     if (!chassis?.value.trim()) missingFields.push('Chassis Number');
-                    if (!orcr?.value.trim()) missingFields.push('OR/CR Number');  // ✅ Include in error message
+                    if (!orNumber?.value.trim()) missingFields.push('OR Number');
+                    if (!crNumber?.value.trim()) missingFields.push('CR Number');
                     showWizardError(3, `Please complete all required fields: ${missingFields.join(', ')}`);
                 }
             } else if (step === 4) {

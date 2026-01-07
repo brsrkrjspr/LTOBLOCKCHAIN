@@ -894,5 +894,87 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
     }
 });
 
+// Scrap/retire a vehicle (admin only)
+router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+        const { scrapReason } = req.body;
+        
+        if (!scrapReason) {
+            return res.status(400).json({
+                success: false,
+                error: 'Scrap reason is required'
+            });
+        }
+        
+        // Get vehicle
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+        
+        // Cannot scrap already scrapped vehicles
+        if (vehicle.status === 'SCRAPPED') {
+            return res.status(400).json({
+                success: false,
+                error: 'Vehicle is already scrapped'
+            });
+        }
+        
+        // Call chaincode to scrap on blockchain
+        const blockchainResult = await fabricService.scrapVehicle(vehicle.vin, scrapReason);
+        
+        // Update PostgreSQL
+        const dbModule = require('../database/db');
+        await dbModule.query(
+            `UPDATE vehicles 
+             SET status = 'SCRAPPED', 
+                 scrapped_at = NOW(), 
+                 scrap_reason = $1,
+                 scrapped_by = $2,
+                 last_updated = NOW()
+             WHERE id = $3`,
+            [scrapReason, req.user.userId, vehicleId]
+        );
+        
+        // Revoke any active OR records
+        await dbModule.query(
+            `UPDATE certificates 
+             SET status = 'REVOKED'
+             WHERE vehicle_id = $1 AND status = 'ACTIVE'`,
+            [vehicleId]
+        );
+        
+        // Add to vehicle history
+        await db.addVehicleHistory({
+            vehicleId,
+            action: 'VEHICLE_SCRAPPED',
+            description: `Vehicle scrapped: ${scrapReason}`,
+            performedBy: req.user.userId,
+            transactionId: blockchainResult.transactionId,
+            metadata: JSON.stringify({
+                scrapReason,
+                blockchainTxId: blockchainResult.transactionId
+            })
+        });
+        
+        res.json({
+            success: true,
+            message: 'Vehicle scrapped successfully',
+            transactionId: blockchainResult.transactionId
+        });
+        
+    } catch (error) {
+        console.error('Scrap vehicle error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to scrap vehicle'
+        });
+    }
+});
+
 module.exports = router;
 

@@ -235,26 +235,53 @@ function createTimelineNode(record, index, total) {
     
     node.className = `timeline-node ${isCurrent ? 'current' : ''}`;
     
-    // Extract data from record
-    // For REGISTERED actions, use owner_name/owner_email from metadata or record
-    // For OWNERSHIP_TRANSFERRED, use new_owner_name or owner_name
-    let ownerName = 'Unknown Owner';
-    let ownerId = 'N/A';
+    // Extract data from record with enhanced owner information
+    let ownerDisplay = '';
     
-    if (record.action === 'REGISTERED' || record.metadata?.is_initial) {
-        // Initial registration - use owner from metadata or record
-        ownerName = record.metadata?.owner_name || record.owner_name || record.performed_by_name || 'System';
-        ownerId = record.metadata?.owner_id || record.owner_id || record.performed_by || 'N/A';
+    if (record.action === 'OWNERSHIP_TRANSFERRED') {
+        // Transfer action - show previous and new owner
+        const previousOwnerName = record.previousOwnerName || record.metadata?.previousOwnerName || 'Unknown';
+        const previousOwnerEmail = record.previousOwnerEmail || record.metadata?.previousOwnerEmail || null;
+        const newOwnerName = record.newOwnerName || record.metadata?.newOwnerName || record.currentOwnerName || 'Unknown';
+        const newOwnerEmail = record.newOwnerEmail || record.metadata?.newOwnerEmail || record.currentOwnerEmail || null;
+        
+        ownerDisplay = `
+            <div class="transfer-details">
+                <div class="transfer-from">
+                    <span class="label">From:</span>
+                    <span class="owner-name">${escapeHtml(previousOwnerName)}</span>
+                    ${previousOwnerEmail ? `<span class="owner-email">(${escapeHtml(previousOwnerEmail)})</span>` : ''}
+                </div>
+                <div class="transfer-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="transfer-to">
+                    <span class="label">To:</span>
+                    <span class="owner-name">${escapeHtml(newOwnerName)}</span>
+                    ${newOwnerEmail ? `<span class="owner-email">(${escapeHtml(newOwnerEmail)})</span>` : ''}
+                </div>
+            </div>
+        `;
     } else {
-        // Ownership transfer - use new owner
-        ownerName = record.new_owner_name || record.owner_name || record.metadata?.newOwnerName || record.metadata?.owner_name || 'Unknown Owner';
-        ownerId = record.new_owner_id || record.owner_id || record.metadata?.newOwnerId || record.metadata?.owner_id || 'N/A';
+        // Registration or other action - show current owner
+        const ownerName = record.currentOwnerName || record.owner_name || record.performed_by_name || record.metadata?.owner_name || 'Unknown';
+        const ownerEmail = record.currentOwnerEmail || record.owner_email || record.metadata?.owner_email || null;
+        
+        ownerDisplay = `
+            <div class="owner-info">
+                <span class="owner-name">${escapeHtml(ownerName)}</span>
+                ${ownerEmail ? `<span class="owner-email">(${escapeHtml(ownerEmail)})</span>` : ''}
+            </div>
+        `;
     }
     
     const startDate = record.performed_at || record.timestamp || record.startDate || new Date().toISOString();
     const endDate = record.metadata?.endDate || record.endDate || (isCurrent ? null : startDate);
     const transactionId = record.transaction_id || record.transactionId || record.metadata?.transactionId || 'N/A';
     const eventType = record.action === 'REGISTERED' ? 'Initial Registration' : (record.action || record.eventType || 'Ownership Transfer');
+    
+    // Get owner name for transaction viewer (used in button onclick)
+    const ownerNameForDisplay = record.action === 'OWNERSHIP_TRANSFERRED' 
+        ? (record.newOwnerName || record.metadata?.newOwnerName || record.currentOwnerName || 'Unknown')
+        : (record.currentOwnerName || record.owner_name || record.performed_by_name || 'Unknown');
     
     const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', { 
         year: 'numeric', 
@@ -275,27 +302,32 @@ function createTimelineNode(record, index, total) {
             </button>
             <div class="node-header">
                 <div class="node-owner-info">
-                    <div class="node-owner-name">${escapeHtml(ownerName)}</div>
-                    <div class="node-owner-details">Owner ID: ${escapeHtml(ownerId)}</div>
+                    ${ownerDisplay}
                 </div>
                 <div class="node-badges">
-                    ${isCurrent ? '<span class="badge-current"><i class="fas fa-star"></i> Current Owner</span>' : ''}
-                    <span class="badge-verified">
-                        <i class="fas fa-shield-alt"></i> Verified
-                    </span>
-                    <span class="badge-transfer-type">${escapeHtml(eventType)}</span>
+                    ${isCurrent ? '<span class="badge-current"><i class="fas fa-star"></i> Current</span>' : ''}
+                    <span class="badge-verified"><i class="fas fa-check"></i> Verified</span>
                 </div>
             </div>
             <div class="node-dates">
-                <div class="node-date-item">
-                    <i class="fas fa-calendar-check"></i>
-                    <span><strong>Start:</strong> ${startDateFormatted}</span>
+                <div class="date-item">
+                    <span class="date-label">Date:</span>
+                    <span class="date-value">${startDateFormatted}</span>
                 </div>
-                <div class="node-date-item">
-                    <i class="fas fa-calendar-times"></i>
-                    <span><strong>End:</strong> ${endDateFormatted}</span>
+                <div class="date-item">
+                    <span class="date-label">Action:</span>
+                    <span class="date-value">${escapeHtml(eventType.replace(/_/g, ' '))}</span>
                 </div>
             </div>
+            ${transactionId && transactionId !== 'N/A' ? `
+            <div class="node-transaction">
+                <span class="tx-label">Blockchain TX:</span>
+                <code class="tx-hash">${escapeHtml(transactionId.substring(0, 20))}...</code>
+                <button class="btn-copy" onclick="copyTransactionId('${escapeHtml(transactionId)}')">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+            ` : ''}
             <div class="transaction-details">
                 <div class="trust-indicators">
                     <div class="trust-indicator" title="Blockchain-verified ownership record">
@@ -314,7 +346,7 @@ function createTimelineNode(record, index, total) {
                             <div class="transaction-field-value" style="flex: 1; min-width: 200px;">${escapeHtml(transactionId)}</div>
                             <button 
                                 class="btn-view-blockchain" 
-                                onclick="viewTransactionOnBlockchain('${escapeHtml(transactionId)}', '${escapeHtml(ownerName)}', '${escapeHtml(eventType)}')"
+                                onclick="viewTransactionOnBlockchain('${escapeHtml(transactionId)}', '${escapeHtml(ownerNameForDisplay)}', '${escapeHtml(eventType)}')"
                                 title="View transaction on blockchain explorer"
                             >
                                 <i class="fas fa-external-link-alt"></i> View on Blockchain
@@ -458,4 +490,5 @@ window.searchVehicle = searchVehicle;
 window.toggleTransactionDetails = toggleTransactionDetails;
 window.viewTransactionOnBlockchain = viewTransactionOnBlockchain;
 window.copyTransactionId = copyTransactionId;
+
 

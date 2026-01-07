@@ -544,5 +544,110 @@ router.post('/test-request', authenticateToken, authorizeRole(['admin']), async 
     }
 });
 
+// Check if request qualifies for automatic clearance
+async function checkAutoApprovalEligibility(clearanceRequest, vehicle) {
+    // Criteria for automatic approval: 
+    // 1. Vehicle is brand new (registration, not transfer)
+    // 2. Seller/dealer is a trusted partner
+    // 3. Vehicle make is from trusted manufacturer
+    
+    const TRUSTED_MANUFACTURERS = ['TOYOTA', 'HONDA', 'MITSUBISHI', 'NISSAN', 'FORD'];
+    
+    // Check if new registration
+    if (clearanceRequest.request_type !== 'hpg' || clearanceRequest.purpose?.includes('transfer')) {
+        return { eligible: false, reason: 'Only new registrations qualify for auto-approval' };
+    }
+    
+    // Check if from trusted manufacturer
+    if (!TRUSTED_MANUFACTURERS.includes(vehicle.make?.toUpperCase())) {
+        return { eligible: false, reason: 'Manufacturer not in trusted list' };
+    }
+    
+    // Check if seller is trusted partner
+    const dbModule = require('../database/db');
+    const sellerResult = await dbModule.query(
+        'SELECT is_trusted_partner, trusted_partner_type FROM users WHERE id = $1',
+        [vehicle.owner_id]
+    );
+    
+    if (sellerResult.rows.length > 0 && sellerResult.rows[0].is_trusted_partner) {
+        return { 
+            eligible: true, 
+            reason: 'Trusted dealer + known manufacturer',
+            partnerType: sellerResult.rows[0].trusted_partner_type
+        };
+    }
+    
+    return { eligible: false, reason: 'Owner is not a trusted partner' };
+}
+
+// Endpoint to process automatic clearances (cron job or manual trigger)
+router.post('/process-auto-clearances', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
+    try {
+        // Get pending clearance requests marked for automatic processing
+        const dbModule = require('../database/db');
+        const pendingRequests = await dbModule.query(
+            `SELECT cr.*, v.* 
+             FROM clearance_requests cr
+             JOIN vehicles v ON cr.vehicle_id = v.id
+             WHERE cr.status = 'PENDING' 
+               AND cr.verification_mode = 'AUTOMATIC'
+               AND cr.request_type = 'hpg'`
+        );
+        
+        const results = {
+            processed: 0,
+            approved: 0,
+            rejected: 0,
+            errors: []
+        };
+        
+        for (const request of pendingRequests.rows) {
+            try {
+                const eligibility = await checkAutoApprovalEligibility(request, request);
+                
+                if (eligibility.eligible) {
+                    // Auto-approve
+                    await dbModule.query(
+                        `UPDATE clearance_requests 
+                         SET status = 'APPROVED', 
+                             reviewed_at = NOW(),
+                             notes = $1
+                         WHERE id = $2`,
+                        [`Auto-approved: ${eligibility.reason}`, request.id]
+                    );
+                    results.approved++;
+                } else {
+                    // Revert to manual processing
+                    await dbModule.query(
+                        `UPDATE clearance_requests 
+                         SET verification_mode = 'MANUAL',
+                             notes = $1
+                         WHERE id = $2`,
+                        [`Auto-approval failed: ${eligibility.reason}. Requires manual review.`, request.id]
+                    );
+                }
+                results.processed++;
+                
+            } catch (err) {
+                results.errors.push({ requestId: request.id, error: err.message });
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Auto-clearance processing complete',
+            results
+        });
+        
+    } catch (error) {
+        console.error('Auto-clearance processing error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
 

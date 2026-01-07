@@ -630,6 +630,25 @@
                     if (response.transaction.vehicleVin) {
                         loadIntegrityCheck(response.transaction.vehicleVin, txId);
                     }
+                    
+                    // Check URL parameter for view mode
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const viewMode = urlParams.get('view');
+                    
+                    // If user wants certificate view, try to load certificate
+                    if (viewMode === 'certificate') {
+                        try {
+                            const certResponse = await fetch(`/api/certificates/verify/${txId}`);
+                            if (certResponse.ok) {
+                                const certData = await certResponse.json();
+                                if (certData.success && certData.certificate?.available) {
+                                    displayCertificateDownload(certData.certificate, txId);
+                                }
+                            }
+                        } catch (certError) {
+                            console.warn('Certificate not available:', certError);
+                        }
+                    }
                 } else {
                     document.getElementById('transactionDetails').innerHTML = 
                         `<div class="transaction-card">
@@ -809,6 +828,28 @@
             `;
             
             document.getElementById('integrityCheckSection').innerHTML = html;
+        }
+        
+        function displayCertificateDownload(certificate, txId) {
+            const certSection = document.createElement('div');
+            certSection.className = 'certificate-section';
+            certSection.style.cssText = 'background: #e8f5e9; padding: 1.5rem; border-radius: 8px; margin-top: 1rem; text-align: center;';
+            certSection.innerHTML = `
+                <h3 style="color: #2e7d32; margin-bottom: 1rem;">
+                    <i class="fas fa-file-pdf"></i> Digital Certificate Available
+                </h3>
+                <p style="margin-bottom: 1rem;">Your verified registration certificate is ready for download.</p>
+                <a href="${certificate.downloadUrl}" 
+                   target="_blank"
+                   class="btn-primary" 
+                   style="display: inline-block; padding: 0.75rem 1.5rem; text-decoration: none;">
+                    <i class="fas fa-download"></i> Download Certificate
+                </a>
+            `;
+            const transactionDetails = document.getElementById('transactionDetails');
+            if (transactionDetails) {
+                transactionDetails.appendChild(certSection);
+            }
         }
     </script>
 </body>

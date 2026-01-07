@@ -592,6 +592,69 @@ class VehicleRegistrationContract extends Contract {
         }
     }
 
+    // Scrap vehicle - Marks vehicle as end-of-life while preserving history
+    // Better than Delete because blockchain maintains audit trail
+    async ScrapVehicle(ctx, vin, scrapReason) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            const txId = ctx.stub.getTxID();
+            const timestamp = new Date().toISOString();
+
+            // Only LTO can scrap vehicles
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTO organization can scrap vehicles. Current MSP: ${clientMSPID}`);
+            }
+
+            // Update vehicle status to SCRAPPED (preserve in world state, don't delete)
+            vehicle.status = 'SCRAPPED';
+            vehicle.scrappedAt = timestamp;
+            vehicle.scrapReason = scrapReason || 'End of life';
+            vehicle.lastUpdated = timestamp;
+
+            // Add to history - IMPORTANT: preserves audit trail
+            if (!vehicle.history) {
+                vehicle.history = [];
+            }
+            vehicle.history.push({
+                action: 'VEHICLE_SCRAPPED',
+                timestamp: timestamp,
+                performedBy: clientMSPID,
+                details: `Vehicle scrapped: ${scrapReason || 'End of life'}`,
+                transactionId: txId
+            });
+
+            // Store updated vehicle (NOT deleted - maintains history)
+            await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
+
+            // Emit event
+            ctx.stub.setEvent('VehicleScrapped', Buffer.from(JSON.stringify({
+                vin: vin,
+                scrapReason: scrapReason,
+                timestamp: timestamp,
+                transactionId: txId
+            })));
+
+            console.log(`Vehicle ${vin} marked as SCRAPPED`);
+            return JSON.stringify({
+                success: true,
+                message: 'Vehicle scrapped successfully - record preserved for audit',
+                vin: vin,
+                transactionId: txId,
+                timestamp: timestamp
+            });
+
+        } catch (error) {
+            console.error('Error scrapping vehicle:', error);
+            throw new Error(`Failed to scrap vehicle: ${error.message}`);
+        }
+    }
+
     // Get system statistics
     async GetSystemStats(ctx) {
         try {

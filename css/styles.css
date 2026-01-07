@@ -127,7 +127,6 @@ body {
 
 .table-modern tbody tr:hover {
     background: #f8f9fa;
-    transform: scale(1.01);
 }
 
 /* Enhanced Badge Styles */
@@ -7541,7 +7540,6 @@ input.invalid {
 
 .table-modern tbody tr:hover {
     background: #f9fafb;
-    transform: scale(1.01);
 }
 
 .table-modern tbody tr:last-child td {

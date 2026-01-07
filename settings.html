@@ -38,6 +38,257 @@
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
     <style>
+        /* ============================================
+           OWNER PORTAL THEME (match owner-dashboard)
+           ============================================ */
+        :root {
+            --brand-primary: #2d7ff9;
+            --brand-secondary: #17c3b2;
+            --brand-surface: #f6f9fc;
+            --brand-card: #ffffff;
+            --brand-text: #0f172a;
+            --brand-muted: #64748b;
+            --brand-border: #e2e8f0;
+            --brand-gradient: linear-gradient(135deg, #2d7ff9 0%, #17c3b2 100%);
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: var(--brand-surface);
+            color: var(--brand-text);
+        }
+
+        .dashboard {
+            background: var(--brand-surface);
+            min-height: 100vh;
+        }
+
+        /* Sidebar - dark navy with owner-dashboard styling */
+        .dashboard-sidebar {
+            background: #0b1f3a;
+            border-right: 1px solid rgba(255,255,255,0.08);
+            padding: 1.25rem 1rem;
+        }
+
+        .dashboard-sidebar .sidebar-header {
+            padding: 0;
+            margin-bottom: 1.25rem;
+        }
+
+        .dashboard-sidebar .logo-image {
+            width: 72px !important;
+            height: auto !important;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .sidebar-nav .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 0.9rem;
+            border-radius: 12px;
+            color: #cbd5e1;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-nav .nav-item i {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .sidebar-nav .nav-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        .sidebar-nav .nav-item.active {
+            background: linear-gradient(135deg, #2d7ff9, #17c3b2);
+            color: #fff;
+            box-shadow: 0 10px 25px rgba(45,127,249,0.25);
+        }
+
+        .sidebar-nav .nav-item.active i {
+            background: rgba(255,255,255,0.18);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 1rem;
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+        }
+
+        .sidebar-user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #e2e8f0;
+        }
+
+        .sidebar-user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--brand-gradient);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .sidebar-user-details .sidebar-user-name {
+            font-weight: 700;
+        }
+
+        .sidebar-action-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #cbd5e1;
+            padding: 0.6rem 0.5rem;
+            border-radius: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .sidebar-action-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        /* Collapsed Sidebar - match owner-dashboard */
+        .dashboard-sidebar.collapsed {
+            padding: 1.25rem 0.75rem;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-header {
+            padding: 0;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dashboard-sidebar.collapsed .logo-image {
+            width: 48px !important;
+            height: auto !important;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-nav {
+            gap: 0.5rem;
+            padding: 0;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-nav .nav-item {
+            justify-content: center;
+            padding: 0.85rem 0.5rem;
+            margin: 0;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-nav .nav-item i {
+            width: 36px;
+            height: 36px;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-nav .nav-item span {
+            display: none;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-footer {
+            padding: 1rem 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-user-profile {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-user-details {
+            display: none;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-user-avatar {
+            width: 36px;
+            height: 36px;
+            font-size: 0.875rem;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-user-actions {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 0.5rem;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-action-item {
+            justify-content: center;
+            padding: 0.75rem 0.5rem;
+            width: 100%;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-action-item span {
+            display: none;
+        }
+
+        .dashboard-sidebar.collapsed .sidebar-action-item i {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .dashboard-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--brand-border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .dashboard-header .container {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        .dashboard-nav {
+            padding: 1rem 0;
+        }
+
+        .dashboard-header .logo h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+        }
+
+        .dashboard-main {
+            background: var(--brand-surface);
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        .dashboard-content {
+            padding: 1.5rem;
+        }
+
         /* Profile Settings Styles */
         .settings-container {
             max-width: 900px;
@@ -45,22 +296,22 @@
         }
 
         .settings-header {
-            background: white;
+            background: var(--brand-card);
             border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(15,23,42,0.06);
             margin-bottom: 2rem;
         }
 
         .settings-header h1 {
             margin: 0 0 0.5rem 0;
-            color: #2c3e50;
+            color: var(--brand-text);
             font-size: 2rem;
         }
 
         .settings-header p {
             margin: 0;
-            color: #7f8c8d;
+            color: var(--brand-muted);
             font-size: 1rem;
         }
 
@@ -68,10 +319,10 @@
             display: flex;
             gap: 0.5rem;
             margin-bottom: 2rem;
-            background: white;
+            background: var(--brand-card);
             padding: 0.5rem;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(15,23,42,0.06);
         }
 
         .tab-button {
@@ -92,14 +343,14 @@
         }
 
         .tab-button:hover {
-            background: #f8f9fa;
-            color: #3498db;
+            background: #f8fafc;
+            color: var(--brand-primary);
         }
 
         .tab-button.active {
-            background: #3498db;
+            background: var(--brand-gradient);
             color: white;
-            box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 2px 4px rgba(45,127,249,0.3);
         }
 
         .tab-button i {
@@ -117,27 +368,13 @@
         }
 
         .settings-section {
-            background: white;
+            background: var(--brand-card);
             border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(15,23,42,0.06);
             margin-bottom: 2rem;
             display: block !important;
             visibility: visible !important;
-        }
-
-        /* Temporary debug - remove after verification */
-        #profileTab {
-            border: 2px solid red !important; /* Visual indicator */
-            min-height: 200px !important;
-        }
-
-        .settings-section {
-            border: 2px solid blue !important; /* Visual indicator */
-        }
-
-        #profileForm {
-            border: 2px solid green !important; /* Visual indicator */
         }
 
         .settings-section-header {
@@ -151,12 +388,12 @@
 
         .settings-section-header i {
             font-size: 1.5rem;
-            color: #3498db;
+            color: var(--brand-primary);
         }
 
         .settings-section-header h2 {
             margin: 0;
-            color: #2c3e50;
+            color: var(--brand-text);
             font-size: 1.5rem;
         }
 
@@ -225,45 +462,7 @@
             margin-top: 2rem;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            color: white;
-            border: none;
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-        }
-
-        .btn-primary:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-secondary {
-            background: white;
-            color: #7f8c8d;
-            border: 2px solid #e9ecef;
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-secondary:hover {
-            border-color: #bdc3c7;
-            color: #2c3e50;
-        }
+        /* Buttons use global owner-dashboard styles; only layout group is customized here */
 
         .alert {
             padding: 1rem 1.5rem;
@@ -307,7 +506,7 @@
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            background: var(--brand-gradient);
             color: white;
             display: flex;
             align-items: center;
@@ -325,12 +524,12 @@
         .profile-name {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #2c3e50;
+            color: var(--brand-text);
             margin-bottom: 0.5rem;
         }
 
         .profile-email {
-            color: #7f8c8d;
+            color: var(--brand-muted);
             font-size: 1rem;
             margin-bottom: 0.5rem;
         }
@@ -338,8 +537,8 @@
         .profile-role {
             display: inline-block;
             padding: 0.25rem 0.75rem;
-            background: #e9ecef;
-            color: #495057;
+            background: #e5e7eb;
+            color: #111827;
             border-radius: 20px;
             font-size: 0.875rem;
             font-weight: 600;
@@ -372,7 +571,7 @@
             width: 1rem;
             height: 1rem;
             border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
+            border-top: 2px solid var(--brand-primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 0.5rem;

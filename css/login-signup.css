@@ -225,15 +225,16 @@ body {
 
 .auth-container {
     width: 100%;
-    max-width: 1100px;
+    max-width: 640px;
     margin: 0 auto;
 }
 
 .auth-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 1fr;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     gap: var(--spacing-lg);
-    align-items: stretch;
+    width: 100%;
 }
 
 .auth-visual {
@@ -920,16 +921,7 @@ body {
 /* Tablet (768px - 1024px) */
 @media (max-width: 1024px) {
     .auth-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .auth-visual {
-        padding: var(--spacing-lg);
-        order: 2;
-    }
-
-    .auth-card {
-        order: 1;
+        flex-direction: column;
     }
 
     .auth-card {
@@ -960,12 +952,7 @@ body {
 /* Mobile (max-width: 768px) */
 @media (max-width: 768px) {
     .auth-grid {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
-    }
-
-    .auth-visual {
-        padding: var(--spacing-md);
+        flex-direction: column;
         gap: var(--spacing-md);
     }
 

@@ -80,53 +80,42 @@ body {
 
 .auth-background {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     z-index: 0;
-    background: #f5f5f5; /* Light gray government-style background */
+    background: radial-gradient(circle at 20% 20%, rgba(45,127,249,0.10), transparent 35%),
+                radial-gradient(circle at 80% 0%, rgba(23,195,178,0.12), transparent 35%),
+                linear-gradient(145deg, #f8fafc 0%, #eef2ff 50%, #e0f2fe 100%);
 }
 
 .blockchain-pattern {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
-    /* Government-style grid with black vertical and horizontal lines */
-    /* Desktop: 40px grid spacing with 8% opacity black lines */
-    background-image: 
-        /* Horizontal lines */
+    background-image:
         repeating-linear-gradient(
             0deg,
             transparent,
-            transparent 39px,
-            rgba(0, 0, 0, 0.08) 39px,
-            rgba(0, 0, 0, 0.08) 40px
+            transparent 48px,
+            rgba(15,23,42,0.05) 48px,
+            rgba(15,23,42,0.05) 49px
         ),
-        /* Vertical lines */
         repeating-linear-gradient(
             90deg,
             transparent,
-            transparent 39px,
-            rgba(0, 0, 0, 0.08) 39px,
-            rgba(0, 0, 0, 0.08) 40px
+            transparent 48px,
+            rgba(15,23,42,0.05) 48px,
+            rgba(15,23,42,0.05) 49px
         );
-    background-size: 40px 40px;
+    background-size: 50px 50px;
     z-index: 1;
 }
 
 .background-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(0.5px);
+    inset: 0;
+    background: linear-gradient(145deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.55) 100%);
+    backdrop-filter: blur(2px);
     z-index: 2;
 }
 
@@ -225,19 +214,50 @@ body {
 
 .auth-container {
     width: 100%;
-    max-width: 480px;
+    max-width: 1100px;
     margin: 0 auto;
 }
 
 .auth-card {
-    background: rgba(255, 255, 255, 0.95); /* Semi-transparent white for clean contrast above grid */
+    background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
-    border-radius: 20px;
-    box-shadow: var(--shadow-xl);
-    padding: var(--spacing-xl);
+    border-radius: 18px;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+    padding: clamp(1.5rem, 2vw, 2.5rem);
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.8); /* Subtle border for definition */
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(1.25rem, 1.5vw, 2rem);
+}
+
+.auth-hero {
+    display: none;
+    background: linear-gradient(145deg, rgba(45,127,249,0.12), rgba(23,195,178,0.10));
+    border: 1px solid rgba(45,127,249,0.15);
+    border-radius: 14px;
+    padding: 1.5rem;
+}
+
+.auth-hero h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--gray-900);
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.auth-hero p {
+    margin: 0;
+    color: var(--gray-600);
+    line-height: 1.6;
+}
+
+/* Desktop layout: optional split hero + form */
+@media (min-width: 992px) {
+    .auth-card {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ============================================
@@ -248,15 +268,16 @@ body {
     display: flex;
     position: relative;
     margin-bottom: var(--spacing-lg);
-    border-bottom: 2px solid var(--gray-200);
-    background: var(--gray-50);
-    border-radius: 12px 12px 0 0;
-    padding: var(--spacing-xs);
+    border: 1px solid var(--gray-200);
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 6px;
+    gap: 6px;
 }
 
 .tab-btn {
     flex: 1;
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: 0.9rem 1.25rem;
     background: transparent;
     border: none;
     font-size: 1rem;
@@ -275,23 +296,23 @@ body {
 
 .tab-btn:hover {
     color: var(--lto-blue);
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(59, 130, 246, 0.08);
 }
 
 .tab-btn.active {
     color: var(--lto-blue);
-    background: var(--white);
-    box-shadow: var(--shadow-sm);
+    background: #ffffff;
+    box-shadow: 0 10px 25px rgba(15,23,42,0.06);
 }
 
 .tab-indicator {
     position: absolute;
-    bottom: -2px;
+    bottom: 0;
     left: 0;
-    height: 3px;
+    height: 4px;
     background: linear-gradient(135deg, var(--lto-blue) 0%, var(--lto-blue-light) 100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 3px 3px 0 0;
+    border-radius: 999px;
     width: 50%;
     transform: translateX(0%);
 }
@@ -425,6 +446,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
+    position: relative;
 }
 
 .form-group label {
@@ -537,6 +559,28 @@ body {
     color: var(--gray-500);
     margin-top: 0.25rem;
     line-height: 1.4;
+}
+
+/* Error message space: reserve height to prevent layout shift */
+.field-error,
+.error-message {
+    display: block;
+    min-height: 1.25rem;
+    margin-top: 0.25rem;
+    color: #ef4444;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.field-error:empty,
+.error-message:empty {
+    visibility: hidden;
+}
+
+.form-group:has(.field-error),
+.form-group:has(.error-message) {
+    padding-bottom: 0.25rem;
 }
 
 /* ============================================

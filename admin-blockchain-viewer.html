@@ -1486,6 +1486,20 @@
                 <!-- Blocks Tab -->
                 <div id="blocksTab" class="tab-panel" style="display: none;">
                     <h3><i class="fas fa-cubes"></i> All Blocks</h3>
+
+                    <div id="chainIntegrityPanel" style="background: white; border: 1px solid #ecf0f1; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <div style="font-weight: 700; color: #2c3e50;">Chain Integrity (Fabric proof)</div>
+                                <div style="font-size: 0.9rem; color: #7f8c8d;">Data pulled live from /api/ledger/proof/chain and recent block headers.</div>
+                            </div>
+                            <button onclick="loadChainIntegrity()" style="background: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="chainIntegrityContent" class="loading">Loading chain proof...</div>
+                    </div>
+
                     <div id="blocksList" class="loading">Loading blocks...</div>
                 </div>
 
@@ -1654,6 +1668,7 @@
                         loadOrganizationWorkflow();
                         break;
                     case 'blocks':
+                        loadChainIntegrity();
                         loadBlocks();
                         break;
                     case 'search':
@@ -1794,11 +1809,19 @@
                                 }
 
                                 // Format transaction hash for display
-                                const txHash = tx.hash || 'N/A';
+                                const txHash = tx.hash || tx.id || tx.transactionId || 'N/A';
                                 const shortHash = txHash.length > 20 ? `${txHash.substring(0, 10)}...${txHash.substring(txHash.length - 8)}` : txHash;
 
                                 // Format transaction ID
                                 const txId = tx.id || tx.transactionId || `tx_${index + 1}`;
+
+                                // Prepare proof badges if we already have basic proof fields on the transaction row
+                                const proofBadge = (tx.validationCode || tx.blockNumber !== undefined || tx.endorsements)
+                                    ? `<span class="status-badge" style="background: #e8f8f5; color: #16a085;">
+                                            <i class="fas fa-shield-check"></i>
+                                            Proof-ready
+                                       </span>`
+                                    : '';
                                 
                                 return `
                                     <div class="transaction-item" data-tx-id="${txId}" style="margin-bottom: 15px;">
@@ -1815,6 +1838,7 @@
                                                     <i class="fas fa-check-circle"></i>
                                                     ${tx.status || 'CONFIRMED'}
                                                 </span>
+                                                ${proofBadge}
                                             </div>
                                         </div>
                                         <div class="transaction-details" style="margin-top: 15px;">
@@ -1842,7 +1866,7 @@
                                             </div>
                                             <div class="detail-item">
                                                 <span class="detail-label">Block Number</span>
-                                                <span class="detail-value">${tx.blockNumber !== undefined && tx.blockNumber !== null ? `#${tx.blockNumber}` : 'N/A'}</span>
+                                                    <span class="detail-value">${tx.blockNumber !== undefined && tx.blockNumber !== null ? `#${tx.blockNumber}` : 'N/A'}</span>
                                             </div>
                                             <div class="detail-item">
                                                 <span class="detail-label">Timestamp</span>
@@ -1919,6 +1943,106 @@
             }
         }
 
+        // Load chain integrity (chain info + recent block headers from Fabric proof endpoints)
+        async function loadChainIntegrity() {
+            const container = document.getElementById('chainIntegrityContent');
+            if (!container) {
+                console.error('chainIntegrityContent container not found!');
+                return;
+            }
+
+            container.innerHTML = '<div class="loading">Loading chain proof...</div>';
+
+            try {
+                // Get chain-level proof (height + head hashes)
+                const chainResp = await fetch('/api/ledger/proof/chain', { headers: getAuthHeaders() });
+                if (!chainResp.ok) {
+                    throw new Error(`HTTP error! status: ${chainResp.status}`);
+                }
+                const chainResult = await chainResp.json();
+                if (!chainResult.success || !chainResult.chain) {
+                    throw new Error(chainResult.error || 'Chain proof unavailable');
+                }
+
+                const chain = chainResult.chain;
+                const height = typeof chain.height === 'number' ? chain.height : null;
+                const latestBlockNum = height !== null ? Math.max(0, height - 1) : null;
+
+                // Fetch last N block headers via proof endpoint
+                const maxBlocks = 6;
+                const targetBlocks = [];
+                if (latestBlockNum !== null) {
+                    for (let i = latestBlockNum; i >= 0 && targetBlocks.length < maxBlocks; i--) {
+                        targetBlocks.push(i);
+                    }
+                }
+
+                const blockProofs = await Promise.all(targetBlocks.map(async (blockNumber) => {
+                    try {
+                        const resp = await fetch(`/api/ledger/proof/block/${blockNumber}`, { headers: getAuthHeaders() });
+                        if (!resp.ok) {
+                            throw new Error(`HTTP ${resp.status}`);
+                        }
+                        const data = await resp.json();
+                        if (!data.success || !data.block) {
+                            throw new Error(data.error || 'Block proof missing');
+                        }
+                        return { ok: true, block: data.block };
+                    } catch (error) {
+                        return { ok: false, error: error.message, block: { blockNumber } };
+                    }
+                }));
+
+                // Build HTML
+                const chainInfoHtml = `
+                    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                        <div style="background: #f8f9fa; border: 1px solid #ecf0f1; border-radius: 8px; padding: 10px 12px; min-width: 180px;">
+                            <div style="font-size: 0.85rem; color: #7f8c8d;">Height</div>
+                            <div style="font-weight: 700; color: #2c3e50;">${height !== null ? height : 'N/A'}</div>
+                        </div>
+                        <div style="background: #f8f9fa; border: 1px solid #ecf0f1; border-radius: 8px; padding: 10px 12px; min-width: 220px;">
+                            <div style="font-size: 0.85rem; color: #7f8c8d;">Current Block Hash</div>
+                            <div style="font-family: monospace; font-size: 0.9rem;">${chain.currentBlockHash || 'N/A'}</div>
+                        </div>
+                        <div style="background: #f8f9fa; border: 1px solid #ecf0f1; border-radius: 8px; padding: 10px 12px; min-width: 220px;">
+                            <div style="font-size: 0.85rem; color: #7f8c8d;">Previous Block Hash</div>
+                            <div style="font-family: monospace; font-size: 0.9rem;">${chain.previousBlockHash || 'N/A'}</div>
+                        </div>
+                    </div>
+                `;
+
+                const blocksHtml = blockProofs.length ? blockProofs.map(proof => {
+                    const b = proof.block || {};
+                    const ts = b.timestamp ? new Date(b.timestamp).toLocaleString('en-US', {
+                        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    }) : 'N/A';
+
+                    const statusBadge = proof.ok
+                        ? '<span style="background: #e8f8f5; color: #16a085; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem; font-weight: 700;"><i class="fas fa-check-circle"></i> Fabric proof</span>'
+                        : '<span style="background: #fdecea; color: #e74c3c; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem; font-weight: 700;"><i class="fas fa-times-circle"></i> Proof error</span>';
+
+                    return `
+                        <div style="border: 1px solid #ecf0f1; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: white; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div style="font-weight: 700; color: #2c3e50;">Block #${b.blockNumber ?? 'N/A'}</div>
+                                <div style="font-size: 0.9rem; color: #7f8c8d;">Timestamp: ${ts}</div>
+                                <div style="font-family: monospace; font-size: 0.9rem;">Prev Hash: ${b.previousHash || 'N/A'}</div>
+                                <div style="font-family: monospace; font-size: 0.9rem;">Data Hash: ${b.dataHash || 'N/A'}</div>
+                                <div style="font-size: 0.9rem; color: #7f8c8d;">Tx Count: ${b.txCount ?? 'N/A'}</div>
+                                <div style="font-size: 0.85rem; color: #95a5a6;">Source: Fabric query (not recomputed client-side)</div>
+                            </div>
+                            <div>${statusBadge}${!proof.ok ? `<div style="font-size: 0.85rem; color: #e74c3c; margin-top: 6px;">${proof.error}</div>` : ''}</div>
+                        </div>
+                    `;
+                }).join('') : '<div class="error">No block proofs available.</div>';
+
+                container.innerHTML = chainInfoHtml + blocksHtml;
+            } catch (error) {
+                console.error('Error loading chain integrity:', error);
+                container.innerHTML = `<div class="error">Failed to load chain proof: ${error.message}</div>`;
+            }
+        }
+
         // Load blocks
         async function loadBlocks() {
             const container = document.getElementById('blocksList');
@@ -1982,8 +2106,11 @@
                                 const shortBlockHash = blockHash.length > 20 ? `${blockHash.substring(0, 10)}...${blockHash.substring(blockHash.length - 8)}` : blockHash;
                                 const prevHash = block.previousHash || 'N/A';
                                 const shortPrevHash = prevHash.length > 20 ? `${prevHash.substring(0, 10)}...${prevHash.substring(prevHash.length - 8)}` : prevHash;
-                                const merkleRoot = block.merkleRoot || 'N/A';
-                                const shortMerkleRoot = merkleRoot.length > 20 ? `${merkleRoot.substring(0, 10)}...${merkleRoot.substring(merkleRoot.length - 8)}` : merkleRoot;
+                                // Fabric uses dataHash (no merkleRoot). The API returns dataHash for real headers,
+                                // but this blocks list is an aggregated/synthetic view, so we surface dataHash and
+                                // avoid the merkleRoot label to prevent confusion.
+                                const dataHash = block.dataHash || block.merkleRoot || 'N/A';
+                                const shortDataHash = dataHash.length > 20 ? `${dataHash.substring(0, 10)}...${dataHash.substring(dataHash.length - 8)}` : dataHash;
 
                                 const txCount = block.transactions && Array.isArray(block.transactions) ? block.transactions.length : 0;
 
@@ -2020,8 +2147,8 @@
                                                 <span class="detail-value">${block.nonce !== undefined && block.nonce !== null ? block.nonce.toLocaleString() : 'N/A'}</span>
                                             </div>
                                             <div class="detail-item">
-                                                <span class="detail-label">Merkle Root</span>
-                                                <span class="detail-value" style="font-family: monospace; font-size: 0.9rem;" title="${merkleRoot}">${shortMerkleRoot}</span>
+                                                <span class="detail-label">Data Hash (synthetic)</span>
+                                                <span class="detail-value" style="font-family: monospace; font-size: 0.9rem;" title="${dataHash}">${shortDataHash}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -2043,7 +2170,10 @@
                         // Add header with count
                         const headerHtml = `
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1;">
-                                <h3 style="margin: 0; color: #2c3e50;">All Blocks</h3>
+                                <div>
+                                    <h3 style="margin: 0; color: #2c3e50;">All Blocks</h3>
+                                    <div style="font-size: 0.85rem; color: #7f8c8d; margin-top: 4px;">Aggregated/synthetic view based on transactions; use proof panel for canonical headers.</div>
+                                </div>
                                 <span style="background: #27ae60; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
                                     ${sortedBlocks.length} ${sortedBlocks.length === 1 ? 'Block' : 'Blocks'}
                                 </span>
@@ -2421,10 +2551,27 @@
             }
         }
 
-        // Display transaction details prominently
-        function displayTransactionDetails(transaction, txId) {
+        // Fetch and display transaction proof (Fabric) then render details
+        async function displayTransactionDetails(transaction, txId) {
             const transactionsContainer = document.getElementById('transactionsList');
             if (!transactionsContainer) return;
+
+            // Attempt to fetch proof for Fabric txIds (64-hex). Gracefully continue if it fails.
+            let proof = null;
+            const isFabricTx = txId && /^[a-f0-9]{64}$/i.test(txId);
+            if (isFabricTx) {
+                try {
+                    const resp = await fetch(`/api/ledger/proof/tx/${txId}`, { headers: getAuthHeaders() });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (data.success && data.proof) {
+                            proof = data.proof;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Proof fetch failed:', err.message);
+                }
+            }
             
             // Format timestamp
             let timestampStr = 'N/A';
@@ -2444,6 +2591,43 @@
                 timestampStr = String(transaction.timestamp || 'N/A');
             }
             
+            const proofBadges = proof ? `
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                    <span class="status-badge status-confirmed"><i class="fas fa-check-circle"></i> VALIDATION: ${proof.validationCode ?? 'N/A'}</span>
+                    ${proof.blockNumber !== undefined ? `<span class="status-badge status-confirmed"><i class="fas fa-cube"></i> Block #${proof.blockNumber}</span>` : ''}
+                    ${proof.txIndex !== undefined ? `<span class="status-badge" style="background:#e8f8f5; color:#16a085;"><i class="fas fa-list-ol"></i> Tx Index ${proof.txIndex}</span>` : ''}
+                    ${proof.blockHeader?.previousHash ? `<span class="status-badge" style="background:#eef2ff; color:#4c51bf;"><i class="fas fa-link"></i> prev_hash present</span>` : ''}
+                    ${proof.blockHeader?.dataHash ? `<span class="status-badge" style="background:#eefaf6; color:#148f77;"><i class="fas fa-database"></i> data_hash present</span>` : ''}
+                    ${proof.endorsements?.length ? `<span class="status-badge" style="background:#fff4e6; color:#d35400;"><i class="fas fa-user-check"></i> ${proof.endorsements.length} endorsements</span>` : ''}
+                </div>
+            ` : '';
+
+            const endorsementsHtml = proof?.endorsements?.length ? `
+                <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                    <strong style="display:block; margin-bottom: 6px; color:#2c3e50;">Endorsements</strong>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 8px;">
+                        ${proof.endorsements.map((e, idx) => `
+                            <div style="border:1px solid #ecf0f1; border-radius: 6px; padding: 8px; background:white;">
+                                <div style="font-weight:700; color:#2c3e50;">${e.mspId || 'MSP'}</div>
+                                <div style="font-size:0.85rem; color:#7f8c8d;">Signature: ${e.signature ? e.signature.slice(0,14)+'...' : 'N/A'}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '';
+
+            const headerHashesHtml = proof ? `
+                <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                    <strong style="display:block; margin-bottom: 6px; color:#2c3e50;">Block Header</strong>
+                    <div style="font-size:0.9rem; color:#2c3e50; font-family: monospace; word-break: break-all;">
+                        <div><span style="color:#7f8c8d;">previous_hash:</span> ${proof.blockHeader?.previousHash || 'N/A'}</div>
+                        <div><span style="color:#7f8c8d;">data_hash:</span> ${proof.blockHeader?.dataHash || 'N/A'}</div>
+                    </div>
+                    ${proof.txCount !== undefined ? `<div style="margin-top:6px; font-size:0.9rem; color:#7f8c8d;">Tx count in block: ${proof.txCount}</div>` : ''}
+                    ${proof.channelId ? `<div style="margin-top:6px; font-size:0.9rem; color:#7f8c8d;">Channel: ${proof.channelId}</div>` : ''}
+                </div>
+            ` : '';
+
             const detailsHtml = `
                 <div class="transaction-item" data-tx-id="${txId}" style="border: 3px solid #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); margin-bottom: 2rem; border-radius: 8px; background: linear-gradient(to bottom, #f8f9ff 0%, white 10%);">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 8px 8px 0 0;">
@@ -2461,6 +2645,7 @@
                                 <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
                                     <strong>Source:</strong> ${transaction.source === 'blockchain' ? 'Hyperledger Fabric Blockchain' : 'Database Record'}
                                 </p>
+                                ${proofBadges}
                             </div>
                             <span class="status-badge status-confirmed" style="font-size: 1rem; padding: 0.5rem 1rem;">
                                 <i class="fas fa-check-circle"></i>
@@ -2511,6 +2696,9 @@
                             <p style="color: #2c3e50; margin: 0; line-height: 1.6;">${transaction.description}</p>
                         </div>
                         ` : ''}
+
+                        ${headerHashesHtml}
+                        ${endorsementsHtml}
                     </div>
                 </div>
             `;

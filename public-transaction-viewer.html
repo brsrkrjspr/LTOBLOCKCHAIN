@@ -357,8 +357,21 @@
                 const apiClient = window.apiClient || new APIClient();
                 const response = await apiClient.get(`/api/blockchain/transactions/${txId}`);
                 
+                let proof = null;
+                const isFabricTx = txId && /^[a-f0-9]{64}$/i.test(txId);
+                if (isFabricTx) {
+                    try {
+                        const proofResp = await apiClient.get(`/api/ledger/proof/tx/${txId}`);
+                        if (proofResp.success && proofResp.proof) {
+                            proof = proofResp.proof;
+                        }
+                    } catch (proofErr) {
+                        console.warn('Proof fetch failed:', proofErr.message || proofErr);
+                    }
+                }
+
                 if (response.success && response.transaction) {
-                    displayTransaction(response.transaction, txId);
+                    displayTransaction(response.transaction, txId, proof);
                     
                     // Load integrity check if VIN available
                     if (response.transaction.vehicleVin) {
@@ -378,7 +391,7 @@
             }
         }
         
-        function displayTransaction(tx, txId) {
+        function displayTransaction(tx, txId, proof) {
             document.getElementById('content').innerHTML = `
                 <div class="proof-header">
                     <div class="verification-seal">
@@ -417,6 +430,44 @@
                             </div>
                         </div>
                         <div class="hash-box">${txId}</div>
+                        ${proof ? `
+                        <div class="info-grid" style="margin-top: 1rem;">
+                            <div class="info-item">
+                                <label>Block Header</label>
+                                <div class="value small" style="font-family: monospace;">
+                                    prev_hash: ${proof.blockHeader?.previousHash || 'N/A'}<br>
+                                    data_hash: ${proof.blockHeader?.dataHash || 'N/A'}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <label>Placement</label>
+                                <div class="value small">Block #${proof.blockNumber ?? 'N/A'}, Tx Index ${proof.txIndex ?? 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Channel</label>
+                                <div class="value small">${proof.channelId || 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Endorsements</label>
+                                <div class="value small">${proof.endorsements?.length || 0} endorsements</div>
+                            </div>
+                        </div>
+                        ${proof.endorsements?.length ? `
+                        <div class="section" style="margin-top: 1rem;">
+                            <div class="section-title" style="font-size: 0.95rem;">
+                                <i class="fas fa-user-check"></i>
+                                Endorsements
+                            </div>
+                            <div class="info-grid">
+                                ${proof.endorsements.map(e => `
+                                    <div class="info-item">
+                                        <label>${e.mspId || 'MSP'}</label>
+                                        <div class="value small" style="font-family: monospace;">${e.signature ? e.signature.slice(0, 24) + '...' : 'Signature unavailable'}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>` : ''}
+                        ` : ''}
                     </div>
                     
                     ${tx.vehicleVin || tx.vehiclePlate ? `

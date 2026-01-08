@@ -2353,7 +2353,8 @@
                                 const dataHash = block.dataHash || block.merkleRoot || 'N/A';
                                 const shortDataHash = dataHash.length > 20 ? `${dataHash.substring(0, 10)}...${dataHash.substring(dataHash.length - 8)}` : dataHash;
 
-                                const txCount = block.transactions && Array.isArray(block.transactions) ? block.transactions.length : 0;
+                                // Use txCount from backend (real Fabric blocks) or calculate from txIds array
+                                const txCount = block.txCount !== undefined ? block.txCount : (block.txIds && Array.isArray(block.txIds) ? block.txIds.length : 0);
 
                                 return `
                                     <div class="block-item" style="margin-bottom: 15px;">
@@ -2388,7 +2389,7 @@
                                                 <span class="detail-value">${block.nonce !== undefined && block.nonce !== null ? block.nonce.toLocaleString() : 'N/A'}</span>
                                             </div>
                                             <div class="detail-item">
-                                                <span class="detail-label">Data Hash (synthetic)</span>
+                                                <span class="detail-label">Data Hash</span>
                                                 <span class="detail-value" style="font-family: monospace; font-size: 0.9rem;" title="${dataHash}">${shortDataHash}</span>
                                             </div>
                                         </div>
@@ -2413,7 +2414,7 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1;">
                                 <div>
                                     <h3 style="margin: 0; color: #2c3e50;">All Blocks</h3>
-                                    <div style="font-size: 0.85rem; color: #7f8c8d; margin-top: 4px;">Aggregated/synthetic view based on transactions; use proof panel for canonical headers.</div>
+                                    <div style="font-size: 0.85rem; color: #7f8c8d; margin-top: 4px;">Real Fabric blocks queried via qscc. Each block contains actual transactions from the Hyperledger Fabric ledger.</div>
                                 </div>
                                 <span style="background: #27ae60; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
                                     ${sortedBlocks.length} ${sortedBlocks.length === 1 ? 'Block' : 'Blocks'}

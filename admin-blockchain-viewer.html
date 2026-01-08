@@ -1304,201 +1304,6 @@
             font-weight: 600;
         }
 
-        /* Blockchain Proof Modal */
-        .proof-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 10000;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .proof-modal-overlay.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-        }
-
-        .proof-modal {
-            background: #ffffff;
-            border-radius: 16px;
-            max-width: 800px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.3s ease;
-        }
-
-        .proof-modal-header {
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-            color: white;
-            padding: 1.5rem 2rem;
-            border-radius: 16px 16px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .proof-modal-header h3 {
-            margin: 0;
-            font-size: 1.25rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .proof-modal-close {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .proof-modal-close:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
-        }
-
-        .proof-modal-body {
-            padding: 2rem;
-        }
-
-        .proof-section {
-            margin-bottom: 1.5rem;
-            padding: 1.25rem;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-        }
-
-        .proof-section h4 {
-            margin: 0 0 1rem 0;
-            font-size: 1rem;
-            color: #0c4a6e;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .proof-item {
-            display: grid;
-            grid-template-columns: 140px 1fr;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .proof-item:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-
-        .proof-label {
-            font-weight: 600;
-            color: #64748b;
-            font-size: 0.875rem;
-        }
-
-        .proof-value {
-            color: #1e293b;
-            font-family: 'Courier New', monospace;
-            font-size: 0.875rem;
-            word-break: break-all;
-        }
-
-        .proof-value.success {
-            color: #16a34a;
-            font-weight: 600;
-        }
-
-        .proof-value.hash {
-            font-size: 0.8rem;
-            background: #f1f5f9;
-            padding: 0.5rem;
-            border-radius: 4px;
-        }
-
-        .proof-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-            font-weight: 600;
-        }
-
-        .proof-badge.verified {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .proof-badge.pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .proof-endorsement {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .proof-endorsement:last-child {
-            margin-bottom: 0;
-        }
-
-        .proof-loading {
-            text-align: center;
-            padding: 3rem;
-            color: #64748b;
-        }
-
-        .proof-loading i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #0ea5e9;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body>
@@ -1701,27 +1506,6 @@
         </div>
     </div>
 
-    <!-- Blockchain Proof Modal -->
-    <div class="proof-modal-overlay" id="proofModalOverlay">
-        <div class="proof-modal">
-            <div class="proof-modal-header">
-                <h3>
-                    <i class="fas fa-shield-alt"></i>
-                    Blockchain Proof of Immutability
-                </h3>
-                <button class="proof-modal-close" onclick="closeProofModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="proof-modal-body" id="proofModalBody">
-                <div class="proof-loading">
-                    <i class="fas fa-spinner"></i>
-                    <p>Loading blockchain proof...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         let currentTab = 'transactions';
 
@@ -1893,228 +1677,6 @@
             return headers;
         }
 
-        // Validate if ID is a canonical Fabric transaction ID (64-character hex)
-        function isFabricTxId(id) {
-            return typeof id === 'string' && /^[a-f0-9]{64}$/i.test(id);
-        }
-
-        // Validate if block number is valid
-        function isValidBlockNumber(blockNum) {
-            const num = parseInt(blockNum, 10);
-            return !isNaN(num) && num >= 0;
-        }
-
-        // Open blockchain proof modal
-        async function openProofModal(txId) {
-            const overlay = document.getElementById('proofModalOverlay');
-            const body = document.getElementById('proofModalBody');
-            
-            overlay.classList.add('active');
-
-            // Validate transaction ID format before making API call
-            if (!isFabricTxId(txId)) {
-                body.innerHTML = `
-                    <div style="padding: 3rem; text-align: center;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;"></i>
-                        <h3 style="margin: 0 0 1rem 0; color: #0c4a6e;">Proof Unavailable</h3>
-                        <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                            <p style="margin: 0; color: #78350f; font-size: 0.9375rem;">
-                                <strong>This transaction does not have a canonical Fabric blockchain ID.</strong><br>
-                                Only transactions committed to Hyperledger Fabric can be cryptographically proven.
-                            </p>
-                        </div>
-                        <div style="text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem;">
-                            <div style="margin-bottom: 0.5rem;"><strong style="color: #64748b;">Transaction ID:</strong></div>
-                            <code style="font-size: 0.875rem; word-break: break-all; color: #1e293b;">${txId || 'N/A'}</code>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            body.innerHTML = `
-                <div class="proof-loading">
-                    <i class="fas fa-spinner"></i>
-                    <p>Loading blockchain proof...</p>
-                </div>
-            `;
-
-            try {
-                const response = await fetch(`/api/ledger/proof/tx/${txId}`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                
-                if (result.success && result.proof) {
-                    displayProof(result.proof);
-                } else {
-                    throw new Error(result.error || 'Failed to load proof');
-                }
-            } catch (error) {
-                console.error('Failed to load proof:', error);
-                body.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #dc2626;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                        <h3 style="margin: 0 0 0.5rem 0;">Failed to Load Proof</h3>
-                        <p style="color: #64748b; margin: 0;">${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Display blockchain proof details
-        function displayProof(proof) {
-            const body = document.getElementById('proofModalBody');
-            
-            // Format timestamp
-            let timestampStr = 'N/A';
-            if (proof.timestamp) {
-                try {
-                    const date = new Date(proof.timestamp);
-                    timestampStr = date.toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                    });
-                } catch (e) {
-                    timestampStr = proof.timestamp;
-                }
-            }
-
-            // Validation badge
-            const validationBadge = proof.validationCode === 'VALID' || proof.validationCode === 0
-                ? '<span class="proof-badge verified"><i class="fas fa-check-circle"></i> VALID</span>'
-                : `<span class="proof-badge pending"><i class="fas fa-exclamation-circle"></i> ${proof.validationCode || 'UNKNOWN'}</span>`;
-
-            // Build endorsements HTML
-            let endorsementsHtml = '';
-            if (proof.endorsements && proof.endorsements.length > 0) {
-                endorsementsHtml = proof.endorsements.map((e, i) => `
-                    <div class="proof-endorsement">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <span style="font-weight: 600; color: #0c4a6e;">Endorsement ${i + 1}</span>
-                            <span class="proof-badge verified" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;">
-                                <i class="fas fa-check"></i> Signed
-                            </span>
-                        </div>
-                        <div class="proof-item" style="grid-template-columns: 80px 1fr; margin-bottom: 0;">
-                            <span class="proof-label">MSP ID</span>
-                            <span class="proof-value">${e.mspId || 'N/A'}</span>
-                        </div>
-                        ${e.signature ? `
-                        <div class="proof-item" style="grid-template-columns: 80px 1fr; margin-bottom: 0; border: none; padding: 0;">
-                            <span class="proof-label">Signature</span>
-                            <span class="proof-value hash">${e.signature.substring(0, 60)}...</span>
-                        </div>
-                        ` : ''}
-                    </div>
-                `).join('');
-            } else {
-                endorsementsHtml = '<p style="color: #64748b; text-align: center; padding: 1rem;">No endorsements found</p>';
-            }
-
-            body.innerHTML = `
-                <div class="proof-section" style="background: linear-gradient(to bottom, #ecfeff 0%, #f8fafc 100%); border-color: #67e8f9;">
-                    <h4><i class="fas fa-check-circle" style="color: #16a34a;"></i> Transaction Validation</h4>
-                    <div style="text-align: center; margin-bottom: 1rem;">
-                        ${validationBadge}
-                    </div>
-                    <div class="proof-item">
-                        <span class="proof-label">Transaction ID</span>
-                        <span class="proof-value">${proof.txId || 'N/A'}</span>
-                    </div>
-                    <div class="proof-item">
-                        <span class="proof-label">Block Number</span>
-                        <span class="proof-value" style="color: #0284c7; font-weight: 600;">#${proof.blockNumber !== undefined ? proof.blockNumber : 'N/A'}</span>
-                    </div>
-                    <div class="proof-item">
-                        <span class="proof-label">TX Index</span>
-                        <span class="proof-value">${proof.txIndex !== undefined ? proof.txIndex : 'N/A'} of ${proof.txCount || 'N/A'}</span>
-                    </div>
-                    <div class="proof-item">
-                        <span class="proof-label">Channel ID</span>
-                        <span class="proof-value">${proof.channelId || 'N/A'}</span>
-                    </div>
-                    ${timestampStr !== 'N/A' ? `
-                    <div class="proof-item">
-                        <span class="proof-label">Timestamp</span>
-                        <span class="proof-value" style="font-family: inherit;">${timestampStr}</span>
-                    </div>
-                    ` : ''}
-                    ${proof.creatorMspId ? `
-                    <div class="proof-item">
-                        <span class="proof-label">Creator MSP</span>
-                        <span class="proof-value">${proof.creatorMspId}</span>
-                    </div>
-                    ` : ''}
-                </div>
-
-                <div class="proof-section">
-                    <h4><i class="fas fa-cube"></i> Block Header Verification</h4>
-                    ${proof.blockHeader?.previousHash ? `
-                    <div class="proof-item">
-                        <span class="proof-label">Previous Hash</span>
-                        <span class="proof-value hash">${proof.blockHeader.previousHash}</span>
-                    </div>
-                    ` : ''}
-                    ${proof.blockHeader?.dataHash ? `
-                    <div class="proof-item">
-                        <span class="proof-label">Data Hash</span>
-                        <span class="proof-value hash">${proof.blockHeader.dataHash}</span>
-                    </div>
-                    ` : ''}
-                    <div style="margin-top: 1rem; padding: 1rem; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #065f46;">
-                            <i class="fas fa-check-circle"></i>
-                            <strong>Tamper-Proof Guarantee</strong>
-                        </div>
-                        <p style="margin: 0.5rem 0 0 0; color: #047857; font-size: 0.875rem;">
-                            This transaction is cryptographically linked to the blockchain. Any modification would break the hash chain.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="proof-section">
-                    <h4><i class="fas fa-signature"></i> Peer Endorsements (${proof.endorsements?.length || 0})</h4>
-                    ${endorsementsHtml}
-                    <div style="margin-top: 1rem; padding: 1rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #1e40af;">
-                            <i class="fas fa-shield-alt"></i>
-                            <strong>Multi-Signature Validation</strong>
-                        </div>
-                        <p style="margin: 0.5rem 0 0 0; color: #1e3a8a; font-size: 0.875rem;">
-                            Multiple independent peers have endorsed this transaction, ensuring consensus and preventing single-point tampering.
-                        </p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Close blockchain proof modal
-        function closeProofModal() {
-            const overlay = document.getElementById('proofModalOverlay');
-            overlay.classList.remove('active');
-        }
-
-        // Close modal on overlay click
-        document.addEventListener('DOMContentLoaded', function() {
-            const overlay = document.getElementById('proofModalOverlay');
-            if (overlay) {
-                overlay.addEventListener('click', function(e) {
-                    if (e.target === overlay) {
-                        closeProofModal();
-                    }
-                });
-            }
-        });
 
         // Load ledger statistics
         async function loadLedgerStats() {
@@ -2231,43 +1793,24 @@
                                     }
                                 }
 
-                                // Extract canonical Fabric transaction ID (64-char hex)
-                                const fabricTxId = tx.transactionId || tx.hash || tx.id || null;
-                                const hasFabricId = isFabricTxId(fabricTxId);
-                                
                                 // Format transaction hash for display
-                                const txHash = tx.hash || fabricTxId || 'N/A';
+                                const txHash = tx.hash || 'N/A';
                                 const shortHash = txHash.length > 20 ? `${txHash.substring(0, 10)}...${txHash.substring(txHash.length - 8)}` : txHash;
 
-                                // Use display ID (prefer transactionId, fallback to id or synthetic)
-                                const displayTxId = tx.transactionId || tx.id || `tx_${index + 1}`;
+                                // Format transaction ID
+                                const txId = tx.id || tx.transactionId || `tx_${index + 1}`;
                                 
                                 return `
-                                    <div class="transaction-item" data-tx-id="${displayTxId}" data-fabric-id="${fabricTxId || ''}" style="margin-bottom: 15px;">
+                                    <div class="transaction-item" data-tx-id="${txId}" style="margin-bottom: 15px;">
                                         <div class="transaction-header">
                                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                                <span class="transaction-id" title="${displayTxId}">
+                                                <span class="transaction-id" title="${txId}">
                                                     <i class="fas fa-hashtag"></i>
-                                                    ${displayTxId}
+                                                    ${txId}
                                                 </span>
                                                 <span class="transaction-hash" title="${txHash}">${shortHash}</span>
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 10px;">
-                                                ${hasFabricId ? `
-                                                <button onclick="openProofModal('${fabricTxId.replace(/'/g, "\\'")}')"
-                                                        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; transition: all 0.2s ease;"
-                                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.3)';"
-                                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
-                                                    <i class="fas fa-shield-alt"></i>
-                                                    <span>Prove on Blockchain</span>
-                                                </button>
-                                                ` : `
-                                                <span class="status-badge" style="background: #fef3c7; color: #92400e; padding: 0.6rem 1rem; font-size: 0.875rem;"
-                                                      title="This transaction does not have a canonical Fabric blockchain ID">
-                                                    <i class="fas fa-info-circle"></i>
-                                                    Proof Unavailable
-                                                </span>
-                                                `}
                                                 <span class="status-badge status-confirmed">
                                                     <i class="fas fa-check-circle"></i>
                                                     ${tx.status || 'CONFIRMED'}
@@ -2591,13 +2134,9 @@
                             <i class="fas fa-check-circle"></i>
                             <span>Found ${result.results.length} result(s) for "${query}"</span>
                         </div>
-                        ${result.results.map(tx => {
-                            // Extract canonical Fabric transaction ID
-                            const fabricTxId = tx.transactionId || tx.hash || tx.id || null;
-                            const hasFabricId = isFabricTxId(fabricTxId);
-                            const displayTxId = tx.transactionId || tx.id || 'N/A';
-                            
-                            return `
+                            ${result.results.map(tx => {
+                                const displayTxId = tx.transactionId || tx.id || 'N/A';
+                                return `
                             <div class="transaction-item">
                                 <div class="transaction-header">
                                     <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -2607,23 +2146,8 @@
                                         </span>
                                         <span class="transaction-hash" title="${tx.hash || 'N/A'}">${tx.hash ? (tx.hash.length > 20 ? `${tx.hash.substring(0, 10)}...${tx.hash.substring(tx.hash.length - 8)}` : tx.hash) : 'N/A'}</span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        ${hasFabricId ? `
-                                        <button onclick="openProofModal('${fabricTxId.replace(/'/g, "\\'")}')"
-                                                style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; transition: all 0.2s ease;"
-                                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.3)';"
-                                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
-                                            <i class="fas fa-shield-alt"></i>
-                                            <span>Prove</span>
-                                        </button>
-                                        ` : `
-                                        <span class="status-badge" style="background: #fef3c7; color: #92400e; padding: 0.5rem 0.875rem; font-size: 0.8125rem;"
-                                              title="No canonical Fabric ID available">
-                                            <i class="fas fa-info-circle"></i>
-                                            No Proof
-                                        </span>
-                                        `}
-                                        <span class="status-badge status-confirmed">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span class="status-badge status-confirmed">
                                             <i class="fas fa-check-circle"></i>
                                             ${tx.status || 'CONFIRMED'}
                                         </span>

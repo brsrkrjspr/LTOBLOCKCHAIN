@@ -435,7 +435,42 @@ class OptimizedFabricService {
         this.ensureFabricConnection();
 
         try {
+            // Check if channel exists and has queryInfo method
+            if (!this.channel) {
+                throw new Error('Channel not initialized. Cannot query chain info.');
+            }
+
+            // In fabric-network v2.x, queryInfo should be available on the channel
+            if (typeof this.channel.queryInfo !== 'function') {
+                // Try alternative: use network's query capabilities
+                console.warn('⚠️ Channel.queryInfo not available, attempting alternative method...');
+                
+                // Fallback: get info from blocks
+                const blocks = await this.getAllBlocks();
+                if (blocks.length === 0) {
+                    return {
+                        height: 0,
+                        currentBlockHash: null,
+                        previousBlockHash: null,
+                        source: 'fabric'
+                    };
+                }
+                
+                const latestBlock = blocks[blocks.length - 1];
+                return {
+                    height: blocks.length,
+                    currentBlockHash: latestBlock.blockHash || latestBlock.dataHash || null,
+                    previousBlockHash: latestBlock.previousHash || null,
+                    source: 'fabric'
+                };
+            }
+
             const info = await this.channel.queryInfo();
+            
+            if (!info) {
+                throw new Error('Chain info query returned null or undefined');
+            }
+
             return {
                 height: this.longToNumber(info.height),
                 currentBlockHash: this.bufferToHex(info.currentBlockHash),
@@ -444,6 +479,13 @@ class OptimizedFabricService {
             };
         } catch (error) {
             console.error('❌ Failed to query chain info from Fabric:', error);
+            console.error('Error details:', {
+                channelExists: !!this.channel,
+                channelType: this.channel?.constructor?.name,
+                hasQueryInfo: typeof this.channel?.queryInfo === 'function',
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
             throw new Error(`Failed to query chain info: ${error.message}`);
         }
     }
@@ -537,8 +579,23 @@ class OptimizedFabricService {
         }
 
         try {
+            // Check if required methods exist
+            if (!this.channel || typeof this.channel.queryTransaction !== 'function') {
+                throw new Error('Channel queryTransaction method not available. Channel may not be properly initialized.');
+            }
+            if (typeof this.channel.queryBlockByTxID !== 'function') {
+                throw new Error('Channel queryBlockByTxID method not available. Channel may not be properly initialized.');
+            }
+
             const processedTx = await this.channel.queryTransaction(txId);
             const block = await this.channel.queryBlockByTxID(txId);
+
+            if (!processedTx) {
+                throw new Error(`Transaction ${txId} not found on ledger`);
+            }
+            if (!block) {
+                throw new Error(`Block containing transaction ${txId} not found`);
+            }
 
             const blockSummary = this.summarizeBlock(block);
             const txIndex = blockSummary.txIds.findIndex(id => id === txId);
@@ -550,7 +607,7 @@ class OptimizedFabricService {
                 txId,
                 validationCode: processedTx?.validationCode || null,
                 blockNumber: blockSummary.blockNumber,
-                txIndex,
+                txIndex: txIndex >= 0 ? txIndex : null,
                 txCount: blockSummary.txCount,
                 channelId: channelHeader.channel_id || null,
                 timestamp: channelHeader.timestamp || null,
@@ -563,6 +620,15 @@ class OptimizedFabricService {
             };
         } catch (error) {
             console.error('❌ Failed to build transaction proof:', error);
+            console.error('Error details:', {
+                txId,
+                channelExists: !!this.channel,
+                channelType: this.channel?.constructor?.name,
+                hasQueryTransaction: typeof this.channel?.queryTransaction === 'function',
+                hasQueryBlockByTxID: typeof this.channel?.queryBlockByTxID === 'function',
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
             throw new Error(`Failed to get transaction proof: ${error.message}`);
         }
     }

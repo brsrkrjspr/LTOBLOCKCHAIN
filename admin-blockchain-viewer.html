@@ -2267,13 +2267,20 @@
                 }).join('') : '<div class="error">No block proofs available.</div>';
 
                 container.innerHTML = chainInfoHtml + blocksHtml;
+                // Remove loading class on success
+                container.classList.remove('loading');
             } catch (error) {
                 console.error('Error loading chain integrity:', error);
+                // Remove loading class on error
+                container.classList.remove('loading');
                 // Hide the entire panel if proof API is unavailable
                 const panel = document.getElementById('chainIntegrityPanel');
                 if (panel) {
                     panel.style.display = 'none';
                 }
+            } finally {
+                // Always remove loading class
+                container.classList.remove('loading');
             }
         }
 
@@ -2446,6 +2453,8 @@
                 }
             } catch (error) {
                 console.error('Error loading blocks:', error);
+                // Ensure loading class is removed even on error
+                container.classList.remove('loading');
                 container.innerHTML = `
                     <div class="error">
                         <strong>Error loading blocks:</strong><br>
@@ -2454,6 +2463,9 @@
                             Make sure the server is running and the API endpoint is accessible.
                         </div>
                     </div>`;
+            } finally {
+                // Always remove loading class
+                container.classList.remove('loading');
             }
         }
 

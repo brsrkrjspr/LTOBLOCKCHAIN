@@ -561,32 +561,86 @@ class OptimizedFabricService {
 
     extractTxIdsFromBlock(block) {
         try {
-            // In fabric-protos, block.data.data is an array of Envelope bytes
-            const envelopeBytes = block?.data?.data || [];
-            const txIds = [];
             const fabricProtos = require('fabric-protos');
+            const txIds = [];
             
-            for (const envelopeBytesItem of envelopeBytes) {
+            // Check if block.data exists
+            if (!block || !block.data) {
+                console.warn('⚠️ Block or block.data is missing');
+                return [];
+            }
+            
+            // In fabric-protos, block.data.data is an array of Envelope bytes
+            const envelopeBytes = block.data.data || [];
+            
+            if (!Array.isArray(envelopeBytes) || envelopeBytes.length === 0) {
+                console.log(`ℹ️ Block ${block.header?.number?.toString() || 'unknown'} has no envelopes`);
+                return [];
+            }
+            
+            console.log(`🔍 Processing block ${block.header?.number?.toString() || 'unknown'} with ${envelopeBytes.length} envelopes`);
+            
+            for (let i = 0; i < envelopeBytes.length; i++) {
                 try {
+                    const envelopeBytesItem = envelopeBytes[i];
+                    
+                    // Check if it's already a Buffer or needs to be converted
+                    let envelopeBuffer = envelopeBytesItem;
+                    if (Buffer.isBuffer(envelopeBytesItem)) {
+                        envelopeBuffer = envelopeBytesItem;
+                    } else if (typeof envelopeBytesItem === 'string') {
+                        envelopeBuffer = Buffer.from(envelopeBytesItem, 'base64');
+                    } else if (envelopeBytesItem instanceof Uint8Array) {
+                        envelopeBuffer = Buffer.from(envelopeBytesItem);
+                    } else {
+                        console.warn(`⚠️ Envelope ${i} is not in expected format:`, typeof envelopeBytesItem);
+                        continue;
+                    }
+                    
                     // Decode the envelope
-                    const envelope = fabricProtos.common.Envelope.decode(envelopeBytesItem);
+                    const envelope = fabricProtos.common.Envelope.decode(envelopeBuffer);
+                    
+                    if (!envelope || !envelope.payload) {
+                        console.warn(`⚠️ Envelope ${i} has no payload`);
+                        continue;
+                    }
                     
                     // Extract transaction ID from channel header
                     const payload = fabricProtos.common.Payload.decode(envelope.payload);
+                    
+                    if (!payload || !payload.header || !payload.header.channel_header) {
+                        console.warn(`⚠️ Envelope ${i} has no channel header`);
+                        continue;
+                    }
+                    
                     const channelHeader = fabricProtos.common.ChannelHeader.decode(payload.header.channel_header);
                     
-                    if (channelHeader.tx_id) {
-                        txIds.push(channelHeader.tx_id);
+                    if (channelHeader && channelHeader.tx_id) {
+                        const txId = channelHeader.tx_id;
+                        txIds.push(txId);
+                        console.log(`  ✅ Found transaction: ${txId.substring(0, 16)}...`);
+                    } else {
+                        console.warn(`⚠️ Envelope ${i} has no tx_id`);
                     }
                 } catch (decodeError) {
+                    // Log the error for debugging
+                    console.warn(`⚠️ Failed to decode envelope ${i}:`, decodeError.message);
                     // Skip invalid envelopes (might be config transactions or other types)
                     continue;
                 }
             }
             
+            console.log(`✅ Block ${block.header?.number?.toString() || 'unknown'} extracted ${txIds.length} transaction IDs`);
             return txIds;
         } catch (error) {
-            console.warn('⚠️ Failed to extract transaction IDs from block:', error.message);
+            console.error('❌ Failed to extract transaction IDs from block:', error.message);
+            console.error('Block structure:', {
+                hasBlock: !!block,
+                hasData: !!block?.data,
+                hasDataData: !!block?.data?.data,
+                dataDataType: Array.isArray(block?.data?.data) ? 'array' : typeof block?.data?.data,
+                dataDataLength: Array.isArray(block?.data?.data) ? block.data.data.length : 'N/A'
+            });
             return [];
         }
     }

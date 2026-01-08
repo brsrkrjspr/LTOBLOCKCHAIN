@@ -430,107 +430,132 @@ class OptimizedFabricService {
         }
     }
 
-    // Get chain info directly from Fabric channel (block height, hashes)
+    // Get chain info directly from Fabric using qscc (Query System Chaincode)
     async getChainInfo() {
         this.ensureFabricConnection();
 
         try {
-            if (!this.channel) {
-                throw new Error('Channel not initialized. Cannot query chain info.');
+            if (!this.network) {
+                throw new Error('Network not initialized. Cannot query chain info.');
             }
 
-            // Try native queryInfo first
-            if (typeof this.channel.queryInfo === 'function') {
-                try {
-                    const info = await this.channel.queryInfo();
-                    if (info) {
-                        return {
-                            height: this.longToNumber(info.height),
-                            currentBlockHash: this.bufferToHex(info.currentBlockHash),
-                            previousBlockHash: this.bufferToHex(info.previousBlockHash),
-                            source: 'fabric_native'
-                        };
-                    }
-                } catch (queryInfoError) {
-                    console.warn('⚠️ queryInfo() failed, using block-based fallback:', queryInfoError.message);
-                }
-            }
-
-            // Fallback: Build chain info from actual blocks
-            console.warn('⚠️ Using block-based chain info (queryInfo unavailable)');
+            const channelName = 'ltochannel'; // Your channel name
             
-            // Query blocks to determine height
-            let height = 0;
-            let latestBlock = null;
-            
+            // Use qscc (Query System Chaincode) to get chain info
+            // qscc is a built-in system chaincode available on all Fabric networks
             try {
-                // Try to query block 0 to confirm connection
-                await this.channel.queryBlock(0);
+                const qscc = this.network.getContract('qscc');
                 
-                // Binary search to find actual height
-                let low = 0, high = 10000;
-                while (low < high) {
-                    const mid = Math.floor((low + high + 1) / 2);
-                    try {
-                        await this.channel.queryBlock(mid);
-                        low = mid;
-                    } catch {
-                        high = mid - 1;
-                    }
-                }
-                height = low + 1; // height = last block number + 1
+                // GetChainInfo returns: height, currentBlockHash, previousBlockHash
+                const chainInfoBytes = await qscc.evaluateTransaction('GetChainInfo', channelName);
                 
-                // Get latest block for hashes
-                if (height > 0) {
-                    latestBlock = await this.channel.queryBlock(height - 1);
+                if (!chainInfoBytes || chainInfoBytes.length === 0) {
+                    throw new Error('GetChainInfo returned empty result');
                 }
-            } catch (err) {
-                console.error('Failed to determine chain height:', err);
-                height = 0;
-            }
 
-            if (height === 0) {
-                return {
-                    height: 0,
-                    currentBlockHash: null,
-                    previousBlockHash: null,
-                    source: 'fabric_blocks'
-                };
-            }
-
-            if (!latestBlock) {
-                // Try to get latest block
+                // Parse the protobuf response using fabric-protos (included in fabric-network)
+                let fabricProtos;
                 try {
-                    latestBlock = await this.channel.queryBlock(height - 1);
-                } catch (err) {
-                    console.error('Failed to get latest block:', err);
+                    fabricProtos = require('fabric-protos');
+                } catch (protosError) {
+                    // If fabric-protos not available, try alternative
+                    console.warn('⚠️ fabric-protos not found, using alternative parsing');
+                    throw new Error('fabric-protos not available');
+                }
+                
+                const blockchainInfo = fabricProtos.common.BlockchainInfo.decode(chainInfoBytes);
+                
+                return {
+                    height: Number(blockchainInfo.height.toString()),
+                    currentBlockHash: this.bufferToHex(blockchainInfo.currentBlockHash),
+                    previousBlockHash: this.bufferToHex(blockchainInfo.previousBlockHash),
+                    source: 'qscc'
+                };
+            } catch (qsccError) {
+                console.warn('⚠️ qscc GetChainInfo failed, using block-scan fallback:', qsccError.message);
+                
+                // Fallback: Determine height by scanning blocks via qscc
+                try {
+                    const qscc = this.network.getContract('qscc');
+                    
+                    // Try to get block 0 first to confirm connection
+                    const block0Bytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, '0');
+                    if (!block0Bytes || block0Bytes.length === 0) {
+                        throw new Error('Cannot query blocks via qscc');
+                    }
+                    
+                    // Binary search to find chain height
+                    let low = 0, high = 10000;
+                    while (low < high) {
+                        const mid = Math.floor((low + high + 1) / 2);
+                        try {
+                            const blockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, mid.toString());
+                            if (blockBytes && blockBytes.length > 0) {
+                                low = mid;
+                            } else {
+                                high = mid - 1;
+                            }
+                        } catch {
+                            high = mid - 1;
+                        }
+                    }
+                    const height = low + 1;
+                    
+                    // Get latest block for hashes
+                    if (height > 0) {
+                        try {
+                            const latestBlockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, (height - 1).toString());
+                            if (latestBlockBytes && latestBlockBytes.length > 0) {
+                                const fabricProtos = require('fabric-protos');
+                                const latestBlock = fabricProtos.common.Block.decode(latestBlockBytes);
+                                const summary = this.summarizeBlock(latestBlock);
+                                
+                                return {
+                                    height: height,
+                                    currentBlockHash: summary.dataHash,
+                                    previousBlockHash: summary.previousHash,
+                                    source: 'qscc_block_scan'
+                                };
+                            }
+                        } catch (blockError) {
+                            console.warn('⚠️ Failed to get latest block for hashes:', blockError.message);
+                        }
+                    }
+                    
                     return {
                         height: height,
                         currentBlockHash: null,
                         previousBlockHash: null,
-                        source: 'fabric_blocks'
+                        source: 'qscc_block_scan'
+                    };
+                } catch (fallbackError) {
+                    console.error('❌ All chain info methods failed:', fallbackError.message);
+                    // Return minimal info rather than throwing
+                    return {
+                        height: 0,
+                        currentBlockHash: null,
+                        previousBlockHash: null,
+                        source: 'error',
+                        error: fallbackError.message
                     };
                 }
             }
-
-            const summary = this.summarizeBlock(latestBlock);
-            
-            return {
-                height: height,
-                currentBlockHash: summary.dataHash,
-                previousBlockHash: summary.previousHash,
-                source: 'fabric_blocks'
-            };
             
         } catch (error) {
             console.error('❌ Failed to query chain info:', error);
             console.error('Error details:', {
+                networkExists: !!this.network,
                 channelExists: !!this.channel,
-                channelType: this.channel?.constructor?.name,
-                hasQueryInfo: typeof this.channel?.queryInfo === 'function',
                 errorMessage: error.message
             });
-            throw new Error(`Failed to query chain info: ${error.message}`);
+            // Return minimal info rather than throwing to allow other operations
+            return {
+                height: 0,
+                currentBlockHash: null,
+                previousBlockHash: null,
+                source: 'error',
+                error: error.message
+            };
         }
     }
 
@@ -558,7 +583,7 @@ class OptimizedFabricService {
         };
     }
 
-    // Fetch a specific block header and transaction list from Fabric
+    // Fetch a specific block header and transaction list from Fabric using qscc
     async getBlockHeader(blockNumber) {
         this.ensureFabricConnection();
 
@@ -567,8 +592,22 @@ class OptimizedFabricService {
             throw new Error('Invalid block number');
         }
 
+        if (!this.network) {
+            throw new Error('Network not initialized. Cannot query block.');
+        }
+
         try {
-            const block = await this.channel.queryBlock(numericBlock);
+            const channelName = 'ltochannel';
+            const qscc = this.network.getContract('qscc');
+            const fabricProtos = require('fabric-protos');
+            
+            const blockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, numericBlock.toString());
+            
+            if (!blockBytes || blockBytes.length === 0) {
+                throw new Error(`Block ${blockNumber} not found`);
+            }
+            
+            const block = fabricProtos.common.Block.decode(blockBytes);
             return this.summarizeBlock(block);
         } catch (error) {
             console.error('❌ Failed to query block from Fabric:', error);
@@ -576,7 +615,7 @@ class OptimizedFabricService {
         }
     }
 
-    // Fetch the block that contains a given transaction ID
+    // Fetch the block that contains a given transaction ID using qscc
     async getBlockByTxId(txId) {
         this.ensureFabricConnection();
 
@@ -584,12 +623,28 @@ class OptimizedFabricService {
             throw new Error('Transaction ID is required');
         }
 
+        if (!this.network) {
+            throw new Error('Network not initialized. Cannot query block.');
+        }
+
         try {
-            const block = await this.channel.queryBlockByTxID(txId);
+            const channelName = 'ltochannel';
+            const qscc = this.network.getContract('qscc');
+            const fabricProtos = require('fabric-protos');
+            
+            const blockBytes = await qscc.evaluateTransaction('GetBlockByTxID', channelName, txId);
+            
+            if (!blockBytes || blockBytes.length === 0) {
+                throw new Error(`Block containing transaction ${txId} not found`);
+            }
+            
+            const block = fabricProtos.common.Block.decode(blockBytes);
             const summary = this.summarizeBlock(block);
+            
             return {
                 ...summary,
-                txId
+                txId,
+                source: 'qscc'
             };
         } catch (error) {
             console.error('❌ Failed to query block by transaction ID:', error);
@@ -799,76 +854,68 @@ class OptimizedFabricService {
                 });
             }
 
-            // Method 2: Fallback - scan blocks for the transaction
-            console.warn('⚠️ Using block-scan fallback for transaction proof');
+            // Method 2: Use qscc (Query System Chaincode) to get transaction proof
+            console.log('⚠️ Using qscc for transaction proof');
             
-            let chainInfo;
+            if (!this.network) {
+                throw new Error('Network not initialized. Cannot query transaction proof.');
+            }
+            
+            const channelName = 'ltochannel';
+            const qscc = this.network.getContract('qscc');
+            const fabricProtos = require('fabric-protos');
+            
             try {
-                chainInfo = await this.getChainInfo();
-            } catch (chainInfoError) {
-                console.error('Failed to get chain info for block scan:', chainInfoError);
-                throw new Error(`Cannot determine chain height: ${chainInfoError.message}`);
-            }
-            
-            const height = chainInfo.height || 0;
-            
-            if (height === 0) {
-                throw new Error('Chain is empty. No blocks to scan.');
-            }
-            
-            // Check if queryBlock method exists
-            if (typeof this.channel.queryBlock !== 'function') {
-                throw new Error('Channel.queryBlock method not available. Cannot scan blocks.');
-            }
-            
-            let foundInBlock = false;
-            let lastError = null;
-            
-            // Scan blocks from newest to oldest (most likely to find recent transactions first)
-            for (let i = height - 1; i >= 0; i--) {
+                // Use qscc GetBlockByTxID to get the block containing the transaction
+                const blockBytes = await qscc.evaluateTransaction('GetBlockByTxID', channelName, txId);
+                
+                if (!blockBytes || blockBytes.length === 0) {
+                    throw new Error(`Transaction ${txId} not found on ledger`);
+                }
+                
+                const block = fabricProtos.common.Block.decode(blockBytes);
+                const summary = this.summarizeBlock(block);
+                const txIndex = summary.txIds.findIndex(id => id === txId);
+                
+                // Try to get transaction details via qscc GetTransactionByID
+                let transactionDetails = null;
                 try {
-                    const block = await this.channel.queryBlock(i);
-                    const summary = this.summarizeBlock(block);
-                    
-                    if (summary.txIds && Array.isArray(summary.txIds) && summary.txIds.includes(txId)) {
-                        const txIndex = summary.txIds.findIndex(id => id === txId);
-                        foundInBlock = true;
-                        return {
-                            transactionId: txId,
-                            validationCode: 0,
-                            validationCodeName: 'VALID',
-                            block: {
-                                number: summary.blockNumber,
-                                hash: summary.dataHash,
-                                previousHash: summary.previousHash,
-                                dataHash: summary.dataHash,
-                                timestamp: summary.timestamp
-                            },
-                            txIndex: txIndex >= 0 ? txIndex : null,
-                            txCount: summary.txCount,
-                            channelId: null,
-                            timestamp: summary.timestamp,
-                            creatorMspId: null,
-                            endorsements: [], // Not available in block-scan mode
-                            source: 'fabric_block_scan',
-                            note: 'Proof generated via block scan. Endorsement details unavailable.'
+                    const txBytes = await qscc.evaluateTransaction('GetTransactionByID', channelName, txId);
+                    if (txBytes && txBytes.length > 0) {
+                        const processedTx = fabricProtos.protos.ProcessedTransaction.decode(txBytes);
+                        transactionDetails = {
+                            validationCode: processedTx.validationCode || 0,
+                            channelHeader: processedTx.transactionEnvelope?.payload?.header?.channel_header || {},
+                            signatureHeader: processedTx.transactionEnvelope?.payload?.header?.signature_header || {}
                         };
                     }
-                } catch (blockErr) {
-                    lastError = blockErr;
-                    // Continue to previous block, but log if it's not just a "block not found" error
-                    if (!blockErr.message || (!blockErr.message.includes('not found') && !blockErr.message.includes('does not exist'))) {
-                        console.warn(`⚠️ Error querying block ${i}:`, blockErr.message);
-                    }
-                    continue;
+                } catch (txError) {
+                    console.warn('⚠️ Could not get transaction details via qscc:', txError.message);
                 }
-            }
-
-            if (!foundInBlock) {
-                const errorMsg = lastError 
-                    ? `Transaction ${txId} not found in any block. Last error: ${lastError.message}`
-                    : `Transaction ${txId} not found in any block (scanned ${height} blocks)`;
-                throw new Error(errorMsg);
+                
+                return {
+                    transactionId: txId,
+                    validationCode: transactionDetails?.validationCode ?? 0,
+                    validationCodeName: this.getValidationCodeName(transactionDetails?.validationCode ?? 0),
+                    block: {
+                        number: summary.blockNumber,
+                        hash: summary.dataHash,
+                        previousHash: summary.previousHash,
+                        dataHash: summary.dataHash,
+                        timestamp: summary.timestamp
+                    },
+                    txIndex: txIndex >= 0 ? txIndex : null,
+                    txCount: summary.txCount,
+                    channelId: transactionDetails?.channelHeader?.channel_id || null,
+                    timestamp: transactionDetails?.channelHeader?.timestamp || summary.timestamp || null,
+                    creatorMspId: transactionDetails?.signatureHeader?.creator?.Mspid || transactionDetails?.signatureHeader?.creator?.mspid || null,
+                    endorsements: transactionDetails ? this.extractEndorsements(transactionDetails) : [],
+                    source: 'qscc',
+                    note: transactionDetails ? null : 'Proof generated via qscc block query. Transaction details unavailable.'
+                };
+            } catch (qsccError) {
+                console.error('❌ qscc transaction proof failed:', qsccError.message);
+                throw new Error(`Failed to get transaction proof via qscc: ${qsccError.message}`);
             }
             
         } catch (error) {
@@ -987,41 +1034,23 @@ class OptimizedFabricService {
         return '0x' + crypto.createHash('sha256').update(data).digest('hex');
     }
 
-    // Get all blocks from Fabric (REAL blocks, not simulated)
+    // Get all blocks from Fabric using qscc (REAL blocks, not simulated)
     async getAllBlocks() {
         if (!this.isConnected || this.mode !== 'fabric') {
             throw new Error('Not connected to Fabric network. Cannot query blocks.');
         }
 
+        if (!this.network) {
+            throw new Error('Network not initialized. Cannot query blocks.');
+        }
+
         try {
-            // Query actual chain height from Fabric
-            let height = 0;
-            try {
-                const chainInfo = await this.getChainInfo();
-                height = chainInfo.height || 0;
-            } catch (chainInfoError) {
-                console.warn('⚠️ Could not get chain info, attempting block-based height detection...');
-                // Fallback: Try to determine height by querying blocks
-                try {
-                    // Try to query block 0 to confirm connection
-                    await this.channel.queryBlock(0);
-                    // Binary search to find actual height
-                    let low = 0, high = 10000;
-                    while (low < high) {
-                        const mid = Math.floor((low + high + 1) / 2);
-                        try {
-                            await this.channel.queryBlock(mid);
-                            low = mid;
-                        } catch {
-                            high = mid - 1;
-                        }
-                    }
-                    height = low + 1; // height = last block number + 1
-                } catch (err) {
-                    console.error('Failed to determine chain height:', err);
-                    height = 0;
-                }
-            }
+            const channelName = 'ltochannel';
+            const qscc = this.network.getContract('qscc');
+            
+            // Get chain height
+            const chainInfo = await this.getChainInfo();
+            const height = chainInfo.height || 0;
             
             if (height === 0) {
                 return [{
@@ -1032,23 +1061,27 @@ class OptimizedFabricService {
                     transactions: [],
                     transactionCount: 0,
                     dataHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-                    source: 'fabric'
+                    source: 'qscc'
                 }];
             }
 
             const blocks = [];
+            const fabricProtos = require('fabric-protos');
             
-            // Query each actual block from Fabric
+            // Query each actual block from Fabric using qscc
             for (let i = 0; i < height; i++) {
                 try {
-                    const block = await this.channel.queryBlock(i);
-                    const summary = this.summarizeBlock(block);
-                    blocks.push({
-                        ...summary,
-                        source: 'fabric'
-                    });
+                    const blockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, i.toString());
+                    if (blockBytes && blockBytes.length > 0) {
+                        const block = fabricProtos.common.Block.decode(blockBytes);
+                        const summary = this.summarizeBlock(block);
+                        blocks.push({
+                            ...summary,
+                            source: 'qscc'
+                        });
+                    }
                 } catch (blockError) {
-                    console.warn(`⚠️ Failed to query block ${i}:`, blockError.message);
+                    console.warn(`⚠️ Failed to query block ${i} via qscc:`, blockError.message);
                     // Continue with other blocks - don't fail entire operation
                 }
             }

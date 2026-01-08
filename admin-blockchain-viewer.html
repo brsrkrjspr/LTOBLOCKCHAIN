@@ -1893,12 +1893,45 @@
             return headers;
         }
 
+        // Validate if ID is a canonical Fabric transaction ID (64-character hex)
+        function isFabricTxId(id) {
+            return typeof id === 'string' && /^[a-f0-9]{64}$/i.test(id);
+        }
+
+        // Validate if block number is valid
+        function isValidBlockNumber(blockNum) {
+            const num = parseInt(blockNum, 10);
+            return !isNaN(num) && num >= 0;
+        }
+
         // Open blockchain proof modal
         async function openProofModal(txId) {
             const overlay = document.getElementById('proofModalOverlay');
             const body = document.getElementById('proofModalBody');
             
             overlay.classList.add('active');
+
+            // Validate transaction ID format before making API call
+            if (!isFabricTxId(txId)) {
+                body.innerHTML = `
+                    <div style="padding: 3rem; text-align: center;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+                        <h3 style="margin: 0 0 1rem 0; color: #0c4a6e;">Proof Unavailable</h3>
+                        <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <p style="margin: 0; color: #78350f; font-size: 0.9375rem;">
+                                <strong>This transaction does not have a canonical Fabric blockchain ID.</strong><br>
+                                Only transactions committed to Hyperledger Fabric can be cryptographically proven.
+                            </p>
+                        </div>
+                        <div style="text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem;">
+                            <div style="margin-bottom: 0.5rem;"><strong style="color: #64748b;">Transaction ID:</strong></div>
+                            <code style="font-size: 0.875rem; word-break: break-all; color: #1e293b;">${txId || 'N/A'}</code>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
             body.innerHTML = `
                 <div class="proof-loading">
                     <i class="fas fa-spinner"></i>
@@ -2198,31 +2231,43 @@
                                     }
                                 }
 
+                                // Extract canonical Fabric transaction ID (64-char hex)
+                                const fabricTxId = tx.transactionId || tx.hash || tx.id || null;
+                                const hasFabricId = isFabricTxId(fabricTxId);
+                                
                                 // Format transaction hash for display
-                                const txHash = tx.hash || 'N/A';
+                                const txHash = tx.hash || fabricTxId || 'N/A';
                                 const shortHash = txHash.length > 20 ? `${txHash.substring(0, 10)}...${txHash.substring(txHash.length - 8)}` : txHash;
 
-                                // Format transaction ID
-                                const txId = tx.id || tx.transactionId || `tx_${index + 1}`;
+                                // Use display ID (prefer transactionId, fallback to id or synthetic)
+                                const displayTxId = tx.transactionId || tx.id || `tx_${index + 1}`;
                                 
                                 return `
-                                    <div class="transaction-item" data-tx-id="${txId}" style="margin-bottom: 15px;">
+                                    <div class="transaction-item" data-tx-id="${displayTxId}" data-fabric-id="${fabricTxId || ''}" style="margin-bottom: 15px;">
                                         <div class="transaction-header">
                                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                                <span class="transaction-id" title="${txId}">
+                                                <span class="transaction-id" title="${displayTxId}">
                                                     <i class="fas fa-hashtag"></i>
-                                                    ${txId}
+                                                    ${displayTxId}
                                                 </span>
                                                 <span class="transaction-hash" title="${txHash}">${shortHash}</span>
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 10px;">
-                                                <button onclick="openProofModal('${txId.replace(/'/g, "\\'")}')"
+                                                ${hasFabricId ? `
+                                                <button onclick="openProofModal('${fabricTxId.replace(/'/g, "\\'")}')"
                                                         style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; transition: all 0.2s ease;"
                                                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.3)';"
                                                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
                                                     <i class="fas fa-shield-alt"></i>
                                                     <span>Prove on Blockchain</span>
                                                 </button>
+                                                ` : `
+                                                <span class="status-badge" style="background: #fef3c7; color: #92400e; padding: 0.6rem 1rem; font-size: 0.875rem;"
+                                                      title="This transaction does not have a canonical Fabric blockchain ID">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    Proof Unavailable
+                                                </span>
+                                                `}
                                                 <span class="status-badge status-confirmed">
                                                     <i class="fas fa-check-circle"></i>
                                                     ${tx.status || 'CONFIRMED'}
@@ -2546,20 +2591,43 @@
                             <i class="fas fa-check-circle"></i>
                             <span>Found ${result.results.length} result(s) for "${query}"</span>
                         </div>
-                        ${result.results.map(tx => `
+                        ${result.results.map(tx => {
+                            // Extract canonical Fabric transaction ID
+                            const fabricTxId = tx.transactionId || tx.hash || tx.id || null;
+                            const hasFabricId = isFabricTxId(fabricTxId);
+                            const displayTxId = tx.transactionId || tx.id || 'N/A';
+                            
+                            return `
                             <div class="transaction-item">
                                 <div class="transaction-header">
                                     <div style="display: flex; flex-direction: column; gap: 8px;">
                                         <span class="transaction-id">
                                             <i class="fas fa-hashtag"></i>
-                                            ${tx.id}
+                                            ${displayTxId}
                                         </span>
-                                        <span class="transaction-hash" title="${tx.hash}">${tx.hash ? (tx.hash.length > 20 ? `${tx.hash.substring(0, 10)}...${tx.hash.substring(tx.hash.length - 8)}` : tx.hash) : 'N/A'}</span>
+                                        <span class="transaction-hash" title="${tx.hash || 'N/A'}">${tx.hash ? (tx.hash.length > 20 ? `${tx.hash.substring(0, 10)}...${tx.hash.substring(tx.hash.length - 8)}` : tx.hash) : 'N/A'}</span>
                                     </div>
-                                    <span class="status-badge status-confirmed">
-                                        <i class="fas fa-check-circle"></i>
-                                        ${tx.status || 'CONFIRMED'}
-                                    </span>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        ${hasFabricId ? `
+                                        <button onclick="openProofModal('${fabricTxId.replace(/'/g, "\\'")}')"
+                                                style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; transition: all 0.2s ease;"
+                                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.3)';"
+                                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                                            <i class="fas fa-shield-alt"></i>
+                                            <span>Prove</span>
+                                        </button>
+                                        ` : `
+                                        <span class="status-badge" style="background: #fef3c7; color: #92400e; padding: 0.5rem 0.875rem; font-size: 0.8125rem;"
+                                              title="No canonical Fabric ID available">
+                                            <i class="fas fa-info-circle"></i>
+                                            No Proof
+                                        </span>
+                                        `}
+                                        <span class="status-badge status-confirmed">
+                                            <i class="fas fa-check-circle"></i>
+                                            ${tx.status || 'CONFIRMED'}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div class="transaction-details" style="margin-top: 15px;">
                                     <div class="detail-item">
@@ -2580,7 +2648,8 @@
                                     </div>
                                 </div>
                             </div>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     `;
                 } else {
                     container.innerHTML = `<div class="error">Search failed: ${result.error}</div>`;

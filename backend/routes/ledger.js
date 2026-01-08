@@ -261,11 +261,33 @@ router.get('/proof/chain', authenticateToken, authorizeRole(['admin']), async (r
 router.get('/proof/block/:blockNumber', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { blockNumber } = req.params;
+        
+        // Validate block number format (non-negative integer)
+        const blockNum = parseInt(blockNumber, 10);
+        if (isNaN(blockNum) || blockNum < 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid block number. Expected non-negative integer.' 
+            });
+        }
+        
         const block = await fabricService.getBlockHeader(blockNumber);
         res.json({ success: true, block });
     } catch (error) {
         console.error('Failed to get block proof from Fabric:', error);
-        res.status(500).json({ success: false, error: `Failed to retrieve block proof: ${error.message}` });
+        
+        // Check if it's a "not found" error
+        const isNotFound = error.message && (
+            error.message.includes('not found') ||
+            error.message.includes('does not exist') ||
+            error.message.includes('NOT_FOUND')
+        );
+        
+        const statusCode = isNotFound ? 404 : 500;
+        res.status(statusCode).json({ 
+            success: false, 
+            error: `Failed to retrieve block proof: ${error.message}` 
+        });
     }
 });
 
@@ -273,11 +295,32 @@ router.get('/proof/block/:blockNumber', authenticateToken, authorizeRole(['admin
 router.get('/proof/tx/:txId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { txId } = req.params;
+        
+        // Validate transaction ID format (64-character hex)
+        if (!txId || !/^[a-f0-9]{64}$/i.test(txId)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid Fabric transaction ID format. Expected 64-character hexadecimal string.' 
+            });
+        }
+        
         const proof = await fabricService.getTransactionProof(txId);
         res.json({ success: true, proof });
     } catch (error) {
         console.error('Failed to get transaction proof from Fabric:', error);
-        res.status(500).json({ success: false, error: `Failed to retrieve transaction proof: ${error.message}` });
+        
+        // Check if it's a "not found" error
+        const isNotFound = error.message && (
+            error.message.includes('not found') ||
+            error.message.includes('does not exist') ||
+            error.message.includes('NOT_FOUND')
+        );
+        
+        const statusCode = isNotFound ? 404 : 500;
+        res.status(statusCode).json({ 
+            success: false, 
+            error: `Failed to retrieve transaction proof: ${error.message}` 
+        });
     }
 });
 

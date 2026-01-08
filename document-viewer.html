@@ -591,6 +591,23 @@
             </div>
         </section>
     </main>
+    <!-- Verification Modal -->
+    <div id="verifyModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center;">
+        <div style="background: #111827; color: #fff; border: 1px solid #374151; border-radius: 12px; width: 90%; max-width: 720px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="display:flex; align-items:center; justify-content: space-between; margin-bottom: 0.75rem;">
+                <h3 style="margin:0; font-size:1.1rem;">Immutability Proof</h3>
+                <button onclick="closeVerifyModal()" style="background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 8px; width: 36px; height: 36px; cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="verifyContent" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1rem; min-height: 120px;">
+                <div style="text-align:center; color:#9CA3AF;">
+                    <i class="fas fa-spinner fa-spin" style="font-size:1.5rem; margin-bottom:0.5rem;"></i>
+                    <div>Verifying document integrity...</div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
@@ -1034,12 +1051,70 @@
                 alert('Please select a document first');
                 return;
             }
-            
-            const cid = currentDocument.ipfs_cid || currentDocument.cid;
-            if (cid) {
-                alert(`Document CID: ${cid}\n\nThis document is stored on IPFS and can be verified on the blockchain.`);
+
+            // Open modal
+            const modal = document.getElementById('verifyModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+
+            // Prefer server-side verification endpoint (admin/verifier required)
+            const docId = currentDocument.id;
+            if (docId) {
+                const apiClient = window.apiClient || (typeof APIClient !== 'undefined' ? new APIClient() : null);
+                if (!apiClient) {
+                    document.getElementById('verifyContent').innerHTML = '<div class="error">API client not available.</div>';
+                    return;
+                }
+                apiClient.request(`/api/documents/${docId}/verify`, { method: 'POST' })
+                    .then(result => {
+                        if (!result || result.success !== true) {
+                            throw new Error(result?.error || 'Verification failed');
+                        }
+                        const v = result.verification || {};
+                        const statusIcon = v.hashMatches ? '<i class="fas fa-lock" style="color:#10B981"></i>' : '<i class="fas fa-exclamation-triangle" style="color:#F59E0B"></i>';
+                        const statusText = v.hashMatches ? 'Hash match. Document is intact.' : 'Hash mismatch. Investigate.';
+                        document.getElementById('verifyContent').innerHTML = `
+                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                                ${statusIcon}
+                                <strong>${statusText}</strong>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem;">
+                                <div>
+                                    <div style="color:#9CA3AF; font-size:0.75rem;">Expected Hash</div>
+                                    <div style="font-family: monospace; font-size:0.8rem; word-break:break-all;">${v.hash || '-'}</div>
+                                </div>
+                                <div>
+                                    <div style="color:#9CA3AF; font-size:0.75rem;">Current Hash</div>
+                                    <div style="font-family: monospace; font-size:0.8rem; word-break:break-all;">${v.currentHash || '-'}</div>
+                                </div>
+                                <div>
+                                    <div style="color:#9CA3AF; font-size:0.75rem;">Storage Mode</div>
+                                    <div>${v.storageMode || 'local'}</div>
+                                </div>
+                                <div>
+                                    <div style="color:#9CA3AF; font-size:0.75rem;">IPFS</div>
+                                    <div>exists: ${v.ipfsExists === true ? 'yes' : 'no'}; pinned: ${v.ipfsPinned === true ? 'yes' : 'no'}</div>
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .catch(err => {
+                        document.getElementById('verifyContent').innerHTML = `<div class="error">Verification error: ${err.message || err}</div>`;
+                    });
             } else {
-                alert('This document does not have a blockchain reference yet.');
+                // Fallback: show CID information if available
+                const cid = currentDocument.ipfs_cid || currentDocument.cid;
+                document.getElementById('verifyContent').innerHTML = cid
+                    ? `<div class="success"><i class="fas fa-database"></i> IPFS CID: ${cid}</div>`
+                    : `<div class="error">No document ID or CID available for verification.</div>`;
+            }
+        }
+
+        function closeVerifyModal() {
+            const modal = document.getElementById('verifyModal');
+            if (modal) {
+                modal.style.display = 'none';
             }
         }
         

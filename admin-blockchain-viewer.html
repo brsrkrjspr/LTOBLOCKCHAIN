@@ -42,6 +42,8 @@
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
+    <!-- Mermaid for topology visualization (CSP-friendly via cdnjs) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" defer></script>
     <script>
         // Blockchain Viewer - Ensure hamburger is on LEFT side on mobile
         (function() {
@@ -1479,6 +1481,10 @@
                 <!-- Organization Workflow Tab -->
                 <div id="workflowTab" class="tab-panel" style="display: none;">
                     <h3><i class="fas fa-sitemap"></i> Organization Responsibilities & Transaction Flow</h3>
+                    <div class="workflow-container" style="margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 12px; color: #2c3e50;">Network Topology</h4>
+                        <div id="networkTopologyDiagram" style="min-height: 200px;">Preparing diagram...</div>
+                    </div>
                     <div id="workflowView" class="loading">Loading workflow data...</div>
                 </div>
 
@@ -1650,6 +1656,7 @@
                         loadTransactions();
                         break;
                     case 'workflow':
+                        renderNetworkTopologyDiagram();
                         loadOrganizationWorkflow();
                         break;
                     case 'blocks':
@@ -2344,6 +2351,42 @@
             } catch (error) {
                 console.error('Error loading workflow:', error);
                 container.innerHTML = `<div class="error">Error loading workflow: ${error.message}</div>`;
+            }
+        }
+
+        // Render Mermaid topology diagram
+        function renderNetworkTopologyDiagram() {
+            const container = document.getElementById('networkTopologyDiagram');
+            if (!container) return;
+            if (typeof mermaid === 'undefined') {
+                container.textContent = 'Diagram library not loaded.';
+                return;
+            }
+            try {
+                mermaid.initialize({ startOnLoad: false, theme: 'default' });
+                const diagram = `
+                    graph TD
+                      Client[Users & Panelists] -->|HTTPS| Nginx[Reverse Proxy]
+                      Nginx --> App[Admin App/API]
+                      App -->|Query| Ledger[Hyperledger Fabric]
+                      App -->|Store/Fetch| IPFS[IPFS Storage]
+                      Ledger --> CouchDB[State DB]
+                      App --> Postgres[PostgreSQL]
+                      subgraph Verifiers
+                        Insurance[Insurance Verifier]
+                        Emission[Emission Verifier]
+                        HPG[HPG]
+                      end
+                      Insurance --> App
+                      Emission --> App
+                      HPG --> App
+                      App -->|Record Tx| Ledger
+                `;
+                mermaid.render('network-topology-svg', diagram, svg => {
+                    container.innerHTML = svg;
+                });
+            } catch (e) {
+                container.textContent = 'Failed to render topology: ' + (e.message || e);
             }
         }
 

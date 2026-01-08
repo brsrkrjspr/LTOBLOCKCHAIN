@@ -42,8 +42,6 @@
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
-    <!-- Mermaid for topology visualization (CSP-friendly via cdnjs) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" defer></script>
     <script>
         // Blockchain Viewer - Ensure hamburger is on LEFT side on mobile
         (function() {
@@ -2354,41 +2352,75 @@
             }
         }
 
-        // Render Mermaid topology diagram
-        function renderNetworkTopologyDiagram() {
-            const container = document.getElementById('networkTopologyDiagram');
-            if (!container) return;
-            if (typeof mermaid === 'undefined') {
-                container.textContent = 'Diagram library not loaded.';
-                return;
-            }
-            try {
-                mermaid.initialize({ startOnLoad: false, theme: 'default' });
-                const diagram = `
-                    graph TD
-                      Client[Users & Panelists] -->|HTTPS| Nginx[Reverse Proxy]
-                      Nginx --> App[Admin App/API]
-                      App -->|Query| Ledger[Hyperledger Fabric]
-                      App -->|Store/Fetch| IPFS[IPFS Storage]
-                      Ledger --> CouchDB[State DB]
-                      App --> Postgres[PostgreSQL]
-                      subgraph Verifiers
-                        Insurance[Insurance Verifier]
-                        Emission[Emission Verifier]
-                        HPG[HPG]
-                      end
-                      Insurance --> App
-                      Emission --> App
-                      HPG --> App
-                      App -->|Record Tx| Ledger
-                `;
-                mermaid.render('network-topology-svg', diagram, svg => {
-                    container.innerHTML = svg;
-                });
-            } catch (e) {
-                container.textContent = 'Failed to render topology: ' + (e.message || e);
-            }
-        }
+                // Render CSP-safe topology diagram (inline SVG; no external deps)
+                function renderNetworkTopologyDiagram() {
+                        const container = document.getElementById('networkTopologyDiagram');
+                        if (!container) return;
+
+                        container.innerHTML = `
+        <svg viewBox="0 0 820 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:820px;">
+            <defs>
+                <style>
+                    .node { fill:#0f172a; stroke:#94a3b8; stroke-width:1.5; rx:8; ry:8; }
+                    .node-text { fill:#e2e8f0; font: 13px sans-serif; }
+                    .label { fill:#475569; font: 12px sans-serif; }
+                    .arrow { stroke:#94a3b8; stroke-width:1.5; marker-end:url(#arrowhead); }
+                </style>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+                </marker>
+            </defs>
+
+            <!-- Top row -->
+            <rect class="node" x="30" y="40" width="140" height="56"></rect>
+            <text class="node-text" x="100" y="72" text-anchor="middle">Users / Panelists</text>
+
+            <rect class="node" x="220" y="40" width="140" height="56"></rect>
+            <text class="node-text" x="290" y="72" text-anchor="middle">Nginx Reverse Proxy</text>
+
+            <rect class="node" x="410" y="40" width="140" height="56"></rect>
+            <text class="node-text" x="480" y="72" text-anchor="middle">Admin App / API</text>
+
+            <line class="arrow" x1="170" y1="68" x2="220" y2="68"></line>
+            <line class="arrow" x1="360" y1="68" x2="410" y2="68"></line>
+            <text class="label" x="195" y="58" text-anchor="middle">HTTPS</text>
+            <text class="label" x="385" y="58" text-anchor="middle">Same-origin / JWT</text>
+
+            <!-- Middle row -->
+            <rect class="node" x="120" y="150" width="140" height="56"></rect>
+            <text class="node-text" x="190" y="182" text-anchor="middle">Hyperledger Fabric</text>
+
+            <rect class="node" x="320" y="150" width="140" height="56"></rect>
+            <text class="node-text" x="390" y="182" text-anchor="middle">PostgreSQL</text>
+
+            <rect class="node" x="520" y="150" width="140" height="56"></rect>
+            <text class="node-text" x="590" y="182" text-anchor="middle">IPFS Gateway</text>
+
+            <line class="arrow" x1="480" y1="96" x2="190" y2="150"></line>
+            <line class="arrow" x1="480" y1="96" x2="390" y2="150"></line>
+            <line class="arrow" x1="480" y1="96" x2="590" y2="150"></line>
+            <text class="label" x="310" y="122" text-anchor="middle">Query / Endorse</text>
+            <text class="label" x="435" y="128" text-anchor="middle">State / Metadata</text>
+            <text class="label" x="535" y="128" text-anchor="middle">CID store</text>
+
+            <!-- Bottom row (verifiers) -->
+            <rect class="node" x="120" y="240" width="120" height="48"></rect>
+            <text class="node-text" x="180" y="270" text-anchor="middle">Insurance Verifier</text>
+
+            <rect class="node" x="320" y="240" width="120" height="48"></rect>
+            <text class="node-text" x="380" y="270" text-anchor="middle">HPG</text>
+
+            <rect class="node" x="520" y="240" width="120" height="48"></rect>
+            <text class="node-text" x="580" y="270" text-anchor="middle">Emission Verifier</text>
+
+            <line class="arrow" x1="180" y1="240" x2="480" y2="96"></line>
+            <line class="arrow" x1="380" y1="240" x2="480" y2="96"></line>
+            <line class="arrow" x1="580" y1="240" x2="480" y2="96"></line>
+            <text class="label" x="280" y="212" text-anchor="middle">Verify / Approve</text>
+            <text class="label" x="480" y="212" text-anchor="middle">Verify / Approve</text>
+            <text class="label" x="520" y="212" text-anchor="middle">Verify / Approve</text>
+        </svg>`;
+                }
 
         // Load specific transaction by ID
         async function loadSpecificTransaction(txId) {

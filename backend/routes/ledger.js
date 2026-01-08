@@ -178,13 +178,20 @@ router.get('/blocks/latest', authenticateToken, authorizeRole(['admin']), async 
 // Get ledger statistics from Fabric (admin only)
 router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
-        const transactions = await fabricService.getAllTransactions();
-        const blocks = await fabricService.getAllBlocks();
-        
+        const [transactions, blocks, chainInfo] = await Promise.all([
+            fabricService.getAllTransactions(),
+            fabricService.getAllBlocks(),
+            fabricService.getChainInfo().catch(() => null)
+        ]);
+
         const stats = {
             totalTransactions: transactions.length,
             totalBlocks: blocks.length,
             latestBlockNumber: blocks.length > 0 ? Math.max(...blocks.map(b => b.blockNumber || 0)) : 0,
+            height: chainInfo?.height ?? (blocks.length > 0 ? Math.max(...blocks.map(b => b.blockNumber || 0)) + 1 : 0),
+            currentBlockHash: chainInfo?.currentBlockHash || null,
+            previousBlockHash: chainInfo?.previousBlockHash || null,
+            ledgerSizeBytes: chainInfo?.ledgerSizeBytes || null,
             source: 'Hyperledger Fabric',
             lastUpdated: new Date().toISOString()
         };
@@ -236,6 +243,41 @@ router.get('/search', authenticateToken, async (req, res) => {
             success: false,
             error: `Failed to search transactions in Fabric: ${error.message}`
         });
+    }
+});
+
+// Chain-level proof (height, current/previous block hashes)
+router.get('/proof/chain', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const chainInfo = await fabricService.getChainInfo();
+        res.json({ success: true, chain: chainInfo });
+    } catch (error) {
+        console.error('Failed to get chain proof from Fabric:', error);
+        res.status(500).json({ success: false, error: `Failed to retrieve chain proof: ${error.message}` });
+    }
+});
+
+// Block-level proof
+router.get('/proof/block/:blockNumber', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { blockNumber } = req.params;
+        const block = await fabricService.getBlockHeader(blockNumber);
+        res.json({ success: true, block });
+    } catch (error) {
+        console.error('Failed to get block proof from Fabric:', error);
+        res.status(500).json({ success: false, error: `Failed to retrieve block proof: ${error.message}` });
+    }
+});
+
+// Transaction-level proof with endorsements and block placement
+router.get('/proof/tx/:txId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { txId } = req.params;
+        const proof = await fabricService.getTransactionProof(txId);
+        res.json({ success: true, proof });
+    } catch (error) {
+        console.error('Failed to get transaction proof from Fabric:', error);
+        res.status(500).json({ success: false, error: `Failed to retrieve transaction proof: ${error.message}` });
     }
 });
 

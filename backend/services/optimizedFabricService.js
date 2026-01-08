@@ -12,6 +12,7 @@ class OptimizedFabricService {
         this.wallet = null;
         this.network = null;
         this.contract = null;
+        this.channel = null;
         this.isConnected = false;
         this.mode = 'fabric'; // Always Fabric mode - no fallbacks
     }
@@ -72,6 +73,7 @@ class OptimizedFabricService {
 
             // Get network and contract
             this.network = await this.gateway.getNetwork('ltochannel');
+            this.channel = this.network.getChannel();
             this.contract = this.network.getContract('vehicle-registration');
 
             this.isConnected = true;
@@ -83,6 +85,35 @@ class OptimizedFabricService {
             this.isConnected = false;
             console.error('❌ Failed to connect to Fabric network:', error.message);
             throw new Error(`Fabric connection failed: ${error.message}. Ensure Fabric network is running and properly configured.`);
+        }
+    }
+
+    // Quick guard to ensure we have a live Fabric channel
+    ensureFabricConnection() {
+        if (!this.isConnected || this.mode !== 'fabric' || !this.channel) {
+            throw new Error('Not connected to Fabric network. Ensure gateway and channel are initialized.');
+        }
+    }
+
+    // Convert Fabric long/BN style numbers to JS numbers safely
+    longToNumber(longVal) {
+        if (longVal === undefined || longVal === null) return null;
+        if (typeof longVal === 'number') return longVal;
+        if (typeof longVal.low === 'number') {
+            // fabric-protos Long: combine low/high
+            return longVal.low + (longVal.high || 0) * 2 ** 32;
+        }
+        if (typeof longVal.toNumber === 'function') return longVal.toNumber();
+        return Number(longVal);
+    }
+
+    bufferToHex(bufferVal) {
+        if (!bufferVal) return null;
+        if (Buffer.isBuffer(bufferVal)) return '0x' + bufferVal.toString('hex');
+        try {
+            return '0x' + Buffer.from(bufferVal).toString('hex');
+        } catch (e) {
+            return null;
         }
     }
 
@@ -396,6 +427,143 @@ class OptimizedFabricService {
                 error: error.message,
                 mode: 'fabric'
             };
+        }
+    }
+
+    // Get chain info directly from Fabric channel (block height, hashes)
+    async getChainInfo() {
+        this.ensureFabricConnection();
+
+        try {
+            const info = await this.channel.queryInfo();
+            return {
+                height: this.longToNumber(info.height),
+                currentBlockHash: this.bufferToHex(info.currentBlockHash),
+                previousBlockHash: this.bufferToHex(info.previousBlockHash),
+                source: 'fabric'
+            };
+        } catch (error) {
+            console.error('❌ Failed to query chain info from Fabric:', error);
+            throw new Error(`Failed to query chain info: ${error.message}`);
+        }
+    }
+
+    extractTxIdsFromBlock(block) {
+        const envelopes = block?.data?.data || [];
+        return envelopes
+            .map(env => env?.payload?.header?.channel_header?.tx_id)
+            .filter(Boolean);
+    }
+
+    summarizeBlock(block) {
+        const header = block?.header || {};
+        const txIds = this.extractTxIdsFromBlock(block);
+        const firstTimestamp = (block?.data?.data || [])
+            .map(env => env?.payload?.header?.channel_header?.timestamp)
+            .find(Boolean);
+
+        return {
+            blockNumber: this.longToNumber(header.number),
+            previousHash: this.bufferToHex(header.previous_hash),
+            dataHash: this.bufferToHex(header.data_hash),
+            txCount: txIds.length,
+            txIds,
+            timestamp: firstTimestamp || null
+        };
+    }
+
+    // Fetch a specific block header and transaction list from Fabric
+    async getBlockHeader(blockNumber) {
+        this.ensureFabricConnection();
+
+        const numericBlock = parseInt(blockNumber, 10);
+        if (Number.isNaN(numericBlock)) {
+            throw new Error('Invalid block number');
+        }
+
+        try {
+            const block = await this.channel.queryBlock(numericBlock);
+            return this.summarizeBlock(block);
+        } catch (error) {
+            console.error('❌ Failed to query block from Fabric:', error);
+            throw new Error(`Failed to query block ${blockNumber}: ${error.message}`);
+        }
+    }
+
+    // Fetch the block that contains a given transaction ID
+    async getBlockByTxId(txId) {
+        this.ensureFabricConnection();
+
+        if (!txId) {
+            throw new Error('Transaction ID is required');
+        }
+
+        try {
+            const block = await this.channel.queryBlockByTxID(txId);
+            const summary = this.summarizeBlock(block);
+            return {
+                ...summary,
+                txId
+            };
+        } catch (error) {
+            console.error('❌ Failed to query block by transaction ID:', error);
+            throw new Error(`Failed to query block containing tx ${txId}: ${error.message}`);
+        }
+    }
+
+    extractEndorsements(processedTx) {
+        const actions = processedTx?.transactionEnvelope?.payload?.data?.actions || [];
+        const endorsements = [];
+
+        actions.forEach(action => {
+            const endorsementsList = action?.payload?.action?.endorsements || [];
+            endorsementsList.forEach(endorsement => {
+                endorsements.push({
+                    mspId: endorsement?.endorser?.Mspid || endorsement?.endorser?.mspid || 'unknown',
+                    signature: this.bufferToHex(endorsement?.signature)
+                });
+            });
+        });
+
+        return endorsements;
+    }
+
+    // Build a transaction proof from Fabric including block placement and endorsements
+    async getTransactionProof(txId) {
+        this.ensureFabricConnection();
+
+        if (!txId) {
+            throw new Error('Transaction ID is required');
+        }
+
+        try {
+            const processedTx = await this.channel.queryTransaction(txId);
+            const block = await this.channel.queryBlockByTxID(txId);
+
+            const blockSummary = this.summarizeBlock(block);
+            const txIndex = blockSummary.txIds.findIndex(id => id === txId);
+
+            const channelHeader = processedTx?.transactionEnvelope?.payload?.header?.channel_header || {};
+            const signatureHeader = processedTx?.transactionEnvelope?.payload?.header?.signature_header || {};
+
+            return {
+                txId,
+                validationCode: processedTx?.validationCode || null,
+                blockNumber: blockSummary.blockNumber,
+                txIndex,
+                txCount: blockSummary.txCount,
+                channelId: channelHeader.channel_id || null,
+                timestamp: channelHeader.timestamp || null,
+                creatorMspId: signatureHeader?.creator?.Mspid || signatureHeader?.creator?.mspid || null,
+                blockHeader: {
+                    previousHash: blockSummary.previousHash,
+                    dataHash: blockSummary.dataHash
+                },
+                endorsements: this.extractEndorsements(processedTx)
+            };
+        } catch (error) {
+            console.error('❌ Failed to build transaction proof:', error);
+            throw new Error(`Failed to get transaction proof: ${error.message}`);
         }
     }
 

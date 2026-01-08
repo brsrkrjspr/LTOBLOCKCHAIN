@@ -249,16 +249,16 @@ function initializeAdminDashboard() {
     
     // PRIORITY 2: Load stats (defer slightly)
     setTimeout(() => {
-        updateSystemStats();
+    updateSystemStats();
     }, 500);
     
     // PRIORITY 3: Defer non-critical features
     setTimeout(() => {
-        initializeUserManagement();
-        initializeOrganizationManagement();
-        initializeAuditLogs();
-        initializeReports();
-        loadOrgVerificationStatus();
+    initializeUserManagement();
+    initializeOrganizationManagement();
+    initializeAuditLogs();
+    initializeReports();
+    loadOrgVerificationStatus();
     }, 2000); // Load after 2 seconds
     
     // Set up smart auto-refresh (replaces old setInterval calls)
@@ -1921,31 +1921,31 @@ async function approveApplication(applicationId) {
         if (button) LoadingManager.show(button, 'Approving...');
         
         try {
-            const apiClient = new APIClient();
+                const apiClient = new APIClient();
             // FIX: Use approve-clearance endpoint instead of status update
             const response = await apiClient.post(`/api/lto/approve-clearance`, {
                 vehicleId: applicationId,
-                notes: 'Application approved by admin'
-            });
-            
-            if (response && response.success) {
+                    notes: 'Application approved by admin'
+                });
+                
+                if (response && response.success) {
                 const message = `Application approved successfully! OR: ${response.orNumber || 'N/A'}, CR: ${response.crNumber || 'N/A'}`;
                 if (response.mvirNumber) {
                     ToastNotification.show(`${message} MVIR: ${response.mvirNumber}`, 'success');
                 } else {
                     ToastNotification.show(message, 'success');
                 }
-                
-                // Close any open modals
-                const openModal = document.querySelector('.modal');
-                if (openModal) {
-                    openModal.remove();
-                }
-                
-                // Refresh the table
-                await loadSubmittedApplications();
-            } else {
-                throw new Error(response?.error || 'Failed to approve application');
+                    
+                    // Close any open modals
+                    const openModal = document.querySelector('.modal');
+                    if (openModal) {
+                        openModal.remove();
+                    }
+                    
+                    // Refresh the table
+                    await loadSubmittedApplications();
+                } else {
+                    throw new Error(response?.error || 'Failed to approve application');
             }
         } catch (error) {
             console.error('Error approving application:', error);

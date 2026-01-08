@@ -356,18 +356,35 @@ router.get('/proof/tx/:txId', authenticateToken, authorizeRole(['admin']), async
         res.json({ success: true, proof });
     } catch (error) {
         console.error('Failed to get transaction proof from Fabric:', error);
+        console.error('Error stack:', error.stack);
         
         // Check if it's a "not found" error
-        const isNotFound = error.message && (
-            error.message.includes('not found') ||
-            error.message.includes('does not exist') ||
-            error.message.includes('NOT_FOUND')
+        const errorMsg = error.message || String(error);
+        const isNotFound = errorMsg && (
+            errorMsg.toLowerCase().includes('not found') ||
+            errorMsg.toLowerCase().includes('does not exist') ||
+            errorMsg.toLowerCase().includes('not_found') ||
+            errorMsg.toLowerCase().includes('not found in any block')
         );
         
-        const statusCode = isNotFound ? 404 : 500;
+        // Check if it's a validation error (400)
+        const isValidationError = errorMsg && (
+            errorMsg.toLowerCase().includes('invalid') ||
+            errorMsg.toLowerCase().includes('format') ||
+            errorMsg.toLowerCase().includes('required')
+        );
+        
+        let statusCode = 500;
+        if (isNotFound) {
+            statusCode = 404;
+        } else if (isValidationError) {
+            statusCode = 400;
+        }
+        
         res.status(statusCode).json({ 
             success: false, 
-            error: `Failed to retrieve transaction proof: ${error.message}` 
+            error: `Failed to retrieve transaction proof: ${errorMsg}`,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });

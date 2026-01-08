@@ -735,15 +735,26 @@ class OptimizedFabricService {
             throw new Error('Invalid transaction ID format. Must be 64-character hex (Fabric transaction).');
         }
 
+        if (!this.channel) {
+            throw new Error('Channel not initialized. Cannot query transaction proof.');
+        }
+
         try {
             // Method 1: Try native queryTransaction + queryBlockByTxID
-            if (typeof this.channel.queryTransaction === 'function' && 
-                typeof this.channel.queryBlockByTxID === 'function') {
-                
+            const hasQueryTransaction = typeof this.channel.queryTransaction === 'function';
+            const hasQueryBlockByTxID = typeof this.channel.queryBlockByTxID === 'function';
+            
+            if (hasQueryTransaction && hasQueryBlockByTxID) {
                 try {
                     const [processedTx, block] = await Promise.all([
-                        this.channel.queryTransaction(txId),
-                        this.channel.queryBlockByTxID(txId)
+                        this.channel.queryTransaction(txId).catch(err => {
+                            console.warn(`queryTransaction failed for ${txId}:`, err.message);
+                            return null;
+                        }),
+                        this.channel.queryBlockByTxID(txId).catch(err => {
+                            console.warn(`queryBlockByTxID failed for ${txId}:`, err.message);
+                            return null;
+                        })
                     ]);
 
                     if (processedTx && block) {
@@ -772,29 +783,56 @@ class OptimizedFabricService {
                             endorsements: this.extractEndorsements(processedTx),
                             source: 'fabric_native'
                         };
+                    } else if (!processedTx && !block) {
+                        console.warn('⚠️ Both queryTransaction and queryBlockByTxID returned null, trying block-scan fallback');
+                    } else {
+                        console.warn('⚠️ Partial results from native methods, trying block-scan fallback');
                     }
                 } catch (nativeError) {
                     console.warn('⚠️ Native queryTransaction/queryBlockByTxID failed, trying block-scan fallback:', nativeError.message);
                 }
+            } else {
+                console.warn('⚠️ Native query methods not available:', {
+                    hasQueryTransaction,
+                    hasQueryBlockByTxID,
+                    channelType: this.channel?.constructor?.name
+                });
             }
 
             // Method 2: Fallback - scan blocks for the transaction
             console.warn('⚠️ Using block-scan fallback for transaction proof');
             
-            const chainInfo = await this.getChainInfo();
+            let chainInfo;
+            try {
+                chainInfo = await this.getChainInfo();
+            } catch (chainInfoError) {
+                console.error('Failed to get chain info for block scan:', chainInfoError);
+                throw new Error(`Cannot determine chain height: ${chainInfoError.message}`);
+            }
+            
             const height = chainInfo.height || 0;
             
             if (height === 0) {
                 throw new Error('Chain is empty. No blocks to scan.');
             }
             
+            // Check if queryBlock method exists
+            if (typeof this.channel.queryBlock !== 'function') {
+                throw new Error('Channel.queryBlock method not available. Cannot scan blocks.');
+            }
+            
+            let foundInBlock = false;
+            let lastError = null;
+            
+            // Scan blocks from newest to oldest (most likely to find recent transactions first)
             for (let i = height - 1; i >= 0; i--) {
                 try {
                     const block = await this.channel.queryBlock(i);
                     const summary = this.summarizeBlock(block);
                     
-                    if (summary.txIds && summary.txIds.includes(txId)) {
+                    if (summary.txIds && Array.isArray(summary.txIds) && summary.txIds.includes(txId)) {
                         const txIndex = summary.txIds.findIndex(id => id === txId);
+                        foundInBlock = true;
                         return {
                             transactionId: txId,
                             validationCode: 0,
@@ -817,12 +855,21 @@ class OptimizedFabricService {
                         };
                     }
                 } catch (blockErr) {
-                    // Continue to previous block
+                    lastError = blockErr;
+                    // Continue to previous block, but log if it's not just a "block not found" error
+                    if (!blockErr.message || (!blockErr.message.includes('not found') && !blockErr.message.includes('does not exist'))) {
+                        console.warn(`⚠️ Error querying block ${i}:`, blockErr.message);
+                    }
                     continue;
                 }
             }
 
-            throw new Error(`Transaction ${txId} not found in any block`);
+            if (!foundInBlock) {
+                const errorMsg = lastError 
+                    ? `Transaction ${txId} not found in any block. Last error: ${lastError.message}`
+                    : `Transaction ${txId} not found in any block (scanned ${height} blocks)`;
+                throw new Error(errorMsg);
+            }
             
         } catch (error) {
             console.error('❌ Failed to build transaction proof:', error);
@@ -832,7 +879,9 @@ class OptimizedFabricService {
                 channelType: this.channel?.constructor?.name,
                 hasQueryTransaction: typeof this.channel?.queryTransaction === 'function',
                 hasQueryBlockByTxID: typeof this.channel?.queryBlockByTxID === 'function',
-                errorMessage: error.message
+                hasQueryBlock: typeof this.channel?.queryBlock === 'function',
+                errorMessage: error.message,
+                errorStack: error.stack
             });
             throw new Error(`Failed to get transaction proof: ${error.message}`);
         }

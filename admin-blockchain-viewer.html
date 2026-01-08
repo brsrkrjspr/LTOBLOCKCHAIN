@@ -1823,6 +1823,9 @@
                                        </span>`
                                     : '';
                                 
+                                // Check if this is a valid Fabric transaction ID (64-char hex)
+                                const isFabricTx = txId && /^[a-f0-9]{64}$/i.test(txId);
+                                
                                 return `
                                     <div class="transaction-item" data-tx-id="${txId}" style="margin-bottom: 15px;">
                                         <div class="transaction-header">
@@ -1839,6 +1842,12 @@
                                                     ${tx.status || 'CONFIRMED'}
                                                 </span>
                                                 ${proofBadge}
+                                                ${isFabricTx ? `
+                                                <button onclick="openProofModal('${txId}')" style="background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px;" title="View blockchain proof">
+                                                    <i class="fas fa-shield-alt"></i>
+                                                    View Proof
+                                                </button>
+                                                ` : ''}
                                             </div>
                                         </div>
                                         <div class="transaction-details" style="margin-top: 15px;">
@@ -2039,7 +2048,11 @@
                 container.innerHTML = chainInfoHtml + blocksHtml;
             } catch (error) {
                 console.error('Error loading chain integrity:', error);
-                container.innerHTML = `<div class="error">Failed to load chain proof: ${error.message}</div>`;
+                // Hide the entire panel if proof API is unavailable
+                const panel = document.getElementById('chainIntegrityPanel');
+                if (panel) {
+                    panel.style.display = 'none';
+                }
             }
         }
 
@@ -2705,6 +2718,122 @@
             
             // Insert at the top of transactions container
             transactionsContainer.insertAdjacentHTML('afterbegin', detailsHtml);
+        }
+
+        // Open proof modal/expansion for a transaction
+        async function openProofModal(txId) {
+            const txCard = document.querySelector(`[data-tx-id="${txId}"]`);
+            if (!txCard) {
+                console.error('Transaction card not found:', txId);
+                return;
+            }
+
+            // Check if proof section already exists
+            let proofSection = txCard.querySelector('.proof-section');
+            if (proofSection) {
+                // Toggle visibility
+                proofSection.style.display = proofSection.style.display === 'none' ? 'block' : 'none';
+                return;
+            }
+
+            // Create proof section
+            proofSection = document.createElement('div');
+            proofSection.className = 'proof-section';
+            proofSection.style.cssText = 'margin-top: 1rem; padding: 1rem; background: linear-gradient(to bottom, #f8f9ff 0%, #ffffff 100%); border: 2px solid #667eea; border-radius: 8px;';
+            proofSection.innerHTML = '<div style="text-align: center; padding: 1rem;"><i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; color: #667eea;"></i><div style="margin-top: 0.5rem; color: #7f8c8d;">Loading blockchain proof...</div></div>';
+            
+            txCard.appendChild(proofSection);
+
+            try {
+                const resp = await fetch(`/api/ledger/proof/tx/${txId}`, { headers: getAuthHeaders() });
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}`);
+                }
+                const data = await resp.json();
+                if (!data.success || !data.proof) {
+                    throw new Error(data.error || 'Proof unavailable');
+                }
+
+                const proof = data.proof;
+                proofSection.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #667eea;">
+                        <div style="font-weight: 700; font-size: 1.1rem; color: #2c3e50;">
+                            <i class="fas fa-shield-check" style="color: #667eea;"></i>
+                            Blockchain Proof
+                        </div>
+                        <button onclick="this.closest('.proof-section').style.display='none'" style="background: transparent; border: none; color: #7f8c8d; cursor: pointer; font-size: 1.2rem;" title="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
+                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Validation Code</div>
+                            <div style="font-weight: 700; color: #27ae60; font-size: 1rem;">${proof.validationCode ?? 'N/A'}</div>
+                        </div>
+                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
+                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Block Number</div>
+                            <div style="font-weight: 700; color: #2c3e50; font-size: 1rem;">#${proof.blockNumber ?? 'N/A'}</div>
+                        </div>
+                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
+                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Transaction Index</div>
+                            <div style="font-weight: 700; color: #2c3e50; font-size: 1rem;">${proof.txIndex ?? 'N/A'}</div>
+                        </div>
+                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
+                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Channel ID</div>
+                            <div style="font-weight: 700; color: #2c3e50; font-size: 0.9rem;">${proof.channelId || 'N/A'}</div>
+                        </div>
+                    </div>
+                    ${proof.blockHeader ? `
+                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #2c3e50;">
+                            <i class="fas fa-cube" style="color: #667eea;"></i>
+                            Block Header
+                        </div>
+                        <div style="font-family: monospace; font-size: 0.85rem; word-break: break-all; color: #2c3e50;">
+                            <div style="margin-bottom: 0.5rem;"><span style="color: #7f8c8d;">previous_hash:</span> ${proof.blockHeader.previousHash || 'N/A'}</div>
+                            <div><span style="color: #7f8c8d;">data_hash:</span> ${proof.blockHeader.dataHash || 'N/A'}</div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${proof.endorsements?.length ? `
+                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
+                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #2c3e50;">
+                            <i class="fas fa-user-check" style="color: #667eea;"></i>
+                            Endorsements (${proof.endorsements.length})
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem;">
+                            ${proof.endorsements.map(e => `
+                                <div style="background: #f8f9fa; padding: 0.5rem; border-radius: 4px; border-left: 3px solid #667eea;">
+                                    <div style="font-weight: 700; color: #2c3e50; margin-bottom: 0.25rem;">${e.mspId || 'MSP'}</div>
+                                    <div style="font-size: 0.8rem; color: #7f8c8d; font-family: monospace;">Sig: ${e.signature ? e.signature.slice(0, 16) + '...' : 'N/A'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+            } catch (error) {
+                console.error('Failed to load proof:', error);
+                proofSection.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; font-size: 1.1rem; color: #e74c3c;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Proof Unavailable
+                        </div>
+                        <button onclick="this.closest('.proof-section').style.display='none'" style="background: transparent; border: none; color: #7f8c8d; cursor: pointer; font-size: 1.2rem;" title="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div style="color: #7f8c8d; font-size: 0.9rem;">
+                        ${error.message.includes('401') || error.message.includes('403') ? 
+                            'Authentication required. Please ensure you are logged in as an admin.' :
+                            error.message.includes('404') ? 
+                            'This transaction proof could not be found on the blockchain.' :
+                            `Failed to load blockchain proof: ${error.message}`
+                        }
+                    </div>
+                `;
+            }
         }
 
         // Auto-refresh stats every 30 seconds

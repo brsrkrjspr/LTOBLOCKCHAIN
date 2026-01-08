@@ -52,13 +52,44 @@ router.get('/transactions/fabric', authenticateToken, authorizeRole(['admin']), 
 // Get synthetic history records only (non-64-char hex IDs) - for activity log
 router.get('/transactions/history', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
-        const allTransactions = await fabricService.getAllTransactions();
+        // Get history records from PostgreSQL vehicle_history table directly
+        const db = require('../database/db');
         
-        // Filter to synthetic transactions (non-64-char hex IDs)
-        const historyRecords = allTransactions.filter(tx => {
-            const txId = tx.id || tx.transactionId;
-            return !txId || !/^[a-f0-9]{64}$/i.test(txId);
-        });
+        // Query all vehicle history records that are NOT real Fabric transactions
+        const result = await db.query(`
+            SELECT vh.*, 
+                   v.vin, 
+                   v.plate_number,
+                   u.first_name || ' ' || u.last_name as owner_name,
+                   u.email as owner_email
+            FROM vehicle_history vh
+            LEFT JOIN vehicles v ON vh.vehicle_id = v.id
+            LEFT JOIN users u ON v.owner_id = u.id
+            WHERE (vh.transaction_id IS NULL 
+               OR vh.transaction_id NOT SIMILAR TO '[a-f0-9]{64}'
+               OR LENGTH(COALESCE(vh.transaction_id, '')) != 64)
+            ORDER BY vh.performed_at DESC
+            LIMIT 1000
+        `);
+        
+        // Format as history records
+        const historyRecords = result.rows.map(row => ({
+            id: row.transaction_id || `history_${row.id}`,
+            transactionId: row.transaction_id || `history_${row.id}`,
+            type: row.action || 'HISTORY_RECORD',
+            vin: row.vin,
+            plateNumber: row.plate_number,
+            owner: row.owner_name ? {
+                name: row.owner_name,
+                email: row.owner_email
+            } : null,
+            timestamp: row.performed_at,
+            status: 'RECORDED',
+            action: row.action,
+            description: row.description,
+            metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : null,
+            performedBy: row.performed_by
+        }));
         
         res.json({
             success: true,

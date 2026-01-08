@@ -560,18 +560,66 @@ class OptimizedFabricService {
     }
 
     extractTxIdsFromBlock(block) {
-        const envelopes = block?.data?.data || [];
-        return envelopes
-            .map(env => env?.payload?.header?.channel_header?.tx_id)
-            .filter(Boolean);
+        try {
+            // In fabric-protos, block.data.data is an array of Envelope bytes
+            const envelopeBytes = block?.data?.data || [];
+            const txIds = [];
+            const fabricProtos = require('fabric-protos');
+            
+            for (const envelopeBytesItem of envelopeBytes) {
+                try {
+                    // Decode the envelope
+                    const envelope = fabricProtos.common.Envelope.decode(envelopeBytesItem);
+                    
+                    // Extract transaction ID from channel header
+                    const payload = fabricProtos.common.Payload.decode(envelope.payload);
+                    const channelHeader = fabricProtos.common.ChannelHeader.decode(payload.header.channel_header);
+                    
+                    if (channelHeader.tx_id) {
+                        txIds.push(channelHeader.tx_id);
+                    }
+                } catch (decodeError) {
+                    // Skip invalid envelopes (might be config transactions or other types)
+                    continue;
+                }
+            }
+            
+            return txIds;
+        } catch (error) {
+            console.warn('⚠️ Failed to extract transaction IDs from block:', error.message);
+            return [];
+        }
     }
 
     summarizeBlock(block) {
         const header = block?.header || {};
         const txIds = this.extractTxIdsFromBlock(block);
-        const firstTimestamp = (block?.data?.data || [])
-            .map(env => env?.payload?.header?.channel_header?.timestamp)
-            .find(Boolean);
+        
+        // Extract timestamp from first transaction envelope
+        let firstTimestamp = null;
+        try {
+            const fabricProtos = require('fabric-protos');
+            const envelopeBytes = block?.data?.data || [];
+            for (const envelopeBytesItem of envelopeBytes) {
+                try {
+                    const envelope = fabricProtos.common.Envelope.decode(envelopeBytesItem);
+                    const payload = fabricProtos.common.Payload.decode(envelope.payload);
+                    const channelHeader = fabricProtos.common.ChannelHeader.decode(payload.header.channel_header);
+                    
+                    if (channelHeader.timestamp) {
+                        // Convert protobuf Timestamp to JavaScript Date
+                        const seconds = channelHeader.timestamp.seconds?.toNumber() || 0;
+                        const nanos = channelHeader.timestamp.nanos || 0;
+                        firstTimestamp = new Date(seconds * 1000 + nanos / 1000000).toISOString();
+                        break;
+                    }
+                } catch {
+                    continue;
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to extract timestamp from block:', error.message);
+        }
 
         return {
             blockNumber: this.longToNumber(header.number),
@@ -973,9 +1021,28 @@ class OptimizedFabricService {
             // Build transactions from vehicle histories
             const transactions = [];
             
+            // Get all blocks to map transactions to block numbers
+            let blockMap = new Map(); // txId -> blockNumber
+            try {
+                const blocks = await this.getAllBlocks();
+                blocks.forEach(block => {
+                    if (block.txIds && Array.isArray(block.txIds)) {
+                        block.txIds.forEach(txId => {
+                            if (txId && !blockMap.has(txId)) {
+                                blockMap.set(txId, block.blockNumber);
+                            }
+                        });
+                    }
+                });
+                console.log(`✅ Mapped ${blockMap.size} transactions to blocks`);
+            } catch (blockError) {
+                console.warn('⚠️ Could not get blocks for transaction mapping:', blockError.message);
+            }
+            
             vehicles.forEach(vehicle => {
                 // Add registration transaction
                 if (vehicle.blockchainTxId) {
+                    const blockNumber = blockMap.get(vehicle.blockchainTxId) || null;
                     transactions.push({
                         id: vehicle.blockchainTxId,
                         transactionId: vehicle.blockchainTxId,
@@ -986,6 +1053,7 @@ class OptimizedFabricService {
                         timestamp: vehicle.registrationDate || vehicle.createdAt || new Date().toISOString(),
                         status: 'CONFIRMED',
                         hash: vehicle.blockchainTxId,
+                        blockNumber: blockNumber,
                         data: {
                             make: vehicle.make,
                             model: vehicle.model,

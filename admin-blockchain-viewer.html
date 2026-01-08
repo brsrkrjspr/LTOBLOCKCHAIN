@@ -1451,9 +1451,13 @@
 
             <!-- Tabs -->
             <div class="tabs">
-                <div class="tab active" onclick="showTab('transactions')">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span>Transactions</span>
+                <div class="tab active" onclick="showTab('fabric-transactions')">
+                    <i class="fas fa-link"></i>
+                    <span>Blockchain Transactions</span>
+                </div>
+                <div class="tab" onclick="showTab('history-records')">
+                    <i class="fas fa-history"></i>
+                    <span>History Records</span>
                 </div>
                 <div class="tab" onclick="showTab('workflow')">
                     <i class="fas fa-sitemap"></i>
@@ -1471,10 +1475,15 @@
 
             <!-- Tab Content -->
             <div class="tab-content">
-                <!-- Transactions Tab -->
-                <div id="transactionsTab" class="tab-panel">
-                    <h3><i class="fas fa-exchange-alt"></i> All Transactions</h3>
-                    <div id="transactionsList" class="loading">Loading transactions...</div>
+                <!-- Blockchain Transactions Tab (Real Fabric only) -->
+                <div id="fabric-transactionsTab" class="tab-panel">
+                    <h3><i class="fas fa-link"></i> Blockchain Transactions</h3>
+                    <div id="fabricTransactionsList" class="loading">Loading blockchain transactions...</div>
+                </div>
+                <!-- History Records Tab (Synthetic/Off-chain) -->
+                <div id="history-recordsTab" class="tab-panel" style="display: none;">
+                    <h3><i class="fas fa-history"></i> History Records</h3>
+                    <div id="historyRecordsList" class="loading">Loading history records...</div>
                 </div>
 
                 <!-- Organization Workflow Tab -->
@@ -1518,6 +1527,21 @@
             </div>
         </main>
         </div>
+
+    <!-- Proof Modal -->
+    <div id="proofModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+        <div style="background-color: #fefefe; margin: 5% auto; padding: 0; border: 1px solid #888; border-radius: 10px; width: 90%; max-width: 800px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <div style="padding: 20px; border-bottom: 1px solid #ecf0f1; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; color: #2c3e50;"><i class="fas fa-shield-alt"></i> Transaction Proof</h2>
+                <button onclick="document.getElementById('proofModal').style.display='none'" style="background: transparent; border: none; color: #7f8c8d; cursor: pointer; font-size: 1.5rem; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="proofContent" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                <!-- Proof content will be loaded here -->
+            </div>
+        </div>
+    </div>
     </div>
 
     <script>
@@ -1603,15 +1627,17 @@
                 });
             }
 
-            // Ensure transactions tab is visible on load
-            const transactionsTab = document.getElementById('transactionsTab');
-            if (transactionsTab) {
-                transactionsTab.style.display = 'block';
+            // Ensure fabric transactions tab is visible on load
+            const fabricTransactionsTab = document.getElementById('fabric-transactionsTab');
+            if (fabricTransactionsTab) {
+                fabricTransactionsTab.style.display = 'block';
             }
             
             // Hide other tabs
+            const historyRecordsTab = document.getElementById('history-recordsTab');
             const blocksTab = document.getElementById('blocksTab');
             const searchTab = document.getElementById('searchTab');
+            if (historyRecordsTab) historyRecordsTab.style.display = 'none';
             if (blocksTab) blocksTab.style.display = 'none';
             if (searchTab) searchTab.style.display = 'none';
             
@@ -1621,7 +1647,7 @@
             
             // Load initial data
             loadLedgerStats();
-            loadTransactions();
+            loadFabricTransactions();
             
             // If txId is in URL, load that specific transaction after initial data loads
             if (txIdFromUrl) {
@@ -1642,7 +1668,8 @@
             tabs.forEach(tab => {
                 const tabText = tab.textContent.trim().toLowerCase();
                 if (tabText.includes(tabName.toLowerCase()) || 
-                    (tabName === 'transactions' && tabText.includes('transaction')) ||
+                    (tabName === 'fabric-transactions' && (tabText.includes('blockchain') || tabText.includes('transaction'))) ||
+                    (tabName === 'history-records' && (tabText.includes('history') || tabText.includes('record'))) ||
                     (tabName === 'blocks' && tabText.includes('block')) ||
                     (tabName === 'search' && tabText.includes('search'))) {
                     tab.classList.add('active');
@@ -1661,8 +1688,11 @@
 
                 // Load data for the tab
                 switch(tabName) {
-                    case 'transactions':
-                        loadTransactions();
+                    case 'fabric-transactions':
+                        loadFabricTransactions();
+                        break;
+                    case 'history-records':
+                        loadHistoryRecords();
                         break;
                     case 'workflow':
                         loadOrganizationWorkflow();
@@ -1718,17 +1748,17 @@
             }
         }
 
-        // Load transactions
-        async function loadTransactions() {
-            const container = document.getElementById('transactionsList');
+        // Load real Fabric transactions only
+        async function loadFabricTransactions() {
+            const container = document.getElementById('fabricTransactionsList');
             if (!container) {
-                console.error('transactionsList container not found!');
+                console.error('fabricTransactionsList container not found!');
                 return;
             }
-            container.innerHTML = '<div class="loading">Loading transactions...</div>';
+            container.innerHTML = '<div class="loading">Loading blockchain transactions...</div>';
 
             try {
-                const response = await fetch('/api/ledger/transactions', {
+                const response = await fetch('/api/ledger/transactions/fabric', {
                     headers: getAuthHeaders()
                 });
                 if (!response.ok) {
@@ -1902,7 +1932,7 @@
                         // Add header with count
                         const headerHtml = `
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1;">
-                                <h3 style="margin: 0; color: #2c3e50;">All Transactions</h3>
+                                <h3 style="margin: 0; color: #2c3e50;">Blockchain Transactions <span style="font-size: 0.85rem; color: #7f8c8d; font-weight: normal;">(Real Fabric)</span></h3>
                                 <span style="background: #3498db; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
                                     ${sortedTransactions.length} ${sortedTransactions.length === 1 ? 'Transaction' : 'Transactions'}
                                 </span>
@@ -1916,7 +1946,7 @@
                         // Insert HTML
                         container.innerHTML = headerHtml + htmlContent;
                         
-                        console.log(`Successfully rendered ${sortedTransactions.length} transactions`);
+                        console.log(`Successfully rendered ${sortedTransactions.length} blockchain transactions`);
                     } catch (error) {
                         console.error('Error processing transactions:', error);
                         container.innerHTML = `
@@ -1948,6 +1978,197 @@
                         <div style="margin-top: 10px; font-size: 0.9rem;">
                             Make sure the server is running and the API endpoint is accessible.
                         </div>
+                    </div>`;
+            }
+        }
+
+        // Load synthetic history records only
+        async function loadHistoryRecords() {
+            const container = document.getElementById('historyRecordsList');
+            if (!container) {
+                console.error('historyRecordsList container not found!');
+                return;
+            }
+            container.innerHTML = '<div class="loading">Loading history records...</div>';
+
+            try {
+                const response = await fetch('/api/ledger/transactions/history', {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+
+                if (result.success) {
+                    if (!result.records || result.records.length === 0) {
+                        container.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #7f8c8d;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">📋</div>
+                                <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 5px;">No History Records Found</div>
+                                <div style="font-size: 0.9rem;">History records will appear here for off-chain events and status changes.</div>
+                            </div>`;
+                        return;
+                    }
+
+                    try {
+                        // Sort records by timestamp (newest first)
+                        const sortedRecords = [...result.records].sort((a, b) => {
+                            const timeA = new Date(a.timestamp || 0).getTime();
+                            const timeB = new Date(b.timestamp || 0).getTime();
+                            return timeB - timeA;
+                        });
+
+                        const htmlContent = sortedRecords.map((record, index) => {
+                            try {
+                                // Safely get owner email
+                                let ownerEmail = 'N/A';
+                                let ownerName = '';
+                                if (record.owner) {
+                                    if (typeof record.owner === 'object') {
+                                        ownerEmail = record.owner.email || 'N/A';
+                                        if (record.owner.firstName && record.owner.lastName) {
+                                            ownerName = `${record.owner.firstName} ${record.owner.lastName}`;
+                                        }
+                                    } else {
+                                        ownerEmail = String(record.owner);
+                                    }
+                                }
+                                
+                                // Safely format timestamp
+                                let timestampStr = 'N/A';
+                                try {
+                                    if (record.timestamp) {
+                                        const date = new Date(record.timestamp);
+                                        timestampStr = date.toLocaleString('en-US', {
+                                            year: 'numeric',
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        });
+                                    }
+                                } catch (e) {
+                                    timestampStr = String(record.timestamp || 'N/A');
+                                }
+
+                                // Format record ID
+                                const recordId = record.id || record.transactionId || `record_${index + 1}`;
+                                const shortId = recordId.length > 30 ? `${recordId.substring(0, 15)}...${recordId.substring(recordId.length - 10)}` : recordId;
+                                
+                                return `
+                                    <div class="transaction-item" data-tx-id="${recordId}" style="margin-bottom: 15px; border-left: 4px solid #f39c12;">
+                                        <div class="transaction-header">
+                                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                <span class="transaction-id" title="${recordId}">
+                                                    <i class="fas fa-file-alt"></i>
+                                                    ${shortId}
+                                                </span>
+                                                <span class="status-badge" style="background: #fff3cd; color: #856404; border: 1px solid #ffc107;">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    Off-Chain Record
+                                                </span>
+                                            </div>
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <span class="status-badge status-confirmed">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    ${record.status || record.action || 'RECORDED'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="transaction-details" style="margin-top: 15px;">
+                                            <div class="detail-item">
+                                                <span class="detail-label">Action Type</span>
+                                                <span class="detail-value">${record.action || record.type || 'HISTORY_RECORD'}</span>
+                                            </div>
+                                            ${record.vin ? `
+                                            <div class="detail-item">
+                                                <span class="detail-label">VIN</span>
+                                                <span class="detail-value" style="font-family: monospace; font-weight: 600;">${record.vin}</span>
+                                            </div>
+                                            ` : ''}
+                                            ${record.plateNumber ? `
+                                            <div class="detail-item">
+                                                <span class="detail-label">Plate Number</span>
+                                                <span class="detail-value" style="font-weight: 600; color: #3498db;">${record.plateNumber}</span>
+                                            </div>
+                                            ` : ''}
+                                            ${ownerName ? `
+                                            <div class="detail-item">
+                                                <span class="detail-label">Owner Name</span>
+                                                <span class="detail-value">${ownerName}</span>
+                                            </div>
+                                            ` : ''}
+                                            <div class="detail-item">
+                                                <span class="detail-label">Owner Email</span>
+                                                <span class="detail-value">${ownerEmail}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Timestamp</span>
+                                                <span class="detail-value">${timestampStr}</span>
+                                            </div>
+                                            ${record.metadata ? `
+                                            <div class="detail-item">
+                                                <span class="detail-label">Metadata</span>
+                                                <span class="detail-value" style="font-size: 0.85rem; color: #7f8c8d;">${JSON.stringify(record.metadata).substring(0, 100)}${JSON.stringify(record.metadata).length > 100 ? '...' : ''}</span>
+                                            </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            } catch (error) {
+                                console.error(`Error rendering history record ${index}:`, error, record);
+                                return `
+                                    <div class="transaction-item" style="border: 2px solid #e74c3c;">
+                                        <div class="error">Error displaying record: ${error.message}</div>
+                                        <details style="margin-top: 10px;">
+                                            <summary style="cursor: pointer; color: #3498db;">View Raw Data</summary>
+                                            <pre style="font-size: 0.8rem; overflow: auto; max-height: 200px; background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 10px;">${JSON.stringify(record, null, 2)}</pre>
+                                        </details>
+                                    </div>
+                                `;
+                            }
+                        }).join('');
+
+                        // Add header with count
+                        const headerHtml = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1;">
+                                <h3 style="margin: 0; color: #2c3e50;">History Records <span style="font-size: 0.85rem; color: #7f8c8d; font-weight: normal;">(Off-Chain)</span></h3>
+                                <span style="background: #f39c12; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
+                                    ${sortedRecords.length} ${sortedRecords.length === 1 ? 'Record' : 'Records'}
+                                </span>
+                            </div>
+                        `;
+                        
+                        // Clear container and remove loading class
+                        container.innerHTML = '';
+                        container.classList.remove('loading');
+                        
+                        // Insert HTML
+                        container.innerHTML = headerHtml + htmlContent;
+                        
+                        console.log(`Successfully rendered ${sortedRecords.length} history records`);
+                    } catch (error) {
+                        console.error('Error processing history records:', error);
+                        container.innerHTML = `
+                            <div class="error">
+                                <strong>Error processing history records:</strong><br>
+                                ${error.message}
+                            </div>`;
+                    }
+                } else {
+                    container.innerHTML = `
+                        <div class="error">
+                            <strong>Failed to load history records:</strong><br>
+                            ${result.error || 'Unknown error'}
+                        </div>`;
+                }
+            } catch (error) {
+                console.error('Error loading history records:', error);
+                container.innerHTML = `
+                    <div class="error">
+                        <strong>Error loading history records:</strong><br>
+                        ${error.message}
                     </div>`;
             }
         }
@@ -2720,120 +2941,137 @@
             transactionsContainer.insertAdjacentHTML('afterbegin', detailsHtml);
         }
 
-        // Open proof modal/expansion for a transaction
+        // Open proof modal for a transaction
         async function openProofModal(txId) {
-            const txCard = document.querySelector(`[data-tx-id="${txId}"]`);
-            if (!txCard) {
-                console.error('Transaction card not found:', txId);
-                return;
-            }
-
-            // Check if proof section already exists
-            let proofSection = txCard.querySelector('.proof-section');
-            if (proofSection) {
-                // Toggle visibility
-                proofSection.style.display = proofSection.style.display === 'none' ? 'block' : 'none';
-                return;
-            }
-
-            // Create proof section
-            proofSection = document.createElement('div');
-            proofSection.className = 'proof-section';
-            proofSection.style.cssText = 'margin-top: 1rem; padding: 1rem; background: linear-gradient(to bottom, #f8f9ff 0%, #ffffff 100%); border: 2px solid #667eea; border-radius: 8px;';
-            proofSection.innerHTML = '<div style="text-align: center; padding: 1rem;"><i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; color: #667eea;"></i><div style="margin-top: 0.5rem; color: #7f8c8d;">Loading blockchain proof...</div></div>';
+            const modal = document.getElementById('proofModal');
+            const proofContent = document.getElementById('proofContent');
             
-            txCard.appendChild(proofSection);
-
+            if (!modal || !proofContent) {
+                console.error('Proof modal elements not found');
+                return;
+            }
+            
+            // Only attempt proof for real Fabric transactions (64-char hex)
+            if (!txId || !/^[a-f0-9]{64}$/i.test(txId)) {
+                proofContent.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-info-circle" style="font-size: 3rem; color: #f39c12; margin-bottom: 1rem;"></i>
+                        <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">Proof Not Available</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 1rem;">This is a <strong>History Record</strong>, not a blockchain transaction.</p>
+                        <p style="color: #7f8c8d; margin-bottom: 1rem;">Only real Fabric transactions (64-char hex IDs) have cryptographic proofs.</p>
+                        <p style="font-family: monospace; font-size: 0.9rem; color: #95a5a6; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; margin-top: 1rem;">Record ID: <code>${txId || 'N/A'}</code></p>
+                    </div>
+                `;
+                modal.style.display = 'block';
+                return;
+            }
+            
+            proofContent.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #667eea;"></i><div style="margin-top: 1rem; color: #7f8c8d;">Fetching blockchain proof...</div></div>';
+            modal.style.display = 'block';
+            
             try {
-                const resp = await fetch(`/api/ledger/proof/tx/${txId}`, { headers: getAuthHeaders() });
-                if (!resp.ok) {
-                    throw new Error(`HTTP ${resp.status}`);
+                const response = await fetch(`/api/ledger/proof/tx/${txId}`, { headers: getAuthHeaders() });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
-                const data = await resp.json();
-                if (!data.success || !data.proof) {
-                    throw new Error(data.error || 'Proof unavailable');
+                
+                const data = await response.json();
+                
+                if (data.success && data.proof) {
+                    renderProofDetails(data.proof);
+                } else {
+                    throw new Error(data.error || 'Failed to fetch proof');
                 }
+            } catch (error) {
+                console.error('Failed to load proof:', error);
+                proofContent.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #e74c3c; margin-bottom: 1rem;"></i>
+                        <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">Proof Retrieval Failed</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 1rem;">${error.message}</p>
+                        <p style="font-family: monospace; font-size: 0.9rem; color: #95a5a6; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; margin-top: 1rem;">Transaction ID: <code>${txId}</code></p>
+                        <p style="font-size: 0.85rem; color: #95a5a6; margin-top: 1rem;">This may indicate a Fabric network issue or the transaction is still being processed.</p>
+                    </div>
+                `;
+            }
+        }
 
-                const proof = data.proof;
-                proofSection.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #667eea;">
-                        <div style="font-weight: 700; font-size: 1.1rem; color: #2c3e50;">
-                            <i class="fas fa-shield-check" style="color: #667eea;"></i>
-                            Blockchain Proof
+        function renderProofDetails(proof) {
+            const proofContent = document.getElementById('proofContent');
+            
+            proofContent.innerHTML = `
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e8f8f5;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="fas fa-certificate" style="font-size: 1.5rem; color: #27ae60;"></i>
+                            <h3 style="margin: 0; color: #2c3e50;">Blockchain Evidence</h3>
                         </div>
-                        <button onclick="this.closest('.proof-section').style.display='none'" style="background: transparent; border: none; color: #7f8c8d; cursor: pointer; font-size: 1.2rem;" title="Close">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <span style="background: ${proof.validationCodeName === 'VALID' ? '#d4edda' : '#f8d7da'}; color: ${proof.validationCodeName === 'VALID' ? '#155724' : '#721c24'}; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.9rem;">
+                            ${proof.validationCodeName || 'UNKNOWN'}
+                        </span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
-                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Validation Code</div>
-                            <div style="font-weight: 700; color: #27ae60; font-size: 1rem;">${proof.validationCode ?? 'N/A'}</div>
+                    
+                    <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid #e8f8f5; margin-bottom: 1rem;">
+                        <h4 style="display: flex; align-items: center; gap: 0.5rem; color: #2c3e50; margin-bottom: 1rem;"><i class="fas fa-fingerprint" style="color: #667eea;"></i> Transaction</h4>
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Transaction ID:</span>
+                            <code style="font-family: monospace; font-size: 0.9rem; word-break: break-all; color: #2c3e50;">${proof.transactionId}</code>
                         </div>
-                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
-                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Block Number</div>
-                            <div style="font-weight: 700; color: #2c3e50; font-size: 1rem;">#${proof.blockNumber ?? 'N/A'}</div>
-                        </div>
-                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
-                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Transaction Index</div>
-                            <div style="font-weight: 700; color: #2c3e50; font-size: 1rem;">${proof.txIndex ?? 'N/A'}</div>
-                        </div>
-                        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
-                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Channel ID</div>
-                            <div style="font-weight: 700; color: #2c3e50; font-size: 0.9rem;">${proof.channelId || 'N/A'}</div>
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Validation Code:</span>
+                            <span style="color: #2c3e50;">${proof.validationCode} (${proof.validationCodeName || 'UNKNOWN'})</span>
                         </div>
                     </div>
-                    ${proof.blockHeader ? `
-                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5; margin-bottom: 1rem;">
-                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #2c3e50;">
-                            <i class="fas fa-cube" style="color: #667eea;"></i>
-                            Block Header
+                    
+                    <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid #e8f8f5; margin-bottom: 1rem;">
+                        <h4 style="display: flex; align-items: center; gap: 0.5rem; color: #2c3e50; margin-bottom: 1rem;"><i class="fas fa-cube" style="color: #667eea;"></i> Block Placement</h4>
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Block Number:</span>
+                            <span style="color: #2c3e50;">${proof.block?.number ?? proof.blockNumber ?? 'N/A'}</span>
                         </div>
-                        <div style="font-family: monospace; font-size: 0.85rem; word-break: break-all; color: #2c3e50;">
-                            <div style="margin-bottom: 0.5rem;"><span style="color: #7f8c8d;">previous_hash:</span> ${proof.blockHeader.previousHash || 'N/A'}</div>
-                            <div><span style="color: #7f8c8d;">data_hash:</span> ${proof.blockHeader.dataHash || 'N/A'}</div>
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Block Hash:</span>
+                            <code style="font-family: monospace; font-size: 0.85rem; word-break: break-all; color: #2c3e50;">${proof.block?.hash ?? proof.blockHeader?.dataHash ?? 'N/A'}</code>
                         </div>
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Previous Hash:</span>
+                            <code style="font-family: monospace; font-size: 0.85rem; word-break: break-all; color: #2c3e50;">${proof.block?.previousHash ?? proof.blockHeader?.previousHash ?? 'N/A'}</code>
+                        </div>
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Timestamp:</span>
+                            <span style="color: #2c3e50;">${proof.block?.timestamp ? new Date(proof.block.timestamp).toLocaleString() : (proof.timestamp ? new Date(proof.timestamp).toLocaleString() : 'N/A')}</span>
+                        </div>
+                        ${proof.txIndex !== null && proof.txIndex !== undefined ? `
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Transaction Index:</span>
+                            <span style="color: #2c3e50;">${proof.txIndex}</span>
+                        </div>
+                        ` : ''}
                     </div>
-                    ` : ''}
-                    ${proof.endorsements?.length ? `
-                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e8f8f5;">
-                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #2c3e50;">
-                            <i class="fas fa-user-check" style="color: #667eea;"></i>
-                            Endorsements (${proof.endorsements.length})
-                        </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem;">
-                            ${proof.endorsements.map(e => `
-                                <div style="background: #f8f9fa; padding: 0.5rem; border-radius: 4px; border-left: 3px solid #667eea;">
-                                    <div style="font-weight: 700; color: #2c3e50; margin-bottom: 0.25rem;">${e.mspId || 'MSP'}</div>
-                                    <div style="font-size: 0.8rem; color: #7f8c8d; font-family: monospace;">Sig: ${e.signature ? e.signature.slice(0, 16) + '...' : 'N/A'}</div>
+                    
+                    ${proof.endorsements && proof.endorsements.length > 0 ? `
+                    <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid #e8f8f5; margin-bottom: 1rem;">
+                        <h4 style="display: flex; align-items: center; gap: 0.5rem; color: #2c3e50; margin-bottom: 1rem;"><i class="fas fa-signature" style="color: #667eea;"></i> Endorsements (${proof.endorsements.length})</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                            ${proof.endorsements.map((e, i) => `
+                                <div style="background: #f8f9fa; padding: 0.75rem; border-radius: 6px; border-left: 3px solid #667eea;">
+                                    <span style="font-weight: 600; color: #7f8c8d; display: block; margin-bottom: 0.25rem;">Endorser ${i + 1}:</span>
+                                    <span style="color: #2c3e50;">${e.mspId || e.endorser || 'Peer'}</span>
                                 </div>
                             `).join('')}
                         </div>
                     </div>
                     ` : ''}
-                `;
-            } catch (error) {
-                console.error('Failed to load proof:', error);
-                proofSection.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <div style="font-weight: 700; font-size: 1.1rem; color: #e74c3c;">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            Proof Unavailable
-                        </div>
-                        <button onclick="this.closest('.proof-section').style.display='none'" style="background: transparent; border: none; color: #7f8c8d; cursor: pointer; font-size: 1.2rem;" title="Close">
-                            <i class="fas fa-times"></i>
-                        </button>
+                    
+                    ${proof.source ? `
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ecf0f1; font-size: 0.85rem; color: #95a5a6;">
+                        <small>Source: ${proof.source}</small>
+                        ${proof.note ? `<br><small style="color: #7f8c8d;">${proof.note}</small>` : ''}
                     </div>
-                    <div style="color: #7f8c8d; font-size: 0.9rem;">
-                        ${error.message.includes('401') || error.message.includes('403') ? 
-                            'Authentication required. Please ensure you are logged in as an admin.' :
-                            error.message.includes('404') ? 
-                            'This transaction proof could not be found on the blockchain.' :
-                            `Failed to load blockchain proof: ${error.message}`
-                        }
-                    </div>
-                `;
-            }
+                    ` : ''}
+                </div>
+            `;
         }
 
         // Auto-refresh stats every 30 seconds

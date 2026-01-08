@@ -25,6 +25,54 @@ router.get('/transactions', authenticateToken, authorizeRole(['admin']), async (
     }
 });
 
+// Get real Fabric transactions only (64-char hex IDs) - for blockchain viewer
+router.get('/transactions/fabric', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const allTransactions = await fabricService.getAllTransactions();
+        
+        // Filter to only real Fabric transactions (64-char hex IDs)
+        const fabricTransactions = allTransactions.filter(tx => {
+            const txId = tx.id || tx.transactionId;
+            return txId && /^[a-f0-9]{64}$/i.test(txId);
+        });
+        
+        res.json({
+            success: true,
+            transactions: fabricTransactions,
+            total: fabricTransactions.length,
+            source: 'Hyperledger Fabric',
+            type: 'blockchain_transactions'
+        });
+    } catch (error) {
+        console.error('Failed to get Fabric transactions:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get synthetic history records only (non-64-char hex IDs) - for activity log
+router.get('/transactions/history', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const allTransactions = await fabricService.getAllTransactions();
+        
+        // Filter to synthetic transactions (non-64-char hex IDs)
+        const historyRecords = allTransactions.filter(tx => {
+            const txId = tx.id || tx.transactionId;
+            return !txId || !/^[a-f0-9]{64}$/i.test(txId);
+        });
+        
+        res.json({
+            success: true,
+            records: historyRecords,
+            total: historyRecords.length,
+            source: 'PostgreSQL vehicle_history',
+            type: 'history_records'
+        });
+    } catch (error) {
+        console.error('Failed to get history records:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get transactions by VIN from Fabric (authenticated users)
 router.get('/transactions/vin/:vin', authenticateToken, async (req, res) => {
     try {

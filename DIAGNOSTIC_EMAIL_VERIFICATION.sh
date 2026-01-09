@@ -7,15 +7,19 @@ echo "========================================"
 echo ""
 
 # Auto-detect database credentials
-# Try to get from .env file first, then fall back to docker-compose defaults
-if [ -f .env ]; then
-    DB_NAME=$(grep "^DB_NAME=" .env | cut -d= -f2 | tr -d '"' | tr -d "'" | xargs)
-    DB_USER=$(grep "^DB_USER=" .env | cut -d= -f2 | tr -d '"' | tr -d "'" | xargs)
-fi
+# Use docker-compose defaults (from docker-compose.unified.yml)
+DB_NAME=lto_blockchain
+DB_USER=lto_user
 
-# Fall back to docker-compose defaults if not found in .env
-DB_NAME=${DB_NAME:-lto_blockchain}
-DB_USER=${DB_USER:-lto_user}
+# Optionally override from .env if it has uncommented values
+if [ -f .env ]; then
+    ENV_DB_NAME=$(grep "^DB_NAME=" .env | cut -d= -f2 | tr -d '"' | tr -d "'" | xargs)
+    ENV_DB_USER=$(grep "^DB_USER=" .env | cut -d= -f2 | tr -d '"' | tr -d "'" | xargs)
+    
+    # Only use .env values if they're not empty (handles commented lines)
+    [ -n "$ENV_DB_NAME" ] && DB_NAME="$ENV_DB_NAME"
+    [ -n "$ENV_DB_USER" ] && DB_USER="$ENV_DB_USER"
+fi
 
 echo "Using database credentials:"
 echo "  Database: $DB_NAME"

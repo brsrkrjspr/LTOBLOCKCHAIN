@@ -436,24 +436,15 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Check email verification status - ENFORCE VERIFICATION (must be verified to login)
+        // Check email verification status - WARN but don't block (verification only required for signup)
         if (!user.email_verified) {
-            // Block unverified users from logging in - requires email verification first
-            console.warn('⚠️ Login blocked: unverified email', {
+            // Log warning but allow login - verification is only required for new signups
+            console.warn('⚠️ Login with unverified email (allowed)', {
                 userId: user.id,
                 email: user.email,
                 ip: req.ip || req.connection.remoteAddress
             });
-            
-            return res.status(403).json({
-                success: false,
-                error: 'Email verification required',
-                code: 'EMAIL_NOT_VERIFIED',
-                message: 'Please verify your email address before logging in. Check your inbox for a verification email.',
-                email: user.email,
-                userId: user.id,
-                requiresVerification: true
-            });
+            // Continue with login - don't block
         }
 
         // Update last login

@@ -32,7 +32,7 @@ async function createUser(userData) {
     const result = await db.query(
         `INSERT INTO users (email, password_hash, first_name, last_name, role, organization, phone, address)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, email, first_name, last_name, role, organization, phone, address, created_at`,
+         RETURNING id, email, first_name, last_name, role, organization, phone, address, email_verified, created_at`,
         [email, passwordHash, firstName, lastName, role || 'vehicle_owner', organization, phone, address || null]
     );
     return result.rows[0];

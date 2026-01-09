@@ -373,9 +373,9 @@
                 return false;
             }
 
-            // Password validation
-            if (password.length < 8) {
-                showNotification('Password must be at least 8 characters long', 'error');
+            // Password validation (match backend requirement: 12 characters minimum)
+            if (password.length < 12) {
+                showNotification('Password must be at least 12 characters long', 'error');
                 return false;
             }
 

@@ -74,7 +74,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Drop existing trigger if it exists (for idempotency)
-DROP TRIGGER IF NOT EXISTS trigger_cleanup_verification_tokens ON email_verification_tokens;
+DROP TRIGGER IF EXISTS trigger_cleanup_verification_tokens ON email_verification_tokens;
 
 -- Create trigger
 CREATE TRIGGER trigger_cleanup_verification_tokens

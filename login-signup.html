@@ -98,7 +98,7 @@
                                 <p>Join thousands of users managing their vehicle registrations securely</p>
                             </div>
 
-                            <form class="auth-form" onsubmit="return validateSignup()">
+                            <form class="auth-form" onsubmit="validateSignup(event); return false;">
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="firstName">First Name</label>

@@ -336,7 +336,12 @@
     // SIGNUP VALIDATION
     // ============================================
 
-    window.validateSignup = async function() {
+    window.validateSignup = async function(event) {
+        // Prevent form submission immediately
+        if (event) {
+            event.preventDefault();
+        }
+        
         try {
             const firstName = document.getElementById('firstName')?.value?.trim();
             const lastName = document.getElementById('lastName')?.value?.trim();
@@ -407,10 +412,19 @@
 
             const result = await response.json();
             console.log('Registration response:', result);
+            console.log('Response status:', response.status);
+            console.log('User object:', result.user);
+            console.log('Email verified status:', result.user?.emailVerified);
 
             if (result.success) {
                 // Check if email verification is required
-                if (result.user && result.user.emailVerified === false) {
+                // Handle both camelCase and snake_case for emailVerified
+                const emailVerified = result.user?.emailVerified ?? result.user?.email_verified ?? false;
+                console.log('Email verified (normalized):', emailVerified);
+                
+                // Always redirect to verification prompt if emailVerified is false or undefined
+                // This ensures unverified users go to verification prompt
+                if (result.user && (emailVerified === false || emailVerified === undefined || !emailVerified)) {
                     // Email verification required - redirect to verification prompt
                     console.log('Email verification required for:', result.user.email);
                     
@@ -420,12 +434,14 @@
                         localStorage.setItem('pendingVerificationUserId', result.user.id);
                     }
                     
+                    // Verify it was stored
+                    console.log('Stored pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
+                    
                     showNotification('Account created! Please check your email to verify your account.', 'success');
                     
-                    // Redirect to email verification prompt
-                    setTimeout(() => {
-                        window.location.href = 'email-verification-prompt.html';
-                    }, 1500);
+                    // Redirect to email verification prompt immediately (no delay to prevent form submission)
+                    window.location.href = 'email-verification-prompt.html';
+                    return false; // Prevent any further execution
                 } else {
                     // Email already verified or verification disabled - proceed normally
                     if (result.user) {

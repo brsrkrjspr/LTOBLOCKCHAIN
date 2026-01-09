@@ -393,10 +393,6 @@
             // Call backend registration API
             console.log('Attempting registration with:', email);
             
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:396',message:'Signup request starting',data:{email,hasPassword:!!password,firstName,lastName,phone:!!phone},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-            
             const requestBody = {
                     email,
                     password,
@@ -408,10 +404,6 @@
                     organization: 'Individual'
             };
             
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:410',message:'Fetch request initiated',data:{url:'/api/auth/register',method:'POST',hasBody:!!requestBody},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-            
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
@@ -420,23 +412,12 @@
                 body: JSON.stringify(requestBody)
             });
 
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:425',message:'Response received',data:{status:response.status,statusText:response.statusText,ok:response.ok,contentType:response.headers.get('content-type')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
-
             let result;
             let responseText = '';
             try {
                 responseText = await response.text();
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:432',message:'Response text received',data:{status:response.status,textLength:responseText.length,startsWithHTML:responseText.trim().startsWith('<'),firstChars:responseText.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                // #endregion
-                
                 result = JSON.parse(responseText);
             } catch (parseError) {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:438',message:'JSON parse failed',data:{status:response.status,error:parseError.message,responsePreview:responseText.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                // #endregion
                 throw parseError;
             }
             
@@ -444,16 +425,8 @@
             console.log('Response status:', response.status);
             console.log('User object:', result.user);
             console.log('Email verified status:', result.user?.emailVerified);
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:448',message:'Response parsed successfully',data:{success:result.success,hasUser:!!result.user,emailVerified:result.user?.emailVerified,hasError:!!result.error,error:result.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
 
             if (result.success) {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:451',message:'Signup successful branch entered',data:{hasUser:!!result.user,userEmail:result.user?.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                // #endregion
-                
                 // Check if email verification is required
                 // Handle both camelCase and snake_case for emailVerified
                 const emailVerified = result.user?.emailVerified ?? result.user?.email_verified ?? false;

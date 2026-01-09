@@ -69,12 +69,12 @@ function validateSignupInput(data) {
         }
     }
 
-    // Password validation (NIST SP 800-63B: min 12 chars, blocklist, no complexity rules)
+    // Password validation (min 8 chars, blocklist, no complexity rules)
     if (!data.password) {
         errors.push('Password is required');
     } else {
-        if (data.password.length < 12) {
-            errors.push('Password must be at least 12 characters');
+        if (data.password.length < 8) {
+            errors.push('Password must be at least 8 characters');
         }
         if (data.password.length > 128) {
             errors.push('Password is too long (max 128 characters)');
@@ -146,17 +146,9 @@ function validateSignupInput(data) {
 router.post('/register', signupLimiter, async (req, res) => {
     const clientIp = req.ip || req.connection.remoteAddress;
     
-    // #region agent log
-    try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:146',message:'Register endpoint called',data:{hasBody:!!req.body,email:req.body?.email,ip:clientIp},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-    // #endregion
-    
     try {
         // Extract only safe fields - explicitly ignore 'role' to prevent escalation
         const { email: rawEmail, password, firstName: rawFirstName, lastName: rawLastName, organization, phone, address } = req.body;
-        
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:152',message:'Request body extracted',data:{hasEmail:!!rawEmail,hasPassword:!!password,hasFirstName:!!rawFirstName,hasLastName:!!rawLastName,hasPhone:!!phone},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})+'\n');}catch(e){}
-        // #endregion
 
         // Log suspicious activity: if client attempts to specify a role
         if (req.body.role && req.body.role !== 'vehicle_owner') {
@@ -185,15 +177,8 @@ router.post('/register', signupLimiter, async (req, res) => {
             phone: phone ? phone.trim() : undefined,
             address: address ? address.trim() : undefined
         });
-        
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:180',message:'Validation result',data:{valid:validation.valid,errorCount:validation.errors?.length,errors:validation.errors},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})+'\n');}catch(e){}
-        // #endregion
 
         if (!validation.valid) {
-            // #region agent log
-            try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:189',message:'Validation failed - returning 400',data:{errors:validation.errors},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})+'\n');}catch(e){}
-            // #endregion
             return res.status(400).json({
                 success: false,
                 error: 'Validation failed',
@@ -224,10 +209,6 @@ router.post('/register', signupLimiter, async (req, res) => {
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
         // Create new user with validated, normalized data
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:227',message:'About to create user in database',data:{email,hasPasswordHash:!!passwordHash},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-        // #endregion
-        
         const newUser = await db.createUser({
             email, // normalized (lowercase)
             passwordHash,
@@ -238,10 +219,6 @@ router.post('/register', signupLimiter, async (req, res) => {
             phone: phone ? phone.trim() : null,
             address: address ? address.trim() : null
         });
-        
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:240',message:'User created successfully',data:{userId:newUser.id,email:newUser.email,emailVerified:newUser.email_verified},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-        // #endregion
 
         // Log successful user creation
         console.log('✅ User registered successfully', {
@@ -333,10 +310,6 @@ router.post('/register', signupLimiter, async (req, res) => {
             sameSite: isProduction ? 'strict' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
-
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:338',message:'About to send success response',data:{userId:newUser.id,emailVerified:newUser.email_verified,hasToken:!!accessToken},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-        // #endregion
         
         // Return user data (without password)
         const responseData = {
@@ -357,25 +330,14 @@ router.post('/register', signupLimiter, async (req, res) => {
             token: accessToken
         };
         
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:357',message:'Sending success response',data:{success:responseData.success,userEmailVerified:responseData.user.emailVerified,hasToken:!!responseData.token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-        // #endregion
-        
         res.status(201).json(responseData);
 
     } catch (error) {
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:375',message:'Register endpoint error caught',data:{errorName:error.name,errorMessage:error.message,errorCode:error.code,errorStack:error.stack?.substring(0,300)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-        // #endregion
-        
         // Handle specific database errors
         if (error.code === '23505') {
             // Unique constraint violation (email already exists)
             // This shouldn't happen due to our check above, but catch it as defense-in-depth
             console.error('❌ Unique constraint violation at DB level:', error);
-            // #region agent log
-            try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:383',message:'Returning 409 conflict',data:{code:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-            // #endregion
             return res.status(409).json({
                 success: false,
                 error: 'Email already registered'
@@ -389,10 +351,6 @@ router.post('/register', signupLimiter, async (req, res) => {
             ip: clientIp,
             timestamp: new Date().toISOString()
         });
-        
-        // #region agent log
-        try{const logPath=path.join(__dirname,'../../.cursor/debug.log');fs.appendFileSync(logPath,JSON.stringify({location:'auth.js:398',message:'Returning 500 error',data:{errorMessage:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(e){}
-        // #endregion
 
         // Don't leak implementation details to client
         res.status(500).json({
@@ -494,6 +452,11 @@ router.post('/login', async (req, res) => {
             sameSite: isProduction ? 'strict' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
+
+        // Prevent caching of login responses
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
 
         // Return user data (without password)
         res.json({

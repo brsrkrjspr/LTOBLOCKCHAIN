@@ -269,32 +269,29 @@ validateDatabaseSchema().then(() => {
         const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
             ? 'https://ltoblockchain.duckdns.org' 
             : `http://localhost:${PORT}`);
+        
+        const apiUrl = process.env.FRONTEND_URL 
+            ? `${process.env.FRONTEND_URL}/api`
+            : (process.env.NODE_ENV === 'production' 
+                ? 'https://ltoblockchain.duckdns.org/api'
+                : `http://localhost:${PORT}/api`);
+        
         console.log(`🚀 TrustChain LTO Server running on port ${PORT}`);
         console.log(`📱 Frontend URL: ${frontendUrl}`);
+        console.log(`🔗 API Base URL: ${apiUrl}`);
         console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
         console.log(`💾 Database: ${process.env.DB_NAME || 'lto_blockchain'}@${process.env.DB_HOST || 'localhost'}`);
+        console.log(`📦 Storage Mode: ${process.env.STORAGE_MODE || 'auto'}`);
+        console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'fabric'} (Fabric-only, no fallbacks)`);
         console.log(`🔐 JWT Secret configured: ${process.env.JWT_SECRET ? 'Yes ✓' : 'No ✗'}`);
         console.log(`📧 Email service configured: ${process.env.GMAIL_USER ? 'Yes ✓' : 'No ✗'}`);
+        
+        // Initialize scheduled tasks after server starts
+        initializeScheduledTasks();
     });
 }).catch(error => {
     console.error('❌ Server startup failed:', error.message);
     process.exit(1);
-});
-    const apiUrl = process.env.FRONTEND_URL 
-        ? `${process.env.FRONTEND_URL}/api`
-        : (process.env.NODE_ENV === 'production' 
-            ? 'https://ltoblockchain.duckdns.org/api'
-            : `http://localhost:${PORT}/api`);
-    
-    console.log(`🚀 TrustChain LTO System running on port ${PORT}`);
-    console.log(`📁 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 API Base URL: ${apiUrl}`);
-    console.log(`🌐 Frontend URL: ${frontendUrl}`);
-    console.log(`📦 Storage Mode: ${process.env.STORAGE_MODE || 'auto'}`);
-    console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'fabric'} (Fabric-only, no fallbacks)`);
-    
-    // Initialize scheduled tasks
-    initializeScheduledTasks();
 });
 
 // Initialize scheduled tasks (expiry notifications, etc.)

@@ -1,6 +1,9 @@
 -- TrustChain LTO - Email Verification Tokens Schema
 -- Adds support for magic link email verification
 
+-- Step 0: Ensure UUID extension exists before creating tables
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Step 1: Add email_verified column to users table if it doesn't exist
 DO $$ 
 BEGIN

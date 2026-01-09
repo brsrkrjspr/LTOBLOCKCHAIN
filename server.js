@@ -282,7 +282,19 @@ async function validateDatabaseSchema() {
                 try {
                     // Read migration SQL file
                     const migrationFilePath = path.join(__dirname, migrationPath);
+                    
+                    // Check if migration file exists before attempting to read
+                    if (!fs.existsSync(migrationFilePath)) {
+                        throw new Error(`Migration file not found: ${migrationFilePath}`);
+                    }
+                    
                     const migrationSQL = fs.readFileSync(migrationFilePath, 'utf8');
+                    
+                    // Log database connection info (without password) for debugging
+                    console.log(`   Database: ${process.env.DB_NAME || 'lto_blockchain'}@${process.env.DB_HOST || 'localhost'}`);
+                    console.log(`   Migration file: ${migrationFilePath}`);
+                    console.log(`   File exists: ${fs.existsSync(migrationFilePath)}`);
+                    console.log(`   File size: ${fs.statSync(migrationFilePath).size} bytes`);
                     
                     // Execute migration
                     await db.query(migrationSQL);
@@ -294,8 +306,21 @@ async function validateDatabaseSchema() {
                         global.EMAIL_VERIFICATION_ENABLED = true;
                     }
                 } catch (migrationError) {
+                    const migrationFilePath = path.join(__dirname, migrationPath);
                     console.error(`❌ Auto-migration failed for ${tableName}:`, migrationError.message);
-                    console.error(`   Please run manually: psql -U lto_user -d lto_blockchain -f ${migrationPath}`);
+                    console.error(`   Error details:`, {
+                        name: migrationError.name,
+                        message: migrationError.message,
+                        code: migrationError.code,
+                        detail: migrationError.detail,
+                        hint: migrationError.hint
+                    });
+                    console.error(`   Stack trace:`, migrationError.stack);
+                    console.error(`   Migration file path: ${migrationFilePath}`);
+                    console.error(`   File exists: ${fs.existsSync(migrationFilePath)}`);
+                    console.error(`   Database connection: ${process.env.DB_NAME || 'lto_blockchain'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}`);
+                    console.error(`   Database user: ${process.env.DB_USER || 'lto_user'}`);
+                    console.error(`   Please run manually: psql -U ${process.env.DB_USER || 'lto_user'} -d ${process.env.DB_NAME || 'lto_blockchain'} -f ${migrationPath}`);
                     // Don't exit - let the app try to run (will fail gracefully if table is truly needed)
                 }
             } else {

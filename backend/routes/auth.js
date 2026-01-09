@@ -246,45 +246,49 @@ router.post('/register', signupLimiter, async (req, res) => {
         // Store refresh token in database
         await refreshTokenService.createRefreshToken(newUser.id, refreshToken);
 
-        // Generate email verification token
+        // Generate email verification token (only if feature is enabled)
         let verificationToken = null;
         let verificationLink = null;
-        try {
-            const tokenResult = await emailVerificationService.generateVerificationToken(newUser.id);
-            verificationToken = tokenResult.token;
-            
-            const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-            verificationLink = `${baseUrl}/email-verification.html?token=${verificationToken}`;
+        if (global.EMAIL_VERIFICATION_ENABLED) {
+            try {
+                const tokenResult = await emailVerificationService.generateVerificationToken(newUser.id);
+                verificationToken = tokenResult.token;
+                
+                const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                verificationLink = `${baseUrl}/email-verification.html?token=${verificationToken}`;
 
-            // Send verification email
-            await gmailApiService.sendMail({
-                to: newUser.email,
-                subject: 'Verify Your TrustChain LTO Email',
-                text: `Hello ${newUser.first_name},\n\nWelcome to TrustChain LTO! Please verify your email by clicking the link below. This link will expire in 24 hours.\n\n${verificationLink}\n\nIf you did not create an account, please ignore this email.\n\nBest regards,\nTrustChain LTO System`,
-                html: `
-                    <h2>Welcome to TrustChain LTO</h2>
-                    <p>Hello ${newUser.first_name},</p>
-                    <p>Thank you for registering. Please verify your email address by clicking the button below:</p>
-                    <p>
-                        <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
-                            Verify Email
-                        </a>
-                    </p>
-                    <p>Or copy and paste this link in your browser:</p>
-                    <p><a href="${verificationLink}">${verificationLink}</a></p>
-                    <p><strong>This link will expire in 24 hours.</strong></p>
-                    <p>If you did not create an account, please ignore this email.</p>
-                    <p>Best regards,<br>TrustChain LTO System</p>
-                `
-            });
+                // Send verification email
+                await gmailApiService.sendMail({
+                    to: newUser.email,
+                    subject: 'Verify Your TrustChain LTO Email',
+                    text: `Hello ${newUser.first_name},\n\nWelcome to TrustChain LTO! Please verify your email by clicking the link below. This link will expire in 24 hours.\n\n${verificationLink}\n\nIf you did not create an account, please ignore this email.\n\nBest regards,\nTrustChain LTO System`,
+                    html: `
+                        <h2>Welcome to TrustChain LTO</h2>
+                        <p>Hello ${newUser.first_name},</p>
+                        <p>Thank you for registering. Please verify your email address by clicking the button below:</p>
+                        <p>
+                            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+                                Verify Email
+                            </a>
+                        </p>
+                        <p>Or copy and paste this link in your browser:</p>
+                        <p><a href="${verificationLink}">${verificationLink}</a></p>
+                        <p><strong>This link will expire in 24 hours.</strong></p>
+                        <p>If you did not create an account, please ignore this email.</p>
+                        <p>Best regards,<br>TrustChain LTO System</p>
+                    `
+                });
 
-            console.log('✅ Verification email sent', {
-                userId: newUser.id,
-                email: newUser.email
-            });
-        } catch (emailError) {
-            console.error('⚠️ Failed to send verification email (non-fatal):', emailError.message);
-            // Continue with registration - email failure is operational, not user's fault
+                console.log('✅ Verification email sent', {
+                    userId: newUser.id,
+                    email: newUser.email
+                });
+            } catch (emailError) {
+                console.error('⚠️ Failed to send verification email (non-fatal):', emailError.message);
+                // Continue with registration - email failure is operational, not user's fault
+            }
+        } else {
+            console.log('ℹ️ Email verification disabled - skipping verification email');
         }
 
         // Generate CSRF token

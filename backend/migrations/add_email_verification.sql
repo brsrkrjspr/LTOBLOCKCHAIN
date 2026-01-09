@@ -1,7 +1,26 @@
 -- TrustChain LTO - Email Verification Tokens Schema
 -- Adds support for magic link email verification
 
--- Create email_verification_tokens table
+-- Step 1: Add email_verified column to users table if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'email_verified'
+    ) THEN
+        ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
+        
+        -- Set existing users to verified (backward compatibility)
+        -- You can change this to FALSE if you want to force existing users to verify
+        UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL;
+        
+        RAISE NOTICE 'Added email_verified column to users table';
+    ELSE
+        RAISE NOTICE 'email_verified column already exists';
+    END IF;
+END $$;
+
+-- Step 2: Create email_verification_tokens table
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -10,8 +29,7 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     used_at TIMESTAMP,
-    used_by_ip INET,
-    INDEX_created
+    used_by_ip INET
 );
 
 -- Create indexes for performance
@@ -22,17 +40,17 @@ CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_used_at ON email_verifi
 
 -- Create cleanup function for expired tokens
 CREATE OR REPLACE FUNCTION cleanup_expired_verification_tokens()
-RETURNS TABLE(deleted_count INTEGER) AS $$
+RETURNS INTEGER AS $$
 DECLARE
-    count INTEGER;
+    deleted_count INTEGER;
 BEGIN
     DELETE FROM email_verification_tokens
     WHERE expires_at < CURRENT_TIMESTAMP
     OR (used_at IS NOT NULL AND used_at < CURRENT_TIMESTAMP - INTERVAL '30 days');
     
-    GET DIAGNOSTICS count = ROW_COUNT;
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
     
-    RETURN QUERY SELECT count;
+    RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql;
 

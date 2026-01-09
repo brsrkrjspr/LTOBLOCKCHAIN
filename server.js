@@ -223,9 +223,14 @@ storageService.initialize().then(result => {
     }
 });
 
+// Global feature flags
+global.EMAIL_VERIFICATION_ENABLED = false;
+
 // Database startup validation - ensure required tables exist
 async function validateDatabaseSchema() {
     const db = require('./backend/database/db');
+    const fs = require('fs');
+    const path = require('path');
     
     // Critical tables - server won't start without these
     const criticalTables = [
@@ -234,10 +239,10 @@ async function validateDatabaseSchema() {
         'sessions'
     ];
     
-    // Optional tables - warn if missing but don't block startup
-    const optionalTables = [
-        'email_verification_tokens'
-    ];
+    // Required tables that can be auto-created
+    const autoMigrateTables = {
+        'email_verification_tokens': 'backend/migrations/add_email_verification.sql'
+    };
     
     try {
         console.log('🔍 Validating database schema...');
@@ -260,8 +265,8 @@ async function validateDatabaseSchema() {
             }
         }
         
-        // Check optional tables (warn only)
-        for (const tableName of optionalTables) {
+        // Check and auto-create tables if missing
+        for (const [tableName, migrationPath] of Object.entries(autoMigrateTables)) {
             const result = await db.query(
                 `SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -272,12 +277,37 @@ async function validateDatabaseSchema() {
             );
             
             if (!result.rows[0].exists) {
-                console.warn(`⚠️ Optional table '${tableName}' does not exist - email verification disabled`);
-                console.warn(`   To enable: psql -U lto_user -d lto_blockchain -f backend/migrations/add_email_verification.sql`);
+                console.warn(`⚠️ Table '${tableName}' does not exist - attempting auto-migration...`);
+                
+                try {
+                    // Read migration SQL file
+                    const migrationFilePath = path.join(__dirname, migrationPath);
+                    const migrationSQL = fs.readFileSync(migrationFilePath, 'utf8');
+                    
+                    // Execute migration
+                    await db.query(migrationSQL);
+                    
+                    console.log(`✅ Auto-migration successful: ${tableName} table created`);
+                    
+                    // Enable feature flag
+                    if (tableName === 'email_verification_tokens') {
+                        global.EMAIL_VERIFICATION_ENABLED = true;
+                    }
+                } catch (migrationError) {
+                    console.error(`❌ Auto-migration failed for ${tableName}:`, migrationError.message);
+                    console.error(`   Please run manually: psql -U lto_user -d lto_blockchain -f ${migrationPath}`);
+                    // Don't exit - let the app try to run (will fail gracefully if table is truly needed)
+                }
+            } else {
+                // Table exists - enable feature
+                if (tableName === 'email_verification_tokens') {
+                    global.EMAIL_VERIFICATION_ENABLED = true;
+                }
             }
         }
         
         console.log('✅ Database schema validation passed - all critical tables exist');
+        console.log(`📧 Email verification: ${global.EMAIL_VERIFICATION_ENABLED ? 'Enabled ✓' : 'Disabled (migration failed)'}`);
         return true;
     } catch (error) {
         console.error('❌ Database schema validation failed:', error.message);
@@ -341,9 +371,9 @@ function initializeScheduledTasks() {
 
             // Also clean up expired verification tokens on startup
             console.log('🧹 Cleaning up expired email verification tokens...');
-            db.query('SELECT cleanup_expired_verification_tokens()')
+            db.query('SELECT cleanup_expired_verification_tokens() as deleted_count')
                 .then(result => {
-                    const deletedCount = result.rows[0]?.cleanup_expired_verification_tokens || 0;
+                    const deletedCount = result.rows[0]?.deleted_count || 0;
                     console.log(`✅ Email verification token cleanup complete: ${deletedCount} expired tokens removed`);
                 })
                 .catch(error => {
@@ -381,9 +411,9 @@ function initializeScheduledTasks() {
 
                 // Also clean up expired verification tokens daily
                 console.log('🧹 Cleaning up expired email verification tokens...');
-                db.query('SELECT cleanup_expired_verification_tokens()')
+                db.query('SELECT cleanup_expired_verification_tokens() as deleted_count')
                     .then(result => {
-                        const deletedCount = result.rows[0]?.cleanup_expired_verification_tokens || 0;
+                        const deletedCount = result.rows[0]?.deleted_count || 0;
                         console.log(`✅ Email verification token cleanup complete: ${deletedCount} expired tokens removed`);
                     })
                     .catch(error => {

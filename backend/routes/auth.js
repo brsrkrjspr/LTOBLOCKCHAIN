@@ -392,14 +392,23 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Check email verification status (allow unverified for now with warning)
-        // In future, you may enforce: if (!user.email_verified) return 403
+        // Check email verification status - ENFORCE VERIFICATION (must be verified to login)
         if (!user.email_verified) {
-            // Log unverified login attempt (potential account recovery issue)
-            console.warn('⚠️ Login attempt with unverified email', {
+            // Block unverified users from logging in - requires email verification first
+            console.warn('⚠️ Login blocked: unverified email', {
                 userId: user.id,
                 email: user.email,
                 ip: req.ip || req.connection.remoteAddress
+            });
+            
+            return res.status(403).json({
+                success: false,
+                error: 'Email verification required',
+                code: 'EMAIL_NOT_VERIFIED',
+                message: 'Please verify your email address before logging in. Check your inbox for a verification email.',
+                email: user.email,
+                userId: user.id,
+                requiresVerification: true
             });
         }
 
@@ -955,6 +964,52 @@ router.post('/resend-verification-email', async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'If an account exists with this email, a new verification link has been sent.'
+        });
+    }
+});
+
+/**
+ * POST /check-verification-status
+ * Check if a user's email has been verified
+ * Used by frontend to poll verification status while user waits
+ */
+router.post('/check-verification-status', async (req, res) => {
+    try {
+        const { email: rawEmail } = req.body;
+
+        // Validate input
+        if (!rawEmail) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email is required'
+            });
+        }
+
+        // Normalize email
+        const email = rawEmail.trim().toLowerCase();
+
+        // Find user in database
+        const user = await db.getUserByEmail(email);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        // Return verification status
+        res.json({
+            success: true,
+            emailVerified: user.email_verified,
+            userId: user.id,
+            email: user.email
+        });
+
+    } catch (error) {
+        console.error('Check verification status error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
         });
     }
 });

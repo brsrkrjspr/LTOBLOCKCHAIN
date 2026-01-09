@@ -301,6 +301,21 @@
                                 break;
                         }
                     }, 1500);
+                } else if (result.code === 'EMAIL_NOT_VERIFIED') {
+                    // Email verification required - redirect to verification prompt
+                    console.log('Email verification required:', result.email);
+                    
+                    // Store pending verification info in localStorage
+                    localStorage.setItem('pendingVerificationEmail', result.email);
+                    if (result.userId) {
+                        localStorage.setItem('pendingVerificationUserId', result.userId);
+                    }
+                    
+                    // Show warning and redirect
+                    showNotification('Please verify your email before continuing. Redirecting...', 'warning');
+                    setTimeout(() => {
+                        window.location.href = 'email-verification-prompt.html';
+                    }, 2000);
                 } else {
                     showNotification(result.error || 'Login failed. Please check your credentials.', 'error');
                 }

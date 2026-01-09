@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - TrustChain LTO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .verification-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .email-display {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .email-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .content {
+            margin-bottom: 30px;
+        }
+
+        .steps {
+            background: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .step {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        .step-text {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.4;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .verification-status {
+            text-align: center;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #667eea;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-resend {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-resend:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-resend:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-back {
+            background: #e9ecef;
+            color: #333;
+            width: 100%;
+        }
+
+        .btn-back:hover {
+            background: #dee2e6;
+            transform: translateY(-2px);
+        }
+
+        .cooldown-timer {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .footer-text {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-top: 20px;
+        }
+
+        .footer-text a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
+        }
+
+        .check-status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #ffc107;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .loading-text {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 480px) {
+            .verification-container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .step-text {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="verification-container">
+        <div class="header">
+            <div class="logo">✓</div>
+            <h1>Verify Your Email</h1>
+            <p class="subtitle">Complete this step to access your account</p>
+        </div>
+
+        <div class="content">
+            <div class="email-display">
+                <span class="email-label">Verification Email</span>
+                <span id="emailDisplay"></span>
+            </div>
+
+            <div id="statusMessage" class="status-message"></div>
+
+            <div class="verification-status" id="verificationStatus" style="display: none;">
+                <span class="check-status-indicator"></span>
+                Checking verification status...
+            </div>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <strong>Check your email</strong> for a verification message from TrustChain LTO
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <strong>Click the verification link</strong> in the email to confirm your email address
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <strong>Return to this page</strong> and your email will be verified automatically
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-resend" id="resendBtn" onclick="resendVerificationEmail()">
+                Resend Verification Email
+            </button>
+            <button class="btn-back" onclick="goBackToLogin()">
+                Back to Login
+            </button>
+        </div>
+
+        <div class="cooldown-timer" id="cooldownTimer" style="display: none;"></div>
+
+        <div class="footer-text">
+            Didn't receive an email? Check your spam folder or contact <a href="mailto:support@ltoblockchain.gov.ph">support</a>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CHECK_STATUS_INTERVAL = 5000; // Check every 5 seconds
+        const RESEND_COOLDOWN = 60; // 60 seconds between resends
+        const API_BASE = '/api/auth';
+
+        // State
+        let pendingEmail = '';
+        let pendingUserId = '';
+        let resendCooldownRemaining = 0;
+        let statusCheckInterval = null;
+        let cooldownInterval = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Email verification prompt page loaded');
+            
+            // Get email from localStorage
+            pendingEmail = localStorage.getItem('pendingVerificationEmail');
+            pendingUserId = localStorage.getItem('pendingVerificationUserId');
+
+            if (!pendingEmail) {
+                showError('No pending verification email found. Please login again.');
+                setTimeout(() => {
+                    goBackToLogin();
+                }, 3000);
+                return;
+            }
+
+            // Display email
+            document.getElementById('emailDisplay').textContent = pendingEmail;
+
+            // Show info message
+            showInfo('We\'ve sent a verification email. Check your inbox and click the link to verify.');
+
+            // Start checking verification status
+            startStatusCheck();
+        });
+
+        /**
+         * Start periodically checking if email has been verified
+         */
+        function startStatusCheck() {
+            // Check immediately
+            checkVerificationStatus();
+
+            // Then check every 5 seconds
+            statusCheckInterval = setInterval(() => {
+                checkVerificationStatus();
+            }, CHECK_STATUS_INTERVAL);
+        }
+
+        /**
+         * Check current verification status with backend
+         */
+        async function checkVerificationStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/check-verification-status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: pendingEmail })
+                });
+
+                if (!response.ok) {
+                    console.error('Status check failed:', response.status);
+                    return;
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.emailVerified) {
+                    // Email has been verified!
+                    clearInterval(statusCheckInterval);
+                    onVerificationSuccess();
+                }
+            } catch (error) {
+                console.error('Error checking verification status:', error);
+                // Continue checking even on error
+            }
+        }
+
+        /**
+         * Handle successful email verification
+         */
+        function onVerificationSuccess() {
+            clearInterval(statusCheckInterval);
+            
+            showSuccess('✓ Email verified successfully! Redirecting to login...');
+            
+            // Clear localStorage
+            localStorage.removeItem('pendingVerificationEmail');
+            localStorage.removeItem('pendingVerificationUserId');
+
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+        }
+
+        /**
+         * Resend verification email
+         */
+        async function resendVerificationEmail() {
+            const resendBtn = document.getElementById('resendBtn');
+
+            // Check cooldown
+            if (resendCooldownRemaining > 0) {
+                showError(`Please wait ${resendCooldownRemaining} seconds before resending.`);
+                return;
+            }
+
+            // Disable button
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'Sending...';
+
+            try {
+                const response = await fetch(`${API_BASE}/resend-verification-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: pendingEmail })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showSuccess('✓ Verification email sent! Check your inbox.');
+                    startResendCooldown();
+                } else {
+                    showError(result.error || 'Failed to resend email. Please try again.');
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Resend Verification Email';
+                }
+            } catch (error) {
+                console.error('Resend error:', error);
+                showError('Failed to resend email. Please try again.');
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Resend Verification Email';
+            }
+        }
+
+        /**
+         * Start resend cooldown timer
+         */
+        function startResendCooldown() {
+            resendCooldownRemaining = RESEND_COOLDOWN;
+
+            const resendBtn = document.getElementById('resendBtn');
+            const cooldownTimer = document.getElementById('cooldownTimer');
+            cooldownTimer.style.display = 'block';
+
+            cooldownInterval = setInterval(() => {
+                resendCooldownRemaining--;
+
+                if (resendCooldownRemaining <= 0) {
+                    clearInterval(cooldownInterval);
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Resend Verification Email';
+                    cooldownTimer.style.display = 'none';
+                } else {
+                    cooldownTimer.textContent = `You can resend in ${resendCooldownRemaining}s`;
+                }
+            }, 1000);
+        }
+
+        /**
+         * Show success message
+         */
+        function showSuccess(message) {
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.textContent = message;
+            statusMsg.className = 'status-message success';
+            statusMsg.style.display = 'block';
+        }
+
+        /**
+         * Show error message
+         */
+        function showError(message) {
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.textContent = message;
+            statusMsg.className = 'status-message error';
+            statusMsg.style.display = 'block';
+        }
+
+        /**
+         * Show info message
+         */
+        function showInfo(message) {
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.textContent = message;
+            statusMsg.className = 'status-message info';
+            statusMsg.style.display = 'block';
+        }
+
+        /**
+         * Go back to login page
+         */
+        function goBackToLogin() {
+            // Clear localStorage
+            localStorage.removeItem('pendingVerificationEmail');
+            localStorage.removeItem('pendingVerificationUserId');
+            
+            // Redirect
+            window.location.href = 'index.html';
+        }
+
+        /**
+         * Cleanup on page unload
+         */
+        window.addEventListener('beforeunload', function() {
+            if (statusCheckInterval) clearInterval(statusCheckInterval);
+            if (cooldownInterval) clearInterval(cooldownInterval);
+        });
+    </script>
+</body>
+</html>

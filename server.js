@@ -226,17 +226,24 @@ storageService.initialize().then(result => {
 // Database startup validation - ensure required tables exist
 async function validateDatabaseSchema() {
     const db = require('./backend/database/db');
-    const requiredTables = [
+    
+    // Critical tables - server won't start without these
+    const criticalTables = [
         'users',
         'refresh_tokens',
-        'sessions',
+        'sessions'
+    ];
+    
+    // Optional tables - warn if missing but don't block startup
+    const optionalTables = [
         'email_verification_tokens'
     ];
     
     try {
         console.log('🔍 Validating database schema...');
         
-        for (const tableName of requiredTables) {
+        // Check critical tables
+        for (const tableName of criticalTables) {
             const result = await db.query(
                 `SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -253,7 +260,24 @@ async function validateDatabaseSchema() {
             }
         }
         
-        console.log('✅ Database schema validation passed - all required tables exist');
+        // Check optional tables (warn only)
+        for (const tableName of optionalTables) {
+            const result = await db.query(
+                `SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = $1
+                )`,
+                [tableName]
+            );
+            
+            if (!result.rows[0].exists) {
+                console.warn(`⚠️ Optional table '${tableName}' does not exist - email verification disabled`);
+                console.warn(`   To enable: psql -U lto_user -d lto_blockchain -f backend/migrations/add_email_verification.sql`);
+            }
+        }
+        
+        console.log('✅ Database schema validation passed - all critical tables exist');
         return true;
     } catch (error) {
         console.error('❌ Database schema validation failed:', error.message);

@@ -409,21 +409,40 @@
             console.log('Registration response:', result);
 
             if (result.success) {
-                // Store user data and token
-                if (result.user) {
-                    localStorage.setItem('currentUser', JSON.stringify(result.user));
+                // Check if email verification is required
+                if (result.user && result.user.emailVerified === false) {
+                    // Email verification required - redirect to verification prompt
+                    console.log('Email verification required for:', result.user.email);
+                    
+                    // Store pending verification info in localStorage (DO NOT store tokens yet)
+                    localStorage.setItem('pendingVerificationEmail', result.user.email);
+                    if (result.user.id) {
+                        localStorage.setItem('pendingVerificationUserId', result.user.id);
+                    }
+                    
+                    showNotification('Account created! Please check your email to verify your account.', 'success');
+                    
+                    // Redirect to email verification prompt
+                    setTimeout(() => {
+                        window.location.href = 'email-verification-prompt.html';
+                    }, 1500);
+                } else {
+                    // Email already verified or verification disabled - proceed normally
+                    if (result.user) {
+                        localStorage.setItem('currentUser', JSON.stringify(result.user));
+                    }
+                    if (result.token) {
+                        localStorage.setItem('authToken', result.token);
+                        localStorage.setItem('token', result.token); // Also store as 'token' for compatibility
+                    }
+                    
+                    showNotification('Account created successfully! Redirecting to dashboard...', 'success');
+                    
+                    // Redirect to dashboard after successful registration
+                    setTimeout(() => {
+                        window.location.href = 'owner-dashboard.html';
+                    }, 1500);
                 }
-                if (result.token) {
-                    localStorage.setItem('authToken', result.token);
-                    localStorage.setItem('token', result.token); // Also store as 'token' for compatibility
-                }
-                
-                showNotification('Account created successfully! Redirecting to dashboard...', 'success');
-                
-                // Redirect to dashboard after successful registration
-                setTimeout(() => {
-                    window.location.href = 'owner-dashboard.html';
-                }, 1500);
             } else {
                 showNotification(result.error || 'Registration failed. Please try again.', 'error');
             }

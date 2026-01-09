@@ -7,11 +7,15 @@ const db = require('./db');
 // USER OPERATIONS
 // ============================================
 
-async function getUserByEmail(email) {
-    const result = await db.query(
-        'SELECT * FROM users WHERE email = $1 AND is_active = true',
-        [email]
-    );
+async function getUserByEmail(email, checkActive = true) {
+    // normalize email to prevent case-sensitivity attacks
+    const normalizedEmail = email ? email.toLowerCase().trim() : email;
+    
+    const query = checkActive 
+        ? 'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_active = true'
+        : 'SELECT * FROM users WHERE LOWER(email) = LOWER($1)'; // Check all users
+    
+    const result = await db.query(query, [normalizedEmail]);
     return result.rows[0] || null;
 }
 

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email - TrustChain LTO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .status-icon {
+            font-size: 60px;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            color: #666;
+            line-height: 1.6;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+        }
+
+        .warning-message {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #ffeaa7;
+        }
+
+        .button {
+            background-color: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .button:hover {
+            background-color: #5568d3;
+        }
+
+        .button-secondary {
+            background-color: #6c757d;
+            margin-left: 10px;
+        }
+
+        .button-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .button-group {
+            margin-top: 30px;
+        }
+
+        .divider {
+            margin: 30px 0;
+            color: #ccc;
+        }
+
+        .resend-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .resend-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .info-text {
+            color: #999;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+
+        .countdown {
+            color: #667eea;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .already-verified {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+            text-align: left;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">TrustChain LTO</div>
+
+        <!-- Loading State -->
+        <div id="loadingState" style="display: none;">
+            <h1>Verifying Email</h1>
+            <div class="spinner"></div>
+            <p class="message">Please wait while we verify your email address...</p>
+        </div>
+
+        <!-- Success State -->
+        <div id="successState" style="display: none;">
+            <div class="status-icon">✓</div>
+            <h1>Email Verified!</h1>
+            <div class="success-message">
+                <p>Congratulations! Your email has been successfully verified.</p>
+            </div>
+            <p class="message">You can now access all features of TrustChain LTO.</p>
+            <div class="button-group">
+                <button class="button" onclick="redirectToDashboard()">Go to Dashboard</button>
+            </div>
+        </div>
+
+        <!-- Error State: Token Expired -->
+        <div id="tokenExpiredState" style="display: none;">
+            <div class="status-icon">⏱️</div>
+            <h1>Verification Link Expired</h1>
+            <div class="warning-message">
+                <p>This verification link has expired. Verification links are valid for 24 hours.</p>
+            </div>
+            <p class="message">Please request a new verification link below.</p>
+
+            <div class="resend-section">
+                <label for="emailInput" style="display: block; text-align: left; margin-bottom: 5px;">Email Address:</label>
+                <input type="email" id="emailInput" class="resend-input" placeholder="your@email.com">
+                <button class="button" onclick="requestNewLink()">Send New Verification Link</button>
+            </div>
+
+            <p class="info-text">Didn't receive the link? Check your spam folder or contact support.</p>
+        </div>
+
+        <!-- Error State: Already Used -->
+        <div id="alreadyUsedState" style="display: none;">
+            <div class="status-icon">✓</div>
+            <h1>Already Verified</h1>
+            <div class="success-message">
+                <p>Your email address has already been verified.</p>
+            </div>
+            <p class="message">You can now log in and access all features.</p>
+            <div class="button-group">
+                <button class="button" onclick="redirectToLogin()">Go to Login</button>
+            </div>
+        </div>
+
+        <!-- Error State: Invalid Token -->
+        <div id="invalidTokenState" style="display: none;">
+            <div class="status-icon">❌</div>
+            <h1>Invalid Verification Link</h1>
+            <div class="error-message">
+                <p>This verification link is invalid or has been corrupted.</p>
+            </div>
+            <p class="message">Please request a new verification link.</p>
+
+            <div class="resend-section">
+                <label for="emailInput2" style="display: block; text-align: left; margin-bottom: 5px;">Email Address:</label>
+                <input type="email" id="emailInput2" class="resend-input" placeholder="your@email.com">
+                <button class="button" onclick="requestNewLink()">Send New Verification Link</button>
+            </div>
+
+            <p class="info-text">Having trouble? Contact our support team.</p>
+        </div>
+
+        <!-- Error State: Generic Error -->
+        <div id="errorState" style="display: none;">
+            <div class="status-icon">⚠️</div>
+            <h1>Verification Failed</h1>
+            <div class="error-message">
+                <p id="errorMessage">An unexpected error occurred. Please try again.</p>
+            </div>
+
+            <div class="button-group">
+                <button class="button" onclick="location.reload()">Retry</button>
+                <button class="button button-secondary" onclick="redirectToLogin()">Back to Login</button>
+            </div>
+
+            <p class="info-text">If the problem persists, please contact support.</p>
+        </div>
+
+        <!-- No Token State -->
+        <div id="noTokenState" style="display: none;">
+            <div class="status-icon">ℹ️</div>
+            <h1>No Verification Link Found</h1>
+            <div class="warning-message">
+                <p>This page requires a valid verification link. Please check your email for a link from TrustChain LTO.</p>
+            </div>
+            <p class="message">If you don't have a verification link, request one below.</p>
+
+            <div class="resend-section">
+                <label for="emailInput3" style="display: block; text-align: left; margin-bottom: 5px;">Email Address:</label>
+                <input type="email" id="emailInput3" class="resend-input" placeholder="your@email.com">
+                <button class="button" onclick="requestNewLink()">Send Verification Link</button>
+            </div>
+
+            <div class="button-group" style="margin-top: 20px;">
+                <button class="button button-secondary" onclick="redirectToLogin()">Back to Login</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get token from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!token) {
+                showState('noTokenState');
+                return;
+            }
+
+            // Show loading state
+            showState('loadingState');
+
+            // Attempt to verify token
+            try {
+                const response = await fetch('/api/auth/verify-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showState('successState');
+                } else if (response.status === 400) {
+                    // Different error types
+                    const errorMsg = data.error || 'Verification failed';
+                    
+                    if (errorMsg.includes('expired')) {
+                        showState('tokenExpiredState');
+                    } else if (errorMsg.includes('already been used') || errorMsg.includes('already verified')) {
+                        showState('alreadyUsedState');
+                    } else if (errorMsg.includes('Invalid')) {
+                        showState('invalidTokenState');
+                    } else {
+                        showErrorState(errorMsg);
+                    }
+                } else {
+                    showErrorState(data.error || 'An unexpected error occurred');
+                }
+            } catch (error) {
+                console.error('Verification error:', error);
+                showErrorState('Network error. Please check your connection and try again.');
+            }
+        });
+
+        // State management
+        function showState(stateId) {
+            // Hide all states
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('successState').style.display = 'none';
+            document.getElementById('tokenExpiredState').style.display = 'none';
+            document.getElementById('alreadyUsedState').style.display = 'none';
+            document.getElementById('invalidTokenState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('noTokenState').style.display = 'none';
+
+            // Show requested state
+            document.getElementById(stateId).style.display = 'block';
+        }
+
+        function showErrorState(message) {
+            document.getElementById('errorMessage').textContent = message;
+            showState('errorState');
+        }
+
+        // Request new verification link
+        async function requestNewLink() {
+            // Get email from whichever input is visible
+            let email = document.getElementById('emailInput').value || 
+                        document.getElementById('emailInput2').value || 
+                        document.getElementById('emailInput3').value;
+
+            if (!email) {
+                alert('Please enter your email address');
+                return;
+            }
+
+            try {
+                showState('loadingState');
+                document.querySelector('#loadingState p').textContent = 'Sending verification link...';
+
+                const response = await fetch('/api/auth/resend-verification-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok || response.status === 200) {
+                    // Show success message
+                    const container = document.querySelector('.container');
+                    container.innerHTML = `
+                        <div class="logo">TrustChain LTO</div>
+                        <div style="text-align: center;">
+                            <div class="status-icon">✓</div>
+                            <h1>Link Sent!</h1>
+                            <div class="success-message">
+                                <p>If an account exists with this email, a new verification link has been sent.</p>
+                            </div>
+                            <p class="message">Please check your email (including spam folder) and click the verification link.</p>
+                            <div class="button-group">
+                                <button class="button" onclick="redirectToLogin()">Back to Login</button>
+                            </div>
+                        </div>
+                    `;
+                } else if (response.status === 429) {
+                    // Rate limited
+                    showErrorState(`Too many requests. ${data.retryAfterMinutes} minute(s) until you can request another link.`);
+                } else {
+                    showErrorState(data.error || 'Failed to send verification link');
+                }
+            } catch (error) {
+                console.error('Resend error:', error);
+                showErrorState('Network error. Please check your connection and try again.');
+            }
+        }
+
+        // Navigation helpers
+        function redirectToDashboard() {
+            window.location.href = '/vehicle-owner-dashboard.html';
+        }
+
+        function redirectToLogin() {
+            window.location.href = '/login-signup.html?tab=login';
+        }
+    </script>
+</body>
+</html>

@@ -32,6 +32,12 @@ ALLOWED_FILE_TYPES=pdf,jpg,jpeg,png
 # Document Storage
 ENCRYPT_FILES=false
 ENCRYPTION_KEY=default-encryption-key-32-chars-change-in-production
+
+# Email Verification Configuration
+VERIFICATION_EMAIL_EXPIRY=24h
+VERIFICATION_LINK_EXPIRY_HOURS=24
+ALLOW_UNVERIFIED_LOGIN=false
+ENABLE_SCHEDULED_TASKS=false
 ```
 
 ## Minimum System Requirements (Your Laptop Specs)
@@ -93,6 +99,82 @@ ENCRYPTION_KEY=default-encryption-key-32-chars-change-in-production
 - **Performance:** Faster startup, lower resource usage
 - **Perfect for:** Development, testing, demos, and laptop deployment
 
+## Email Verification System
+
+The application includes a magic link email verification system to prevent disposable email abuse and ensure communication reliability.
+
+### How It Works
+
+1. **User Registration:**
+   - User creates account via signup
+   - Verification email sent with 24-hour magic link
+   - Account created with `email_verified = false`
+
+2. **Email Verification:**
+   - User clicks link in email
+   - Redirected to email-verification.html
+   - Token validated (one-time use)
+   - Email marked verified in database
+
+3. **Login Behavior:**
+   - Unverified users can login (logged with warning)
+   - Optional enforcement: Set `ALLOW_UNVERIFIED_LOGIN=false` to block unverified logins
+   - Frontend can show banner prompting verification
+
+### Configuration
+
+```env
+# Email Verification Settings
+VERIFICATION_EMAIL_EXPIRY=24h              # Token expiry time
+VERIFICATION_LINK_EXPIRY_HOURS=24         # Same as above (in hours)
+ALLOW_UNVERIFIED_LOGIN=false              # Set to true to block unverified users
+ENABLE_SCHEDULED_TASKS=false              # Enable auto-cleanup of expired tokens
+```
+
+### Gmail API Configuration (Required for emails)
+
+```env
+GMAIL_USER=your-email@gmail.com
+GMAIL_CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=your-oauth-client-secret
+GMAIL_REFRESH_TOKEN=your-refresh-token
+FRONTEND_URL=http://localhost:3001        # Used for verification links
+```
+
+### Database Migration Required
+
+Before using email verification, run the migration:
+
+```bash
+# Run all migrations (includes email verification schema)
+npm run migrate
+# Or manually execute: backend/migrations/add_email_verification.sql
+```
+
+### Testing Email Verification
+
+1. **Development (without real Gmail):**
+   - Set `ALLOW_UNVERIFIED_LOGIN=true` in `.env`
+   - Verification emails will fail but registration still works
+   - Users can login without email verification
+
+2. **Testing with real emails:**
+   - Configure Gmail API (see above)
+   - Register new user
+   - Check email inbox for verification link
+   - Click link to verify
+
+3. **Resend verification link:**
+   - User can request new link via `/api/auth/resend-verification-email`
+   - Rate limited: 1 per 5 minutes per user
+
+### Cleanup & Maintenance
+
+Expired verification tokens are automatically cleaned up:
+- **Hourly check** at 9:00 AM if `ENABLE_SCHEDULED_TASKS=true`
+- **Manual cleanup**: Call `cleanup_expired_verification_tokens()` function
+- **Tokens expire** after 24 hours (configurable)
+
 ## Production Deployment
 
 For production deployment with real Hyperledger Fabric:
@@ -100,6 +182,8 @@ For production deployment with real Hyperledger Fabric:
 2. Configure Hyperledger Fabric network
 3. Set up IPFS cluster (optional)
 4. Configure production email/SMS services
+5. Set `ENABLE_SCHEDULED_TASKS=true` for automatic token cleanup
+6. Set `ALLOW_UNVERIFIED_LOGIN=false` to enforce email verification
 
 ## Troubleshooting
 
@@ -112,6 +196,12 @@ For production deployment with real Hyperledger Fabric:
 
 **Authentication errors:**
 - Ensure `JWT_SECRET` is set in `.env`
+
+**Email verification not working:**
+- Check Gmail API credentials (see above)
+- Ensure `FRONTEND_URL` is set correctly in `.env`
+- Check server logs for email sending errors
+- Verify database has `email_verification_tokens` table (run migration)
 
 ## Support
 

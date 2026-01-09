@@ -2,6 +2,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const db = require('../database/services');
 const { authenticateToken, verifyCsrf } = require('../middleware/auth');
@@ -9,48 +12,221 @@ const { generateAccessToken, generateRefreshToken, decodeToken } = require('../c
 const { addToBlacklistByJTI } = require('../config/blacklist');
 const blacklistConfig = require('../config/blacklist');
 const refreshTokenService = require('../services/refreshToken');
+const emailVerificationService = require('../services/emailVerificationToken');
+const gmailApiService = require('../services/gmailApiService');
+
+// Load common passwords for validation (NIST SP 800-63B requirement)
+let commonPasswords = new Set();
+try {
+    const passwordFile = path.join(__dirname, '../config/commonPasswords.txt');
+    const passwords = fs.readFileSync(passwordFile, 'utf-8')
+        .split('\n')
+        .map(p => p.toLowerCase().trim())
+        .filter(p => p.length > 0);
+    commonPasswords = new Set(passwords);
+    console.log(`✅ Loaded ${commonPasswords.size} common passwords for validation`);
+} catch (error) {
+    console.warn('⚠️ Could not load common passwords file:', error.message);
+}
+
+// Signup-specific rate limiter (strict: 3 attempts per 15 minutes per IP)
+const signupLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 3, // Conservative: 3 attempts per IP per window
+    message: { error: 'Too many signup attempts. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+        // Use X-Forwarded-For for proxy/load balancer scenarios
+        return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress;
+    }
+});
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
 }
 
-// Register new user
-router.post('/register', async (req, res) => {
+/**
+ * Validate signup input - comprehensive server-side validation per NIST SP 800-63B
+ * Returns { valid: true } or { valid: false, errors: [...] }
+ */
+function validateSignupInput(data) {
+    const errors = [];
+
+    // Email validation
+    if (!data.email) {
+        errors.push('Email is required');
+    } else {
+        const email = data.email.trim().toLowerCase();
+        // Basic email format validation (RFC 5322 simplified)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            errors.push('Invalid email format');
+        }
+        if (email.length > 255) {
+            errors.push('Email is too long (max 255 characters)');
+        }
+    }
+
+    // Password validation (NIST SP 800-63B: min 12 chars, blocklist, no complexity rules)
+    if (!data.password) {
+        errors.push('Password is required');
+    } else {
+        if (data.password.length < 12) {
+            errors.push('Password must be at least 12 characters');
+        }
+        if (data.password.length > 128) {
+            errors.push('Password is too long (max 128 characters)');
+        }
+        // Check against common passwords (case-insensitive)
+        if (commonPasswords.has(data.password.toLowerCase())) {
+            errors.push('This password is too common. Please choose a different one');
+        }
+    }
+
+    // First name validation
+    if (!data.firstName) {
+        errors.push('First name is required');
+    } else {
+        const firstName = data.firstName.trim();
+        if (firstName.length < 2) {
+            errors.push('First name must be at least 2 characters');
+        }
+        if (firstName.length > 50) {
+            errors.push('First name is too long (max 50 characters)');
+        }
+        // Basic alphanumeric + spaces/hyphens check
+        if (!/^[a-zA-Z\s\-']+$/.test(firstName)) {
+            errors.push('First name can only contain letters, spaces, hyphens, and apostrophes');
+        }
+    }
+
+    // Last name validation
+    if (!data.lastName) {
+        errors.push('Last name is required');
+    } else {
+        const lastName = data.lastName.trim();
+        if (lastName.length < 2) {
+            errors.push('Last name must be at least 2 characters');
+        }
+        if (lastName.length > 50) {
+            errors.push('Last name is too long (max 50 characters)');
+        }
+        if (!/^[a-zA-Z\s\-']+$/.test(lastName)) {
+            errors.push('Last name can only contain letters, spaces, hyphens, and apostrophes');
+        }
+    }
+
+    // Phone validation (optional, but if provided, validate format)
+    if (data.phone) {
+        const phone = data.phone.trim();
+        if (phone.length > 20) {
+            errors.push('Phone number is too long');
+        }
+        // Allow digits, spaces, hyphens, parentheses, plus sign (international format)
+        if (!/^[\d\s\-\(\)\+]+$/.test(phone)) {
+            errors.push('Phone number contains invalid characters');
+        }
+    }
+
+    // Address validation (optional, but if provided, validate)
+    if (data.address) {
+        if (data.address.length > 500) {
+            errors.push('Address is too long (max 500 characters)');
+        }
+    }
+
+    return errors.length === 0 
+        ? { valid: true }
+        : { valid: false, errors };
+}
+
+// Register new user - with comprehensive security hardening
+router.post('/register', signupLimiter, async (req, res) => {
+    const clientIp = req.ip || req.connection.remoteAddress;
+    
     try {
-        const { email, password, firstName, lastName, role, organization, phone, address } = req.body;
+        // Extract only safe fields - explicitly ignore 'role' to prevent escalation
+        const { email: rawEmail, password, firstName: rawFirstName, lastName: rawLastName, organization, phone, address } = req.body;
 
-        // Validate required fields
-        if (!email || !password || !firstName || !lastName) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields (email, password, firstName, lastName)'
+        // Log suspicious activity: if client attempts to specify a role
+        if (req.body.role && req.body.role !== 'vehicle_owner') {
+            console.warn('⚠️ Signup role escalation attempt', {
+                ip: clientIp,
+                email: rawEmail,
+                attemptedRole: req.body.role,
+                timestamp: new Date().toISOString()
             });
         }
 
-        // Check if user already exists
-        const existingUser = await db.getUserByEmail(email);
+        // CRITICAL: Hard-code role - never trust client input
+        const role = 'vehicle_owner';
+
+        // Normalize email (lowercase + trim)
+        const email = rawEmail ? rawEmail.trim().toLowerCase() : '';
+        const firstName = rawFirstName ? rawFirstName.trim() : '';
+        const lastName = rawLastName ? rawLastName.trim() : '';
+
+        // Input validation (comprehensive, server-side)
+        const validation = validateSignupInput({
+            email,
+            password,
+            firstName,
+            lastName,
+            phone: phone ? phone.trim() : undefined,
+            address: address ? address.trim() : undefined
+        });
+
+        if (!validation.valid) {
+            return res.status(400).json({
+                success: false,
+                error: 'Validation failed',
+                details: validation.errors
+            });
+        }
+
+        // Check if user already exists (check both active and inactive for email recovery)
+        const existingUser = await db.getUserByEmail(email, false); // false = check all users
         if (existingUser) {
-            return res.status(400).json({
+            // Log this - could indicate account recovery attempt
+            console.warn('⚠️ Signup attempt with existing email', {
+                ip: clientIp,
+                email: email,
+                existingUserId: existingUser.id,
+                existingUserActive: existingUser.is_active,
+                timestamp: new Date().toISOString()
+            });
+            
+            return res.status(409).json({
                 success: false,
-                error: 'User with this email already exists'
+                error: 'Email already registered'
             });
         }
 
-        // Hash password
+        // Hash password with bcrypt
         const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        // Create new user
+        // Create new user with validated, normalized data
         const newUser = await db.createUser({
-            email,
+            email, // normalized (lowercase)
             passwordHash,
-            firstName,
-            lastName,
-            role: role || 'vehicle_owner',
-            organization: organization || 'Individual',
-            phone,
-            address
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            role, // hard-coded, not from client
+            organization: organization ? organization.trim() : 'Individual',
+            phone: phone ? phone.trim() : null,
+            address: address ? address.trim() : null
+        });
+
+        // Log successful user creation
+        console.log('✅ User registered successfully', {
+            userId: newUser.id,
+            email: newUser.email,
+            role: newUser.role,
+            ip: clientIp,
+            timestamp: new Date().toISOString()
         });
 
         // Generate access token with JTI
@@ -69,6 +245,47 @@ router.post('/register', async (req, res) => {
 
         // Store refresh token in database
         await refreshTokenService.createRefreshToken(newUser.id, refreshToken);
+
+        // Generate email verification token
+        let verificationToken = null;
+        let verificationLink = null;
+        try {
+            const tokenResult = await emailVerificationService.generateVerificationToken(newUser.id);
+            verificationToken = tokenResult.token;
+            
+            const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            verificationLink = `${baseUrl}/email-verification.html?token=${verificationToken}`;
+
+            // Send verification email
+            await gmailApiService.sendMail({
+                to: newUser.email,
+                subject: 'Verify Your TrustChain LTO Email',
+                text: `Hello ${newUser.first_name},\n\nWelcome to TrustChain LTO! Please verify your email by clicking the link below. This link will expire in 24 hours.\n\n${verificationLink}\n\nIf you did not create an account, please ignore this email.\n\nBest regards,\nTrustChain LTO System`,
+                html: `
+                    <h2>Welcome to TrustChain LTO</h2>
+                    <p>Hello ${newUser.first_name},</p>
+                    <p>Thank you for registering. Please verify your email address by clicking the button below:</p>
+                    <p>
+                        <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+                            Verify Email
+                        </a>
+                    </p>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <p><a href="${verificationLink}">${verificationLink}</a></p>
+                    <p><strong>This link will expire in 24 hours.</strong></p>
+                    <p>If you did not create an account, please ignore this email.</p>
+                    <p>Best regards,<br>TrustChain LTO System</p>
+                `
+            });
+
+            console.log('✅ Verification email sent', {
+                userId: newUser.id,
+                email: newUser.email
+            });
+        } catch (emailError) {
+            console.error('⚠️ Failed to send verification email (non-fatal):', emailError.message);
+            // Continue with registration - email failure is operational, not user's fault
+        }
 
         // Generate CSRF token
         const csrfToken = crypto.randomBytes(32).toString('hex');
@@ -93,7 +310,7 @@ router.post('/register', async (req, res) => {
         // Return user data (without password)
         res.status(201).json({
             success: true,
-            message: 'User registered successfully',
+            message: 'User registered successfully. Please check your email to verify your account.',
             user: {
                 id: newUser.id,
                 email: newUser.email,
@@ -103,16 +320,36 @@ router.post('/register', async (req, res) => {
                 organization: newUser.organization,
                 phone: newUser.phone,
                 address: newUser.address,
+                emailVerified: newUser.email_verified,
                 createdAt: newUser.created_at
             },
             token: accessToken
         });
 
     } catch (error) {
-        console.error('Registration error:', error);
+        // Handle specific database errors
+        if (error.code === '23505') {
+            // Unique constraint violation (email already exists)
+            // This shouldn't happen due to our check above, but catch it as defense-in-depth
+            console.error('❌ Unique constraint violation at DB level:', error);
+            return res.status(409).json({
+                success: false,
+                error: 'Email already registered'
+            });
+        }
+
+        // Log the full error for debugging
+        console.error('❌ Registration error:', {
+            message: error.message,
+            code: error.code,
+            ip: clientIp,
+            timestamp: new Date().toISOString()
+        });
+
+        // Don't leak implementation details to client
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Registration failed. Please try again later.'
         });
     }
 });
@@ -120,15 +357,18 @@ router.post('/register', async (req, res) => {
 // Login user
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email: rawEmail, password } = req.body;
 
         // Validate required fields
-        if (!email || !password) {
+        if (!rawEmail || !password) {
             return res.status(400).json({
                 success: false,
                 error: 'Email and password are required'
             });
         }
+
+        // Normalize email (lowercase + trim) - prevents case-sensitivity attacks
+        const email = rawEmail.trim().toLowerCase();
 
         // Find user in database
         const user = await db.getUserByEmail(email);
@@ -145,6 +385,17 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({
                 success: false,
                 error: 'Invalid credentials'
+            });
+        }
+
+        // Check email verification status (allow unverified for now with warning)
+        // In future, you may enforce: if (!user.email_verified) return 403
+        if (!user.email_verified) {
+            // Log unverified login attempt (potential account recovery issue)
+            console.warn('⚠️ Login attempt with unverified email', {
+                userId: user.id,
+                email: user.email,
+                ip: req.ip || req.connection.remoteAddress
             });
         }
 
@@ -552,6 +803,154 @@ router.get('/sessions', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to get sessions'
+        });
+    }
+});
+
+// Verify email with magic link token
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.body || req.query;
+
+        // Validate token parameter
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                error: 'Verification token is required'
+            });
+        }
+
+        // Get user IP for audit logging
+        const userIp = req.ip || req.connection.remoteAddress;
+
+        // Verify token
+        const result = await emailVerificationService.verifyToken(token, userIp);
+
+        if (!result.success) {
+            return res.status(400).json({
+                success: false,
+                error: result.error
+            });
+        }
+
+        // Email verified successfully
+        res.json({
+            success: true,
+            message: 'Email verified successfully!',
+            user: result.user
+        });
+
+    } catch (error) {
+        console.error('Email verification error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'An error occurred during verification'
+        });
+    }
+});
+
+// Resend email verification link
+router.post('/resend-verification-email', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        // Validate email parameter
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email is required'
+            });
+        }
+
+        // Find user by email
+        const user = await db.getUserByEmail(email);
+        if (!user) {
+            // Return generic message to prevent user enumeration (per OWASP)
+            return res.status(200).json({
+                success: true,
+                message: 'If an account exists with this email, a new verification link has been sent.'
+            });
+        }
+
+        // Check if email already verified
+        if (user.email_verified) {
+            return res.status(200).json({
+                success: true,
+                message: 'This email is already verified.'
+            });
+        }
+
+        // Get user IP for rate limiting
+        const userIp = req.ip || req.connection.remoteAddress;
+
+        // Resend verification token (includes rate limit checking)
+        const resendResult = await emailVerificationService.resendToken(user.id, user.email);
+
+        if (!resendResult.success) {
+            // Log rate limit attempt (potential abuse indicator)
+            console.warn('⚠️ Email resend rate limit hit', {
+                userId: user.id,
+                email: user.email,
+                ip: userIp
+            });
+
+            return res.status(429).json({
+                success: false,
+                error: resendResult.error,
+                retryAfterMinutes: resendResult.retryAfterMinutes
+            });
+        }
+
+        // Build verification link
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const verificationLink = `${baseUrl}/email-verification.html?token=${resendResult.token}`;
+
+        // Send verification email
+        try {
+            await gmailApiService.sendMail({
+                to: user.email,
+                subject: 'Verify Your TrustChain LTO Email',
+                text: `Hello ${user.first_name},\n\nPlease verify your email by clicking the link below. This link will expire in 24 hours.\n\n${verificationLink}\n\nIf you did not create an account, please ignore this email.\n\nBest regards,\nTrustChain LTO System`,
+                html: `
+                    <h2>Verify Your Email</h2>
+                    <p>Hello ${user.first_name},</p>
+                    <p>Thank you for registering with TrustChain LTO. Please verify your email address by clicking the button below:</p>
+                    <p>
+                        <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+                            Verify Email
+                        </a>
+                    </p>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <p><a href="${verificationLink}">${verificationLink}</a></p>
+                    <p><strong>This link will expire in 24 hours.</strong></p>
+                    <p>If you did not create an account, please ignore this email.</p>
+                    <p>Best regards,<br>TrustChain LTO System</p>
+                `
+            });
+
+            console.log('✅ Verification email resent', {
+                userId: user.id,
+                email: user.email,
+                ip: userIp
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send verification email:', emailError);
+            // Still return success to client (email sending failure is an ops issue)
+            // but log it for monitoring
+        }
+
+        // Return success message (generic for security)
+        res.status(200).json({
+            success: true,
+            message: 'If an account exists with this email, a new verification link has been sent.'
+        });
+
+    } catch (error) {
+        console.error('Resend verification email error:', error);
+        // Return success message to prevent leaking account existence
+        res.status(200).json({
+            success: true,
+            message: 'If an account exists with this email, a new verification link has been sent.'
         });
     }
 });

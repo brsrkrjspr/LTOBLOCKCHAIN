@@ -223,11 +223,63 @@ storageService.initialize().then(result => {
     }
 });
 
-// Start server
-app.listen(PORT, () => {
-    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
-        ? 'https://ltoblockchain.duckdns.org' 
-        : `http://localhost:${PORT}`);
+// Database startup validation - ensure required tables exist
+async function validateDatabaseSchema() {
+    const db = require('./backend/database/db');
+    const requiredTables = [
+        'users',
+        'refresh_tokens',
+        'sessions',
+        'email_verification_tokens'
+    ];
+    
+    try {
+        console.log('🔍 Validating database schema...');
+        
+        for (const tableName of requiredTables) {
+            const result = await db.query(
+                `SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = $1
+                )`,
+                [tableName]
+            );
+            
+            if (!result.rows[0].exists) {
+                console.error(`❌ CRITICAL: Required table '${tableName}' does not exist in database`);
+                console.error('Please run database migrations before starting the server');
+                process.exit(1);
+            }
+        }
+        
+        console.log('✅ Database schema validation passed - all required tables exist');
+        return true;
+    } catch (error) {
+        console.error('❌ Database schema validation failed:', error.message);
+        console.error('Please check database connection and run migrations');
+        process.exit(1);
+    }
+}
+
+// Run database validation before starting server
+validateDatabaseSchema().then(() => {
+    // Start server
+    app.listen(PORT, () => {
+        const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
+            ? 'https://ltoblockchain.duckdns.org' 
+            : `http://localhost:${PORT}`);
+        console.log(`🚀 TrustChain LTO Server running on port ${PORT}`);
+        console.log(`📱 Frontend URL: ${frontendUrl}`);
+        console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`💾 Database: ${process.env.DB_NAME || 'lto_blockchain'}@${process.env.DB_HOST || 'localhost'}`);
+        console.log(`🔐 JWT Secret configured: ${process.env.JWT_SECRET ? 'Yes ✓' : 'No ✗'}`);
+        console.log(`📧 Email service configured: ${process.env.GMAIL_USER ? 'Yes ✓' : 'No ✗'}`);
+    });
+}).catch(error => {
+    console.error('❌ Server startup failed:', error.message);
+    process.exit(1);
+});
     const apiUrl = process.env.FRONTEND_URL 
         ? `${process.env.FRONTEND_URL}/api`
         : (process.env.NODE_ENV === 'production' 
@@ -253,6 +305,7 @@ function initializeScheduledTasks() {
         
         // Load expiry service
         const expiryService = require('./backend/services/expiryService');
+        const db = require('./backend/database/db');
         
         // Run expiry check immediately on startup (after 30 seconds to let DB connect)
         setTimeout(() => {
@@ -263,6 +316,17 @@ function initializeScheduledTasks() {
                 })
                 .catch(error => {
                     console.error('❌ Error in initial expiry check:', error);
+                });
+
+            // Also clean up expired verification tokens on startup
+            console.log('🧹 Cleaning up expired email verification tokens...');
+            db.query('SELECT cleanup_expired_verification_tokens()')
+                .then(result => {
+                    const deletedCount = result.rows[0]?.cleanup_expired_verification_tokens || 0;
+                    console.log(`✅ Email verification token cleanup complete: ${deletedCount} expired tokens removed`);
+                })
+                .catch(error => {
+                    console.warn('⚠️ Email verification token cleanup skipped (table may not exist yet):', error.message);
                 });
         }, 30000); // 30 seconds delay
         
@@ -292,6 +356,17 @@ function initializeScheduledTasks() {
                     })
                     .catch(error => {
                         console.error('❌ Error in scheduled expiry check:', error);
+                    });
+
+                // Also clean up expired verification tokens daily
+                console.log('🧹 Cleaning up expired email verification tokens...');
+                db.query('SELECT cleanup_expired_verification_tokens()')
+                    .then(result => {
+                        const deletedCount = result.rows[0]?.cleanup_expired_verification_tokens || 0;
+                        console.log(`✅ Email verification token cleanup complete: ${deletedCount} expired tokens removed`);
+                    })
+                    .catch(error => {
+                        console.warn('⚠️ Email verification token cleanup error:', error.message);
                     });
             }
         }, 60 * 60 * 1000); // Check every hour to catch 9 AM

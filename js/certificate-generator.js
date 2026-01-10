@@ -19,6 +19,34 @@ const CertificateGenerator = {
                 throw new Error('Vehicle data is required');
             }
             
+            // Validate vehicle data
+            const validation = this.validateVehicleData(vehicleData);
+            if (validation.errors.length > 0) {
+                console.error('Vehicle data validation errors:', validation.errors);
+                throw new Error(`Invalid vehicle data: ${validation.errors.join(', ')}`);
+            }
+            if (validation.warnings.length > 0) {
+                console.warn('Vehicle data validation warnings:', validation.warnings);
+            }
+            
+            // Fetch certificate-ready data from backend (includes transfer info)
+            let transferInfo = null;
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const certDataResponse = await apiClient.get(`/api/vehicles/${vehicleData.id}/certificate-data`);
+                
+                if (certDataResponse.success) {
+                    // Use pre-processed data from backend
+                    vehicleData = certDataResponse.vehicle;
+                    ownerData = certDataResponse.owner || ownerData;
+                    transferInfo = certDataResponse.transfer; // Pre-processed transfer data
+                    console.log('✅ Using certificate data from backend API');
+                }
+            } catch (error) {
+                console.warn('Could not fetch certificate data, using provided data:', error);
+                // Fallback to existing data - continue with provided vehicleData and ownerData
+            }
+            
             // Get real blockchain transaction ID from API (for verification URL)
             // CRITICAL: Do NOT use vehicleData.id (UUID) as fallback - it's not a valid blockchain transaction ID
             let blockchainTxId = null;
@@ -74,7 +102,7 @@ const CertificateGenerator = {
             
             // Create certificate HTML with real transaction ID and QR code
             console.log('Creating certificate HTML...');
-            const certificateHtml = this.createCertificateHtml(vehicleData, ownerData, blockchainTxId, qrCodeDataUrl, isPending);
+            const certificateHtml = this.createCertificateHtml(vehicleData, ownerData, blockchainTxId, qrCodeDataUrl, isPending, transferInfo);
             console.log('Certificate HTML created, length:', certificateHtml.length);
             
             // Try to open print window
@@ -164,7 +192,60 @@ const CertificateGenerator = {
         }
     },
 
-    createCertificateHtml(vehicle, owner, blockchainTxId, qrCodeDataUrl, isPending = false) {
+    // Validation function for vehicle data
+    validateVehicleData(vehicle) {
+        const errors = [];
+        const warnings = [];
+        
+        if (!vehicle.vin && !vehicle.chassis_number) {
+            errors.push('Vehicle VIN or Chassis Number is required');
+        }
+        
+        const gvw = parseFloat(vehicle.gross_vehicle_weight || vehicle.grossVehicleWeight);
+        if (!gvw || isNaN(gvw) || gvw <= 0) {
+            errors.push('Invalid Gross Vehicle Weight');
+        } else if (gvw > 100000) {
+            warnings.push('Gross Vehicle Weight exceeds typical maximum (100,000 kg)');
+        }
+        
+        const netWeight = parseFloat(vehicle.net_weight || vehicle.netWeight);
+        if (netWeight && !isNaN(netWeight)) {
+            if (netWeight >= gvw) {
+                errors.push('Net Weight must be less than Gross Vehicle Weight');
+            }
+        }
+        
+        return { errors, warnings };
+    },
+
+    // Calculate net weight with enhanced logic and fallbacks
+    calculateNetWeight(vehicle) {
+        // 1. Use provided value if valid
+        let netWeight = vehicle.net_weight || vehicle.netWeight;
+        if (netWeight && !isNaN(parseFloat(netWeight)) && parseFloat(netWeight) > 0) {
+            const parsed = parseFloat(netWeight);
+            // Validate net weight is less than GVW
+            const gvw = parseFloat(vehicle.gross_vehicle_weight || vehicle.grossVehicleWeight);
+            if (!isNaN(gvw) && parsed >= gvw) {
+                console.warn(`Net weight (${parsed}) >= GVW (${gvw}), recalculating`);
+            } else {
+                return parsed.toFixed(2);
+            }
+        }
+        
+        // 2. Calculate from GVW with sanity checks (75% default per migration)
+        const gvw = parseFloat(vehicle.gross_vehicle_weight || vehicle.grossVehicleWeight);
+        if (!isNaN(gvw) && gvw > 0 && gvw < 100000) {
+            const calculated = gvw * 0.75;
+            return calculated.toFixed(2);
+        }
+        
+        // 3. Log error for monitoring
+        console.error('Unable to determine net weight for vehicle:', vehicle.id || vehicle.vin);
+        return 'N/A'; // Last resort
+    },
+
+    createCertificateHtml(vehicle, owner, blockchainTxId, qrCodeDataUrl, isPending = false, transferInfo = null) {
         console.log('createCertificateHtml called');
         
         // Use provided transaction ID - DO NOT fallback to vehicle.id (UUID)
@@ -277,7 +358,7 @@ const CertificateGenerator = {
         const passengerCapacity = vehicle.passenger_capacity || vehicle.passengerCapacity || 'N/A';
         // Primary field: gross_vehicle_weight (gross_weight/grossWeight kept for backward compatibility)
         const grossVehicleWeight = vehicle.gross_vehicle_weight || vehicle.grossVehicleWeight || vehicle.gross_weight || vehicle.grossWeight || 'N/A';
-        const netWeight = vehicle.net_weight || vehicle.netWeight || 'N/A';
+        const netWeight = this.calculateNetWeight(vehicle);
         const classification = vehicle.classification || vehicle.registration_type || vehicle.registrationType || 'Private';
         
         // Payment details (if available)
@@ -546,7 +627,10 @@ const CertificateGenerator = {
         <div class="watermark">OFFICIAL COPY</div>
 
         <div class="header">
-            <div class="seal-placeholder">[SEAL]</div>
+            <img src="${window.location.origin}/css/logo.png" 
+                 alt="LTO Official Seal" 
+                 style="width: 60px; height: 60px; margin: 0 auto 10px; display: block; object-fit: contain;"
+                 onerror="this.style.display='none';">
             <div class="agency-name">LAND TRANSPORTATION OFFICE</div>
             <div class="doc-title-box">OFFICIAL RECEIPT & CERTIFICATE OF REGISTRATION</div>
             <div class="sub-text">Digitally Generated via LTO Blockchain System</div>
@@ -587,6 +671,19 @@ const CertificateGenerator = {
                         <span class="label">Complete Address</span>
                         <span class="value">${this.escapeHtml(ownerAddress)}</span>
                     </div>
+                    ${transferInfo && transferInfo.isTransfer ? `
+                    <div class="col-full" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                        <span class="label" style="font-size: 10px; margin-bottom: 5px;">TRANSFER DETAILS:</span>
+                        <div style="font-size: 11px; color: #666;">
+                            ${transferInfo.previousOwnerName ? `
+                            <div style="margin-bottom: 5px;"><strong>Previous Owner:</strong> ${this.escapeHtml(transferInfo.previousOwnerName)}</div>
+                            ` : ''}
+                            ${transferInfo.transferDate ? `
+                            <div><strong>Transfer Date:</strong> ${formatDate(transferInfo.transferDate)}</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
         </div>
@@ -760,7 +857,7 @@ const CertificateGenerator = {
                         <div style="display: inline-block; padding: 10px; background: white; border: 2px solid #003366; border-radius: 8px;">
                             <img src="${qrCodeDataUrl}" 
                                  alt="Blockchain Verification QR Code" 
-                                 style="width: 120px; height: 120px; display: block;">
+                                 style="width: 80px; height: 80px; display: block;">
                             <p style="margin-top: 10px; font-size: 11px; color: #666;">
                                 Scan to verify on blockchain
                             </p>
@@ -839,11 +936,23 @@ const CertificateGenerator = {
 
         <!-- Digital Signature Section -->
         <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px;">
-            <!-- LTO Official Signature -->
+            <!-- LTO Digital Signature -->
             <div style="text-align: center;">
-                <div style="border-bottom: 2px solid #2c3e50; width: 200px; margin-bottom: 5px;"></div>
-                <div style="font-weight: bold; font-size: 12px;">LTO AUTHORIZED SIGNATORY</div>
-                <div style="font-size: 10px; color: #7f8c8d;">Land Transportation Office - Lipa City</div>
+                <div class="digital-signature-block" style="border: 2px solid #003366; border-radius: 8px; padding: 15px; background: #f8f9fa; max-width: 250px; margin: 0 auto;">
+                    <div style="font-size: 10px; color: #666; margin-bottom: 5px; text-transform: uppercase;">Digitally Signed By</div>
+                    <div style="border-bottom: 2px solid #2c3e50; width: 180px; margin: 0 auto 8px;"></div>
+                    <div style="font-weight: bold; font-size: 12px; color: #003366; margin-bottom: 5px;">LTO AUTHORIZED SIGNATORY</div>
+                    <div style="font-size: 10px; color: #7f8c8d; margin-bottom: 8px;">Land Transportation Office - Lipa City</div>
+                    ${hasValidTxId ? `
+                    <div style="font-size: 8px; color: #27ae60; border-top: 1px solid #e0e0e0; padding-top: 8px; margin-top: 8px;">
+                        <i class="fas fa-shield-alt" style="margin-right: 4px;"></i>
+                        Verified via Blockchain: ${txId.substring(0, 16)}...
+                    </div>
+                    ` : ''}
+                </div>
+                <div style="font-size: 9px; color: #999; margin-top: 10px; font-style: italic;">
+                    This digitally signed certificate is validated via blockchain and does not require a physical seal.
+                </div>
             </div>
             
             ${hasValidTxId ? `

@@ -407,6 +407,81 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
     }
 });
 
+// GET /api/vehicles/:id/certificate-data - Get certificate-ready data with transfer info
+router.get('/:id/certificate-data', optionalAuth, async (req, res) => {
+    try {
+        const vehicleId = req.params.id;
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Vehicle not found' 
+            });
+        }
+
+        // Get owner data
+        const owner = vehicle.owner_id ? await db.getUserById(vehicle.owner_id) : null;
+        
+        // Get transfer information if applicable
+        let transferInfo = null;
+        const originType = vehicle.origin_type || vehicle.originType;
+        const transactionType = vehicle.transaction_type;
+        
+        // Check if this is a transfer (origin_type = 'TRANSFER' or transaction_type contains 'TRANSFER')
+        if (originType === 'TRANSFER' || 
+            (transactionType && transactionType.toUpperCase().includes('TRANSFER'))) {
+            
+            const history = await db.getOwnershipHistory(vehicleId);
+            const transferRecord = history.find(h => 
+                h.action === 'OWNERSHIP_TRANSFERRED' || 
+                (h.metadata && h.metadata.previousOwnerName)
+            );
+            
+            if (transferRecord) {
+                const metadata = transferRecord.metadata || {};
+                transferInfo = {
+                    isTransfer: true,
+                    previousOwnerName: transferRecord.previousOwnerName || 
+                                      metadata.previousOwnerName || null,
+                    previousOwnerEmail: transferRecord.previousOwnerEmail || 
+                                       metadata.previousOwnerEmail || null,
+                    transferDate: transferRecord.transferDate || 
+                                 metadata.transferDate || 
+                                 transferRecord.timestamp || null,
+                    transferReason: transferRecord.transferReason || 
+                                   metadata.transferReason || null
+                };
+            }
+        }
+
+        // Format vehicle response
+        const formattedVehicle = formatVehicleResponse(vehicle, req, res);
+        
+        // Format owner response
+        const formattedOwner = owner ? {
+            id: owner.id,
+            firstName: owner.first_name,
+            lastName: owner.last_name,
+            email: owner.email,
+            address: owner.address || owner.full_address,
+            phone: owner.phone
+        } : null;
+
+        res.json({
+            success: true,
+            vehicle: formattedVehicle,
+            owner: formattedOwner,
+            transfer: transferInfo
+        });
+    } catch (error) {
+        console.error('Certificate data error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
+
 // Get vehicle registration progress for timeline
 router.get('/:id/progress', authenticateToken, async (req, res) => {
     try {

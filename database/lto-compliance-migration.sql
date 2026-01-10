@@ -18,11 +18,25 @@ DECLARE
     total_vehicles INT;
     vehicles_with_null_types INT;
     vehicles_needing_migration INT;
+    columns_exist BOOLEAN;
 BEGIN
+    -- Check if new columns already exist (for re-run safety)
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'vehicle_category'
+    ) INTO columns_exist;
+    
     SELECT COUNT(*) INTO total_vehicles FROM vehicles;
     SELECT COUNT(*) INTO vehicles_with_null_types FROM vehicles WHERE vehicle_type IS NULL;
-    SELECT COUNT(*) INTO vehicles_needing_migration FROM vehicles 
-        WHERE vehicle_category IS NULL OR passenger_capacity IS NULL OR gross_vehicle_weight IS NULL;
+    
+    -- Only check for vehicles needing migration if columns already exist (re-run scenario)
+    IF columns_exist THEN
+        SELECT COUNT(*) INTO vehicles_needing_migration FROM vehicles 
+            WHERE vehicle_category IS NULL OR passenger_capacity IS NULL OR gross_vehicle_weight IS NULL;
+    ELSE
+        -- All vehicles need migration if columns don't exist yet
+        vehicles_needing_migration := total_vehicles;
+    END IF;
     
     RAISE NOTICE 'Pre-migration check:';
     RAISE NOTICE '  Total vehicles: %', total_vehicles;

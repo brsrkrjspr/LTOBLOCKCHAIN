@@ -133,17 +133,23 @@ ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS net_weight DECIMAL(10,2);
 -- STEP 4: Migrate Existing Data with Smart Defaults
 -- ============================================
 
+-- First, set vehicle_category, passenger_capacity, gross_vehicle_weight, and registration_type
 UPDATE vehicles 
 SET 
     vehicle_category = COALESCE(vehicle_category, map_vehicle_type_to_category(vehicle_type)),
     passenger_capacity = COALESCE(passenger_capacity, get_default_passenger_capacity(vehicle_type, COALESCE(vehicle_category, map_vehicle_type_to_category(vehicle_type)))),
     gross_vehicle_weight = COALESCE(gross_vehicle_weight, get_default_gvw(vehicle_type, COALESCE(vehicle_category, map_vehicle_type_to_category(vehicle_type)))),
-    net_weight = COALESCE(net_weight, COALESCE(gross_vehicle_weight, get_default_gvw(vehicle_type, COALESCE(vehicle_category, map_vehicle_type_to_category(vehicle_type)))) * 0.75), -- 75% of GVW as default
     registration_type = COALESCE(registration_type, 'Private')
 WHERE vehicle_category IS NULL 
    OR passenger_capacity IS NULL 
    OR gross_vehicle_weight IS NULL
-   OR net_weight IS NULL;
+   OR registration_type IS NULL;
+
+-- Then, set net_weight using the already-calculated gross_vehicle_weight
+UPDATE vehicles 
+SET 
+    net_weight = COALESCE(net_weight, gross_vehicle_weight * 0.75) -- 75% of GVW as default
+WHERE net_weight IS NULL;
 
 -- ============================================
 -- STEP 5: Make Non-LTO Fields Nullable
@@ -171,6 +177,29 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN NULL;
 END $$;
+
+-- ============================================
+-- STEP 5.5: Fix Data Integrity Issues Before Constraints
+-- ============================================
+
+-- Fix any data where net_weight >= gross_vehicle_weight
+UPDATE vehicles 
+SET net_weight = gross_vehicle_weight * 0.75
+WHERE net_weight IS NOT NULL 
+  AND gross_vehicle_weight IS NOT NULL 
+  AND net_weight >= gross_vehicle_weight;
+
+-- Normalize registration_type values to match constraint requirements
+UPDATE vehicles 
+SET registration_type = CASE
+    WHEN UPPER(TRIM(registration_type)) IN ('PRIVATE', 'PRIV') THEN 'Private'
+    WHEN UPPER(TRIM(registration_type)) IN ('FOR HIRE', 'FOR_HIRE', 'HIRE', 'TAXI', 'PUBLIC') THEN 'For Hire'
+    WHEN UPPER(TRIM(registration_type)) IN ('GOVERNMENT', 'GOV', 'GOVT') THEN 'Government'
+    WHEN UPPER(TRIM(registration_type)) IN ('EXEMPT', 'EXEMPTED') THEN 'Exempt'
+    ELSE 'Private' -- Default to Private if unknown
+END
+WHERE registration_type IS NOT NULL 
+  AND UPPER(TRIM(registration_type)) NOT IN ('PRIVATE', 'FOR HIRE', 'GOVERNMENT', 'EXEMPT');
 
 -- ============================================
 -- STEP 6: Add Constraints

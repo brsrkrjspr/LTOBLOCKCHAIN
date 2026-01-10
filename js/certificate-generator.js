@@ -275,10 +275,10 @@ const CertificateGenerator = {
         // LTO required fields
         const vehicleCategory = vehicle.vehicle_category || vehicle.vehicleCategory || 'N/A';
         const passengerCapacity = vehicle.passenger_capacity || vehicle.passengerCapacity || 'N/A';
+        // Primary field: gross_vehicle_weight (gross_weight/grossWeight kept for backward compatibility)
         const grossVehicleWeight = vehicle.gross_vehicle_weight || vehicle.grossVehicleWeight || vehicle.gross_weight || vehicle.grossWeight || 'N/A';
         const netWeight = vehicle.net_weight || vehicle.netWeight || 'N/A';
         const classification = vehicle.classification || vehicle.registration_type || vehicle.registrationType || 'Private';
-        const vehicleClassification = vehicle.vehicle_classification || vehicle.vehicleClassification || 'N/A';
         
         // Payment details (if available)
         const paymentDate = regDateShort;
@@ -653,10 +653,6 @@ const CertificateGenerator = {
                     <div class="col-third">
                         <span class="label">Classification</span>
                         <span class="value">${this.escapeHtml(classification)}</span>
-                    </div>
-                    <div class="col-third">
-                        <span class="label">Vehicle Classification</span>
-                        <span class="value">${this.escapeHtml(vehicleClassification)}</span>
                     </div>
                 </div>
             </div>

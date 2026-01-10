@@ -272,11 +272,12 @@ const CertificateGenerator = {
         const year = vehicle.year || 'N/A';
         const bodyType = vehicle.vehicle_type || vehicle.vehicleType || 'N/A';
         const color = vehicle.color || 'N/A';
-        const fuelType = vehicle.fuel_type || vehicle.fuelType || 'N/A';
-        const displacement = vehicle.displacement || vehicle.piston_displacement || 'N/A';
-        const grossWeight = vehicle.gross_weight || vehicle.grossWeight || 'N/A';
+        // LTO required fields
+        const vehicleCategory = vehicle.vehicle_category || vehicle.vehicleCategory || 'N/A';
+        const passengerCapacity = vehicle.passenger_capacity || vehicle.passengerCapacity || 'N/A';
+        const grossVehicleWeight = vehicle.gross_vehicle_weight || vehicle.grossVehicleWeight || vehicle.gross_weight || vehicle.grossWeight || 'N/A';
         const netWeight = vehicle.net_weight || vehicle.netWeight || 'N/A';
-        const registrationType = vehicle.registration_type || vehicle.registrationType || 'PRIVATE';
+        const classification = vehicle.classification || vehicle.registration_type || vehicle.registrationType || 'Private';
         const vehicleClassification = vehicle.vehicle_classification || vehicle.vehicleClassification || 'N/A';
         
         // Payment details (if available)
@@ -634,27 +635,27 @@ const CertificateGenerator = {
                     </div>
 
                     <div class="col-third">
-                        <span class="label">Fuel Type</span>
-                        <span class="value">${this.escapeHtml(fuelType)}</span>
+                        <span class="label">Vehicle Category (PNS)</span>
+                        <span class="value">${this.escapeHtml(vehicleCategory)}</span>
                     </div>
                     <div class="col-third">
-                        <span class="label">Piston Disp.</span>
-                        <span class="value">${this.escapeHtml(displacement)}</span>
+                        <span class="label">Passenger Capacity</span>
+                        <span class="value">${this.escapeHtml(passengerCapacity)}</span>
                     </div>
                     <div class="col-third">
-                        <span class="label">Gross Wt.</span>
-                        <span class="value">${this.escapeHtml(grossWeight)}</span>
+                        <span class="label">Gross Vehicle Weight</span>
+                        <span class="value">${this.escapeHtml(grossVehicleWeight)} kg</span>
                     </div>
                     <div class="col-third">
-                        <span class="label">Net Wt.</span>
-                        <span class="value">${this.escapeHtml(netWeight)}</span>
-                    </div>
-                    <div class="col-third">
-                        <span class="label">Registration Type</span>
-                        <span class="value">${this.escapeHtml(registrationType)}</span>
+                        <span class="label">Net Weight</span>
+                        <span class="value">${this.escapeHtml(netWeight)} kg</span>
                     </div>
                     <div class="col-third">
                         <span class="label">Classification</span>
+                        <span class="value">${this.escapeHtml(classification)}</span>
+                    </div>
+                    <div class="col-third">
+                        <span class="label">Vehicle Classification</span>
                         <span class="value">${this.escapeHtml(vehicleClassification)}</span>
                     </div>
                 </div>

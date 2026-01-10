@@ -136,7 +136,7 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
 
         res.json({
             success: true,
-            vehicles: vehicles.map(v => formatVehicleResponse(v)),
+            vehicles: vehicles.map(v => formatVehicleResponse(v, req, res)),
             pagination: {
                 currentPage: parseInt(page),
                 totalPages: Math.ceil(totalCount / parseInt(limit)),
@@ -180,7 +180,7 @@ router.get('/my-vehicles', authenticateToken, async (req, res) => {
 
         res.json({
             success: true,
-            vehicles: vehicles.map(v => formatVehicleResponse(v)),
+            vehicles: vehicles.map(v => formatVehicleResponse(v, req, res)),
             count: vehicles.length
         });
 
@@ -223,7 +223,7 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
 
         res.json({
             success: true,
-            vehicles: vehicles.map(v => formatVehicleResponse(v)),
+            vehicles: vehicles.map(v => formatVehicleResponse(v, req, res)),
             count: vehicles.length
         });
 
@@ -572,7 +572,7 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
         res.json({
             success: true,
             progress,
-            vehicle: formatVehicleResponse(vehicle)
+            vehicle: formatVehicleResponse(vehicle, req, res)
         });
         
     } catch (error) {
@@ -632,7 +632,7 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
 
         res.json({
             success: true,
-            vehicle: formatVehicleResponse(vehicle)
+            vehicle: formatVehicleResponse(vehicle, req, res)
         });
 
     } catch (error) {
@@ -692,7 +692,7 @@ router.get('/:vin', authenticateToken, async (req, res) => {
 
         res.json({
             success: true,
-            vehicle: formatVehicleResponse(vehicle)
+            vehicle: formatVehicleResponse(vehicle, req, res)
         });
 
     } catch (error) {
@@ -740,7 +740,7 @@ router.get('/plate/:plateNumber', authenticateToken, async (req, res) => {
 
         res.json({
             success: true,
-            vehicle: formatVehicleResponse(vehicle)
+            vehicle: formatVehicleResponse(vehicle, req, res)
         });
 
     } catch (error) {
@@ -774,7 +774,7 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
 
         res.json({
             success: true,
-            vehicles: vehicles.map(v => formatVehicleResponse(v)),
+            vehicles: vehicles.map(v => formatVehicleResponse(v, req, res)),
             count: vehicles.length
         });
 
@@ -900,6 +900,40 @@ router.post('/register', optionalAuth, async (req, res) => {
             });
         }
         
+        // Validate new LTO required fields
+        if (!vehicle.vehicleCategory || !vehicle.passengerCapacity || !vehicle.grossVehicleWeight || !vehicle.netWeight) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required LTO fields: vehicleCategory, passengerCapacity, grossVehicleWeight, netWeight'
+            });
+        }
+        
+        // Validate net weight is less than GVW
+        if (parseFloat(vehicle.netWeight) >= parseFloat(vehicle.grossVehicleWeight)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Net weight must be less than Gross Vehicle Weight'
+            });
+        }
+        
+        // Validate vehicle category (PNS code)
+        const validCategories = ['L1','L2','L3','L5','M1','M2','M3','N1','N2','N3','O1','O2','O3','O4'];
+        if (!validCategories.includes(vehicle.vehicleCategory)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid vehicle category. Must be a valid PNS code (L1-L5, M1-M3, N1-N3, O1-O4)'
+            });
+        }
+        
+        // Validate classification
+        const validClassifications = ['Private', 'For Hire', 'Government', 'Exempt'];
+        if (vehicle.classification && !validClassifications.includes(vehicle.classification)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid classification. Must be one of: Private, For Hire, Government, Exempt'
+            });
+        }
+
         // Create vehicle in database
         const newVehicle = await db.createVehicle({
             vin: vehicle.vin,
@@ -910,10 +944,12 @@ router.post('/register', optionalAuth, async (req, res) => {
             color: vehicle.color,
             engineNumber: vehicle.engineNumber,
             chassisNumber: vehicle.chassisNumber,
-            vehicleType: vehicle.vehicleType || 'PASSENGER',
-            fuelType: vehicle.fuelType || 'GASOLINE',
-            transmission: vehicle.transmission || 'AUTOMATIC',
-            engineDisplacement: vehicle.engineDisplacement,
+            vehicleType: vehicle.vehicleType || 'Car',
+            vehicleCategory: vehicle.vehicleCategory,
+            passengerCapacity: parseInt(vehicle.passengerCapacity),
+            grossVehicleWeight: parseFloat(vehicle.grossVehicleWeight),
+            netWeight: parseFloat(vehicle.netWeight),
+            classification: vehicle.classification || 'Private',
             ownerId: ownerUser.id,
             status: 'SUBMITTED',
             notes: registrationData.notes,
@@ -1314,7 +1350,7 @@ LTO Lipa City Team
         res.json({
             success: true,
             message: 'Vehicle registration submitted successfully',
-            vehicle: formatVehicleResponse(fullVehicle),
+            vehicle: formatVehicleResponse(fullVehicle, req, res),
             blockchainStatus: blockchainTxId ? 'REGISTERED' : 'PENDING'
         });
         
@@ -1391,7 +1427,7 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin']), async 
         res.json({
             success: true,
             message: 'Vehicle status updated successfully',
-            vehicle: formatVehicleResponse(updatedVehicle)
+            vehicle: formatVehicleResponse(updatedVehicle, req, res)
         });
 
     } catch (error) {
@@ -1506,7 +1542,7 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
         res.json({
             success: true,
             message: 'Verification status updated successfully',
-            vehicle: formatVehicleResponse(updatedVehicle)
+            vehicle: formatVehicleResponse(updatedVehicle, req, res)
         });
 
     } catch (error) {
@@ -1887,7 +1923,7 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
         res.json({
             success: true,
             message: 'Ownership transferred successfully',
-            vehicle: formatVehicleResponse(updatedVehicle)
+            vehicle: formatVehicleResponse(updatedVehicle, req, res)
         });
 
     } catch (error) {
@@ -1969,32 +2005,9 @@ async function generateVehicleQRCode(vehicle) {
 }
 
 // Helper function to format vehicle response
-function formatVehicleResponse(vehicle) {
-    if (!vehicle) return null;
-
-    // Format verification status
-    const verificationStatus = {};
-    if (vehicle.verifications) {
-        vehicle.verifications.forEach(v => {
-            verificationStatus[v.verification_type] = v.status;
-        });
-    }
-
-    // Format owner information
-    const ownerInfo = {
-        id: vehicle.owner_id,
-        firstName: vehicle.owner_first_name || (vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null),
-        lastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
-        name: vehicle.owner_name,
-        email: vehicle.owner_email,
-        phone: vehicle.owner_phone,
-        address: vehicle.owner_address,
-        organization: vehicle.owner_organization
-    };
-
-    // Format documents to ensure they have required fields (id, documentType, etc.)
-    const formattedDocuments = (vehicle.documents || []).map(doc => {
-        // Ensure document has id field and both snake_case and camelCase versions
+// Helper function to format documents
+function formatDocuments(documents) {
+    return (documents || []).map(doc => {
         return {
             id: doc.id,
             vehicleId: doc.vehicle_id || doc.vehicleId,
@@ -2023,6 +2036,95 @@ function formatVehicleResponse(vehicle) {
             file_path: doc.file_path || doc.filePath
         };
     });
+}
+
+// Helper function to format owner info
+function formatOwnerInfo(vehicle) {
+    return {
+        id: vehicle.owner_id,
+        firstName: vehicle.owner_first_name || (vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null),
+        lastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
+        name: vehicle.owner_name,
+        email: vehicle.owner_email,
+        phone: vehicle.owner_phone,
+        address: vehicle.owner_address,
+        organization: vehicle.owner_organization
+    };
+}
+
+// Helper function to format verification status
+function formatVerificationStatus(vehicle) {
+    const verificationStatus = {};
+    if (vehicle.verifications) {
+        vehicle.verifications.forEach(v => {
+            verificationStatus[v.verification_type] = v.status;
+        });
+    }
+    return verificationStatus;
+}
+
+// V1 API format (deprecated - includes old fields)
+function formatVehicleResponseV1(vehicle) {
+    if (!vehicle) return null;
+
+    const baseResponse = {
+        id: vehicle.id,
+        vin: vehicle.vin,
+        plateNumber: vehicle.plate_number,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        color: vehicle.color,
+        engineNumber: vehicle.engine_number,
+        chassisNumber: vehicle.chassis_number,
+        vehicleType: vehicle.vehicle_type,
+        // Deprecated fields (included for backward compatibility)
+        fuelType: vehicle.fuel_type || null,
+        transmission: vehicle.transmission || null,
+        engineDisplacement: vehicle.engine_displacement || null,
+        // New LTO fields
+        vehicleCategory: vehicle.vehicle_category || null,
+        passengerCapacity: vehicle.passenger_capacity || null,
+        grossVehicleWeight: vehicle.gross_vehicle_weight || null,
+        netWeight: vehicle.net_weight || null,
+        classification: vehicle.registration_type || 'Private',
+        ownerId: vehicle.owner_id,
+        ownerName: vehicle.owner_name || (vehicle.owner_email ? 'Unknown' : null),
+        ownerEmail: vehicle.owner_email,
+        ownerPhone: vehicle.owner_phone,
+        ownerFirstName: vehicle.owner_first_name || (vehicle.owner_name ? vehicle.owner_name.split(' ')[0] : null),
+        ownerLastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
+        ownerAddress: vehicle.owner_address,
+        ownerOrganization: vehicle.owner_organization,
+        owner: formatOwnerInfo(vehicle),
+        status: vehicle.status,
+        registrationDate: vehicle.registration_date,
+        dateOfRegistration: vehicle.date_of_registration || vehicle.registration_date,
+        lastUpdated: vehicle.last_updated,
+        orNumber: vehicle.or_number || null,
+        crNumber: vehicle.cr_number || null,
+        orIssuedAt: vehicle.or_issued_at || null,
+        crIssuedAt: vehicle.cr_issued_at || null,
+        orCrNumber: vehicle.or_number || vehicle.or_cr_number || vehicle.orCrNumber || null,
+        or_cr_number: vehicle.or_number || vehicle.or_cr_number || null,
+        orCrIssuedAt: vehicle.or_issued_at || vehicle.or_cr_issued_at || vehicle.orCrIssuedAt || null,
+        or_cr_issued_at: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,
+        registrationType: vehicle.registration_type || 'PRIVATE',
+        vehicleClassification: vehicle.vehicle_classification || null,
+        verificationStatus: formatVerificationStatus(vehicle),
+        verifications: vehicle.verifications || [],
+        documents: formatDocuments(vehicle.documents),
+        history: vehicle.history || [],
+        notes: vehicle.notes,
+        qr_code_base64: vehicle.qr_code_base64 || null
+    };
+    
+    return baseResponse;
+}
+
+// V2 API format (LTO-compliant - excludes deprecated fields)
+function formatVehicleResponseV2(vehicle) {
+    if (!vehicle) return null;
 
     return {
         id: vehicle.id,
@@ -2035,9 +2137,12 @@ function formatVehicleResponse(vehicle) {
         engineNumber: vehicle.engine_number,
         chassisNumber: vehicle.chassis_number,
         vehicleType: vehicle.vehicle_type,
-        fuelType: vehicle.fuel_type,
-        transmission: vehicle.transmission,
-        engineDisplacement: vehicle.engine_displacement,
+        // New LTO required fields
+        vehicleCategory: vehicle.vehicle_category,
+        passengerCapacity: vehicle.passenger_capacity,
+        grossVehicleWeight: vehicle.gross_vehicle_weight,
+        netWeight: vehicle.net_weight,
+        classification: vehicle.registration_type || 'Private',
         ownerId: vehicle.owner_id,
         ownerName: vehicle.owner_name || (vehicle.owner_email ? 'Unknown' : null),
         ownerEmail: vehicle.owner_email,
@@ -2046,34 +2151,67 @@ function formatVehicleResponse(vehicle) {
         ownerLastName: vehicle.owner_last_name || (vehicle.owner_name ? vehicle.owner_name.split(' ').slice(1).join(' ') : null),
         ownerAddress: vehicle.owner_address,
         ownerOrganization: vehicle.owner_organization,
-        // Include full owner object for convenience
-        owner: ownerInfo,
+        owner: formatOwnerInfo(vehicle),
         status: vehicle.status,
         registrationDate: vehicle.registration_date,
         dateOfRegistration: vehicle.date_of_registration || vehicle.registration_date,
         lastUpdated: vehicle.last_updated,
-        // Separate OR and CR numbers (new format)
         orNumber: vehicle.or_number || null,
         crNumber: vehicle.cr_number || null,
         orIssuedAt: vehicle.or_issued_at || null,
         crIssuedAt: vehicle.cr_issued_at || null,
-        // Backward compatibility (deprecated)
         orCrNumber: vehicle.or_number || vehicle.or_cr_number || vehicle.orCrNumber || null,
         or_cr_number: vehicle.or_number || vehicle.or_cr_number || null,
         orCrIssuedAt: vehicle.or_issued_at || vehicle.or_cr_issued_at || vehicle.orCrIssuedAt || null,
         or_cr_issued_at: vehicle.or_issued_at || vehicle.or_cr_issued_at || null,
-        // Additional CR fields
-        netWeight: vehicle.net_weight || null,
-        registrationType: vehicle.registration_type || 'PRIVATE',
         vehicleClassification: vehicle.vehicle_classification || null,
-        verificationStatus: verificationStatus,
+        verificationStatus: formatVerificationStatus(vehicle),
         verifications: vehicle.verifications || [],
-        documents: formattedDocuments, // Use formatted documents with proper structure
+        documents: formatDocuments(vehicle.documents),
         history: vehicle.history || [],
         notes: vehicle.notes,
-        // QR code (server-generated)
         qr_code_base64: vehicle.qr_code_base64 || null
     };
+}
+
+// Main format function - checks API version and returns appropriate format
+// Also sets deprecation headers for v1 API
+function formatVehicleResponse(vehicle, req = null, res = null) {
+    if (!vehicle) return null;
+    
+    // Determine API version from request
+    let apiVersion = 'v2'; // Default to v2 (LTO-compliant)
+    
+    if (req) {
+        // Check query parameter
+        const versionParam = req.query?.version || req.query?.v;
+        // Check header
+        const versionHeader = req.headers?.['x-api-version'] || req.headers?.['api-version'];
+        // Check Accept header
+        const acceptHeader = req.headers?.accept;
+        if (acceptHeader && acceptHeader.includes('application/vnd.lto.v1+json')) {
+            apiVersion = 'v1';
+        } else if (versionParam || versionHeader) {
+            apiVersion = (versionParam || versionHeader).toLowerCase();
+        }
+    }
+    
+    // Set deprecation headers for v1 API
+    if (apiVersion === 'v1' && res) {
+        res.set('X-API-Deprecated', 'true');
+        res.set('Deprecation', 'true');
+        // Set sunset date to 6 months from now
+        const sunsetDate = new Date();
+        sunsetDate.setMonth(sunsetDate.getMonth() + 6);
+        res.set('Sunset', sunsetDate.toUTCString());
+        res.set('Link', '</api/v2/vehicles>; rel="successor-version"');
+    }
+    
+    if (apiVersion === 'v1') {
+        return formatVehicleResponseV1(vehicle);
+    } else {
+        return formatVehicleResponseV2(vehicle);
+    }
 }
 
 module.exports = router;

@@ -1265,13 +1265,76 @@
                                     <label for="vehicleType">Vehicle Type <span class="required">*</span></label>
                                     <select id="vehicleType" name="vehicleType" required>
                                         <option value="">Select Type</option>
-                                        <option value="PASSENGER_CAR">Passenger Car</option>
-                                        <option value="MOTORCYCLE">Motorcycle</option>
-                                        <option value="UTILITY_VEHICLE">Utility Vehicle</option>
-                                        <option value="TRUCK">Truck</option>
-                                        <option value="BUS">Bus</option>
+                                        <option value="Car">Car</option>
+                                        <option value="UV">UV (Utility Vehicle)</option>
+                                        <option value="SUV">SUV</option>
+                                        <option value="MC/TC">MC/TC (Motorcycle/Tricycle)</option>
+                                        <option value="Truck">Truck</option>
+                                        <option value="Bus">Bus</option>
+                                        <option value="Trailer">Trailer</option>
                                     </select>
                                     <small class="form-hint">Select the primary classification of the vehicle.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleCategory">Vehicle Category (PNS) <span class="required">*</span></label>
+                                    <select id="vehicleCategory" name="vehicleCategory" required>
+                                        <option value="">Select Category</option>
+                                        <optgroup label="Motorcycles">
+                                            <option value="L1">L1 - 2-wheel, ≤50cc</option>
+                                            <option value="L2">L2 - 3-wheel, ≤50cc</option>
+                                            <option value="L3">L3 - 2-wheel, >50cc</option>
+                                            <option value="L5">L5 - 3-wheel, >50cc</option>
+                                        </optgroup>
+                                        <optgroup label="Passenger Vehicles">
+                                            <option value="M1">M1 - ≤8 passengers</option>
+                                            <option value="M2">M2 - 9-15 passengers, ≤5 tonnes</option>
+                                            <option value="M3">M3 - >15 passengers or >5 tonnes</option>
+                                        </optgroup>
+                                        <optgroup label="Goods Vehicles">
+                                            <option value="N1">N1 - ≤3.5 tonnes GVW</option>
+                                            <option value="N2">N2 - 3.5-12 tonnes GVW</option>
+                                            <option value="N3">N3 - >12 tonnes GVW</option>
+                                        </optgroup>
+                                        <optgroup label="Trailers">
+                                            <option value="O1">O1 - ≤0.75 tonnes</option>
+                                            <option value="O2">O2 - 0.75-3.5 tonnes</option>
+                                            <option value="O3">O3 - 3.5-10 tonnes</option>
+                                            <option value="O4">O4 - >10 tonnes</option>
+                                        </optgroup>
+                                    </select>
+                                    <small class="form-hint">Philippine National Standards (PNS) vehicle category code.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="passengerCapacity">Passenger Capacity <span class="required">*</span></label>
+                                    <input type="number" id="passengerCapacity" name="passengerCapacity" placeholder="Number of passengers" min="1" max="100" required>
+                                    <small class="form-hint">Number of passengers (excluding driver). Required, especially for "For Hire" vehicles.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="classification">Classification <span class="required">*</span></label>
+                                    <select id="classification" name="classification" required>
+                                        <option value="">Select Classification</option>
+                                        <option value="Private">Private</option>
+                                        <option value="For Hire">For Hire</option>
+                                        <option value="Government">Government</option>
+                                        <option value="Exempt">Exempt</option>
+                                    </select>
+                                    <small class="form-hint">Vehicle registration classification.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="grossVehicleWeight">Gross Vehicle Weight (GVW) <span class="required">*</span></label>
+                                    <input type="number" id="grossVehicleWeight" name="grossVehicleWeight" placeholder="GVW in kg" step="0.01" min="0.01" required>
+                                    <small class="form-hint">Gross Vehicle Weight in kilograms. Required for MVUC fee calculation.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="netWeight">Net Weight <span class="required">*</span></label>
+                                    <input type="number" id="netWeight" name="netWeight" placeholder="Net weight in kg" step="0.01" min="0.01" required>
+                                    <small class="form-hint">Net weight in kilograms. Must be less than GVW.</small>
                                 </div>
                             </div>
 

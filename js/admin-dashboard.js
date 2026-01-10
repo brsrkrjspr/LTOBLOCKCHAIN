@@ -3011,7 +3011,17 @@ function renderVehicleValues(vehicle, source) {
         { key: 'chassis_number', label: 'Chassis Number' },
         { key: 'make', label: 'Make' },
         { key: 'model', label: 'Model' },
-        { key: 'year', label: 'Year' }
+        { key: 'year', label: 'Year' },
+        { key: 'vehicleCategory', label: 'Vehicle Category (PNS)' },
+        { key: 'vehicle_category', label: 'Vehicle Category (PNS)' },
+        { key: 'passengerCapacity', label: 'Passenger Capacity' },
+        { key: 'passenger_capacity', label: 'Passenger Capacity' },
+        { key: 'grossVehicleWeight', label: 'Gross Vehicle Weight (kg)' },
+        { key: 'gross_vehicle_weight', label: 'Gross Vehicle Weight (kg)' },
+        { key: 'netWeight', label: 'Net Weight (kg)' },
+        { key: 'net_weight', label: 'Net Weight (kg)' },
+        { key: 'classification', label: 'Classification' },
+        { key: 'registration_type', label: 'Classification' }
     ];
     
     const uniqueFields = [];

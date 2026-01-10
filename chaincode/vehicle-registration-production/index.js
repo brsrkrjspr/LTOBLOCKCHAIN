@@ -56,10 +56,13 @@ class VehicleRegistrationContract extends Contract {
                 color: vehicle.color || '',
                 engineNumber: vehicle.engineNumber || '',
                 chassisNumber: vehicle.chassisNumber || '',
-                vehicleType: vehicle.vehicleType || 'PASSENGER',
-                fuelType: vehicle.fuelType || 'GASOLINE',
-                transmission: vehicle.transmission || 'MANUAL',
-                engineDisplacement: vehicle.engineDisplacement || '',
+                vehicleType: vehicle.vehicleType || 'Car',
+                // LTO required fields
+                vehicleCategory: vehicle.vehicleCategory || '',
+                passengerCapacity: vehicle.passengerCapacity || 0,
+                grossVehicleWeight: vehicle.grossVehicleWeight || 0,
+                netWeight: vehicle.netWeight || 0,
+                classification: vehicle.classification || vehicle.registrationType || 'Private',
                 owner: vehicle.owner,
                 status: 'REGISTERED',
                 verificationStatus: {
@@ -500,8 +503,8 @@ class VehicleRegistrationContract extends Contract {
             const txId = ctx.stub.getTxID();
             const timestamp = new Date().toISOString();
 
-            // Update allowed fields
-            const allowedFields = ['color', 'engineNumber', 'chassisNumber', 'vehicleType', 'fuelType', 'transmission', 'engineDisplacement'];
+            // Update allowed fields (LTO-compliant)
+            const allowedFields = ['color', 'engineNumber', 'chassisNumber', 'vehicleType', 'vehicleCategory', 'passengerCapacity', 'grossVehicleWeight', 'netWeight', 'classification'];
             
             for (const field of allowedFields) {
                 if (updates[field] !== undefined) {

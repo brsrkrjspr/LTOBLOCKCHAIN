@@ -181,6 +181,11 @@ function validateVehicleInfo() {
     const chassisNumber = document.getElementById('chassisNumber')?.value.trim() || '';
     const vin = document.getElementById('vin')?.value.trim().toUpperCase() || '';
     const vehicleType = document.getElementById('vehicleType')?.value || '';
+    const vehicleCategory = document.getElementById('vehicleCategory')?.value || '';
+    const passengerCapacity = parseInt(document.getElementById('passengerCapacity')?.value || 0);
+    const grossVehicleWeight = parseFloat(document.getElementById('grossVehicleWeight')?.value || 0);
+    const netWeight = parseFloat(document.getElementById('netWeight')?.value || 0);
+    const classification = document.getElementById('classification')?.value || '';
     
     let isValid = true;
     let errors = [];
@@ -198,6 +203,106 @@ function validateVehicleInfo() {
         vehicleTypeField.classList.remove('invalid');
         vehicleTypeField.classList.add('valid');
         hideFieldError(vehicleTypeField);
+    }
+    
+    // Validate vehicle category (PNS code)
+    const vehicleCategoryField = document.getElementById('vehicleCategory');
+    if (!vehicleCategory || !vehicleCategory.trim()) {
+        if (vehicleCategoryField) {
+            vehicleCategoryField.classList.add('invalid');
+            showFieldError(vehicleCategoryField, 'Please select a vehicle category');
+        }
+        errors.push('Vehicle category is required');
+        isValid = false;
+    } else {
+        const categoryPattern = /^(L[1-5]|M[1-3]|N[1-3]|O[1-4])$/;
+        if (!categoryPattern.test(vehicleCategory)) {
+            if (vehicleCategoryField) {
+                vehicleCategoryField.classList.add('invalid');
+                showFieldError(vehicleCategoryField, 'Invalid vehicle category. Must be a valid PNS code.');
+            }
+            errors.push('Invalid vehicle category. Must be a valid PNS code (L1-L5, M1-M3, N1-N3, O1-O4)');
+            isValid = false;
+        } else if (vehicleCategoryField) {
+            vehicleCategoryField.classList.remove('invalid');
+            vehicleCategoryField.classList.add('valid');
+            hideFieldError(vehicleCategoryField);
+        }
+    }
+    
+    // Validate passenger capacity
+    const passengerCapacityField = document.getElementById('passengerCapacity');
+    if (!passengerCapacity || isNaN(passengerCapacity) || passengerCapacity < 1 || passengerCapacity > 100) {
+        if (passengerCapacityField) {
+            passengerCapacityField.classList.add('invalid');
+            showFieldError(passengerCapacityField, 'Passenger capacity must be between 1 and 100');
+        }
+        errors.push('Passenger capacity must be between 1 and 100');
+        isValid = false;
+    } else if (passengerCapacityField) {
+        passengerCapacityField.classList.remove('invalid');
+        passengerCapacityField.classList.add('valid');
+        hideFieldError(passengerCapacityField);
+    }
+    
+    // Validate gross vehicle weight
+    const grossVehicleWeightField = document.getElementById('grossVehicleWeight');
+    if (!grossVehicleWeight || isNaN(grossVehicleWeight) || grossVehicleWeight <= 0) {
+        if (grossVehicleWeightField) {
+            grossVehicleWeightField.classList.add('invalid');
+            showFieldError(grossVehicleWeightField, 'Gross Vehicle Weight must be greater than 0');
+        }
+        errors.push('Gross Vehicle Weight must be greater than 0');
+        isValid = false;
+    } else if (grossVehicleWeightField) {
+        grossVehicleWeightField.classList.remove('invalid');
+        grossVehicleWeightField.classList.add('valid');
+        hideFieldError(grossVehicleWeightField);
+    }
+    
+    // Validate net weight
+    const netWeightField = document.getElementById('netWeight');
+    if (!netWeight || isNaN(netWeight) || netWeight <= 0) {
+        if (netWeightField) {
+            netWeightField.classList.add('invalid');
+            showFieldError(netWeightField, 'Net weight must be greater than 0');
+        }
+        errors.push('Net weight must be greater than 0');
+        isValid = false;
+    } else if (netWeight >= grossVehicleWeight) {
+        if (netWeightField) {
+            netWeightField.classList.add('invalid');
+            showFieldError(netWeightField, 'Net weight must be less than Gross Vehicle Weight');
+        }
+        errors.push('Net weight must be less than Gross Vehicle Weight');
+        isValid = false;
+    } else if (netWeightField) {
+        netWeightField.classList.remove('invalid');
+        netWeightField.classList.add('valid');
+        hideFieldError(netWeightField);
+    }
+    
+    // Validate classification
+    const classificationField = document.getElementById('classification');
+    const validClassifications = ['Private', 'For Hire', 'Government', 'Exempt'];
+    if (!classification || !classification.trim()) {
+        if (classificationField) {
+            classificationField.classList.add('invalid');
+            showFieldError(classificationField, 'Please select a classification');
+        }
+        errors.push('Classification is required');
+        isValid = false;
+    } else if (!validClassifications.includes(classification)) {
+        if (classificationField) {
+            classificationField.classList.add('invalid');
+            showFieldError(classificationField, 'Invalid classification');
+        }
+        errors.push('Classification must be one of: Private, For Hire, Government, Exempt');
+        isValid = false;
+    } else if (classificationField) {
+        classificationField.classList.remove('invalid');
+        classificationField.classList.add('valid');
+        hideFieldError(classificationField);
     }
     
     // Validate VIN (17 characters, alphanumeric, no I, O, Q)
@@ -544,15 +649,29 @@ function updateReviewData() {
         selectedOption: vehicleTypeElement?.options[vehicleTypeElement?.selectedIndex]?.text
     });
 
-    // Map vehicle type value to display name (handle both PASSENGER and PASSENGER_CAR)
+    // Map vehicle type value to display name (handle both old and new formats)
     const vehicleTypeMap = {
         'PASSENGER_CAR': 'Passenger Car',
         'PASSENGER': 'Passenger Car', // Backward compatibility
+        'Car': 'Car',
         'MOTORCYCLE': 'Motorcycle',
+        'MC/TC': 'MC/TC (Motorcycle/Tricycle)',
         'UTILITY_VEHICLE': 'Utility Vehicle',
+        'UV': 'UV (Utility Vehicle)',
+        'SUV': 'SUV',
         'TRUCK': 'Truck',
-        'BUS': 'Bus'
+        'Truck': 'Truck',
+        'BUS': 'Bus',
+        'Bus': 'Bus',
+        'Trailer': 'Trailer'
     };
+    
+    // Get new LTO fields
+    const vehicleCategory = document.getElementById('vehicleCategory')?.value || '';
+    const passengerCapacity = document.getElementById('passengerCapacity')?.value || '';
+    const grossVehicleWeight = document.getElementById('grossVehicleWeight')?.value || '';
+    const netWeight = document.getElementById('netWeight')?.value || '';
+    const classification = document.getElementById('classification')?.value || '';
 
     // Safely update review elements with null checks
     const reviewMakeModel = document.getElementById('review-make-model');
@@ -1034,10 +1153,12 @@ function collectApplicationData() {
         engineNumber: document.getElementById('engineNumber')?.value || '',
         chassisNumber: document.getElementById('chassisNumber')?.value || '',
         plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
-        vehicleType: document.getElementById('vehicleType')?.value || 'PASSENGER_CAR',
-        fuelType: 'GASOLINE', // Default fuel type
-        transmission: 'AUTOMATIC', // Default transmission
-        engineDisplacement: '1.5L' // Default displacement
+        vehicleType: document.getElementById('vehicleType')?.value || 'Car',
+        vehicleCategory: document.getElementById('vehicleCategory')?.value || '',
+        passengerCapacity: parseInt(document.getElementById('passengerCapacity')?.value || 0),
+        grossVehicleWeight: parseFloat(document.getElementById('grossVehicleWeight')?.value || 0),
+        netWeight: parseFloat(document.getElementById('netWeight')?.value || 0),
+        classification: document.getElementById('classification')?.value || 'Private'
     };
     
     // Collect owner information

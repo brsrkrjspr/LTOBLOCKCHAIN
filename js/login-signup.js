@@ -432,19 +432,11 @@
                 const emailVerified = result.user?.emailVerified ?? result.user?.email_verified ?? false;
                 console.log('Email verified (normalized):', emailVerified);
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:457',message:'Email verification check',data:{emailVerified,isFalse:emailVerified===false,isUndefined:emailVerified===undefined,userExists:!!result.user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                // #endregion
-                
                 // Always redirect to verification prompt if emailVerified is false or undefined
                 // This ensures unverified users go to verification prompt
                 if (result.user && (emailVerified === false || emailVerified === undefined || !emailVerified)) {
                     // Email verification required - redirect to verification prompt
                     console.log('Email verification required for:', result.user.email);
-                    
-                    // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:465',message:'Email verification required branch',data:{userEmail:result.user.email,userId:result.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                    // #endregion
                     
                     // Store pending verification info in localStorage (DO NOT store tokens yet)
                     localStorage.setItem('pendingVerificationEmail', result.user.email);
@@ -455,15 +447,7 @@
                     // Verify it was stored
                     console.log('Stored pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
                     
-                    // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:477',message:'localStorage set before redirect',data:{storedEmail:localStorage.getItem('pendingVerificationEmail'),storedUserId:localStorage.getItem('pendingVerificationUserId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                    // #endregion
-                    
                     showNotification('Account created! Please check your email to verify your account.', 'success');
-                    
-                    // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:483',message:'Redirecting to verification prompt',data:{target:'email-verification-prompt.html'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                    // #endregion
                     
                     // Redirect to email verification prompt immediately (no delay to prevent form submission)
                         window.location.href = 'email-verification-prompt.html';
@@ -486,17 +470,11 @@
                     }, 1500);
                 }
             } else {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:500',message:'Signup failed branch',data:{error:result.error,details:result.details,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                // #endregion
                 showNotification(result.error || 'Registration failed. Please try again.', 'error');
             }
 
             return false; // Prevent form submission
         } catch (error) {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login-signup.js:507',message:'Signup catch block',data:{errorName:error.name,errorMessage:error.message,errorStack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             console.error('Registration error:', error);
             showNotification('Registration failed. Please try again.', 'error');
             return false;

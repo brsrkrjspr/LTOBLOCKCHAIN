@@ -496,6 +496,253 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
+/**
+ * Send email to seller when transfer is completed/approved
+ */
+async function sendTransferCompletionEmail({ to, sellerName, buyerName, vehicle, transferRequest, newOwner, blockchainTxId }) {
+    const subject = 'Vehicle Ownership Transfer Completed - TrustChain LTO';
+    
+    const safeSellerName = sellerName || 'Vehicle Owner';
+    const safeBuyerName = buyerName || 'the buyer';
+    
+    // Build comprehensive vehicle details
+    const vehicleDetails = [];
+    if (vehicle) {
+        if (vehicle.vin) vehicleDetails.push(`<strong>VIN:</strong> ${escapeHtml(vehicle.vin)}`);
+        if (vehicle.plate_number || vehicle.plateNumber) vehicleDetails.push(`<strong>Plate Number:</strong> ${escapeHtml(vehicle.plate_number || vehicle.plateNumber)}`);
+        if (vehicle.make) vehicleDetails.push(`<strong>Make:</strong> ${escapeHtml(vehicle.make)}`);
+        if (vehicle.model) vehicleDetails.push(`<strong>Model:</strong> ${escapeHtml(vehicle.model)}`);
+        if (vehicle.year) vehicleDetails.push(`<strong>Year:</strong> ${escapeHtml(vehicle.year.toString())}`);
+        if (vehicle.color) vehicleDetails.push(`<strong>Color:</strong> ${escapeHtml(vehicle.color)}`);
+        if (vehicle.engine_number) vehicleDetails.push(`<strong>Engine Number:</strong> ${escapeHtml(vehicle.engine_number)}`);
+        if (vehicle.chassis_number) vehicleDetails.push(`<strong>Chassis Number:</strong> ${escapeHtml(vehicle.chassis_number)}`);
+    }
+    
+    const vehicleDetailsHtml = vehicleDetails.length > 0 
+        ? vehicleDetails.join('<br>')
+        : 'Vehicle details not available';
+    
+    // Build buyer information
+    const buyerInfo = [];
+    if (newOwner) {
+        if (newOwner.first_name && newOwner.last_name) {
+            buyerInfo.push(`<strong>Name:</strong> ${escapeHtml(`${newOwner.first_name} ${newOwner.last_name}`)}`);
+        }
+        if (newOwner.email) {
+            buyerInfo.push(`<strong>Email:</strong> ${escapeHtml(newOwner.email)}`);
+        }
+    } else if (safeBuyerName && safeBuyerName !== 'the buyer') {
+        buyerInfo.push(`<strong>Name:</strong> ${escapeHtml(safeBuyerName)}`);
+    }
+    
+    const buyerInfoHtml = buyerInfo.length > 0 
+        ? buyerInfo.join('<br>')
+        : 'Buyer information not available';
+    
+    // Build transfer details
+    const transferDetails = [];
+    const transferDate = transferRequest?.reviewed_at || transferRequest?.updated_at || new Date().toISOString();
+    transferDetails.push(`<strong>Transfer Date:</strong> ${escapeHtml(new Date(transferDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))}`);
+    if (transferRequest?.id) {
+        transferDetails.push(`<strong>Transfer Request ID:</strong> ${escapeHtml(transferRequest.id.substring(0, 8))}...`);
+    }
+    if (blockchainTxId) {
+        transferDetails.push(`<strong>Blockchain Transaction ID:</strong> ${escapeHtml(blockchainTxId)}`);
+    }
+    
+    const transferDetailsHtml = transferDetails.join('<br>');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 30px -30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            color: #333333;
+        }
+        .vehicle-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .buyer-info {
+            background-color: #e8f5e9;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .transfer-info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box {
+            background-color: #e8f5e9;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #7f8c8d;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>✅ Vehicle Ownership Transfer Completed</h1>
+        </div>
+        <div class="content">
+            <p>Dear ${escapeHtml(safeSellerName)},</p>
+            
+            <p>We are pleased to inform you that your vehicle ownership transfer has been successfully completed and approved by the LTO administration.</p>
+            
+            <div class="vehicle-info">
+                <strong>Vehicle Details:</strong><br>
+                ${vehicleDetailsHtml}
+            </div>
+            
+            <div class="buyer-info">
+                <strong>New Owner Information:</strong><br>
+                ${buyerInfoHtml}
+            </div>
+            
+            <div class="transfer-info">
+                <strong>Transfer Details:</strong><br>
+                ${transferDetailsHtml}
+            </div>
+            
+            <div class="info-box">
+                <strong>📋 Important Information:</strong><br>
+                The ownership transfer has been recorded on the blockchain and is now complete. You are no longer the registered owner of this vehicle. The new owner can now access and manage this vehicle through their TrustChain LTO account.
+            </div>
+            
+            <p>Thank you for using the TrustChain LTO System. If you have any questions or concerns, please contact our support team.</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br><strong>TrustChain LTO System</strong></p>
+            <p style="font-size: 12px; color: #95a5a6;">This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `.trim();
+
+    // Build text version
+    const textDetails = [];
+    if (vehicle) {
+        if (vehicle.vin) textDetails.push(`VIN: ${vehicle.vin}`);
+        if (vehicle.plate_number || vehicle.plateNumber) textDetails.push(`Plate Number: ${vehicle.plate_number || vehicle.plateNumber}`);
+        if (vehicle.make) textDetails.push(`Make: ${vehicle.make}`);
+        if (vehicle.model) textDetails.push(`Model: ${vehicle.model}`);
+        if (vehicle.year) textDetails.push(`Year: ${vehicle.year}`);
+        if (vehicle.color) textDetails.push(`Color: ${vehicle.color}`);
+        if (vehicle.engine_number) textDetails.push(`Engine Number: ${vehicle.engine_number}`);
+        if (vehicle.chassis_number) textDetails.push(`Chassis Number: ${vehicle.chassis_number}`);
+    }
+    
+    const buyerTextInfo = [];
+    if (newOwner) {
+        if (newOwner.first_name && newOwner.last_name) {
+            buyerTextInfo.push(`Name: ${newOwner.first_name} ${newOwner.last_name}`);
+        }
+        if (newOwner.email) {
+            buyerTextInfo.push(`Email: ${newOwner.email}`);
+        }
+    } else if (safeBuyerName && safeBuyerName !== 'the buyer') {
+        buyerTextInfo.push(`Name: ${safeBuyerName}`);
+    }
+    
+    const transferTextDetails = [];
+    transferTextDetails.push(`Transfer Date: ${new Date(transferDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`);
+    if (transferRequest?.id) {
+        transferTextDetails.push(`Transfer Request ID: ${transferRequest.id.substring(0, 8)}...`);
+    }
+    if (blockchainTxId) {
+        transferTextDetails.push(`Blockchain Transaction ID: ${blockchainTxId}`);
+    }
+
+    const text = `
+Vehicle Ownership Transfer Completed - TrustChain LTO
+
+Dear ${safeSellerName},
+
+We are pleased to inform you that your vehicle ownership transfer has been successfully completed and approved by the LTO administration.
+
+Vehicle Details:
+${textDetails.length > 0 ? textDetails.join('\n') : 'Vehicle details not available'}
+
+New Owner Information:
+${buyerTextInfo.length > 0 ? buyerTextInfo.join('\n') : 'Buyer information not available'}
+
+Transfer Details:
+${transferTextDetails.join('\n')}
+
+Important Information:
+The ownership transfer has been recorded on the blockchain and is now complete. You are no longer the registered owner of this vehicle. The new owner can now access and manage this vehicle through their TrustChain LTO account.
+
+Thank you for using the TrustChain LTO System. If you have any questions or concerns, please contact our support team.
+
+Best regards,
+TrustChain LTO System
+`.trim();
+
+    try {
+        const result = await sendMail({ to, subject, text, html });
+        console.log('✅ Transfer completion email sent to seller via Gmail API:', {
+            messageId: result.id,
+            threadId: result.threadId,
+            to,
+            subject
+        });
+        return { success: true, messageId: result.id };
+    } catch (error) {
+        console.error('❌ Failed to send transfer completion email to seller via Gmail API:', error);
+        throw error;
+    }
+}
+
 // Create transfer request (owner submits)
 // NEW: Accepts explicit document roles in documents object and buyerEmail (Option A - email invite)
 // LEGACY: Still supports documentIds array and buyerId/buyerInfo for backward compatibility
@@ -1718,6 +1965,25 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         
         // Get updated request
         const updatedRequest = await db.getTransferRequestById(id);
+        
+        // Send email notification to seller
+        if (previousOwner && previousOwner.email) {
+            try {
+                await sendTransferCompletionEmail({
+                    to: previousOwner.email,
+                    sellerName: `${previousOwner.first_name} ${previousOwner.last_name}`,
+                    buyerName: newOwner ? `${newOwner.first_name} ${newOwner.last_name}` : 'Unknown',
+                    vehicle: vehicle,
+                    transferRequest: updatedRequest,
+                    newOwner: newOwner,
+                    blockchainTxId: blockchainTxId
+                });
+                console.log('✅ Transfer completion email sent to seller:', previousOwner.email);
+            } catch (emailError) {
+                console.error('❌ Failed to send transfer completion email:', emailError);
+                // Don't fail the request if email fails
+            }
+        }
         
         res.json({
             success: true,

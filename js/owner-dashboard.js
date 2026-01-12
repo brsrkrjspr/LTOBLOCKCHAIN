@@ -829,6 +829,11 @@ async function loadOwnerTransferRequests() {
         const currentUserEmail = currentUser.email;
         
         const userRequests = response.requests.filter(r => {
+            // Exclude finalized/completed requests
+            if (['APPROVED', 'REJECTED', 'COMPLETED'].includes(r.status)) {
+                return false;
+            }
+            
             // User is seller
             if (r.seller_id === currentUserId || r.seller_email === currentUserEmail) {
                 return true;

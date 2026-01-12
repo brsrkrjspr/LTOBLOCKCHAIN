@@ -54,6 +54,7 @@ cd ~/LTOBLOCKCHAIN
 - `role` (user_role ENUM, NOT NULL, DEFAULT 'vehicle_owner')
 - `organization` (VARCHAR(255))
 - `phone` (VARCHAR(20))
+- `address` (VARCHAR(500) or TEXT) - Physical address
 - `is_active` (BOOLEAN, DEFAULT true)
 - `email_verified` (BOOLEAN, DEFAULT false)
 - `two_factor_enabled` (BOOLEAN, DEFAULT false)
@@ -463,7 +464,7 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "\l"
 docker exec postgres psql -U lto_user -d lto_blockchain -c "\dt"
 
 # List all tables with row counts
-docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT schemaname, tablename, n_tup_ins as inserts, n_tup_upd as updates, n_live_tup as rows FROM pg_stat_user_tables ORDER BY tablename;"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT schemaname, relname as tablename, n_tup_ins as inserts, n_tup_upd as updates, n_live_tup as rows FROM pg_stat_user_tables ORDER BY relname;"
 
 # List all tables with detailed info
 docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
@@ -480,6 +481,9 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT table_name, c
 
 # View all tables with their column counts
 docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT table_name, COUNT(*) as column_count FROM information_schema.columns WHERE table_schema = 'public' GROUP BY table_name ORDER BY table_name;"
+
+# Verify address column exists in users table
+docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT column_name, data_type, character_maximum_length, is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'address';"
 ```
 
 ### 4. Users Table
@@ -489,7 +493,7 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT table_name, C
 docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT COUNT(*) as total_users FROM users;"
 
 # List all users (without password hashes)
-docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT id, email, first_name, last_name, role, organization, is_active, email_verified, created_at FROM users ORDER BY created_at;"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT id, email, first_name, last_name, role, organization, phone, address, is_active, email_verified, created_at FROM users ORDER BY created_at;"
 
 # Count users by role
 docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT role, COUNT(*) as count FROM users GROUP BY role ORDER BY count DESC;"
@@ -498,7 +502,7 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT role, COUNT(*
 docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT email, role, email_verified, is_active FROM users ORDER BY role, email;"
 
 # Check specific user accounts
-docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT email, first_name, last_name, role, organization, is_active, email_verified FROM users WHERE email IN ('admin@lto.gov.ph', 'insurance@lto.gov.ph', 'emission@lto.gov.ph', 'staff@lto.gov.ph', 'owner@example.com') ORDER BY email;"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT email, first_name, last_name, role, organization, phone, address, is_active, email_verified FROM users WHERE email IN ('admin@lto.gov.ph', 'insurance@lto.gov.ph', 'emission@lto.gov.ph', 'staff@lto.gov.ph', 'owner@example.com') ORDER BY email;"
 ```
 
 ### 5. Vehicles Table
@@ -770,6 +774,20 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT 'Users: ' || 
 
 ---
 
+## Address Column Migration
+
+**Important:** If the address column is missing from the `users` table, run this migration:
+
+```bash
+# Add address column to users table (if missing)
+docker exec postgres psql -U lto_user -d lto_blockchain -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS address VARCHAR(500);"
+
+# Verify the column was added
+docker exec postgres psql -U lto_user -d lto_blockchain -c "\d users"
+```
+
+**Note:** This migration should also be added to `database/init-laptop.sql` for new installations.
+
 ## Database Functions
 
 ### Cleanup Functions
@@ -783,6 +801,162 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT 'Users: ' || 
 - `update_transfer_requests_updated_at()` - Updates `updated_at` for transfer_requests
 
 ---
+
+## Complete Database Inspection (Single Command)
+
+**Copy and paste this single command to inspect everything in the database:**
+
+```bash
+docker exec postgres psql -U lto_user -d lto_blockchain << 'COMPLETE_INSPECTION'
+-- ============================================
+-- COMPLETE DATABASE INSPECTION
+-- ============================================
+
+\echo '========================================'
+\echo 'DATABASE CONNECTION & BASIC INFO'
+\echo '========================================'
+SELECT version() as postgresql_version;
+SELECT pg_size_pretty(pg_database_size('lto_blockchain')) as database_size;
+
+\echo ''
+\echo '========================================'
+\echo 'TABLES & VIEWS LIST'
+\echo '========================================'
+SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_type, table_name;
+
+\echo ''
+\echo '========================================'
+\echo 'TABLE ROW COUNTS'
+\echo '========================================'
+SELECT schemaname, relname as tablename, n_live_tup as row_count FROM pg_stat_user_tables ORDER BY relname;
+
+\echo ''
+\echo '========================================'
+\echo 'USERS TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_users FROM users;
+SELECT email, first_name, last_name, role, organization, phone, address, is_active, email_verified, created_at FROM users ORDER BY created_at;
+SELECT role, COUNT(*) as count, COUNT(CASE WHEN email_verified = true THEN 1 END) as verified, COUNT(CASE WHEN is_active = true THEN 1 END) as active FROM users GROUP BY role ORDER BY role;
+
+\echo ''
+\echo '========================================'
+\echo 'VEHICLES TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_vehicles FROM vehicles;
+SELECT status, COUNT(*) as count FROM vehicles GROUP BY status ORDER BY status;
+SELECT v.vin, v.plate_number, v.make, v.model, v.year, v.status, u.email as owner_email, u.first_name || ' ' || u.last_name as owner_name FROM vehicles v LEFT JOIN users u ON v.owner_id = u.id ORDER BY v.registration_date DESC LIMIT 10;
+
+\echo ''
+\echo '========================================'
+\echo 'TRANSFER REQUESTS TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_transfers FROM transfer_requests;
+SELECT status, COUNT(*) as count FROM transfer_requests GROUP BY status ORDER BY status;
+SELECT tr.id, v.vin, v.plate_number, tr.status, tr.submitted_at, seller.email as seller_email, buyer.email as buyer_email FROM transfer_requests tr JOIN vehicles v ON tr.vehicle_id = v.id LEFT JOIN users seller ON tr.seller_id = seller.id LEFT JOIN users buyer ON tr.buyer_id = buyer.id ORDER BY tr.submitted_at DESC LIMIT 10;
+
+\echo ''
+\echo '========================================'
+\echo 'CLEARANCE REQUESTS TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_clearances FROM clearance_requests;
+SELECT request_type, status, COUNT(*) as count FROM clearance_requests GROUP BY request_type, status ORDER BY request_type, status;
+
+\echo ''
+\echo '========================================'
+\echo 'DOCUMENTS TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_documents FROM documents;
+SELECT document_type, COUNT(*) as count, COUNT(CASE WHEN verified = true THEN 1 END) as verified_count FROM documents GROUP BY document_type ORDER BY count DESC;
+
+\echo ''
+\echo '========================================'
+\echo 'VEHICLE HISTORY TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_history FROM vehicle_history;
+SELECT action, COUNT(*) as count FROM vehicle_history GROUP BY action ORDER BY count DESC LIMIT 10;
+
+\echo ''
+\echo '========================================'
+\echo 'CERTIFICATES TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_certificates FROM certificates;
+SELECT certificate_type, status, COUNT(*) as count FROM certificates GROUP BY certificate_type, status ORDER BY certificate_type, status;
+
+\echo ''
+\echo '========================================'
+\echo 'AUTHENTICATION TABLES'
+\echo '========================================'
+SELECT COUNT(*) as total_tokens, COUNT(CASE WHEN expires_at > CURRENT_TIMESTAMP THEN 1 END) as active_tokens FROM refresh_tokens;
+SELECT COUNT(*) as total_sessions, COUNT(CASE WHEN expires_at > CURRENT_TIMESTAMP THEN 1 END) as active_sessions FROM sessions;
+SELECT COUNT(*) as total_blacklisted_tokens FROM token_blacklist;
+SELECT COUNT(*) as total_verification_tokens FROM email_verification_tokens;
+
+\echo ''
+\echo '========================================'
+\echo 'NOTIFICATIONS TABLE'
+\echo '========================================'
+SELECT COUNT(*) as total_notifications, COUNT(CASE WHEN read = false THEN 1 END) as unread_notifications FROM notifications;
+
+\echo ''
+\echo '========================================'
+\echo 'USERS TABLE SCHEMA'
+\echo '========================================'
+SELECT column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' ORDER BY ordinal_position;
+
+\echo ''
+\echo '========================================'
+\echo 'ADDRESS COLUMN VERIFICATION'
+\echo '========================================'
+SELECT column_name, data_type, character_maximum_length, is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'address';
+
+\echo ''
+\echo '========================================'
+\echo 'INDEXES'
+\echo '========================================'
+SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' ORDER BY tablename, indexname;
+
+\echo ''
+\echo '========================================'
+\echo 'FOREIGN KEY CONSTRAINTS'
+\echo '========================================'
+SELECT tc.table_name, kcu.column_name, ccu.table_name AS foreign_table_name, ccu.column_name AS foreign_column_name FROM information_schema.table_constraints AS tc JOIN information_schema.key_column_usage AS kcu ON tc.constraint_name = kcu.constraint_name JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public' ORDER BY tc.table_name, kcu.column_name LIMIT 20;
+
+\echo ''
+\echo '========================================'
+\echo 'TRIGGERS'
+\echo '========================================'
+SELECT trigger_name, event_object_table, action_statement FROM information_schema.triggers WHERE trigger_schema = 'public' ORDER BY event_object_table, trigger_name;
+
+\echo ''
+\echo '========================================'
+\echo 'EXTENSIONS'
+\echo '========================================'
+SELECT extname, extversion FROM pg_extension ORDER BY extname;
+
+\echo ''
+\echo '========================================'
+\echo 'COMPLETE SUMMARY'
+\echo '========================================'
+SELECT 'Users' as table_name, COUNT(*)::text as count FROM users
+UNION ALL SELECT 'Vehicles', COUNT(*)::text FROM vehicles
+UNION ALL SELECT 'Transfer Requests', COUNT(*)::text FROM transfer_requests
+UNION ALL SELECT 'Clearance Requests', COUNT(*)::text FROM clearance_requests
+UNION ALL SELECT 'Documents', COUNT(*)::text FROM documents
+UNION ALL SELECT 'Certificates', COUNT(*)::text FROM certificates
+UNION ALL SELECT 'Vehicle History', COUNT(*)::text FROM vehicle_history
+UNION ALL SELECT 'Notifications', COUNT(*)::text FROM notifications
+UNION ALL SELECT 'Refresh Tokens', COUNT(*)::text FROM refresh_tokens
+UNION ALL SELECT 'Sessions', COUNT(*)::text FROM sessions
+ORDER BY table_name;
+
+\echo ''
+\echo '========================================'
+\echo 'INSPECTION COMPLETE'
+\echo '========================================'
+COMPLETE_INSPECTION
+```
+
+**Usage:** Simply copy the entire command block above and paste it into your SSH terminal. It will display all database information in a structured format.
 
 ## Last Updated
 

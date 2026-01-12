@@ -61,7 +61,7 @@ This document provides a comprehensive summary of all database tables, columns, 
 | `role` | user_role | NOT NULL, DEFAULT 'vehicle_owner' | User role (ENUM) |
 | `organization` | VARCHAR(255) | | Organization name |
 | `phone` | VARCHAR(20) | | Phone number |
-| `address` | TEXT | | Physical address |
+| `address` | VARCHAR(500) or TEXT | | Physical address (may need migration if missing) |
 | `is_active` | BOOLEAN | DEFAULT true | Account active status |
 | `email_verified` | BOOLEAN | DEFAULT false | Email verification status |
 | `two_factor_enabled` | BOOLEAN | DEFAULT false | 2FA enabled flag |
@@ -602,6 +602,11 @@ Key migrations applied:
 6. `add-pending-blockchain-status.sql` - PENDING_BLOCKCHAIN status
 7. `add-new-document-types.sql` - Extended document types
 8. `fix-transaction-id-length.sql` - Extended transaction_id to VARCHAR(255)
+
+**Note:** The `address` column in the `users` table may be missing in some installations. If needed, run:
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS address VARCHAR(500);
+```
 
 ---
 

@@ -807,154 +807,91 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "\d users"
 **Copy and paste this single command to inspect everything in the database:**
 
 ```bash
-docker exec postgres psql -U lto_user -d lto_blockchain << 'COMPLETE_INSPECTION'
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
 -- ============================================
 -- COMPLETE DATABASE INSPECTION
 -- ============================================
 
-\echo '========================================'
-\echo 'DATABASE CONNECTION & BASIC INFO'
-\echo '========================================'
-SELECT version() as postgresql_version;
-SELECT pg_size_pretty(pg_database_size('lto_blockchain')) as database_size;
+-- DATABASE CONNECTION & BASIC INFO
+SELECT 'PostgreSQL Version' as info, version() as value;
+SELECT 'Database Size' as info, pg_size_pretty(pg_database_size('lto_blockchain')) as value;
 
-\echo ''
-\echo '========================================'
-\echo 'TABLES & VIEWS LIST'
-\echo '========================================'
-SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_type, table_name;
+-- TABLES & VIEWS LIST
+SELECT 'Tables & Views' as section, table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_type, table_name;
 
-\echo ''
-\echo '========================================'
-\echo 'TABLE ROW COUNTS'
-\echo '========================================'
-SELECT schemaname, relname as tablename, n_live_tup as row_count FROM pg_stat_user_tables ORDER BY relname;
+-- TABLE ROW COUNTS
+SELECT 'Row Counts' as section, schemaname, relname as tablename, n_live_tup as row_count FROM pg_stat_user_tables ORDER BY relname;
 
-\echo ''
-\echo '========================================'
-\echo 'USERS TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_users FROM users;
-SELECT email, first_name, last_name, role, organization, phone, address, is_active, email_verified, created_at FROM users ORDER BY created_at;
-SELECT role, COUNT(*) as count, COUNT(CASE WHEN email_verified = true THEN 1 END) as verified, COUNT(CASE WHEN is_active = true THEN 1 END) as active FROM users GROUP BY role ORDER BY role;
+-- USERS TABLE
+SELECT 'Users Count' as info, COUNT(*)::text as value FROM users;
+SELECT 'Users List' as section, email, first_name, last_name, role, organization, phone, COALESCE(address, 'NULL') as address, is_active, email_verified FROM users ORDER BY created_at;
+SELECT 'Users by Role' as section, role, COUNT(*) as count, COUNT(CASE WHEN email_verified = true THEN 1 END) as verified, COUNT(CASE WHEN is_active = true THEN 1 END) as active FROM users GROUP BY role ORDER BY role;
 
-\echo ''
-\echo '========================================'
-\echo 'VEHICLES TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_vehicles FROM vehicles;
-SELECT status, COUNT(*) as count FROM vehicles GROUP BY status ORDER BY status;
-SELECT v.vin, v.plate_number, v.make, v.model, v.year, v.status, u.email as owner_email, u.first_name || ' ' || u.last_name as owner_name FROM vehicles v LEFT JOIN users u ON v.owner_id = u.id ORDER BY v.registration_date DESC LIMIT 10;
+-- ADDRESS COLUMN VERIFICATION
+SELECT 'Address Column Status' as section, 
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'address') 
+        THEN 'EXISTS' 
+        ELSE 'MISSING - Run migration: ALTER TABLE users ADD COLUMN address VARCHAR(500);'
+    END as status;
 
-\echo ''
-\echo '========================================'
-\echo 'TRANSFER REQUESTS TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_transfers FROM transfer_requests;
-SELECT status, COUNT(*) as count FROM transfer_requests GROUP BY status ORDER BY status;
-SELECT tr.id, v.vin, v.plate_number, tr.status, tr.submitted_at, seller.email as seller_email, buyer.email as buyer_email FROM transfer_requests tr JOIN vehicles v ON tr.vehicle_id = v.id LEFT JOIN users seller ON tr.seller_id = seller.id LEFT JOIN users buyer ON tr.buyer_id = buyer.id ORDER BY tr.submitted_at DESC LIMIT 10;
+-- VEHICLES TABLE
+SELECT 'Vehicles Count' as info, COUNT(*)::text as value FROM vehicles;
+SELECT 'Vehicles by Status' as section, status, COUNT(*) as count FROM vehicles GROUP BY status ORDER BY status;
+SELECT 'Recent Vehicles' as section, v.vin, v.plate_number, v.make, v.model, v.year, v.status, u.email as owner_email FROM vehicles v LEFT JOIN users u ON v.owner_id = u.id ORDER BY v.registration_date DESC LIMIT 10;
 
-\echo ''
-\echo '========================================'
-\echo 'CLEARANCE REQUESTS TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_clearances FROM clearance_requests;
-SELECT request_type, status, COUNT(*) as count FROM clearance_requests GROUP BY request_type, status ORDER BY request_type, status;
+-- TRANSFER REQUESTS
+SELECT 'Transfer Requests Count' as info, COUNT(*)::text as value FROM transfer_requests;
+SELECT 'Transfers by Status' as section, status, COUNT(*) as count FROM transfer_requests GROUP BY status ORDER BY status;
+SELECT 'Recent Transfers' as section, tr.id, v.vin, v.plate_number, tr.status, tr.submitted_at, seller.email as seller_email, buyer.email as buyer_email FROM transfer_requests tr JOIN vehicles v ON tr.vehicle_id = v.id LEFT JOIN users seller ON tr.seller_id = seller.id LEFT JOIN users buyer ON tr.buyer_id = buyer.id ORDER BY tr.submitted_at DESC LIMIT 10;
 
-\echo ''
-\echo '========================================'
-\echo 'DOCUMENTS TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_documents FROM documents;
-SELECT document_type, COUNT(*) as count, COUNT(CASE WHEN verified = true THEN 1 END) as verified_count FROM documents GROUP BY document_type ORDER BY count DESC;
+-- CLEARANCE REQUESTS
+SELECT 'Clearance Requests Count' as info, COUNT(*)::text as value FROM clearance_requests;
+SELECT 'Clearances by Type/Status' as section, request_type, status, COUNT(*) as count FROM clearance_requests GROUP BY request_type, status ORDER BY request_type, status;
 
-\echo ''
-\echo '========================================'
-\echo 'VEHICLE HISTORY TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_history FROM vehicle_history;
-SELECT action, COUNT(*) as count FROM vehicle_history GROUP BY action ORDER BY count DESC LIMIT 10;
+-- DOCUMENTS
+SELECT 'Documents Count' as info, COUNT(*)::text as value FROM documents;
+SELECT 'Documents by Type' as section, document_type, COUNT(*) as count, COUNT(CASE WHEN verified = true THEN 1 END) as verified_count FROM documents GROUP BY document_type ORDER BY count DESC;
 
-\echo ''
-\echo '========================================'
-\echo 'CERTIFICATES TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_certificates FROM certificates;
-SELECT certificate_type, status, COUNT(*) as count FROM certificates GROUP BY certificate_type, status ORDER BY certificate_type, status;
+-- VEHICLE HISTORY
+SELECT 'History Count' as info, COUNT(*)::text as value FROM vehicle_history;
+SELECT 'History by Action' as section, action, COUNT(*) as count FROM vehicle_history GROUP BY action ORDER BY count DESC LIMIT 10;
 
-\echo ''
-\echo '========================================'
-\echo 'AUTHENTICATION TABLES'
-\echo '========================================'
-SELECT COUNT(*) as total_tokens, COUNT(CASE WHEN expires_at > CURRENT_TIMESTAMP THEN 1 END) as active_tokens FROM refresh_tokens;
-SELECT COUNT(*) as total_sessions, COUNT(CASE WHEN expires_at > CURRENT_TIMESTAMP THEN 1 END) as active_sessions FROM sessions;
-SELECT COUNT(*) as total_blacklisted_tokens FROM token_blacklist;
-SELECT COUNT(*) as total_verification_tokens FROM email_verification_tokens;
+-- CERTIFICATES
+SELECT 'Certificates Count' as info, COUNT(*)::text as value FROM certificates;
+SELECT 'Certificates by Type/Status' as section, certificate_type, status, COUNT(*) as count FROM certificates GROUP BY certificate_type, status ORDER BY certificate_type, status;
 
-\echo ''
-\echo '========================================'
-\echo 'NOTIFICATIONS TABLE'
-\echo '========================================'
-SELECT COUNT(*) as total_notifications, COUNT(CASE WHEN read = false THEN 1 END) as unread_notifications FROM notifications;
+-- AUTHENTICATION TABLES
+SELECT 'Refresh Tokens' as info, COUNT(*)::text || ' total, ' || COUNT(CASE WHEN expires_at > CURRENT_TIMESTAMP THEN 1 END)::text || ' active' as value FROM refresh_tokens;
+SELECT 'Sessions' as info, COUNT(*)::text || ' total, ' || COUNT(CASE WHEN expires_at > CURRENT_TIMESTAMP THEN 1 END)::text || ' active' as value FROM sessions;
+SELECT 'Blacklisted Tokens' as info, COUNT(*)::text as value FROM token_blacklist;
+SELECT 'Verification Tokens' as info, COUNT(*)::text as value FROM email_verification_tokens;
 
-\echo ''
-\echo '========================================'
-\echo 'USERS TABLE SCHEMA'
-\echo '========================================'
-SELECT column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' ORDER BY ordinal_position;
+-- NOTIFICATIONS
+SELECT 'Notifications' as info, COUNT(*)::text || ' total, ' || COUNT(CASE WHEN read = false THEN 1 END)::text || ' unread' as value FROM notifications;
 
-\echo ''
-\echo '========================================'
-\echo 'ADDRESS COLUMN VERIFICATION'
-\echo '========================================'
-SELECT column_name, data_type, character_maximum_length, is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'address';
+-- USERS TABLE SCHEMA
+SELECT 'Users Schema' as section, column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' ORDER BY ordinal_position;
 
-\echo ''
-\echo '========================================'
-\echo 'INDEXES'
-\echo '========================================'
-SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' ORDER BY tablename, indexname;
+-- INDEXES
+SELECT 'Indexes' as section, tablename, indexname FROM pg_indexes WHERE schemaname = 'public' ORDER BY tablename, indexname;
 
-\echo ''
-\echo '========================================'
-\echo 'FOREIGN KEY CONSTRAINTS'
-\echo '========================================'
-SELECT tc.table_name, kcu.column_name, ccu.table_name AS foreign_table_name, ccu.column_name AS foreign_column_name FROM information_schema.table_constraints AS tc JOIN information_schema.key_column_usage AS kcu ON tc.constraint_name = kcu.constraint_name JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public' ORDER BY tc.table_name, kcu.column_name LIMIT 20;
+-- EXTENSIONS
+SELECT 'Extensions' as section, extname, extversion FROM pg_extension ORDER BY extname;
 
-\echo ''
-\echo '========================================'
-\echo 'TRIGGERS'
-\echo '========================================'
-SELECT trigger_name, event_object_table, action_statement FROM information_schema.triggers WHERE trigger_schema = 'public' ORDER BY event_object_table, trigger_name;
-
-\echo ''
-\echo '========================================'
-\echo 'EXTENSIONS'
-\echo '========================================'
-SELECT extname, extversion FROM pg_extension ORDER BY extname;
-
-\echo ''
-\echo '========================================'
-\echo 'COMPLETE SUMMARY'
-\echo '========================================'
-SELECT 'Users' as table_name, COUNT(*)::text as count FROM users
-UNION ALL SELECT 'Vehicles', COUNT(*)::text FROM vehicles
-UNION ALL SELECT 'Transfer Requests', COUNT(*)::text FROM transfer_requests
-UNION ALL SELECT 'Clearance Requests', COUNT(*)::text FROM clearance_requests
-UNION ALL SELECT 'Documents', COUNT(*)::text FROM documents
-UNION ALL SELECT 'Certificates', COUNT(*)::text FROM certificates
-UNION ALL SELECT 'Vehicle History', COUNT(*)::text FROM vehicle_history
-UNION ALL SELECT 'Notifications', COUNT(*)::text FROM notifications
-UNION ALL SELECT 'Refresh Tokens', COUNT(*)::text FROM refresh_tokens
-UNION ALL SELECT 'Sessions', COUNT(*)::text FROM sessions
+-- COMPLETE SUMMARY
+SELECT 'SUMMARY' as section, 'Users' as table_name, COUNT(*)::text as count FROM users
+UNION ALL SELECT 'SUMMARY', 'Vehicles', COUNT(*)::text FROM vehicles
+UNION ALL SELECT 'SUMMARY', 'Transfer Requests', COUNT(*)::text FROM transfer_requests
+UNION ALL SELECT 'SUMMARY', 'Clearance Requests', COUNT(*)::text FROM clearance_requests
+UNION ALL SELECT 'SUMMARY', 'Documents', COUNT(*)::text FROM documents
+UNION ALL SELECT 'SUMMARY', 'Certificates', COUNT(*)::text FROM certificates
+UNION ALL SELECT 'SUMMARY', 'Vehicle History', COUNT(*)::text FROM vehicle_history
+UNION ALL SELECT 'SUMMARY', 'Notifications', COUNT(*)::text FROM notifications
+UNION ALL SELECT 'SUMMARY', 'Refresh Tokens', COUNT(*)::text FROM refresh_tokens
+UNION ALL SELECT 'SUMMARY', 'Sessions', COUNT(*)::text FROM sessions
 ORDER BY table_name;
-
-\echo ''
-\echo '========================================'
-\echo 'INSPECTION COMPLETE'
-\echo '========================================'
-COMPLETE_INSPECTION
-```
+"
 
 **Usage:** Simply copy the entire command block above and paste it into your SSH terminal. It will display all database information in a structured format.
 

@@ -104,6 +104,7 @@ function populateProfileForm(user) {
     document.getElementById('email').value = user.email || '';
     document.getElementById('phone').value = user.phone || '';
     document.getElementById('organization').value = user.organization || '';
+    document.getElementById('address').value = user.address || '';
 }
 
 // Update profile display (avatar, name, etc.)
@@ -178,7 +179,8 @@ async function handleProfileSubmit(e) {
             firstName: document.getElementById('firstName').value.trim(),
             lastName: document.getElementById('lastName').value.trim(),
             phone: document.getElementById('phone').value.trim() || null,
-            organization: document.getElementById('organization').value.trim() || null
+            organization: document.getElementById('organization').value.trim() || null,
+            address: document.getElementById('address').value.trim() || null
         };
         
         // Validate
@@ -203,6 +205,7 @@ async function handleProfileSubmit(e) {
                 userInfo.lastName = response.user.lastName;
                 userInfo.phone = response.user.phone;
                 userInfo.organization = response.user.organization;
+                userInfo.address = response.user.address;
                 AuthUtils.updateUser(userInfo);
             }
         } else {

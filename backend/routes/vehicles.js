@@ -10,6 +10,52 @@ const QRCode = require('qrcode');
 const { sendEmail } = require('./notifications');
 const { sendMail } = require('../services/gmailApiService');
 
+/**
+ * Safely serialize metadata to avoid circular references and large objects
+ */
+function createSafeRegistrationMetadata(registrationData, vehicle, owner) {
+    try {
+        return {
+            timestamp: new Date().toISOString(),
+            vehicleVin: vehicle?.vin || null,
+            vehiclePlateNumber: vehicle?.plateNumber || null,
+            vehicleMake: vehicle?.make || null,
+            vehicleModel: vehicle?.model || null,
+            ownerEmail: owner?.email || null,
+            ownerName: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null,
+            hasDocuments: !!(registrationData?.documents && Object.keys(registrationData.documents).length > 0),
+            documentCount: registrationData?.documents ? Object.keys(registrationData.documents).length : 0,
+            documentTypes: registrationData?.documents ? Object.keys(registrationData.documents) : []
+        };
+    } catch (error) {
+        console.error('Error creating safe metadata:', error);
+        return {
+            timestamp: new Date().toISOString(),
+            error: 'Failed to serialize metadata'
+        };
+    }
+}
+
+/**
+ * Safely serialize blockchain metadata
+ */
+function createSafeBlockchainMetadata(blockchainResult, txStatus) {
+    try {
+        return {
+            transactionId: blockchainResult?.transactionId || null,
+            status: txStatus?.status || null,
+            timestamp: new Date().toISOString(),
+            success: blockchainResult?.success !== false
+        };
+    } catch (error) {
+        console.error('Error creating safe blockchain metadata:', error);
+        return {
+            timestamp: new Date().toISOString(),
+            error: 'Failed to serialize blockchain metadata'
+        };
+    }
+}
+
 // Get all vehicles (admin only)
 router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
@@ -1031,15 +1077,30 @@ router.post('/register', optionalAuth, async (req, res) => {
             originType: 'NEW_REG'
         });
 
-        // Add to history
-        await db.addVehicleHistory({
-            vehicleId: newVehicle.id,
-            action: 'REGISTERED',
-            description: 'Vehicle registration submitted',
-            performedBy: ownerUser.id,
-            transactionId: null,
-            metadata: { registrationData }
-        });
+        // Validate vehicle was created successfully
+        if (!newVehicle || !newVehicle.id) {
+            console.error('❌ Vehicle creation failed: newVehicle is missing or invalid');
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to create vehicle record'
+            });
+        }
+
+        // Add to history with safe metadata
+        try {
+            const safeMetadata = createSafeRegistrationMetadata(registrationData, vehicle, owner);
+            await db.addVehicleHistory({
+                vehicleId: newVehicle.id,
+                action: 'REGISTERED',
+                description: 'Vehicle registration submitted',
+                performedBy: ownerUser.id,
+                transactionId: null,
+                metadata: safeMetadata
+            });
+        } catch (historyError) {
+            console.error('❌ Failed to add vehicle history:', historyError);
+            // Don't fail registration if history fails - log and continue
+        }
         
         // Link uploaded documents to vehicle and collect CIDs for blockchain
         const documentCids = {};
@@ -1047,16 +1108,8 @@ router.post('/register', optionalAuth, async (req, res) => {
             // Use documentTypes config to map frontend keys to database types
             const docTypes = require('../config/documentTypes');
             
-            // Validate ownerUser exists before processing documents
-            if (!ownerUser || !ownerUser.id) {
-                console.error('❌ Cannot link documents: ownerUser is missing or invalid');
-                return res.status(500).json({
-                    success: false,
-                    error: 'Owner user account is required for document linking'
-                });
-            }
-            
             // Process all documents from registrationData
+            // Note: ownerUser is already validated at line 971, no need to check again
             for (const [frontendKey, docData] of Object.entries(registrationData.documents)) {
                 // Validate docData is an object
                 if (!docData || typeof docData !== 'object') {
@@ -1275,7 +1328,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                             description: 'Vehicle registered on blockchain (awaiting admin approval)',
                             performedBy: ownerUser.id,
                             transactionId: blockchainTxId,
-                            metadata: { blockchainResult, txStatus }
+                            metadata: createSafeBlockchainMetadata(blockchainResult, txStatus)
                         });
                     } else {
                         // Transaction pending, keep PENDING_BLOCKCHAIN status
@@ -1285,7 +1338,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                             description: `Vehicle registration submitted to blockchain (status: ${txStatus.status})`,
                             performedBy: ownerUser.id,
                             transactionId: blockchainTxId,
-                            metadata: { blockchainResult, txStatus }
+                            metadata: createSafeBlockchainMetadata(blockchainResult, txStatus)
                         });
                     }
                 } catch (pollError) {
@@ -1299,7 +1352,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                         description: 'Vehicle registered on blockchain (status polling unavailable, awaiting admin approval)',
                         performedBy: ownerUser.id,
                         transactionId: blockchainTxId,
-                        metadata: { blockchainResult, pollingError: pollError.message }
+                        metadata: createSafeBlockchainMetadata(blockchainResult, { status: 'unknown', error: pollError.message })
                     });
                 }
             } else {
@@ -1311,7 +1364,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                     description: 'Vehicle registration submitted (blockchain registration not attempted)',
                     performedBy: ownerUser.id,
                     transactionId: null,
-                    metadata: { registrationData }
+                    metadata: createSafeRegistrationMetadata(registrationData, vehicle, owner)
                 });
             }
             
@@ -1332,10 +1385,37 @@ router.post('/register', optionalAuth, async (req, res) => {
             });
         }
 
-        // Get full vehicle data
-        const fullVehicle = await db.getVehicleById(newVehicle.id);
-        fullVehicle.verifications = await db.getVehicleVerifications(newVehicle.id);
-        fullVehicle.documents = await db.getDocumentsByVehicle(newVehicle.id);
+        // Get full vehicle data with error handling
+        let fullVehicle;
+        try {
+            fullVehicle = await db.getVehicleById(newVehicle.id);
+            if (!fullVehicle) {
+                throw new Error('Vehicle not found after creation');
+            }
+            
+            // Safely get verifications and documents
+            try {
+                fullVehicle.verifications = await db.getVehicleVerifications(newVehicle.id);
+            } catch (verifError) {
+                console.error('❌ Failed to get vehicle verifications:', verifError);
+                fullVehicle.verifications = [];
+            }
+            
+            try {
+                fullVehicle.documents = await db.getDocumentsByVehicle(newVehicle.id);
+            } catch (docError) {
+                console.error('❌ Failed to get vehicle documents:', docError);
+                fullVehicle.documents = [];
+            }
+        } catch (vehicleError) {
+            console.error('❌ Failed to retrieve vehicle data:', vehicleError);
+            // Return error - vehicle was created but we can't retrieve it
+            return res.status(500).json({
+                success: false,
+                error: 'Vehicle registration completed but failed to retrieve vehicle data',
+                vehicleId: newVehicle.id
+            });
+        }
 
         // Send email notification to owner (using Gmail API like transfer of ownership)
         try {

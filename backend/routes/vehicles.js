@@ -1174,7 +1174,6 @@ router.post('/register', optionalAuth, async (req, res) => {
                     console.error(`   Document data:`, docData);
                     // Continue even if document linking fails - vehicle registration can proceed without documents
                 }
-                }
             }
         } else {
             console.warn('⚠️ No documents provided in registration data - vehicle will be registered without documents');

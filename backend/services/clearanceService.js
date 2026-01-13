@@ -3,6 +3,8 @@
 
 const db = require('../database/services');
 const dbModule = require('../database/db');
+const docTypes = require('../config/documentTypes');
+const hpgDatabaseService = require('./hpgDatabaseService');
 
 /**
  * Automatically send clearance requests to all required organizations
@@ -28,13 +30,25 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         // Get all documents for the vehicle
         const allDocuments = await db.getDocumentsByVehicle(vehicleId);
 
-        // 1. Send to HPG (requires: hpg_clearance or registration_cert or owner_id)
-        const hasHPGDocs = allDocuments.some(d => 
-            d.document_type === 'hpg_clearance' ||
-            d.document_type === 'registration_cert' || 
-            d.document_type === 'owner_id' ||
-            (documents && (documents.hpgClearance || documents.registrationCert || documents.ownerId))
-        );
+        // 1. Send to HPG (requires: hpg_clearance, csr, or owner_id documents)
+        // Use document type mapping to properly detect documents
+        const hasHPGDocs = allDocuments.some(d => {
+            // Map document type to logical type
+            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+            return logicalType === 'hpgClearance' || 
+                   logicalType === 'csr' || 
+                   logicalType === 'ownerId' ||
+                   d.document_type === 'hpg_clearance' ||
+                   d.document_type === 'csr' ||
+                   d.document_type === 'owner_id';
+        }) || (documents && (
+            documents.pnpHpgClearance || 
+            documents.certificateOfStockReport || 
+            documents.ownerValidId ||
+            documents.hpgClearance ||
+            documents.csr ||
+            documents.ownerId
+        ));
 
         if (hasHPGDocs) {
             try {
@@ -49,12 +63,17 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         }
 
         // 2. Send to Insurance (requires: insurance_cert)
-        const hasInsuranceDoc = allDocuments.some(d => 
-            d.document_type === 'insurance_cert' ||
-            d.document_type === 'insuranceCert' ||
-            d.document_type === 'insurance' ||
-            (documents && documents.insuranceCert)
-        );
+        // Use document type mapping to properly detect documents
+        const hasInsuranceDoc = allDocuments.some(d => {
+            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+            return logicalType === 'insuranceCert' ||
+                   d.document_type === 'insurance_cert' ||
+                   d.document_type === 'insurance';
+        }) || (documents && (
+            documents.insuranceCertificate ||
+            documents.insuranceCert ||
+            documents.insurance
+        ));
 
         if (hasInsuranceDoc) {
             try {
@@ -69,12 +88,16 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         }
 
         // 3. Send to Emission (requires: emission_cert)
-        const hasEmissionDoc = allDocuments.some(d => 
-            d.document_type === 'emission_cert' ||
-            d.document_type === 'emissionCert' ||
-            d.document_type === 'emission' ||
-            (documents && documents.emissionCert)
-        );
+        // Use document type mapping to properly detect documents
+        const hasEmissionDoc = allDocuments.some(d => {
+            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+            return logicalType === 'emissionCert' ||
+                   d.document_type === 'emission_cert' ||
+                   d.document_type === 'emission';
+        }) || (documents && (
+            documents.emissionCert ||
+            documents.emission
+        ));
 
         if (hasEmissionDoc) {
             try {
@@ -152,33 +175,47 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         };
     }
 
-    // Find HPG admin user
+    // Find HPG admin user (HPG admin has role='admin' with organization='Highway Patrol Group')
     const hpgAdmins = await dbModule.query(
-        "SELECT id FROM users WHERE role = 'hpg_admin' AND is_active = true LIMIT 1"
+        "SELECT id FROM users WHERE role = 'admin' AND (organization = 'Highway Patrol Group' OR email LIKE '%hpg%') AND is_active = true LIMIT 1"
     );
     const assignedTo = hpgAdmins.rows[0]?.id || null;
 
-    // Filter HPG-relevant documents (hpg_clearance, registration_cert, owner_id, or_cr)
-    const hpgDocuments = allDocuments.filter(d => 
-        d.document_type === 'hpg_clearance' ||
-        d.document_type === 'hpgClearance' ||
-        d.document_type === 'registration_cert' ||
-        d.document_type === 'owner_id' ||
-        d.document_type === 'or_cr' ||
-        d.document_type === 'registrationCert' ||
-        d.document_type === 'ownerId' ||
-        d.document_type === 'orCr'
-    );
+    // Filter HPG-relevant documents using document type mapping
+    // HPG needs: hpg_clearance, csr (Certificate of Stock Report), owner_id
+    const hpgDocuments = allDocuments.filter(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'hpgClearance' || 
+               logicalType === 'csr' || 
+               logicalType === 'ownerId' ||
+               d.document_type === 'hpg_clearance' ||
+               d.document_type === 'csr' ||
+               d.document_type === 'owner_id' ||
+               d.document_type === 'or_cr' ||
+               d.document_type === 'registration_cert';
+    });
 
-    const ownerIdDoc = hpgDocuments.find(d => 
-        d.document_type === 'owner_id' || d.document_type === 'ownerId'
-    );
-    const orCrDoc = hpgDocuments.find(d => 
-        d.document_type === 'or_cr' || d.document_type === 'orCr'
-    );
-    const registrationCertDoc = hpgDocuments.find(d => 
-        d.document_type === 'registration_cert' || d.document_type === 'registrationCert'
-    );
+    // Find documents using logical type mapping
+    const ownerIdDoc = hpgDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'ownerId' || d.document_type === 'owner_id';
+    });
+    const orCrDoc = hpgDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'registrationCert' || d.document_type === 'or_cr' || d.document_type === 'registration_cert';
+    });
+    const registrationCertDoc = hpgDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'registrationCert' || d.document_type === 'registration_cert';
+    });
+    const csrDoc = hpgDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'csr' || d.document_type === 'csr';
+    });
+    const hpgClearanceDoc = hpgDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'hpgClearance' || d.document_type === 'hpg_clearance';
+    });
 
     // Create clearance request
     const clearanceRequest = await db.createClearanceRequest({
@@ -208,6 +245,14 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
             orCrDocFilename: orCrDoc?.original_name || null,
             registrationCertDocId: registrationCertDoc?.id || null,
             registrationCertDocCid: registrationCertDoc?.ipfs_cid || null,
+            csrDocId: csrDoc?.id || null,
+            csrDocCid: csrDoc?.ipfs_cid || null,
+            csrDocPath: csrDoc?.file_path || null,
+            csrDocFilename: csrDoc?.original_name || null,
+            hpgClearanceDocId: hpgClearanceDoc?.id || null,
+            hpgClearanceDocCid: hpgClearanceDoc?.ipfs_cid || null,
+            hpgClearanceDocPath: hpgClearanceDoc?.file_path || null,
+            hpgClearanceDocFilename: hpgClearanceDoc?.original_name || null,
             documents: hpgDocuments.map(d => ({
                 id: d.id,
                 type: d.document_type,
@@ -241,54 +286,168 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
 
     console.log(`[Auto-Send→HPG] Request created: ${clearanceRequest.id}`);
 
-    // Trigger pre-verification for HPG (extract data, but always requires manual inspection)
+    // Detect if this is a transfer of ownership or new registration
+    const isTransfer = clearanceRequest.metadata?.transferRequestId || 
+                       clearanceRequest.purpose?.toLowerCase().includes('transfer');
+    
+    console.log(`[Auto-Send→HPG] Request type: ${isTransfer ? 'TRANSFER' : 'NEW_REGISTRATION'}`);
+
+    // PHASE 1 AUTOMATION: OCR Extraction (for transfers only) and Database Check (for both)
     let autoVerificationResult = null;
-    if (hpgDocuments.length > 0) {
+    let databaseCheckResult = null;
+    let extractedData = {};
+
+    // Step 1: OCR Extraction (only for transfers - they have existing OR/CR documents)
+    if (isTransfer && orCrDoc) {
         try {
-            const autoVerificationService = require('./autoVerificationService');
-            autoVerificationResult = await autoVerificationService.preVerifyHPG(
-                vehicleId,
-                hpgDocuments,
-                vehicle
+            const ocrService = require('./ocrService');
+            const fs = require('fs').promises;
+            
+            // Check if file exists
+            const orCrPath = orCrDoc.file_path || orCrDoc.filePath;
+            if (orCrPath) {
+                try {
+                    await fs.access(orCrPath);
+                    
+                    const orCrMimeType = orCrDoc.mime_type || orCrDoc.mimeType || 'application/pdf';
+                    const ownerIdPath = ownerIdDoc?.file_path || ownerIdDoc?.filePath;
+                    const ownerIdMimeType = ownerIdDoc?.mime_type || ownerIdDoc?.mimeType;
+                    
+                    // Extract HPG info from OR/CR document
+                    extractedData = await ocrService.extractHPGInfo(
+                        orCrPath,
+                        ownerIdPath || null,
+                        orCrMimeType,
+                        ownerIdMimeType || null
+                    );
+                    
+                    console.log(`[Auto-Send→HPG] OCR extracted data:`, {
+                        engineNumber: extractedData.engineNumber,
+                        chassisNumber: extractedData.chassisNumber,
+                        plateNumber: extractedData.plateNumber
+                    });
+                    
+                    // Compare extracted data with vehicle record
+                    const dataMatch = {
+                        engineNumber: extractedData.engineNumber && vehicle.engine_number ? 
+                                     extractedData.engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim() : null,
+                        chassisNumber: extractedData.chassisNumber && vehicle.chassis_number ? 
+                                      extractedData.chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim() : null,
+                        plateNumber: extractedData.plateNumber && vehicle.plate_number ? 
+                                    extractedData.plateNumber.toUpperCase().replace(/\s+/g, ' ').trim() === vehicle.plate_number.toUpperCase().replace(/\s+/g, ' ').trim() : null
+                    };
+                    
+                    console.log(`[Auto-Send→HPG] Data match results:`, dataMatch);
+                    
+                    // Add data matching results to extracted data
+                    extractedData.dataMatch = dataMatch;
+                    extractedData.ocrExtracted = true;
+                    extractedData.ocrExtractedAt = new Date().toISOString();
+                    
+                } catch (fileError) {
+                    console.warn(`[Auto-Send→HPG] OR/CR file not accessible: ${fileError.message}`);
+                }
+            }
+        } catch (ocrError) {
+            console.error('[Auto-Send→HPG] OCR extraction error:', ocrError);
+            // Continue without OCR data
+        }
+    } else if (!isTransfer) {
+        // For new registrations, use vehicle metadata (already in clearance request)
+        extractedData = {
+            engineNumber: vehicle.engine_number,
+            chassisNumber: vehicle.chassis_number,
+            plateNumber: vehicle.plate_number,
+            vin: vehicle.vin,
+            ocrExtracted: false,
+            source: 'vehicle_metadata'
+        };
+        console.log(`[Auto-Send→HPG] Using vehicle metadata (new registration)`);
+    }
+
+    // Step 2: Automated Database Check (for both new registrations and transfers)
+    try {
+        databaseCheckResult = await hpgDatabaseService.checkVehicle({
+            plateNumber: vehicle.plate_number,
+            engineNumber: vehicle.engine_number,
+            chassisNumber: vehicle.chassis_number,
+            vin: vehicle.vin
+        });
+        
+        // Store database check result
+        await hpgDatabaseService.storeCheckResult(clearanceRequest.id, databaseCheckResult);
+        
+        console.log(`[Auto-Send→HPG] Database check result:`, databaseCheckResult.status);
+        
+        // If vehicle is flagged, add warning to notes
+        if (databaseCheckResult.status === 'FLAGGED') {
+            const flaggedNote = `⚠️ WARNING: Vehicle found in HPG hot list. ${databaseCheckResult.details}`;
+            await dbModule.query(
+                `UPDATE clearance_requests SET notes = COALESCE(notes || E'\n', '') || $1 WHERE id = $2`,
+                [flaggedNote, clearanceRequest.id]
             );
             
-            console.log(`[Auto-Verify→HPG] Pre-verification complete. Can pre-fill: ${autoVerificationResult.canPreFill}`);
-            
-            // Store extracted data in clearance request metadata for pre-filling HPG form
-            if (autoVerificationResult.extractedData && Object.keys(autoVerificationResult.extractedData).length > 0) {
-                const updatedMetadata = {
-                    ...clearanceRequest.metadata,
-                    extractedData: autoVerificationResult.extractedData
-                };
-                
-                await dbModule.query(
-                    `UPDATE clearance_requests SET metadata = $1 WHERE id = $2`,
-                    [JSON.stringify(updatedMetadata), clearanceRequest.id]
-                );
+            // Create urgent notification for HPG admin
+            if (assignedTo) {
+                await db.createNotification({
+                    userId: assignedTo,
+                    title: '⚠️ URGENT: Vehicle Flagged in HPG Database',
+                    message: `Vehicle ${vehicle.plate_number || vehicle.vin} found in HPG hot list. Immediate review required.`,
+                    type: 'warning'
+                });
             }
-            
-            // Add pre-verification result to history
-            await db.addVehicleHistory({
-                vehicleId,
-                action: 'HPG_PRE_VERIFIED',
-                description: `HPG documents pre-verified. Extracted engine: ${autoVerificationResult.extractedData?.engineNumber || 'N/A'}, chassis: ${autoVerificationResult.extractedData?.chassisNumber || 'N/A'}`,
-                performedBy: requestedBy,
-                transactionId: null,
-                metadata: {
-                    clearanceRequestId: clearanceRequest.id,
-                    autoVerificationResult
-                }
-            });
-        } catch (autoVerifyError) {
-            console.error('[Auto-Verify→HPG] Error:', autoVerifyError);
-            // Don't fail clearance request creation if pre-verification fails
         }
+    } catch (dbCheckError) {
+        console.error('[Auto-Send→HPG] Database check error:', dbCheckError);
+        // Continue without database check result
     }
+
+    // Step 3: Update metadata with extracted data and database check results
+    const updatedMetadata = {
+        ...clearanceRequest.metadata,
+        ...(Object.keys(extractedData).length > 0 && { extractedData }),
+        ...(databaseCheckResult && { hpgDatabaseCheck: databaseCheckResult }),
+        automationPhase1: {
+            completed: true,
+            completedAt: new Date().toISOString(),
+            isTransfer,
+            ocrExtracted: isTransfer && Object.keys(extractedData).length > 0,
+            databaseChecked: !!databaseCheckResult
+        }
+    };
+    
+    await dbModule.query(
+        `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [JSON.stringify(updatedMetadata), clearanceRequest.id]
+    );
+
+    // Add automation history entry
+    await db.addVehicleHistory({
+        vehicleId,
+        action: 'HPG_AUTOMATION_PHASE1',
+        description: `HPG Phase 1 automation completed. ${isTransfer ? 'OCR extracted' : 'Metadata used'}, Database: ${databaseCheckResult?.status || 'ERROR'}`,
+        performedBy: requestedBy,
+        transactionId: null,
+        metadata: {
+            clearanceRequestId: clearanceRequest.id,
+            isTransfer,
+            extractedData: Object.keys(extractedData).length > 0 ? extractedData : null,
+            databaseCheckResult
+        }
+    });
 
     return {
         sent: true,
         requestId: clearanceRequest.id,
-        autoVerification: autoVerificationResult
+        automation: {
+            phase1: {
+                completed: true,
+                isTransfer,
+                ocrExtracted: isTransfer && Object.keys(extractedData).length > 0,
+                databaseChecked: !!databaseCheckResult,
+                databaseStatus: databaseCheckResult?.status || 'ERROR'
+            }
+        }
     };
 }
 
@@ -318,13 +477,14 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy) {
     );
     const assignedTo = insuranceVerifiers.rows[0]?.id || null;
 
-    // Get insurance document only
-    const insuranceDoc = allDocuments.find(d => 
-        d.document_type === 'insurance_cert' || 
-        d.document_type === 'insuranceCert' ||
-        d.document_type === 'insurance' ||
-        (d.original_name && d.original_name.toLowerCase().includes('insurance'))
-    );
+    // Get insurance document using document type mapping
+    const insuranceDoc = allDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'insuranceCert' ||
+               d.document_type === 'insurance_cert' ||
+               d.document_type === 'insurance' ||
+               (d.original_name && d.original_name.toLowerCase().includes('insurance'));
+    });
 
     const insuranceDocuments = insuranceDoc ? [{
         id: insuranceDoc.id,
@@ -454,13 +614,14 @@ async function sendToEmission(vehicleId, vehicle, allDocuments, requestedBy) {
     );
     const assignedTo = emissionVerifiers.rows[0]?.id || null;
 
-    // Get emission document only
-    const emissionDoc = allDocuments.find(d => 
-        d.document_type === 'emission_cert' || 
-        d.document_type === 'emissionCert' ||
-        d.document_type === 'emission' ||
-        (d.original_name && d.original_name.toLowerCase().includes('emission'))
-    );
+    // Get emission document using document type mapping
+    const emissionDoc = allDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'emissionCert' ||
+               d.document_type === 'emission_cert' ||
+               d.document_type === 'emission' ||
+               (d.original_name && d.original_name.toLowerCase().includes('emission'));
+    });
 
     const emissionDocuments = emissionDoc ? [{
         id: emissionDoc.id,

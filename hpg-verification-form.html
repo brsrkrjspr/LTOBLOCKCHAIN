@@ -1142,6 +1142,81 @@
                         </div>
                     </div>
 
+                    <!-- STEP 3.5: Auto-Verify Option (Hybrid Phase 2/3) -->
+                    <div class="dashboard-card verification-step" id="autoVerifyCard" style="display: none; margin-top: 1.5rem; border: 2px dashed #3498db;">
+                        <div class="card-header">
+                            <h3><i class="fas fa-magic"></i> Quick Auto-Verify (Optional)</h3>
+                            <span class="step-badge" style="background-color: #3498db;">One-Click</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="step-description">Use automated verification to speed up the process. All results require human review and approval.</p>
+                            
+                            <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                                <button type="button" class="btn-primary btn-lg" id="autoVerifyBtn" onclick="runAutoVerify()" style="flex: 1;">
+                                    <i class="fas fa-bolt"></i> Run Auto-Verify
+                                </button>
+                                <button type="button" class="btn-secondary" onclick="skipAutoVerify()" style="flex: 0 0 auto;">
+                                    <i class="fas fa-forward"></i> Skip to Manual
+                                </button>
+                            </div>
+                            
+                            <!-- Auto-Verify Results Panel -->
+                            <div id="autoVerifyResults" style="display: none; margin-top: 1.5rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #3498db;">
+                                <h4 style="margin-top: 0; color: #3498db;">
+                                    <i class="fas fa-chart-line"></i> Auto-Verification Results
+                                </h4>
+                                
+                                <!-- Confidence Score -->
+                                <div id="confidenceScoreDisplay" style="margin: 1rem 0;">
+                                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                        <strong>Confidence Score:</strong>
+                                        <div id="confidenceScoreValue" style="font-size: 1.5rem; font-weight: bold; color: #10b981;">-</div>
+                                        <div id="confidenceScoreBar" style="flex: 1; height: 20px; background-color: #e5e7eb; border-radius: 10px; overflow: hidden;">
+                                            <div id="confidenceScoreFill" style="height: 100%; background-color: #10b981; width: 0%; transition: width 0.3s;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Recommendation -->
+                                <div id="recommendationDisplay" style="margin: 1rem 0; padding: 1rem; border-radius: 4px;">
+                                    <strong>Recommendation:</strong>
+                                    <div id="recommendationValue" style="margin-top: 0.5rem; font-size: 1.1rem; font-weight: bold;">-</div>
+                                    <div id="recommendationReason" style="margin-top: 0.5rem; color: #6b7280; font-size: 0.9em;">-</div>
+                                </div>
+                                
+                                <!-- Score Breakdown -->
+                                <div id="scoreBreakdown" style="margin: 1rem 0;">
+                                    <strong>Score Breakdown:</strong>
+                                    <div id="scoreBreakdownDetails" style="margin-top: 0.5rem; font-size: 0.9em;">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Pre-filled Data -->
+                                <div id="preFilledDataDisplay" style="margin: 1rem 0;">
+                                    <strong>Pre-filled Verification Data:</strong>
+                                    <div id="preFilledDataDetails" style="margin-top: 0.5rem; padding: 1rem; background-color: white; border-radius: 4px;">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                                    <button type="button" class="btn-secondary" onclick="useAutoVerifyData()" id="useAutoVerifyBtn">
+                                        <i class="fas fa-check"></i> Use Auto-Verify Data
+                                    </button>
+                                    <button type="button" class="btn-secondary" onclick="ignoreAutoVerify()">
+                                        <i class="fas fa-times"></i> Ignore & Continue Manually
+                                    </button>
+                                </div>
+                                
+                                <div style="margin-top: 1rem; padding: 0.75rem; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 0.9em;">
+                                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> Auto-verify results require human review. Final approval is still required.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- STEP 4: Issue Clearance -->
                     <div class="dashboard-card verification-step" id="step4Card" style="display: none;">
                         <div class="card-header">
@@ -1686,8 +1761,15 @@
                 btn.innerHTML = '<i class="fas fa-search"></i> Re-check Database';
                 btn.disabled = false;
 
-                // Show step 4
-                document.getElementById('step4Card').style.display = 'block';
+                // Show auto-verify card (if not already shown) and step 4
+                const autoVerifyCard = document.getElementById('autoVerifyCard');
+                if (autoVerifyCard && !autoVerifyCard.dataset.shown) {
+                    autoVerifyCard.style.display = 'block';
+                    autoVerifyCard.dataset.shown = 'true';
+                }
+                
+                // Show step 4 (but user can use auto-verify first)
+                // document.getElementById('step4Card').style.display = 'block';
                 
                 // Enable/disable clearance button based on result
                 canIssueClearance = result.canIssueClearance;
@@ -1828,6 +1910,243 @@
         }
 
         // Reject/Deny Clearance
+        // Auto-Verify Functions (Hybrid Phase 2/3)
+        async function runAutoVerify() {
+            const requestId = document.getElementById('requestId')?.value || HPGVerification?.currentRequestId;
+            if (!requestId) {
+                alert('No request selected. Please select a request first.');
+                return;
+            }
+
+            const autoVerifyBtn = document.getElementById('autoVerifyBtn');
+            if (autoVerifyBtn) {
+                autoVerifyBtn.disabled = true;
+                autoVerifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Auto-Verify...';
+            }
+
+            try {
+                const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
+                if (!apiClient) {
+                    throw new Error('API client not available');
+                }
+
+                const response = await apiClient.post('/api/hpg/verify/auto-verify', {
+                    requestId: requestId
+                });
+
+                if (response && response.success && response.autoVerify) {
+                    // Store results globally for use later
+                    autoVerifyResults = response.autoVerify;
+                    displayAutoVerifyResults(response.autoVerify);
+                    
+                    // Show success notification
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show(`Auto-verification completed. Confidence: ${response.autoVerify.confidenceScore}%`, 'success');
+                    }
+                } else {
+                    throw new Error(response?.error || 'Auto-verification failed');
+                }
+            } catch (error) {
+                console.error('Auto-verify error:', error);
+                alert('Failed to run auto-verification: ' + error.message);
+            } finally {
+                if (autoVerifyBtn) {
+                    autoVerifyBtn.disabled = false;
+                    autoVerifyBtn.innerHTML = '<i class="fas fa-bolt"></i> Run Auto-Verify';
+                }
+            }
+        }
+
+        function displayAutoVerifyResults(autoVerify) {
+            const resultsPanel = document.getElementById('autoVerifyResults');
+            if (!resultsPanel) return;
+
+            // Show results panel
+            resultsPanel.style.display = 'block';
+
+            // Display confidence score
+            const scoreValue = document.getElementById('confidenceScoreValue');
+            const scoreFill = document.getElementById('confidenceScoreFill');
+            if (scoreValue && scoreFill) {
+                const score = autoVerify.confidenceScore || 0;
+                scoreValue.textContent = score + '%';
+                
+                // Color based on score
+                let scoreColor = '#10b981'; // Green
+                if (score < 40) scoreColor = '#ef4444'; // Red
+                else if (score < 60) scoreColor = '#f59e0b'; // Orange
+                else if (score < 80) scoreColor = '#3b82f6'; // Blue
+                
+                scoreValue.style.color = scoreColor;
+                scoreFill.style.backgroundColor = scoreColor;
+                scoreFill.style.width = score + '%';
+            }
+
+            // Display recommendation
+            const recommendationValue = document.getElementById('recommendationValue');
+            const recommendationReason = document.getElementById('recommendationReason');
+            const recommendationDisplay = document.getElementById('recommendationDisplay');
+            
+            if (recommendationValue && recommendationReason && recommendationDisplay) {
+                const recommendation = autoVerify.recommendation || 'MANUAL_REVIEW';
+                let recText = '';
+                let recColor = '#6b7280';
+                
+                if (recommendation === 'AUTO_APPROVE') {
+                    recText = '✓ AUTO-APPROVE';
+                    recColor = '#10b981';
+                } else if (recommendation === 'REVIEW') {
+                    recText = '⚠ REVIEW RECOMMENDED';
+                    recColor = '#3b82f6';
+                } else if (recommendation === 'AUTO_REJECT') {
+                    recText = '✗ AUTO-REJECT';
+                    recColor = '#ef4444';
+                } else {
+                    recText = '📋 MANUAL REVIEW REQUIRED';
+                    recColor = '#f59e0b';
+                }
+                
+                recommendationValue.textContent = recText;
+                recommendationValue.style.color = recColor;
+                recommendationReason.textContent = autoVerify.recommendationReason || '';
+                recommendationDisplay.style.backgroundColor = recColor === '#ef4444' ? '#fee2e2' : 
+                                                           recColor === '#10b981' ? '#d1fae5' : 
+                                                           recColor === '#3b82f6' ? '#dbeafe' : '#fef3c7';
+                recommendationDisplay.style.borderLeft = `4px solid ${recColor}`;
+            }
+
+            // Display score breakdown
+            const scoreBreakdownDetails = document.getElementById('scoreBreakdownDetails');
+            if (scoreBreakdownDetails && autoVerify.scoreBreakdown) {
+                const breakdown = autoVerify.scoreBreakdown;
+                scoreBreakdownDetails.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div>Database Check:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.databaseCheck || 0} pts</div>
+                        <div>Data Match:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.dataMatch || 0} pts</div>
+                        <div>Document Completeness:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.documentCompleteness || 0} pts</div>
+                        <div>Vehicle Type:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.vehicleType || 0} pts</div>
+                        ${breakdown.ocrQuality ? `
+                        <div>OCR Quality:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.ocrQuality} pts</div>
+                        ` : ''}
+                        <div style="border-top: 1px solid #e5e7eb; padding-top: 0.5rem; font-weight: bold;">Total:</div>
+                        <div style="border-top: 1px solid #e5e7eb; padding-top: 0.5rem; text-align: right; font-weight: bold; font-size: 1.1em;">${breakdown.total || 0} pts</div>
+                    </div>
+                `;
+            }
+
+            // Display pre-filled data
+            const preFilledDataDetails = document.getElementById('preFilledDataDetails');
+            if (preFilledDataDetails && autoVerify.preFilledData) {
+                const preFilled = autoVerify.preFilledData;
+                preFilledDataDetails.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <div><strong>Engine Number:</strong></div>
+                        <div>${preFilled.engineNumber || 'N/A'}</div>
+                        <div><strong>Chassis Number:</strong></div>
+                        <div>${preFilled.chassisNumber || 'N/A'}</div>
+                        <div><strong>Macro-Etching:</strong></div>
+                        <div>${preFilled.macroEtching ? 'Yes' : 'No (requires manual check)'}</div>
+                        <div><strong>Remarks:</strong></div>
+                        <div>${preFilled.remarks || 'N/A'}</div>
+                    </div>
+                `;
+            }
+
+            // Enable/disable use button based on recommendation
+            const useBtn = document.getElementById('useAutoVerifyBtn');
+            if (useBtn) {
+                if (autoVerify.recommendation === 'AUTO_REJECT') {
+                    useBtn.disabled = true;
+                    useBtn.innerHTML = '<i class="fas fa-ban"></i> Cannot Use (Auto-Reject)';
+                    useBtn.className = 'btn-danger';
+                } else {
+                    useBtn.disabled = false;
+                    useBtn.className = 'btn-primary';
+                }
+            }
+        }
+
+        // Store auto-verify results globally
+        let autoVerifyResults = null;
+
+        function useAutoVerifyData() {
+            if (!autoVerifyResults || !autoVerifyResults.preFilledData) {
+                alert('Auto-verify data not available. Please run auto-verify first.');
+                return;
+            }
+
+            if (confirm('Use auto-verify data to pre-fill the verification form? You can still edit the fields before final approval.')) {
+                const preFilled = autoVerifyResults.preFilledData;
+                
+                // Pre-fill engine and chassis numbers
+                const engineNumberEl = document.getElementById('engineNumber');
+                const chassisNumberEl = document.getElementById('chassisNumber');
+                const remarksEl = document.getElementById('remarks');
+
+                if (engineNumberEl && preFilled.engineNumber) {
+                    engineNumberEl.value = preFilled.engineNumber;
+                    engineNumberEl.style.backgroundColor = '#e8f5e9';
+                    engineNumberEl.title = 'Auto-filled from auto-verify';
+                }
+
+                if (chassisNumberEl && preFilled.chassisNumber) {
+                    chassisNumberEl.value = preFilled.chassisNumber;
+                    chassisNumberEl.style.backgroundColor = '#e8f5e9';
+                    chassisNumberEl.title = 'Auto-filled from auto-verify';
+                }
+
+                // Pre-fill remarks
+                if (remarksEl && preFilled.remarks) {
+                    remarksEl.value = preFilled.remarks;
+                }
+
+                // Show Step 4
+                const step4Card = document.getElementById('step4Card');
+                if (step4Card) {
+                    step4Card.style.display = 'block';
+                }
+
+                // Show success notification
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Auto-verify data applied. Please review and approve.', 'success');
+                }
+
+                // Scroll to Step 4
+                step4Card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function ignoreAutoVerify() {
+            const resultsPanel = document.getElementById('autoVerifyResults');
+            if (resultsPanel) {
+                resultsPanel.style.display = 'none';
+            }
+            // Proceed to Step 4 for manual verification
+            const step4Card = document.getElementById('step4Card');
+            if (step4Card) {
+                step4Card.style.display = 'block';
+                step4Card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function skipAutoVerify() {
+            // Hide auto-verify card and show Step 4
+            const autoVerifyCard = document.getElementById('autoVerifyCard');
+            if (autoVerifyCard) {
+                autoVerifyCard.style.display = 'none';
+            }
+            const step4Card = document.getElementById('step4Card');
+            if (step4Card) {
+                step4Card.style.display = 'block';
+                step4Card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
         function rejectVerification() {
             document.getElementById('rejectModal').classList.add('active');
         }

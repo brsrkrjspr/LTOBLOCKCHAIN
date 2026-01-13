@@ -44,8 +44,11 @@ router.get('/requests', authenticateToken, authorizeRole(['admin']), async (req,
         
         let requests;
         if (status) {
-            requests = await db.getClearanceRequestsByStatus(status);
+            // When status is provided, get by status then filter to HPG only
+            const allRequests = await db.getClearanceRequestsByStatus(status);
+            requests = allRequests.filter(r => r.request_type === 'hpg');
         } else {
+            // Get all HPG requests regardless of status
             requests = await db.getClearanceRequestsByType('hpg');
         }
 
@@ -91,8 +94,19 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admi
         const metadata = request.metadata || {};
         const documents = metadata.documents || [];
         
+        // Extract Phase 1 automation data for auto-fill
+        const extractedData = metadata.extractedData || {};
+        const databaseCheck = metadata.hpgDatabaseCheck || null;
+        const automationPhase1 = metadata.automationPhase1 || null;
+
         console.log(`[HPG] Returning ${documents.length} document(s) from metadata (filtered by LTO)`);
         console.log(`[HPG] Document types: ${documents.map(d => d.type).join(', ')}`);
+        console.log(`[HPG] Phase 1 automation:`, {
+            completed: automationPhase1?.completed || false,
+            ocrExtracted: automationPhase1?.ocrExtracted || false,
+            databaseChecked: automationPhase1?.databaseChecked || false,
+            databaseStatus: databaseCheck?.status || 'N/A'
+        });
 
         res.json({
             success: true,
@@ -109,7 +123,13 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admi
                     organization: owner.organization
                 } : null,
                 certificates: documents, // Return filtered documents as certificates
-                documents: documents // Also include as documents for consistency
+                documents: documents, // Also include as documents for consistency
+                // Phase 1 automation data for auto-fill
+                automation: {
+                    phase1: automationPhase1,
+                    extractedData: Object.keys(extractedData).length > 0 ? extractedData : null,
+                    databaseCheck: databaseCheck
+                }
             }
         });
 
@@ -118,6 +138,196 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admi
         res.status(500).json({
             success: false,
             error: 'Failed to get HPG request: ' + error.message
+        });
+    }
+});
+
+// Auto-verify HPG clearance (Phase 2/3 Hybrid - One-click with human oversight)
+router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
+    try {
+        const { requestId } = req.body;
+        
+        if (!requestId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Request ID is required'
+            });
+        }
+
+        const clearanceRequest = await db.getClearanceRequestById(requestId);
+        if (!clearanceRequest || clearanceRequest.request_type !== 'hpg') {
+            return res.status(404).json({
+                success: false,
+                error: 'HPG clearance request not found'
+            });
+        }
+
+        const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        const metadata = typeof clearanceRequest.metadata === 'string' 
+            ? JSON.parse(clearanceRequest.metadata) 
+            : (clearanceRequest.metadata || {});
+
+        // Get Phase 1 automation data
+        const extractedData = metadata.extractedData || {};
+        const databaseCheck = metadata.hpgDatabaseCheck || null;
+        const dataMatch = extractedData.dataMatch || {};
+        const isTransfer = metadata.transferRequestId || clearanceRequest.purpose?.toLowerCase().includes('transfer');
+
+        // Calculate confidence score (0-100)
+        let confidenceScore = 0;
+        const scoreBreakdown = {
+            databaseCheck: 0,
+            dataMatch: 0,
+            documentCompleteness: 0,
+            vehicleType: 0,
+            total: 0
+        };
+
+        // 1. Database Check (30 points max)
+        if (databaseCheck) {
+            if (databaseCheck.status === 'CLEAN') {
+                scoreBreakdown.databaseCheck = 30;
+            } else if (databaseCheck.status === 'FLAGGED') {
+                scoreBreakdown.databaseCheck = -100; // Auto-reject if flagged
+            } else {
+                scoreBreakdown.databaseCheck = 0;
+            }
+        }
+
+        // 2. Data Match (20 points max)
+        if (extractedData.ocrExtracted && dataMatch) {
+            const matchCount = (dataMatch.engineNumber === true ? 1 : 0) + 
+                              (dataMatch.chassisNumber === true ? 1 : 0) + 
+                              (dataMatch.plateNumber === true ? 1 : 0);
+            scoreBreakdown.dataMatch = (matchCount / 3) * 20;
+        } else if (!isTransfer) {
+            // For new registrations, data is from metadata (assumed correct)
+            scoreBreakdown.dataMatch = 20;
+        }
+
+        // 3. Document Completeness (20 points max)
+        const documents = metadata.documents || [];
+        const requiredDocs = ['or_cr', 'registration_cert', 'owner_id', 'csr', 'sales_invoice'];
+        const hasDocs = requiredDocs.filter(docType => 
+            documents.some(d => d.type === docType || d.type === docType.replace('_', ''))
+        );
+        scoreBreakdown.documentCompleteness = (hasDocs.length / requiredDocs.length) * 20;
+
+        // 4. Vehicle Type Bonus (10 points max)
+        // New vehicles are lower risk than transfers
+        if (!isTransfer) {
+            scoreBreakdown.vehicleType = 10;
+        }
+
+        // 5. OCR Extraction Quality (20 points max)
+        if (extractedData.ocrExtracted && extractedData.engineNumber && extractedData.chassisNumber) {
+            scoreBreakdown.ocrQuality = 20;
+        } else if (!isTransfer && vehicle.engine_number && vehicle.chassis_number) {
+            // New registration has metadata
+            scoreBreakdown.ocrQuality = 20;
+        }
+
+        // Calculate total confidence score
+        confidenceScore = Math.max(0, Math.min(100, 
+            scoreBreakdown.databaseCheck + 
+            scoreBreakdown.dataMatch + 
+            scoreBreakdown.documentCompleteness + 
+            scoreBreakdown.vehicleType + 
+            (scoreBreakdown.ocrQuality || 0)
+        ));
+
+        scoreBreakdown.total = confidenceScore;
+
+        // Determine recommendation
+        let recommendation = 'MANUAL_REVIEW';
+        let recommendationReason = '';
+
+        if (scoreBreakdown.databaseCheck < 0) {
+            recommendation = 'AUTO_REJECT';
+            recommendationReason = 'Vehicle found in HPG hot list database';
+        } else if (confidenceScore >= 80) {
+            recommendation = 'AUTO_APPROVE';
+            recommendationReason = 'High confidence score. All checks passed.';
+        } else if (confidenceScore >= 60) {
+            recommendation = 'REVIEW';
+            recommendationReason = 'Moderate confidence. Review recommended before approval.';
+        } else {
+            recommendation = 'MANUAL_REVIEW';
+            recommendationReason = 'Low confidence score. Manual verification required.';
+        }
+
+        // Pre-fill verification data
+        const preFilledData = {
+            engineNumber: extractedData.engineNumber || vehicle.engine_number || '',
+            chassisNumber: extractedData.chassisNumber || vehicle.chassis_number || '',
+            macroEtching: false, // Always requires manual physical inspection
+            remarks: `Auto-verified. Confidence: ${confidenceScore}%. ${recommendationReason}`,
+            recommendation: recommendation,
+            confidenceScore: confidenceScore
+        };
+
+        // Store auto-verify result in metadata
+        const updatedMetadata = {
+            ...metadata,
+            autoVerify: {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                completedBy: req.user.userId,
+                confidenceScore: confidenceScore,
+                scoreBreakdown: scoreBreakdown,
+                recommendation: recommendation,
+                recommendationReason: recommendationReason,
+                preFilledData: preFilledData
+            }
+        };
+
+        await dbModule.query(
+            `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [JSON.stringify(updatedMetadata), requestId]
+        );
+
+        // Add to vehicle history
+        await db.addVehicleHistory({
+            vehicleId: clearanceRequest.vehicle_id,
+            action: 'HPG_AUTO_VERIFY',
+            description: `HPG auto-verification completed. Confidence: ${confidenceScore}%. Recommendation: ${recommendation}`,
+            performedBy: req.user.userId,
+            transactionId: null,
+            metadata: {
+                clearanceRequestId: requestId,
+                confidenceScore: confidenceScore,
+                recommendation: recommendation,
+                scoreBreakdown: scoreBreakdown
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Auto-verification completed',
+            autoVerify: {
+                confidenceScore: confidenceScore,
+                recommendation: recommendation,
+                recommendationReason: recommendationReason,
+                scoreBreakdown: scoreBreakdown,
+                preFilledData: preFilledData,
+                databaseCheck: databaseCheck,
+                dataMatch: dataMatch,
+                isTransfer: isTransfer
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in auto-verify:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to perform auto-verification: ' + error.message
         });
     }
 });

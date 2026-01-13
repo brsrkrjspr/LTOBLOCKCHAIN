@@ -2177,6 +2177,12 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
                 transferRequestId: id,
                 vehicleVin: request.vehicle.vin,
                 vehiclePlate: request.vehicle.plate_number,
+                vehicleMake: request.vehicle.make,
+                vehicleModel: request.vehicle.model,
+                vehicleYear: request.vehicle.year,
+                vehicleColor: request.vehicle.color,
+                engineNumber: request.vehicle.engine_number,
+                chassisNumber: request.vehicle.chassis_number,
                 // Include individual document references
                 orCrDocId: orCrDoc?.document_id || orCrDoc?.id || null,
                 orCrDocCid: orCrDoc?.ipfs_cid || null,
@@ -2190,6 +2196,113 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
                 documents: hpgDocuments
             }
         });
+
+        // PHASE 1 AUTOMATION: OCR Extraction and Database Check for Transfer
+        try {
+            const hpgDatabaseService = require('../services/hpgDatabaseService');
+            const ocrService = require('../services/ocrService');
+            const fs = require('fs').promises;
+            
+            let extractedData = {};
+            let databaseCheckResult = null;
+
+            // Step 1: OCR Extraction from OR/CR (for transfers)
+            if (orCrDoc) {
+                const orCrPath = orCrDoc.file_path || orCrDoc.filePath;
+                if (orCrPath) {
+                    try {
+                        await fs.access(orCrPath);
+                        
+                        const orCrMimeType = orCrDoc.mime_type || orCrDoc.mimeType || 'application/pdf';
+                        const ownerIdPath = ownerIdDoc?.file_path || ownerIdDoc?.filePath;
+                        const ownerIdMimeType = ownerIdDoc?.mime_type || ownerIdDoc?.mimeType;
+                        
+                        // Extract HPG info from OR/CR document
+                        extractedData = await ocrService.extractHPGInfo(
+                            orCrPath,
+                            ownerIdPath || null,
+                            orCrMimeType,
+                            ownerIdMimeType || null
+                        );
+                        
+                        console.log(`[Transfer→HPG] OCR extracted data:`, {
+                            engineNumber: extractedData.engineNumber,
+                            chassisNumber: extractedData.chassisNumber
+                        });
+                        
+                        // Compare with vehicle record
+                        const dataMatch = {
+                            engineNumber: extractedData.engineNumber && request.vehicle.engine_number ? 
+                                         extractedData.engineNumber.toUpperCase().trim() === request.vehicle.engine_number.toUpperCase().trim() : null,
+                            chassisNumber: extractedData.chassisNumber && request.vehicle.chassis_number ? 
+                                          extractedData.chassisNumber.toUpperCase().trim() === request.vehicle.chassis_number.toUpperCase().trim() : null
+                        };
+                        
+                        extractedData.dataMatch = dataMatch;
+                        extractedData.ocrExtracted = true;
+                        extractedData.ocrExtractedAt = new Date().toISOString();
+                    } catch (fileError) {
+                        console.warn(`[Transfer→HPG] OR/CR file not accessible: ${fileError.message}`);
+                    }
+                }
+            }
+
+            // Step 2: Automated Database Check
+            databaseCheckResult = await hpgDatabaseService.checkVehicle({
+                plateNumber: request.vehicle.plate_number,
+                engineNumber: request.vehicle.engine_number,
+                chassisNumber: request.vehicle.chassis_number,
+                vin: request.vehicle.vin
+            });
+            
+            await hpgDatabaseService.storeCheckResult(clearanceRequest.id, databaseCheckResult);
+            
+            // Update metadata with automation results
+            const updatedMetadata = {
+                ...clearanceRequest.metadata,
+                ...(Object.keys(extractedData).length > 0 && { extractedData }),
+                ...(databaseCheckResult && { hpgDatabaseCheck: databaseCheckResult }),
+                automationPhase1: {
+                    completed: true,
+                    completedAt: new Date().toISOString(),
+                    isTransfer: true,
+                    ocrExtracted: Object.keys(extractedData).length > 0,
+                    databaseChecked: !!databaseCheckResult
+                }
+            };
+            
+            await dbModule.query(
+                `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+                [JSON.stringify(updatedMetadata), clearanceRequest.id]
+            );
+
+            // Add automation history
+            await db.addVehicleHistory({
+                vehicleId: request.vehicle_id,
+                action: 'HPG_AUTOMATION_PHASE1',
+                description: `HPG Phase 1 automation completed for transfer. OCR: ${Object.keys(extractedData).length > 0 ? 'Yes' : 'No'}, Database: ${databaseCheckResult?.status || 'ERROR'}`,
+                performedBy: req.user.userId,
+                transactionId: null,
+                metadata: {
+                    transferRequestId: id,
+                    clearanceRequestId: clearanceRequest.id,
+                    extractedData: Object.keys(extractedData).length > 0 ? extractedData : null,
+                    databaseCheckResult
+                }
+            });
+
+            // If flagged, add warning
+            if (databaseCheckResult?.status === 'FLAGGED') {
+                const flaggedNote = `⚠️ WARNING: Vehicle found in HPG hot list. ${databaseCheckResult.details}`;
+                await dbModule.query(
+                    `UPDATE clearance_requests SET notes = COALESCE(notes || E'\n', '') || $1 WHERE id = $2`,
+                    [flaggedNote, clearanceRequest.id]
+                );
+            }
+        } catch (automationError) {
+            console.error('[Transfer→HPG] Automation error:', automationError);
+            // Don't fail the request if automation fails
+        }
         
         // Update transfer request
         const dbModule = require('../database/db');

@@ -265,6 +265,146 @@ class OCRService {
             if (expiryMatch) extracted.insuranceExpiry = expiryMatch[1].trim();
         }
 
+        if (documentType === 'sales_invoice' || documentType === 'salesInvoice') {
+            // Extract Vehicle Information from Sales Invoice
+            // VIN/Chassis Number
+            const vinPattern = /(?:VIN|CHASSIS\s*(?:NO|NUMBER)?\.?|FRAME\s*NO\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+            const vinMatch = text.match(vinPattern);
+            if (vinMatch) extracted.vin = vinMatch[1].trim();
+
+            // Engine Number
+            const enginePattern = /(?:ENGINE\s*(?:NO|NUMBER)?\.?|MOTOR\s*NO\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
+            const engineMatch = text.match(enginePattern);
+            if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
+
+            // Chassis Number (if different from VIN)
+            const chassisPattern = /(?:CHASSIS\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+            const chassisMatch = text.match(chassisPattern);
+            if (chassisMatch && !extracted.vin) extracted.chassisNumber = chassisMatch[1].trim();
+
+            // Make/Brand
+            const makePattern = /(?:MAKE|BRAND|MANUFACTURER|CAR\s*MAKE)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
+            const makeMatch = text.match(makePattern);
+            if (makeMatch) extracted.make = makeMatch[1].trim();
+
+            // Model
+            const modelPattern = /(?:MODEL|SERIES|TYPE|CAR\s*MODEL)\s*[:.]?\s*([A-Z0-9\s\-]+?)(?:\s*(?:YEAR|ENGINE|COLOR|VIN|PRICE|AMOUNT)|$)/i;
+            const modelMatch = text.match(modelPattern);
+            if (modelMatch) extracted.model = modelMatch[1].trim();
+
+            // Year
+            const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR|MANUFACTURE\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
+            const yearMatch = text.match(yearPattern);
+            if (yearMatch) extracted.year = yearMatch[1].trim();
+
+            // Color
+            const colorPattern = /(?:COLOR|COLOUR|PAINT)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
+            const colorMatch = text.match(colorPattern);
+            if (colorMatch) extracted.color = colorMatch[1].trim();
+
+            // Owner/Buyer Information from Sales Invoice
+            const buyerPatterns = [
+                /(?:BUYER|CUSTOMER|PURCHASER|SOLD\s*TO)\s*[:.]?\s*([A-Z\s,]+?)(?:\s*(?:ADDRESS|TIN|DATE|INVOICE)|$)/i,
+                /(?:NAME\s*OF\s*BUYER|CUSTOMER\s*NAME)\s*[:.]?\s*([A-Z\s,]+?)(?:\s*(?:ADDRESS|TIN|DATE)|$)/i
+            ];
+            for (const pattern of buyerPatterns) {
+                const buyerMatch = text.match(pattern);
+                if (buyerMatch) {
+                    const fullName = buyerMatch[1].trim();
+                    const nameParts = fullName.split(/[,\s]+/).filter(Boolean);
+                    if (nameParts.length >= 2) {
+                        extracted.lastName = nameParts[0];
+                        extracted.firstName = nameParts.slice(1).join(' ');
+                    } else if (nameParts.length === 1) {
+                        extracted.firstName = nameParts[0];
+                    }
+                    break;
+                }
+            }
+
+            // Buyer Address
+            const buyerAddressPatterns = [
+                /(?:BUYER\s*ADDRESS|CUSTOMER\s*ADDRESS|ADDRESS\s*OF\s*BUYER)\s*[:.]?\s*(.+?)(?:\s*(?:TIN|DATE|INVOICE|TOTAL)|$)/i,
+                /(?:ADDRESS)\s*[:.]?\s*([^\n]{10,200})/i
+            ];
+            for (const pattern of buyerAddressPatterns) {
+                const addressMatch = text.match(pattern);
+                if (addressMatch) {
+                    extracted.address = addressMatch[1].trim();
+                    break;
+                }
+            }
+
+            // Buyer Phone
+            const buyerPhonePattern = /(?:BUYER\s*PHONE|CUSTOMER\s*PHONE|CONTACT|MOBILE|TEL)\s*[:.]?\s*([\+\d\s\-\(\)]{10,20})/i;
+            const phoneMatch = text.match(buyerPhonePattern);
+            if (phoneMatch) extracted.phone = phoneMatch[1].trim();
+        }
+
+        if (documentType === 'csr' || documentType === 'certificateOfStockReport' || documentType === 'certificate_of_stock_report') {
+            // Extract Vehicle Information from CSR (Certificate of Stock Report)
+            // VIN/Chassis Number
+            const vinPattern = /(?:VIN|CHASSIS\s*(?:NO|NUMBER)?\.?|FRAME\s*NO\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+            const vinMatch = text.match(vinPattern);
+            if (vinMatch) extracted.vin = vinMatch[1].trim();
+
+            // Engine Number
+            const enginePattern = /(?:ENGINE\s*(?:NO|NUMBER)?\.?|MOTOR\s*NO\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
+            const engineMatch = text.match(enginePattern);
+            if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
+
+            // Chassis Number
+            const chassisPattern = /(?:CHASSIS\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+            const chassisMatch = text.match(chassisPattern);
+            if (chassisMatch) extracted.chassisNumber = chassisMatch[1].trim();
+
+            // Make/Brand
+            const makePattern = /(?:MAKE|BRAND|MANUFACTURER)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
+            const makeMatch = text.match(makePattern);
+            if (makeMatch) extracted.make = makeMatch[1].trim();
+
+            // Model
+            const modelPattern = /(?:MODEL|SERIES|TYPE)\s*[:.]?\s*([A-Z0-9\s\-]+?)(?:\s*(?:YEAR|ENGINE|COLOR|VIN|STOCK)|$)/i;
+            const modelMatch = text.match(modelPattern);
+            if (modelMatch) extracted.model = modelMatch[1].trim();
+
+            // Year
+            const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
+            const yearMatch = text.match(yearPattern);
+            if (yearMatch) extracted.year = yearMatch[1].trim();
+
+            // Color
+            const colorPattern = /(?:COLOR|COLOUR)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
+            const colorMatch = text.match(colorPattern);
+            if (colorMatch) extracted.color = colorMatch[1].trim();
+
+            // CSR Number
+            const csrNumberPattern = /(?:CSR\s*(?:NO|NUMBER)|CERTIFICATE\s*(?:NO|NUMBER)|STOCK\s*REPORT\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
+            const csrNumberMatch = text.match(csrNumberPattern);
+            if (csrNumberMatch) extracted.csrNumber = csrNumberMatch[1].trim();
+        }
+
+        if (documentType === 'hpg_clearance' || documentType === 'hpgClearance' || documentType === 'pnpHpgClearance') {
+            // Extract from HPG Clearance Certificate
+            // Clearance Number
+            const clearanceNumberPattern = /(?:CLEARANCE\s*(?:NO|NUMBER)|CERTIFICATE\s*(?:NO|NUMBER)|MV\s*CLEARANCE\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
+            const clearanceMatch = text.match(clearanceNumberPattern);
+            if (clearanceMatch) extracted.clearanceNumber = clearanceMatch[1].trim();
+
+            // Vehicle details (similar to registration cert)
+            const vinPattern = /(?:VIN|CHASSIS\s*(?:NO)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+            const vinMatch = text.match(vinPattern);
+            if (vinMatch) extracted.vin = vinMatch[1].trim();
+
+            const enginePattern = /(?:ENGINE\s*(?:NO)?\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
+            const engineMatch = text.match(enginePattern);
+            if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
+
+            const platePattern = /(?:PLATE\s*(?:NO)?\.?|PLATE\s*NUMBER)\s*[:.]?\s*([A-Z]{2,3}[-\s]?\d{3,4})/i;
+            const plateMatch = text.match(platePattern);
+            if (plateMatch) extracted.plateNumber = plateMatch[1].replace(/\s/g, '-').trim();
+        }
+
         return extracted;
     }
 

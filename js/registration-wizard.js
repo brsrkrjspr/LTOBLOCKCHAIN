@@ -1728,15 +1728,31 @@ function autoFillFromOCRData(extractedData, documentType) {
         phone: 'phone'
     };
     
-    // Auto-fill vehicle fields (Step 2)
-    if (documentType === 'registration_cert' || documentType === 'registrationCert') {
+    // Track which fields were auto-filled for notification
+    let fieldsFilled = {
+        vehicle: 0,
+        owner: 0
+    };
+    
+    // Auto-fill vehicle fields (Step 2) from Sales Invoice, CSR, or Registration Cert
+    const vehicleDocumentTypes = [
+        'registration_cert', 'registrationCert', 'or_cr', 'orCr',
+        'sales_invoice', 'salesInvoice',
+        'csr', 'certificateOfStockReport', 'certificate_of_stock_report',
+        'hpg_clearance', 'hpgClearance', 'pnpHpgClearance'
+    ];
+    
+    if (vehicleDocumentTypes.includes(documentType)) {
         Object.entries(extractedData).forEach(([key, value]) => {
             const fieldId = fieldMappings[key];
-            if (fieldId) {
+            if (fieldId && (key === 'vin' || key === 'engineNumber' || key === 'chassisNumber' || 
+                           key === 'plateNumber' || key === 'make' || key === 'model' || 
+                           key === 'year' || key === 'color')) {
                 const field = document.getElementById(fieldId);
                 if (field && !field.value && value) {
                     field.value = value;
                     field.classList.add('ocr-auto-filled');
+                    fieldsFilled.vehicle++;
                     
                     // For select fields (like make), try to match option
                     if (field.tagName === 'SELECT') {
@@ -1753,23 +1769,37 @@ function autoFillFromOCRData(extractedData, documentType) {
         });
     }
     
-    // Auto-fill owner fields (Step 3)
-    if (documentType === 'owner_id' || documentType === 'ownerId') {
+    // Auto-fill owner fields (Step 3) from Sales Invoice or Owner ID
+    const ownerDocumentTypes = [
+        'owner_id', 'ownerId', 'ownerValidId',
+        'sales_invoice', 'salesInvoice'
+    ];
+    
+    if (ownerDocumentTypes.includes(documentType)) {
         Object.entries(extractedData).forEach(([key, value]) => {
             const fieldId = fieldMappings[key];
-            if (fieldId) {
+            if (fieldId && (key === 'firstName' || key === 'lastName' || 
+                           key === 'address' || key === 'phone')) {
                 const field = document.getElementById(fieldId);
                 if (field && !field.value && value) {
                     field.value = value;
                     field.classList.add('ocr-auto-filled');
+                    fieldsFilled.owner++;
                 }
             }
         });
     }
     
-    // Show notification
-    if (Object.keys(extractedData).length > 0) {
-        showNotification('Information extracted from document and auto-filled. Please verify all fields.', 'success');
+    // Show notification with details
+    if (fieldsFilled.vehicle > 0 || fieldsFilled.owner > 0) {
+        const messages = [];
+        if (fieldsFilled.vehicle > 0) {
+            messages.push(`${fieldsFilled.vehicle} vehicle field(s) auto-filled`);
+        }
+        if (fieldsFilled.owner > 0) {
+            messages.push(`${fieldsFilled.owner} owner field(s) auto-filled`);
+        }
+        showNotification(`Information extracted from ${documentType}. ${messages.join(', ')}. Please verify all fields.`, 'success');
     }
 }
 

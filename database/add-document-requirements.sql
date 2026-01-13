@@ -22,13 +22,31 @@ CREATE TABLE IF NOT EXISTS registration_document_requirements (
 CREATE INDEX IF NOT EXISTS idx_doc_requirements_type_category 
 ON registration_document_requirements(registration_type, vehicle_category, is_active);
 
--- Insert default requirements for NEW registration
-INSERT INTO registration_document_requirements (registration_type, document_type, is_required, display_name, description, display_order) VALUES
-('NEW', 'registration_cert', true, 'Vehicle Registration Certificate', 'Original Sales Invoice or CSR for brand new vehicles', 1),
-('NEW', 'insurance_cert', true, 'Insurance Certificate (CTPL)', 'Compulsory Third Party Liability certificate', 2),
-('NEW', 'emission_cert', true, 'Emission Test Certificate', 'MVIR or emission compliance certificate', 3),
-('NEW', 'owner_id', true, 'Owner Valid ID', 'Government-issued identification', 4),
-('NEW', 'hpg_clearance', false, 'PNP-HPG Clearance', 'Motor Vehicle Clearance from HPG (dealer typically provides)', 5)
+-- Insert requirements for Brand New 4-Wheeled Vehicles
+INSERT INTO registration_document_requirements (registration_type, vehicle_category, document_type, is_required, display_name, description, display_order) VALUES
+('NEW', 'BRAND_NEW_4W', 'csr', true, 'Certificate of Stock Report (CSR)', 'Electronic copy and original copy required', 1),
+('NEW', 'BRAND_NEW_4W', 'insurance_cert', true, 'Insurance Certificate of Cover (Third Party Liability)', 'Electronic copy and original copy required', 2),
+('NEW', 'BRAND_NEW_4W', 'hpg_clearance', true, 'PNP-HPG Motor Vehicle (MV) Clearance Certificate and Special Bank Receipt (SBR)', 'Original copy required', 3),
+('NEW', 'BRAND_NEW_4W', 'sales_invoice', true, 'Sales Invoice', 'Electronic copy and original copy required', 4),
+('NEW', 'BRAND_NEW_4W', 'owner_id', true, 'Owner Valid ID', 'Government-issued identification (electronic copy and original copy required)', 5)
+ON CONFLICT (registration_type, vehicle_category, document_type) DO NOTHING;
+
+-- Insert requirements for Brand New 2-Wheeled Vehicles
+INSERT INTO registration_document_requirements (registration_type, vehicle_category, document_type, is_required, display_name, description, display_order) VALUES
+('NEW', 'BRAND_NEW_2W', 'csr', true, 'Certificate of Stock Report (CSR)', 'Electronic copy and original copy required', 1),
+('NEW', 'BRAND_NEW_2W', 'insurance_cert', true, 'Insurance Certificate of Cover (Third Party Liability)', 'Electronic copy and original copy required', 2),
+('NEW', 'BRAND_NEW_2W', 'hpg_clearance', true, 'PNP-HPG Motor Vehicle (MV) Clearance Certificate and Special Bank Receipt (SBR)', 'Original copy required', 3),
+('NEW', 'BRAND_NEW_2W', 'sales_invoice', true, 'Sales Invoice', 'Electronic copy and original copy required', 4),
+('NEW', 'BRAND_NEW_2W', 'owner_id', true, 'Owner Valid ID', 'Government-issued identification (electronic copy and original copy required)', 5)
+ON CONFLICT (registration_type, vehicle_category, document_type) DO NOTHING;
+
+-- Insert fallback requirements for ALL category (backward compatibility)
+INSERT INTO registration_document_requirements (registration_type, vehicle_category, document_type, is_required, display_name, description, display_order) VALUES
+('NEW', 'ALL', 'csr', true, 'Certificate of Stock Report (CSR)', 'Electronic copy and original copy required', 1),
+('NEW', 'ALL', 'insurance_cert', true, 'Insurance Certificate of Cover (Third Party Liability)', 'Electronic copy and original copy required', 2),
+('NEW', 'ALL', 'hpg_clearance', true, 'PNP-HPG Motor Vehicle (MV) Clearance Certificate and Special Bank Receipt (SBR)', 'Original copy required', 3),
+('NEW', 'ALL', 'sales_invoice', true, 'Sales Invoice', 'Electronic copy and original copy required', 4),
+('NEW', 'ALL', 'owner_id', true, 'Owner Valid ID', 'Government-issued identification (electronic copy and original copy required)', 5)
 ON CONFLICT (registration_type, vehicle_category, document_type) DO NOTHING;
 
 -- Insert requirements for TRANSFER

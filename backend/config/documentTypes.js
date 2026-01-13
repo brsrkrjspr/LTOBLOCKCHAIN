@@ -13,6 +13,9 @@ const LOGICAL_TYPES = {
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',
     BUYER_ID: 'buyerId',
+    CSR: 'csr',
+    HPG_CLEARANCE: 'hpgClearance',
+    SALES_INVOICE: 'salesInvoice',
     OTHER: 'other'
 };
 
@@ -28,6 +31,9 @@ const DB_TYPES = {
     DEED_OF_SALE: 'deed_of_sale',
     SELLER_ID: 'seller_id',
     BUYER_ID: 'buyer_id',
+    CSR: 'csr',
+    HPG_CLEARANCE: 'hpg_clearance',
+    SALES_INVOICE: 'sales_invoice',
     OTHER: 'other'
 };
 
@@ -56,6 +62,9 @@ function mapToDbType(logicalType) {
         [LOGICAL_TYPES.DEED_OF_SALE]: DB_TYPES.DEED_OF_SALE,
         [LOGICAL_TYPES.SELLER_ID]: DB_TYPES.SELLER_ID,
         [LOGICAL_TYPES.BUYER_ID]: DB_TYPES.BUYER_ID,
+        [LOGICAL_TYPES.CSR]: DB_TYPES.CSR,
+        [LOGICAL_TYPES.HPG_CLEARANCE]: DB_TYPES.HPG_CLEARANCE,
+        [LOGICAL_TYPES.SALES_INVOICE]: DB_TYPES.SALES_INVOICE,
         [LOGICAL_TYPES.OTHER]: DB_TYPES.OTHER
     };
     
@@ -76,6 +85,9 @@ function mapToLogicalType(dbType) {
         [DB_TYPES.DEED_OF_SALE]: LOGICAL_TYPES.DEED_OF_SALE,
         [DB_TYPES.SELLER_ID]: LOGICAL_TYPES.SELLER_ID,
         [DB_TYPES.BUYER_ID]: LOGICAL_TYPES.BUYER_ID,
+        [DB_TYPES.CSR]: LOGICAL_TYPES.CSR,
+        [DB_TYPES.HPG_CLEARANCE]: LOGICAL_TYPES.HPG_CLEARANCE,
+        [DB_TYPES.SALES_INVOICE]: LOGICAL_TYPES.SALES_INVOICE,
         [DB_TYPES.OTHER]: LOGICAL_TYPES.OTHER
     };
     
@@ -163,7 +175,12 @@ function mapLegacyType(oldType) {
         'seller_id': LOGICAL_TYPES.SELLER_ID,
         'sellerId': LOGICAL_TYPES.SELLER_ID,
         'buyer_id': LOGICAL_TYPES.BUYER_ID,
-        'buyerId': LOGICAL_TYPES.BUYER_ID
+        'buyerId': LOGICAL_TYPES.BUYER_ID,
+        'csr': LOGICAL_TYPES.CSR,
+        'hpg_clearance': LOGICAL_TYPES.HPG_CLEARANCE,
+        'hpgClearance': LOGICAL_TYPES.HPG_CLEARANCE,
+        'sales_invoice': LOGICAL_TYPES.SALES_INVOICE,
+        'salesInvoice': LOGICAL_TYPES.SALES_INVOICE
     };
     
     return legacyMapping[oldType] || oldType;

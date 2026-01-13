@@ -11,6 +11,8 @@ let currentAbortController = null;
 
 // Store vehicle type value when selected
 let storedVehicleType = null;
+// Store selected vehicle category for document loading
+let selectedVehicleCategory = '';
 
 function initializeRegistrationWizard() {
     // Initialize wizard functionality
@@ -52,14 +54,30 @@ function initializeRegistrationWizard() {
         });
     }
     
+    // Setup vehicle category selection listener (NEW)
+    const categorySelect = document.getElementById('vehicleCategorySelect');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', function() {
+            selectedVehicleCategory = this.value;
+            console.log('Vehicle category selected:', selectedVehicleCategory);
+            // Load documents when category is selected
+            if (selectedVehicleCategory) {
+                loadDocumentRequirements('NEW', selectedVehicleCategory);
+            }
+        });
+    }
+    
     // Initialize auto-save
     const form = document.querySelector('.wizard-form');
     if (form) {
         FormPersistence.autoSave('registration-wizard', form);
     }
     
-    // Load dynamic document requirements (Step 1 - Documents first)
-    loadDocumentRequirements();
+    // Auto-fill owner info on initialization
+    autoFillOwnerInfo();
+    
+    // Don't load documents immediately - wait for category selection
+    // Documents will be loaded when category is selected in Step 1
     
     // Setup OCR auto-fill when documents are uploaded
     setupOCRAutoFill();
@@ -92,6 +110,11 @@ function nextStep() {
             // Show next step
             nextStepElement.classList.add('active');
             nextProgressStep.classList.add('active');
+            
+            // Load documents when moving to step 3 (if category was selected)
+            if (currentStep === 3 && selectedVehicleCategory) {
+                loadDocumentRequirements('NEW', selectedVehicleCategory);
+            }
             
             // Update review data if on final step
             if (currentStep === 4) {
@@ -154,6 +177,16 @@ function validateCurrentStep() {
     
     // Additional validation for specific steps
     if (currentStep === 1) {
+        // Validate vehicle category selection first
+        const categorySelect = document.getElementById('vehicleCategorySelect');
+        if (!categorySelect || !categorySelect.value) {
+            ToastNotification.show('Please select a vehicle category', 'error');
+            if (categorySelect) {
+                categorySelect.classList.add('invalid');
+                categorySelect.focus();
+            }
+            return false;
+        }
         const vehicleErrors = validateVehicleInfo();
         if (!vehicleErrors.isValid) {
             isValid = false;
@@ -166,6 +199,11 @@ function validateCurrentStep() {
             errorMessages = errorMessages.concat(ownerErrors.errors);
         }
     } else if (currentStep === 3) {
+        // Ensure category was selected before allowing document step
+        if (!selectedVehicleCategory) {
+            ToastNotification.show('Please select a vehicle category in Step 1 first', 'error');
+            return false;
+        }
         const docErrors = validateDocumentUploads();
         if (!docErrors.isValid) {
             isValid = false;
@@ -1228,7 +1266,7 @@ function collectApplicationData() {
 /**
  * Load document requirements from API and render upload fields
  */
-async function loadDocumentRequirements(registrationType = 'NEW') {
+async function loadDocumentRequirements(registrationType = 'NEW', vehicleCategory = 'ALL') {
     try {
         const container = document.getElementById('document-upload-container');
         if (!container) {
@@ -1239,6 +1277,14 @@ async function loadDocumentRequirements(registrationType = 'NEW') {
         // Show loading state
         container.innerHTML = '<div class="loading-message">Loading document requirements...</div>';
 
+        // Update info text
+        const infoText = document.getElementById('documentCategoryInfo');
+        if (infoText) {
+            const categoryName = vehicleCategory === 'BRAND_NEW_4W' ? '4-Wheeled' : 
+                               vehicleCategory === 'BRAND_NEW_2W' ? '2-Wheeled' : 'Vehicle';
+            infoText.textContent = `Required documents for Brand New ${categoryName} Vehicle:`;
+        }
+
         const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
         if (!apiClient) {
             // Fallback to static fields if API client not available
@@ -1246,8 +1292,10 @@ async function loadDocumentRequirements(registrationType = 'NEW') {
             return;
         }
 
-        // Fetch document requirements
-        const response = await apiClient.get(`/api/document-requirements/${registrationType}`);
+        // Fetch document requirements with vehicle category parameter
+        const url = `/api/document-requirements/${registrationType}${vehicleCategory ? `?vehicleCategory=${vehicleCategory}` : ''}`;
+        console.log('Loading document requirements from:', url);
+        const response = await apiClient.get(url);
         
         if (response && response.success && response.requirements) {
             renderDocumentUploadFields(response.requirements, container);

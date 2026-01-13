@@ -28,11 +28,12 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         // Get all documents for the vehicle
         const allDocuments = await db.getDocumentsByVehicle(vehicleId);
 
-        // 1. Send to HPG (requires: registration_cert or owner_id)
+        // 1. Send to HPG (requires: hpg_clearance or registration_cert or owner_id)
         const hasHPGDocs = allDocuments.some(d => 
+            d.document_type === 'hpg_clearance' ||
             d.document_type === 'registration_cert' || 
             d.document_type === 'owner_id' ||
-            (documents && (documents.registrationCert || documents.ownerId))
+            (documents && (documents.hpgClearance || documents.registrationCert || documents.ownerId))
         );
 
         if (hasHPGDocs) {
@@ -141,8 +142,10 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
     );
     const assignedTo = hpgAdmins.rows[0]?.id || null;
 
-    // Filter HPG-relevant documents (registration_cert, owner_id, or_cr)
+    // Filter HPG-relevant documents (hpg_clearance, registration_cert, owner_id, or_cr)
     const hpgDocuments = allDocuments.filter(d => 
+        d.document_type === 'hpg_clearance' ||
+        d.document_type === 'hpgClearance' ||
         d.document_type === 'registration_cert' ||
         d.document_type === 'owner_id' ||
         d.document_type === 'or_cr' ||
@@ -179,6 +182,10 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
             chassisNumber: vehicle.chassis_number,
             ownerName: vehicle.owner_name,
             ownerEmail: vehicle.owner_email,
+            hpgClearanceDocId: hpgClearanceDoc?.id || null,
+            hpgClearanceDocCid: hpgClearanceDoc?.ipfs_cid || null,
+            hpgClearanceDocPath: hpgClearanceDoc?.file_path || null,
+            hpgClearanceDocFilename: hpgClearanceDoc?.original_name || null,
             ownerIdDocId: ownerIdDoc?.id || null,
             ownerIdDocCid: ownerIdDoc?.ipfs_cid || null,
             ownerIdDocPath: ownerIdDoc?.file_path || null,

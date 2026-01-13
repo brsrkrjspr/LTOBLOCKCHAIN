@@ -432,6 +432,10 @@
                                 <i class="fas fa-lock"></i>
                                 <span>Account</span>
                             </button>
+                            <button class="tab-button" onclick="switchTab('documents')">
+                                <i class="fas fa-file-alt"></i>
+                                <span>Document Requirements</span>
+                            </button>
                         </div>
 
                         <!-- Profile Tab -->
@@ -526,6 +530,18 @@
                                         <button type="button" class="btn-secondary" id="cancelPasswordBtn">Cancel</button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+
+                        <!-- Document Requirements Tab -->
+                        <div id="documentsTab" class="tab-content">
+                            <div class="settings-card">
+                                <h2>Document Requirements Management</h2>
+                                <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Configure which documents are required or optional for vehicle registration</p>
+                                
+                                <div id="documentRequirementsContainer">
+                                    <div class="loading-message">Loading document requirements...</div>
+                                </div>
                             </div>
                         </div>
                     </div>

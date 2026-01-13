@@ -31,6 +31,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Setup logout handler
     setupLogoutHandler();
+    
+    // Load document requirements if on documents tab
+    if (window.location.hash === '#documents' || document.getElementById('documentsTab')?.classList.contains('active')) {
+        loadDocumentRequirements();
+    }
 });
 
 // Initialize sidebar
@@ -336,6 +341,11 @@ function switchTab(tabName) {
     );
     if (clickedButton) {
         clickedButton.classList.add('active');
+    }
+    
+    // Load document requirements when switching to documents tab
+    if (tabName === 'documents') {
+        loadDocumentRequirements();
     }
 }
 

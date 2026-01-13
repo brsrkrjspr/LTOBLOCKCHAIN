@@ -58,11 +58,11 @@ function initializeRegistrationWizard() {
         FormPersistence.autoSave('registration-wizard', form);
     }
     
-    // Auto-fill owner information if user is logged in
-    autoFillOwnerInfo();
-    
-    // Load dynamic document requirements
+    // Load dynamic document requirements (Step 1 - Documents first)
     loadDocumentRequirements();
+    
+    // Setup OCR auto-fill when documents are uploaded
+    setupOCRAutoFill();
 }
 
 let currentStep = 1;
@@ -1388,7 +1388,180 @@ function escapeHtml(text) {
 }
 
 /**
+ * Setup OCR auto-fill when documents are uploaded
+ * This will extract data from documents and auto-fill vehicle and owner fields
+ */
+function setupOCRAutoFill() {
+    // This will be called after document upload container is loaded
+    // We'll set up event listeners when the container is ready
+    setTimeout(() => {
+        const container = document.getElementById('document-upload-container');
+        if (!container) return;
+        
+        // Use event delegation to handle file inputs that are dynamically added
+        container.addEventListener('change', async function(e) {
+            if (e.target.type === 'file' && e.target.files && e.target.files[0]) {
+                await processDocumentForOCRAutoFill(e.target);
+            }
+        });
+    }, 1000);
+}
+
+/**
+ * Process document upload and extract data via OCR for auto-fill
+ */
+async function processDocumentForOCRAutoFill(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    
+    const documentType = fileInput.getAttribute('data-document-type') || fileInput.id;
+    
+    try {
+        const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
+        if (!apiClient) {
+            console.log('API client not available for OCR');
+            return;
+        }
+        
+        // Show processing indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'ocr-processing';
+        indicator.textContent = 'Extracting information from document...';
+        indicator.style.cssText = 'color: #667eea; font-size: 0.875rem; margin-top: 0.5rem;';
+        fileInput.parentElement.appendChild(indicator);
+        
+        // Create FormData for OCR extraction
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('documentType', documentType);
+        
+        // Call OCR endpoint
+        try {
+            // Get auth token from localStorage or apiClient
+            let authToken = null;
+            if (typeof AuthUtils !== 'undefined' && AuthUtils.getToken) {
+                authToken = AuthUtils.getToken();
+            } else if (typeof localStorage !== 'undefined') {
+                authToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            }
+            
+            // Use getAuthToken function (defined in this file)
+            const token = getAuthToken();
+            const headers = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await fetch('/api/documents/extract-info', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.extractedData) {
+                // Auto-fill fields based on extracted data
+                autoFillFromOCRData(data.extractedData, documentType);
+                
+                indicator.textContent = '✓ Information extracted and auto-filled';
+                indicator.style.color = '#27ae60';
+                
+                // Remove indicator after 3 seconds
+                setTimeout(() => indicator.remove(), 3000);
+            } else {
+                indicator.textContent = 'Could not extract information (manual entry required)';
+                indicator.style.color = '#e74c3c';
+                setTimeout(() => indicator.remove(), 3000);
+            }
+        } catch (ocrError) {
+            // OCR endpoint not available yet (Task 4 not implemented)
+            console.log('OCR extraction not available:', ocrError);
+            indicator.remove();
+            
+            // Fallback: Still auto-fill owner info from profile if logged in
+            if (documentType === 'owner_id' || documentType === 'ownerId') {
+                autoFillOwnerInfo();
+            }
+        }
+    } catch (error) {
+        console.error('Error processing document for OCR:', error);
+    }
+}
+
+/**
+ * Auto-fill form fields from OCR extracted data
+ */
+function autoFillFromOCRData(extractedData, documentType) {
+    console.log('Auto-filling from OCR data:', extractedData, 'Document type:', documentType);
+    
+    // Map OCR fields to form field IDs
+    const fieldMappings = {
+        // Vehicle fields
+        vin: 'vin',
+        engineNumber: 'engineNumber',
+        chassisNumber: 'chassisNumber',
+        plateNumber: 'plateNumber',
+        make: 'make',
+        model: 'model',
+        year: 'year',
+        color: 'color',
+        
+        // Owner fields
+        firstName: 'firstName',
+        lastName: 'lastName',
+        address: 'address',
+        phone: 'phone'
+    };
+    
+    // Auto-fill vehicle fields (Step 2)
+    if (documentType === 'registration_cert' || documentType === 'registrationCert') {
+        Object.entries(extractedData).forEach(([key, value]) => {
+            const fieldId = fieldMappings[key];
+            if (fieldId) {
+                const field = document.getElementById(fieldId);
+                if (field && !field.value && value) {
+                    field.value = value;
+                    field.classList.add('ocr-auto-filled');
+                    
+                    // For select fields (like make), try to match option
+                    if (field.tagName === 'SELECT') {
+                        const option = Array.from(field.options).find(opt => 
+                            opt.value.toLowerCase() === value.toLowerCase() ||
+                            opt.text.toLowerCase().includes(value.toLowerCase())
+                        );
+                        if (option) {
+                            field.value = option.value;
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Auto-fill owner fields (Step 3)
+    if (documentType === 'owner_id' || documentType === 'ownerId') {
+        Object.entries(extractedData).forEach(([key, value]) => {
+            const fieldId = fieldMappings[key];
+            if (fieldId) {
+                const field = document.getElementById(fieldId);
+                if (field && !field.value && value) {
+                    field.value = value;
+                    field.classList.add('ocr-auto-filled');
+                }
+            }
+        });
+    }
+    
+    // Show notification
+    if (Object.keys(extractedData).length > 0) {
+        showNotification('Information extracted from document and auto-filled. Please verify all fields.', 'success');
+    }
+}
+
+/**
  * Auto-fill owner information from logged-in user profile
+ * This is a fallback when OCR is not available
  */
 async function autoFillOwnerInfo() {
     try {
@@ -1448,7 +1621,7 @@ async function autoFillOwnerInfo() {
         if ((firstNameField && firstNameField.classList.contains('auto-filled')) ||
             (lastNameField && lastNameField.classList.contains('auto-filled')) ||
             (emailField && emailField.classList.contains('auto-filled'))) {
-            showNotification('Owner information has been auto-filled from your profile', 'info');
+            showNotification('Owner information has been auto-filled from your profile. Upload documents in Step 1 for more accurate auto-fill.', 'info');
         }
 
         // Optionally offer to copy from previous vehicle registration

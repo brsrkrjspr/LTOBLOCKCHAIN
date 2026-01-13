@@ -1270,4 +1270,86 @@ router.get('/search', authenticateToken, authorizeRole(['admin']), async (req, r
     }
 });
 
+// OCR Text Extraction Endpoint
+// Extracts information from uploaded documents for auto-fill
+router.post('/extract-info', authenticateToken, upload.single('document'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'No file uploaded'
+            });
+        }
+
+        const { documentType } = req.body;
+        
+        // Check if OCR is enabled (can be disabled via environment variable)
+        const ocrEnabled = process.env.OCR_ENABLED !== 'false';
+        if (!ocrEnabled) {
+            // Clean up file and return empty result
+            await fs.unlink(req.file.path).catch(() => {});
+            return res.json({
+                success: true,
+                extractedData: {},
+                message: 'OCR is disabled',
+                rawText: ''
+            });
+        }
+
+        // Import OCR service (lazy load to avoid errors if packages not installed)
+        let ocrService;
+        try {
+            ocrService = require('../services/ocrService');
+        } catch (importError) {
+            console.warn('OCR service not available:', importError.message);
+            // Clean up file
+            await fs.unlink(req.file.path).catch(() => {});
+            return res.json({
+                success: true,
+                extractedData: {},
+                message: 'OCR service not available',
+                rawText: ''
+            });
+        }
+
+        // Extract text from document
+        const text = await ocrService.extractText(req.file.path, req.file.mimetype);
+        
+        // Parse vehicle/owner information
+        const extractedData = ocrService.parseVehicleInfo(text, documentType || 'registration_cert');
+        
+        // Clean up temp file
+        try {
+            await fs.unlink(req.file.path);
+        } catch (cleanupError) {
+            console.warn('Failed to cleanup temp file:', cleanupError);
+        }
+        
+        res.json({
+            success: true,
+            extractedData,
+            confidence: 'medium', // Could implement confidence scoring
+            rawText: text.substring(0, 500), // First 500 chars for debugging
+            documentType: documentType
+        });
+    } catch (error) {
+        console.error('OCR extraction error:', error);
+        
+        // Clean up file on error
+        if (req.file && req.file.path) {
+            try {
+                await fs.unlink(req.file.path);
+            } catch (cleanupError) {
+                console.warn('Failed to cleanup file on error:', cleanupError);
+            }
+        }
+        
+        res.status(500).json({
+            success: false,
+            error: 'Failed to extract information from document',
+            message: error.message
+        });
+    }
+});
+
 module.exports = router;

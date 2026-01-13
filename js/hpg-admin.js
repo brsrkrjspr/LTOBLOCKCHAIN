@@ -557,10 +557,18 @@ const HPGVerification = {
                     const hpgDocuments = metadata.documents || metadata.allDocuments || [];
                     console.log(`[HPG] Received ${hpgDocuments.length} documents for verification`);
                     
+                    // Use owner data from API response if available (enhanced endpoint)
+                    const ownerData = req.owner || {};
+                    const ownerName = ownerData.firstName && ownerData.lastName 
+                        ? `${ownerData.firstName} ${ownerData.lastName}`
+                        : metadata.ownerName || (req.vehicle?.owner_name) || 'N/A';
+                    
                     this.requestData = {
                         id: req.id,
-                        ownerName: metadata.ownerName || (req.vehicle?.owner_name) || 'N/A',
-                        ownerEmail: metadata.ownerEmail || 'N/A',
+                        ownerName: ownerName,
+                        ownerEmail: ownerData.email || metadata.ownerEmail || req.vehicle?.owner_email || 'N/A',
+                        ownerPhone: ownerData.phone || metadata.ownerPhone || 'N/A',
+                        ownerAddress: ownerData.address || metadata.ownerAddress || 'N/A',
                         plateNumber: metadata.vehiclePlate || req.vehicle?.plate_number || 'N/A',
                         vehicleType: req.vehicle?.vehicle_type || 'N/A',
                         vehicleMake: metadata.vehicleMake || req.vehicle?.make || 'N/A',

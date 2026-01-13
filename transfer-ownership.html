@@ -1571,8 +1571,11 @@
                         sellerContactEl.value = user.phone;
                     }
                     
-                    // Address field remains empty for user to fill (not in user profile)
-                    // User can edit all fields as needed
+                    // Auto-fill address if available (editable)
+                    if (sellerAddressEl && user.address) {
+                        sellerAddressEl.value = user.address;
+                        sellerAddressEl.classList.add('auto-filled');
+                    }
                     
                     // Store seller data
                     transferData.seller = {

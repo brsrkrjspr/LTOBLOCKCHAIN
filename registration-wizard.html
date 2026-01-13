@@ -1193,23 +1193,27 @@
                     </div>
                     <div class="progress-step" data-step="2">
                         <div class="step-number">2</div>
-                        <div class="step-label">Owner Details</div>
+                        <div class="step-label">Documents</div>
                     </div>
                     <div class="progress-step" data-step="3">
                         <div class="step-number">3</div>
-                        <div class="step-label">Documents</div>
+                        <div class="step-label">Vehicle Info</div>
                     </div>
                     <div class="progress-step" data-step="4">
                         <div class="step-number">4</div>
+                        <div class="step-label">Owner Details</div>
+                    </div>
+                    <div class="progress-step" data-step="5">
+                        <div class="step-number">5</div>
                         <div class="step-label">Review & Submit</div>
                     </div>
                 </div>
 
-                <!-- Step 1: Vehicle Category & Basic Vehicle Information -->
+                <!-- Step 1: Vehicle Category (only) -->
                 <div id="step-1" class="wizard-step active">
                     <div class="form-container">
-                        <h2>Step 1: Vehicle Category & Information</h2>
-                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Select your vehicle category first. This determines which documents are required.</p>
+                        <h2>Step 1: Vehicle Category</h2>
+                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Select your vehicle category. This determines which documents are required for your registration.</p>
                         <form class="wizard-form">
                             <div class="form-group">
                                 <label for="vehicleCategorySelect">Vehicle Category <span class="required">*</span></label>
@@ -1218,9 +1222,43 @@
                                     <option value="BRAND_NEW_4W">Brand New 4-Wheeled Vehicle</option>
                                     <option value="BRAND_NEW_2W">Brand New 2-Wheeled Vehicle</option>
                                 </select>
-                                <small class="form-hint">This determines which documents are required for your registration.</small>
+                                <small class="form-hint">This follows the LTO Citizen's Charter for brand new registrations.</small>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-primary" onclick="nextStep()">Next Step</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Step 2: Required Documents (dynamic based on category) -->
+                <div id="step-2" class="wizard-step">
+                    <div class="form-container">
+                        <h2>Step 2: Required Documents</h2>
+                        <p id="documentCategoryInfo" style="color: #7f8c8d; margin-bottom: 1.5rem;">Please select a vehicle category in Step 1 to see required documents.</p>
+                        <form class="wizard-form">
+                            <div class="upload-section">
+                                <h3>Required Documents</h3>
+                                <div id="document-upload-container">
+                                    <!-- Document upload fields will be dynamically loaded here based on vehicle category -->
+                                    <div class="info-message">Please complete Step 1 first to see required documents.</div>
+                                </div>
                             </div>
 
+                            <div class="form-actions">
+                                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
+                                <button type="button" class="btn-primary" onclick="nextStep()">Next Step</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Step 3: Vehicle Information (auto-filled from documents) -->
+                <div id="step-3" class="wizard-step">
+                    <div class="form-container">
+                        <h2>Step 3: Vehicle Information</h2>
+                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">These fields will be auto-filled from your uploaded documents where possible. Please review and complete any missing data.</p>
+                        <form class="wizard-form">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="make">Make <span class="required">*</span></label>
@@ -1363,16 +1401,17 @@
                             </div>
 
                             <div class="form-actions">
+                                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
                                 <button type="button" class="btn-primary" onclick="nextStep()">Next Step</button>
                             </div>
                         </form>
                     </div>
                 </div>
 
-                <!-- Step 2: Owner Details -->
-                <div id="step-2" class="wizard-step">
+                <!-- Step 4: Owner Details -->
+                <div id="step-4" class="wizard-step">
                     <div class="form-container">
-                        <h2>Step 2: Owner Information</h2>
+                        <h2>Step 4: Owner Information</h2>
                         <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Information will be auto-filled from your profile. Please verify and complete any missing fields.</p>
                         <form class="wizard-form">
                             <div class="form-row">
@@ -1436,30 +1475,8 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Document Upload (now dynamic based on category) -->
-                <div id="step-3" class="wizard-step">
-                    <div class="form-container">
-                        <h2>Step 3: Required Documents</h2>
-                        <p id="documentCategoryInfo" style="color: #7f8c8d; margin-bottom: 1.5rem;">Please select a vehicle category in Step 1 to see required documents.</p>
-                        <form class="wizard-form">
-                            <div class="upload-section">
-                                <h3>Required Documents</h3>
-                                <div id="document-upload-container">
-                                    <!-- Document upload fields will be dynamically loaded here based on vehicle category -->
-                                    <div class="info-message">Please complete Step 1 first to see required documents.</div>
-                                </div>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
-                                <button type="button" class="btn-primary" onclick="nextStep()">Next Step</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Step 4: Review & Submit -->
-                <div id="step-4" class="wizard-step">
+                <!-- Step 5: Review & Submit -->
+                <div id="step-5" class="wizard-step">
                     <div class="form-container">
                         <h2>Review & Submit</h2>
                         <div class="review-section">

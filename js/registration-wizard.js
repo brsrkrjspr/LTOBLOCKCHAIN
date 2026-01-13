@@ -11,7 +11,7 @@ let currentAbortController = null;
 
 // Store vehicle type value when selected
 let storedVehicleType = null;
-// Store selected vehicle category for document loading
+// Store selected vehicle category (brand new 4W / 2W) for document loading
 let selectedVehicleCategory = '';
 
 function initializeRegistrationWizard() {
@@ -21,7 +21,7 @@ function initializeRegistrationWizard() {
     initializeProgressTracking();
     
     // Ensure only step 1 is visible initially
-    // Steps 2, 3, and 4 should be hidden until their previous step is completed
+    // Other steps should be hidden until their previous step is completed
     for (let i = 2; i <= totalSteps; i++) {
         const stepElement = document.getElementById(`step-${i}`);
         const progressStep = document.querySelector(`[data-step="${i}"]`);
@@ -53,38 +53,33 @@ function initializeRegistrationWizard() {
             console.log('Vehicle type selected and stored:', storedVehicleType);
         });
     }
-    
-    // Setup vehicle category selection listener (NEW)
+
+    // Setup vehicle category selection listener (Step 1)
     const categorySelect = document.getElementById('vehicleCategorySelect');
     if (categorySelect) {
         categorySelect.addEventListener('change', function() {
             selectedVehicleCategory = this.value;
             console.log('Vehicle category selected:', selectedVehicleCategory);
-            // Load documents when category is selected
-            if (selectedVehicleCategory) {
-                loadDocumentRequirements('NEW', selectedVehicleCategory);
-            }
+            // Do not load documents yet; they will be loaded when entering the Documents step
         });
     }
     
-    // Initialize auto-save
+    // Initialize auto-save (uses the first wizard form on the page)
     const form = document.querySelector('.wizard-form');
     if (form) {
         FormPersistence.autoSave('registration-wizard', form);
     }
     
-    // Auto-fill owner info on initialization
+    // Auto-fill owner info on initialization (Step 4 later)
     autoFillOwnerInfo();
-    
-    // Don't load documents immediately - wait for category selection
-    // Documents will be loaded when category is selected in Step 1
     
     // Setup OCR auto-fill when documents are uploaded
     setupOCRAutoFill();
 }
 
 let currentStep = 1;
-const totalSteps = 4;
+// 5 steps: 1 Category, 2 Documents, 3 Vehicle, 4 Owner, 5 Review
+const totalSteps = 5;
 
 function nextStep() {
     if (validateCurrentStep()) {
@@ -111,13 +106,13 @@ function nextStep() {
             nextStepElement.classList.add('active');
             nextProgressStep.classList.add('active');
             
-            // Load documents when moving to step 3 (if category was selected)
-            if (currentStep === 3 && selectedVehicleCategory) {
+            // Load documents when moving to Step 2 (Documents) if category was selected
+            if (currentStep === 2 && selectedVehicleCategory) {
                 loadDocumentRequirements('NEW', selectedVehicleCategory);
             }
             
-            // Update review data if on final step
-            if (currentStep === 4) {
+            // Update review data if on final step (Step 5)
+            if (currentStep === 5) {
                 // Use setTimeout to ensure DOM is fully rendered before updating
                 setTimeout(() => {
                     updateReviewData();
@@ -177,7 +172,7 @@ function validateCurrentStep() {
     
     // Additional validation for specific steps
     if (currentStep === 1) {
-        // Validate vehicle category selection first
+        // Step 1: only requires vehicle category selection
         const categorySelect = document.getElementById('vehicleCategorySelect');
         if (!categorySelect || !categorySelect.value) {
             ToastNotification.show('Please select a vehicle category', 'error');
@@ -187,19 +182,8 @@ function validateCurrentStep() {
             }
             return false;
         }
-        const vehicleErrors = validateVehicleInfo();
-        if (!vehicleErrors.isValid) {
-            isValid = false;
-            errorMessages = errorMessages.concat(vehicleErrors.errors);
-        }
     } else if (currentStep === 2) {
-        const ownerErrors = validateOwnerInfo();
-        if (!ownerErrors.isValid) {
-            isValid = false;
-            errorMessages = errorMessages.concat(ownerErrors.errors);
-        }
-    } else if (currentStep === 3) {
-        // Ensure category was selected before allowing document step
+        // Step 2: documents – ensure category selected and uploads valid
         if (!selectedVehicleCategory) {
             ToastNotification.show('Please select a vehicle category in Step 1 first', 'error');
             return false;
@@ -208,6 +192,20 @@ function validateCurrentStep() {
         if (!docErrors.isValid) {
             isValid = false;
             errorMessages = errorMessages.concat(docErrors.errors);
+        }
+    } else if (currentStep === 3) {
+        // Step 3: vehicle info
+        const vehicleErrors = validateVehicleInfo();
+        if (!vehicleErrors.isValid) {
+            isValid = false;
+            errorMessages = errorMessages.concat(vehicleErrors.errors);
+        }
+    } else if (currentStep === 4) {
+        // Step 4: owner info
+        const ownerErrors = validateOwnerInfo();
+        if (!ownerErrors.isValid) {
+            isValid = false;
+            errorMessages = errorMessages.concat(ownerErrors.errors);
         }
     }
     

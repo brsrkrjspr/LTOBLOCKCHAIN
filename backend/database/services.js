@@ -192,7 +192,7 @@ async function getVehicleVerifications(vehicleId) {
     return result.rows;
 }
 
-async function updateVerificationStatus(vehicleId, verificationType, status, verifiedBy, notes) {
+async function updateVerificationStatus(vehicleId, verificationType, status, verifiedBy, notes, metadata = null) {
     // Check if verification exists
     const existing = await db.query(
         'SELECT id FROM vehicle_verifications WHERE vehicle_id = $1 AND verification_type = $2',
@@ -200,23 +200,66 @@ async function updateVerificationStatus(vehicleId, verificationType, status, ver
     );
 
     if (existing.rows.length > 0) {
-        // Update existing
-        const result = await db.query(
-            `UPDATE vehicle_verifications
-             SET status = $1, verified_by = $2, verified_at = CURRENT_TIMESTAMP, notes = $3, updated_at = CURRENT_TIMESTAMP
-             WHERE vehicle_id = $4 AND verification_type = $5
-             RETURNING *`,
-            [status, verifiedBy, notes, vehicleId, verificationType]
-        );
+        // Update existing - handle optional metadata fields
+        let updateQuery = `UPDATE vehicle_verifications
+             SET status = $1, verified_by = $2, verified_at = CURRENT_TIMESTAMP, notes = $3, updated_at = CURRENT_TIMESTAMP`;
+        const params = [status, verifiedBy, notes];
+        let paramIndex = 4;
+        
+        if (metadata) {
+            if (metadata.automated !== undefined) {
+                updateQuery += `, automated = $${paramIndex++}`;
+                params.push(metadata.automated);
+            }
+            if (metadata.verificationScore !== undefined) {
+                updateQuery += `, verification_score = $${paramIndex++}`;
+                params.push(metadata.verificationScore);
+            }
+            if (metadata.verificationMetadata !== undefined) {
+                updateQuery += `, verification_metadata = $${paramIndex++}`;
+                params.push(JSON.stringify(metadata.verificationMetadata));
+            }
+            if (metadata.automated === true && metadata.verificationScore !== undefined) {
+                updateQuery += `, auto_verified_at = CURRENT_TIMESTAMP`;
+            }
+        }
+        
+        updateQuery += ` WHERE vehicle_id = $${paramIndex++} AND verification_type = $${paramIndex++} RETURNING *`;
+        params.push(vehicleId, verificationType);
+        
+        const result = await db.query(updateQuery, params);
         return result.rows[0];
     } else {
-        // Create new
-        const result = await db.query(
-            `INSERT INTO vehicle_verifications (vehicle_id, verification_type, status, verified_by, notes)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING *`,
-            [vehicleId, verificationType, status, verifiedBy, notes]
-        );
+        // Create new - handle optional metadata fields
+        let insertQuery = `INSERT INTO vehicle_verifications (vehicle_id, verification_type, status, verified_by, notes`;
+        let valuesQuery = `VALUES ($1, $2, $3, $4, $5`;
+        const params = [vehicleId, verificationType, status, verifiedBy, notes];
+        let paramIndex = 6;
+        
+        if (metadata) {
+            if (metadata.automated !== undefined) {
+                insertQuery += `, automated`;
+                valuesQuery += `, $${paramIndex++}`;
+                params.push(metadata.automated);
+            }
+            if (metadata.verificationScore !== undefined) {
+                insertQuery += `, verification_score`;
+                valuesQuery += `, $${paramIndex++}`;
+                params.push(metadata.verificationScore);
+            }
+            if (metadata.verificationMetadata !== undefined) {
+                insertQuery += `, verification_metadata`;
+                valuesQuery += `, $${paramIndex++}`;
+                params.push(JSON.stringify(metadata.verificationMetadata));
+            }
+            if (metadata.automated === true && metadata.verificationScore !== undefined) {
+                insertQuery += `, auto_verified_at`;
+                valuesQuery += `, CURRENT_TIMESTAMP`;
+            }
+        }
+        
+        insertQuery += `) ` + valuesQuery + `) RETURNING *`;
+        const result = await db.query(insertQuery, params);
         return result.rows[0];
     }
 }

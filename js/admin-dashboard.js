@@ -1429,6 +1429,42 @@ function createApplicationRow(application) {
             <i class="fas fa-exclamation-triangle"></i> Not Inspected
            </span>`;
     
+    // Get verification status and auto-verification info
+    const verifications = application.verifications || [];
+    const insuranceVerification = verifications.find(v => v.verification_type === 'insurance');
+    const emissionVerification = verifications.find(v => v.verification_type === 'emission');
+    const hpgVerification = verifications.find(v => v.verification_type === 'hpg');
+    
+    // Build auto-verification status badges
+    let autoVerificationBadges = '';
+    
+    if (insuranceVerification && insuranceVerification.automated) {
+        const score = insuranceVerification.verification_score || 0;
+        const status = insuranceVerification.status || 'PENDING';
+        const badgeClass = status === 'APPROVED' ? 'badge-success' : 'badge-warning';
+        const icon = status === 'APPROVED' ? 'fa-robot' : 'fa-exclamation-triangle';
+        autoVerificationBadges += `<span class="badge ${badgeClass}" title="Insurance Auto-Verified: ${status} (Score: ${score}%)" style="margin-top: 0.25rem; display: inline-block; margin-right: 0.25rem;">
+            <i class="fas ${icon}"></i> Insurance: ${status === 'APPROVED' ? 'Auto-Approved' : 'Auto-Flagged'} (${score}%)
+        </span>`;
+    }
+    
+    if (emissionVerification && emissionVerification.automated) {
+        const score = emissionVerification.verification_score || 0;
+        const status = emissionVerification.status || 'PENDING';
+        const badgeClass = status === 'APPROVED' ? 'badge-success' : 'badge-warning';
+        const icon = status === 'APPROVED' ? 'fa-robot' : 'fa-exclamation-triangle';
+        autoVerificationBadges += `<span class="badge ${badgeClass}" title="Emission Auto-Verified: ${status} (Score: ${score}%)" style="margin-top: 0.25rem; display: inline-block; margin-right: 0.25rem;">
+            <i class="fas ${icon}"></i> Emission: ${status === 'APPROVED' ? 'Auto-Approved' : 'Auto-Flagged'} (${score}%)
+        </span>`;
+    }
+    
+    if (hpgVerification && hpgVerification.automated) {
+        const score = hpgVerification.verification_score || 0;
+        autoVerificationBadges += `<span class="badge badge-info" title="HPG Pre-Verified: Data extracted (Score: ${score}%)" style="margin-top: 0.25rem; display: inline-block; margin-right: 0.25rem;">
+            <i class="fas fa-robot"></i> HPG: Pre-Verified (${score}%)
+        </span>`;
+    }
+    
     // Determine if approval should be disabled (allow admin override for now)
     const canApprove = true; // Set to false to enforce strict requirement
     const approveButtonClass = canApprove ? 'btn-primary' : 'btn-secondary';
@@ -1474,6 +1510,7 @@ function createApplicationRow(application) {
                     </button>
                 </div>
                 ${inspectionStatus}
+                ${autoVerificationBadges ? `<div style="margin-top: 0.25rem; display: flex; flex-wrap: wrap; gap: 0.25rem;">${autoVerificationBadges}</div>` : ''}
             </div>
         </td>
     `;

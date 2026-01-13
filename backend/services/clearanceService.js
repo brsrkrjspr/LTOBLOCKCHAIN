@@ -93,17 +93,33 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         if (anySent) {
             await db.updateVehicle(vehicleId, { status: 'PENDING_VERIFICATION' });
             
-            // Log to history
+            // Log to history with auto-verification results
+            const autoVerifySummary = [];
+            if (results.insurance.autoVerification) {
+                autoVerifySummary.push(`Insurance: ${results.insurance.autoVerification.status} (${results.insurance.autoVerification.automated ? 'Auto' : 'Manual'})`);
+            }
+            if (results.emission.autoVerification) {
+                autoVerifySummary.push(`Emission: ${results.emission.autoVerification.status} (${results.emission.autoVerification.automated ? 'Auto' : 'Manual'})`);
+            }
+            if (results.hpg.autoVerification) {
+                autoVerifySummary.push(`HPG: Pre-verified (${results.hpg.autoVerification.canPreFill ? 'Data extracted' : 'No data'})`);
+            }
+            
             await db.addVehicleHistory({
                 vehicleId,
                 action: 'CLEARANCE_REQUESTS_AUTO_SENT',
-                description: `Clearance requests automatically sent to organizations. HPG: ${results.hpg.sent ? 'Yes' : 'No'}, Insurance: ${results.insurance.sent ? 'Yes' : 'No'}, Emission: ${results.emission.sent ? 'Yes' : 'No'}`,
+                description: `Clearance requests automatically sent to organizations. HPG: ${results.hpg.sent ? 'Yes' : 'No'}, Insurance: ${results.insurance.sent ? 'Yes' : 'No'}, Emission: ${results.emission.sent ? 'Yes' : 'No'}. ${autoVerifySummary.length > 0 ? 'Auto-verification: ' + autoVerifySummary.join(', ') : ''}`,
                 performedBy: requestedBy,
                 transactionId: null,
                 metadata: {
                     hpgRequestId: results.hpg.requestId,
                     insuranceRequestId: results.insurance.requestId,
-                    emissionRequestId: results.emission.requestId
+                    emissionRequestId: results.emission.requestId,
+                    autoVerificationResults: {
+                        insurance: results.insurance.autoVerification,
+                        emission: results.emission.autoVerification,
+                        hpg: results.hpg.autoVerification
+                    }
                 }
             });
         }
@@ -182,10 +198,6 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
             chassisNumber: vehicle.chassis_number,
             ownerName: vehicle.owner_name,
             ownerEmail: vehicle.owner_email,
-            hpgClearanceDocId: hpgClearanceDoc?.id || null,
-            hpgClearanceDocCid: hpgClearanceDoc?.ipfs_cid || null,
-            hpgClearanceDocPath: hpgClearanceDoc?.file_path || null,
-            hpgClearanceDocFilename: hpgClearanceDoc?.original_name || null,
             ownerIdDocId: ownerIdDoc?.id || null,
             ownerIdDocCid: ownerIdDoc?.ipfs_cid || null,
             ownerIdDocPath: ownerIdDoc?.file_path || null,
@@ -229,9 +241,54 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
 
     console.log(`[Auto-Send→HPG] Request created: ${clearanceRequest.id}`);
 
+    // Trigger pre-verification for HPG (extract data, but always requires manual inspection)
+    let autoVerificationResult = null;
+    if (hpgDocuments.length > 0) {
+        try {
+            const autoVerificationService = require('./autoVerificationService');
+            autoVerificationResult = await autoVerificationService.preVerifyHPG(
+                vehicleId,
+                hpgDocuments,
+                vehicle
+            );
+            
+            console.log(`[Auto-Verify→HPG] Pre-verification complete. Can pre-fill: ${autoVerificationResult.canPreFill}`);
+            
+            // Store extracted data in clearance request metadata for pre-filling HPG form
+            if (autoVerificationResult.extractedData && Object.keys(autoVerificationResult.extractedData).length > 0) {
+                const updatedMetadata = {
+                    ...clearanceRequest.metadata,
+                    extractedData: autoVerificationResult.extractedData
+                };
+                
+                await dbModule.query(
+                    `UPDATE clearance_requests SET metadata = $1 WHERE id = $2`,
+                    [JSON.stringify(updatedMetadata), clearanceRequest.id]
+                );
+            }
+            
+            // Add pre-verification result to history
+            await db.addVehicleHistory({
+                vehicleId,
+                action: 'HPG_PRE_VERIFIED',
+                description: `HPG documents pre-verified. Extracted engine: ${autoVerificationResult.extractedData?.engineNumber || 'N/A'}, chassis: ${autoVerificationResult.extractedData?.chassisNumber || 'N/A'}`,
+                performedBy: requestedBy,
+                transactionId: null,
+                metadata: {
+                    clearanceRequestId: clearanceRequest.id,
+                    autoVerificationResult
+                }
+            });
+        } catch (autoVerifyError) {
+            console.error('[Auto-Verify→HPG] Error:', autoVerifyError);
+            // Don't fail clearance request creation if pre-verification fails
+        }
+    }
+
     return {
         sent: true,
-        requestId: clearanceRequest.id
+        requestId: clearanceRequest.id,
+        autoVerification: autoVerificationResult
     };
 }
 
@@ -327,9 +384,47 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy) {
 
     console.log(`[Auto-Send→Insurance] Request created: ${clearanceRequest.id}`);
 
+    // Trigger auto-verification if insurance document exists
+    let autoVerificationResult = null;
+    if (insuranceDoc) {
+        try {
+            const autoVerificationService = require('./autoVerificationService');
+            autoVerificationResult = await autoVerificationService.autoVerifyInsurance(
+                vehicleId,
+                insuranceDoc,
+                vehicle
+            );
+            
+            console.log(`[Auto-Verify→Insurance] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+            
+            // Add auto-verification result to history
+            if (autoVerificationResult.automated) {
+                await db.addVehicleHistory({
+                    vehicleId,
+                    action: autoVerificationResult.status === 'APPROVED' 
+                        ? 'INSURANCE_AUTO_VERIFIED_APPROVED' 
+                        : 'INSURANCE_AUTO_VERIFIED_PENDING',
+                    description: autoVerificationResult.status === 'APPROVED'
+                        ? `Insurance auto-verified and approved. Score: ${autoVerificationResult.score}%`
+                        : `Insurance auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
+                    performedBy: requestedBy,
+                    transactionId: null,
+                    metadata: {
+                        clearanceRequestId: clearanceRequest.id,
+                        autoVerificationResult
+                    }
+                });
+            }
+        } catch (autoVerifyError) {
+            console.error('[Auto-Verify→Insurance] Error:', autoVerifyError);
+            // Don't fail clearance request creation if auto-verification fails
+        }
+    }
+
     return {
         sent: true,
-        requestId: clearanceRequest.id
+        requestId: clearanceRequest.id,
+        autoVerification: autoVerificationResult
     };
 }
 
@@ -425,9 +520,47 @@ async function sendToEmission(vehicleId, vehicle, allDocuments, requestedBy) {
 
     console.log(`[Auto-Send→Emission] Request created: ${clearanceRequest.id}`);
 
+    // Trigger auto-verification if emission document exists
+    let autoVerificationResult = null;
+    if (emissionDoc) {
+        try {
+            const autoVerificationService = require('./autoVerificationService');
+            autoVerificationResult = await autoVerificationService.autoVerifyEmission(
+                vehicleId,
+                emissionDoc,
+                vehicle
+            );
+            
+            console.log(`[Auto-Verify→Emission] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+            
+            // Add auto-verification result to history
+            if (autoVerificationResult.automated !== false) {
+                await db.addVehicleHistory({
+                    vehicleId,
+                    action: autoVerificationResult.status === 'APPROVED' 
+                        ? 'EMISSION_AUTO_VERIFIED_APPROVED' 
+                        : 'EMISSION_AUTO_VERIFIED_PENDING',
+                    description: autoVerificationResult.status === 'APPROVED'
+                        ? `Emission auto-verified and approved. Score: ${autoVerificationResult.score}%`
+                        : `Emission auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
+                    performedBy: requestedBy,
+                    transactionId: null,
+                    metadata: {
+                        clearanceRequestId: clearanceRequest.id,
+                        autoVerificationResult
+                    }
+                });
+            }
+        } catch (autoVerifyError) {
+            console.error('[Auto-Verify→Emission] Error:', autoVerifyError);
+            // Don't fail clearance request creation if auto-verification fails
+        }
+    }
+
     return {
         sent: true,
-        requestId: clearanceRequest.id
+        requestId: clearanceRequest.id,
+        autoVerification: autoVerificationResult
     };
 }
 

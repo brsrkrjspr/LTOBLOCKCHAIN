@@ -276,6 +276,192 @@ class OCRService {
     extractPatterns(text) {
         return this.parseVehicleInfo(text, 'registration_cert');
     }
+
+    /**
+     * Extract insurance information from document
+     * @param {string} filePath - Path to insurance document
+     * @param {string} mimeType - MIME type of the file
+     * @returns {Promise<Object>} Extracted insurance data
+     */
+    async extractInsuranceInfo(filePath, mimeType) {
+        try {
+            const text = await this.extractText(filePath, mimeType);
+            const extracted = this.parseVehicleInfo(text, 'insurance_cert');
+            
+            // Additional insurance-specific extraction
+            const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
+            
+            // Extract Insurance Company Name
+            const companyPatterns = [
+                /(?:INSURANCE\s*COMPANY|INSURER|INSURED\s*BY|COMPANY)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)+)/i,
+                /([A-Z]+(?:\s+[A-Z]+)?)\s*(?:INSURANCE|INSURANCE\s*COMPANY)/i
+            ];
+            for (const pattern of companyPatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    extracted.insuranceCompany = match[1].trim();
+                    break;
+                }
+            }
+            
+            // Extract Policy Type
+            const policyTypePattern = /(?:POLICY\s*TYPE|TYPE\s*OF\s*POLICY|COVERAGE\s*TYPE)\s*[:.]?\s*(COMPREHENSIVE|CTPL|THIRD\s*PARTY|LIABILITY)/i;
+            const policyTypeMatch = text.match(policyTypePattern);
+            if (policyTypeMatch) {
+                extracted.policyType = policyTypeMatch[1].trim();
+            }
+            
+            // Extract Issue Date
+            const issueDatePattern = /(?:ISSUE\s*DATE|ISSUED|EFFECTIVE\s*FROM|DATE\s*ISSUED)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i;
+            const issueDateMatch = text.match(issueDatePattern);
+            if (issueDateMatch) {
+                extracted.issueDate = issueDateMatch[1].trim();
+            }
+            
+            // Extract Coverage Amount
+            const coveragePattern = /(?:COVERAGE|SUM\s*INSURED|AMOUNT)\s*[:.]?\s*(?:PHP|₱|PESO)?\s*([\d,]+)/i;
+            const coverageMatch = text.match(coveragePattern);
+            if (coverageMatch) {
+                extracted.coverage = coverageMatch[1].replace(/,/g, '');
+            }
+            
+            return extracted;
+        } catch (error) {
+            console.error('Error extracting insurance info:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Extract emission test information from document
+     * @param {string} filePath - Path to emission document
+     * @param {string} mimeType - MIME type of the file
+     * @returns {Promise<Object>} Extracted emission data
+     */
+    async extractEmissionInfo(filePath, mimeType) {
+        try {
+            const text = await this.extractText(filePath, mimeType);
+            const extracted = {};
+            
+            if (!text || text.trim().length === 0) {
+                return extracted;
+            }
+            
+            const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
+            
+            // Extract Test Date
+            const testDatePatterns = [
+                /(?:TEST\s*DATE|DATE\s*OF\s*TEST|TESTED\s*ON)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+                /(?:TEST\s*DATE)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i
+            ];
+            for (const pattern of testDatePatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    extracted.testDate = match[1].trim();
+                    break;
+                }
+            }
+            
+            // Extract Expiry Date
+            const expiryPattern = /(?:EXPIR|VALID\s*UNTIL|EXPIRY\s*DATE|VALID\s*UNTIL)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i;
+            const expiryMatch = text.match(expiryPattern);
+            if (expiryMatch) {
+                extracted.expiryDate = expiryMatch[1].trim();
+            }
+            
+            // Extract Test Center
+            const testCenterPattern = /(?:TEST\s*CENTER|TESTING\s*CENTER|CENTER|FACILITY)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)+)/i;
+            const testCenterMatch = text.match(testCenterPattern);
+            if (testCenterMatch) {
+                extracted.testCenter = testCenterMatch[1].trim();
+            }
+            
+            // Extract Test Results - CO (Carbon Monoxide)
+            const coPattern = /(?:CO|CARBON\s*MONOXIDE)\s*[:.]?\s*(\d+\.?\d*)\s*%/i;
+            const coMatch = text.match(coPattern);
+            if (coMatch) {
+                extracted.co = parseFloat(coMatch[1]);
+            }
+            
+            // Extract Test Results - HC (Hydrocarbons)
+            const hcPattern = /(?:HC|HYDROCARBONS)\s*[:.]?\s*(\d+\.?\d*)\s*(?:PPM|ppm)/i;
+            const hcMatch = text.match(hcPattern);
+            if (hcMatch) {
+                extracted.hc = parseFloat(hcMatch[1]);
+            }
+            
+            // Extract Test Results - Smoke Opacity
+            const smokePattern = /(?:SMOKE|OPACITY|SMOKE\s*OPACITY)\s*[:.]?\s*(\d+\.?\d*)\s*%/i;
+            const smokeMatch = text.match(smokePattern);
+            if (smokeMatch) {
+                extracted.smoke = parseFloat(smokeMatch[1]);
+            }
+            
+            // Extract Certificate Number
+            const certNumberPattern = /(?:CERTIFICATE\s*(?:NO|NUMBER)|CERT\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
+            const certNumberMatch = text.match(certNumberPattern);
+            if (certNumberMatch) {
+                extracted.certificateNumber = certNumberMatch[1].trim();
+            }
+            
+            // Extract Test Result Status
+            const statusPattern = /(?:RESULT|STATUS)\s*[:.]?\s*(PASSED|FAILED|PASS|FAIL)/i;
+            const statusMatch = text.match(statusPattern);
+            if (statusMatch) {
+                extracted.status = statusMatch[1].toUpperCase();
+            }
+            
+            return extracted;
+        } catch (error) {
+            console.error('Error extracting emission info:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Extract HPG-related information from registration cert and owner ID
+     * @param {string} registrationCertPath - Path to registration certificate
+     * @param {string} ownerIdPath - Path to owner ID document
+     * @param {string} registrationMimeType - MIME type of registration cert
+     * @param {string} ownerIdMimeType - MIME type of owner ID
+     * @returns {Promise<Object>} Extracted HPG data
+     */
+    async extractHPGInfo(registrationCertPath, ownerIdPath, registrationMimeType, ownerIdMimeType) {
+        try {
+            const extracted = {};
+            
+            // Extract from registration certificate
+            if (registrationCertPath) {
+                const regText = await this.extractText(registrationCertPath, registrationMimeType);
+                const regData = this.parseVehicleInfo(regText, 'registration_cert');
+                
+                extracted.engineNumber = regData.engineNumber;
+                extracted.chassisNumber = regData.vin || regData.chassisNumber;
+                extracted.plateNumber = regData.plateNumber;
+                extracted.vin = regData.vin;
+                extracted.make = regData.make;
+                extracted.model = regData.model;
+                extracted.year = regData.year;
+                extracted.color = regData.color;
+            }
+            
+            // Extract from owner ID
+            if (ownerIdPath) {
+                const ownerText = await this.extractText(ownerIdPath, ownerIdMimeType);
+                const ownerData = this.parseVehicleInfo(ownerText, 'owner_id');
+                
+                extracted.ownerFirstName = ownerData.firstName;
+                extracted.ownerLastName = ownerData.lastName;
+                extracted.ownerAddress = ownerData.address;
+                extracted.ownerPhone = ownerData.phone;
+            }
+            
+            return extracted;
+        } catch (error) {
+            console.error('Error extracting HPG info:', error);
+            return {};
+        }
+    }
 }
 
 module.exports = new OCRService();

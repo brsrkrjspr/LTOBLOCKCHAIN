@@ -1443,6 +1443,37 @@ LTO Lipa City Team
             // Auto-send is a convenience feature, not critical to registration
         }
 
+        // Prepare auto-verification summary
+        const autoVerificationSummary = {};
+        if (autoSendResults) {
+            if (autoSendResults.insurance.autoVerification) {
+                autoVerificationSummary.insurance = {
+                    status: autoSendResults.insurance.autoVerification.status,
+                    automated: autoSendResults.insurance.autoVerification.automated,
+                    score: autoSendResults.insurance.autoVerification.score,
+                    confidence: autoSendResults.insurance.autoVerification.confidence,
+                    reason: autoSendResults.insurance.autoVerification.reason
+                };
+            }
+            if (autoSendResults.emission.autoVerification) {
+                autoVerificationSummary.emission = {
+                    status: autoSendResults.emission.autoVerification.status,
+                    automated: autoSendResults.emission.autoVerification.automated,
+                    score: autoSendResults.emission.autoVerification.score,
+                    confidence: autoSendResults.emission.autoVerification.confidence,
+                    reason: autoSendResults.emission.autoVerification.reason
+                };
+            }
+            if (autoSendResults.hpg.autoVerification) {
+                autoVerificationSummary.hpg = {
+                    status: autoSendResults.hpg.autoVerification.status,
+                    automated: autoSendResults.hpg.autoVerification.automated,
+                    canPreFill: autoSendResults.hpg.autoVerification.canPreFill,
+                    extractedData: autoSendResults.hpg.autoVerification.extractedData
+                };
+            }
+        }
+
         res.json({
             success: true,
             message: 'Vehicle registration submitted successfully',
@@ -1452,7 +1483,8 @@ LTO Lipa City Team
                 hpg: autoSendResults.hpg.sent,
                 insurance: autoSendResults.insurance.sent,
                 emission: autoSendResults.emission.sent
-            } : null
+            } : null,
+            autoVerification: Object.keys(autoVerificationSummary).length > 0 ? autoVerificationSummary : null
         });
         
     } catch (error) {

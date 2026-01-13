@@ -43,7 +43,20 @@ function initializeRegistrationWizard() {
         progressStep1.classList.add('active', 'accessible');
     }
     
-    // Store vehicle type when it changes
+    // Setup car type selection handler
+    const carTypeSelect = document.getElementById('carType');
+    if (carTypeSelect) {
+        carTypeSelect.addEventListener('change', function() {
+            handleCarTypeChange(this.value);
+        });
+        
+        // Check if car type is already selected (from saved form data)
+        if (carTypeSelect.value) {
+            handleCarTypeChange(carTypeSelect.value);
+        }
+    }
+    
+    // Store vehicle type when it changes (for Step 2)
     const vehicleTypeSelect = document.getElementById('vehicleType');
     if (vehicleTypeSelect) {
         vehicleTypeSelect.addEventListener('change', function() {
@@ -61,8 +74,8 @@ function initializeRegistrationWizard() {
     // Auto-fill owner info on initialization
     autoFillOwnerInfo();
     
-    // Load document requirements immediately for Step 1 (documents)
-    loadDocumentRequirements('NEW');
+    // Don't load documents immediately - wait for car type selection
+    // loadDocumentRequirements('NEW');
     
     // Setup OCR auto-fill when documents are uploaded
     setupOCRAutoFill();
@@ -158,11 +171,30 @@ function validateCurrentStep() {
     
     // Additional validation for specific steps
     if (currentStep === 1) {
-        // Step 1: documents
-        const docErrors = validateDocumentUploads();
-        if (!docErrors.isValid) {
+        // Step 1: car type selection and documents
+        const carType = document.getElementById('carType')?.value || '';
+        if (!carType || !carType.trim()) {
+            const carTypeField = document.getElementById('carType');
+            if (carTypeField) {
+                carTypeField.classList.add('invalid');
+                showFieldError(carTypeField, 'Please select a vehicle type');
+            }
             isValid = false;
-            errorMessages = errorMessages.concat(docErrors.errors);
+            errorMessages.push('Vehicle type is required');
+        } else {
+            const carTypeField = document.getElementById('carType');
+            if (carTypeField) {
+                carTypeField.classList.remove('invalid');
+            }
+        }
+        
+        // Validate documents only if car type is selected
+        if (carType && carType.trim()) {
+            const docErrors = validateDocumentUploads();
+            if (!docErrors.isValid) {
+                isValid = false;
+                errorMessages = errorMessages.concat(docErrors.errors);
+            }
         }
     } else if (currentStep === 2) {
         // Step 2: vehicle info
@@ -433,17 +465,27 @@ function validateOwnerInfo() {
 }
 
 function validateDocumentUploads() {
-    const requiredFiles = ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId'];
+    // Get car type to determine which documents are required
+    const carType = document.getElementById('carType')?.value || '';
+    const container = document.getElementById('document-upload-container');
+    
+    if (!container) {
+        return { isValid: false, errors: ['Document upload container not found'] };
+    }
+    
+    // Find all required file inputs in the container
+    const requiredFileInputs = container.querySelectorAll('input[type="file"][required]');
     let isValid = true;
     let errors = [];
     
-    requiredFiles.forEach(fileId => {
-        const fileInput = document.getElementById(fileId);
+    requiredFileInputs.forEach(fileInput => {
         if (!fileInput.files || fileInput.files.length === 0) {
             fileInput.classList.add('invalid');
+            const label = fileInput.closest('.upload-item')?.querySelector('h4')?.textContent || 
+                         fileInput.getAttribute('data-document-type') || 
+                         fileInput.id;
             showFieldError(fileInput, 'Please upload this required document');
-            const fieldName = fileId.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-            errors.push(`${fieldName} is required`);
+            errors.push(`${label} is required`);
             isValid = false;
         } else {
             fileInput.classList.remove('invalid');
@@ -1179,6 +1221,9 @@ function collectApplicationData() {
     const vinInput = document.getElementById('vin');
     const vin = vinInput ? vinInput.value.trim().toUpperCase() : generateVIN();
     
+    // Get car type from Step 1
+    const carType = document.getElementById('carType')?.value || '';
+    
     // Collect vehicle information
     const vehicleInfo = {
         vin: vin || generateVIN(),
@@ -1190,6 +1235,7 @@ function collectApplicationData() {
         chassisNumber: document.getElementById('chassisNumber')?.value || '',
         plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
         vehicleType: document.getElementById('vehicleType')?.value || 'Car',
+        carType: carType, // Add car type from Step 1
         vehicleCategory: document.getElementById('vehicleCategory')?.value || '',
         passengerCapacity: parseInt(document.getElementById('passengerCapacity')?.value || 0),
         grossVehicleWeight: parseFloat(document.getElementById('grossVehicleWeight')?.value || 0),
@@ -1230,6 +1276,167 @@ function collectApplicationData() {
             emission: ''
         }
     };
+}
+
+/**
+ * Handle car type selection change
+ */
+function handleCarTypeChange(carType) {
+    const documentSection = document.getElementById('document-upload-section');
+    const container = document.getElementById('document-upload-container');
+    
+    if (!carType || !carType.trim()) {
+        // Hide document section if no car type selected
+        if (documentSection) {
+            documentSection.style.display = 'none';
+        }
+        if (container) {
+            container.innerHTML = '<div class="loading-message">Please select a vehicle type first</div>';
+        }
+        return;
+    }
+    
+    // Show document section
+    if (documentSection) {
+        documentSection.style.display = 'block';
+    }
+    
+    // Load documents based on car type
+    loadDocumentsByCarType(carType);
+}
+
+/**
+ * Load documents based on selected car type
+ */
+function loadDocumentsByCarType(carType) {
+    const container = document.getElementById('document-upload-container');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="loading-message">Loading document requirements...</div>';
+    
+    // Define documents for each car type
+    let documents = [];
+    
+    if (carType === 'Motorcycle – Tricycle (TC)') {
+        // For Tricycle: Standard documents + Affidavit of Attachment for Sidecar
+        documents = [
+            {
+                id: 'certificateOfStockReport',
+                name: 'Certificate of Stock Report (CSR)',
+                description: 'Upload your Certificate of Stock Report',
+                required: true
+            },
+            {
+                id: 'insuranceCertificate',
+                name: 'Insurance Certificate of Cover (Third Party Liability)',
+                description: 'Upload your Insurance Certificate of Cover',
+                required: true
+            },
+            {
+                id: 'pnpHpgClearance',
+                name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate and Special Bank Receipt (SBR)',
+                description: 'Upload your PNP-HPG MV Clearance Certificate and SBR',
+                required: true
+            },
+            {
+                id: 'salesInvoice',
+                name: 'Sales Invoice',
+                description: 'Upload your Sales Invoice',
+                required: true
+            },
+            {
+                id: 'ownerValidId',
+                name: 'Owner Valid ID',
+                description: 'Upload a copy of your valid ID',
+                required: true
+            },
+            {
+                id: 'affidavitOfAttachment',
+                name: 'Original Affidavit of Attachment for Sidecar',
+                description: 'Upload the Original Affidavit of Attachment for Sidecar',
+                required: true
+            }
+        ];
+    } else if (carType === 'Passenger Vehicle' || carType === 'Commercial Vehicle' || carType === 'Motorcycle') {
+        // For Passenger Vehicle, Commercial Vehicle, and Motorcycle: Standard documents
+        documents = [
+            {
+                id: 'certificateOfStockReport',
+                name: 'Certificate of Stock Report (CSR)',
+                description: 'Upload your Certificate of Stock Report',
+                required: true
+            },
+            {
+                id: 'insuranceCertificate',
+                name: 'Insurance Certificate of Cover (Third Party Liability)',
+                description: 'Upload your Insurance Certificate of Cover',
+                required: true
+            },
+            {
+                id: 'pnpHpgClearance',
+                name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate and Special Bank Receipt (SBR)',
+                description: 'Upload your PNP-HPG MV Clearance Certificate and SBR',
+                required: true
+            },
+            {
+                id: 'salesInvoice',
+                name: 'Sales Invoice',
+                description: 'Upload your Sales Invoice',
+                required: true
+            },
+            {
+                id: 'ownerValidId',
+                name: 'Owner Valid ID',
+                description: 'Upload a copy of your valid ID',
+                required: true
+            }
+        ];
+    } else {
+        // Fallback: Show message
+        container.innerHTML = '<div class="error-message">Please select a valid vehicle type</div>';
+        return;
+    }
+    
+    // Render document upload fields
+    renderCustomDocumentFields(documents, container);
+    
+    // Re-initialize file upload handlers for new fields
+    initializeFileUploads();
+}
+
+/**
+ * Render custom document upload fields
+ */
+function renderCustomDocumentFields(documents, container) {
+    container.innerHTML = '';
+    
+    documents.forEach(doc => {
+        const uploadItem = document.createElement('div');
+        uploadItem.className = 'upload-item';
+        
+        uploadItem.innerHTML = `
+            <div class="upload-info">
+                <h4>${escapeHtml(doc.name)} ${doc.required ? '<span class="required">*</span>' : ''}</h4>
+                <p>${escapeHtml(doc.description || '')}</p>
+                <small class="form-hint">Accepted: PDF, JPG, JPEG, PNG | Max: 10MB</small>
+            </div>
+            <div class="upload-area">
+                <input type="file" 
+                       id="${doc.id}" 
+                       name="${doc.id}"
+                       accept=".pdf,.jpg,.jpeg,.png"
+                       data-document-type="${doc.id}"
+                       data-max-size="${10 * 1024 * 1024}"
+                       ${doc.required ? 'required' : ''}>
+                <label for="${doc.id}" class="upload-label">
+                    <span class="upload-icon">📄</span>
+                    <span>Choose File</span>
+                </label>
+            </div>
+        `;
+        
+        container.appendChild(uploadItem);
+    });
 }
 
 /**

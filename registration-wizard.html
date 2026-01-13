@@ -1205,17 +1205,31 @@
                     </div>
                 </div>
 
-                <!-- Step 1: Document Upload -->
+                <!-- Step 1: Car Type Selection & Document Upload -->
                 <div id="step-1" class="wizard-step active">
                     <div class="form-container">
-                        <h2>Document Upload</h2>
-                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Upload your required documents. The system can use them for auto-fill and verification.</p>
+                        <h2>Vehicle Type & Document Upload</h2>
+                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">First, select your vehicle type, then upload the required documents. The system can use them for auto-fill and verification.</p>
                         <form class="wizard-form">
-                            <div class="upload-section">
+                            <!-- Car Type Selection -->
+                            <div class="form-group full-width" style="margin-bottom: 2rem;">
+                                <label for="carType">Vehicle Type <span class="required">*</span></label>
+                                <select id="carType" name="carType" required style="width: 100%; padding: 0.75rem; font-size: 1rem; border: 2px solid var(--brand-border); border-radius: 8px;">
+                                    <option value="">Select Vehicle Type</option>
+                                    <option value="Passenger Vehicle">Passenger Vehicle</option>
+                                    <option value="Commercial Vehicle">Commercial Vehicle</option>
+                                    <option value="Motorcycle">Motorcycle</option>
+                                    <option value="Motorcycle – Tricycle (TC)">Motorcycle – Tricycle (TC)</option>
+                                </select>
+                                <small class="form-hint">Please select the type of vehicle you are registering</small>
+                            </div>
+
+                            <!-- Document Upload Section (shown after car type selection) -->
+                            <div class="upload-section" id="document-upload-section" style="display: none;">
                                 <h3>Required Documents</h3>
                                 <div id="document-upload-container">
                                     <!-- Document upload fields will be dynamically loaded here -->
-                                    <div class="loading-message">Loading document requirements...</div>
+                                    <div class="loading-message">Please select a vehicle type first</div>
                                 </div>
                             </div>
 

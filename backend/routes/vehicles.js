@@ -1422,11 +1422,37 @@ LTO Lipa City Team
             // Email is a notification, not critical to the registration process
         }
 
+        // Automatically send clearance requests to organizations
+        let autoSendResults = null;
+        try {
+            const clearanceService = require('../services/clearanceService');
+            const requestedBy = ownerUser.id; // Use owner as requester (system-initiated)
+            autoSendResults = await clearanceService.autoSendClearanceRequests(
+                newVehicle.id,
+                registrationData.documents,
+                requestedBy
+            );
+            console.log('✅ Auto-sent clearance requests:', {
+                hpg: autoSendResults.hpg.sent ? 'Yes' : 'No',
+                insurance: autoSendResults.insurance.sent ? 'Yes' : 'No',
+                emission: autoSendResults.emission.sent ? 'Yes' : 'No'
+            });
+        } catch (autoSendError) {
+            console.error('❌ Failed to auto-send clearance requests:', autoSendError);
+            // Don't fail the registration if auto-send fails - admin can manually send later
+            // Auto-send is a convenience feature, not critical to registration
+        }
+
         res.json({
             success: true,
             message: 'Vehicle registration submitted successfully',
             vehicle: formatVehicleResponse(fullVehicle, req, res),
-            blockchainStatus: blockchainTxId ? 'REGISTERED' : 'PENDING'
+            blockchainStatus: blockchainTxId ? 'REGISTERED' : 'PENDING',
+            clearanceRequests: autoSendResults ? {
+                hpg: autoSendResults.hpg.sent,
+                insurance: autoSendResults.insurance.sent,
+                emission: autoSendResults.emission.sent
+            } : null
         });
         
     } catch (error) {

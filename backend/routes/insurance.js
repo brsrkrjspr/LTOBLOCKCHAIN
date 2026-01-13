@@ -107,6 +107,12 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'insuranc
         // Get vehicle details
         const vehicle = await db.getVehicleById(request.vehicle_id);
         
+        // Get owner information for auto-fill
+        let owner = null;
+        if (vehicle && vehicle.owner_id) {
+            owner = await db.getUserById(vehicle.owner_id);
+        }
+        
         // Extract documents from metadata (filtered by LTO)
         // Insurance should ONLY see documents that were explicitly included in metadata.documents
         const metadata = request.metadata || {};
@@ -120,6 +126,15 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'insuranc
             request: {
                 ...request,
                 vehicle,
+                owner: owner ? {
+                    id: owner.id,
+                    firstName: owner.first_name,
+                    lastName: owner.last_name,
+                    email: owner.email,
+                    phone: owner.phone,
+                    address: owner.address,
+                    organization: owner.organization
+                } : null,
                 documents: documents // Return filtered documents
             }
         });

@@ -1431,61 +1431,9 @@
                         <form class="wizard-form">
                             <div class="upload-section">
                                 <h3>Required Documents</h3>
-                                
-                                <div class="upload-item">
-                                    <div class="upload-info">
-                                        <h4>Vehicle Registration Certificate</h4>
-                                        <p>Upload your current vehicle registration certificate (PDF, JPEG)</p>
-                                    </div>
-                                    <div class="upload-area">
-                                        <input type="file" id="registrationCert" accept=".pdf,.jpg,.jpeg" required>
-                                        <label for="registrationCert" class="upload-label">
-                                            <span class="upload-icon">📄</span>
-                                            <span>Choose File</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="upload-item">
-                                    <div class="upload-info">
-                                        <h4>Insurance Certificate</h4>
-                                        <p>Upload your vehicle insurance certificate (PDF, JPEG)</p>
-                                    </div>
-                                    <div class="upload-area">
-                                        <input type="file" id="insuranceCert" accept=".pdf,.jpg,.jpeg" required>
-                                        <label for="insuranceCert" class="upload-label">
-                                            <span class="upload-icon">🛡️</span>
-                                            <span>Choose File</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="upload-item">
-                                    <div class="upload-info">
-                                        <h4>Emission Test Certificate</h4>
-                                        <p>Upload your emission test certificate (PDF, JPEG)</p>
-                                    </div>
-                                    <div class="upload-area">
-                                        <input type="file" id="emissionCert" accept=".pdf,.jpg,.jpeg" required>
-                                        <label for="emissionCert" class="upload-label">
-                                            <span class="upload-icon">🌱</span>
-                                            <span>Choose File</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="upload-item">
-                                    <div class="upload-info">
-                                        <h4>Owner's ID</h4>
-                                        <p>Upload a copy of your valid ID (PDF, JPEG)</p>
-                                    </div>
-                                    <div class="upload-area">
-                                        <input type="file" id="ownerId" accept=".pdf,.jpg,.jpeg" required>
-                                        <label for="ownerId" class="upload-label">
-                                            <span class="upload-icon">🆔</span>
-                                            <span>Choose File</span>
-                                        </label>
-                                    </div>
+                                <div id="document-upload-container">
+                                    <!-- Document upload fields will be dynamically loaded here -->
+                                    <div class="loading-message">Loading document requirements...</div>
                                 </div>
                             </div>
 

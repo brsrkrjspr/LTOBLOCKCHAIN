@@ -102,6 +102,7 @@ app.use('/api/emission', require('./backend/routes/emission'));
 app.use('/api/vehicles/transfer', require('./backend/routes/transfer'));
 app.use('/api/admin', require('./backend/routes/admin'));
 app.use('/api/integrity', require('./backend/routes/integrity'));
+app.use('/api/document-requirements', require('./backend/routes/document-requirements'));
 
 // Laptop-optimized routes
 app.use('/api/health', require('./backend/routes/health'));

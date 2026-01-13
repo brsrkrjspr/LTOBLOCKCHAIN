@@ -1536,6 +1536,127 @@ async function assignMvirNumber(vehicleId, inspectionData) {
     };
 }
 
+// ============================================
+// DOCUMENT REQUIREMENTS OPERATIONS
+// ============================================
+
+async function getDocumentRequirements(registrationType, vehicleCategory = 'ALL') {
+    const result = await db.query(
+        `SELECT * FROM registration_document_requirements 
+         WHERE registration_type = $1 
+         AND (vehicle_category = $2 OR vehicle_category = 'ALL')
+         AND is_active = true
+         ORDER BY display_order ASC`,
+        [registrationType, vehicleCategory]
+    );
+    return result.rows;
+}
+
+async function getDocumentRequirementById(id) {
+    const result = await db.query(
+        'SELECT * FROM registration_document_requirements WHERE id = $1',
+        [id]
+    );
+    return result.rows[0] || null;
+}
+
+async function createDocumentRequirement(requirementData) {
+    const {
+        registrationType,
+        vehicleCategory = 'ALL',
+        documentType,
+        isRequired = true,
+        displayName,
+        description,
+        acceptedFormats = 'pdf,jpg,jpeg,png',
+        maxFileSizeMb = 10,
+        displayOrder = 0,
+        isActive = true
+    } = requirementData;
+
+    const result = await db.query(
+        `INSERT INTO registration_document_requirements 
+         (registration_type, vehicle_category, document_type, is_required, display_name, description, 
+          accepted_formats, max_file_size_mb, display_order, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [registrationType, vehicleCategory, documentType, isRequired, displayName, description,
+         acceptedFormats, maxFileSizeMb, displayOrder, isActive]
+    );
+    return result.rows[0];
+}
+
+async function updateDocumentRequirement(id, updateData) {
+    const {
+        isRequired,
+        displayName,
+        description,
+        acceptedFormats,
+        maxFileSizeMb,
+        displayOrder,
+        isActive
+    } = updateData;
+
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (isRequired !== undefined) {
+        updates.push(`is_required = $${paramCount++}`);
+        values.push(isRequired);
+    }
+    if (displayName !== undefined) {
+        updates.push(`display_name = $${paramCount++}`);
+        values.push(displayName);
+    }
+    if (description !== undefined) {
+        updates.push(`description = $${paramCount++}`);
+        values.push(description);
+    }
+    if (acceptedFormats !== undefined) {
+        updates.push(`accepted_formats = $${paramCount++}`);
+        values.push(acceptedFormats);
+    }
+    if (maxFileSizeMb !== undefined) {
+        updates.push(`max_file_size_mb = $${paramCount++}`);
+        values.push(maxFileSizeMb);
+    }
+    if (displayOrder !== undefined) {
+        updates.push(`display_order = $${paramCount++}`);
+        values.push(displayOrder);
+    }
+    if (isActive !== undefined) {
+        updates.push(`is_active = $${paramCount++}`);
+        values.push(isActive);
+    }
+
+    if (updates.length === 0) {
+        return await getDocumentRequirementById(id);
+    }
+
+    values.push(id);
+    const result = await db.query(
+        `UPDATE registration_document_requirements 
+         SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $${paramCount}
+         RETURNING *`,
+        values
+    );
+    return result.rows[0] || null;
+}
+
+async function deleteDocumentRequirement(id) {
+    // Soft delete by setting is_active = false
+    const result = await db.query(
+        `UPDATE registration_document_requirements 
+         SET is_active = false, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+         RETURNING *`,
+        [id]
+    );
+    return result.rows[0] || null;
+}
+
 module.exports = {
     // User operations
     getUserByEmail,
@@ -1610,6 +1731,13 @@ module.exports = {
     
     // MVIR Number operations
     generateMvirNumber,
-    assignMvirNumber
+    assignMvirNumber,
+    
+    // Document requirements operations
+    getDocumentRequirements,
+    getDocumentRequirementById,
+    createDocumentRequirement,
+    updateDocumentRequirement,
+    deleteDocumentRequirement
 };
 

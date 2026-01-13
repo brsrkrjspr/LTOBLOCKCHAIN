@@ -57,6 +57,12 @@ function initializeRegistrationWizard() {
     if (form) {
         FormPersistence.autoSave('registration-wizard', form);
     }
+    
+    // Auto-fill owner information if user is logged in
+    autoFillOwnerInfo();
+    
+    // Load dynamic document requirements
+    loadDocumentRequirements();
 }
 
 let currentStep = 1;
@@ -991,14 +997,37 @@ function showNotification(message, type = 'info') {
 
 // Helper functions for API integration
 async function uploadDocuments(signal) {
-    const documentTypes = ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId'];
     const uploadResults = {};
     const uploadErrors = [];
     
+    // Find all file inputs in the document upload container (dynamic or static)
+    const container = document.getElementById('document-upload-container');
+    const fileInputs = container ? 
+        Array.from(container.querySelectorAll('input[type="file"]')) :
+        // Fallback: try to find static fields
+        ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId']
+            .map(id => document.getElementById(id))
+            .filter(input => input !== null);
+    
     // Upload documents in parallel for better performance
-    const uploadPromises = documentTypes.map(async (docType) => {
-        const fileInput = document.getElementById(docType);
-        if (fileInput && fileInput.files && fileInput.files[0]) {
+    const uploadPromises = fileInputs.map(async (fileInput) => {
+        // Handle both direct input elements and IDs
+        const input = typeof fileInput === 'string' ? document.getElementById(fileInput) : fileInput;
+        if (!input) return;
+        
+        if (input.files && input.files[0]) {
+            // Get document type from data attribute or ID
+            const docType = input.getAttribute('data-document-type') || 
+                           input.id || 
+                           input.name;
+            
+            // Validate file size if max size is specified
+            const maxSize = input.getAttribute('data-max-size');
+            if (maxSize && input.files[0].size > parseInt(maxSize)) {
+                const maxSizeMB = (parseInt(maxSize) / (1024 * 1024)).toFixed(1);
+                uploadErrors.push(`${docType}: File size exceeds ${maxSizeMB}MB limit`);
+                return;
+            }
             try {
                 // Check if request was aborted
                 if (signal && signal.aborted) {
@@ -1006,7 +1035,7 @@ async function uploadDocuments(signal) {
                 }
                 
                 const formData = new FormData();
-                formData.append('document', fileInput.files[0]);
+                formData.append('document', input.files[0]);
                 formData.append('type', docType);
                 
                 // Use apiClient upload method for FormData
@@ -1022,7 +1051,7 @@ async function uploadDocuments(signal) {
                     uploadResults[docType] = {
                         id: result.document?.id || result.id || null, // Include document ID for linking
                         cid: result.cid || result.document?.cid || null,
-                        filename: result.filename || result.document?.filename || fileInput.files[0].name,
+                        filename: result.filename || result.document?.filename || input.files[0].name,
                         url: result.url || result.document?.url || `/uploads/${result.filename || result.document?.filename}`,
                         storageMode: actualStorageMode || 'unknown'
                     };
@@ -1045,8 +1074,8 @@ async function uploadDocuments(signal) {
                         uploadResults[docType] = {
                             id: result.document?.id || result.id || null, // Include document ID for linking
                             cid: result.cid || null,
-                            filename: result.filename || fileInput.files[0].name,
-                            url: result.url || `/uploads/${result.filename || fileInput.files[0].name}`,
+                        filename: result.filename || input.files[0].name,
+                        url: result.url || `/uploads/${result.filename || input.files[0].name}`,
                             storageMode: actualStorageMode,
                             warning: result.warning
                         };
@@ -1196,6 +1225,250 @@ function collectApplicationData() {
     };
 }
 
+/**
+ * Load document requirements from API and render upload fields
+ */
+async function loadDocumentRequirements(registrationType = 'NEW') {
+    try {
+        const container = document.getElementById('document-upload-container');
+        if (!container) {
+            console.warn('Document upload container not found');
+            return;
+        }
+
+        // Show loading state
+        container.innerHTML = '<div class="loading-message">Loading document requirements...</div>';
+
+        const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
+        if (!apiClient) {
+            // Fallback to static fields if API client not available
+            renderStaticDocumentFields(container);
+            return;
+        }
+
+        // Fetch document requirements
+        const response = await apiClient.get(`/api/document-requirements/${registrationType}`);
+        
+        if (response && response.success && response.requirements) {
+            renderDocumentUploadFields(response.requirements, container);
+        } else {
+            console.warn('Failed to load document requirements, using static fields');
+            renderStaticDocumentFields(container);
+        }
+    } catch (error) {
+        console.error('Error loading document requirements:', error);
+        // Fallback to static fields on error
+        const container = document.getElementById('document-upload-container');
+        if (container) {
+            renderStaticDocumentFields(container);
+        }
+    }
+}
+
+/**
+ * Render document upload fields from requirements
+ */
+function renderDocumentUploadFields(requirements, container) {
+    container.innerHTML = '';
+
+    if (!requirements || requirements.length === 0) {
+        container.innerHTML = '<div class="error-message">No document requirements found. Please contact support.</div>';
+        return;
+    }
+
+    // Filter active requirements and sort by display order
+    const activeRequirements = requirements
+        .filter(r => r.is_active !== false)
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+    activeRequirements.forEach(req => {
+        const uploadItem = document.createElement('div');
+        uploadItem.className = 'upload-item';
+        
+        // Map document_type to field ID (camelCase)
+        const fieldId = req.document_type.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        
+        // Build accept attribute from accepted_formats
+        const acceptFormats = req.accepted_formats || 'pdf,jpg,jpeg,png';
+        const acceptAttr = acceptFormats.split(',').map(f => `.${f.trim()}`).join(',');
+        
+        uploadItem.innerHTML = `
+            <div class="upload-info">
+                <h4>${escapeHtml(req.display_name)} ${req.is_required ? '<span class="required">*</span>' : ''}</h4>
+                <p>${escapeHtml(req.description || '')}</p>
+                <small class="form-hint">Accepted: ${escapeHtml(acceptFormats)} | Max: ${req.max_file_size_mb || 10}MB</small>
+            </div>
+            <div class="upload-area">
+                <input type="file" 
+                       id="${fieldId}" 
+                       name="${fieldId}"
+                       accept="${acceptAttr}"
+                       data-document-type="${req.document_type}"
+                       data-max-size="${(req.max_file_size_mb || 10) * 1024 * 1024}"
+                       ${req.is_required ? 'required' : ''}>
+                <label for="${fieldId}" class="upload-label">
+                    <span class="upload-icon">📄</span>
+                    <span>Choose File</span>
+                </label>
+            </div>
+        `;
+        
+        container.appendChild(uploadItem);
+    });
+}
+
+/**
+ * Render static document fields as fallback
+ */
+function renderStaticDocumentFields(container) {
+    container.innerHTML = `
+        <div class="upload-item">
+            <div class="upload-info">
+                <h4>Vehicle Registration Certificate <span class="required">*</span></h4>
+                <p>Upload your current vehicle registration certificate (PDF, JPEG)</p>
+            </div>
+            <div class="upload-area">
+                <input type="file" id="registrationCert" accept=".pdf,.jpg,.jpeg" required>
+                <label for="registrationCert" class="upload-label">
+                    <span class="upload-icon">📄</span>
+                    <span>Choose File</span>
+                </label>
+            </div>
+        </div>
+        <div class="upload-item">
+            <div class="upload-info">
+                <h4>Insurance Certificate <span class="required">*</span></h4>
+                <p>Upload your vehicle insurance certificate (PDF, JPEG)</p>
+            </div>
+            <div class="upload-area">
+                <input type="file" id="insuranceCert" accept=".pdf,.jpg,.jpeg" required>
+                <label for="insuranceCert" class="upload-label">
+                    <span class="upload-icon">🛡️</span>
+                    <span>Choose File</span>
+                </label>
+            </div>
+        </div>
+        <div class="upload-item">
+            <div class="upload-info">
+                <h4>Emission Test Certificate <span class="required">*</span></h4>
+                <p>Upload your emission test certificate (PDF, JPEG)</p>
+            </div>
+            <div class="upload-area">
+                <input type="file" id="emissionCert" accept=".pdf,.jpg,.jpeg" required>
+                <label for="emissionCert" class="upload-label">
+                    <span class="upload-icon">🌱</span>
+                    <span>Choose File</span>
+                </label>
+            </div>
+        </div>
+        <div class="upload-item">
+            <div class="upload-info">
+                <h4>Owner's ID <span class="required">*</span></h4>
+                <p>Upload a copy of your valid ID (PDF, JPEG)</p>
+            </div>
+            <div class="upload-area">
+                <input type="file" id="ownerId" accept=".pdf,.jpg,.jpeg" required>
+                <label for="ownerId" class="upload-label">
+                    <span class="upload-icon">🆔</span>
+                    <span>Choose File</span>
+                </label>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Auto-fill owner information from logged-in user profile
+ */
+async function autoFillOwnerInfo() {
+    try {
+        // Check if user is logged in
+        const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
+        if (!apiClient) {
+            console.log('API client not available, skipping auto-fill');
+            return;
+        }
+
+        // Check if we have a token
+        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        if (!token) {
+            console.log('No authentication token found, skipping auto-fill');
+            return;
+        }
+
+        // Fetch user profile
+        const profileResponse = await apiClient.get('/api/auth/profile');
+        if (!profileResponse || !profileResponse.success || !profileResponse.user) {
+            console.log('Could not fetch user profile for auto-fill');
+            return;
+        }
+
+        const user = profileResponse.user;
+        console.log('Auto-filling owner information from profile:', user);
+
+        // Auto-fill owner fields (only if they're empty)
+        const firstNameField = document.getElementById('firstName');
+        const lastNameField = document.getElementById('lastName');
+        const emailField = document.getElementById('email');
+        const phoneField = document.getElementById('phone');
+        const addressField = document.getElementById('address');
+
+        if (firstNameField && !firstNameField.value && user.firstName) {
+            firstNameField.value = user.firstName;
+            firstNameField.classList.add('auto-filled');
+        }
+        if (lastNameField && !lastNameField.value && user.lastName) {
+            lastNameField.value = user.lastName;
+            lastNameField.classList.add('auto-filled');
+        }
+        if (emailField && !emailField.value && user.email) {
+            emailField.value = user.email;
+            emailField.classList.add('auto-filled');
+        }
+        if (phoneField && !phoneField.value && user.phone) {
+            phoneField.value = user.phone;
+            phoneField.classList.add('auto-filled');
+        }
+        if (addressField && !addressField.value && user.address) {
+            addressField.value = user.address;
+            addressField.classList.add('auto-filled');
+        }
+
+        // Show notification if any fields were auto-filled
+        if ((firstNameField && firstNameField.classList.contains('auto-filled')) ||
+            (lastNameField && lastNameField.classList.contains('auto-filled')) ||
+            (emailField && emailField.classList.contains('auto-filled'))) {
+            showNotification('Owner information has been auto-filled from your profile', 'info');
+        }
+
+        // Optionally offer to copy from previous vehicle registration
+        try {
+            const vehiclesResponse = await apiClient.get('/api/vehicles/my-vehicles');
+            if (vehiclesResponse && vehiclesResponse.success && vehiclesResponse.vehicles && vehiclesResponse.vehicles.length > 0) {
+                const latestVehicle = vehiclesResponse.vehicles[0]; // Most recent vehicle
+                console.log('Found previous vehicle registration, can offer to copy details');
+                // Could add a "Copy from previous registration" button here
+            }
+        } catch (vehiclesError) {
+            console.log('Could not fetch previous vehicles for auto-fill:', vehiclesError);
+        }
+
+    } catch (error) {
+        console.log('Auto-fill error (non-critical):', error);
+        // Don't show error to user - auto-fill is a convenience feature
+    }
+}
+
 // Export functions for global access
 window.nextStep = nextStep;
 window.prevStep = prevStep;
@@ -1209,5 +1482,8 @@ window.RegistrationWizard = {
     validateCurrentStep,
     showNotification,
     uploadDocuments,
-    collectApplicationData
+    collectApplicationData,
+    autoFillOwnerInfo,
+    loadDocumentRequirements,
+    renderDocumentUploadFields
 };

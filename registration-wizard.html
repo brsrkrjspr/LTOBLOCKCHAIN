@@ -4,1672 +4,996 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Registration Wizard - LTO Blockchain</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/login-signup.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
-           OWNER DASHBOARD SIDEBAR TOGGLE & HEADER IMPROVEMENTS
+           REGISTRATION WIZARD STYLES
            ============================================ */
         
-        /* Smooth Sidebar Transitions */
-        .dashboard-sidebar {
-            transition: width 0.3s ease-in-out;
+        .wizard-page-wrapper {
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-lg) var(--spacing-md);
+            padding-top: calc(var(--spacing-xl) + 60px);
         }
-        
-        .dashboard-main {
-            transition: margin-left 0.3s ease-in-out;
+
+        .wizard-container {
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            position: relative;
+            z-index: 10;
         }
-        
-        /* Logo Toggle Styling */
-        .dashboard-sidebar .logo#logoToggle {
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            cursor: pointer;
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:hover {
-            opacity: 0.9;
-            transform: scale(1.05);
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:active {
-            transform: scale(0.95);
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:focus {
-            outline: 2px solid rgba(255, 255, 255, 0.5);
-            outline-offset: 2px;
-            border-radius: 4px;
-        }
-        
-        .dashboard-sidebar .logo-image {
-            transition: transform 0.2s ease;
-            max-width: 80px !important;
-            width: 80px !important;
-            height: auto !important;
-            display: block !important;
-            margin: 0 auto !important;
-        }
-        
-        .dashboard-sidebar .logo#logoToggle:hover .logo-image {
-            transform: scale(1.05);
-        }
-        
-        /* Center logo at top of sidebar and remove extra spacing */
-        .dashboard-sidebar .sidebar-header {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            padding: 0.75rem 0 !important;
-            margin: 0 !important;
-        }
-        
-        .dashboard-sidebar .logo#logoToggle {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
-        }
-        
-        /* Header Improvements */
-        .dashboard-header .container {
-            padding-left: 1.5rem;
-            padding-right: 1.5rem;
-        }
-        
-        .dashboard-header .dashboard-nav {
+
+        /* Step Progress Indicator */
+        .step-progress {
+            background: var(--white);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
             display: flex;
             align-items: center;
             justify-content: space-between;
-        }
-        
-        .dashboard-header .nav-left {
-            display: flex;
-            align-items: center;
-            flex: 1;
-        }
-        
-        .dashboard-header .logo {
-            display: flex;
-            align-items: center;
-        }
-        
-        .dashboard-header .logo h1 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--gray-900, #111827);
-            line-height: 1.2;
-        }
-        
-        .dashboard-header .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        /* ============================================
-           COMPREHENSIVE UI/UX IMPROVEMENTS
-           ============================================ */
-        
-        /* 1. TEXT PLACEMENT & READABILITY */
-        /* Typography Hierarchy */
-        .dashboard-content h1,
-        .dashboard-content .page-title {
-            font-size: 2rem;
-            font-weight: 700;
-            line-height: 1.2;
-            margin: 0 0 0.5rem 0;
-            color: #111827;
-        }
-        
-        .dashboard-content h2,
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            line-height: 1.3;
-            margin: 0 0 0.5rem 0;
-            color: #1f2937;
-        }
-        
-        .dashboard-content h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            line-height: 1.4;
-            margin: 0 0 0.75rem 0;
-            color: #374151;
-        }
-        
-        .section-subtitle,
-        .dashboard-content p.subtitle {
-            font-size: 0.9375rem;
-            font-weight: 400;
-            line-height: 1.5;
-            color: #6b7280;
-            margin: 0 0 1.5rem 0;
-        }
-        
-        .section-header {
-            margin-bottom: 1.5rem;
-        }
-        
-        .section-header h2 {
-            margin-bottom: 0.25rem;
-        }
-        
-        /* Form Labels */
-        .form-group label,
-        label {
-            font-size: 0.9375rem;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 0.5rem;
-            display: block;
-            line-height: 1.5;
-        }
-        
-        /* Helper Text */
-        .hint,
-        small.hint,
-        .form-group small {
-            font-size: 0.8125rem;
-            color: #6b7280;
-            margin-top: 0.25rem;
-            display: block;
-            line-height: 1.4;
-        }
-        
-        /* 2. BUTTON CONSISTENCY */
-        /* Unified Button System */
-        button,
-        .btn,
-        .btn-primary,
-        .btn-secondary,
-        .btn-success,
-        .btn-danger,
-        .btn-warning,
-        .btn-info,
-        .btn-sm,
-        .btn-lg,
-        .btn-card-primary,
-        .btn-card-secondary,
-        .btn-card-success,
-        .btn-card-transfer,
-        a.btn,
-        a.btn-primary,
-        a.btn-secondary {
-            /* Base Properties */
-            height: 44px;
-            min-height: 44px;
-            padding: 0.75rem 1.5rem;
-            font-size: 0.9375rem;
-            font-weight: 600;
-            line-height: 1.5;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-            text-decoration: none;
-            white-space: nowrap;
-        }
-        
-        /* Small Buttons */
-        .btn-sm {
-            height: 36px;
-            min-height: 36px;
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-        }
-        
-        /* Large Buttons */
-        .btn-lg {
-            height: 52px;
-            min-height: 52px;
-            padding: 1rem 2rem;
-            font-size: 1.0625rem;
-        }
-        
-        /* Icon Buttons - Square */
-        button.icon-btn,
-        .btn-icon {
-            width: 44px;
-            min-width: 44px;
-            height: 44px;
-            min-height: 44px;
-            padding: 0;
-        }
-        
-        /* Button Alignment */
-        .btn-group,
-        .button-group {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .btn-group .btn,
-        .button-group button {
-            flex: 0 0 auto;
-        }
-        
-        /* Button Hover States */
-        .btn-primary:hover,
-        .btn-secondary:hover,
-        .btn-success:hover,
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        .btn-primary:active,
-        .btn-secondary:active,
-        .btn-success:active,
-        .btn-danger:active {
-            transform: translateY(0);
-        }
-        
-        /* 3. LAYOUT & SPACING */
-        /* Unified Spacing System (8px base) */
-        .dashboard-content {
-            padding: 1.5rem;
-        }
-        
-        .dashboard-card-modern,
-        .card,
-        .dashboard-card {
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        /* Prevent Edge Touching */
-        .dashboard-content .container {
-            max-width: 100%;
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
-        
-        /* 4. RESPONSIVE DESIGN */
-        /* Mobile (≤ 768px) */
-        @media (max-width: 768px) {
-            /* Typography */
-            .dashboard-content h1,
-            .dashboard-content .page-title {
-                font-size: 1.5rem;
-            }
-            
-            .dashboard-content h2,
-            .section-title {
-                font-size: 1.25rem;
-            }
-            
-            .dashboard-content h3 {
-                font-size: 1.125rem;
-            }
-            
-            /* Buttons - Full Width */
-            button,
-            .btn,
-            .btn-primary,
-            .btn-secondary,
-            .btn-success,
-            .btn-danger {
-                width: 100%;
-                margin-bottom: 0.75rem;
-            }
-            
-            .btn-group,
-            .button-group {
-                flex-direction: column;
-                width: 100%;
-            }
-            
-            .btn-group .btn:last-child,
-            .button-group button:last-child {
-                margin-bottom: 0;
-            }
-            
-            /* Layout - Stack Vertically */
-            .form-row {
-                flex-direction: column;
-                gap: 0;
-            }
-            
-            .dashboard-content {
-                padding: 1rem;
-            }
-            
-            .dashboard-card-modern,
-            .card,
-            .dashboard-card {
-                padding: 1rem;
-                margin-bottom: 1rem;
-            }
-            
-            .section-header {
-                margin-bottom: 1rem;
-            }
-            
-            /* Prevent Text Overflow */
-            .dashboard-content {
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-            }
-        }
-        
-        /* Collapsed Sidebar - Responsive Adjustments */
-        @media (min-width: 769px) {
-            .dashboard-sidebar.collapsed {
-                padding: 1.25rem 0.75rem;
-            }
-            
-            .dashboard-sidebar.collapsed .sidebar-nav .nav-item {
-                padding: 0.85rem 0.5rem;
-            }
-            
-            .dashboard-sidebar.collapsed .sidebar-nav .nav-item i {
-                width: 36px;
-                height: 36px;
-            }
-        }
-        
-        @media (min-width: 1025px) {
-            .dashboard-sidebar.collapsed {
-                padding: 1.25rem 0.875rem;
-            }
-            
-            .dashboard-sidebar.collapsed .sidebar-nav .nav-item {
-                padding: 0.9rem 0.625rem;
-            }
-        }
-        
-        /* Tablet (768px - 1024px) */
-        @media (min-width: 769px) and (max-width: 1024px) {
-            .form-row {
-                gap: 1rem;
-            }
-            
-            .btn-group,
-            .button-group {
-                flex-wrap: wrap;
-            }
-        }
-        
-        /* Desktop (≥ 1025px) */
-        @media (min-width: 1025px) {
-            .dashboard-content .container {
-                max-width: 1400px;
-                margin: 0 auto;
-            }
-            
-            /* Grid Layouts */
-            .grid-2 {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 1.5rem;
-            }
-            
-            .grid-3 {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 1.5rem;
-            }
-        }
-        
-        /* 5. VISUAL CLEANLINESS */
-        /* Improved Contrast */
-        .dashboard-content {
-            color: #1f2937;
-            line-height: 1.6;
-        }
-        
-        /* Input Focus States */
-        input:focus,
-        textarea:focus,
-        select:focus {
-            outline: 2px solid #3b82f6;
-            outline-offset: 2px;
-            border-color: #3b82f6;
-        }
-        
-        /* Card Hover States */
-        .dashboard-card-modern:hover,
-        .card:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-            transition: box-shadow 0.2s ease;
-        }
-        
-        /* Table Improvements */
-        .table-modern,
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .table-modern th,
-        table th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        
-        .table-modern td,
-        table td {
-            padding: 1rem;
-            font-size: 0.9375rem;
-            color: #1f2937;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        
-        /* Alignment Helpers */
-        .text-left { text-align: left; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        
-        .flex { display: flex; }
-        .flex-column { flex-direction: column; }
-        .items-center { align-items: center; }
-        .justify-between { justify-content: space-between; }
-        .gap-1 { gap: 0.5rem; }
-        .gap-2 { gap: 1rem; }
-        .gap-3 { gap: 1.5rem; }
-
-        /* ============================================
-           Modern User Portal Theme Overrides
-           ============================================ */
-        :root {
-            --brand-primary: #2d7ff9;
-            --brand-secondary: #17c3b2;
-            --brand-surface: #f6f9fc;
-            --brand-card: #ffffff;
-            --brand-text: #0f172a;
-            --brand-muted: #64748b;
-            --brand-border: #e2e8f0;
-            --brand-gradient: linear-gradient(135deg, #2d7ff9 0%, #17c3b2 100%);
-        }
-
-        body {
-            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-            background: var(--brand-surface);
-            color: var(--brand-text);
-        }
-
-        .dashboard {
-            background: var(--brand-surface);
-            min-height: 100vh;
-        }
-
-        .dashboard-sidebar {
-            background: #0b1f3a;
-            border-right: 1px solid rgba(255,255,255,0.08);
-            padding: 1.25rem 1rem;
-        }
-
-        .sidebar-nav {
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-
-        .sidebar-nav .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.85rem 0.9rem;
-            border-radius: 12px;
-            color: #cbd5e1;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-            transition: all 0.2s ease;
-        }
-
-        .sidebar-nav .nav-item i {
-            width: 32px;
-            height: 32px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.06);
-        }
-
-        .sidebar-nav .nav-item:hover {
-            background: rgba(255,255,255,0.08);
-            color: #fff;
-        }
-
-        .sidebar-nav .nav-item.active {
-            background: linear-gradient(135deg, #2d7ff9, #17c3b2);
-            color: #fff;
-            box-shadow: 0 10px 25px rgba(45,127,249,0.25);
-        }
-
-        .sidebar-nav .nav-item.active i {
-            background: rgba(255,255,255,0.18);
-        }
-
-        /* Collapsed Sidebar - Improved Spacing */
-        .dashboard-sidebar.collapsed {
-            padding: 1.25rem 0.75rem;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-header {
-            padding: 0;
-            margin-bottom: 1.5rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .dashboard-sidebar.collapsed .logo-image {
-            width: 48px !important;
-            height: auto !important;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-nav {
-            gap: 0.5rem;
-            padding: 0;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-nav .nav-item {
-            justify-content: center;
-            padding: 0.85rem 0.5rem;
-            margin: 0;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-nav .nav-item i {
-            width: 36px;
-            height: 36px;
-            margin: 0;
-            font-size: 1.1rem;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-nav .nav-item span {
-            display: none;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-footer {
-            padding: 1rem 0.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-user-profile {
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 0;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-user-details {
-            display: none;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-user-avatar {
-            width: 36px;
-            height: 36px;
-            font-size: 0.875rem;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-user-actions {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            gap: 0.5rem;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-action-item {
-            justify-content: center;
-            padding: 0.75rem 0.5rem;
-            width: 100%;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-action-item span {
-            display: none;
-        }
-
-        .dashboard-sidebar.collapsed .sidebar-action-item i {
-            margin: 0;
-            font-size: 1.1rem;
-        }
-
-        .dashboard-header {
-            background: #ffffff;
-            border-bottom: 1px solid var(--brand-border);
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
-
-        .dashboard-header .container {
-            padding-left: 1.5rem;
-            padding-right: 1.5rem;
-        }
-
-        .dashboard-nav {
-            padding: 1rem 0;
-        }
-
-        .dashboard-header .logo h1 {
-            font-size: 1.35rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            color: #0f172a;
-        }
-
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-portal-profile {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.75rem;
-            background: #f8fafc;
-            border: 1px solid var(--brand-border);
-            padding: 0.45rem 0.75rem;
-            border-radius: 999px;
             position: relative;
-            cursor: pointer;
-            min-width: 190px;
         }
 
-        .user-portal-profile .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--brand-gradient);
-            color: #fff;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 5px 15px rgba(45,127,249,0.25);
+        .step-progress::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--gray-200);
+            z-index: 0;
+            transform: translateY(-50%);
+            margin: 0 calc(var(--spacing-md) + 20px);
         }
 
-        .user-portal-profile .user-meta {
+        .step-progress::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: calc(var(--spacing-md) + 20px);
+            height: 2px;
+            background: var(--blockchain-green);
+            z-index: 0;
+            transform: translateY(-50%);
+            width: 0;
+            transition: width var(--transition-slow);
+        }
+
+        .step-progress.step-2::after {
+            width: calc(33.333% - 40px);
+        }
+
+        .step-progress.step-3::after {
+            width: calc(66.666% - 40px);
+        }
+
+        .progress-step {
+            position: relative;
+            z-index: 1;
             display: flex;
             flex-direction: column;
-            line-height: 1.2;
-        }
-
-        .user-meta .user-name { font-weight: 700; color: #0f172a; }
-        .user-meta .user-role { font-size: 0.8rem; color: var(--brand-muted); }
-
-        .profile-caret {
-            background: none;
-            border: none;
-            color: #475569;
-            padding: 0;
-            display: inline-flex;
             align-items: center;
+            gap: var(--spacing-xs);
+            flex: 1;
+            background: var(--white);
         }
 
-        .profile-dropdown {
-            position: absolute;
-            top: 110%;
-            right: 0;
-            background: #ffffff;
-            border: 1px solid var(--brand-border);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
-            border-radius: 12px;
-            min-width: 200px;
-            padding: 0.5rem 0;
+        .progress-step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+            background: var(--gray-200);
+            color: var(--gray-600);
+            border: 3px solid var(--white);
+            transition: all var(--transition-normal);
+        }
+
+        .progress-step.active .progress-step-number {
+            background: var(--lto-blue);
+            color: var(--white);
+            box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1);
+        }
+
+        .progress-step.completed .progress-step-number {
+            background: var(--blockchain-green);
+            color: var(--white);
+        }
+
+        .progress-step.completed .progress-step-number::after {
+            content: '\f00c';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 0.875rem;
+        }
+
+        .progress-step.completed .progress-step-number span {
             display: none;
         }
 
-        .profile-dropdown a,
-        .profile-dropdown button {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem;
-            background: none;
-            border: none;
-            text-align: left;
-            color: #0f172a;
+        .progress-step-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            text-align: center;
+            transition: color var(--transition-fast);
+        }
+
+        .progress-step.active .progress-step-title {
+            color: var(--lto-blue);
             font-weight: 600;
+        }
+
+        .progress-step.completed .progress-step-title {
+            color: var(--blockchain-green);
+        }
+
+        .progress-step.disabled .progress-step-title {
+            color: var(--gray-400);
+        }
+
+        .progress-step.disabled .progress-step-number {
+            background: var(--gray-100);
+            color: var(--gray-400);
+        }
+
+        /* Step Content */
+        .wizard-step-content {
+            background: var(--white);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .wizard-step-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step-header {
+            text-align: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .step-header h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .step-header p {
+            color: var(--gray-600);
+            font-size: 0.9375rem;
+        }
+
+        /* Vehicle Type Selection */
+        .vehicle-type-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .vehicle-type-card {
+            position: relative;
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            padding: var(--spacing-md);
             cursor: pointer;
+            transition: all var(--transition-fast);
+            background: var(--white);
+            text-align: center;
         }
 
-        .profile-dropdown a:hover,
-        .profile-dropdown button:hover {
-            background: #f8fafc;
+        .vehicle-type-card:hover {
+            border-color: var(--lto-blue-light);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
         }
 
-        .user-portal-profile.open .profile-dropdown { display: block; }
-
-        .dashboard-content {
-            padding: 2rem 1.5rem;
-        }
-
-        /* ============================================
-           Landscape Registration Wizard Design - Centered
-           ============================================ */
-        
-        /* Center the wizard container */
-        .dashboard-content .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .wizard-progress {
-            background: #fff;
-            border: 1px solid var(--brand-border);
-            border-radius: 16px;
-            padding: 1rem 2rem;
-            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
-            margin-bottom: 1.5rem;
-            width: 100%;
-            max-width: 1200px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .wizard-step {
-            width: 100%;
-            max-width: 1200px;
-            display: none; /* Hidden by default */
-            justify-content: center;
-        }
-        
-        /* Show active step */
-        .wizard-step.active {
-            display: flex;
-        }
-        
-        /* Hide progress indicators for steps 2, 3, and 4 until previous step is completed */
-        .progress-step[data-step="2"]:not(.accessible),
-        .progress-step[data-step="3"]:not(.accessible),
-        .progress-step[data-step="4"]:not(.accessible) {
-            opacity: 0.3;
+        .vehicle-type-card input[type="radio"] {
+            position: absolute;
+            opacity: 0;
             pointer-events: none;
         }
-        
-        .progress-step.accessible {
-            opacity: 1;
-            pointer-events: auto;
+
+        .vehicle-type-card.selected {
+            border-color: var(--lto-blue);
+            background: rgba(30, 64, 175, 0.05);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
         }
 
-        .wizard-step .form-container {
-            background: #ffffff;
-            border: 1px solid var(--brand-border);
-            border-radius: 16px;
-            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
-            padding: 2rem;
-            width: 100%;
-            max-width: 1200px;
+        .vehicle-type-icon {
+            font-size: 2.5rem;
+            color: var(--gray-400);
+            margin-bottom: var(--spacing-sm);
+            transition: color var(--transition-fast);
         }
 
-        .wizard-step .form-container h2 {
-            text-align: center;
-            margin-bottom: 1.5rem;
-            color: #0f172a;
-            font-size: 1.5rem;
+        .vehicle-type-card.selected .vehicle-type-icon {
+            color: var(--lto-blue);
         }
 
-        /* Landscape Form Layout - Centered */
-        .wizard-form {
-            max-width: 100%;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        /* Form Rows - Responsive columns that fill available space */
-        .wizard-form .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        /* Full-width fields (like address, VIN) */
-        .wizard-form .form-group.full-width {
-            grid-column: 1 / -1;
-        }
-
-        /* Form Groups - Compact Vertical Spacing */
-        .wizard-form .form-group {
-            margin-bottom: 0;
-        }
-
-        .wizard-form .form-group label {
-            font-size: 0.875rem;
-            margin-bottom: 0.4rem;
-        }
-
-        .wizard-form .form-group input,
-        .wizard-form .form-group select,
-        .wizard-form .form-group textarea {
-            font-size: 0.9375rem;
-            padding: 0.65rem 0.85rem;
-            height: auto;
-            min-height: 42px;
-        }
-
-        .wizard-form .form-group small.form-hint {
-            font-size: 0.75rem;
-            margin-top: 0.25rem;
-            line-height: 1.3;
-        }
-
-        /* Upload Items - Horizontal Layout */
-        .upload-section {
-            margin-bottom: 1rem;
-        }
-
-        .upload-item {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 1rem;
-            align-items: center;
-            padding: 1rem 1.25rem;
-            border: 2px solid var(--brand-border);
-            border-radius: 12px;
-            margin-bottom: 0.75rem;
-            transition: all 0.2s ease;
-        }
-
-        .upload-item:hover {
-            border-color: #2d7ff9;
-            box-shadow: 0 2px 8px rgba(45,127,249,0.1);
-        }
-
-        .upload-info h4 {
-            font-size: 0.9375rem;
-            margin: 0 0 0.25rem 0;
-            color: #0f172a;
-        }
-
-        .upload-info p {
-            font-size: 0.8125rem;
-            margin: 0;
-            color: #64748b;
-        }
-
-        .upload-area {
-            flex-shrink: 0;
-        }
-
-        .upload-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.2rem;
-            background: var(--brand-gradient);
-            color: #fff;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.875rem;
+        .vehicle-type-label {
+            font-size: 1rem;
             font-weight: 600;
-            transition: all 0.2s ease;
+            color: var(--gray-700);
+            margin-bottom: var(--spacing-xs);
+            transition: color var(--transition-fast);
         }
 
-        .upload-label:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(45,127,249,0.3);
+        .vehicle-type-card.selected .vehicle-type-label {
+            color: var(--lto-blue);
         }
 
-        /* Review Cards - Horizontal Grid */
-        .review-section {
-            margin-bottom: 1rem;
+        .vehicle-type-description {
+            font-size: 0.8125rem;
+            color: var(--gray-500);
         }
 
-        .review-section h3 {
-            font-size: 1.125rem;
-            margin-bottom: 1rem;
+        /* Document Upload Section */
+        .document-upload-section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .document-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .document-group label {
+            display: block;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .document-group label .required {
+            color: #ef4444;
+            margin-left: 2px;
+        }
+
+        .document-upload-area {
+            border: 2px dashed var(--gray-300);
+            border-radius: 8px;
+            padding: var(--spacing-md);
             text-align: center;
-            color: #0f172a;
+            transition: all var(--transition-fast);
+            background: var(--gray-50);
+            cursor: pointer;
         }
 
-        .review-section .review-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-bottom: 1rem;
+        .document-upload-area:hover {
+            border-color: var(--lto-blue-light);
+            background: rgba(30, 64, 175, 0.02);
+        }
+
+        .document-upload-area.has-file {
+            border-color: var(--blockchain-green);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .document-upload-input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            color: var(--gray-400);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .document-upload-area.has-file .upload-icon {
+            color: var(--blockchain-green);
+        }
+
+        .document-upload-area.has-file .upload-text {
+            color: var(--blockchain-green);
+            font-weight: 500;
+        }
+
+        .upload-text {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .upload-hint {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+        }
+
+        .file-name {
+            font-size: 0.875rem;
+            color: var(--blockchain-green);
+            font-weight: 500;
+            margin-top: var(--spacing-xs);
+        }
+
+        /* Additional Requirements Section */
+        .additional-requirements {
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-md);
+            background: rgba(30, 64, 175, 0.05);
+            border-left: 4px solid var(--lto-blue);
+            border-radius: 8px;
+        }
+
+        .additional-requirements h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--lto-blue);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .additional-requirements p {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        /* Review Section */
+        .review-section {
+            margin-bottom: var(--spacing-lg);
         }
 
         .review-card {
-            background: #f8fafc;
-            border: 1px solid var(--brand-border);
-            border-radius: 12px;
-            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
         }
 
-        .review-card h4 {
-            font-size: 0.9375rem;
-            margin: 0 0 0.75rem 0;
-            color: #0f172a;
-            font-weight: 700;
-        }
-
-        .review-details {
-            font-size: 0.875rem;
-        }
-
-        .review-details p {
-            margin: 0.4rem 0;
-            color: #475569;
-        }
-
-        .review-details strong {
-            color: #0f172a;
+        .review-card h3 {
+            font-size: 1.125rem;
             font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-xs);
+            border-bottom: 2px solid var(--gray-200);
         }
 
-        /* Form Actions - Centered */
-        .form-actions {
+        .review-item {
             display: flex;
-            justify-content: center;
-            gap: 0.75rem;
-            margin-top: 1.5rem;
-            padding-top: 1.25rem;
-            border-top: 1px solid var(--brand-border);
+            justify-content: space-between;
+            padding: var(--spacing-xs) 0;
+            border-bottom: 1px solid var(--gray-200);
         }
 
-        /* Terms Agreement - Centered */
-        .terms-agreement {
-            margin: 1.5rem 0;
-            display: flex;
-            justify-content: center;
+        .review-item:last-child {
+            border-bottom: none;
         }
 
-        .checkbox-label {
-            font-size: 0.875rem;
+        .review-label {
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .review-value {
+            color: var(--gray-600);
+            text-align: right;
+        }
+
+        .review-documents {
+            list-style: none;
+            padding: 0;
+        }
+
+        .review-documents li {
+            padding: var(--spacing-xs) 0;
+            color: var(--gray-600);
             display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .review-documents li i {
+            color: var(--blockchain-green);
+        }
+
+        /* Navigation Buttons */
+        .wizard-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .btn-wizard {
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            border: none;
             cursor: pointer;
-            max-width: 600px;
-            text-align: left;
+            transition: all var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
         }
 
-        /* Responsive: Tablet - 2 columns */
-        @media (min-width: 769px) and (max-width: 1200px) {
-            .wizard-progress {
-                max-width: 100%;
-                padding: 1rem 1.5rem;
-            }
-
-            .wizard-step .form-container {
-                max-width: 100%;
-                padding: 1.5rem;
-            }
-
-            .wizard-form .form-row {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .review-section .review-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        .btn-wizard:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
-        /* Responsive: Mobile - Stack vertically, maintain centering */
+        .btn-wizard-primary {
+            background: linear-gradient(135deg, var(--lto-blue) 0%, var(--lto-blue-light) 100%);
+            color: var(--white);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-wizard-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, var(--lto-blue-dark) 0%, var(--lto-blue) 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-wizard-secondary {
+            background: var(--white);
+            color: var(--gray-700);
+            border: 2px solid var(--gray-300);
+        }
+
+        .btn-wizard-secondary:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-400);
+        }
+
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .dashboard-content .container {
-                padding-left: 1rem;
-                padding-right: 1rem;
+            .wizard-page-wrapper {
+                padding: var(--spacing-md) var(--spacing-sm);
+                padding-top: calc(var(--spacing-lg) + 60px);
             }
 
-            .wizard-progress {
-                max-width: 100%;
-                padding: 1rem;
+            .step-progress {
+                flex-direction: column;
+                gap: var(--spacing-sm);
+                padding: var(--spacing-sm);
             }
 
-            .wizard-step .form-container {
-                max-width: 100%;
-                padding: 1.25rem;
+            .step-progress::before {
+                display: none;
             }
 
-            .wizard-step .form-container h2 {
-                font-size: 1.25rem;
+            .progress-step {
+                width: 100%;
+                flex-direction: row;
+                justify-content: flex-start;
+                gap: var(--spacing-sm);
             }
 
-            .wizard-form .form-row {
-                grid-template-columns: 1fr;
-                gap: 0.75rem;
+            .progress-step-title {
+                text-align: left;
             }
 
-            .upload-item {
-                grid-template-columns: 1fr;
-                gap: 0.75rem;
-            }
-
-            .review-section .review-grid {
+            .vehicle-type-grid {
                 grid-template-columns: 1fr;
             }
 
-            .form-actions {
+            .wizard-navigation {
                 flex-direction: column-reverse;
             }
 
-            .form-actions button {
+            .btn-wizard {
                 width: 100%;
-                max-width: 300px;
-            }
-
-            .terms-agreement {
-                justify-content: flex-start;
-            }
-
-            .checkbox-label {
-                max-width: 100%;
+                justify-content: center;
             }
         }
 
-        .btn-primary,
-        a.btn-primary {
-            background: var(--brand-gradient);
-            border: none;
-            color: #fff;
-            box-shadow: 0 8px 20px rgba(45,127,249,0.25);
-        }
-
-        .btn-secondary,
-        a.btn-secondary {
-            border: 2px solid #2d7ff9;
-            color: #2d7ff9;
-            background: #ffffff;
-        }
-
-        @media (max-width: 900px) {
-            .dashboard-content { padding: 1.25rem 1rem; }
-            .nav-actions { gap: 0.75rem; }
-            .user-portal-profile { width: 100%; justify-content: space-between; }
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .vehicle-type-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
 <body>
-    <div class="dashboard">
-        <!-- Sidebar Navigation -->
-        <aside class="dashboard-sidebar">
-            <div class="sidebar-header">
-                <div class="logo" id="logoToggle" role="button" aria-label="Toggle sidebar" tabindex="0">
-                    <img src="css/logo.png" alt="LTO Logo" class="logo-image">
+    <div class="auth-page-wrapper">
+        <!-- Background -->
+        <div class="auth-background">
+            <div class="blockchain-pattern"></div>
+            <div class="background-overlay"></div>
+        </div>
+
+        <!-- Header -->
+        <header class="auth-header-nav">
+            <div class="container">
+                <a href="index.html" class="auth-logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>LTO Blockchain</h1>
+                        <p>Management System</p>
+                    </div>
+                </a>
+                <nav class="auth-nav">
+                    <a href="index.html" class="nav-link">Home</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Wizard Content -->
+        <div class="wizard-page-wrapper">
+            <div class="wizard-container">
+                <!-- Step Progress Indicator -->
+                <div class="step-progress">
+                    <div class="progress-step active" data-step="1">
+                        <div class="progress-step-number">
+                            <span>1</span>
+                        </div>
+                        <div class="progress-step-title">Select Vehicle Type</div>
+                    </div>
+                    <div class="progress-step disabled" data-step="2">
+                        <div class="progress-step-number">
+                            <span>2</span>
+                        </div>
+                        <div class="progress-step-title">Upload Documents</div>
+                    </div>
+                    <div class="progress-step disabled" data-step="3">
+                        <div class="progress-step-number">
+                            <span>3</span>
+                        </div>
+                        <div class="progress-step-title">Review & Confirm</div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Select Vehicle Type -->
+                <div id="step-1" class="wizard-step-content active">
+                    <div class="step-header">
+                        <h2>Select Vehicle Type</h2>
+                        <p>Choose the type of vehicle you want to register</p>
+                    </div>
+
+                    <div class="vehicle-type-grid">
+                        <label class="vehicle-type-card" data-type="passenger">
+                            <input type="radio" name="vehicleType" value="passenger" required>
+                            <div class="vehicle-type-icon">
+                                <i class="fas fa-car"></i>
+                            </div>
+                            <div class="vehicle-type-label">Passenger Vehicle</div>
+                            <div class="vehicle-type-description">Cars, SUVs, and passenger vehicles</div>
+                        </label>
+
+                        <label class="vehicle-type-card" data-type="commercial">
+                            <input type="radio" name="vehicleType" value="commercial" required>
+                            <div class="vehicle-type-icon">
+                                <i class="fas fa-truck"></i>
+                            </div>
+                            <div class="vehicle-type-label">Commercial Vehicle</div>
+                            <div class="vehicle-type-description">Trucks, vans, and commercial vehicles</div>
+                        </label>
+
+                        <label class="vehicle-type-card" data-type="motorcycle">
+                            <input type="radio" name="vehicleType" value="motorcycle" required>
+                            <div class="vehicle-type-icon">
+                                <i class="fas fa-motorcycle"></i>
+                            </div>
+                            <div class="vehicle-type-label">Motorcycle</div>
+                            <div class="vehicle-type-description">Two-wheeled motorcycles</div>
+                        </label>
+
+                        <label class="vehicle-type-card" data-type="tricycle">
+                            <input type="radio" name="vehicleType" value="tricycle" required>
+                            <div class="vehicle-type-icon">
+                                <i class="fas fa-motorcycle"></i>
+                            </div>
+                            <div class="vehicle-type-label">Motorcycle – Tricycle (TC)</div>
+                            <div class="vehicle-type-description">Motorcycles with sidecar attachment</div>
+                        </label>
+                    </div>
+
+                    <div class="wizard-navigation">
+                        <div></div>
+                        <button type="button" class="btn-wizard btn-wizard-primary" id="nextStep1" disabled>
+                            Next
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Upload Required Documents -->
+                <div id="step-2" class="wizard-step-content">
+                    <div class="step-header">
+                        <h2>Upload Required Documents</h2>
+                        <p>Please upload all required documents for your vehicle registration</p>
+                    </div>
+
+                    <div class="document-upload-section" id="documentUploadSection">
+                        <!-- Documents will be dynamically rendered here -->
+                    </div>
+
+                    <div class="wizard-navigation">
+                        <button type="button" class="btn-wizard btn-wizard-secondary" id="prevStep2">
+                            <i class="fas fa-arrow-left"></i>
+                            Back
+                        </button>
+                        <button type="button" class="btn-wizard btn-wizard-primary" id="nextStep2" disabled>
+                            Next
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Review & Confirm -->
+                <div id="step-3" class="wizard-step-content">
+                    <div class="step-header">
+                        <h2>Review & Confirm</h2>
+                        <p>Please review your information before submitting</p>
+                    </div>
+
+                    <div class="review-section">
+                        <div class="review-card">
+                            <h3>Vehicle Type</h3>
+                            <div class="review-item">
+                                <span class="review-label">Selected Type:</span>
+                                <span class="review-value" id="reviewVehicleType">-</span>
+                            </div>
+                        </div>
+
+                        <div class="review-card">
+                            <h3>Uploaded Documents</h3>
+                            <ul class="review-documents" id="reviewDocuments">
+                                <!-- Documents will be listed here -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="wizard-navigation">
+                        <button type="button" class="btn-wizard btn-wizard-secondary" id="prevStep3">
+                            <i class="fas fa-arrow-left"></i>
+                            Back
+                        </button>
+                        <button type="button" class="btn-wizard btn-wizard-primary" id="submitRegistration">
+                            <i class="fas fa-check"></i>
+                            Confirm & Submit
+                        </button>
+                    </div>
                 </div>
             </div>
-            <nav class="sidebar-nav">
-                <a href="owner-dashboard.html" class="nav-item">
-                    <i class="fas fa-home"></i>
-                    <span>My Dashboard</span>
-                </a>
-                <a href="owner-dashboard.html#applications" class="nav-item">
-                    <i class="fas fa-list"></i>
-                    <span>My Applications</span>
-                </a>
-                <a href="my-vehicle-ownership.html" class="nav-item">
-                    <i class="fas fa-car"></i>
-                    <span>My Vehicles</span>
-                </a>
-                <a href="registration-wizard.html" class="nav-item active">
-                    <i class="fas fa-car-side"></i>
-                    <span>New Registration</span>
-                </a>
-                <a href="owner-dashboard.html#notifications" class="nav-item">
-                    <i class="fas fa-bell"></i>
-                    <span>Notifications</span>
-                </a>
-                <a href="transfer-ownership.html" class="nav-item">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span>Transfer of Ownership</span>
-                </a>
-            </nav>
-            
-            <!-- Sidebar Footer with User Info -->
-            <div class="sidebar-footer">
-                <a href="settings.html" class="sidebar-user-profile">
-                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">GU</div>
-                    <div class="sidebar-user-details">
-                        <span class="sidebar-user-name" id="sidebarUserName">Loading...</span>
-                        <span class="sidebar-user-role" id="sidebarUserRole">Loading...</span>
-                    </div>
-                </a>
-                <div class="sidebar-user-actions">
-                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Mobile Sidebar Overlay -->
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-        <div class="dashboard-main">
-            <header class="dashboard-header">
-                <div class="container">
-                    <div class="dashboard-nav">
-                        <div class="nav-left">
-                            <div class="logo">
-                                <h1>New Registration</h1>
-                            </div>
-                        </div>
-                        <div class="nav-right">
-                            <!-- Header user dropdown removed per UI requirements -->
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <main class="dashboard-content">
-                <div class="container">
-                <!-- Progress Steps -->
-                <div class="wizard-progress">
-                    <div class="progress-step active accessible" data-step="1">
-                        <div class="step-number">1</div>
-                        <div class="step-label">Documents</div>
-                    </div>
-                    <div class="progress-step" data-step="2">
-                        <div class="step-number">2</div>
-                        <div class="step-label">Vehicle Info</div>
-                    </div>
-                    <div class="progress-step" data-step="3">
-                        <div class="step-number">3</div>
-                        <div class="step-label">Owner Details</div>
-                    </div>
-                    <div class="progress-step" data-step="4">
-                        <div class="step-number">4</div>
-                        <div class="step-label">Review & Submit</div>
-                    </div>
-                </div>
-
-                <!-- Step 1: Document Upload -->
-                <div id="step-1" class="wizard-step active">
-                    <div class="form-container">
-                        <h2>Document Upload</h2>
-                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Upload your required documents. The system can use them for auto-fill and verification.</p>
-                        <form class="wizard-form">
-                            <div class="upload-section">
-                                <h3>Required Documents</h3>
-                                <div id="document-upload-container">
-                                    <!-- Document upload fields will be dynamically loaded here -->
-                                    <div class="loading-message">Loading document requirements...</div>
-                                </div>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="button" class="btn-primary" onclick="nextStep()">Next Step</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Step 2: Vehicle Information -->
-                <div id="step-2" class="wizard-step">
-                    <div class="form-container">
-                        <h2>Vehicle Information</h2>
-                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">These fields can be auto-filled from your uploaded documents where possible. Please review and complete any missing data.</p>
-                        <form class="wizard-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="make">Make <span class="required">*</span></label>
-                                    <select id="make" name="make" required>
-                                        <option value="">Select Make</option>
-                                        <option value="toyota">Toyota</option>
-                                        <option value="honda">Honda</option>
-                                        <option value="ford">Ford</option>
-                                        <option value="nissan">Nissan</option>
-                                        <option value="mitsubishi">Mitsubishi</option>
-                                        <option value="hyundai">Hyundai</option>
-                                        <option value="suzuki">Suzuki</option>
-                                        <option value="isuzu">Isuzu</option>
-                                        <option value="mazda">Mazda</option>
-                                    </select>
-                                    <small class="form-hint">Example: Toyota, Honda, Ford</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="model">Model <span class="required">*</span></label>
-                                    <input type="text" id="model" name="model" placeholder="e.g., Vios, Civic, Ranger" required>
-                                    <small class="form-hint">Example: Vios, Civic, Ranger, Altima</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="year">Year <span class="required">*</span></label>
-                                    <input type="number" id="year" name="year" placeholder="2024" min="1990" max="2024" required>
-                                    <small class="form-hint">Example: 2024, 2023, 2022</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="color">Color <span class="required">*</span></label>
-                                    <input type="text" id="color" name="color" placeholder="e.g., White, Black, Silver" required>
-                                    <small class="form-hint">Example: White, Black, Silver, Red, Blue</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="engineNumber">Engine Number <span class="required">*</span></label>
-                                    <input type="text" id="engineNumber" name="engineNumber" placeholder="e.g., 2NR-FE123456" required>
-                                    <small class="form-hint">Example: 2NR-FE123456, 1.5L-VTEC789</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="chassisNumber">Chassis Number <span class="required">*</span></label>
-                                    <input type="text" id="chassisNumber" name="chassisNumber" placeholder="e.g., JT1234567890" required>
-                                    <small class="form-hint">Example: JT1234567890, 1HGBH41JXMN123456</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleType">Vehicle Type <span class="required">*</span></label>
-                                    <select id="vehicleType" name="vehicleType" required>
-                                        <option value="">Select Type</option>
-                                        <option value="Car">Car</option>
-                                        <option value="UV">UV (Utility Vehicle)</option>
-                                        <option value="SUV">SUV</option>
-                                        <option value="MC/TC">MC/TC (Motorcycle/Tricycle)</option>
-                                        <option value="Truck">Truck</option>
-                                        <option value="Bus">Bus</option>
-                                        <option value="Trailer">Trailer</option>
-                                    </select>
-                                    <small class="form-hint">Select the primary classification of the vehicle.</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleCategory">Vehicle Category (PNS) <span class="required">*</span></label>
-                                    <select id="vehicleCategory" name="vehicleCategory" required>
-                                        <option value="">Select Category</option>
-                                        <optgroup label="Motorcycles">
-                                            <option value="L1">L1 - 2-wheel, ≤50cc</option>
-                                            <option value="L2">L2 - 3-wheel, ≤50cc</option>
-                                            <option value="L3">L3 - 2-wheel, >50cc</option>
-                                            <option value="L5">L5 - 3-wheel, >50cc</option>
-                                        </optgroup>
-                                        <optgroup label="Passenger Vehicles">
-                                            <option value="M1">M1 - ≤8 passengers</option>
-                                            <option value="M2">M2 - 9-15 passengers, ≤5 tonnes</option>
-                                            <option value="M3">M3 - >15 passengers or >5 tonnes</option>
-                                        </optgroup>
-                                        <optgroup label="Goods Vehicles">
-                                            <option value="N1">N1 - ≤3.5 tonnes GVW</option>
-                                            <option value="N2">N2 - 3.5-12 tonnes GVW</option>
-                                            <option value="N3">N3 - >12 tonnes GVW</option>
-                                        </optgroup>
-                                        <optgroup label="Trailers">
-                                            <option value="O1">O1 - ≤0.75 tonnes</option>
-                                            <option value="O2">O2 - 0.75-3.5 tonnes</option>
-                                            <option value="O3">O3 - 3.5-10 tonnes</option>
-                                            <option value="O4">O4 - >10 tonnes</option>
-                                        </optgroup>
-                                    </select>
-                                    <small class="form-hint">Philippine National Standards (PNS) vehicle category code.</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="passengerCapacity">Passenger Capacity <span class="required">*</span></label>
-                                    <input type="number" id="passengerCapacity" name="passengerCapacity" placeholder="Number of passengers" min="1" max="100" required>
-                                    <small class="form-hint">Number of passengers (excluding driver). Required, especially for "For Hire" vehicles.</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="classification">Classification <span class="required">*</span></label>
-                                    <select id="classification" name="classification" required>
-                                        <option value="">Select Classification</option>
-                                        <option value="Private">Private</option>
-                                        <option value="For Hire">For Hire</option>
-                                        <option value="Government">Government</option>
-                                        <option value="Exempt">Exempt</option>
-                                    </select>
-                                    <small class="form-hint">Vehicle registration classification.</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="grossVehicleWeight">Gross Vehicle Weight (GVW) <span class="required">*</span></label>
-                                    <input type="number" id="grossVehicleWeight" name="grossVehicleWeight" placeholder="GVW in kg" step="0.01" min="0.01" required>
-                                    <small class="form-hint">Gross Vehicle Weight in kilograms. Required for MVUC fee calculation.</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="netWeight">Net Weight <span class="required">*</span></label>
-                                    <input type="number" id="netWeight" name="netWeight" placeholder="Net weight in kg" step="0.01" min="0.01" required>
-                                    <small class="form-hint">Net weight in kilograms. Must be less than GVW.</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vin">VIN (Vehicle Identification Number) <span class="required">*</span></label>
-                                    <input type="text" id="vin" name="vin" placeholder="17 characters (e.g., 1HGBH41JXMN123456)" maxlength="17" required>
-                                    <small class="form-hint">17 characters, alphanumeric (e.g., 1HGBH41JXMN123456)</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plateNumber">License Plate Number <span class="required">*</span></label>
-                                    <input type="text" id="plateNumber" name="plateNumber" placeholder="ABC-1234" required>
-                                    <small class="form-hint">Format: 3 letters, dash, 4 numbers (e.g., ABC-1234, XYZ-5678)</small>
-                                </div>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
-                                <button type="button" class="btn-primary" onclick="nextStep()">Next Step</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Step 3: Owner Details -->
-                <div id="step-3" class="wizard-step">
-                    <div class="form-container">
-                        <h2>Owner Information</h2>
-                        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Information will be auto-filled from your profile. Please verify and complete any missing fields.</p>
-                        <form class="wizard-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="firstName">First Name <span class="required">*</span></label>
-                                    <input type="text" id="firstName" name="firstName" placeholder="e.g., Juan" required>
-                                    <small class="form-hint">Example: Juan, Maria, Jose</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="lastName">Last Name <span class="required">*</span></label>
-                                    <input type="text" id="lastName" name="lastName" placeholder="e.g., Dela Cruz" required>
-                                    <small class="form-hint">Example: Dela Cruz, Santos, Garcia</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="email">Email Address <span class="required">*</span></label>
-                                    <input type="email" id="email" name="email" placeholder="e.g., juan@email.com" required>
-                                    <small class="form-hint">Example: juan@email.com, maria.santos@gmail.com</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="phone">Phone Number <span class="required">*</span></label>
-                                    <input type="tel" id="phone" name="phone" placeholder="e.g., +63 912 345 6789" required>
-                                    <small class="form-hint">Example: +63 912 345 6789, 0912-345-6789</small>
-                                </div>
-                            </div>
-
-                            <div class="form-group full-width">
-                                <label for="address">Complete Address <span class="required">*</span></label>
-                                <textarea id="address" name="address" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila" rows="2" required></textarea>
-                                <small class="form-hint">Include: House/Unit No., Street, Barangay, City/Municipality, Province</small>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="idType">ID Type <span class="required">*</span></label>
-                                    <select id="idType" name="idType" required>
-                                        <option value="">Select ID Type</option>
-                                        <option value="drivers-license">Driver's License</option>
-                                        <option value="passport">Passport</option>
-                                        <option value="national-id">National ID</option>
-                                        <option value="postal-id">Postal ID</option>
-                                        <option value="voters-id">Voter's ID</option>
-                                        <option value="sss-id">SSS ID</option>
-                                    </select>
-                                    <small class="form-hint">Choose your valid government-issued ID</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="idNumber">ID Number <span class="required">*</span></label>
-                                    <input type="text" id="idNumber" name="idNumber" placeholder="e.g., A01-23-456789" required>
-                                    <small class="form-hint">Example: A01-23-456789, N123456789, PP1234567</small>
-                                </div>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
-                                <button type="button" class="btn-primary" onclick="nextStep()">Next Step</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Step 4: Review & Submit -->
-                <div id="step-4" class="wizard-step">
-                    <div class="form-container">
-                        <h2>Review & Submit</h2>
-                        <div class="review-section">
-                            <h3>Please review your information before submitting:</h3>
-                            
-                            <div class="review-grid">
-                                <div class="review-card">
-                                    <h4>Vehicle Information</h4>
-                                    <div class="review-details">
-                                        <p><strong>Make/Model:</strong> <span id="review-make-model">-</span></p>
-                                        <p><strong>Year:</strong> <span id="review-year">-</span></p>
-                                        <p><strong>Color:</strong> <span id="review-color">-</span></p>
-                                        <p><strong>Vehicle Type:</strong> <span id="review-vehicle-type">-</span></p>
-                                        <p><strong>License Plate:</strong> <span id="review-plate">-</span></p>
-                                    </div>
-                                </div>
-
-                                <div class="review-card">
-                                    <h4>Owner Information</h4>
-                                    <div class="review-details">
-                                        <p><strong>Name:</strong> <span id="review-name">-</span></p>
-                                        <p><strong>Email:</strong> <span id="review-email">-</span></p>
-                                        <p><strong>Phone:</strong> <span id="review-phone">-</span></p>
-                                        <p><strong>ID Type:</strong> <span id="review-id-type">-</span></p>
-                                    </div>
-                                </div>
-
-                                <div class="review-card">
-                                    <h4>Uploaded Documents</h4>
-                                    <div class="review-details">
-                                        <p>✅ Vehicle Registration Certificate</p>
-                                        <p>✅ Insurance Certificate</p>
-                                        <p>✅ Emission Test Certificate</p>
-                                        <p>✅ Owner's ID</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="terms-agreement">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="termsAgreement" required>
-                                    <span class="checkmark"></span>
-                                    I agree to the terms and conditions and confirm that all information provided is accurate.
-                                </label>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
-                                <button type="button" class="btn-primary" onclick="submitApplication()">Submit Application</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                </div>
-            </main>
         </div>
     </div>
 
-    <script src="js/auth-utils.js"></script>
-    <script src="js/api-client.js"></script>
-    <script src="js/error-handler.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/registration-wizard.js"></script>
-    <script src="js/mobile-nav.js"></script>
     <script>
-        // Initialize user data and sidebar on page load
+        // Wizard State Management
+        const wizardState = {
+            currentStep: 1,
+            vehicleType: null,
+            documents: {}
+        };
+
+        // Document requirements based on vehicle type
+        const documentRequirements = {
+            passenger: [
+                { id: 'csr', name: 'Certificate of Stock Report (CSR)', required: true },
+                { id: 'insurance', name: 'Insurance Certificate of Cover (Third Party Liability)', required: true },
+                { id: 'pnp-hpg', name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate', required: true },
+                { id: 'sbr', name: 'Special Bank Receipt (SBR)', required: true },
+                { id: 'sales-invoice', name: 'Sales Invoice', required: true },
+                { id: 'owner-id', name: 'Owner Valid ID', required: true }
+            ],
+            commercial: [
+                { id: 'csr', name: 'Certificate of Stock Report (CSR)', required: true },
+                { id: 'insurance', name: 'Insurance Certificate of Cover (Third Party Liability)', required: true },
+                { id: 'pnp-hpg', name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate', required: true },
+                { id: 'sbr', name: 'Special Bank Receipt (SBR)', required: true },
+                { id: 'sales-invoice', name: 'Sales Invoice', required: true },
+                { id: 'owner-id', name: 'Owner Valid ID', required: true }
+            ],
+            motorcycle: [
+                { id: 'csr', name: 'Certificate of Stock Report (CSR)', required: true },
+                { id: 'insurance', name: 'Insurance Certificate of Cover (Third Party Liability)', required: true },
+                { id: 'pnp-hpg', name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate', required: true },
+                { id: 'sbr', name: 'Special Bank Receipt (SBR)', required: true },
+                { id: 'sales-invoice', name: 'Sales Invoice', required: true },
+                { id: 'owner-id', name: 'Owner Valid ID', required: true }
+            ],
+            tricycle: [
+                { id: 'csr', name: 'Certificate of Stock Report (CSR)', required: true },
+                { id: 'insurance', name: 'Insurance Certificate of Cover (Third Party Liability)', required: true },
+                { id: 'pnp-hpg', name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate', required: true },
+                { id: 'sbr', name: 'Special Bank Receipt (SBR)', required: true },
+                { id: 'sales-invoice', name: 'Sales Invoice', required: true },
+                { id: 'owner-id', name: 'Owner Valid ID', required: true },
+                { id: 'affidavit', name: 'Original Affidavit of Attachment for Sidecar', required: true }
+            ]
+        };
+
+        // Vehicle type display names
+        const vehicleTypeNames = {
+            passenger: 'Passenger Vehicle',
+            commercial: 'Commercial Vehicle',
+            motorcycle: 'Motorcycle',
+            tricycle: 'Motorcycle – Tricycle (TC)'
+        };
+
+        // Initialize wizard
         document.addEventListener('DOMContentLoaded', function() {
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            
-            if (typeof AuthUtils !== 'undefined') {
-                const user = AuthUtils.getCurrentUser();
-                if (user) {
-                    const sidebarUserNameEl = document.getElementById('sidebarUserName');
-                    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
-                    const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+            initializeWizard();
+        });
+
+        function initializeWizard() {
+            // Step 1: Vehicle type selection
+            const vehicleCards = document.querySelectorAll('.vehicle-type-card');
+            const nextStep1Btn = document.getElementById('nextStep1');
+
+            vehicleCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    // Remove selected class from all cards
+                    vehicleCards.forEach(c => c.classList.remove('selected'));
                     
-                    if (sidebarUserNameEl) {
-                        sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName();
+                    // Add selected class to clicked card
+                    this.classList.add('selected');
+                    
+                    // Get selected vehicle type
+                    const radio = this.querySelector('input[type="radio"]');
+                    radio.checked = true;
+                    const newVehicleType = radio.value;
+                    
+                    // If vehicle type changed and we're past step 1, reset documents
+                    if (wizardState.vehicleType && wizardState.vehicleType !== newVehicleType && wizardState.currentStep > 1) {
+                        wizardState.documents = {};
+                        // If on step 2, reload document uploads
+                        if (wizardState.currentStep === 2) {
+                            loadDocumentUploads();
+                        }
                     }
-                    if (sidebarUserRoleEl) {
-                        const roleNames = {
-                            'vehicle_owner': 'Vehicle Owner',
-                            'admin': 'Administrator',
-                            'insurance_verifier': 'Insurance Verifier',
-                            'emission_verifier': 'Emission Verifier'
-                        };
-                        sidebarUserRoleEl.textContent = roleNames[user.role] || user.role;
-                    }
-                    if (sidebarUserAvatarEl) {
-                        sidebarUserAvatarEl.textContent = AuthUtils.getUserInitials();
-                    }
-                } else {
-                    // Not authenticated, redirect to login
-                    window.location.href = 'login-signup.html';
-                    return;
-                }
-            }
-            
-            // Load sidebar state from localStorage
-            const savedSidebarState = localStorage.getItem('ownerSidebarCollapsed');
-            if (sidebar && savedSidebarState === 'true') {
-                sidebar.classList.add('collapsed');
+                    
+                    wizardState.vehicleType = newVehicleType;
+                    
+                    // Enable Next button
+                    nextStep1Btn.disabled = false;
+                });
+            });
+
+            // Navigation buttons
+            document.getElementById('nextStep1').addEventListener('click', () => goToStep(2));
+            document.getElementById('prevStep2').addEventListener('click', () => goToStep(1));
+            document.getElementById('nextStep2').addEventListener('click', () => goToStep(3));
+            document.getElementById('prevStep3').addEventListener('click', () => goToStep(2));
+            document.getElementById('submitRegistration').addEventListener('click', handleSubmit);
+        }
+
+        function goToStep(step) {
+            // Hide all steps
+            document.querySelectorAll('.wizard-step-content').forEach(stepContent => {
+                stepContent.classList.remove('active');
+            });
+
+            // Show target step
+            document.getElementById(`step-${step}`).classList.add('active');
+
+            // Update progress indicator
+            updateProgressIndicator(step);
+
+            // Load step content
+            if (step === 2) {
+                loadDocumentUploads();
+            } else if (step === 3) {
+                loadReviewContent();
             }
 
-            // Sidebar toggle via logo
-            const logoToggle = document.getElementById('logoToggle');
+            wizardState.currentStep = step;
+        }
+
+        function updateProgressIndicator(currentStep) {
+            const progressSteps = document.querySelectorAll('.progress-step');
+            const stepProgress = document.querySelector('.step-progress');
             
-            function toggleSidebar(e) {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
+            // Update step progress class for connecting line
+            stepProgress.classList.remove('step-2', 'step-3');
+            if (currentStep >= 2) {
+                stepProgress.classList.add(`step-${currentStep}`);
+            }
+            
+            progressSteps.forEach((step, index) => {
+                const stepNum = index + 1;
+                step.classList.remove('active', 'completed', 'disabled');
+
+                if (stepNum < currentStep) {
+                    step.classList.add('completed');
+                } else if (stepNum === currentStep) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.add('disabled');
                 }
-                if (!sidebar) return;
-                sidebar.classList.toggle('collapsed');
-                const isCollapsed = sidebar.classList.contains('collapsed');
-                localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
+            });
+        }
+
+        function loadDocumentUploads() {
+            if (!wizardState.vehicleType) {
+                return;
             }
+
+            const container = document.getElementById('documentUploadSection');
+            const requirements = documentRequirements[wizardState.vehicleType];
             
-            if (logoToggle && sidebar) {
-                logoToggle.addEventListener('click', toggleSidebar);
-                logoToggle.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        toggleSidebar(e);
-                    }
-                });
+            let html = '';
+
+            // Standard documents
+            const standardDocs = requirements.filter(doc => doc.id !== 'affidavit');
+            standardDocs.forEach(doc => {
+                html += createDocumentUploadField(doc);
+            });
+
+            // Additional requirement for Tricycle
+            if (wizardState.vehicleType === 'tricycle') {
+                const affidavitDoc = requirements.find(doc => doc.id === 'affidavit');
+                if (affidavitDoc) {
+                    html += `
+                        <div class="additional-requirements">
+                            <h3>Additional Tricycle Requirement</h3>
+                            <p>Required for motorcycle units with sidecar (TC classification)</p>
+                            ${createDocumentUploadField(affidavitDoc)}
+                        </div>
+                    `;
+                }
             }
+
+            container.innerHTML = html;
+
+            // Attach file input handlers
+            attachFileHandlers();
+            checkDocumentCompletion();
+        }
+
+        function createDocumentUploadField(doc) {
+            return `
+                <div class="document-group">
+                    <label>
+                        ${doc.name}
+                        ${doc.required ? '<span class="required">*</span>' : ''}
+                    </label>
+                    <div class="document-upload-area" data-doc-id="${doc.id}">
+                        <input type="file" class="document-upload-input" 
+                               id="doc-${doc.id}" 
+                               data-doc-id="${doc.id}"
+                               accept=".pdf,.jpg,.jpeg,.png"
+                               ${doc.required ? 'required' : ''}>
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <div class="upload-text">Click to upload or drag and drop</div>
+                        <div class="upload-hint">PDF, JPG, PNG (Max 5MB)</div>
+                        <div class="file-name" style="display: none;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function attachFileHandlers() {
+            const fileInputs = document.querySelectorAll('.document-upload-input');
             
-            // Handle sidebar logout button
-            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
-            if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (typeof AuthUtils !== 'undefined') {
-                        AuthUtils.logout();
+            fileInputs.forEach(input => {
+                input.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    const docId = this.dataset.docId;
+                    const uploadArea = this.closest('.document-upload-area');
+                    const fileNameDiv = uploadArea.querySelector('.file-name');
+
+                    if (file) {
+                        wizardState.documents[docId] = {
+                            name: file.name,
+                            file: file
+                        };
+                        uploadArea.classList.add('has-file');
+                        fileNameDiv.textContent = file.name;
+                        fileNameDiv.style.display = 'block';
+                        
+                        // Update icon
+                        const icon = uploadArea.querySelector('.upload-icon i');
+                        if (icon) {
+                            icon.className = 'fas fa-check-circle';
+                        }
                     } else {
-                        localStorage.clear();
-                        window.location.href = 'index.html';
+                        delete wizardState.documents[docId];
+                        uploadArea.classList.remove('has-file');
+                        fileNameDiv.style.display = 'none';
+                        
+                        // Reset icon
+                        const icon = uploadArea.querySelector('.upload-icon i');
+                        if (icon) {
+                            icon.className = 'fas fa-cloud-upload-alt';
+                        }
                     }
+
+                    checkDocumentCompletion();
                 });
-            }
-            
-            // Initialize mobile navigation
-            initializeMobileNavigation();
-        });
-        
-        // Initialize mobile navigation
-        function initializeMobileNavigation() {
-            const logoToggle = document.getElementById('logoToggle');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            
-            // Use logo toggle for mobile sidebar
-            if (logoToggle && sidebar && window.innerWidth <= 768) {
-                logoToggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleMobileSidebar();
-                });
-            }
-            
-            if (sidebarOverlay) {
-                sidebarOverlay.addEventListener('click', function() {
-                    closeMobileSidebar();
-                });
-            }
-            
-            // Close sidebar when clicking on nav items
-            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
-            navItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    if (window.innerWidth <= 768) {
-                        closeMobileSidebar();
+
+                // Click handler for upload area
+                const uploadArea = input.closest('.document-upload-area');
+                uploadArea.addEventListener('click', function(e) {
+                    if (e.target !== input) {
+                        input.click();
                     }
                 });
             });
         }
-        
-        // Toggle mobile sidebar
-        function toggleMobileSidebar() {
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            
-            if (!sidebar) return;
-            
-            if (sidebar.classList.contains('mobile-open')) {
-                closeMobileSidebar();
-            } else {
-                openMobileSidebar();
+
+        function checkDocumentCompletion() {
+            if (!wizardState.vehicleType) {
+                return;
             }
+
+            const requirements = documentRequirements[wizardState.vehicleType];
+            const requiredDocs = requirements.filter(doc => doc.required);
+            const uploadedDocs = requiredDocs.filter(doc => wizardState.documents[doc.id]);
+
+            const nextStep2Btn = document.getElementById('nextStep2');
+            nextStep2Btn.disabled = uploadedDocs.length !== requiredDocs.length;
         }
-        
-        // Open mobile sidebar
-        function openMobileSidebar() {
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
+
+        function loadReviewContent() {
+            // Update vehicle type
+            document.getElementById('reviewVehicleType').textContent = 
+                vehicleTypeNames[wizardState.vehicleType] || '-';
+
+            // Update documents list
+            const reviewDocumentsList = document.getElementById('reviewDocuments');
+            const requirements = documentRequirements[wizardState.vehicleType];
             
-            if (sidebar) {
-                sidebar.classList.add('mobile-open');
-                sidebar.classList.remove('collapsed');
-            }
-            
-            if (overlay) {
-                overlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
+            let html = '';
+            requirements.forEach(doc => {
+                const isUploaded = wizardState.documents[doc.id];
+                html += `
+                    <li>
+                        <i class="fas ${isUploaded ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                        ${doc.name}
+                    </li>
+                `;
+            });
+
+            reviewDocumentsList.innerHTML = html;
         }
-        
-        // Close mobile sidebar
-        function closeMobileSidebar() {
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
+
+        function handleSubmit() {
+            // UI-only validation - no backend
+            alert('Registration submitted successfully! (This is a frontend-only demo)');
             
-            if (sidebar) {
-                sidebar.classList.remove('mobile-open');
-            }
+            // Reset wizard
+            wizardState.currentStep = 1;
+            wizardState.vehicleType = null;
+            wizardState.documents = {};
             
-            if (overlay) {
-                overlay.classList.remove('active');
-                document.body.style.overflow = '';
-            }
+            // Reset UI
+            document.querySelectorAll('.vehicle-type-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.checked = false;
+            });
+            
+            goToStep(1);
+            document.getElementById('nextStep1').disabled = true;
         }
     </script>
 </body>

@@ -11,8 +11,6 @@ let currentAbortController = null;
 
 // Store vehicle type value when selected
 let storedVehicleType = null;
-// Store selected vehicle category (brand new 4W / 2W) for document loading
-let selectedVehicleCategory = '';
 
 function initializeRegistrationWizard() {
     // Initialize wizard functionality
@@ -53,16 +51,6 @@ function initializeRegistrationWizard() {
             console.log('Vehicle type selected and stored:', storedVehicleType);
         });
     }
-
-    // Setup vehicle category selection listener (Step 1)
-    const categorySelect = document.getElementById('vehicleCategorySelect');
-    if (categorySelect) {
-        categorySelect.addEventListener('change', function() {
-            selectedVehicleCategory = this.value;
-            console.log('Vehicle category selected:', selectedVehicleCategory);
-            // Do not load documents yet; they will be loaded when entering the Documents step
-        });
-    }
     
     // Initialize auto-save (uses the first wizard form on the page)
     const form = document.querySelector('.wizard-form');
@@ -70,16 +58,19 @@ function initializeRegistrationWizard() {
         FormPersistence.autoSave('registration-wizard', form);
     }
     
-    // Auto-fill owner info on initialization (Step 4 later)
+    // Auto-fill owner info on initialization
     autoFillOwnerInfo();
+    
+    // Load document requirements immediately for Step 1 (documents)
+    loadDocumentRequirements('NEW');
     
     // Setup OCR auto-fill when documents are uploaded
     setupOCRAutoFill();
 }
 
 let currentStep = 1;
-// 5 steps: 1 Category, 2 Documents, 3 Vehicle, 4 Owner, 5 Review
-const totalSteps = 5;
+// 4 steps: 1 Documents, 2 Vehicle, 3 Owner, 4 Review
+const totalSteps = 4;
 
 function nextStep() {
     if (validateCurrentStep()) {
@@ -106,13 +97,8 @@ function nextStep() {
             nextStepElement.classList.add('active');
             nextProgressStep.classList.add('active');
             
-            // Load documents when moving to Step 2 (Documents) if category was selected
-            if (currentStep === 2 && selectedVehicleCategory) {
-                loadDocumentRequirements('NEW', selectedVehicleCategory);
-            }
-            
-            // Update review data if on final step (Step 5)
-            if (currentStep === 5) {
+            // Update review data if on final step (Step 4)
+            if (currentStep === 4) {
                 // Use setTimeout to ensure DOM is fully rendered before updating
                 setTimeout(() => {
                     updateReviewData();
@@ -172,36 +158,21 @@ function validateCurrentStep() {
     
     // Additional validation for specific steps
     if (currentStep === 1) {
-        // Step 1: only requires vehicle category selection
-        const categorySelect = document.getElementById('vehicleCategorySelect');
-        if (!categorySelect || !categorySelect.value) {
-            ToastNotification.show('Please select a vehicle category', 'error');
-            if (categorySelect) {
-                categorySelect.classList.add('invalid');
-                categorySelect.focus();
-            }
-            return false;
-        }
-    } else if (currentStep === 2) {
-        // Step 2: documents – ensure category selected and uploads valid
-        if (!selectedVehicleCategory) {
-            ToastNotification.show('Please select a vehicle category in Step 1 first', 'error');
-            return false;
-        }
+        // Step 1: documents
         const docErrors = validateDocumentUploads();
         if (!docErrors.isValid) {
             isValid = false;
             errorMessages = errorMessages.concat(docErrors.errors);
         }
-    } else if (currentStep === 3) {
-        // Step 3: vehicle info
+    } else if (currentStep === 2) {
+        // Step 2: vehicle info
         const vehicleErrors = validateVehicleInfo();
         if (!vehicleErrors.isValid) {
             isValid = false;
             errorMessages = errorMessages.concat(vehicleErrors.errors);
         }
-    } else if (currentStep === 4) {
-        // Step 4: owner info
+    } else if (currentStep === 3) {
+        // Step 3: owner info
         const ownerErrors = validateOwnerInfo();
         if (!ownerErrors.isValid) {
             isValid = false;
@@ -1264,7 +1235,7 @@ function collectApplicationData() {
 /**
  * Load document requirements from API and render upload fields
  */
-async function loadDocumentRequirements(registrationType = 'NEW', vehicleCategory = 'ALL') {
+async function loadDocumentRequirements(registrationType = 'NEW') {
     try {
         const container = document.getElementById('document-upload-container');
         if (!container) {
@@ -1275,14 +1246,6 @@ async function loadDocumentRequirements(registrationType = 'NEW', vehicleCategor
         // Show loading state
         container.innerHTML = '<div class="loading-message">Loading document requirements...</div>';
 
-        // Update info text
-        const infoText = document.getElementById('documentCategoryInfo');
-        if (infoText) {
-            const categoryName = vehicleCategory === 'BRAND_NEW_4W' ? '4-Wheeled' : 
-                               vehicleCategory === 'BRAND_NEW_2W' ? '2-Wheeled' : 'Vehicle';
-            infoText.textContent = `Required documents for Brand New ${categoryName} Vehicle:`;
-        }
-
         const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
         if (!apiClient) {
             // Fallback to static fields if API client not available
@@ -1290,10 +1253,8 @@ async function loadDocumentRequirements(registrationType = 'NEW', vehicleCategor
             return;
         }
 
-        // Fetch document requirements with vehicle category parameter
-        const url = `/api/document-requirements/${registrationType}${vehicleCategory ? `?vehicleCategory=${vehicleCategory}` : ''}`;
-        console.log('Loading document requirements from:', url);
-        const response = await apiClient.get(url);
+        // Fetch document requirements (single global set for NEW registration)
+        const response = await apiClient.get(`/api/document-requirements/${registrationType}`);
         
         if (response && response.success && response.requirements) {
             renderDocumentUploadFields(response.requirements, container);

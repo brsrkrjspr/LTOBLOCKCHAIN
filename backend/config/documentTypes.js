@@ -167,9 +167,11 @@ function mapLegacyType(oldType) {
         'general': LOGICAL_TYPES.REGISTRATION_CERT,
         'registration': LOGICAL_TYPES.REGISTRATION_CERT,
         'insurance': LOGICAL_TYPES.INSURANCE_CERT,
+        'insuranceCertificate': LOGICAL_TYPES.INSURANCE_CERT,
         'emission': LOGICAL_TYPES.EMISSION_CERT,
         'owner_id': LOGICAL_TYPES.OWNER_ID,
         'ownerId': LOGICAL_TYPES.OWNER_ID,
+        'ownerValidId': LOGICAL_TYPES.OWNER_ID,
         'deed_of_sale': LOGICAL_TYPES.DEED_OF_SALE,
         'deedOfSale': LOGICAL_TYPES.DEED_OF_SALE,
         'seller_id': LOGICAL_TYPES.SELLER_ID,
@@ -177,8 +179,10 @@ function mapLegacyType(oldType) {
         'buyer_id': LOGICAL_TYPES.BUYER_ID,
         'buyerId': LOGICAL_TYPES.BUYER_ID,
         'csr': LOGICAL_TYPES.CSR,
+        'certificateOfStockReport': LOGICAL_TYPES.CSR,
         'hpg_clearance': LOGICAL_TYPES.HPG_CLEARANCE,
         'hpgClearance': LOGICAL_TYPES.HPG_CLEARANCE,
+        'pnpHpgClearance': LOGICAL_TYPES.HPG_CLEARANCE,
         'sales_invoice': LOGICAL_TYPES.SALES_INVOICE,
         'salesInvoice': LOGICAL_TYPES.SALES_INVOICE
     };

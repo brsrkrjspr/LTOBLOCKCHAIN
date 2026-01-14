@@ -29,7 +29,14 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
 
         // Get all documents for the vehicle
         const allDocuments = await db.getDocumentsByVehicle(vehicleId);
-
+        
+        // Add detailed logging for debugging
+        console.log(`[Auto-Send] Vehicle ${vehicleId}:`);
+        console.log(`  - Registration Type: ${vehicle.registration_type || 'NOT SET'}`);
+        console.log(`  - Origin Type: ${vehicle.origin_type || 'NOT SET'}`);
+        console.log(`  - Total Documents: ${allDocuments.length}`);
+        console.log(`  - Document Types:`, allDocuments.map(d => `${d.document_type} (${d.original_name || d.filename})`));
+        
         // 1. Send to HPG
         // For NEW REGISTRATION: requires owner_id and hpg_clearance (HPG Clearance Cert)
         // For TRANSFER: handled separately in transfer route
@@ -71,14 +78,18 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
 
         if (hasHPGDocs) {
             try {
+                console.log(`[Auto-Send→HPG] Sending request for vehicle ${vehicleId}`);
                 const hpgResult = await sendToHPG(vehicleId, vehicle, allDocuments, requestedBy);
                 results.hpg = hpgResult;
+                console.log(`[Auto-Send→HPG] Result:`, hpgResult);
             } catch (error) {
-                console.error('Error auto-sending to HPG:', error);
+                console.error('[Auto-Send→HPG] Error:', error);
+                console.error('[Auto-Send→HPG] Error stack:', error.stack);
                 results.hpg.error = error.message;
             }
         } else {
-            console.log(`[Auto-Send] Skipping HPG - no owner_id or hpg_clearance documents found for new registration`);
+            console.log(`[Auto-Send→HPG] Skipping - no owner_id or hpg_clearance documents found`);
+            console.log(`[Auto-Send→HPG] Available documents:`, allDocuments.map(d => d.document_type));
         }
 
         // 2. Send to Insurance (requires: insurance_cert)
@@ -96,14 +107,17 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
 
         if (hasInsuranceDoc) {
             try {
+                console.log(`[Auto-Send→Insurance] Sending request for vehicle ${vehicleId}`);
                 const insuranceResult = await sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy);
                 results.insurance = insuranceResult;
+                console.log(`[Auto-Send→Insurance] Result:`, insuranceResult);
             } catch (error) {
-                console.error('Error auto-sending to Insurance:', error);
+                console.error('[Auto-Send→Insurance] Error:', error);
+                console.error('[Auto-Send→Insurance] Error stack:', error.stack);
                 results.insurance.error = error.message;
             }
         } else {
-            console.log(`[Auto-Send] Skipping Insurance - no insurance_cert document found`);
+            console.log(`[Auto-Send→Insurance] Skipping - no insurance_cert document found`);
         }
 
         // 3. Send to Emission (requires: emission_cert)
@@ -120,14 +134,17 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
 
         if (hasEmissionDoc) {
             try {
+                console.log(`[Auto-Send→Emission] Sending request for vehicle ${vehicleId}`);
                 const emissionResult = await sendToEmission(vehicleId, vehicle, allDocuments, requestedBy);
                 results.emission = emissionResult;
+                console.log(`[Auto-Send→Emission] Result:`, emissionResult);
             } catch (error) {
-                console.error('Error auto-sending to Emission:', error);
+                console.error('[Auto-Send→Emission] Error:', error);
+                console.error('[Auto-Send→Emission] Error stack:', error.stack);
                 results.emission.error = error.message;
             }
         } else {
-            console.log(`[Auto-Send] Skipping Emission - no emission_cert document found`);
+            console.log(`[Auto-Send→Emission] Skipping - no emission_cert document found`);
         }
 
         // Update vehicle status to PENDING_VERIFICATION if at least one request was sent
@@ -178,6 +195,8 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
  * Send clearance request to HPG
  */
 async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
+    console.log(`[sendToHPG] Starting for vehicle ${vehicleId}`);
+    
     // Check if HPG request already exists
     const existingRequests = await db.getClearanceRequestsByVehicle(vehicleId);
     const existingHPGRequest = existingRequests.find(r => 
@@ -187,6 +206,7 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
     );
     
     if (existingHPGRequest) {
+        console.log(`[sendToHPG] Request already exists: ${existingHPGRequest.id}`);
         return {
             sent: false,
             requestId: existingHPGRequest.id,
@@ -199,6 +219,7 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         "SELECT id FROM users WHERE role = 'admin' AND (organization = 'Highway Patrol Group' OR email LIKE '%hpg%') AND is_active = true LIMIT 1"
     );
     const assignedTo = hpgAdmins.rows[0]?.id || null;
+    console.log(`[sendToHPG] HPG Admin found: ${assignedTo ? 'Yes' : 'No'}`);
 
     // Filter HPG-relevant documents using document type mapping
     // For NEW REGISTRATION: HPG needs owner_id and hpg_clearance (HPG Clearance Cert)
@@ -207,24 +228,43 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
                        vehicle.origin_type === 'TRANSFER' ||
                        (vehicle.purpose && vehicle.purpose.toLowerCase().includes('transfer'));
     
+    console.log(`[sendToHPG] Is Transfer: ${isTransfer}`);
+    console.log(`[sendToHPG] All documents before filtering:`, allDocuments.map(d => ({
+        type: d.document_type,
+        name: d.original_name || d.filename
+    })));
+    
     const hpgDocuments = allDocuments.filter(d => {
         const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
         // For new registration: only owner ID and HPG clearance cert
         if (!isTransfer) {
-            return logicalType === 'ownerId' ||
+            const matches = logicalType === 'ownerId' ||
                    logicalType === 'hpgClearance' ||
                    d.document_type === 'owner_id' ||
                    d.document_type === 'hpg_clearance' ||
                    d.document_type === 'pnpHpgClearance';
+            if (matches) {
+                console.log(`[sendToHPG] Document matched (NEW): ${d.document_type} -> ${logicalType}`);
+            }
+            return matches;
         } else {
             // For transfer: include OR/CR and owner ID (transfer route will handle this)
-            return logicalType === 'ownerId' ||
+            const matches = logicalType === 'ownerId' ||
                    logicalType === 'registrationCert' ||
                    d.document_type === 'owner_id' ||
                    d.document_type === 'or_cr' ||
                    d.document_type === 'registration_cert';
+            if (matches) {
+                console.log(`[sendToHPG] Document matched (TRANSFER): ${d.document_type} -> ${logicalType}`);
+            }
+            return matches;
         }
     });
+    
+    console.log(`[sendToHPG] Filtered HPG documents: ${hpgDocuments.length}`, hpgDocuments.map(d => ({
+        type: d.document_type,
+        name: d.original_name || d.filename
+    })));
 
     // Find documents using logical type mapping
     // For NEW REGISTRATION: Owner ID and HPG Clearance Cert
@@ -246,6 +286,8 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
                    d.document_type === 'hpg_clearance' ||
                    d.document_type === 'pnpHpgClearance';
         });
+        console.log(`[sendToHPG] Owner ID Doc: ${ownerIdDoc ? ownerIdDoc.id : 'NOT FOUND'}`);
+        console.log(`[sendToHPG] HPG Clearance Doc: ${hpgClearanceDoc ? hpgClearanceDoc.id : 'NOT FOUND'}`);
     } else {
         // Transfer: get OR/CR
         orCrDoc = hpgDocuments.find(d => {
@@ -255,9 +297,12 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
                    d.document_type === 'registration_cert';
         });
         registrationCertDoc = orCrDoc;
+        console.log(`[sendToHPG] Owner ID Doc: ${ownerIdDoc ? ownerIdDoc.id : 'NOT FOUND'}`);
+        console.log(`[sendToHPG] OR/CR Doc: ${orCrDoc ? orCrDoc.id : 'NOT FOUND'}`);
     }
 
     // Create clearance request
+    console.log(`[sendToHPG] Creating clearance request with ${hpgDocuments.length} document(s)`);
     const clearanceRequest = await db.createClearanceRequest({
         vehicleId,
         requestType: 'hpg',

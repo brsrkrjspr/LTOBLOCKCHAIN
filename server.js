@@ -27,9 +27,11 @@ app.use(helmet({
             imgSrc: ["'self'", "data:", "https:", "http://localhost:8080", "blob:"],
             connectSrc: ["'self'", "https://ltoblockchain.duckdns.org"],
             fontSrc: ["'self'", "https:", "data:"],
-            objectSrc: ["'self'", "data:"], // Allow data URIs for PDFs in object tags
+            objectSrc: ["'self'", "data:", "blob:"], // Explicitly allow data: and blob: for PDFs in object tags
             mediaSrc: ["'self'"],
-            frameSrc: ["'self'", "blob:"], // Allow iframes from same origin and blob URLs
+            frameSrc: ["'self'", "blob:", "data:"], // Also allow data: for iframes
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
         },
     },
 }));

@@ -427,8 +427,8 @@ const HPGRequests = {
                             <p><strong>Plate:</strong> ${request.plateNumber}</p>
                             <h4>Attached Documents:</h4>
                             <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
-                                ${docs.map(doc => `
-                                    <button class="btn-secondary" onclick="window.open('${doc.url}', '_blank')" style="text-align: left; display: flex; align-items: center; gap: 0.5rem;">
+                                ${docs.map((doc, index) => `
+                                    <button class="btn-secondary" onclick="if(typeof DocumentModal !== 'undefined') { DocumentModal.viewMultiple(${JSON.stringify(docs)}, ${index}); } else { window.open('${doc.url}', '_blank'); }" style="text-align: left; display: flex; align-items: center; gap: 0.5rem;">
                                         <i class="fas fa-file-image" style="color: #3498db;"></i>
                                         <span>${doc.filename}</span>
                                     </button>

@@ -42,14 +42,29 @@ router.get('/requests', authenticateToken, authorizeRole(['admin']), async (req,
     try {
         const { status } = req.query;
         
+        console.log(`[HPG API] Getting requests, status filter: ${status || 'none'}`);
+        
         let requests;
         if (status) {
             // When status is provided, get by status then filter to HPG only
             const allRequests = await db.getClearanceRequestsByStatus(status);
+            console.log(`[HPG API] Got ${allRequests.length} requests with status ${status}`);
             requests = allRequests.filter(r => r.request_type === 'hpg');
+            console.log(`[HPG API] Filtered to ${requests.length} HPG requests`);
         } else {
             // Get all HPG requests regardless of status
             requests = await db.getClearanceRequestsByType('hpg');
+            console.log(`[HPG API] Got ${requests.length} HPG requests (all statuses)`);
+        }
+
+        console.log(`[HPG API] Returning ${requests.length} HPG request(s)`);
+        if (requests.length > 0) {
+            console.log(`[HPG API] Sample request:`, {
+                id: requests[0].id,
+                request_type: requests[0].request_type,
+                status: requests[0].status,
+                vehicle_id: requests[0].vehicle_id
+            });
         }
 
         res.json({
@@ -59,7 +74,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin']), async (req,
         });
 
     } catch (error) {
-        console.error('Error getting HPG requests:', error);
+        console.error('[HPG API] Error getting HPG requests:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to get HPG requests: ' + error.message

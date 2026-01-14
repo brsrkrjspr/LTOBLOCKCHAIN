@@ -303,6 +303,8 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
 
     // Create clearance request
     console.log(`[sendToHPG] Creating clearance request with ${hpgDocuments.length} document(s)`);
+    console.log(`[sendToHPG] Vehicle ID: ${vehicleId}, Requested By: ${requestedBy}, Assigned To: ${assignedTo}`);
+    
     const clearanceRequest = await db.createClearanceRequest({
         vehicleId,
         requestType: 'hpg',
@@ -365,13 +367,22 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         });
     }
 
-    console.log(`[Auto-Send→HPG] Request created: ${clearanceRequest.id}`);
+    console.log(`[Auto-Send→HPG] Request created successfully: ${clearanceRequest.id}`);
+    console.log(`[Auto-Send→HPG] Request details:`, {
+        id: clearanceRequest.id,
+        vehicleId: clearanceRequest.vehicle_id,
+        requestType: clearanceRequest.request_type,
+        status: clearanceRequest.status,
+        assignedTo: clearanceRequest.assigned_to
+    });
 
-    // Detect if this is a transfer of ownership or new registration
-    const isTransfer = clearanceRequest.metadata?.transferRequestId || 
-                       clearanceRequest.purpose?.toLowerCase().includes('transfer');
+    // Note: isTransfer is already determined above (line 227) based on vehicle registration_type
+    // Re-check for transfer based on clearance request metadata (for transfer-specific requests)
+    const isTransferRequest = clearanceRequest.metadata?.transferRequestId || 
+                              clearanceRequest.purpose?.toLowerCase().includes('transfer');
     
     console.log(`[Auto-Send→HPG] Request type: ${isTransfer ? 'TRANSFER' : 'NEW_REGISTRATION'}`);
+    console.log(`[Auto-Send→HPG] Transfer request flag: ${isTransferRequest}`);
 
     // PHASE 1 AUTOMATION: OCR Extraction (for transfers only) and Database Check (for both)
     let autoVerificationResult = null;

@@ -453,9 +453,19 @@ function viewInsuranceDocument(applicationId) {
         return;
     }
     
-    // Open document viewer in a new window/tab
-    const documentViewerUrl = `document-viewer.html?type=insurance&appId=${applicationId}&filename=${encodeURIComponent(application.documents.insuranceCert)}`;
-    window.open(documentViewerUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    // Use DocumentModal if available (preferred method)
+    if (typeof DocumentModal !== 'undefined') {
+        const docUrl = application.documents.insuranceCert;
+        DocumentModal.view({ 
+            url: docUrl, 
+            filename: 'Insurance Certificate',
+            type: 'insurance'
+        });
+    } else {
+        // Fallback: Open document viewer in a new window/tab
+        const documentViewerUrl = `document-viewer.html?type=insurance&appId=${applicationId}&filename=${encodeURIComponent(application.documents.insuranceCert)}`;
+        window.open(documentViewerUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    }
     
     showNotification('Opening insurance certificate document...', 'info');
 }

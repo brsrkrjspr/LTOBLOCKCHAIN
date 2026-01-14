@@ -27,7 +27,7 @@ app.use(helmet({
             imgSrc: ["'self'", "data:", "https:", "http://localhost:8080", "blob:"],
             connectSrc: ["'self'", "https://ltoblockchain.duckdns.org"],
             fontSrc: ["'self'", "https:", "data:"],
-            objectSrc: ["'none'"],
+            objectSrc: ["'self'", "data:"], // Allow data URIs for PDFs in object tags
             mediaSrc: ["'self'"],
             frameSrc: ["'self'", "blob:"], // Allow iframes from same origin and blob URLs
         },
@@ -36,8 +36,9 @@ app.use(helmet({
 
 // Debug: Log CSP configuration on startup
 console.log('🔒 CSP Configuration:');
-console.log('   imgSrc includes: blob:');
+console.log('   imgSrc includes: blob:, data:');
 console.log('   frameSrc includes: blob:');
+console.log('   objectSrc includes: data: (for PDF viewing)');
 
 // Test endpoint to verify CSP headers
 app.get('/api/test-csp', (req, res) => {

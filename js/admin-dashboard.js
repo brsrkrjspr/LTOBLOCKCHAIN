@@ -1782,9 +1782,8 @@ function showApplicationModal(application) {
                     <div class="detail-section">
                         <h4>Documents (${application.documents ? application.documents.length : 0})</h4>
                         <div class="document-list">
-                            ${application.documents && application.documents.length > 0 ? (() => {
-                                // Mirror HPG behavior: build a full documents array for DocumentModal
-                                const docsForModal = application.documents.map(doc => {
+                            ${application.documents && application.documents.length > 0 ?
+                                application.documents.map((doc, index) => {
                                     const docType = doc.documentType || doc.document_type || 'document';
                                     const typeNames = {
                                         'registration_cert': '📄 Registration Certificate',
@@ -1792,38 +1791,12 @@ function showApplicationModal(application) {
                                         'emission_cert': '🌱 Emission Certificate',
                                         'owner_id': '🆔 Owner ID'
                                     };
-                                    const displayName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
-                                    return {
-                                        id: doc.id,
-                                        url: doc.url || doc.file_path || doc.path,
-                                        cid: doc.cid || doc.ipfs_cid,
-                                        filename: displayName.replace(/[📄🛡️🌱🆔]/g, '').trim(),
-                                        type: docType,
-                                        document_type: docType
-                                    };
-                                });
-                                
-                                const docsJson = JSON.stringify(docsForModal);
-                                
-                                return docsForModal.map((docData, index) => {
-                                    const docName = (() => {
-                                        const typeNames = {
-                                            'registration_cert': '📄 Registration Certificate',
-                                            'insurance_cert': '🛡️ Insurance Certificate',
-                                            'emission_cert': '🌱 Emission Certificate',
-                                            'owner_id': '🆔 Owner ID'
-                                        };
-                                        const original = application.documents[index];
-                                        const docType = original.documentType || original.document_type || 'document';
-                                        return typeNames[docType] || `📄 ${original.originalName || original.original_name || original.filename || 'Document'}`;
-                                    })();
-                                    
-                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="(function() { if (typeof DocumentModal !== 'undefined') { DocumentModal.viewMultiple(${docsJson}, ${index}); } else { alert('Document viewer modal is not available. Please refresh the page.'); } })()">
+                                    const docName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
+                                    return `<div class="document-item" data-doc-index="${index}" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;">
                                         <span>${docName}</span>
                                         <span style="color: #3498db;">View →</span>
                                     </div>`;
-                                }).join('');
-                            })() :
+                                }).join('') :
                                 '<p style="color: #999;">No documents uploaded yet</p>'
                             }
                         </div>
@@ -1879,6 +1852,44 @@ function showApplicationModal(application) {
     
     document.body.appendChild(modal);
     console.log('✅ Modal appended to body');
+    
+    // Attach document click handlers using DocumentModal (mirroring HPG behavior)
+    if (application.documents && application.documents.length > 0) {
+        try {
+            const docsForModal = application.documents.map(doc => {
+                const docType = doc.documentType || doc.document_type || 'document';
+                const typeNames = {
+                    'registration_cert': '📄 Registration Certificate',
+                    'insurance_cert': '🛡️ Insurance Certificate',
+                    'emission_cert': '🌱 Emission Certificate',
+                    'owner_id': '🆔 Owner ID'
+                };
+                const displayName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
+                return {
+                    id: doc.id,
+                    url: doc.url || doc.file_path || doc.path,
+                    cid: doc.cid || doc.ipfs_cid,
+                    filename: displayName.replace(/[📄🛡️🌱🆔]/g, '').trim(),
+                    type: docType,
+                    document_type: docType
+                };
+            });
+            
+            const docItems = modal.querySelectorAll('.document-item[data-doc-index]');
+            docItems.forEach(item => {
+                const idx = parseInt(item.getAttribute('data-doc-index'), 10);
+                item.addEventListener('click', () => {
+                    if (typeof DocumentModal !== 'undefined') {
+                        DocumentModal.viewMultiple(docsForModal, isNaN(idx) ? 0 : idx);
+                    } else {
+                        alert('Document viewer modal is not available. Please refresh the page.');
+                    }
+                });
+            });
+        } catch (e) {
+            console.error('Error binding document viewer handlers:', e);
+        }
+    }
     
     // Ensure modal content is styled properly
     const modalContent = modal.querySelector('.modal-content');

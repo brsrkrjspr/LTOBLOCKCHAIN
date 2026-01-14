@@ -653,13 +653,43 @@
                 }
                 
                 const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
                 console.log('Blob loaded, type:', blob.type, 'size:', blob.size);
                 
                 if (isImage || blob.type.startsWith('image/')) {
-                    frame.innerHTML = `<img src="${blobUrl}" alt="${doc.filename || doc.label || 'Document'}" />`;
+                    // For images, convert to data URL to avoid CSP issues
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        frame.innerHTML = `<img src="${e.target.result}" alt="${doc.filename || doc.label || 'Document'}" />`;
+                    };
+                    reader.onerror = function() {
+                        frame.innerHTML = `<div style="color:#e74c3c;text-align:center;">Image failed to load</div>`;
+                    };
+                    reader.readAsDataURL(blob);
                 } else {
-                    frame.innerHTML = `<iframe src="${blobUrl}" title="${doc.filename || doc.label || 'Document'}"></iframe>`;
+                    // For PDFs, convert to data URL and use object/embed tag to avoid CSP issues
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const dataUrl = e.target.result;
+                        frame.innerHTML = `
+                            <object data="${dataUrl}" type="application/pdf" style="width: 100%; height: 100%; border: none;">
+                                <embed src="${dataUrl}" type="application/pdf" style="width: 100%; height: 100%;">
+                                    <p style="text-align: center; padding: 40px;">
+                                        Your browser does not support PDFs. 
+                                        <a href="${url}" target="_blank" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Download PDF</a>
+                                    </p>
+                                </embed>
+                            </object>
+                        `;
+                    };
+                    reader.onerror = function() {
+                        frame.innerHTML = `
+                            <div style="text-align: center; padding: 40px;">
+                                <p>Unable to display PDF in browser.</p>
+                                <a href="${url}" target="_blank" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Download PDF</a>
+                            </div>
+                        `;
+                    };
+                    reader.readAsDataURL(blob);
                 }
             } else {
                 // Direct URL (http/https)

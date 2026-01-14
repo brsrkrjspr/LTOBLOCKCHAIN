@@ -30,24 +30,43 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         // Get all documents for the vehicle
         const allDocuments = await db.getDocumentsByVehicle(vehicleId);
 
-        // 1. Send to HPG (requires: hpg_clearance, csr, or owner_id documents)
-        // Use document type mapping to properly detect documents
+        // 1. Send to HPG
+        // For NEW REGISTRATION: requires owner_id and hpg_clearance (HPG Clearance Cert)
+        // For TRANSFER: handled separately in transfer route
+        const isNewRegistration = vehicle.registration_type === 'NEW' || 
+                                  vehicle.origin_type === 'NEW' ||
+                                  !vehicle.registration_type; // Default to NEW if not set
+        
         const hasHPGDocs = allDocuments.some(d => {
             // Map document type to logical type
             const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-            return logicalType === 'hpgClearance' || 
-                   logicalType === 'csr' || 
-                   logicalType === 'ownerId' ||
-                   d.document_type === 'hpg_clearance' ||
-                   d.document_type === 'csr' ||
-                   d.document_type === 'owner_id';
+            if (isNewRegistration) {
+                // New registration: needs owner ID and HPG clearance cert
+                return logicalType === 'ownerId' ||
+                       logicalType === 'hpgClearance' ||
+                       d.document_type === 'owner_id' ||
+                       d.document_type === 'hpg_clearance' ||
+                       d.document_type === 'pnpHpgClearance';
+            } else {
+                // Transfer: needs owner ID and OR/CR (handled in transfer route)
+                return logicalType === 'ownerId' ||
+                       logicalType === 'registrationCert' ||
+                       d.document_type === 'owner_id' ||
+                       d.document_type === 'or_cr' ||
+                       d.document_type === 'registration_cert';
+            }
         }) || (documents && (
-            documents.pnpHpgClearance || 
-            documents.certificateOfStockReport || 
-            documents.ownerValidId ||
-            documents.hpgClearance ||
-            documents.csr ||
-            documents.ownerId
+            isNewRegistration ? (
+                documents.ownerValidId ||
+                documents.ownerId ||
+                documents.hpgClearance ||
+                documents.pnpHpgClearance
+            ) : (
+                documents.ownerValidId ||
+                documents.ownerId ||
+                documents.registrationCert ||
+                documents.orCr
+            )
         ));
 
         if (hasHPGDocs) {
@@ -59,7 +78,7 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
                 results.hpg.error = error.message;
             }
         } else {
-            console.log(`[Auto-Send] Skipping HPG - no registration_cert or owner_id documents found`);
+            console.log(`[Auto-Send] Skipping HPG - no owner_id or hpg_clearance documents found for new registration`);
         }
 
         // 2. Send to Insurance (requires: insurance_cert)
@@ -182,40 +201,61 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
     const assignedTo = hpgAdmins.rows[0]?.id || null;
 
     // Filter HPG-relevant documents using document type mapping
-    // HPG needs: hpg_clearance, csr (Certificate of Stock Report), owner_id
+    // For NEW REGISTRATION: HPG needs owner_id and hpg_clearance (HPG Clearance Cert)
+    // For TRANSFER: Will be handled separately in transfer route
+    const isTransfer = vehicle.registration_type === 'TRANSFER' || 
+                       vehicle.origin_type === 'TRANSFER' ||
+                       (vehicle.purpose && vehicle.purpose.toLowerCase().includes('transfer'));
+    
     const hpgDocuments = allDocuments.filter(d => {
         const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-        return logicalType === 'hpgClearance' || 
-               logicalType === 'csr' || 
-               logicalType === 'ownerId' ||
-               d.document_type === 'hpg_clearance' ||
-               d.document_type === 'csr' ||
-               d.document_type === 'owner_id' ||
-               d.document_type === 'or_cr' ||
-               d.document_type === 'registration_cert';
+        // For new registration: only owner ID and HPG clearance cert
+        if (!isTransfer) {
+            return logicalType === 'ownerId' ||
+                   logicalType === 'hpgClearance' ||
+                   d.document_type === 'owner_id' ||
+                   d.document_type === 'hpg_clearance' ||
+                   d.document_type === 'pnpHpgClearance';
+        } else {
+            // For transfer: include OR/CR and owner ID (transfer route will handle this)
+            return logicalType === 'ownerId' ||
+                   logicalType === 'registrationCert' ||
+                   d.document_type === 'owner_id' ||
+                   d.document_type === 'or_cr' ||
+                   d.document_type === 'registration_cert';
+        }
     });
 
     // Find documents using logical type mapping
+    // For NEW REGISTRATION: Owner ID and HPG Clearance Cert
+    // For TRANSFER: Owner ID and OR/CR (handled in transfer route)
     const ownerIdDoc = hpgDocuments.find(d => {
         const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
         return logicalType === 'ownerId' || d.document_type === 'owner_id';
     });
-    const orCrDoc = hpgDocuments.find(d => {
-        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-        return logicalType === 'registrationCert' || d.document_type === 'or_cr' || d.document_type === 'registration_cert';
-    });
-    const registrationCertDoc = hpgDocuments.find(d => {
-        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-        return logicalType === 'registrationCert' || d.document_type === 'registration_cert';
-    });
-    const csrDoc = hpgDocuments.find(d => {
-        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-        return logicalType === 'csr' || d.document_type === 'csr';
-    });
-    const hpgClearanceDoc = hpgDocuments.find(d => {
-        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-        return logicalType === 'hpgClearance' || d.document_type === 'hpg_clearance';
-    });
+    
+    let orCrDoc = null;
+    let registrationCertDoc = null;
+    let hpgClearanceDoc = null;
+    
+    if (!isTransfer) {
+        // New registration: get HPG Clearance Cert
+        hpgClearanceDoc = hpgDocuments.find(d => {
+            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+            return logicalType === 'hpgClearance' || 
+                   d.document_type === 'hpg_clearance' ||
+                   d.document_type === 'pnpHpgClearance';
+        });
+    } else {
+        // Transfer: get OR/CR
+        orCrDoc = hpgDocuments.find(d => {
+            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+            return logicalType === 'registrationCert' || 
+                   d.document_type === 'or_cr' || 
+                   d.document_type === 'registration_cert';
+        });
+        registrationCertDoc = orCrDoc;
+    }
 
     // Create clearance request
     const clearanceRequest = await db.createClearanceRequest({
@@ -245,10 +285,6 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
             orCrDocFilename: orCrDoc?.original_name || null,
             registrationCertDocId: registrationCertDoc?.id || null,
             registrationCertDocCid: registrationCertDoc?.ipfs_cid || null,
-            csrDocId: csrDoc?.id || null,
-            csrDocCid: csrDoc?.ipfs_cid || null,
-            csrDocPath: csrDoc?.file_path || null,
-            csrDocFilename: csrDoc?.original_name || null,
             hpgClearanceDocId: hpgClearanceDoc?.id || null,
             hpgClearanceDocCid: hpgClearanceDoc?.ipfs_cid || null,
             hpgClearanceDocPath: hpgClearanceDoc?.file_path || null,

@@ -1118,11 +1118,17 @@
                     <!-- STEP 3: HPG Database Check -->
                     <div class="dashboard-card verification-step" id="step3Card">
                         <div class="card-header">
-                            <h3><i class="fas fa-database"></i> Step 3: HPG Database Verification</h3>
+                            <h3><i class="fas fa-database"></i> Step 3: HPG Database Check (Manual)</h3>
                             <span class="step-badge step-badge-important">Critical</span>
                         </div>
                         <div class="card-body">
-                            <p class="step-description">Check the vehicle against HPG's Hot List database for any carnapped, stolen, or flagged records.</p>
+                            <p class="step-description">
+                                <strong>Manual Database Check:</strong> Click the button below to manually check the vehicle against HPG's Hot List database for any carnapped, stolen, or flagged records.
+                                <br><br>
+                                <small style="color: #6b7280;">
+                                    <i class="fas fa-info-circle"></i> <strong>Difference from Auto-Verify:</strong> This is a simple manual check that only queries the database. The "Quick Auto-Verify" option below performs comprehensive automated checks (database + data matching + document completeness + confidence scoring) and provides recommendations.
+                                </small>
+                            </p>
                             
                             <div class="database-check-section">
                                 <button type="button" class="btn-primary btn-lg" id="checkDatabaseBtn" onclick="runHPGDatabaseCheck()">

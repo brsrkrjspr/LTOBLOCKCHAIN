@@ -612,31 +612,64 @@ async function loadDocumentInIframe(documentId, documentUrl) {
             }
         }
         
-        // Convert response to blob
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        // Create iframe with blob URL
+        // For PDFs, use object/embed tag instead of iframe with blob URL to avoid CSP issues
+        // Fetch the document and create a data URL or use object tag with direct API URL
         const container = document.getElementById('document-iframe-container');
         if (container) {
-            container.innerHTML = `<iframe src="${blobUrl}" class="document-iframe" frameborder="0"></iframe>`;
-            
-            // Update fallback link to use blob URL
-            const fallbackLink = document.getElementById('document-fallback-link');
-            if (fallbackLink) {
-                fallbackLink.href = blobUrl;
+            try {
+                // Fetch document as blob
+                const blob = await response.blob();
+                
+                // Convert blob to data URL (avoids CSP blob: URL restrictions)
+                // Data URLs work for all file sizes, just may be slower for very large files
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    container.innerHTML = `
+                        <object data="${dataUrl}" type="application/pdf" class="document-iframe" style="width: 100%; height: 800px; border: none;">
+                            <embed src="${dataUrl}" type="application/pdf" style="width: 100%; height: 800px;">
+                                <p style="text-align: center; padding: 40px;">
+                                    Your browser does not support PDFs. 
+                                    <a href="${documentUrl}" target="_blank" class="btn-primary" style="margin-top: 15px; display: inline-block;">Click here to download</a>
+                                </p>
+                            </embed>
+                        </object>
+                    `;
+                };
+                reader.onerror = function() {
+                    // Fallback: show download link if data URL conversion fails
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <p>Unable to display PDF in browser.</p>
+                            <a href="${documentUrl}" target="_blank" class="btn-primary">Download PDF</a>
+                        </div>
+                    `;
+                };
+                reader.readAsDataURL(blob);
+                
+                // Update fallback link
+                const fallbackLink = document.getElementById('document-fallback-link');
+                if (fallbackLink) {
+                    fallbackLink.href = documentUrl;
+                    fallbackLink.target = '_blank';
+                }
+                
+                // Update view link
+                const viewLink = document.getElementById('document-view-link');
+                if (viewLink) {
+                    viewLink.href = documentUrl;
+                    viewLink.target = '_blank';
+                }
+            } catch (error) {
+                console.error('Error creating document viewer:', error);
+                // Fallback: show download link
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p>Unable to display PDF in browser.</p>
+                        <a href="${documentUrl}" target="_blank" class="btn-primary">Download PDF</a>
+                    </div>
+                `;
             }
-            
-            // Update view link to use blob URL
-            const viewLink = document.getElementById('document-view-link');
-            if (viewLink) {
-                viewLink.href = blobUrl;
-            }
-            
-            // Clean up blob URL when page unloads
-            window.addEventListener('beforeunload', () => {
-                window.URL.revokeObjectURL(blobUrl);
-            });
         }
     } catch (error) {
         console.error('Error loading document in iframe:', error);

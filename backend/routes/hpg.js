@@ -288,6 +288,7 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
             }
         };
 
+        const dbModule = require('../database/db');
         await dbModule.query(
             `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
             [JSON.stringify(updatedMetadata), requestId]

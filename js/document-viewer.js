@@ -612,40 +612,42 @@ async function loadDocumentInIframe(documentId, documentUrl) {
             }
         }
         
-        // For PDFs, use object/embed tag instead of iframe with blob URL to avoid CSP issues
-        // Fetch the document and create a data URL or use object tag with direct API URL
+        // For PDFs, use blob URL with iframe (CSP-friendly, avoids object-src issues)
         const container = document.getElementById('document-iframe-container');
         if (container) {
             try {
                 // Fetch document as blob
                 const blob = await response.blob();
                 
-                // Convert blob to data URL (avoids CSP blob: URL restrictions)
-                // Data URLs work for all file sizes, just may be slower for very large files
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const dataUrl = e.target.result;
-                    container.innerHTML = `
-                        <object data="${dataUrl}" type="application/pdf" class="document-iframe" style="width: 100%; height: 800px; border: none;">
-                            <embed src="${dataUrl}" type="application/pdf" style="width: 100%; height: 800px;">
-                                <p style="text-align: center; padding: 40px;">
-                                    Your browser does not support PDFs. 
-                                    <a href="${documentUrl}" target="_blank" class="btn-primary" style="margin-top: 15px; display: inline-block;">Click here to download</a>
-                                </p>
-                            </embed>
-                        </object>
-                    `;
-                };
-                reader.onerror = function() {
-                    // Fallback: show download link if data URL conversion fails
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 40px;">
-                            <p>Unable to display PDF in browser.</p>
-                            <a href="${documentUrl}" target="_blank" class="btn-primary">Download PDF</a>
-                        </div>
-                    `;
-                };
-                reader.readAsDataURL(blob);
+                // Clean up previous blob URL if it exists
+                if (window.currentDocumentBlobUrl) {
+                    URL.revokeObjectURL(window.currentDocumentBlobUrl);
+                    window.currentDocumentBlobUrl = null;
+                }
+                
+                // Use blob URL with iframe (CSP-friendly, avoids object-src issues)
+                const blobUrl = URL.createObjectURL(blob);
+                window.currentDocumentBlobUrl = blobUrl; // Track for cleanup
+                
+                container.innerHTML = `
+                    <iframe src="${blobUrl}" type="application/pdf" class="document-iframe" style="width: 100%; height: 800px; border: none;">
+                        <p style="text-align: center; padding: 40px;">
+                            Your browser does not support PDFs. 
+                            <a href="${documentUrl}" target="_blank" class="btn-primary" style="margin-top: 15px; display: inline-block;">Click here to download</a>
+                        </p>
+                    </iframe>
+                `;
+                
+                // Clean up blob URL when page unloads
+                if (!window.documentViewerCleanupAdded) {
+                    window.addEventListener('beforeunload', () => {
+                        if (window.currentDocumentBlobUrl) {
+                            URL.revokeObjectURL(window.currentDocumentBlobUrl);
+                            window.currentDocumentBlobUrl = null;
+                        }
+                    });
+                    window.documentViewerCleanupAdded = true;
+                }
                 
                 // Update fallback link
                 const fallbackLink = document.getElementById('document-fallback-link');

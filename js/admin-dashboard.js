@@ -1782,8 +1782,9 @@ function showApplicationModal(application) {
                     <div class="detail-section">
                         <h4>Documents (${application.documents ? application.documents.length : 0})</h4>
                         <div class="document-list">
-                            ${application.documents && application.documents.length > 0 ? 
-                                application.documents.map(doc => {
+                            ${application.documents && application.documents.length > 0 ? (() => {
+                                // Mirror HPG behavior: build a full documents array for DocumentModal
+                                const docsForModal = application.documents.map(doc => {
                                     const docType = doc.documentType || doc.document_type || 'document';
                                     const typeNames = {
                                         'registration_cert': '📄 Registration Certificate',
@@ -1791,33 +1792,38 @@ function showApplicationModal(application) {
                                         'emission_cert': '🌱 Emission Certificate',
                                         'owner_id': '🆔 Owner ID'
                                     };
-                                    const docName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
-                                    
-                                    // Use document ID if available (valid UUID), otherwise use VIN + type
-                                    const isValidDocumentId = doc.id && 
-                                        typeof doc.id === 'string' && 
-                                        doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
-                                        !doc.id.startsWith('TEMP_');
-                                    
-                                    // Prepare document data for DocumentModal
-                                    const docData = {
+                                    const displayName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
+                                    return {
                                         id: doc.id,
                                         url: doc.url || doc.file_path || doc.path,
                                         cid: doc.cid || doc.ipfs_cid,
-                                        filename: docName.replace(/[📄🛡️🌱🆔]/g, '').trim(),
+                                        filename: displayName.replace(/[📄🛡️🌱🆔]/g, '').trim(),
                                         type: docType,
                                         document_type: docType
                                     };
+                                });
+                                
+                                const docsJson = JSON.stringify(docsForModal);
+                                
+                                return docsForModal.map((docData, index) => {
+                                    const docName = (() => {
+                                        const typeNames = {
+                                            'registration_cert': '📄 Registration Certificate',
+                                            'insurance_cert': '🛡️ Insurance Certificate',
+                                            'emission_cert': '🌱 Emission Certificate',
+                                            'owner_id': '🆔 Owner ID'
+                                        };
+                                        const original = application.documents[index];
+                                        const docType = original.documentType || original.document_type || 'document';
+                                        return typeNames[docType] || `📄 ${original.originalName || original.original_name || original.filename || 'Document'}`;
+                                    })();
                                     
-                                    // Create onclick handler that uses DocumentModal if available
-                                    const docDataEscaped = JSON.stringify(docData).replace(/'/g, "\\'");
-                                    const fallbackUrl = doc.id ? `/api/documents/${doc.id}/view` : (doc.url || doc.file_path || '');
-                                    
-                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="(function() { if(typeof DocumentModal !== 'undefined') { DocumentModal.view(${JSON.stringify(docData)}); } else { alert('Document viewer modal is not available. Please refresh the page.'); } })()">
+                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="(function() { if (typeof DocumentModal !== 'undefined') { DocumentModal.viewMultiple(${docsJson}, ${index}); } else { alert('Document viewer modal is not available. Please refresh the page.'); } })()">
                                         <span>${docName}</span>
                                         <span style="color: #3498db;">View →</span>
                                     </div>`;
-                                }).join('') :
+                                }).join('');
+                            })() :
                                 '<p style="color: #999;">No documents uploaded yet</p>'
                             }
                         </div>

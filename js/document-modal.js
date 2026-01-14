@@ -38,9 +38,6 @@
                         <button class="doc-action-btn" onclick="DocumentModal.download()" title="Download">
                             <i class="fas fa-download"></i>
                         </button>
-                        <button class="doc-action-btn" onclick="DocumentModal.openInNewTab()" title="Open in New Tab">
-                            <i class="fas fa-external-link-alt"></i>
-                        </button>
                         <button class="doc-action-btn doc-close-btn" onclick="DocumentModal.close()" title="Close">
                             <i class="fas fa-times"></i>
                         </button>
@@ -674,7 +671,7 @@
                         <iframe src="${blobUrl}" type="application/pdf" style="width: 100%; height: 100%; border: none;" frameborder="0">
                             <p style="text-align: center; padding: 40px;">
                                 Your browser does not support PDFs. 
-                                <a href="${url}" target="_blank" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Download PDF</a>
+                                <a href="${url}" download style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Download PDF</a>
                             </p>
                         </iframe>
                     `;
@@ -807,46 +804,17 @@
                     a.click();
                     URL.revokeObjectURL(blobUrl);
                 } else {
-                    window.open(url, '_blank');
+                    // Trigger download without opening a new tab
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = doc.filename || doc.original_name || 'document';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
                 }
             } catch (err) {
                 console.error('Download error:', err);
                 alert('Failed to download document: ' + err.message);
-            }
-        },
-        
-        // Open in new tab
-        openInNewTab: async function() {
-            const doc = currentDocuments[currentDocIndex];
-            if (!doc) return;
-            
-            try {
-                let url = doc.id ? `/api/documents/${doc.id}/view` : 
-                         (doc.url || doc.path || doc.file_path);
-                
-                if (!url) {
-                    alert('Cannot open document in new tab');
-                    return;
-                }
-                
-                const token = getAuthToken();
-                
-                if (url.startsWith('/api/')) {
-                    const response = await fetch(url, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    
-                    if (!response.ok) throw new Error('Failed to load');
-                    
-                    const blob = await response.blob();
-                    const blobUrl = URL.createObjectURL(blob);
-                    window.open(blobUrl, '_blank');
-                } else {
-                    window.open(url, '_blank');
-                }
-            } catch (err) {
-                console.error('Open in new tab error:', err);
-                alert('Failed to open document: ' + err.message);
             }
         },
         

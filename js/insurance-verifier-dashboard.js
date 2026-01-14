@@ -242,8 +242,9 @@ async function viewInsuranceDocuments(requestId) {
             }));
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.viewMultiple(prepared, 0);
-            } else if (prepared[0].url) {
-                window.open(prepared[0].url, '_blank');
+            } else {
+                // Strict: never open new tabs for viewing documents
+                alert('Document viewer modal is not available. Please refresh the page.');
             }
         }
     } catch (error) {
@@ -462,9 +463,9 @@ function viewInsuranceDocument(applicationId) {
             type: 'insurance'
         });
     } else {
-        // Fallback: Open document viewer in a new window/tab
-        const documentViewerUrl = `document-viewer.html?type=insurance&appId=${applicationId}&filename=${encodeURIComponent(application.documents.insuranceCert)}`;
-        window.open(documentViewerUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        // Strict: never open new tabs for viewing documents
+        showNotification('Document viewer modal is not available. Please refresh the page.', 'error');
+        return;
     }
     
     showNotification('Opening insurance certificate document...', 'info');

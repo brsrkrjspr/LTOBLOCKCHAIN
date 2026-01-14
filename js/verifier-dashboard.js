@@ -301,8 +301,9 @@ async function viewEmissionDocuments(requestId) {
             }));
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.viewMultiple(prepared, 0);
-            } else if (prepared[0].url) {
-                window.open(prepared[0].url, '_blank');
+            } else {
+                // Strict: never open new tabs for viewing documents
+                alert('Document viewer modal is not available. Please refresh the page.');
             }
         }
     } catch (error) {
@@ -446,14 +447,13 @@ async function handleEmissionReviewFromRequest(requestId) {
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.viewMultiple(prepared, 0);
             } else {
-                // Fallback: redirect to document viewer page
-                window.location.href = `document-viewer.html?requestId=${requestId}&returnTo=verifier-dashboard.html`;
+                // Strict: never redirect/open full-page document viewers
+                alert('Document viewer modal is not available. Please refresh the page.');
             }
         }
     } catch (error) {
         console.error('Error loading emission documents:', error);
-        // Fallback: redirect to document viewer page
-        window.location.href = `document-viewer.html?requestId=${requestId}&returnTo=verifier-dashboard.html`;
+        alert('Failed to load emission documents: ' + (error.message || error));
     }
 }
 
@@ -632,12 +632,11 @@ async function handleEmissionReview(e) {
             }
         }
         
-        // Fallback: redirect to document viewer page
-        window.location.href = 'document-viewer.html?app=' + appId + '&type=emission';
+        // Strict: never redirect/open full-page document viewers
+        alert('Document viewer modal is not available. Please refresh the page.');
     } catch (error) {
         console.error('Error in handleEmissionReview:', error);
-        // Fallback: redirect to document viewer page
-        window.location.href = 'document-viewer.html?app=' + appId + '&type=emission';
+        alert('Failed to load emission documents: ' + (error.message || error));
     }
 }
 

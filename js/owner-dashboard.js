@@ -316,16 +316,9 @@ function handleViewApplication(e) {
     const vehicleInfo = row.querySelector('.vehicle-info strong').textContent;
     const applicationId = row.querySelector('td:nth-child(2)').textContent;
     
-    // Find the application to get vehicle details
-    const application = allApplications.find(app => app.id === applicationId);
-    if (application && application.vehicle) {
-        const vin = application.vehicle.vin;
-        // Navigate to document viewer with VIN
-        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&type=registration`;
-    } else {
-        // Fallback to appId
-        window.location.href = `document-viewer.html?appId=${applicationId}&type=registration`;
-    }
+    // Strict: do not navigate to full-page document viewers.
+    // Guide user to use the in-page modal / details view instead.
+    showNotification('Please use the in-page document modal to view documents (no new tabs). Open the application details and click "View Documents".', 'info');
 }
 
 function animateStatusUpdates() {
@@ -2168,42 +2161,15 @@ function openDocumentByKey(docKey) {
             type: docKey
         });
     } else {
-        // Fallback to opening in new tab/window
-        const finalUrl = docUrl || (docId ? `/api/documents/${docId}/view` : null) || (docCid ? `/api/documents/ipfs/${docCid}` : null);
-        if (finalUrl && typeof finalUrl === 'string' && finalUrl.startsWith('data:')) {
-            // For data URLs, open in a new window
-            const win = window.open();
-            if (win) {
-                win.document.write(`<html><head><title>${docLabel}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1a1a2e;"><img src="${finalUrl}" style="max-width:100%;max-height:100vh;object-fit:contain;"></body></html>`);
-            }
-        } else if (finalUrl) {
-            window.open(finalUrl, '_blank');
-        } else {
-            showNotification('Cannot open document', 'error');
-        }
+        // Strict: never open new tabs for viewing documents
+        showNotification('Document viewer modal is not available. Please refresh the page.', 'error');
+        return;
     }
 }
 
-// View all documents in full page document viewer
+// Strict: no full-page document viewers; always use modal.
 function viewAllDocumentsFullPage() {
-    closeApplicationDetailsModal();
-    
-    if (currentModalApplication) {
-        const vin = currentModalApplication.vehicle?.vin;
-        const appId = currentModalApplication.id;
-        
-        // Check if appId is a UUID (real vehicle from API)
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appId);
-        
-        if (isUUID) {
-            // Use vehicleId for API-based document loading
-            window.location.href = `document-viewer.html?vehicleId=${encodeURIComponent(appId)}`;
-        } else if (vin) {
-            window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&appId=${encodeURIComponent(appId)}`;
-        } else {
-            window.location.href = `document-viewer.html?appId=${encodeURIComponent(appId)}`;
-        }
-    }
+    showNotification('Full-page document viewer is disabled. Please use the in-page document modal.', 'info');
 }
 
 // View all documents in the DocumentModal (quick view)
@@ -2276,18 +2242,13 @@ function openDocumentFromModal(docUrl, docLabel) {
             type: docLabel
         });
     } else {
-        window.open(docUrl, '_blank');
+        showNotification('Document viewer modal is not available. Please refresh the page.', 'error');
     }
 }
 
 function viewAllDocuments(applicationId, vin) {
     closeApplicationDetailsModal();
-    
-    if (vin) {
-        window.location.href = `document-viewer.html?vin=${encodeURIComponent(vin)}&appId=${encodeURIComponent(applicationId)}`;
-    } else {
-        window.location.href = `document-viewer.html?appId=${applicationId}`;
-    }
+    showNotification('Full-page document viewer is disabled. Please use the in-page document modal.', 'info');
 }
 
 function viewUserApplication_OLD(applicationId) {

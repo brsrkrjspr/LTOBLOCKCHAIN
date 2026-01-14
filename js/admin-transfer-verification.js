@@ -490,48 +490,24 @@ async function loadAuthenticatedPdf(documentId, docName, containerEl) {
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
                 <p>Failed to load PDF: ${escapeHtml(error.message)}</p>
                 <button onclick="openDocumentAuthenticated('${documentId}', '${escapeHtml(docName)}')" class="btn-primary" style="margin-top: 1rem;">
-                    Open in New Tab
+                    Open in Modal
                 </button>
             </div>
         `;
     }
 }
 
-// Open document in new tab with authentication
+// Open document in modal with authentication (strict: no new tabs)
 async function openDocumentAuthenticated(documentId, docName) {
     try {
-        const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
-            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
-        if (!token) {
-            showError('Please log in to view documents');
+        if (typeof DocumentModal === 'undefined') {
+            showError('Document viewer modal is not available. Please refresh the page.');
             return;
         }
-
-        showLoading();
-
-        const response = await fetch(`/api/documents/${documentId}/view`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to load document');
-        }
-
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        // Open in new tab
-        window.open(blobUrl, '_blank');
-        
-        // Clean up blob URL after a delay
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-
-        hideLoading();
+        DocumentModal.view({ id: documentId, filename: docName });
     } catch (error) {
         console.error('Error opening document:', error);
         showError(error.message || 'Failed to open document');
-        hideLoading();
     }
 }
 

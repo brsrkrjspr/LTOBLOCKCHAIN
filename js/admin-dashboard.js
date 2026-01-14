@@ -1813,7 +1813,7 @@ function showApplicationModal(application) {
                                     const docDataEscaped = JSON.stringify(docData).replace(/'/g, "\\'");
                                     const fallbackUrl = doc.id ? `/api/documents/${doc.id}/view` : (doc.url || doc.file_path || '');
                                     
-                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="(function() { if(typeof DocumentModal !== 'undefined') { DocumentModal.view(${JSON.stringify(docData)}); } else { window.open('${fallbackUrl}', '_blank'); } })()">
+                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="(function() { if(typeof DocumentModal !== 'undefined') { DocumentModal.view(${JSON.stringify(docData)}); } else { alert('Document viewer modal is not available. Please refresh the page.'); } })()">
                                         <span>${docName}</span>
                                         <span style="color: #3498db;">View →</span>
                                     </div>`;
@@ -1821,11 +1821,7 @@ function showApplicationModal(application) {
                                 '<p style="color: #999;">No documents uploaded yet</p>'
                             }
                         </div>
-                        ${application.vehicle && application.vehicle.vin ? `
-                        <div style="margin-top: 15px;">
-                            <a href="document-viewer.html?vin=${application.vehicle.vin}" target="_blank" class="btn-secondary">View All Documents in Viewer</a>
-                        </div>
-                        ` : ''}
+                        <!-- Strict: do not provide links that open full-page/new-tab document viewers -->
                     </div>
                     
                     <div class="detail-section">

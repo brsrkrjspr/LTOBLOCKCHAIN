@@ -835,9 +835,9 @@ async function viewDocument(docId) {
             return;
         }
         
-        console.log('[viewDocument] DocumentModal not available, opening in new tab');
-        // Fallback: Open document viewer in new tab
-        window.open(`document-viewer.html?id=${docId}`, '_blank');
+        // Strict: never open new tabs for viewing documents
+        console.log('[viewDocument] DocumentModal not available');
+        showError('Document viewer modal is not available. Please refresh the page.');
 
     } catch (error) {
         console.error('[viewDocument] Error:', error);

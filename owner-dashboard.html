@@ -1421,7 +1421,8 @@
                             <h3>My Documents</h3>
                         </div>
                         <p class="card-description">View documents you've uploaded for your applications</p>
-                        <a href="document-viewer.html" class="btn-card-secondary">
+                        <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
+                        <a href="#applications" class="btn-card-secondary" onclick="event.preventDefault(); if(window.ToastNotification){ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');} else { alert('Use the in-page document modal inside an application to view documents.'); }">
                             <span>View Documents</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>

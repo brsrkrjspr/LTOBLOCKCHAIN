@@ -146,7 +146,19 @@ function displaySearchResults(result) {
     
     // Update action buttons
     const viewButton = resultCard.querySelector('.result-actions .btn-primary');
-    viewButton.href = `document-viewer.html?cid=${result.cid}`;
+    // Strict: view in modal (no new tab / no full-page viewer)
+    viewButton.href = '#';
+    viewButton.onclick = (e) => {
+        e.preventDefault();
+        if (typeof DocumentModal === 'undefined') {
+            alert('Document viewer modal is not available. Please refresh the page.');
+            return;
+        }
+        DocumentModal.view({
+            cid: result.cid,
+            filename: `Certificate (${result.plate || 'Document'})`
+        });
+    };
     
     const downloadButton = resultCard.querySelector('.result-actions .btn-secondary');
     downloadButton.addEventListener('click', () => handleDownloadCertificate(result));

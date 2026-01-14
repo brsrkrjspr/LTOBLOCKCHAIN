@@ -960,10 +960,7 @@
                     <span>LTO Requests by Org</span>
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
-                <a href="hpg-document-viewer.html" class="nav-item">
-                    <i class="fas fa-file-alt" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; font-family: 'Font Awesome 6 Free' !important; font-weight: 900 !important;"></i>
-                    <span>Document Viewer</span>
-                </a>
+                <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
                 <a href="hpg-verification-form.html" class="nav-item active">
                     <i class="fas fa-clipboard-check"></i>
                     <span>Vehicle Verification</span>
@@ -2399,10 +2396,7 @@
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.viewMultiple(preparedDocs, index);
             } else {
-                const doc = preparedDocs[index];
-                if (doc.url) {
-                    window.open(doc.url, '_blank');
-                }
+                alert('Document viewer modal is not available. Please refresh the page.');
             }
         }
 
@@ -2413,19 +2407,17 @@
                 return;
             }
 
-            let viewerUrl = null;
-            if (currentOrcrDoc.id) {
-                viewerUrl = `document-viewer.html?documentId=${encodeURIComponent(currentOrcrDoc.id)}`;
-            } else if (currentOrcrDoc.cid) {
-                viewerUrl = `document-viewer.html?cid=${encodeURIComponent(currentOrcrDoc.cid)}`;
-            }
-
-            if (!viewerUrl) {
-                alert('This document cannot be opened right now.');
+            // Strict: use DocumentModal (no new tabs / no full-page viewer)
+            if (typeof DocumentModal === 'undefined') {
+                alert('Document viewer modal is not available. Please refresh the page.');
                 return;
             }
-
-            window.open(viewerUrl, '_blank');
+            DocumentModal.view({
+                id: currentOrcrDoc.id,
+                cid: currentOrcrDoc.cid || currentOrcrDoc.ipfs_cid,
+                url: currentOrcrDoc.url,
+                filename: currentOrcrDoc.filename || currentOrcrDoc.original_name || 'OR/CR'
+            });
         }
 
         function retryLoadOrcrDocument() {

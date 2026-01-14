@@ -1014,10 +1014,7 @@
                     <i class="fas fa-link"></i>
                     <span>Blockchain Ledger</span>
                 </a>
-                <a href="admin-document-viewer.html" class="nav-item">
-                    <i class="fas fa-eye"></i>
-                    <span>Document Viewer</span>
-                </a>
+                <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
                 <a href="vehicle-ownership-trace.html" class="nav-item">
                     <i class="fas fa-history"></i>
                     <span>Ownership Trace</span>
@@ -1227,8 +1224,9 @@
                             <h3>Document Viewer</h3>
                         </div>
                         <p class="card-description">View all documents from applications, verifications, and certificates</p>
-                        <a href="admin-document-viewer.html" class="btn-card-primary">
-                            <span>Open Document Viewer</span>
+                        <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
+                        <a href="#applications" class="btn-card-primary" onclick="event.preventDefault(); if(window.ToastNotification){ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');} else { alert('Use the in-page document modal inside an application to view documents.'); }">
+                            <span>View Documents</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>
                     </div>
@@ -1241,8 +1239,9 @@
                             <h3>Search Documents</h3>
                         </div>
                         <p class="card-description">Search documents by VIN, application ID, or document type</p>
-                        <a href="admin-document-viewer.html?mode=search" class="btn-card-secondary">
-                            <span>Search Documents</span>
+                        <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
+                        <a href="#applications" class="btn-card-secondary" onclick="event.preventDefault(); if(window.ToastNotification){ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');} else { alert('Use the in-page document modal inside an application to view documents.'); }">
+                            <span>View Documents</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>
                     </div>

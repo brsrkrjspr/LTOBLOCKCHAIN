@@ -154,9 +154,7 @@ app.get('/insurance-verifier-dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'insurance-verifier-dashboard.html'));
 });
 
-app.get('/document-viewer', (req, res) => {
-    res.sendFile(path.join(__dirname, 'document-viewer.html'));
-});
+// document-viewer (full-page) disabled: all document viewing must use in-page modal
 
 // Route for verify page with transaction ID
 // Only match if it's a valid transaction ID (long hex string, no file extension)

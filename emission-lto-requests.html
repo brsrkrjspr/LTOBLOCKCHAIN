@@ -751,10 +751,7 @@
                     <span>LTO Requests by Org</span>
                     <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
                 </a>
-                <a href="emission-document-viewer.html" class="nav-item">
-                    <i class="fas fa-file-alt" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; font-family: 'Font Awesome 6 Free' !important; font-weight: 900 !important;"></i>
-                    <span>Document Viewer</span>
-                </a>
+                <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
                 <a href="#emission" class="nav-item">
                     <i class="fas fa-leaf"></i>
                     <span>Emission Tests</span>
@@ -1309,12 +1306,8 @@
             // Use DocumentModal if available for better viewing
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.view(doc);
-            } else if (documentCid) {
-                window.open(`/api/documents/ipfs/${documentCid}`, '_blank');
-            } else if (documentId) {
-                window.location.href = `document-viewer.html?documentId=${documentId}&requestId=${requestId}`;
             } else {
-                alert('No Emission Certificate attached to this request');
+                alert('Document viewer modal is not available. Please refresh the page.');
             }
         }
         

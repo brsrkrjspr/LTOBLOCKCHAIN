@@ -39,8 +39,8 @@ app.use(helmet({
 // Debug: Log CSP configuration on startup
 console.log('🔒 CSP Configuration:');
 console.log('   imgSrc includes: blob:, data:');
-console.log('   frameSrc includes: blob:');
-console.log('   objectSrc includes: data: (for PDF viewing)');
+console.log('   frameSrc includes: blob:, data:');
+console.log('   objectSrc includes: data:, blob: (for PDF viewing)');
 
 // Test endpoint to verify CSP headers
 app.get('/api/test-csp', (req, res) => {

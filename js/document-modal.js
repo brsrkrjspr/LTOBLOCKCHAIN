@@ -8,6 +8,7 @@
     let modalContainer = null;
     let currentDocuments = [];
     let currentDocIndex = 0;
+    let activeBlobUrls = []; // Track blob URLs for cleanup
     
     // Initialize modal container
     function initModal() {
@@ -666,30 +667,17 @@
                     };
                     reader.readAsDataURL(blob);
                 } else {
-                    // For PDFs, convert to data URL and use object/embed tag to avoid CSP issues
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const dataUrl = e.target.result;
-                        frame.innerHTML = `
-                            <object data="${dataUrl}" type="application/pdf" style="width: 100%; height: 100%; border: none;">
-                                <embed src="${dataUrl}" type="application/pdf" style="width: 100%; height: 100%;">
-                                    <p style="text-align: center; padding: 40px;">
-                                        Your browser does not support PDFs. 
-                                        <a href="${url}" target="_blank" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Download PDF</a>
-                                    </p>
-                                </embed>
-                            </object>
-                        `;
-                    };
-                    reader.onerror = function() {
-                        frame.innerHTML = `
-                            <div style="text-align: center; padding: 40px;">
-                                <p>Unable to display PDF in browser.</p>
+                    // For PDFs, use blob URL with iframe (more CSP-friendly than data URIs)
+                    const blobUrl = URL.createObjectURL(blob);
+                    activeBlobUrls.push(blobUrl); // Track for cleanup
+                    frame.innerHTML = `
+                        <iframe src="${blobUrl}" type="application/pdf" style="width: 100%; height: 100%; border: none;" frameborder="0">
+                            <p style="text-align: center; padding: 40px;">
+                                Your browser does not support PDFs. 
                                 <a href="${url}" target="_blank" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Download PDF</a>
-                            </div>
-                        `;
-                    };
-                    reader.readAsDataURL(blob);
+                            </p>
+                        </iframe>
+                    `;
                 }
             } else {
                 // Direct URL (http/https)
@@ -772,6 +760,16 @@
         
         // Close modal
         close: function() {
+            // Clean up all blob URLs
+            activeBlobUrls.forEach(url => {
+                try {
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    console.warn('Error revoking blob URL:', e);
+                }
+            });
+            activeBlobUrls = [];
+            
             if (modalContainer) {
                 modalContainer.classList.remove('active');
                 document.body.style.overflow = '';

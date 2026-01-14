@@ -1799,12 +1799,21 @@ function showApplicationModal(application) {
                                         doc.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
                                         !doc.id.startsWith('TEMP_');
                                     
-                                    const typeParam = docType.replace('_cert', '').replace('_', '');
-                                    const viewerUrl = isValidDocumentId 
-                                        ? `document-viewer.html?documentId=${doc.id}`
-                                        : `document-viewer.html?vin=${application.vehicle.vin || application.vehicle?.vin || ''}&type=${typeParam}`;
+                                    // Prepare document data for DocumentModal
+                                    const docData = {
+                                        id: doc.id,
+                                        url: doc.url || doc.file_path || doc.path,
+                                        cid: doc.cid || doc.ipfs_cid,
+                                        filename: docName.replace(/[📄🛡️🌱🆔]/g, '').trim(),
+                                        type: docType,
+                                        document_type: docType
+                                    };
                                     
-                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('${viewerUrl}', '_blank')">
+                                    // Create onclick handler that uses DocumentModal if available
+                                    const docDataEscaped = JSON.stringify(docData).replace(/'/g, "\\'");
+                                    const fallbackUrl = doc.id ? `/api/documents/${doc.id}/view` : (doc.url || doc.file_path || '');
+                                    
+                                    return `<div class="document-item" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;" onclick="(function() { if(typeof DocumentModal !== 'undefined') { DocumentModal.view(${JSON.stringify(docData)}); } else { window.open('${fallbackUrl}', '_blank'); } })()">
                                         <span>${docName}</span>
                                         <span style="color: #3498db;">View →</span>
                                     </div>`;

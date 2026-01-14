@@ -422,8 +422,39 @@ async function handleEmissionRejectFromRequest(requestId) {
     }
 }
 
-function handleEmissionReviewFromRequest(requestId) {
-    window.location.href = `document-viewer.html?requestId=${requestId}&returnTo=verifier-dashboard.html`;
+async function handleEmissionReviewFromRequest(requestId) {
+    // Use DocumentModal instead of redirecting to new page
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/emission/requests/${requestId}`);
+        if (response.success && response.request) {
+            const docs = response.request.documents || [];
+            if (!docs.length) {
+                alert('No documents available for this request');
+                return;
+            }
+            const prepared = docs.map(doc => ({
+                id: doc.id,
+                filename: doc.filename || doc.original_name || 'Emission Certificate',
+                type: doc.type || doc.document_type || 'emission_cert',
+                document_type: doc.type || doc.document_type,
+                cid: doc.cid || doc.ipfs_cid,
+                url: doc.id ? `/api/documents/${doc.id}/view` :
+                     (doc.cid || doc.ipfs_cid) ? `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}` :
+                     doc.path || doc.file_path
+            }));
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.viewMultiple(prepared, 0);
+            } else {
+                // Fallback: redirect to document viewer page
+                window.location.href = `document-viewer.html?requestId=${requestId}&returnTo=verifier-dashboard.html`;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading emission documents:', error);
+        // Fallback: redirect to document viewer page
+        window.location.href = `document-viewer.html?requestId=${requestId}&returnTo=verifier-dashboard.html`;
+    }
 }
 
 async function handleEmissionApprove(e) {
@@ -562,17 +593,52 @@ async function handleEmissionReject(e) {
     });
 }
 
-function handleEmissionReview(e) {
+async function handleEmissionReview(e) {
     const row = e.target.closest('tr');
     const appId = row.querySelector('td:first-child').textContent;
     const emissionTest = row.querySelector('td:nth-child(3)').textContent;
     
     showNotification(`Opening emission test documents for review (${appId})...`, 'info');
     
-    // In a real app, this would open document viewer with emission-specific documents
-    setTimeout(() => {
+    // Try to find the request ID from the row or fetch documents directly
+    // If we can't use DocumentModal, fall back to redirect
+    try {
+        // Try to get request ID from data attribute or find it from the appId
+        const requestId = row.dataset.requestId || appId;
+        
+        // Try to fetch and display using DocumentModal
+        if (typeof DocumentModal !== 'undefined') {
+            const apiClient = window.apiClient || new APIClient();
+            try {
+                const response = await apiClient.get(`/api/emission/requests/${requestId}`);
+                if (response.success && response.request && response.request.documents) {
+                    const docs = response.request.documents.map(doc => ({
+                        id: doc.id,
+                        filename: doc.filename || doc.original_name || 'Emission Certificate',
+                        type: doc.type || doc.document_type || 'emission_cert',
+                        document_type: doc.type || doc.document_type,
+                        cid: doc.cid || doc.ipfs_cid,
+                        url: doc.id ? `/api/documents/${doc.id}/view` :
+                             (doc.cid || doc.ipfs_cid) ? `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}` :
+                             doc.path || doc.file_path
+                    }));
+                    if (docs.length > 0) {
+                        DocumentModal.viewMultiple(docs, 0);
+                        return;
+                    }
+                }
+            } catch (apiError) {
+                console.warn('Could not fetch emission request, falling back to redirect:', apiError);
+            }
+        }
+        
+        // Fallback: redirect to document viewer page
         window.location.href = 'document-viewer.html?app=' + appId + '&type=emission';
-    }, 1000);
+    } catch (error) {
+        console.error('Error in handleEmissionReview:', error);
+        // Fallback: redirect to document viewer page
+        window.location.href = 'document-viewer.html?app=' + appId + '&type=emission';
+    }
 }
 
 function initializeEmissionReports() {

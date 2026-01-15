@@ -938,7 +938,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             });
         }
         
-        // Check if vehicle already exists
+        // Check if vehicle already exists by VIN
         const existingVehicle = await db.getVehicleByVin(vehicle.vin);
         if (existingVehicle) {
             return res.status(409).json({
@@ -1642,6 +1642,28 @@ LTO Lipa City Team
             name: error.name,
             code: error.code
         });
+        
+        // Handle PostgreSQL unique constraint violations (duplicate key errors)
+        if (error.code === '23505') {
+            // Extract which field caused the duplicate
+            let fieldName = 'record';
+            let fieldValue = '';
+            
+            if (error.constraint === 'vehicles_plate_number_key') {
+                fieldName = 'plate number';
+                fieldValue = error.detail?.match(/\(plate_number\)=\(([^)]+)\)/)?.[1] || '';
+            } else if (error.constraint === 'vehicles_vin_key') {
+                fieldName = 'VIN';
+                fieldValue = error.detail?.match(/\(vin\)=\(([^)]+)\)/)?.[1] || '';
+            }
+            
+            return res.status(409).json({
+                success: false,
+                error: `Vehicle with this ${fieldName}${fieldValue ? ` (${fieldValue})` : ''} already exists`,
+                duplicateField: fieldName,
+                duplicateValue: fieldValue
+            });
+        }
         
         // Provide more detailed error in development
         const isDevelopment = process.env.NODE_ENV !== 'production';

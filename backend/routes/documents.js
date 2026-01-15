@@ -1347,17 +1347,106 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
             });
         }
 
-        const { documentType } = req.body;
+        // Extract documentType from req.body (FormData field)
+        // Note: Multer should parse FormData fields into req.body, but sometimes they're undefined
+        // Try multiple field name variations for maximum compatibility
+        let documentType = null;
+        let extractionMethod = 'none';
+        
+        // Strategy 1: Check req.body fields (multiple variations)
+        if (req.body?.documentType) {
+            documentType = req.body.documentType;
+            extractionMethod = 'req.body.documentType (camelCase)';
+        } else if (req.body?.document_type) {
+            documentType = req.body.document_type;
+            extractionMethod = 'req.body.document_type (snake_case)';
+        } else if (req.body?.type) {
+            documentType = req.body.type;
+            extractionMethod = 'req.body.type (legacy)';
+        }
         
         // #region agent log
         console.log('[OCR API Debug] Request received:', {
             hasFile: !!req.file,
             fileName: req.file?.originalname,
             fileMimeType: req.file?.mimetype,
-            documentType: documentType,
-            bodyKeys: Object.keys(req.body),
-            fullBody: req.body
+            bodyKeys: Object.keys(req.body || {}),
+            bodyType: typeof req.body,
+            bodyIsObject: req.body && typeof req.body === 'object',
+            documentTypeFromBody: documentType,
+            extractionMethod: extractionMethod
         });
+        // #endregion
+        
+        // Strategy 2: Infer from filename if not found in req.body
+        if (!documentType) {
+            console.warn('[OCR API Debug] WARNING: documentType is missing from req.body! Attempting filename inference...');
+            const fileName = req.file?.originalname?.toLowerCase() || '';
+            
+            // Enhanced filename-based inference for multiple document types
+            if (fileName.includes('driver') || fileName.includes('license') || fileName.includes('dl') || fileName.includes('drivers')) {
+                documentType = 'ownerValidId';
+                extractionMethod = 'filename inference (driver/license keywords)';
+            } else if (fileName.includes('passport') || fileName.includes('pp-') || fileName.includes('_pp')) {
+                documentType = 'ownerValidId'; // Passport is also owner ID
+                extractionMethod = 'filename inference (passport keywords)';
+            } else if (fileName.includes('national') || fileName.includes('nid') || fileName.includes('philid')) {
+                documentType = 'ownerValidId'; // National ID is also owner ID
+                extractionMethod = 'filename inference (national-id keywords)';
+            } else if (fileName.includes('postal') || fileName.includes('postal-id')) {
+                documentType = 'ownerValidId'; // Postal ID is also owner ID
+                extractionMethod = 'filename inference (postal-id keywords)';
+            } else if (fileName.includes('voter') || fileName.includes('voters')) {
+                documentType = 'ownerValidId'; // Voter's ID is also owner ID
+                extractionMethod = 'filename inference (voter-id keywords)';
+            } else if (fileName.includes('sss') || fileName.includes('social')) {
+                documentType = 'ownerValidId'; // SSS ID is also owner ID
+                extractionMethod = 'filename inference (sss-id keywords)';
+            } else if (fileName.includes('sales') || fileName.includes('invoice')) {
+                documentType = 'salesInvoice';
+                extractionMethod = 'filename inference (sales invoice keywords)';
+            } else if (fileName.includes('csr') || fileName.includes('stock') || fileName.includes('certificate-of-stock')) {
+                documentType = 'certificateOfStockReport';
+                extractionMethod = 'filename inference (csr keywords)';
+            } else if (fileName.includes('hpg') || fileName.includes('clearance')) {
+                documentType = 'pnpHpgClearance';
+                extractionMethod = 'filename inference (hpg clearance keywords)';
+            } else if (fileName.includes('insurance') || fileName.includes('ctpl')) {
+                documentType = 'insuranceCertificate';
+                extractionMethod = 'filename inference (insurance keywords)';
+            } else {
+                // Default fallback
+                documentType = 'registration_cert';
+                extractionMethod = 'default fallback (registration_cert)';
+            }
+            
+            console.log('[OCR API Debug] DocumentType inferred from filename:', {
+                fileName: req.file?.originalname,
+                inferredDocumentType: documentType,
+                extractionMethod: extractionMethod
+            });
+        } else {
+            console.log('[OCR API Debug] DocumentType extracted from req.body:', {
+                documentType: documentType,
+                extractionMethod: extractionMethod
+            });
+        }
+        
+        // Validate documentType is valid before processing
+        const validDocumentTypes = [
+            'ownerValidId', 'owner_id', 'ownerId',
+            'registration_cert', 'registrationCert', 'or_cr', 'orCr',
+            'salesInvoice', 'sales_invoice',
+            'certificateOfStockReport', 'csr',
+            'pnpHpgClearance', 'hpg_clearance', 'hpgClearance',
+            'insuranceCertificate', 'insurance_cert', 'insuranceCert',
+            'emissionCert', 'emission_cert'
+        ];
+        
+        if (documentType && !validDocumentTypes.includes(documentType)) {
+            console.warn('[OCR API Debug] WARNING: documentType may be invalid:', documentType);
+            // Continue processing anyway (may be a valid type we haven't listed)
+        }
         // #endregion
         
         // Check if OCR is enabled (can be disabled via environment variable)
@@ -1390,62 +1479,179 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         }
 
         // Extract text from document
+        // #region agent log
+        console.log('[OCR API Debug] Starting text extraction:', {
+            filePath: req.file.path,
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            mimeType: req.file.mimetype,
+            documentType: documentType
+        });
+        // #endregion
+        
         const text = await ocrService.extractText(req.file.path, req.file.mimetype);
         
         // #region agent log
-        console.log('[OCR API Debug] Text extraction result:', {
-            documentType: documentType || 'registration_cert',
+        console.log('[OCR API Debug] Text extraction completed:', {
+            documentType: documentType,
             textLength: text ? text.length : 0,
-            textPreview: text ? text.substring(0, 200) : 'NO TEXT EXTRACTED',
+            textPreview: text ? text.substring(0, 500) : 'NO TEXT EXTRACTED',
+            hasText: !!text && text.length > 0,
+            extractionMethod: text && text.length > 0 ? 'success' : 'failed'
+        });
+        
+        // Validate extracted text before parsing
+        if (!text || text.trim().length === 0) {
+            console.warn('[OCR API Debug] WARNING: No text extracted from document! This will result in empty extractedData.');
+            // Return early with empty result but still success (graceful degradation)
+            await fs.unlink(req.file.path).catch(() => {});
+            return res.json({
+                success: true,
+                extractedData: {},
+                message: 'No text could be extracted from the document. The document may be image-only or corrupted.',
+                rawText: '',
+                documentType: documentType,
+                warnings: ['Text extraction failed - document may require manual data entry']
+            });
+        }
+        
+        // Validate text quality (minimum length check)
+        if (text.trim().length < 10) {
+            console.warn('[OCR API Debug] WARNING: Extracted text is very short (', text.trim().length, 'chars). Quality may be poor.');
+        }
+        // #endregion
+        
+        // Parse vehicle/owner information
+        // Use the documentType we determined (with fallback logic above)
+        const finalDocumentType = documentType || 'registration_cert';
+        
+        // #region agent log
+        console.log('[OCR API Debug] Starting data parsing:', {
+            documentType: finalDocumentType,
+            textLength: text ? text.length : 0,
             hasText: !!text && text.length > 0
         });
         // #endregion
         
-        // Parse vehicle/owner information
-        const extractedData = ocrService.parseVehicleInfo(text, documentType || 'registration_cert');
+        let extractedData = {};
+        try {
+            extractedData = ocrService.parseVehicleInfo(text, finalDocumentType);
+        } catch (parseError) {
+            console.error('[OCR API Debug] ERROR in parseVehicleInfo:', {
+                error: parseError.message,
+                stack: parseError.stack,
+                documentType: finalDocumentType
+            });
+            // Continue with empty extractedData (graceful degradation)
+            extractedData = {};
+        }
         
         // #region agent log
-        console.log('[OCR API Debug] Parsed extracted data:', {
-            documentType: documentType || 'registration_cert',
+        console.log('[OCR API Debug] Data parsing completed:', {
+            documentType: finalDocumentType,
             extractedDataKeys: Object.keys(extractedData),
+            extractedFieldsCount: Object.keys(extractedData).length,
             hasIdType: !!extractedData.idType,
             hasIdNumber: !!extractedData.idNumber,
             idType: extractedData.idType,
             idNumber: extractedData.idNumber,
-            allExtractedFields: extractedData
+            allExtractedFields: extractedData,
+            isEmpty: Object.keys(extractedData).length === 0
         });
+        
+        if (finalDocumentType === 'ownerValidId' || finalDocumentType === 'owner_id' || finalDocumentType === 'ownerId') {
+            if (!extractedData.idType || !extractedData.idNumber) {
+                console.warn('[OCR API Debug] WARNING: Owner ID document processed but ID Type or ID Number not extracted!', {
+                    hasIdType: !!extractedData.idType,
+                    hasIdNumber: !!extractedData.idNumber,
+                    textPreview: text ? text.substring(0, 300) : 'NO TEXT'
+                });
+            } else {
+                console.log('[OCR API Debug] SUCCESS: Owner ID document processed successfully!', {
+                    idType: extractedData.idType,
+                    idNumber: extractedData.idNumber
+                });
+            }
+        }
         // #endregion
         
         // Clean up temp file
         try {
             await fs.unlink(req.file.path);
+            console.log('[OCR API Debug] Temp file cleaned up successfully');
         } catch (cleanupError) {
-            console.warn('Failed to cleanup temp file:', cleanupError);
+            console.warn('[OCR API Debug] Failed to cleanup temp file:', cleanupError);
         }
         
+        // Validate extracted data and prepare warnings
+        const warnings = [];
+        const extractedFieldsCount = Object.keys(extractedData).length;
+        
+        // Check for expected fields based on document type
+        if (finalDocumentType === 'ownerValidId' || finalDocumentType === 'owner_id' || finalDocumentType === 'ownerId') {
+            if (!extractedData.idType) {
+                warnings.push('ID Type not extracted from document');
+            }
+            if (!extractedData.idNumber) {
+                warnings.push('ID Number not extracted from document');
+            }
+        }
+        
+        // Determine confidence level based on extraction results
+        let confidence = 'low';
+        if (extractedFieldsCount > 0) {
+            confidence = extractedFieldsCount >= 3 ? 'high' : 'medium';
+        }
+        
+        // #region agent log
+        console.log('[OCR API Debug] Sending response to frontend:', {
+            success: true,
+            extractedDataKeys: Object.keys(extractedData),
+            extractedFieldsCount: extractedFieldsCount,
+            documentType: documentType,
+            hasIdType: !!extractedData.idType,
+            hasIdNumber: !!extractedData.idNumber,
+            confidence: confidence,
+            warnings: warnings
+        });
+        // #endregion
+        
+        // Return response with graceful degradation (partial results if available)
         res.json({
             success: true,
             extractedData,
-            confidence: 'medium', // Could implement confidence scoring
-            rawText: text.substring(0, 500), // First 500 chars for debugging
-            documentType: documentType
+            confidence: confidence,
+            rawText: text ? text.substring(0, 500) : '', // First 500 chars for debugging
+            documentType: documentType,
+            warnings: warnings.length > 0 ? warnings : undefined,
+            extractedFieldsCount: extractedFieldsCount
         });
     } catch (error) {
-        console.error('OCR extraction error:', error);
+        // #region agent log
+        console.error('[OCR API Debug] ERROR in OCR extraction:', {
+            error: error.message,
+            stack: error.stack,
+            fileName: req.file?.originalname,
+            documentType: documentType,
+            filePath: req.file?.path
+        });
+        // #endregion
         
         // Clean up file on error
         if (req.file && req.file.path) {
             try {
                 await fs.unlink(req.file.path);
+                console.log('[OCR API Debug] Temp file cleaned up after error');
             } catch (cleanupError) {
-                console.warn('Failed to cleanup file on error:', cleanupError);
+                console.warn('[OCR API Debug] Failed to cleanup file on error:', cleanupError);
             }
         }
         
         res.status(500).json({
             success: false,
             error: 'Failed to extract information from document',
-            message: error.message
+            message: error.message,
+            documentType: documentType
         });
     }
 });

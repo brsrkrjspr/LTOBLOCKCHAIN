@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const crypto = require('crypto');
 const router = express.Router();
 const db = require('../database/services');
@@ -1456,7 +1457,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         const ocrEnabled = process.env.OCR_ENABLED !== 'false';
         if (!ocrEnabled) {
             // Clean up file and return empty result
-            await fs.unlink(req.file.path).catch(() => {});
+            await fsPromises.unlink(req.file.path).catch(() => {});
             return res.json({
                 success: true,
                 extractedData: {},
@@ -1472,7 +1473,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         } catch (importError) {
             console.warn('OCR service not available:', importError.message);
             // Clean up file
-            await fs.unlink(req.file.path).catch(() => {});
+            await fsPromises.unlink(req.file.path).catch(() => {});
             return res.json({
                 success: true,
                 extractedData: {},
@@ -1523,7 +1524,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         if (!text || text.trim().length === 0) {
             console.warn('[OCR API Debug] WARNING: No text extracted from document! This will result in empty extractedData.');
             // Return early with empty result but still success (graceful degradation)
-            await fs.unlink(req.file.path).catch(() => {});
+            await fsPromises.unlink(req.file.path).catch(() => {});
             return res.json({
                 success: true,
                 extractedData: {},
@@ -1613,7 +1614,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         
         // Clean up temp file
         try {
-            await fs.unlink(req.file.path);
+            await fsPromises.unlink(req.file.path);
             console.log('[OCR API Debug] Temp file cleaned up successfully');
         } catch (cleanupError) {
             console.warn('[OCR API Debug] Failed to cleanup temp file:', cleanupError);
@@ -1679,7 +1680,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         // Clean up file on error
         if (req.file && req.file.path) {
             try {
-                await fs.unlink(req.file.path);
+                await fsPromises.unlink(req.file.path);
                 console.log('[OCR API Debug] Temp file cleaned up after error');
             } catch (cleanupError) {
                 console.warn('[OCR API Debug] Failed to cleanup file on error:', cleanupError);

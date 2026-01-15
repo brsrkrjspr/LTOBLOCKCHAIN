@@ -1413,7 +1413,7 @@ function loadDocumentsByCarType(carType) {
     let documents = [];
     
     if (carType === 'Motorcycle – Tricycle (TC)') {
-        // For Tricycle: Standard documents + Affidavit of Attachment for Sidecar + Emission
+        // For Tricycle: Standard documents + Affidavit of Attachment for Sidecar
         documents = [
             {
                 id: 'certificateOfStockReport',
@@ -1429,8 +1429,8 @@ function loadDocumentsByCarType(carType) {
             },
             {
                 id: 'pnpHpgClearance',
-                name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate and Special Bank Receipt (SBR)',
-                description: 'Upload your PNP-HPG MV Clearance Certificate and SBR',
+                name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate',
+                description: 'Upload your PNP-HPG MV Clearance Certificate',
                 required: true
             },
             {
@@ -1443,12 +1443,6 @@ function loadDocumentsByCarType(carType) {
                 id: 'ownerValidId',
                 name: 'Owner Valid ID',
                 description: 'Upload a copy of your valid ID',
-                required: true
-            },
-            {
-                id: 'emissionCertificate',
-                name: 'Emission Test Certificate',
-                description: 'Upload your Emission Test Certificate',
                 required: true
             },
             {
@@ -1459,7 +1453,7 @@ function loadDocumentsByCarType(carType) {
             }
         ];
     } else if (carType === 'Passenger Vehicle' || carType === 'Commercial Vehicle' || carType === 'Motorcycle') {
-        // For Passenger Vehicle, Commercial Vehicle, and Motorcycle: Standard documents + Emission
+        // For Passenger Vehicle, Commercial Vehicle, and Motorcycle: Standard documents
         documents = [
             {
                 id: 'certificateOfStockReport',
@@ -1475,8 +1469,8 @@ function loadDocumentsByCarType(carType) {
             },
             {
                 id: 'pnpHpgClearance',
-                name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate and Special Bank Receipt (SBR)',
-                description: 'Upload your PNP-HPG MV Clearance Certificate and SBR',
+                name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate',
+                description: 'Upload your PNP-HPG MV Clearance Certificate',
                 required: true
             },
             {
@@ -1489,12 +1483,6 @@ function loadDocumentsByCarType(carType) {
                 id: 'ownerValidId',
                 name: 'Owner Valid ID',
                 description: 'Upload a copy of your valid ID',
-                required: true
-            },
-            {
-                id: 'emissionCertificate',
-                name: 'Emission Test Certificate',
-                description: 'Upload your Emission Test Certificate',
                 required: true
             }
         ];

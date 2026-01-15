@@ -12,6 +12,9 @@ let currentAbortController = null;
 // Store vehicle type value when selected
 let storedVehicleType = null;
 
+// Store OCR extracted data for later auto-fill (when Step 3 becomes visible)
+let storedOCRExtractedData = {};
+
 function initializeRegistrationWizard() {
     // Initialize wizard functionality
     initializeFormValidation();
@@ -128,6 +131,14 @@ function nextStep() {
                 setTimeout(() => {
                     console.log('[AutoFill Debug] Navigating to step 3, triggering auto-fill');
                     autoFillOwnerInfo();
+                    
+                    // Also re-apply OCR extracted data if available (fields might not have existed when OCR ran)
+                    if (Object.keys(storedOCRExtractedData).length > 0) {
+                        console.log('[ID AutoFill Debug] Re-applying stored OCR data when Step 3 becomes visible:', storedOCRExtractedData);
+                        // Determine document type from stored data (prefer ownerValidId if we have idType/idNumber)
+                        const documentType = (storedOCRExtractedData.idType || storedOCRExtractedData.idNumber) ? 'ownerValidId' : 'owner_id';
+                        autoFillFromOCRData(storedOCRExtractedData, documentType);
+                    }
                 }, 100);
             }
             
@@ -162,6 +173,13 @@ function prevStep() {
             setTimeout(() => {
                 console.log('[AutoFill Debug] Navigating back to step 3, triggering auto-fill');
                 autoFillOwnerInfo();
+                
+                // Also re-apply OCR extracted data if available
+                if (Object.keys(storedOCRExtractedData).length > 0) {
+                    console.log('[ID AutoFill Debug] Re-applying stored OCR data when navigating back to Step 3:', storedOCRExtractedData);
+                    const documentType = (storedOCRExtractedData.idType || storedOCRExtractedData.idNumber) ? 'ownerValidId' : 'owner_id';
+                    autoFillFromOCRData(storedOCRExtractedData, documentType);
+                }
             }, 100);
         }
         
@@ -1786,6 +1804,10 @@ async function processDocumentForOCRAutoFill(fileInput) {
             // #endregion
             
             if (data.success && data.extractedData) {
+                // Store extracted data for later use (when Step 3 becomes visible)
+                storedOCRExtractedData = { ...storedOCRExtractedData, ...data.extractedData };
+                console.log('[ID AutoFill Debug] Stored OCR data:', storedOCRExtractedData);
+                
                 // Auto-fill fields based on extracted data
                 autoFillFromOCRData(data.extractedData, documentType);
                 
@@ -1933,22 +1955,38 @@ function autoFillFromOCRData(extractedData, documentType) {
                 
                 // #region agent log
                 if (key === 'idType' || key === 'idNumber') {
+                    const fieldExists = !!document.getElementById(fieldId);
                     console.log('[ID AutoFill Debug] Processing field:', {
                         key,
                         value,
                         fieldId,
                         fieldFound: !!field,
+                        fieldExistsInDOM: fieldExists,
                         fieldTagName: field?.tagName,
                         fieldCurrentValue: field?.value,
-                        fieldHasValue: !!(field && field.value)
+                        fieldHasValue: !!(field && field.value),
+                        step3Visible: !!document.getElementById('step-3'),
+                        step3Active: document.getElementById('step-3')?.classList.contains('active')
                     });
-                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1833',message:'Processing idType/idNumber field',data:{key,value,fieldId,fieldFound:!!field,fieldTagName:field?.tagName,fieldCurrentValue:field?.value,fieldHasValue:!!(field&&field.value)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1833',message:'Processing idType/idNumber field',data:{key,value,fieldId,fieldFound:!!field,fieldExistsInDOM:fieldExists,fieldTagName:field?.tagName,fieldCurrentValue:field?.value,fieldHasValue:!!(field&&field.value),step3Visible:!!document.getElementById('step-3'),step3Active:document.getElementById('step-3')?.classList.contains('active')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                 }
                 // #endregion
                 
                 if (field && !field.value && value) {
                     // Handle select fields (like idType) differently
                     if (field.tagName === 'SELECT') {
+                        // #region agent log
+                        if (key === 'idType') {
+                            console.log('[ID AutoFill Debug] SELECT field - before matching:', {
+                                key,
+                                extractedValue: value,
+                                fieldId,
+                                fieldCurrentValue: field.value,
+                                allOptions: Array.from(field.options).map(opt => ({value: opt.value, text: opt.text}))
+                            });
+                        }
+                        // #endregion
+                        
                         // Try to find matching option by value or text
                         const option = Array.from(field.options).find(opt => 
                             opt.value.toLowerCase() === value.toLowerCase() ||
@@ -1958,15 +1996,18 @@ function autoFillFromOCRData(extractedData, documentType) {
                         
                         // #region agent log
                         if (key === 'idType') {
-                            console.log('[ID AutoFill Debug] SELECT field matching:', {
+                            console.log('[ID AutoFill Debug] SELECT field matching result:', {
                                 key,
-                                value,
+                                extractedValue: value,
                                 optionFound: !!option,
                                 optionValue: option?.value,
                                 optionText: option?.text,
-                                allOptions: Array.from(field.options).map(opt => ({value: opt.value, text: opt.text}))
+                                matchMethod: option ? (
+                                    option.value.toLowerCase() === value.toLowerCase() ? 'exact-value' :
+                                    opt.text.toLowerCase().includes(value.toLowerCase()) ? 'text-contains' :
+                                    'value-contains'
+                                ) : 'no-match'
                             });
-                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1836',message:'SELECT field matching',data:{key,value,optionFound:!!option,optionValue:option?.value,optionText:option?.text},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
                         }
                         // #endregion
                         
@@ -1977,8 +2018,21 @@ function autoFillFromOCRData(extractedData, documentType) {
                             
                             // #region agent log
                             if (key === 'idType') {
-                                console.log('[ID AutoFill Debug] idType field filled successfully');
-                                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1844',message:'idType field filled',data:{fieldValue:field.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                                console.log('[ID AutoFill Debug] idType field filled successfully:', {
+                                    extractedValue: value,
+                                    selectedValue: field.value,
+                                    selectedText: option.text
+                                });
+                            }
+                            // #endregion
+                        } else {
+                            // #region agent log
+                            if (key === 'idType') {
+                                console.log('[ID AutoFill Debug] idType field - NO MATCH FOUND:', {
+                                    extractedValue: value,
+                                    availableValues: Array.from(field.options).map(opt => opt.value),
+                                    availableTexts: Array.from(field.options).map(opt => opt.text)
+                                });
                             }
                             // #endregion
                         }

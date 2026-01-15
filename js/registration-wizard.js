@@ -883,10 +883,21 @@ async function submitApplication() {
             
             ToastNotification.show('Vehicle registration submitted successfully! You will receive a confirmation email shortly.', 'success', 6000);
             
-            // Redirect to dashboard after delay
-            setTimeout(() => {
+            // Show confirmation modal instead of automatic redirect
+            // This allows users to stay on the page to watch console logs for debugging
+            const goToDashboard = await ConfirmationDialog.show({
+                title: 'Registration Successful',
+                message: 'Your vehicle registration has been submitted successfully. Would you like to go to your dashboard?',
+                confirmText: 'Yes, Go to Dashboard',
+                cancelText: 'Stay Here',
+                confirmColor: '#27ae60',
+                type: 'success'
+            });
+            
+            if (goToDashboard) {
                 window.location.href = 'owner-dashboard.html';
-            }, 3000);
+            }
+            // If user clicks "Stay Here", they can watch console logs
         } else {
             throw new Error(result.error || 'Registration failed');
         }

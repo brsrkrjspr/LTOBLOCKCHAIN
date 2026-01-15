@@ -1282,6 +1282,7 @@ router.post('/register', optionalAuth, async (req, res) => {
         // Log document linking summary
         const linkedCount = Object.keys(documentCids).length;
         console.log(`📄 Document linking summary: ${linkedCount} document(s) linked with CIDs for blockchain registration`);
+        console.log(`📄 Document linking complete: ${linkedCount} documents linked, proceeding to auto-send`);
         
         // Register on blockchain
         let blockchainTxId = null;

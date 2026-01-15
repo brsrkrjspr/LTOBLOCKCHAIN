@@ -27,8 +27,24 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             throw new Error('Vehicle not found');
         }
 
-        // Get all documents for the vehicle
-        const allDocuments = await db.getDocumentsByVehicle(vehicleId);
+        // Small delay to ensure documents are committed to database
+        // This prevents race condition where documents are linked but not yet visible
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Get all documents for the vehicle (retry once if empty)
+        let allDocuments = await db.getDocumentsByVehicle(vehicleId);
+        
+        // If no documents found, wait a bit longer and retry (documents might still be committing)
+        if (allDocuments.length === 0) {
+            console.log(`[Auto-Send] No documents found on first attempt, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            allDocuments = await db.getDocumentsByVehicle(vehicleId);
+            if (allDocuments.length === 0) {
+                console.warn(`[Auto-Send] ⚠️ Still no documents found after retry. Documents may not be linked yet.`);
+            } else {
+                console.log(`[Auto-Send] ✅ Documents found on retry: ${allDocuments.length} document(s)`);
+            }
+        }
         
         // Add detailed logging for debugging
         console.log(`[Auto-Send] Vehicle ${vehicleId}:`);
@@ -44,37 +60,31 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
                                   vehicle.origin_type === 'NEW' ||
                                   !vehicle.registration_type; // Default to NEW if not set
         
+        // Improved detection: check both database type directly AND mapped logical type
         const hasHPGDocs = allDocuments.some(d => {
-            // Map document type to logical type
-            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+            const dbType = d.document_type;
+            
+            // Direct database type check (most reliable)
             if (isNewRegistration) {
-                // New registration: needs owner ID and HPG clearance cert
-                return logicalType === 'ownerId' ||
-                       logicalType === 'hpgClearance' ||
-                       d.document_type === 'owner_id' ||
-                       d.document_type === 'hpg_clearance' ||
-                       d.document_type === 'pnpHpgClearance';
+                // New registration: needs owner_id OR hpg_clearance (either one is enough)
+                if (dbType === 'owner_id' || dbType === 'hpg_clearance') {
+                    return true;
+                }
             } else {
-                // Transfer: needs owner ID and OR/CR (handled in transfer route)
-                return logicalType === 'ownerId' ||
-                       logicalType === 'registrationCert' ||
-                       d.document_type === 'owner_id' ||
-                       d.document_type === 'or_cr' ||
-                       d.document_type === 'registration_cert';
+                // Transfer: needs owner_id OR registration_cert/or_cr
+                if (dbType === 'owner_id' || dbType === 'or_cr' || dbType === 'registration_cert') {
+                    return true;
+                }
             }
-        }) || (documents && (
-            isNewRegistration ? (
-                documents.ownerValidId ||
-                documents.ownerId ||
-                documents.hpgClearance ||
-                documents.pnpHpgClearance
-            ) : (
-                documents.ownerValidId ||
-                documents.ownerId ||
-                documents.registrationCert ||
-                documents.orCr
-            )
-        ));
+            
+            // Fallback: check mapped logical type
+            const logicalType = docTypes.mapToLogicalType(dbType) || docTypes.mapLegacyType(dbType);
+            if (isNewRegistration) {
+                return logicalType === 'ownerId' || logicalType === 'hpgClearance';
+            } else {
+                return logicalType === 'ownerId' || logicalType === 'registrationCert';
+            }
+        });
 
         if (hasHPGDocs) {
             try {
@@ -89,21 +99,34 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             }
         } else {
             console.log(`[Auto-Send→HPG] Skipping - no owner_id or hpg_clearance documents found`);
-            console.log(`[Auto-Send→HPG] Available documents:`, allDocuments.map(d => d.document_type));
+            console.log(`[Auto-Send→HPG] Document detection:`, {
+                totalDocuments: allDocuments.length,
+                documentTypes: allDocuments.map(d => d.document_type),
+                hasHPGDocs: hasHPGDocs,
+                detectionMethod: 'database_query',
+                isNewRegistration: isNewRegistration
+            });
+            console.log(`[Auto-Send→HPG] Available documents:`, allDocuments.map(d => ({
+                type: d.document_type,
+                logicalType: docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type),
+                name: d.original_name || d.filename
+            })));
         }
 
         // 2. Send to Insurance (requires: insurance_cert)
-        // Use document type mapping to properly detect documents
+        // Improved detection: check both database type directly AND mapped logical type
         const hasInsuranceDoc = allDocuments.some(d => {
-            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-            return logicalType === 'insuranceCert' ||
-                   d.document_type === 'insurance_cert' ||
-                   d.document_type === 'insurance';
-        }) || (documents && (
-            documents.insuranceCertificate ||
-            documents.insuranceCert ||
-            documents.insurance
-        ));
+            const dbType = d.document_type;
+            
+            // Direct database type check (most reliable)
+            if (dbType === 'insurance_cert' || dbType === 'insurance') {
+                return true;
+            }
+            
+            // Fallback: check mapped logical type
+            const logicalType = docTypes.mapToLogicalType(dbType) || docTypes.mapLegacyType(dbType);
+            return logicalType === 'insuranceCert';
+        });
 
         if (hasInsuranceDoc) {
             try {
@@ -118,6 +141,12 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             }
         } else {
             console.log(`[Auto-Send→Insurance] Skipping - no insurance_cert document found`);
+            console.log(`[Auto-Send→Insurance] Document detection:`, {
+                totalDocuments: allDocuments.length,
+                documentTypes: allDocuments.map(d => d.document_type),
+                hasInsuranceDoc: hasInsuranceDoc,
+                detectionMethod: 'database_query'
+            });
             // Enhanced logging
             console.log(`[Auto-Send→Insurance] Available document types:`, 
                 allDocuments.map(d => ({

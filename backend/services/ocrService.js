@@ -199,6 +199,14 @@ class OCRService {
 
         // Normalize text for better pattern matching
         const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
+        
+        // #region agent log
+        console.log('[OCR Debug] Document type check:', {
+            documentType,
+            isOwnerId: documentType === 'owner_id' || documentType === 'ownerId' || documentType === 'ownerValidId',
+            isRegistrationCert: documentType === 'registration_cert' || documentType === 'registrationCert' || documentType === 'or_cr' || documentType === 'orCr'
+        });
+        // #endregion
 
         if (documentType === 'registration_cert' || documentType === 'registrationCert' || 
             documentType === 'or_cr' || documentType === 'orCr') {
@@ -241,6 +249,14 @@ class OCRService {
         if (documentType === 'owner_id' || documentType === 'ownerId' || 
             documentType === 'ownerValidId' ||
             documentType === 'seller_id' || documentType === 'buyer_id') {
+            // #region agent log
+            console.log('[OCR Debug] Processing owner ID document type:', {
+                documentType,
+                textLength: text.length,
+                textSample: text.substring(0, 500)
+            });
+            // #endregion
+            
             // Extract Name (various formats)
             const namePatterns = [
                 /(?:NAME|FULL\s*NAME|COMPLETE\s*NAME)\s*[:.]?\s*([A-Z\s,]+?)(?:\s*(?:ADDRESS|DATE|BIRTH|ID)|$)/i,
@@ -286,13 +302,28 @@ class OCRService {
             // #endregion
             
             // Extract ID Type (from document headers or common patterns)
+            // Check for ID type in multiple ways: document title, headers, labels
             const idTypePatterns = [
-                /(?:DRIVER['\s]*S?\s*LICENSE|DL|LICENSE)/i,
-                /(?:PASSPORT|PP)/i,
-                /(?:NATIONAL\s*ID|NID|PHILIPPINE\s*IDENTIFICATION)/i,
-                /(?:POSTAL\s*ID)/i,
-                /(?:VOTER['\s]*S?\s*ID|VOTER['\s]*S?\s*REGISTRATION)/i,
-                /(?:SSS\s*ID|SOCIAL\s*SECURITY)/i
+                // Driver's License patterns (most common)
+                /DRIVER['\s]*S?\s*LICENSE/i,
+                /DRIVER\s*LICENSE/i,
+                /\bDL\b/i,
+                /\bLICENSE\b/i,
+                // Passport
+                /PASSPORT/i,
+                /\bPP\b/i,
+                // National ID
+                /NATIONAL\s*ID/i,
+                /\bNID\b/i,
+                /PHILIPPINE\s*IDENTIFICATION/i,
+                // Postal ID
+                /POSTAL\s*ID/i,
+                // Voter's ID
+                /VOTER['\s]*S?\s*ID/i,
+                /VOTER['\s]*S?\s*REGISTRATION/i,
+                // SSS ID
+                /SSS\s*ID/i,
+                /SOCIAL\s*SECURITY/i
             ];
             
             const idTypeMap = {
@@ -310,18 +341,30 @@ class OCRService {
                 'social': 'sss-id'
             };
             
-            for (const pattern of idTypePatterns) {
+            // Try to find ID type in the text
+            for (let i = 0; i < idTypePatterns.length; i++) {
+                const pattern = idTypePatterns[i];
                 const match = text.match(pattern);
                 if (match) {
                     const matchedText = match[0].toLowerCase();
                     // #region agent log
-                    console.log('[OCR Debug] ID Type pattern matched:', {pattern: pattern.toString(), matchedText});
+                    console.log('[OCR Debug] ID Type pattern matched:', {
+                        patternIndex: i,
+                        pattern: pattern.toString(),
+                        matchedText,
+                        matchContext: text.substring(Math.max(0, match.index - 20), Math.min(text.length, match.index + match[0].length + 20))
+                    });
                     // #endregion
                     for (const [key, value] of Object.entries(idTypeMap)) {
                         if (matchedText.includes(key)) {
                             extracted.idType = value;
                             // #region agent log
-                            console.log('[OCR Debug] ID Type extracted:', {key, value, idType: extracted.idType});
+                            console.log('[OCR Debug] ID Type extracted successfully:', {
+                                matchedText,
+                                key,
+                                value,
+                                idType: extracted.idType
+                            });
                             // #endregion
                             break;
                         }

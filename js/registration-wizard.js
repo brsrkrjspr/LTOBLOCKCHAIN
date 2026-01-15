@@ -133,20 +133,30 @@ function nextStep() {
                     autoFillOwnerInfo();
                     
                     // Also re-apply OCR extracted data if available (fields might not have existed when OCR ran)
-                    if (Object.keys(storedOCRExtractedData).length > 0) {
-                        console.log('[ID AutoFill Debug] Re-applying stored OCR data when Step 3 becomes visible:', {
-                            storedKeys: Object.keys(storedOCRExtractedData),
+                    // Only re-apply owner data (idType, idNumber, firstName, lastName, address, phone) for Step 3
+                    const ownerDataFromStorage = {
+                        idType: storedOCRExtractedData.idType,
+                        idNumber: storedOCRExtractedData.idNumber,
+                        firstName: storedOCRExtractedData.firstName,
+                        lastName: storedOCRExtractedData.lastName,
+                        address: storedOCRExtractedData.address,
+                        phone: storedOCRExtractedData.phone
+                    };
+                    
+                    const hasOwnerData = Object.values(ownerDataFromStorage).some(val => val !== undefined && val !== null && val !== '');
+                    
+                    if (hasOwnerData) {
+                        console.log('[ID AutoFill Debug] Re-applying stored owner OCR data when Step 3 becomes visible:', {
+                            ownerDataFromStorage,
                             hasIdType: !!storedOCRExtractedData.idType,
                             hasIdNumber: !!storedOCRExtractedData.idNumber,
                             idType: storedOCRExtractedData.idType,
-                            idNumber: storedOCRExtractedData.idNumber,
-                            fullStoredData: JSON.stringify(storedOCRExtractedData, null, 2)
+                            idNumber: storedOCRExtractedData.idNumber
                         });
-                        // Determine document type from stored data (prefer ownerValidId if we have idType/idNumber)
-                        const documentType = (storedOCRExtractedData.idType || storedOCRExtractedData.idNumber) ? 'ownerValidId' : 'owner_id';
-                        autoFillFromOCRData(storedOCRExtractedData, documentType);
+                        // Use ownerValidId document type for owner data
+                        autoFillFromOCRData(ownerDataFromStorage, 'ownerValidId');
                     } else {
-                        console.log('[ID AutoFill Debug] No stored OCR data to re-apply');
+                        console.log('[ID AutoFill Debug] No stored owner OCR data to re-apply (only vehicle data available)');
                     }
                 }, 100);
             }
@@ -184,10 +194,21 @@ function prevStep() {
                 autoFillOwnerInfo();
                 
                 // Also re-apply OCR extracted data if available
-                if (Object.keys(storedOCRExtractedData).length > 0) {
-                    console.log('[ID AutoFill Debug] Re-applying stored OCR data when navigating back to Step 3:', storedOCRExtractedData);
-                    const documentType = (storedOCRExtractedData.idType || storedOCRExtractedData.idNumber) ? 'ownerValidId' : 'owner_id';
-                    autoFillFromOCRData(storedOCRExtractedData, documentType);
+                // Only re-apply owner data (idType, idNumber, firstName, lastName, address, phone) for Step 3
+                const ownerDataFromStorage = {
+                    idType: storedOCRExtractedData.idType,
+                    idNumber: storedOCRExtractedData.idNumber,
+                    firstName: storedOCRExtractedData.firstName,
+                    lastName: storedOCRExtractedData.lastName,
+                    address: storedOCRExtractedData.address,
+                    phone: storedOCRExtractedData.phone
+                };
+                
+                const hasOwnerData = Object.values(ownerDataFromStorage).some(val => val !== undefined && val !== null && val !== '');
+                
+                if (hasOwnerData) {
+                    console.log('[ID AutoFill Debug] Re-applying stored owner OCR data when navigating back to Step 3:', ownerDataFromStorage);
+                    autoFillFromOCRData(ownerDataFromStorage, 'ownerValidId');
                 }
             }, 100);
         }
@@ -1768,7 +1789,6 @@ async function processDocumentForOCRAutoFill(fileInput) {
         
         // #region agent log
         console.log('[ID AutoFill Debug] Starting OCR extraction:', {documentType, fileName: file.name});
-        fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1697',message:'OCR extraction started',data:{documentType,fileName:file.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         
         // Call OCR endpoint
@@ -1814,20 +1834,59 @@ async function processDocumentForOCRAutoFill(fileInput) {
             if (documentType === 'ownerValidId' && (!data.extractedData || Object.keys(data.extractedData).length === 0)) {
                 console.warn('[ID AutoFill Debug] WARNING: ownerValidId document returned empty extractedData! Check backend logs for OCR extraction.');
             }
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1722',message:'OCR response received',data:ocrDebugInfo,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
             // #endregion
             
             if (data.success && data.extractedData) {
-                // Store extracted data for later use (when Step 3 becomes visible)
-                storedOCRExtractedData = { ...storedOCRExtractedData, ...data.extractedData };
-                console.log('[ID AutoFill Debug] Stored OCR data:', {
-                    storedKeys: Object.keys(storedOCRExtractedData),
-                    hasIdType: !!storedOCRExtractedData.idType,
-                    hasIdNumber: !!storedOCRExtractedData.idNumber,
-                    idType: storedOCRExtractedData.idType,
-                    idNumber: storedOCRExtractedData.idNumber,
-                    fullStoredData: JSON.stringify(storedOCRExtractedData, null, 2)
-                });
+                // For owner ID documents, store owner-specific data separately
+                // For vehicle documents, store vehicle-specific data
+                if (documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') {
+                    // Store owner data (idType, idNumber, firstName, lastName, address, phone)
+                    const ownerData = {
+                        idType: data.extractedData.idType,
+                        idNumber: data.extractedData.idNumber,
+                        firstName: data.extractedData.firstName,
+                        lastName: data.extractedData.lastName,
+                        address: data.extractedData.address,
+                        phone: data.extractedData.phone
+                    };
+                    // Merge owner data into stored data (don't overwrite with empty if extraction failed)
+                    Object.keys(ownerData).forEach(key => {
+                        if (ownerData[key] !== undefined && ownerData[key] !== null && ownerData[key] !== '') {
+                            storedOCRExtractedData[key] = ownerData[key];
+                        }
+                    });
+                    console.log('[ID AutoFill Debug] Stored owner ID OCR data:', {
+                        documentType,
+                        extractedOwnerData: ownerData,
+                        storedKeys: Object.keys(storedOCRExtractedData),
+                        hasIdType: !!storedOCRExtractedData.idType,
+                        hasIdNumber: !!storedOCRExtractedData.idNumber,
+                        idType: storedOCRExtractedData.idType,
+                        idNumber: storedOCRExtractedData.idNumber
+                    });
+                } else {
+                    // For vehicle documents, store vehicle data (don't mix with owner data)
+                    const vehicleData = {
+                        vin: data.extractedData.vin,
+                        engineNumber: data.extractedData.engineNumber,
+                        chassisNumber: data.extractedData.chassisNumber,
+                        plateNumber: data.extractedData.plateNumber,
+                        make: data.extractedData.make,
+                        model: data.extractedData.model,
+                        year: data.extractedData.year,
+                        color: data.extractedData.color
+                    };
+                    // Merge vehicle data into stored data
+                    Object.keys(vehicleData).forEach(key => {
+                        if (vehicleData[key] !== undefined && vehicleData[key] !== null && vehicleData[key] !== '') {
+                            storedOCRExtractedData[key] = vehicleData[key];
+                        }
+                    });
+                    console.log('[ID AutoFill Debug] Stored vehicle OCR data:', {
+                        documentType,
+                        extractedVehicleData: vehicleData
+                    });
+                }
                 
                 // Auto-fill fields based on extracted data
                 autoFillFromOCRData(data.extractedData, documentType);
@@ -1874,7 +1933,6 @@ function autoFillFromOCRData(extractedData, documentType) {
         fullExtractedData: extractedData
     };
     console.log('[ID AutoFill Debug] autoFillFromOCRData called:', debugInfo);
-    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1756',message:'autoFillFromOCRData entry',data:debugInfo,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     
     // Map OCR fields to form field IDs
@@ -1964,7 +2022,6 @@ function autoFillFromOCRData(extractedData, documentType) {
             idType: extractedData.idType,
             idNumber: extractedData.idNumber
         });
-        fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1827',message:'Processing owner document',data:{documentType,ownerDocumentTypes,isIncluded:ownerDocumentTypes.includes(documentType),hasIdType:!!extractedData.idType,hasIdNumber:!!extractedData.idNumber,idType:extractedData.idType,idNumber:extractedData.idNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
         // #endregion
         
         Object.entries(extractedData).forEach(([key, value]) => {
@@ -1989,7 +2046,6 @@ function autoFillFromOCRData(extractedData, documentType) {
                         step3Visible: !!document.getElementById('step-3'),
                         step3Active: document.getElementById('step-3')?.classList.contains('active')
                     });
-                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1833',message:'Processing idType/idNumber field',data:{key,value,fieldId,fieldFound:!!field,fieldExistsInDOM:fieldExists,fieldTagName:field?.tagName,fieldCurrentValue:field?.value,fieldHasValue:!!(field&&field.value),step3Visible:!!document.getElementById('step-3'),step3Active:document.getElementById('step-3')?.classList.contains('active')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                 }
                 // #endregion
                 
@@ -2066,7 +2122,6 @@ function autoFillFromOCRData(extractedData, documentType) {
                         // #region agent log
                         if (key === 'idNumber') {
                             console.log('[ID AutoFill Debug] idNumber field filled successfully:', value);
-                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1850',message:'idNumber field filled',data:{fieldValue:field.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
                         }
                         // #endregion
                     }

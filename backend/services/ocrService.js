@@ -252,6 +252,10 @@ class OCRService {
             const phoneMatch = text.match(phonePattern);
             if (phoneMatch) extracted.phone = phoneMatch[1].trim();
             
+            // #region agent log
+            console.log('[OCR Debug] Starting ID Type/Number extraction for owner_id document');
+            // #endregion
+            
             // Extract ID Type (from document headers or common patterns)
             const idTypePatterns = [
                 /(?:DRIVER['\s]*S?\s*LICENSE|DL|LICENSE)/i,
@@ -281,15 +285,27 @@ class OCRService {
                 const match = text.match(pattern);
                 if (match) {
                     const matchedText = match[0].toLowerCase();
+                    // #region agent log
+                    console.log('[OCR Debug] ID Type pattern matched:', {pattern: pattern.toString(), matchedText});
+                    // #endregion
                     for (const [key, value] of Object.entries(idTypeMap)) {
                         if (matchedText.includes(key)) {
                             extracted.idType = value;
+                            // #region agent log
+                            console.log('[OCR Debug] ID Type extracted:', {key, value, idType: extracted.idType});
+                            // #endregion
                             break;
                         }
                     }
                     if (extracted.idType) break;
                 }
             }
+            
+            // #region agent log
+            if (!extracted.idType) {
+                console.log('[OCR Debug] ID Type not found in text. Text sample:', text.substring(0, 500));
+            }
+            // #endregion
             
             // Extract ID Number (various formats)
             const idNumberPatterns = [
@@ -302,15 +318,31 @@ class OCRService {
             for (const pattern of idNumberPatterns) {
                 const matches = text.match(pattern);
                 if (matches) {
+                    // #region agent log
+                    console.log('[OCR Debug] ID Number pattern matched:', {pattern: pattern.toString(), matches: matches.length});
+                    // #endregion
                     // Get the last match (usually the actual ID number, not the label)
                     const idNumber = matches[matches.length - 1].trim();
+                    // #region agent log
+                    console.log('[OCR Debug] ID Number candidate:', {idNumber, length: idNumber.length, isValid: idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber)});
+                    // #endregion
                     // Validate it looks like an ID number (has letters and/or numbers, reasonable length)
                     if (idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber)) {
                         extracted.idNumber = idNumber;
+                        // #region agent log
+                        console.log('[OCR Debug] ID Number extracted:', extracted.idNumber);
+                        // #endregion
                         break;
                     }
                 }
             }
+            
+            // #region agent log
+            if (!extracted.idNumber) {
+                console.log('[OCR Debug] ID Number not found. Text sample:', text.substring(0, 500));
+            }
+            console.log('[OCR Debug] Final extracted data for owner_id:', {hasIdType: !!extracted.idType, hasIdNumber: !!extracted.idNumber, idType: extracted.idType, idNumber: extracted.idNumber});
+            // #endregion
         }
 
         if (documentType === 'insurance_cert' || documentType === 'insuranceCert') {

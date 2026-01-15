@@ -1384,6 +1384,17 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         // Parse vehicle/owner information
         const extractedData = ocrService.parseVehicleInfo(text, documentType || 'registration_cert');
         
+        // #region agent log
+        console.log('[OCR API Debug] Extracted data:', {
+            documentType: documentType || 'registration_cert',
+            extractedDataKeys: Object.keys(extractedData),
+            hasIdType: !!extractedData.idType,
+            hasIdNumber: !!extractedData.idNumber,
+            idType: extractedData.idType,
+            idNumber: extractedData.idNumber
+        });
+        // #endregion
+        
         // Clean up temp file
         try {
             await fs.unlink(req.file.path);

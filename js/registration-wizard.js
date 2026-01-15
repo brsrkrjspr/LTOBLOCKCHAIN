@@ -1772,7 +1772,9 @@ function autoFillFromOCRData(extractedData, documentType) {
         firstName: 'firstName',
         lastName: 'lastName',
         address: 'address',
-        phone: 'phone'
+        phone: 'phone',
+        idType: 'idType',
+        idNumber: 'idNumber'
     };
     
     // Track which fields were auto-filled for notification
@@ -1826,12 +1828,29 @@ function autoFillFromOCRData(extractedData, documentType) {
         Object.entries(extractedData).forEach(([key, value]) => {
             const fieldId = fieldMappings[key];
             if (fieldId && (key === 'firstName' || key === 'lastName' || 
-                           key === 'address' || key === 'phone')) {
+                           key === 'address' || key === 'phone' ||
+                           key === 'idType' || key === 'idNumber')) {
                 const field = document.getElementById(fieldId);
                 if (field && !field.value && value) {
-                    field.value = value;
-                    field.classList.add('ocr-auto-filled');
-                    fieldsFilled.owner++;
+                    // Handle select fields (like idType) differently
+                    if (field.tagName === 'SELECT') {
+                        // Try to find matching option by value or text
+                        const option = Array.from(field.options).find(opt => 
+                            opt.value.toLowerCase() === value.toLowerCase() ||
+                            opt.text.toLowerCase().includes(value.toLowerCase()) ||
+                            value.toLowerCase().includes(opt.value.toLowerCase())
+                        );
+                        if (option) {
+                            field.value = option.value;
+                            field.classList.add('ocr-auto-filled');
+                            fieldsFilled.owner++;
+                        }
+                    } else {
+                        // Regular input fields (like idNumber)
+                        field.value = value;
+                        field.classList.add('ocr-auto-filled');
+                        fieldsFilled.owner++;
+                    }
                 }
             }
         });

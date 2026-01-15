@@ -251,6 +251,66 @@ class OCRService {
             const phonePattern = /(?:PHONE|CONTACT|MOBILE|TEL)\s*[:.]?\s*([\+\d\s\-\(\)]{10,20})/i;
             const phoneMatch = text.match(phonePattern);
             if (phoneMatch) extracted.phone = phoneMatch[1].trim();
+            
+            // Extract ID Type (from document headers or common patterns)
+            const idTypePatterns = [
+                /(?:DRIVER['\s]*S?\s*LICENSE|DL|LICENSE)/i,
+                /(?:PASSPORT|PP)/i,
+                /(?:NATIONAL\s*ID|NID|PHILIPPINE\s*IDENTIFICATION)/i,
+                /(?:POSTAL\s*ID)/i,
+                /(?:VOTER['\s]*S?\s*ID|VOTER['\s]*S?\s*REGISTRATION)/i,
+                /(?:SSS\s*ID|SOCIAL\s*SECURITY)/i
+            ];
+            
+            const idTypeMap = {
+                'driver': 'drivers-license',
+                'license': 'drivers-license',
+                'dl': 'drivers-license',
+                'passport': 'passport',
+                'pp': 'passport',
+                'national': 'national-id',
+                'nid': 'national-id',
+                'philippine': 'national-id',
+                'postal': 'postal-id',
+                'voter': 'voters-id',
+                'sss': 'sss-id',
+                'social': 'sss-id'
+            };
+            
+            for (const pattern of idTypePatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    const matchedText = match[0].toLowerCase();
+                    for (const [key, value] of Object.entries(idTypeMap)) {
+                        if (matchedText.includes(key)) {
+                            extracted.idType = value;
+                            break;
+                        }
+                    }
+                    if (extracted.idType) break;
+                }
+            }
+            
+            // Extract ID Number (various formats)
+            const idNumberPatterns = [
+                /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?|LICENSE\s*(?:NO|NUMBER|#)\.?|PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i,
+                /(?:NO\.?|NUMBER|#)\s*[:.]?\s*([A-Z]{1,3}[\d\-]{6,15})/i,
+                /\b([A-Z]{1,3}[\d\-]{8,15})\b/g, // Standalone ID numbers like A01-23-456789, N123456789, PP1234567
+                /\b(\d{2}[\-]?\d{2}[\-]?\d{6,10})\b/g // Numeric IDs like 01-23-456789
+            ];
+            
+            for (const pattern of idNumberPatterns) {
+                const matches = text.match(pattern);
+                if (matches) {
+                    // Get the last match (usually the actual ID number, not the label)
+                    const idNumber = matches[matches.length - 1].trim();
+                    // Validate it looks like an ID number (has letters and/or numbers, reasonable length)
+                    if (idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber)) {
+                        extracted.idNumber = idNumber;
+                        break;
+                    }
+                }
+            }
         }
 
         if (documentType === 'insurance_cert' || documentType === 'insuranceCert') {

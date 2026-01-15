@@ -790,35 +790,46 @@ class OCRService {
 
         if (documentType === 'sales_invoice' || documentType === 'salesInvoice') {
             // Extract Vehicle Information from Sales Invoice
-            // VIN/Chassis Number
-            const vinPattern = /(?:VIN|CHASSIS\s*(?:NO|NUMBER)?\.?|FRAME\s*NO\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
-            const vinMatch = text.match(vinPattern);
-            if (vinMatch) extracted.vin = vinMatch[1].trim();
+            try {
+                // VIN/Chassis Number
+                const vinPattern = /(?:VIN|CHASSIS\s*(?:NO|NUMBER)?\.?|FRAME\s*NO\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+                const vinMatch = text.match(vinPattern);
+                if (vinMatch) extracted.vin = vinMatch[1].trim();
 
-            // Engine Number
-            const enginePattern = /(?:ENGINE\s*(?:NO|NUMBER)?\.?|MOTOR\s*NO\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
-            const engineMatch = text.match(enginePattern);
-            if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
+                // Engine Number
+                const enginePattern = /(?:ENGINE\s*(?:NO|NUMBER)?\.?|MOTOR\s*NO\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
+                const engineMatch = text.match(enginePattern);
+                if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
 
-            // Chassis Number (if different from VIN)
-            const chassisPattern = /(?:CHASSIS\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{10,17})/i;
-            const chassisMatch = text.match(chassisPattern);
-            if (chassisMatch && !extracted.vin) extracted.chassisNumber = chassisMatch[1].trim();
+                // Chassis Number (if different from VIN)
+                const chassisPattern = /(?:CHASSIS\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                const chassisMatch = text.match(chassisPattern);
+                if (chassisMatch && !extracted.vin) extracted.chassisNumber = chassisMatch[1].trim();
 
-            // Make/Brand
-            const makePattern = /(?:MAKE|BRAND|MANUFACTURER|CAR\s*MAKE)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-            const makeMatch = text.match(makePattern);
-            if (makeMatch) extracted.make = makeMatch[1].trim();
+                // Make/Brand
+                const makePattern = /(?:MAKE|BRAND|MANUFACTURER|CAR\s*MAKE)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
+                const makeMatch = text.match(makePattern);
+                if (makeMatch) extracted.make = makeMatch[1].trim();
 
-            // Model
-            const modelPattern = /(?:MODEL|SERIES|TYPE|CAR\s*MODEL)\s*[:.]?\s*([A-Z0-9\s\-]+?)(?:\s*(?:YEAR|ENGINE|COLOR|VIN|PRICE|AMOUNT)|$)/i;
-            const modelMatch = text.match(modelPattern);
-            if (modelMatch) extracted.model = modelMatch[1].trim();
+                // Model
+                const modelPattern = /(?:MODEL|SERIES|TYPE|CAR\s*MODEL)\s*[:.]?\s*([A-Z0-9\s\-]+?)(?:\s*(?:YEAR|ENGINE|COLOR|VIN|PRICE|AMOUNT)|$)/i;
+                const modelMatch = text.match(modelPattern);
+                if (modelMatch) extracted.model = modelMatch[1].trim();
 
-            // Year
-            const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR|MANUFACTURE\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
-            const yearMatch = text.match(yearPattern);
-            if (yearMatch) extracted.year = yearMatch[1].trim();
+                // Year
+                const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR|MANUFACTURE\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
+                const yearMatch = text.match(yearPattern);
+                if (yearMatch) extracted.year = yearMatch[1].trim();
+            } catch (salesError) {
+                console.error('[OCR Debug] ERROR processing sales invoice document:', {
+                    error: salesError.message,
+                    errorName: salesError.name,
+                    stack: salesError.stack,
+                    documentType,
+                    textLength: text ? text.length : 0
+                });
+                // Fail-soft: keep any fields that were already safely extracted
+            }
 
             // Color
             const colorPattern = /(?:COLOR|COLOUR|PAINT)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;

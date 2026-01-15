@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Insurance Verifier - LTO Blockchain</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    // Disable transitions during page load
+                    sidebar.classList.add('no-transition');
+                    
+                    const savedState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    
+                    // Re-enable transitions after page loads
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    // Retry if sidebar not found yet
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
+    <style>
+        /* ============================================
+           INSURANCE THEME - PROFESSIONAL BLUE/TEAL
+           ============================================ */
+        
+        :root {
+            /* Insurance Color Palette */
+            --insurance-blue: #0066cc;
+            --insurance-blue-dark: #0052a3;
+            --insurance-blue-light: #1a7fd9;
+            --insurance-teal: #00a8a8;
+            --insurance-teal-dark: #008888;
+            --insurance-teal-light: #00c4c4;
+            --insurance-green: #00b894;
+            --insurance-green-dark: #009975;
+            --insurance-green-light: #00d4a8;
+            --insurance-light-blue: #4da6ff;
+            --insurance-white: #ffffff;
+            --insurance-gray-light: #f5f7fa;
+            --insurance-gray: #e1e8ed;
+            --insurance-gray-dark: #657786;
+            --insurance-charcoal: #14171a;
+            --insurance-success: #00b894;
+            --insurance-warning: #fdcb6e;
+            --insurance-danger: #e74c3c;
+            --insurance-info: #4da6ff;
+        }
+        
+        /* ============================================
+           SIDEBAR - INSURANCE BLUE/TEAL GRADIENT
+           ============================================ */
+        
+        .dashboard-sidebar {
+            background: linear-gradient(180deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 50%, var(--insurance-teal) 100%);
+            border-right: 2px solid var(--insurance-teal-light);
+            transition: width 0.3s ease-in-out;
+        }
+        
+        .dashboard-sidebar .logo-icon {
+            background: linear-gradient(135deg, var(--insurance-teal-light) 0%, var(--insurance-light-blue) 100%);
+            color: var(--insurance-white);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .dashboard-sidebar .logo-icon:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+            background: linear-gradient(135deg, var(--insurance-light-blue) 0%, var(--insurance-teal-light) 100%);
+        }
+        
+        .dashboard-sidebar .logo-icon:active {
+            transform: scale(0.95);
+        }
+        
+        .dashboard-sidebar .logo-icon:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.5);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+        
+        .dashboard-sidebar .logo-text h2,
+        .dashboard-sidebar .logo-text p {
+            color: var(--insurance-white);
+        }
+        
+        .dashboard-sidebar .nav-item {
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-sidebar .nav-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--insurance-white);
+        }
+        
+        .dashboard-sidebar .nav-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--insurance-white);
+            border-left: 3px solid var(--insurance-teal-light);
+        }
+        
+        .dashboard-sidebar .sidebar-user-name,
+        .dashboard-sidebar .sidebar-user-role {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .dashboard-main {
+            transition: margin-left 0.3s ease-in-out;
+            background: var(--insurance-gray-light);
+        }
+        
+        /* ============================================
+           HEADER - WHITE WITH BLUE ACCENTS
+           ============================================ */
+        
+        .dashboard-header {
+            background: var(--insurance-white);
+            border-bottom: 2px solid var(--insurance-blue);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
+        }
+        
+        .dashboard-header .container {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        
+        .dashboard-header .dashboard-nav {
+            display: flex;
+            align-items: center;
+        }
+        
+        .dashboard-header .logo {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--insurance-blue-dark);
+        }
+        
+        .dashboard-header p {
+            color: var(--insurance-gray-dark);
+            font-size: 0.9rem;
+        }
+        
+        /* ============================================
+           TYPOGRAPHY & CONTENT
+           ============================================ */
+        
+        .dashboard-content {
+            padding: 1.5rem;
+            color: var(--insurance-charcoal);
+            line-height: 1.6;
+        }
+        
+        .dashboard-content h1,
+        .dashboard-content .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin: 0 0 0.5rem 0;
+            color: var(--insurance-blue-dark);
+        }
+        
+        .dashboard-content h2,
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin: 0 0 0.5rem 0;
+            color: var(--insurance-blue-dark);
+        }
+        
+        .dashboard-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.4;
+            margin: 0 0 0.75rem 0;
+            color: var(--insurance-charcoal);
+        }
+        
+        .section-subtitle,
+        .dashboard-content p.subtitle {
+            font-size: 0.9375rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--insurance-gray-dark);
+            margin: 0 0 1.5rem 0;
+        }
+        
+        .section-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--insurance-gray);
+        }
+        
+        /* ============================================
+           BUTTONS - INSURANCE BLUE PRIMARY
+           ============================================ */
+        
+        button,
+        .btn,
+        .btn-primary,
+        .btn-success,
+        .btn-danger,
+        .btn-warning,
+        .btn-info,
+        .btn-sm,
+        .btn-lg,
+        a.btn,
+        a.btn-primary {
+            height: 44px;
+            min-height: 44px;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            line-height: 1.5;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+            color: var(--insurance-white);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        
+        .btn-secondary,
+        a.btn-secondary {
+            height: 44px;
+            min-height: 44px;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            line-height: 1.5;
+            border-radius: 8px;
+            border: 2px solid var(--insurance-light-blue);
+            background-color: var(--insurance-white);
+            color: var(--insurance-blue);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        .btn-secondary:hover,
+        a.btn-secondary:hover {
+            background-color: var(--insurance-light-blue);
+            background: linear-gradient(135deg, var(--insurance-light-blue) 0%, var(--insurance-teal-light) 100%);
+            border-color: var(--insurance-blue);
+            color: var(--insurance-white);
+        }
+        
+        /* ============================================
+           CARDS - WHITE WITH SUBTLE SHADOWS
+           ============================================ */
+        
+        .dashboard-card-modern,
+        .card,
+        .dashboard-card {
+            background: var(--insurance-white);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--insurance-gray);
+            transition: all 0.3s ease;
+        }
+        
+        /* Profile Settings Styles */
+        .settings-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .settings-header {
+            background: var(--insurance-white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
+            margin-bottom: 2rem;
+            border: 1px solid var(--insurance-gray);
+        }
+        
+        .settings-header h1 {
+            margin: 0 0 0.5rem 0;
+            color: var(--insurance-blue-dark);
+            font-size: 2rem;
+        }
+        
+        .settings-header p {
+            margin: 0;
+            color: var(--insurance-gray-dark);
+            font-size: 1rem;
+        }
+        
+        .settings-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            background: var(--insurance-white);
+            padding: 0.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
+            border: 1px solid var(--insurance-gray);
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--insurance-gray-dark);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .tab-button:hover {
+            background: var(--insurance-gray-light);
+            color: var(--insurance-blue);
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+            color: var(--insurance-white);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .settings-section {
+            background: var(--insurance-white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
+            margin-bottom: 2rem;
+            border: 1px solid var(--insurance-gray);
+        }
+        
+        .settings-section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--insurance-gray);
+        }
+        
+        .settings-section-header i {
+            font-size: 1.5rem;
+            color: var(--insurance-blue);
+        }
+        
+        .settings-section-header h2 {
+            margin: 0;
+            color: var(--insurance-blue-dark);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--insurance-charcoal);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .form-group label .required {
+            color: var(--insurance-danger);
+            margin-left: 0.25rem;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--insurance-gray);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--insurance-blue);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+        
+        .form-group input:disabled {
+            background: var(--insurance-gray-light);
+            color: var(--insurance-gray-dark);
+            cursor: not-allowed;
+        }
+        
+        .form-group .help-text {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--insurance-gray-dark);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .alert-success {
+            background: rgba(0, 184, 148, 0.1);
+            color: var(--insurance-green-dark);
+            border: 1px solid var(--insurance-green);
+        }
+        
+        .alert-error {
+            background: rgba(231, 76, 60, 0.1);
+            color: #c0392b;
+            border: 1px solid var(--insurance-danger);
+        }
+        
+        .alert-info {
+            background: rgba(77, 166, 255, 0.1);
+            color: var(--insurance-blue-dark);
+            border: 1px solid var(--insurance-info);
+        }
+        
+        .alert i {
+            font-size: 1.25rem;
+        }
+        
+        .profile-avatar-section {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-teal) 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        
+        .profile-info {
+            flex: 1;
+        }
+        
+        .profile-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--insurance-charcoal);
+            margin-bottom: 0.5rem;
+        }
+        
+        .profile-email {
+            color: var(--insurance-gray-dark);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .profile-role {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--insurance-gray-light);
+            color: var(--insurance-charcoal);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        
+        .password-toggle {
+            position: relative;
+        }
+        
+        .password-toggle-btn {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--insurance-gray-dark);
+            cursor: pointer;
+            padding: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .password-toggle-btn:hover {
+            color: var(--insurance-blue);
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid var(--insurance-gray);
+            border-top: 2px solid var(--insurance-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon" id="insuranceSidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">IV</div>
+                    <div class="logo-text">
+                        <h2>Insurance</h2>
+                        <p>Verifier Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="insurance-verifier-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="insurance-lto-requests.html" class="nav-item">
+                    <i class="fas fa-list-alt"></i>
+                    <span>LTO Requests by Org</span>
+                    <span class="badge" id="pendingRequestsBadge" style="display: none;">0</span>
+                </a>
+                <a href="insurance-verifier-dashboard.html#verification" class="nav-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Verification</span>
+                </a>
+                <a href="#reports" class="nav-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </nav>
+            
+            <!-- Sidebar Footer with User Info -->
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">IV</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name" id="sidebarUserName">Insurance Verifier</span>
+                        <span class="sidebar-user-role" id="sidebarUserRole">Insurance Verification Specialist</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="insurance-verifier-settings.html" class="sidebar-action-item active">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <div class="logo">
+                            <h1>LTO Blockchain</h1>
+                            <p>Insurance Verifier Settings</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="container">
+                    <div class="settings-container">
+                        <!-- Header -->
+                        <div class="settings-header">
+                            <h1><i class="fas fa-cog"></i> Settings</h1>
+                            <p>Manage your account information and preferences</p>
+                        </div>
+
+                        <!-- Alert Messages -->
+                        <div id="alertContainer"></div>
+
+                        <!-- Tab Navigation -->
+                        <div class="settings-tabs">
+                            <button class="tab-button active" data-tab="profile" onclick="switchTab('profile')">
+                                <i class="fas fa-user"></i> Profile
+                            </button>
+                            <button class="tab-button" data-tab="account" onclick="switchTab('account')">
+                                <i class="fas fa-lock"></i> Account
+                            </button>
+                        </div>
+
+                        <!-- Profile Tab Content -->
+                        <div id="profileTab" class="tab-content active" style="display: block !important;">
+                        <!-- Profile Information Section -->
+                        <div class="settings-section">
+                            <div class="settings-section-header">
+                                <i class="fas fa-user"></i>
+                                <h2>Profile Information</h2>
+                            </div>
+
+                            <div class="profile-avatar-section">
+                                <div class="profile-avatar" id="profileAvatar">IV</div>
+                                <div class="profile-info">
+                                    <div class="profile-name" id="profileName">Loading...</div>
+                                    <div class="profile-email" id="profileEmail">Loading...</div>
+                                    <span class="profile-role" id="profileRole">Loading...</span>
+                                </div>
+                            </div>
+
+                            <form id="profileForm">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="firstName">First Name <span class="required">*</span></label>
+                                        <input type="text" id="firstName" name="firstName" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="lastName">Last Name <span class="required">*</span></label>
+                                        <input type="text" id="lastName" name="lastName" required>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="email">Email Address</label>
+                                    <input type="email" id="email" name="email" disabled>
+                                    <div class="help-text">Email cannot be changed. Contact support if you need to update your email.</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="phone">Phone Number</label>
+                                    <input type="tel" id="phone" name="phone" placeholder="+63 9XX XXX XXXX">
+                                    <div class="help-text">Enter your contact number</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="address">Complete Address</label>
+                                    <textarea id="address" name="address" rows="3" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila"></textarea>
+                                    <div class="help-text">Include: House/Unit No., Street, Barangay, City/Municipality, Province</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="organization">Organization</label>
+                                    <input type="text" id="organization" name="organization" placeholder="Optional">
+                                    <div class="help-text">Your organization or company name (optional)</div>
+                                </div>
+
+                                <div class="btn-group">
+                                    <button type="submit" class="btn-primary" id="saveProfileBtn">
+                                        <i class="fas fa-save"></i> Save Changes
+                                    </button>
+                                    <button type="button" class="btn-secondary" id="cancelProfileBtn">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        </div>
+
+                        <!-- Account Tab Content -->
+                        <div id="accountTab" class="tab-content">
+                        <!-- Change Password Section -->
+                        <div class="settings-section">
+                            <div class="settings-section-header">
+                                <i class="fas fa-lock"></i>
+                                <h2>Change Password</h2>
+                            </div>
+
+                            <form id="passwordForm">
+                                <div class="form-group">
+                                    <label for="currentPassword">Current Password <span class="required">*</span></label>
+                                    <div class="password-toggle">
+                                        <input type="password" id="currentPassword" name="currentPassword" required>
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('currentPassword')">
+                                            <i class="fas fa-eye" id="currentPasswordToggle"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="newPassword">New Password <span class="required">*</span></label>
+                                    <div class="password-toggle">
+                                        <input type="password" id="newPassword" name="newPassword" required minlength="8">
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('newPassword')">
+                                            <i class="fas fa-eye" id="newPasswordToggle"></i>
+                                        </button>
+                                    </div>
+                                    <div class="help-text">Password must be at least 8 characters long</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="confirmPassword">Confirm New Password <span class="required">*</span></label>
+                                    <div class="password-toggle">
+                                        <input type="password" id="confirmPassword" name="confirmPassword" required minlength="8">
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('confirmPassword')">
+                                            <i class="fas fa-eye" id="confirmPasswordToggle"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="btn-group">
+                                    <button type="submit" class="btn-primary" id="changePasswordBtn">
+                                        <i class="fas fa-key"></i> Change Password
+                                    </button>
+                                    <button type="button" class="btn-secondary" id="cancelPasswordBtn">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            const selectedTab = document.getElementById(tabName + 'Tab');
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Add active class to clicked button
+            const clickedButton = document.querySelector(`[data-tab="${tabName}"]`);
+            if (clickedButton) {
+                clickedButton.classList.add('active');
+            }
+        }
+        
+        // Password toggle functionality
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const toggle = document.getElementById(inputId + 'Toggle');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.classList.remove('fa-eye');
+                toggle.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                toggle.classList.remove('fa-eye-slash');
+                toggle.classList.add('fa-eye');
+            }
+        }
+    </script>
+    <script src="js/auth-manager.js"></script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/settings.js"></script>
+    <script>
+        // Initialize user data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
+                }
+                // ================================================
+                
+                // Sidebar user info elements
+                const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
+                
+                const displayName = AuthUtils.getUserDisplayName() || 'Insurance Verifier';
+                const userInitials = AuthUtils.getUserInitials() || 'IV';
+                const roleNames = {
+                    'vehicle_owner': 'Vehicle Owner',
+                    'admin': 'Administrator',
+                    'insurance_verifier': 'Insurance Verification Specialist',
+                    'emission_verifier': 'Emission Verifier'
+                };
+                const userRole = roleNames[user.role] || user.role;
+                
+                // Update sidebar user info
+                if (sidebarUserNameEl) {
+                    sidebarUserNameEl.textContent = displayName;
+                }
+                if (sidebarUserRoleEl) {
+                    sidebarUserRoleEl.textContent = userRole;
+                }
+                if (sidebarUserAvatarEl) {
+                    sidebarUserAvatarEl.textContent = userInitials;
+                }
+            } else {
+                window.location.href = 'login-signup.html';
+                return;
+            }
+
+            // Load sidebar state from localStorage
+            const sidebar = document.querySelector('.dashboard-sidebar');
+            const savedSidebarState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle via IV icon (desktop only)
+            const insuranceSidebarToggleIcon = document.getElementById('insuranceSidebarToggleIcon');
+            
+            if (insuranceSidebarToggleIcon && sidebar) {
+                const toggleSidebar = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // On mobile, use mobile navigation
+                    if (window.innerWidth <= 768) {
+                        if (typeof window.MobileNav !== 'undefined') {
+                            window.MobileNav.toggle();
+                        }
+                        return;
+                    }
+                    
+                    // Desktop: toggle collapsed state
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // Save state to localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('insuranceVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                };
+                
+                insuranceSidebarToggleIcon.addEventListener('click', toggleSidebar);
+                insuranceSidebarToggleIcon.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
+                });
+            }
+            
+            // Initialize mobile navigation
+            if (typeof window.MobileNav !== 'undefined') {
+                window.MobileNav.init();
+            }
+            
+            // Close mobile sidebar when clicking nav items
+            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768 && typeof window.MobileNav !== 'undefined') {
+                        window.MobileNav.close();
+                    }
+                });
+            });
+
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to logout?')) {
+                        if (typeof AuthUtils !== 'undefined') {
+                            AuthUtils.logout();
+                        } else {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

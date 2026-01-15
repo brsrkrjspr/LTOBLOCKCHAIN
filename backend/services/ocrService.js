@@ -211,6 +211,7 @@ class OCRService {
         }
 
         if (documentType === 'owner_id' || documentType === 'ownerId' || 
+            documentType === 'ownerValidId' ||
             documentType === 'seller_id' || documentType === 'buyer_id') {
             // Extract Name (various formats)
             const namePatterns = [

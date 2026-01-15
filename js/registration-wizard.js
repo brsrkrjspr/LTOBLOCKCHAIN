@@ -1870,15 +1870,57 @@ async function autoFillOwnerInfo() {
             return;
         }
 
-        // Check if we have a token
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        // Check if we have a token - use API client's getAuthToken method (handles all token sources)
+        let token = null;
+        if (apiClient && typeof apiClient.getAuthToken === 'function') {
+            token = apiClient.getAuthToken();
+            // #region agent log
+            console.log('[AutoFill Debug] Token from API client:', {hasToken: !!token, tokenLength: token ? token.length : 0});
+            // #endregion
+        } else {
+            // Fallback: check multiple possible token storage locations
+            token = localStorage.getItem('authToken') || 
+                    localStorage.getItem('token') || 
+                    localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('authToken') || 
+                    sessionStorage.getItem('token') ||
+                    sessionStorage.getItem('accessToken');
+            // #region agent log
+            console.log('[AutoFill Debug] Token from fallback check:', {
+                hasToken: !!token,
+                checkedAuthToken: !!localStorage.getItem('authToken'),
+                checkedToken: !!localStorage.getItem('token'),
+                checkedAccessToken: !!localStorage.getItem('accessToken')
+            });
+            // #endregion
+        }
+        
+        // Also check AuthManager if available (as additional fallback)
+        if (!token && typeof window !== 'undefined' && window.authManager) {
+            token = window.authManager.getAccessToken();
+            // #region agent log
+            console.log('[AutoFill Debug] Token from AuthManager:', {hasToken: !!token});
+            // #endregion
+        }
+        
         if (!token) {
             // #region agent log
-            console.log('[AutoFill Debug] No authentication token found, skipping auto-fill');
+            console.log('[AutoFill Debug] No authentication token found, skipping auto-fill', {
+                hasApiClient: !!apiClient,
+                hasGetAuthToken: !!(apiClient && typeof apiClient.getAuthToken === 'function'),
+                hasAuthManager: !!(typeof window !== 'undefined' && window.authManager),
+                localStorageAuthToken: !!localStorage.getItem('authToken'),
+                localStorageToken: !!localStorage.getItem('token'),
+                localStorageAccessToken: !!localStorage.getItem('accessToken')
+            });
             // #endregion
             console.log('No authentication token found, skipping auto-fill');
             return;
         }
+        
+        // #region agent log
+        console.log('[AutoFill Debug] Token successfully retrieved:', {hasToken: !!token, tokenLength: token ? token.length : 0, tokenPrefix: token ? token.substring(0, 20) + '...' : 'none'});
+        // #endregion
 
         // Fetch user profile
         // #region agent log

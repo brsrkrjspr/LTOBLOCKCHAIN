@@ -574,52 +574,69 @@
         title.textContent = doc.filename || doc.original_name || doc.label || getDocTypeLabel(doc.type || doc.document_type);
         
         console.log('DocumentModal loading:', doc);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:577',message:'DocumentModal loadDocument - entry',data:{hasId:!!doc.id,hasCid:!!doc.cid,hasPath:!!doc.path,hasUrl:!!doc.url,id:doc.id,cid:doc.cid,url:doc.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
+            // #region agent log
+            console.log('[DocumentModal Debug] loadDocument entry:', {
+                hasId: !!doc.id,
+                hasCid: !!doc.cid,
+                hasPath: !!doc.path,
+                hasUrl: !!doc.url,
+                id: doc.id,
+                cid: doc.cid,
+                url: doc.url
+            });
+            // #endregion
         
         try {
             let url = null;
             const token = getAuthToken();
             
-            // Check for data URL first (base64)
-            if (doc.url && typeof doc.url === 'string' && doc.url.startsWith('data:')) {
-                url = doc.url;
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:585',message:'DocumentModal - using data URL',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-                console.log('Using data URL');
-            }
-            // Check for direct URL already set
-            else if (doc.url && typeof doc.url === 'string' && (doc.url.startsWith('http') || doc.url.startsWith('/api/') || doc.url.startsWith('/uploads/'))) {
-                url = doc.url;
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:590',message:'DocumentModal - using provided URL',data:{url,urlStartsWith:doc.url.substring(0,20)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-                console.log('Using provided URL:', url);
-            }
-            // Check for UUID-style document ID
-            else if (doc.id && typeof doc.id === 'string') {
+            // Priority 1: Check for UUID-style document ID (most reliable - always use this if available)
+            if (doc.id && typeof doc.id === 'string') {
                 const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id);
                 // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:595',message:'DocumentModal - checking UUID',data:{hasId:!!doc.id,id:doc.id,isUUID},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                console.log('[DocumentModal Debug] Checking UUID:', {hasId:!!doc.id,id:doc.id,isUUID});
                 // #endregion
                 if (isUUID) {
                     url = `/api/documents/${doc.id}/view`;
                     // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:598',message:'DocumentModal - using UUID URL',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    console.log('[DocumentModal Debug] Using UUID URL:', url);
                     // #endregion
                     console.log('Using API URL from UUID:', url);
+                } else {
+                    // #region agent log
+                    console.log('[DocumentModal Debug] ID is not a valid UUID:', doc.id);
+                    // #endregion
                 }
+            } else {
+                // #region agent log
+                console.log('[DocumentModal Debug] No document ID available');
+                // #endregion
             }
-            // Check for IPFS CID
-            if (!url && (doc.cid || doc.ipfs_cid)) {
+            
+            // Priority 2: Check for data URL (base64)
+            if (!url && doc.url && typeof doc.url === 'string' && doc.url.startsWith('data:')) {
+                url = doc.url;
+                // #region agent log
+                console.log('[DocumentModal Debug] Using data URL');
+                // #endregion
+                console.log('Using data URL');
+            }
+            // Priority 3: Check for IPFS CID (if no ID available)
+            else if (!url && (doc.cid || doc.ipfs_cid)) {
                 const cid = doc.cid || doc.ipfs_cid;
                 url = `/api/documents/ipfs/${cid}`;
                 // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:605',message:'DocumentModal - using IPFS URL',data:{url,cid},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                console.log('[DocumentModal Debug] Using IPFS URL (no ID available):', {url,cid});
                 // #endregion
                 console.log('Using IPFS URL:', url);
+            }
+            // Priority 4: Check for direct URL already set (fallback - but prefer ID/CID routes)
+            else if (!url && doc.url && typeof doc.url === 'string' && (doc.url.startsWith('http') || doc.url.startsWith('/api/') || doc.url.startsWith('/uploads/'))) {
+                url = doc.url;
+                // #region agent log
+                console.log('[DocumentModal Debug] Using provided URL (fallback, no ID/CID):', {url,urlStartsWith:doc.url.substring(0,30)});
+                // #endregion
+                console.log('Using provided URL (fallback):', url);
             }
             // Check for file path - NOTE: This should not be used to construct /api/documents/file/ URLs
             if (!url && (doc.path || doc.file_path)) {
@@ -640,7 +657,7 @@
             }
             
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:620',message:'DocumentModal - final URL decision',data:{finalUrl:url,hasUrl:!!url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
+            console.log('[DocumentModal Debug] Final URL decision:', {finalUrl:url,hasUrl:!!url});
             // #endregion
             
             if (!url) {

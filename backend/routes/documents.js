@@ -80,13 +80,22 @@ router.get('/ipfs/:cid', authenticateToken, async (req, res) => {
         const { cid } = req.params;
 
         // Find document by IPFS CID
+        console.log(`[Documents/IPFS] Looking up document by CID: ${cid}`);
         const document = await db.getDocumentByCid(cid);
         if (!document) {
+            console.log(`[Documents/IPFS] Document not found for CID: ${cid}`);
             return res.status(404).json({
                 success: false,
                 error: 'Document not found for this CID'
             });
         }
+        console.log(`[Documents/IPFS] Found document:`, {
+            id: document.id,
+            vehicle_id: document.vehicle_id,
+            document_type: document.document_type,
+            has_ipfs_cid: !!document.ipfs_cid,
+            has_file_path: !!document.file_path
+        });
 
         // Get vehicle to check permissions (same rules as /:documentId/view)
         const vehicle = await db.getVehicleById(document.vehicle_id);
@@ -101,7 +110,17 @@ router.get('/ipfs/:cid', authenticateToken, async (req, res) => {
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
         const isVerifier =
             req.user.role === 'insurance_verifier' ||
-            req.user.role === 'emission_verifier';
+            req.user.role === 'emission_verifier' ||
+            req.user.role === 'hpg_admin';
+        
+        console.log(`[Documents/IPFS] Permission check for CID ${cid}:`, {
+            userId: req.user.userId,
+            role: req.user.role,
+            isAdmin,
+            isOwner,
+            isVerifier,
+            vehicleOwnerId: vehicle.owner_id
+        });
 
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({

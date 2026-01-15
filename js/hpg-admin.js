@@ -399,32 +399,41 @@ const HPGRequests = {
             
             // Prepare documents for DocumentModal
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hpg-admin.js:401',message:'HPG viewDocument - raw document data',data:{requestId,docCount:request.documents.length,documents:request.documents.map(d=>({id:d.id,cid:d.cid,path:d.path,type:d.type}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            console.log('[HPG Debug] viewDocument - raw document data:', {
+                requestId,
+                docCount: request.documents.length,
+                documents: request.documents.map(d => ({ id: d.id, cid: d.cid, path: d.path, type: d.type, url: d.url }))
+            });
             // #endregion
             const docs = request.documents.map(doc => {
                 // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hpg-admin.js:405',message:'HPG document mapping - before URL construction',data:{hasId:!!doc.id,hasCid:!!doc.cid,hasPath:!!doc.path,id:doc.id,cid:doc.cid,path:doc.path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                console.log('[HPG Debug] document mapping - before:', {
+                    hasId: !!doc.id,
+                    hasCid: !!doc.cid,
+                    hasPath: !!doc.path,
+                    hasUrl: !!doc.url,
+                    id: doc.id,
+                    cid: doc.cid,
+                    url: doc.url
+                });
                 // #endregion
-                // Fix: Construct URL properly - prioritize id, then cid, don't use /api/documents/file/ route
-                let constructedUrl = null;
-                if (doc.id) {
-                    constructedUrl = `/api/documents/${doc.id}/view`;
-                } else if (doc.cid) {
-                    constructedUrl = `/api/documents/ipfs/${doc.cid}`;
-                }
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hpg-admin.js:412',message:'HPG document mapping - after URL construction',data:{constructedUrl,hasId:!!doc.id,hasCid:!!doc.cid},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
+                // Fix: Don't set url property - let DocumentModal construct it properly
+                // DocumentModal will prioritize doc.id over doc.cid over doc.url
                 return {
                     id: doc.id,
                     filename: docTypeLabels[doc.type] || doc.type || doc.filename || 'Document',
                     type: doc.type,
                     document_type: doc.type,
                     cid: doc.cid,
-                    path: doc.path,
-                    url: constructedUrl // Use properly constructed URL instead of non-existent /api/documents/file/ route
+                    path: doc.path
+                    // Don't set url - let DocumentModal construct it from id/cid
                 };
             });
+            // #region agent log
+            console.log('[HPG Debug] document mapping - after:', {
+                docs: docs.map(d => ({ id: d.id, cid: d.cid, hasUrl: !!d.url }))
+            });
+            // #endregion
             
             // Use DocumentModal if available
             if (typeof DocumentModal !== 'undefined') {

@@ -1510,6 +1510,7 @@ async function viewUserApplication(applicationId) {
 // Map API document types to modal keys
 function mapDocTypeToKey(docType) {
     const typeMap = {
+        // Core canonical database types
         'registration_cert': 'registrationCert',
         'or_cr': 'registrationCert',
         'insurance_cert': 'insuranceCert',
@@ -1517,14 +1518,28 @@ function mapDocTypeToKey(docType) {
         'owner_id': 'ownerId',
         'valid_id': 'validId',
         'deed_of_sale': 'deedOfSale',
+        'seller_id': 'sellerId',
+        'buyer_id': 'buyerId',
+        'csr': 'csr',
         'hpg_clearance': 'hpgClearance',
-        // Also handle camelCase versions
+        'sales_invoice': 'salesInvoice',
+
+        // CamelCase / logical types
         'registrationCert': 'registrationCert',
+        'registrationCertificate': 'registrationCert',
         'insuranceCert': 'insuranceCert',
+        'insuranceCertificate': 'insuranceCert',
         'emissionCert': 'emissionCert',
         'ownerId': 'ownerId',
+        'ownerValidId': 'ownerId',
         'validId': 'validId',
-        'deedOfSale': 'deedOfSale'
+        'deedOfSale': 'deedOfSale',
+        'sellerId': 'sellerId',
+        'buyerId': 'buyerId',
+        'certificateOfStockReport': 'csr',
+        'hpgClearance': 'hpgClearance',
+        'pnpHpgClearance': 'hpgClearance',
+        'salesInvoice': 'salesInvoice'
     };
     return typeMap[docType] || docType;
 }
@@ -1605,8 +1620,13 @@ function showApplicationDetailsModal(application) {
         { key: 'insuranceCert', label: 'Insurance Certificate', icon: 'fa-shield-alt', type: 'insurance' },
         { key: 'emissionCert', label: 'Emission Certificate', icon: 'fa-leaf', type: 'emission' },
         { key: 'ownerId', label: 'Owner ID', icon: 'fa-id-card', type: 'id' },
+        { key: 'validId', label: 'Valid ID', icon: 'fa-id-badge', type: 'id' },
         { key: 'deedOfSale', label: 'Deed of Sale', icon: 'fa-file-contract', type: 'other' },
-        { key: 'validId', label: 'Valid ID', icon: 'fa-id-badge', type: 'id' }
+        { key: 'sellerId', label: 'Seller ID', icon: 'fa-user-tag', type: 'id' },
+        { key: 'buyerId', label: 'Buyer ID', icon: 'fa-user-check', type: 'id' },
+        { key: 'csr', label: 'Certificate of Stock Report (CSR)', icon: 'fa-file-alt', type: 'other' },
+        { key: 'hpgClearance', label: 'HPG Clearance Certificate', icon: 'fa-shield-alt', type: 'other' },
+        { key: 'salesInvoice', label: 'Sales Invoice', icon: 'fa-receipt', type: 'other' }
     ];
     
     let documentListHTML = '';

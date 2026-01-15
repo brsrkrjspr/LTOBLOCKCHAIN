@@ -200,7 +200,30 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
         // Map legacy types to canonical logical types
         docType = docTypes.mapLegacyType(docType);
 
-        // Validate document type using centralized config
+        // Validate document type with context awareness
+        const validation = docTypes.validateDocumentTypeForUpload(docType, {
+            allowOther: false // Never allow 'other' for uploads
+        });
+
+        if (!validation.valid) {
+            console.error('❌ Document type validation failed:', {
+                received: type || documentType,
+                mapped: docType,
+                error: validation.error,
+                userId: req.user?.userId,
+                route: '/api/documents/upload'
+            });
+            
+            fs.unlinkSync(req.file.path);
+            return res.status(400).json({
+                success: false,
+                error: validation.error,
+                receivedType: type || documentType,
+                validTypes: docTypes.getValidLogicalTypes().filter(t => t !== 'other')
+            });
+        }
+
+        // Validate document type using centralized config (additional safety check)
         if (!docTypes.isValidLogicalType(docType)) {
             // Log the invalid type for debugging
             console.error('❌ Invalid document type received:', {
@@ -461,7 +484,31 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
         // Map legacy types to canonical logical types
         const mappedType = docTypes.mapLegacyType(documentType);
         
-        // Validate document type using centralized config
+        // Validate document type with context awareness
+        const validation = docTypes.validateDocumentTypeForUpload(mappedType, {
+            allowOther: false // Never allow 'other' for uploads
+        });
+
+        if (!validation.valid) {
+            console.error('❌ Document type validation failed in /upload-auth:', {
+                received: documentType,
+                mapped: mappedType,
+                error: validation.error,
+                userId: req.user?.userId,
+                vehicleVin,
+                route: '/api/documents/upload-auth'
+            });
+            
+            fs.unlinkSync(req.file.path);
+            return res.status(400).json({
+                success: false,
+                error: validation.error,
+                receivedType: documentType,
+                validTypes: docTypes.getValidLogicalTypes().filter(t => t !== 'other')
+            });
+        }
+        
+        // Validate document type using centralized config (additional safety check)
         if (!docTypes.isValidLogicalType(mappedType)) {
             console.error('❌ Invalid document type in /upload-auth:', {
                 received: documentType,
@@ -1144,7 +1191,7 @@ router.get('/search', authenticateToken, authorizeRole(['admin']), async (req, r
                    v.id as vehicle_id, v.vin, v.plate_number, v.make, v.model, v.year,
                    u.first_name || ' ' || u.last_name as uploader_name
             FROM documents d
-            JOIN vehicles v ON d.vehicle_id = v.id
+            LEFT JOIN vehicles v ON d.vehicle_id = v.id
             LEFT JOIN users u ON d.uploaded_by = u.id
             WHERE 1=1
         `;
@@ -1187,7 +1234,7 @@ router.get('/search', authenticateToken, authorizeRole(['admin']), async (req, r
         let countQuery = `
             SELECT COUNT(*) 
             FROM documents d
-            JOIN vehicles v ON d.vehicle_id = v.id
+            LEFT JOIN vehicles v ON d.vehicle_id = v.id
             WHERE 1=1
         `;
         const countParams = [];
@@ -1347,6 +1394,93 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         res.status(500).json({
             success: false,
             error: 'Failed to extract information from document',
+            message: error.message
+        });
+    }
+});
+
+// Update document type (admin only)
+// Allows admins to correct document types, especially for 'other' type documents
+router.patch('/:documentId/type', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { documentId } = req.params;
+        const { documentType } = req.body;
+
+        if (!documentType) {
+            return res.status(400).json({
+                success: false,
+                error: 'Document type is required'
+            });
+        }
+
+        // Map legacy types to canonical logical types
+        const mappedType = docTypes.mapLegacyType(documentType);
+        
+        // Validate the new document type
+        const validation = docTypes.validateDocumentTypeForUpload(mappedType, {
+            allowOther: true // Allow 'other' to be corrected to other types, or vice versa
+        });
+
+        if (!validation.valid) {
+            return res.status(400).json({
+                success: false,
+                error: validation.error,
+                receivedType: documentType
+            });
+        }
+
+        // Get the document
+        const document = await db.getDocumentById(documentId);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document not found'
+            });
+        }
+
+        // Map to database type
+        const dbDocType = docTypes.mapToDbType(mappedType);
+
+        // Update document type in database
+        const dbModule = require('../database/db');
+        const result = await dbModule.query(
+            'UPDATE documents SET document_type = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+            [dbDocType, documentId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to update document type'
+            });
+        }
+
+        // Log the correction for audit trail
+        console.log(`[Admin] Document type corrected:`, {
+            documentId,
+            oldType: document.document_type,
+            newType: dbDocType,
+            logicalType: mappedType,
+            correctedBy: req.user.userId,
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({
+            success: true,
+            message: 'Document type updated successfully',
+            document: {
+                id: result.rows[0].id,
+                documentType: dbDocType,
+                logicalType: mappedType,
+                previousType: document.document_type
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating document type:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update document type',
             message: error.message
         });
     }

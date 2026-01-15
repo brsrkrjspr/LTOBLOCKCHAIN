@@ -146,6 +146,66 @@ function isValidTransferRole(role) {
 }
 
 /**
+ * Get required document types for auto-send workflows
+ * @returns {Object} Map of organization to required logical types
+ */
+function getRequiredTypesForAutoSend() {
+    return {
+        insurance: [LOGICAL_TYPES.INSURANCE_CERT],
+        emission: [LOGICAL_TYPES.EMISSION_CERT],
+        hpg: [LOGICAL_TYPES.OWNER_ID, LOGICAL_TYPES.HPG_CLEARANCE]
+    };
+}
+
+/**
+ * Check if document type is required for auto-send
+ * @param {string} logicalType - Logical document type
+ * @returns {boolean} True if required for any auto-send workflow
+ */
+function isRequiredForAutoSend(logicalType) {
+    const requiredTypes = getRequiredTypesForAutoSend();
+    const allRequired = Object.values(requiredTypes).flat();
+    return allRequired.includes(logicalType);
+}
+
+/**
+ * Validate document type with context awareness
+ * @param {string} logicalType - Logical document type
+ * @param {Object} options - Validation options
+ * @param {boolean} options.allowOther - Allow 'other' type (default: false)
+ * @returns {{valid: boolean, error?: string}}
+ */
+function validateDocumentTypeForUpload(logicalType, options = {}) {
+    const { allowOther = false } = options;
+    
+    // Check if it's a valid logical type
+    if (!isValidLogicalType(logicalType)) {
+        return {
+            valid: false,
+            error: `Invalid document type: ${logicalType}. Valid types: ${getValidLogicalTypes().join(', ')}`
+        };
+    }
+    
+    // Reject 'other' type unless explicitly allowed
+    if (logicalType === LOGICAL_TYPES.OTHER && !allowOther) {
+        return {
+            valid: false,
+            error: 'Document type "other" is not allowed for uploads. Please specify the correct document type.'
+        };
+    }
+    
+    // Warn if required type is being set to 'other'
+    if (isRequiredForAutoSend(logicalType) && logicalType === LOGICAL_TYPES.OTHER) {
+        return {
+            valid: false,
+            error: 'Document type "other" cannot be used for required documents (insurance, emission, HPG). Please specify the correct document type.'
+        };
+    }
+    
+    return { valid: true };
+}
+
+/**
  * Map transfer role to database type for transfer_documents table
  * Note: This is different from regular document types - transfer roles are specific to transfer context
  * @param {string} transferRole - Transfer role (e.g., 'deed_of_sale', 'seller_id')
@@ -206,6 +266,9 @@ module.exports = {
     isValidLogicalType,
     isValidDbType,
     isValidTransferRole,
+    getRequiredTypesForAutoSend,
+    isRequiredForAutoSend,
+    validateDocumentTypeForUpload,
     
     // Getter functions
     getValidLogicalTypes,

@@ -118,6 +118,23 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             }
         } else {
             console.log(`[Auto-Send→Insurance] Skipping - no insurance_cert document found`);
+            // Enhanced logging
+            console.log(`[Auto-Send→Insurance] Available document types:`, 
+                allDocuments.map(d => ({
+                    id: d.id,
+                    type: d.document_type,
+                    logicalType: docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type),
+                    filename: d.original_name || d.filename
+                }))
+            );
+            
+            // Check if 'other' documents exist that might be insurance
+            const otherDocs = allDocuments.filter(d => d.document_type === 'other');
+            if (otherDocs.length > 0) {
+                console.warn(`[Auto-Send→Insurance] Found ${otherDocs.length} document(s) with type 'other' that may need correction:`, 
+                    otherDocs.map(d => ({ id: d.id, filename: d.original_name || d.filename }))
+                );
+            }
         }
 
         // 3. Send to Emission (requires: emission_cert)
@@ -145,6 +162,23 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             }
         } else {
             console.log(`[Auto-Send→Emission] Skipping - no emission_cert document found`);
+            // Enhanced logging
+            console.log(`[Auto-Send→Emission] Available document types:`, 
+                allDocuments.map(d => ({
+                    id: d.id,
+                    type: d.document_type,
+                    logicalType: docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type),
+                    filename: d.original_name || d.filename
+                }))
+            );
+            
+            // Check if 'other' documents exist that might be emission
+            const otherDocs = allDocuments.filter(d => d.document_type === 'other');
+            if (otherDocs.length > 0) {
+                console.warn(`[Auto-Send→Emission] Found ${otherDocs.length} document(s) with type 'other' that may need correction:`, 
+                    otherDocs.map(d => ({ id: d.id, filename: d.original_name || d.filename }))
+                );
+            }
         }
 
         // Update vehicle status to PENDING_VERIFICATION if at least one request was sent

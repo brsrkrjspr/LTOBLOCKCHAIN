@@ -1065,10 +1065,24 @@ async function uploadDocuments(signal) {
         if (!input) return;
         
         if (input.files && input.files[0]) {
-            // Get document type from data attribute or ID
-            const docType = input.getAttribute('data-document-type') || 
-                           input.id || 
-                           input.name;
+            // Get document type from data attribute - this MUST exist
+            const docType = input.getAttribute('data-document-type');
+            
+            if (!docType) {
+                // This should never happen - all upload fields should have data-document-type
+                console.error('[BUG] Upload field missing data-document-type attribute:', {
+                    inputId: input.id,
+                    inputName: input.name,
+                    container: container?.id,
+                    timestamp: new Date().toISOString()
+                });
+                
+                uploadErrors.push({
+                    docType: input.id || input.name || 'unknown',
+                    error: 'Configuration error: Document type not specified'
+                });
+                return; // Skip this upload
+            }
             
             // Validate file size if max size is specified
             const maxSize = input.getAttribute('data-max-size');

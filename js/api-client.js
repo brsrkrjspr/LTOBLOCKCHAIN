@@ -380,6 +380,15 @@ class APIClient {
     }
 
     // DELETE request
+    // PATCH request
+    async patch(endpoint, data, options = {}) {
+        return this.request(endpoint, {
+            ...options,
+            method: 'PATCH',
+            body: JSON.stringify(data)
+        });
+    }
+
     async delete(endpoint, options = {}) {
         return this.request(endpoint, {
             ...options,

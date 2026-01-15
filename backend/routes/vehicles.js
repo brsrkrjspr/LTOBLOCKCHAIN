@@ -1122,8 +1122,17 @@ router.post('/register', optionalAuth, async (req, res) => {
                 const dbDocType = docTypes.mapToDbType(logicalType);
                 
                 // Validate mapping results
-                if (!logicalType || !dbDocType || dbDocType === 'other') {
-                    console.warn(`⚠️ Unknown document type key: ${frontendKey} (mapped to: ${logicalType}, dbType: ${dbDocType}), skipping`);
+                if (!logicalType || !dbDocType) {
+                    console.error(`❌ Unknown document type key: ${frontendKey} (mapped to: ${logicalType}, dbType: ${dbDocType})`);
+                    // Don't fail entire registration, but log error for admin review
+                    continue;
+                }
+                
+                // Explicitly reject 'other' type
+                if (dbDocType === 'other') {
+                    console.error(`❌ Document type mapped to 'other' for key: ${frontendKey}. This indicates a configuration error.`);
+                    // Log but continue - document exists, just wrong type
+                    // Admin will need to correct via admin interface
                     continue;
                 }
                 

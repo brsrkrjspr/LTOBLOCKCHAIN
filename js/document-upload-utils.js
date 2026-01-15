@@ -104,6 +104,14 @@ async function uploadDocument(docType, file, options = {}) {
         };
     }
     
+    // Reject 'other' type - it should never be used for uploads
+    if (docType === DOCUMENT_TYPES.OTHER) {
+        return {
+            success: false,
+            error: 'Document type "other" is not allowed. Please specify the correct document type.'
+        };
+    }
+    
     // Create form data
     const formData = new FormData();
     formData.append('document', file);

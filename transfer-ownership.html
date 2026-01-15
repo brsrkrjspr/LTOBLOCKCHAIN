@@ -1799,6 +1799,9 @@
             
             // Map transfer-specific doc types to logical document types
             // Transfer uses specific roles, but we need to map to logical types for upload
+            // IMPORTANT: This map MUST include ALL upload slots in the form
+            // If you add a new upload slot, you MUST add it here
+            // Missing mappings will cause upload to fail (by design - fail-fast)
             const docTypeMap = {
                 'deedOfSale': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
                 'deedOfSale2': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
@@ -1808,7 +1811,34 @@
                 'emissionCert': DocumentUploadUtils.DOCUMENT_TYPES.EMISSION_CERT
             };
             
-            const logicalDocType = docTypeMap[docType] || DocumentUploadUtils.DOCUMENT_TYPES.OTHER;
+            // Fail-fast: Every upload slot MUST have a valid mapping
+            const logicalDocType = docTypeMap[docType];
+            
+            if (!logicalDocType) {
+                // This is a code bug - slot exists but no mapping
+                console.error('[BUG] Upload slot missing from docTypeMap:', {
+                    docType,
+                    availableSlots: Object.keys(docTypeMap),
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Show error to user
+                if (label) {
+                    label.innerHTML = `
+                        <span class="transfer-upload-icon" style="color: #e74c3c;">❌</span>
+                        <span class="transfer-upload-text" style="color: #e74c3c;">Configuration Error</span>
+                    `;
+                }
+                
+                showNotification(
+                    `System error: Document type '${docType}' is not configured. Please contact support.`,
+                    'error'
+                );
+                
+                // Reset file input
+                input.value = '';
+                return; // Stop upload
+            }
             
             // Show uploading state
             if (label) {

@@ -325,7 +325,7 @@ function validateVehicleInfo() {
     if (!vehicleCategory || !vehicleCategory.trim()) {
         if (vehicleCategoryField) {
             vehicleCategoryField.classList.add('invalid');
-            showFieldError(vehicleCategoryField, 'Please enter a vehicle category');
+            showFieldError(vehicleCategoryField, 'Please select a vehicle category');
         }
         errors.push('Vehicle category is required');
         isValid = false;
@@ -2236,18 +2236,69 @@ function autoFillFromOCRData(extractedData, documentType) {
                             // #endregion
                         }
                     } else {
-                        // Regular input fields (like idNumber)
+                        // Regular input fields (like idNumber and idType - now text inputs)
+                        let normalizedValue = value;
+                        
+                        // Normalize ID type for text input field
+                        if (key === 'idType' && value) {
+                            // Normalize common OCR variations of ID types
+                            const idTypeNormalizations = {
+                                'drivers license': "Driver's License",
+                                'driver license': "Driver's License",
+                                'driver\'s license': "Driver's License",
+                                'drivers-license': "Driver's License",
+                                'driver-license': "Driver's License",
+                                'passport': 'Passport',
+                                'national id': 'National ID',
+                                'national-id': 'National ID',
+                                'postal id': 'Postal ID',
+                                'postal-id': 'Postal ID',
+                                'voters id': "Voter's ID",
+                                'voter id': "Voter's ID",
+                                'voter\'s id': "Voter's ID",
+                                'voters-id': "Voter's ID",
+                                'sss id': 'SSS ID',
+                                'sss-id': 'SSS ID'
+                            };
+                            
+                            const lowerValue = value.toLowerCase().trim();
+                            if (idTypeNormalizations[lowerValue]) {
+                                normalizedValue = idTypeNormalizations[lowerValue];
+                            } else {
+                                // Capitalize first letter of each word if not found in normalization map
+                                normalizedValue = value.split(' ').map(word => 
+                                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                ).join(' ');
+                            }
+                        }
+                        
                         // #region agent log
-                        if (key === 'idNumber') {
-                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2137',message:'Before filling idNumber',data:{key:key,value:value,fieldId:fieldId,fieldExists:!!field,fieldCurrentValue:field?.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                        if (key === 'idType' || key === 'idNumber') {
+                            console.log('[ID AutoFill Debug] Processing text input field:', {
+                                key,
+                                originalValue: value,
+                                normalizedValue: normalizedValue,
+                                fieldId,
+                                fieldExists: !!field,
+                                fieldCurrentValue: field?.value
+                            });
+                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2137',message:'Before filling text input field',data:{key:key,originalValue:value,normalizedValue:normalizedValue,fieldId:fieldId,fieldExists:!!field,fieldCurrentValue:field?.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                         }
                         // #endregion
-                        field.value = value;
+                        
+                        field.value = normalizedValue;
                         field.classList.add('ocr-auto-filled');
                         fieldsFilled.owner++;
                         
                         // #region agent log
-                        if (key === 'idNumber') {
+                        if (key === 'idType') {
+                            console.log('[ID AutoFill Debug] idType field filled successfully:', {
+                                originalValue: value,
+                                filledValue: normalizedValue,
+                                fieldValue: field.value
+                            });
+                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2143',message:'idType field filled successfully',data:{originalValue:value,normalizedValue:normalizedValue,fieldValue:field.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                        } else if (key === 'idNumber') {
                             console.log('[ID AutoFill Debug] idNumber field filled successfully:', value);
                             fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2143',message:'idNumber field filled successfully',data:{value:value,fieldValue:field.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                         }

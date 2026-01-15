@@ -35,13 +35,39 @@ class OCRService {
             console.log('[OCR Debug] extractText called:', {filePath, mimeType});
             // #endregion
             
+            // Validate mimeType
+            if (!mimeType) {
+                console.warn('[OCR Debug] WARNING: mimeType is undefined or null. Attempting to infer from file extension.');
+                // Try to infer from file extension as fallback
+                const ext = filePath.split('.').pop()?.toLowerCase();
+                if (ext === 'pdf') {
+                    mimeType = 'application/pdf';
+                } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
+                    mimeType = 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
+                } else {
+                    console.error('[OCR Debug] ERROR: Cannot determine mimeType. Returning empty text.');
+                    return '';
+                }
+            }
+            
             let extractedText = '';
-            if (mimeType === 'application/pdf') {
-                extractedText = await this.extractFromPDF(filePath);
-            } else if (mimeType.startsWith('image/')) {
-                extractedText = await this.extractFromImage(filePath);
-            } else {
-                throw new Error(`Unsupported file type: ${mimeType}`);
+            try {
+                if (mimeType === 'application/pdf') {
+                    extractedText = await this.extractFromPDF(filePath);
+                } else if (mimeType.startsWith('image/')) {
+                    extractedText = await this.extractFromImage(filePath);
+                } else {
+                    console.warn('[OCR Debug] WARNING: Unsupported file type:', mimeType);
+                    return ''; // Return empty instead of throwing
+                }
+            } catch (extractionError) {
+                console.error('[OCR Debug] ERROR during text extraction:', {
+                    error: extractionError.message,
+                    errorName: extractionError.name,
+                    mimeType,
+                    filePath
+                });
+                return ''; // Return empty string instead of throwing
             }
             
             // #region agent log
@@ -53,10 +79,14 @@ class OCRService {
             });
             // #endregion
             
-            return extractedText;
+            return extractedText || ''; // Ensure we always return a string
         } catch (error) {
-            console.error('[OCR Debug] OCR extraction error:', error);
-            throw error;
+            console.error('[OCR Debug] Unexpected error in extractText:', {
+                error: error.message,
+                errorName: error.name,
+                stack: error.stack
+            });
+            return ''; // Return empty string instead of throwing to prevent route crashes
         }
     }
 
@@ -231,40 +261,62 @@ class OCRService {
     async extractFromImage(filePath) {
         try {
             if (!Tesseract) {
-                throw new Error('Tesseract.js package not installed');
+                console.warn('[OCR Debug] WARNING: Tesseract.js package not installed. Image OCR unavailable.');
+                return ''; // Return empty instead of throwing
             }
             
             // Preprocess image for better OCR results
-            const processedImagePath = await this.preprocessImage(filePath);
+            let processedImagePath = filePath;
+            try {
+                processedImagePath = await this.preprocessImage(filePath);
+            } catch (preprocessError) {
+                console.warn('[OCR Debug] Image preprocessing failed, using original:', preprocessError.message);
+                processedImagePath = filePath; // Fallback to original
+            }
             
-            const { data: { text } } = await Tesseract.recognize(
-                processedImagePath || filePath,
-                'eng',
-                {
-                    logger: m => {
-                        // Only log errors and warnings
-                        if (m.status === 'recognizing text') {
-                            // Suppress progress logs
-                        } else {
-                            console.log(`[OCR] ${m.status}`);
+            let text = '';
+            try {
+                const result = await Tesseract.recognize(
+                    processedImagePath || filePath,
+                    'eng',
+                    {
+                        logger: m => {
+                            // Only log errors and warnings
+                            if (m.status === 'recognizing text') {
+                                // Suppress progress logs
+                            } else {
+                                console.log(`[OCR] ${m.status}`);
+                            }
                         }
                     }
-                }
-            );
+                );
+                text = result?.data?.text || '';
+            } catch (ocrError) {
+                console.error('[OCR Debug] Tesseract OCR error:', {
+                    error: ocrError.message,
+                    errorName: ocrError.name,
+                    filePath
+                });
+                return ''; // Return empty instead of throwing
+            }
 
             // Clean up processed image if different from original
             if (processedImagePath && processedImagePath !== filePath) {
                 try {
                     await fs.unlink(processedImagePath);
                 } catch (cleanupError) {
-                    console.warn('Failed to cleanup processed image:', cleanupError);
+                    console.warn('[OCR Debug] Failed to cleanup processed image:', cleanupError.message);
                 }
             }
 
             return text || '';
         } catch (error) {
-            console.error('Image OCR extraction error:', error);
-            throw error;
+            console.error('[OCR Debug] Unexpected error in extractFromImage:', {
+                error: error.message,
+                errorName: error.name,
+                stack: error.stack
+            });
+            return ''; // Return empty string instead of throwing to prevent route crashes
         }
     }
 
@@ -790,6 +842,7 @@ class OCRService {
 
         if (documentType === 'sales_invoice' || documentType === 'salesInvoice') {
             // Extract Vehicle Information from Sales Invoice
+            // Wrap ALL sales invoice extraction in try/catch for fail-soft behavior
             try {
                 // VIN/Chassis Number
                 const vinPattern = /(?:VIN|CHASSIS\s*(?:NO|NUMBER)?\.?|FRAME\s*NO\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
@@ -820,6 +873,49 @@ class OCRService {
                 const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR|MANUFACTURE\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
                 const yearMatch = text.match(yearPattern);
                 if (yearMatch) extracted.year = yearMatch[1].trim();
+
+                // Color
+                const colorPattern = /(?:COLOR|COLOUR|PAINT)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
+                const colorMatch = text.match(colorPattern);
+                if (colorMatch) extracted.color = colorMatch[1].trim();
+
+                // Owner/Buyer Information from Sales Invoice
+                const buyerPatterns = [
+                    /(?:BUYER|CUSTOMER|PURCHASER|SOLD\s*TO)\s*[:.]?\s*([A-Z\s,]+?)(?:\s*(?:ADDRESS|TIN|DATE|INVOICE)|$)/i,
+                    /(?:NAME\s*OF\s*BUYER|CUSTOMER\s*NAME)\s*[:.]?\s*([A-Z\s,]+?)(?:\s*(?:ADDRESS|TIN|DATE)|$)/i
+                ];
+                for (const pattern of buyerPatterns) {
+                    const buyerMatch = text.match(pattern);
+                    if (buyerMatch) {
+                        const fullName = buyerMatch[1].trim();
+                        const nameParts = fullName.split(/[,\s]+/).filter(Boolean);
+                        if (nameParts.length >= 2) {
+                            extracted.lastName = nameParts[0];
+                            extracted.firstName = nameParts.slice(1).join(' ');
+                        } else if (nameParts.length === 1) {
+                            extracted.firstName = nameParts[0];
+                        }
+                        break;
+                    }
+                }
+
+                // Buyer Address
+                const buyerAddressPatterns = [
+                    /(?:BUYER\s*ADDRESS|CUSTOMER\s*ADDRESS|ADDRESS\s*OF\s*BUYER)\s*[:.]?\s*(.+?)(?:\s*(?:TIN|DATE|INVOICE|TOTAL)|$)/i,
+                    /(?:ADDRESS)\s*[:.]?\s*([^\n]{10,200})/i
+                ];
+                for (const pattern of buyerAddressPatterns) {
+                    const addressMatch = text.match(pattern);
+                    if (addressMatch) {
+                        extracted.address = addressMatch[1].trim();
+                        break;
+                    }
+                }
+
+                // Buyer Phone
+                const buyerPhonePattern = /(?:BUYER\s*PHONE|CUSTOMER\s*PHONE|CONTACT|MOBILE|TEL)\s*[:.]?\s*([\+\d\s\-\(\)]{10,20})/i;
+                const phoneMatch = text.match(buyerPhonePattern);
+                if (phoneMatch) extracted.phone = phoneMatch[1].trim();
             } catch (salesError) {
                 console.error('[OCR Debug] ERROR processing sales invoice document:', {
                     error: salesError.message,
@@ -828,51 +924,8 @@ class OCRService {
                     documentType,
                     textLength: text ? text.length : 0
                 });
-                // Fail-soft: keep any fields that were already safely extracted
+                // Fail-soft: keep any fields that were already safely extracted before the error
             }
-
-            // Color
-            const colorPattern = /(?:COLOR|COLOUR|PAINT)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-            const colorMatch = text.match(colorPattern);
-            if (colorMatch) extracted.color = colorMatch[1].trim();
-
-            // Owner/Buyer Information from Sales Invoice
-            const buyerPatterns = [
-                /(?:BUYER|CUSTOMER|PURCHASER|SOLD\s*TO)\s*[:.]?\s*([A-Z\s,]+?)(?:\s*(?:ADDRESS|TIN|DATE|INVOICE)|$)/i,
-                /(?:NAME\s*OF\s*BUYER|CUSTOMER\s*NAME)\s*[:.]?\s*([A-Z\s,]+?)(?:\s*(?:ADDRESS|TIN|DATE)|$)/i
-            ];
-            for (const pattern of buyerPatterns) {
-                const buyerMatch = text.match(pattern);
-                if (buyerMatch) {
-                    const fullName = buyerMatch[1].trim();
-                    const nameParts = fullName.split(/[,\s]+/).filter(Boolean);
-                    if (nameParts.length >= 2) {
-                        extracted.lastName = nameParts[0];
-                        extracted.firstName = nameParts.slice(1).join(' ');
-                    } else if (nameParts.length === 1) {
-                        extracted.firstName = nameParts[0];
-                    }
-                    break;
-                }
-            }
-
-            // Buyer Address
-            const buyerAddressPatterns = [
-                /(?:BUYER\s*ADDRESS|CUSTOMER\s*ADDRESS|ADDRESS\s*OF\s*BUYER)\s*[:.]?\s*(.+?)(?:\s*(?:TIN|DATE|INVOICE|TOTAL)|$)/i,
-                /(?:ADDRESS)\s*[:.]?\s*([^\n]{10,200})/i
-            ];
-            for (const pattern of buyerAddressPatterns) {
-                const addressMatch = text.match(pattern);
-                if (addressMatch) {
-                    extracted.address = addressMatch[1].trim();
-                    break;
-                }
-            }
-
-            // Buyer Phone
-            const buyerPhonePattern = /(?:BUYER\s*PHONE|CUSTOMER\s*PHONE|CONTACT|MOBILE|TEL)\s*[:.]?\s*([\+\d\s\-\(\)]{10,20})/i;
-            const phoneMatch = text.match(buyerPhonePattern);
-            if (phoneMatch) extracted.phone = phoneMatch[1].trim();
         }
 
         if (documentType === 'csr' || documentType === 'certificateOfStockReport' || documentType === 'certificate_of_stock_report') {

@@ -1814,6 +1814,26 @@ async function processDocumentForOCRAutoFill(fileInput) {
                 body: formData
             });
             
+            // Check if response is OK before parsing JSON
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[ID AutoFill Debug] OCR endpoint returned error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorPreview: errorText.substring(0, 200),
+                    documentType: documentType,
+                    fileName: file.name
+                });
+                
+                // Show user-friendly error message
+                indicator.textContent = `OCR extraction failed (${response.status}). Please enter information manually.`;
+                indicator.style.color = '#e74c3c';
+                setTimeout(() => indicator.remove(), 5000);
+                
+                throw new Error(`OCR extraction failed: ${response.status} ${response.statusText}`);
+            }
+            
+            // Parse JSON only if response is OK
             const data = await response.json();
             
             // #region agent log

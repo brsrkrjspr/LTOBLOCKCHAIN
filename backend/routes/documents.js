@@ -1489,7 +1489,23 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         });
         // #endregion
         
-        const text = await ocrService.extractText(req.file.path, req.file.mimetype);
+        // Wrap extractText in try/catch for extra safety (even though it should never throw now)
+        let text = '';
+        try {
+            text = await ocrService.extractText(req.file.path, req.file.mimetype);
+            // Ensure text is always a string
+            if (typeof text !== 'string') {
+                console.warn('[OCR API Debug] WARNING: extractText returned non-string value. Converting to string.');
+                text = String(text || '');
+            }
+        } catch (extractError) {
+            console.error('[OCR API Debug] ERROR calling extractText (should not happen):', {
+                error: extractError.message,
+                errorName: extractError.name,
+                stack: extractError.stack
+            });
+            text = ''; // Fallback to empty string
+        }
         
         // #region agent log
         console.log('[OCR API Debug] Text extraction completed:', {

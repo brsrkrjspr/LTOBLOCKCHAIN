@@ -1,14 +1,19 @@
-// TrustChain LTO - Universal Document Viewing Modal
-// Works across all pages: Owner, Admin, HPG, Insurance, Emission
+// TrustChain LTO - Professional Document Viewing Modal
+// Government/Admin System UI - Production Ready
+// Supports PDFs, Images, and all document types
 
 (function() {
     'use strict';
     
-    // Create modal container once
+    // State management
     let modalContainer = null;
     let currentDocuments = [];
     let currentDocIndex = 0;
-    let activeBlobUrls = []; // Track blob URLs for cleanup
+    let activeBlobUrls = [];
+    let currentZoom = 100;
+    let pdfViewer = null;
+    let currentPage = 1;
+    let totalPages = 1;
     
     // Initialize modal container
     function initModal() {
@@ -16,67 +21,154 @@
         
         modalContainer = document.createElement('div');
         modalContainer.id = 'documentViewerModal';
-        modalContainer.className = 'doc-viewer-modal';
+        modalContainer.className = 'doc-modal';
         modalContainer.innerHTML = `
-            <div class="doc-viewer-overlay" onclick="DocumentModal.close()"></div>
-            <div class="doc-viewer-content">
-                <div class="doc-viewer-header">
-                    <div class="doc-viewer-title">
-                        <i class="fas fa-file-alt"></i>
-                        <span id="docViewerTitle">Document Viewer</span>
+            <!-- Dark Overlay Backdrop -->
+            <div class="doc-modal-overlay" onclick="DocumentModal.close()"></div>
+            
+            <!-- Main Modal Container -->
+            <div class="doc-modal-container">
+                <!-- Header Section (Sticky) -->
+                <div class="doc-modal-header">
+                    <div class="doc-header-left">
+                        <div class="doc-title-section">
+                            <h2 class="doc-title" id="docModalTitle">Document Viewer</h2>
+                            <span class="doc-page-indicator" id="docPageIndicator" style="display: none;">Page 1 of 1</span>
+                        </div>
                     </div>
-                    <div class="doc-viewer-nav" id="docViewerNav" style="display: none;">
-                        <button class="doc-nav-btn" onclick="DocumentModal.prev()" title="Previous">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <span id="docViewerCounter">1 / 1</span>
-                        <button class="doc-nav-btn" onclick="DocumentModal.next()" title="Next">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+                    
+                    <div class="doc-header-center">
+                        <div class="doc-nav-controls" id="docNavControls" style="display: none;">
+                            <button class="doc-nav-btn" id="docPrevBtn" onclick="DocumentModal.prev()" title="Previous Document (←)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <span class="doc-counter" id="docCounter">1 / 1</span>
+                            <button class="doc-nav-btn" id="docNextBtn" onclick="DocumentModal.next()" title="Next Document (→)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="doc-viewer-actions">
-                        <button class="doc-action-btn" onclick="DocumentModal.download()" title="Download">
+                    
+                    <div class="doc-header-right">
+                        <button class="doc-header-btn" id="docDownloadBtn" onclick="DocumentModal.download()" title="Download Document">
                             <i class="fas fa-download"></i>
+                            <span class="btn-label">Download</span>
                         </button>
-                        <button class="doc-action-btn doc-close-btn" onclick="DocumentModal.close()" title="Close">
+                        <button class="doc-header-btn doc-close-btn" onclick="DocumentModal.close()" title="Close (ESC)">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
-                <div class="doc-viewer-body">
-                    <div class="doc-viewer-loading" id="docViewerLoading">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Loading document...</span>
-                    </div>
-                    <div class="doc-viewer-error" id="docViewerError" style="display: none;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span id="docViewerErrorMsg">Failed to load document</span>
-                        <button class="btn-retry" onclick="DocumentModal.retry()">
-                            <i class="fas fa-redo"></i> Retry
-                        </button>
-                    </div>
-                    <div class="doc-viewer-frame" id="docViewerFrame" style="display: none;">
-                        <!-- Document will be loaded here -->
+                
+                <!-- Main Content Area -->
+                <div class="doc-modal-body">
+                    <!-- Left Sidebar (Document List) -->
+                    <aside class="doc-sidebar" id="docSidebar">
+                        <div class="doc-sidebar-header">
+                            <h3><i class="fas fa-list"></i> Documents</h3>
+                            <button class="doc-sidebar-toggle" id="docSidebarToggle" onclick="DocumentModal.toggleSidebar()" title="Toggle Sidebar">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                        </div>
+                        <div class="doc-sidebar-list" id="docSidebarList">
+                            <!-- Document list will be populated here -->
+                        </div>
+                    </aside>
+                    
+                    <!-- Main Viewer Area -->
+                    <div class="doc-viewer-area" id="docViewerArea">
+                        <!-- Loading State -->
+                        <div class="doc-loading" id="docLoading">
+                            <div class="doc-loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </div>
+                            <p>Loading document...</p>
+                        </div>
+                        
+                        <!-- Error State -->
+                        <div class="doc-error" id="docError" style="display: none;">
+                            <div class="doc-error-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <h3>Failed to Load Document</h3>
+                            <p id="docErrorMessage">An error occurred while loading the document.</p>
+                            <div class="doc-error-actions">
+                                <button class="doc-btn doc-btn-primary" onclick="DocumentModal.retry()">
+                                    <i class="fas fa-redo"></i> Retry
+                                </button>
+                                <button class="doc-btn doc-btn-secondary" onclick="DocumentModal.download()">
+                                    <i class="fas fa-download"></i> Download Instead
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Document Frame -->
+                        <div class="doc-frame-container" id="docFrameContainer" style="display: none;">
+                            <div class="doc-frame-wrapper" id="docFrameWrapper">
+                                <!-- PDF or Image will be rendered here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="doc-viewer-sidebar" id="docViewerSidebar">
-                    <div class="doc-sidebar-header">
-                        <h4><i class="fas fa-list"></i> All Documents</h4>
-                        <button class="sidebar-toggle-btn" onclick="DocumentModal.toggleSidebar()">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+                
+                <!-- Footer Section (Optional Controls) -->
+                <div class="doc-modal-footer" id="docModalFooter" style="display: none;">
+                    <div class="doc-footer-left">
+                        <div class="doc-zoom-controls">
+                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomOut()" title="Zoom Out (-)">
+                                <i class="fas fa-search-minus"></i>
+                            </button>
+                            <span class="doc-zoom-level" id="docZoomLevel">100%</span>
+                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomIn()" title="Zoom In (+)">
+                                <i class="fas fa-search-plus"></i>
+                            </button>
+                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomFit()" title="Fit to Width">
+                                <i class="fas fa-expand-arrows-alt"></i>
+                            </button>
+                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomReset()" title="Reset Zoom">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="doc-sidebar-list" id="docSidebarList">
-                        <!-- Document list will be populated here -->
+                    
+                    <div class="doc-footer-center" id="docPdfControls" style="display: none;">
+                        <div class="doc-pdf-nav">
+                            <button class="doc-pdf-btn" id="docPdfPrevBtn" onclick="DocumentModal.prevPage()" title="Previous Page">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <input type="number" class="doc-page-input" id="docPageInput" min="1" value="1" onchange="DocumentModal.goToPage(parseInt(this.value))">
+                            <span class="doc-page-separator">of</span>
+                            <span class="doc-total-pages" id="docTotalPages">1</span>
+                            <button class="doc-pdf-btn" id="docPdfNextBtn" onclick="DocumentModal.nextPage()" title="Next Page">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="doc-footer-right">
+                        <!-- Reserved for future controls -->
                     </div>
                 </div>
             </div>
         `;
         
-        // Add styles
+        // Add comprehensive styles
+        addModalStyles();
+        
+        document.body.appendChild(modalContainer);
+    }
+    
+    // Add professional modal styles
+    function addModalStyles() {
         const styles = document.createElement('style');
+        styles.id = 'doc-modal-styles';
         styles.textContent = `
-            .doc-viewer-modal {
+            /* ============================================
+               DOCUMENT MODAL - PROFESSIONAL ADMIN THEME
+               Dark Navy/Charcoal Government System UI
+               ============================================ */
+            
+            .doc-modal {
                 display: none;
                 position: fixed;
                 top: 0;
@@ -84,396 +176,698 @@
                 width: 100%;
                 height: 100%;
                 z-index: 20000;
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             }
-            .doc-viewer-modal.active {
+            
+            .doc-modal.active {
                 display: flex;
-                animation: docModalFadeIn 0.3s ease;
+                animation: docFadeIn 0.2s ease;
             }
-            @keyframes docModalFadeIn {
+            
+            @keyframes docFadeIn {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
-            .doc-viewer-overlay {
+            
+            /* Dark Overlay Backdrop */
+            .doc-modal-overlay {
                 position: absolute;
                 top: 0;
                 left: 0;
                 width: 100%;
                 height: 100%;
                 background: rgba(0, 0, 0, 0.85);
-                backdrop-filter: blur(8px);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
             }
-            .doc-viewer-content {
+            
+            /* Main Modal Container */
+            .doc-modal-container {
                 position: relative;
                 width: 95%;
-                max-width: 1400px;
-                height: 90%;
+                max-width: 1600px;
+                height: 90vh;
+                max-height: 900px;
                 margin: auto;
-                background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-                border-radius: 20px;
+                background: #1a1d29;
+                border-radius: 12px;
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
-                box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.1);
-                animation: docModalSlideUp 0.3s ease;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+                animation: docSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
-            @keyframes docModalSlideUp {
-                from { transform: translateY(20px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
+            
+            @keyframes docSlideUp {
+                from {
+                    transform: translateY(30px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
             }
-            .doc-viewer-header {
+            
+            /* ============================================
+               HEADER SECTION (Sticky)
+               ============================================ */
+            
+            .doc-modal-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 1.25rem 1.5rem;
-                background: rgba(0,0,0,0.3);
-                border-bottom: 1px solid rgba(255,255,255,0.08);
+                padding: 1rem 1.5rem;
+                background: #0f1117;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                flex-shrink: 0;
+                position: sticky;
+                top: 0;
+                z-index: 10;
             }
-            .doc-viewer-title {
+            
+            .doc-header-left {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .doc-title-section {
                 display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                color: #fff;
-                font-size: 1.15rem;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .doc-title {
+                margin: 0;
+                font-size: 1.25rem;
                 font-weight: 600;
-                max-width: 300px;
-            }
-            .doc-viewer-title i {
-                width: 40px;
-                height: 40px;
-                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1rem;
-            }
-            .doc-viewer-title span {
+                color: #ffffff;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                max-width: 400px;
             }
-            .doc-viewer-nav {
+            
+            .doc-page-indicator {
+                font-size: 0.875rem;
+                color: #9ca3af;
+                font-weight: 500;
+            }
+            
+            .doc-header-center {
+                flex: 0 0 auto;
+                display: flex;
+                align-items: center;
+            }
+            
+            .doc-nav-controls {
                 display: flex;
                 align-items: center;
                 gap: 0.75rem;
-                color: #fff;
-                background: rgba(255,255,255,0.05);
+                background: rgba(255, 255, 255, 0.05);
                 padding: 0.5rem 1rem;
-                border-radius: 12px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
             }
+            
             .doc-nav-btn {
-                background: rgba(255,255,255,0.1);
-                border: none;
-                color: #fff;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                color: #ffffff;
                 width: 36px;
                 height: 36px;
-                border-radius: 10px;
+                border-radius: 6px;
                 cursor: pointer;
-                transition: all 0.2s;
-                font-size: 0.9rem;
-            }
-            .doc-nav-btn:hover {
-                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-                transform: scale(1.05);
-            }
-            #docViewerCounter {
-                font-weight: 600;
-                font-size: 0.9rem;
-                min-width: 60px;
-                text-align: center;
-            }
-            .doc-viewer-actions {
-                display: flex;
-                gap: 0.5rem;
-            }
-            .doc-action-btn {
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.1);
-                color: #fff;
-                width: 42px;
-                height: 42px;
-                border-radius: 10px;
-                cursor: pointer;
-                transition: all 0.2s;
-                font-size: 1rem;
-            }
-            .doc-action-btn:hover {
-                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-                border-color: transparent;
-                transform: scale(1.05);
-            }
-            .doc-close-btn:hover {
-                background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-                border-color: transparent;
-            }
-            .doc-viewer-body {
-                flex: 1;
-                display: flex;
-                position: relative;
-                background: linear-gradient(180deg, #0d0d1a 0%, #0f0f23 100%);
-                min-height: 0;
-            }
-            .doc-viewer-loading,
-            .doc-viewer-error {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                text-align: center;
-                color: #fff;
-                z-index: 5;
-            }
-            .doc-viewer-loading i {
-                font-size: 3rem;
-                margin-bottom: 1rem;
-                display: block;
-                color: #3498db;
-            }
-            .doc-viewer-error i {
-                font-size: 3.5rem;
-                margin-bottom: 1rem;
-                display: block;
-                color: #e74c3c;
-            }
-            .doc-viewer-loading span,
-            .doc-viewer-error span {
-                font-size: 1rem;
-                color: rgba(255,255,255,0.7);
-            }
-            .btn-retry {
-                margin-top: 1.5rem;
-                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-                color: #fff;
-                border: none;
-                padding: 0.875rem 2rem;
-                border-radius: 10px;
-                cursor: pointer;
-                font-weight: 600;
-                font-size: 0.9rem;
-                display: inline-flex;
-                align-items: center;
-                gap: 0.5rem;
-                transition: all 0.2s;
-            }
-            .btn-retry:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
-            }
-            .doc-viewer-frame {
-                flex: 1;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 1.5rem;
+                transition: all 0.2s ease;
+                font-size: 0.875rem;
+            }
+            
+            .doc-nav-btn:hover:not(:disabled) {
+                background: rgba(255, 255, 255, 0.2);
+                border-color: rgba(255, 255, 255, 0.3);
+                transform: scale(1.05);
+            }
+            
+            .doc-nav-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            
+            .doc-counter {
+                font-weight: 600;
+                font-size: 0.9375rem;
+                color: #ffffff;
+                min-width: 60px;
+                text-align: center;
+            }
+            
+            .doc-header-right {
+                flex: 0 0 auto;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .doc-header-btn {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                color: #ffffff;
+                padding: 0.625rem 1rem;
+                border-radius: 8px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s ease;
+                font-size: 0.9375rem;
+                font-weight: 500;
+            }
+            
+            .doc-header-btn:hover {
+                background: rgba(255, 255, 255, 0.2);
+                border-color: rgba(255, 255, 255, 0.3);
+            }
+            
+            .doc-header-btn .btn-label {
+                display: inline;
+            }
+            
+            .doc-close-btn:hover {
+                background: rgba(239, 68, 68, 0.2);
+                border-color: rgba(239, 68, 68, 0.4);
+                color: #fca5a5;
+            }
+            
+            /* ============================================
+               BODY SECTION (Sidebar + Viewer)
+               ============================================ */
+            
+            .doc-modal-body {
+                flex: 1;
+                display: flex;
                 min-height: 0;
+                background: #0f1117;
+                overflow: hidden;
             }
-            .doc-viewer-frame iframe {
-                width: 100%;
-                height: 100%;
-                border: none;
-                border-radius: 12px;
-                background: #fff;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            }
-            .doc-viewer-frame img {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-                border-radius: 12px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            }
-            .doc-viewer-sidebar {
-                width: 300px;
-                background: rgba(0,0,0,0.2);
-                border-left: 1px solid rgba(255,255,255,0.08);
+            
+            /* Left Sidebar */
+            .doc-sidebar {
+                width: 280px;
+                background: #151821;
+                border-right: 1px solid rgba(255, 255, 255, 0.1);
                 display: flex;
                 flex-direction: column;
-                transition: width 0.3s ease;
+                flex-shrink: 0;
+                transition: transform 0.3s ease, width 0.3s ease;
             }
-            .doc-viewer-sidebar.collapsed {
-                width: 52px;
+            
+            .doc-sidebar.collapsed {
+                width: 0;
+                transform: translateX(-100%);
+                border-right: none;
             }
-            .doc-viewer-sidebar.collapsed .doc-sidebar-list,
-            .doc-viewer-sidebar.collapsed .doc-sidebar-header h4 {
-                display: none;
-            }
-            .doc-viewer-sidebar.collapsed .sidebar-toggle-btn i {
-                transform: rotate(180deg);
-            }
+            
             .doc-sidebar-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 1.25rem 1rem;
-                border-bottom: 1px solid rgba(255,255,255,0.08);
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             }
-            .doc-sidebar-header h4 {
+            
+            .doc-sidebar-header h3 {
                 margin: 0;
-                color: #fff;
-                font-size: 0.95rem;
+                font-size: 0.9375rem;
+                font-weight: 600;
+                color: #ffffff;
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
-                font-weight: 600;
             }
-            .doc-sidebar-header h4 i {
-                color: #3498db;
+            
+            .doc-sidebar-header h3 i {
+                color: #60a5fa;
             }
-            .sidebar-toggle-btn {
-                background: rgba(255,255,255,0.1);
-                border: none;
-                color: #fff;
-                cursor: pointer;
-                padding: 0.5rem;
-                border-radius: 8px;
+            
+            .doc-sidebar-toggle {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                color: #ffffff;
                 width: 32px;
                 height: 32px;
+                border-radius: 6px;
+                cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                transition: all 0.2s;
+                transition: all 0.2s ease;
             }
-            .sidebar-toggle-btn:hover {
-                background: rgba(255,255,255,0.2);
+            
+            .doc-sidebar-toggle:hover {
+                background: rgba(255, 255, 255, 0.2);
             }
-            .sidebar-toggle-btn i {
-                transition: transform 0.3s;
+            
+            .doc-sidebar.collapsed .doc-sidebar-toggle i {
+                transform: rotate(180deg);
             }
+            
             .doc-sidebar-list {
                 flex: 1;
                 overflow-y: auto;
                 padding: 0.75rem;
             }
+            
+            /* Custom Scrollbar */
+            .doc-sidebar-list::-webkit-scrollbar {
+                width: 6px;
+            }
+            
+            .doc-sidebar-list::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.05);
+            }
+            
+            .doc-sidebar-list::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 3px;
+            }
+            
+            .doc-sidebar-list::-webkit-scrollbar-thumb:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+            
+            /* Sidebar Document Item */
             .doc-sidebar-item {
                 display: flex;
                 align-items: center;
-                gap: 0.875rem;
+                gap: 0.75rem;
                 padding: 0.875rem 1rem;
-                border-radius: 12px;
+                border-radius: 8px;
                 cursor: pointer;
-                transition: all 0.2s;
-                color: rgba(255,255,255,0.7);
+                transition: all 0.2s ease;
+                color: #d1d5db;
                 margin-bottom: 0.5rem;
                 border: 2px solid transparent;
             }
+            
             .doc-sidebar-item:hover {
-                background: rgba(52, 152, 219, 0.15);
-                color: #fff;
-                border-color: rgba(52, 152, 219, 0.3);
+                background: rgba(96, 165, 250, 0.1);
+                color: #ffffff;
+                border-color: rgba(96, 165, 250, 0.2);
             }
+            
             .doc-sidebar-item.active {
-                background: linear-gradient(135deg, rgba(52, 152, 219, 0.25) 0%, rgba(41, 128, 185, 0.25) 100%);
-                border-color: #3498db;
-                color: #fff;
+                background: rgba(96, 165, 250, 0.2);
+                border-color: #60a5fa;
+                color: #ffffff;
             }
-            .doc-sidebar-item i {
-                font-size: 1.25rem;
+            
+            .doc-sidebar-item-icon {
                 width: 40px;
                 height: 40px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                border-radius: 10px;
-                background: rgba(255,255,255,0.1);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.1);
+                font-size: 1.125rem;
+                flex-shrink: 0;
             }
-            .doc-sidebar-item.active i {
-                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            
+            .doc-sidebar-item.active .doc-sidebar-item-icon {
+                background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
             }
+            
             .doc-sidebar-item-info {
                 flex: 1;
                 min-width: 0;
             }
+            
             .doc-sidebar-item-title {
                 font-weight: 500;
-                font-size: 0.9rem;
+                font-size: 0.875rem;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                margin-bottom: 0.25rem;
             }
+            
             .doc-sidebar-item-type {
                 font-size: 0.75rem;
-                opacity: 0.7;
-                margin-top: 0.125rem;
+                color: #9ca3af;
             }
             
-            /* Custom scrollbar for sidebar */
-            .doc-sidebar-list::-webkit-scrollbar {
-                width: 6px;
-            }
-            .doc-sidebar-list::-webkit-scrollbar-track {
-                background: rgba(255,255,255,0.05);
-                border-radius: 3px;
-            }
-            .doc-sidebar-list::-webkit-scrollbar-thumb {
-                background: rgba(255,255,255,0.2);
-                border-radius: 3px;
-            }
-            .doc-sidebar-list::-webkit-scrollbar-thumb:hover {
-                background: rgba(255,255,255,0.3);
+            /* Main Viewer Area */
+            .doc-viewer-area {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                background: #0a0c10;
+                min-width: 0;
             }
             
-            @media (max-width: 900px) {
-                .doc-viewer-sidebar {
-                    position: absolute;
-                    right: 0;
-                    top: 0;
-                    bottom: 0;
-                    width: 280px;
-                    z-index: 10;
-                    transform: translateX(100%);
-                    transition: transform 0.3s ease;
-                }
-                .doc-viewer-sidebar.mobile-open {
-                    transform: translateX(0);
-                }
-                .doc-viewer-content {
+            /* Loading State */
+            .doc-loading {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                color: #ffffff;
+                z-index: 5;
+            }
+            
+            .doc-loading-spinner {
+                font-size: 3rem;
+                color: #60a5fa;
+                margin-bottom: 1rem;
+            }
+            
+            .doc-loading p {
+                font-size: 1rem;
+                color: #9ca3af;
+                margin: 0;
+            }
+            
+            /* Error State */
+            .doc-error {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                color: #ffffff;
+                z-index: 5;
+                max-width: 400px;
+                padding: 2rem;
+            }
+            
+            .doc-error-icon {
+                font-size: 4rem;
+                color: #ef4444;
+                margin-bottom: 1rem;
+            }
+            
+            .doc-error h3 {
+                margin: 0 0 0.5rem 0;
+                font-size: 1.25rem;
+                color: #ffffff;
+            }
+            
+            .doc-error p {
+                margin: 0 0 1.5rem 0;
+                color: #9ca3af;
+                font-size: 0.9375rem;
+            }
+            
+            .doc-error-actions {
+                display: flex;
+                gap: 0.75rem;
+                justify-content: center;
+            }
+            
+            .doc-btn {
+                padding: 0.75rem 1.5rem;
+                border-radius: 8px;
+                border: none;
+                cursor: pointer;
+                font-size: 0.9375rem;
+                font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s ease;
+            }
+            
+            .doc-btn-primary {
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                color: #ffffff;
+            }
+            
+            .doc-btn-primary:hover {
+                background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            }
+            
+            .doc-btn-secondary {
+                background: rgba(255, 255, 255, 0.1);
+                color: #ffffff;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            
+            .doc-btn-secondary:hover {
+                background: rgba(255, 255, 255, 0.2);
+            }
+            
+            /* Document Frame Container */
+            .doc-frame-container {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1.5rem;
+                overflow: auto;
+            }
+            
+            .doc-frame-wrapper {
+                position: relative;
+                background: #ffffff;
+                border-radius: 8px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                overflow: hidden;
+                transition: transform 0.3s ease;
+            }
+            
+            .doc-frame-wrapper img {
+                display: block;
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+            }
+            
+            .doc-frame-wrapper iframe,
+            .doc-frame-wrapper embed {
+                display: block;
+                width: 100%;
+                height: 100%;
+                border: none;
+                background: #ffffff;
+            }
+            
+            /* ============================================
+               FOOTER SECTION (Controls)
+               ============================================ */
+            
+            .doc-modal-footer {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.875rem 1.5rem;
+                background: #0f1117;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                flex-shrink: 0;
+            }
+            
+            .doc-footer-left,
+            .doc-footer-center,
+            .doc-footer-right {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+            
+            .doc-zoom-controls {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: rgba(255, 255, 255, 0.05);
+                padding: 0.5rem 1rem;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
+            .doc-zoom-btn {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                color: #ffffff;
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                font-size: 0.875rem;
+            }
+            
+            .doc-zoom-btn:hover {
+                background: rgba(255, 255, 255, 0.2);
+                border-color: rgba(255, 255, 255, 0.3);
+            }
+            
+            .doc-zoom-level {
+                font-weight: 600;
+                font-size: 0.875rem;
+                color: #ffffff;
+                min-width: 50px;
+                text-align: center;
+            }
+            
+            .doc-pdf-nav {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: rgba(255, 255, 255, 0.05);
+                padding: 0.5rem 1rem;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
+            .doc-pdf-btn {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                color: #ffffff;
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                font-size: 0.875rem;
+            }
+            
+            .doc-pdf-btn:hover:not(:disabled) {
+                background: rgba(255, 255, 255, 0.2);
+                border-color: rgba(255, 255, 255, 0.3);
+            }
+            
+            .doc-pdf-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            
+            .doc-page-input {
+                width: 60px;
+                padding: 0.375rem 0.5rem;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 6px;
+                color: #ffffff;
+                font-size: 0.875rem;
+                text-align: center;
+            }
+            
+            .doc-page-input:focus {
+                outline: none;
+                border-color: #60a5fa;
+                background: rgba(255, 255, 255, 0.15);
+            }
+            
+            .doc-page-separator,
+            .doc-total-pages {
+                font-size: 0.875rem;
+                color: #9ca3af;
+                font-weight: 500;
+            }
+            
+            /* ============================================
+               RESPONSIVE DESIGN
+               ============================================ */
+            
+            @media (max-width: 1024px) {
+                .doc-modal-container {
                     width: 100%;
-                    height: 100%;
+                    height: 100vh;
+                    max-height: 100vh;
                     border-radius: 0;
                 }
-                .doc-viewer-title {
-                    max-width: 180px;
+                
+                .doc-sidebar {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    bottom: 0;
+                    z-index: 20;
+                    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
                 }
-                .doc-viewer-nav {
-                    padding: 0.375rem 0.75rem;
+                
+                .doc-sidebar:not(.collapsed) {
+                    transform: translateX(0);
+                }
+                
+                .doc-header-btn .btn-label {
+                    display: none;
                 }
             }
-            @media (max-width: 480px) {
-                .doc-viewer-header {
-                    padding: 0.75rem 1rem;
+            
+            @media (max-width: 768px) {
+                .doc-modal-header {
+                    padding: 0.875rem 1rem;
                     flex-wrap: wrap;
-                    gap: 0.5rem;
+                    gap: 0.75rem;
                 }
-                .doc-viewer-title {
-                    max-width: calc(100% - 100px);
-                    font-size: 1rem;
+                
+                .doc-title {
+                    font-size: 1.125rem;
+                    max-width: 200px;
                 }
-                .doc-viewer-title i {
-                    width: 36px;
-                    height: 36px;
-                    font-size: 0.9rem;
-                }
-                .doc-action-btn {
-                    width: 36px;
-                    height: 36px;
-                }
-                .doc-viewer-nav {
+                
+                .doc-nav-controls {
                     order: 3;
                     width: 100%;
                     justify-content: center;
                 }
-                .doc-viewer-frame {
-                    padding: 0.75rem;
+                
+                .doc-header-right {
+                    order: 2;
+                }
+                
+                .doc-frame-container {
+                    padding: 1rem;
+                }
+                
+                .doc-modal-footer {
+                    padding: 0.75rem 1rem;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+                
+                .doc-footer-center {
+                    order: 3;
+                    width: 100%;
+                    justify-content: center;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .doc-title {
+                    font-size: 1rem;
+                    max-width: 150px;
+                }
+                
+                .doc-sidebar {
+                    width: 100%;
+                }
+                
+                .doc-zoom-controls {
+                    flex-wrap: wrap;
                 }
             }
         `;
         
         document.head.appendChild(styles);
-        document.body.appendChild(modalContainer);
     }
     
-    // Get auth token
+    // Get authentication token
     function getAuthToken() {
         return (typeof window !== 'undefined' && window.authManager) 
             ? window.authManager.getAccessToken() 
@@ -492,199 +886,227 @@
             'emissionCert': 'Emission Certificate',
             'owner_id': 'Owner ID',
             'ownerId': 'Owner ID',
-            'deed_of_sale': 'Deed of Sale',
-            'deedOfSale': 'Deed of Sale',
+            'ownerValidId': 'Owner Valid ID',
             'valid_id': 'Valid ID',
             'validId': 'Valid ID',
+            'deed_of_sale': 'Deed of Sale',
+            'deedOfSale': 'Deed of Sale',
             'hpg_clearance': 'HPG Clearance',
-            'hpgClearance': 'HPG Clearance'
+            'hpgClearance': 'HPG Clearance',
+            'pnpHpgClearance': 'PNP-HPG Clearance',
+            'sales_invoice': 'Sales Invoice',
+            'salesInvoice': 'Sales Invoice',
+            'certificate_of_stock_report': 'Certificate of Stock Report (CSR)',
+            'certificateOfStockReport': 'Certificate of Stock Report (CSR)',
+            'csr': 'Certificate of Stock Report (CSR)',
+            'affidavit_of_attachment': 'Affidavit of Attachment',
+            'affidavitOfAttachment': 'Affidavit of Attachment'
         };
-        return labels[type] || type || 'Document';
+        return labels[type] || (type ? type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Document');
     }
     
     // Get document icon
     function getDocIcon(type) {
         const icons = {
-            'registration_cert': 'fa-car',
-            'registrationCert': 'fa-car',
-            'or_cr': 'fa-car',
+            'registration_cert': 'fa-file-alt',
+            'registrationCert': 'fa-file-alt',
+            'or_cr': 'fa-file-alt',
             'insurance_cert': 'fa-shield-alt',
             'insuranceCert': 'fa-shield-alt',
             'emission_cert': 'fa-leaf',
             'emissionCert': 'fa-leaf',
             'owner_id': 'fa-id-card',
             'ownerId': 'fa-id-card',
-            'deed_of_sale': 'fa-file-contract',
-            'deedOfSale': 'fa-file-contract',
+            'ownerValidId': 'fa-id-card',
             'valid_id': 'fa-id-badge',
             'validId': 'fa-id-badge',
             'hpg_clearance': 'fa-certificate',
-            'hpgClearance': 'fa-certificate'
+            'hpgClearance': 'fa-certificate',
+            'pnpHpgClearance': 'fa-certificate',
+            'sales_invoice': 'fa-file-invoice',
+            'salesInvoice': 'fa-file-invoice',
+            'certificate_of_stock_report': 'fa-file-contract',
+            'certificateOfStockReport': 'fa-file-contract',
+            'csr': 'fa-file-contract',
+            'affidavit_of_attachment': 'fa-file-signature',
+            'affidavitOfAttachment': 'fa-file-signature'
         };
         return icons[type] || 'fa-file-alt';
     }
     
-    // Render sidebar
+    // Render sidebar document list
     function renderSidebar() {
         const list = document.getElementById('docSidebarList');
-        if (!list) return;
+        const sidebar = document.getElementById('docSidebar');
+        const navControls = document.getElementById('docNavControls');
+        
+        if (!list || !sidebar) return;
         
         if (currentDocuments.length <= 1) {
-            document.getElementById('docViewerSidebar').style.display = 'none';
-            document.getElementById('docViewerNav').style.display = 'none';
+            sidebar.classList.add('collapsed');
+            if (navControls) navControls.style.display = 'none';
             return;
         }
         
-        document.getElementById('docViewerSidebar').style.display = 'flex';
-        document.getElementById('docViewerNav').style.display = 'flex';
+        sidebar.classList.remove('collapsed');
+        if (navControls) navControls.style.display = 'flex';
         
-        list.innerHTML = currentDocuments.map((doc, index) => `
-            <div class="doc-sidebar-item ${index === currentDocIndex ? 'active' : ''}" 
-                 onclick="DocumentModal.goTo(${index})">
-                <i class="fas ${getDocIcon(doc.type || doc.document_type)}"></i>
-                <div class="doc-sidebar-item-info">
-                    <div class="doc-sidebar-item-title">${doc.filename || doc.original_name || 'Document'}</div>
-                    <div class="doc-sidebar-item-type">${getDocTypeLabel(doc.type || doc.document_type)}</div>
+        list.innerHTML = currentDocuments.map((doc, index) => {
+            const docType = doc.type || doc.document_type || 'document';
+            const docName = doc.filename || doc.original_name || doc.name || getDocTypeLabel(docType);
+            const docLabel = getDocTypeLabel(docType);
+            
+            return `
+                <div class="doc-sidebar-item ${index === currentDocIndex ? 'active' : ''}" 
+                     onclick="DocumentModal.goTo(${index})"
+                     title="${escapeHtml(docName)}">
+                    <div class="doc-sidebar-item-icon">
+                        <i class="fas ${getDocIcon(docType)}"></i>
+                    </div>
+                    <div class="doc-sidebar-item-info">
+                        <div class="doc-sidebar-item-title">${escapeHtml(docName)}</div>
+                        <div class="doc-sidebar-item-type">${escapeHtml(docLabel)}</div>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
     
-    // Update counter
+    // Update navigation counter
     function updateCounter() {
-        const counter = document.getElementById('docViewerCounter');
+        const counter = document.getElementById('docCounter');
+        const prevBtn = document.getElementById('docPrevBtn');
+        const nextBtn = document.getElementById('docNextBtn');
+        
         if (counter) {
             counter.textContent = `${currentDocIndex + 1} / ${currentDocuments.length}`;
         }
+        
+        if (prevBtn) {
+            prevBtn.disabled = currentDocuments.length <= 1;
+        }
+        
+        if (nextBtn) {
+            nextBtn.disabled = currentDocuments.length <= 1;
+        }
+    }
+    
+    // Update zoom display
+    function updateZoomDisplay() {
+        const zoomLevel = document.getElementById('docZoomLevel');
+        if (zoomLevel) {
+            zoomLevel.textContent = `${currentZoom}%`;
+        }
+    }
+    
+    // Apply zoom to document
+    function applyZoom() {
+        const wrapper = document.getElementById('docFrameWrapper');
+        if (wrapper) {
+            wrapper.style.transform = `scale(${currentZoom / 100})`;
+            wrapper.style.transformOrigin = 'center center';
+        }
+        updateZoomDisplay();
     }
     
     // Load document content
     async function loadDocument(doc) {
-        const frame = document.getElementById('docViewerFrame');
-        const loading = document.getElementById('docViewerLoading');
-        const error = document.getElementById('docViewerError');
-        const title = document.getElementById('docViewerTitle');
+        const frame = document.getElementById('docFrameContainer');
+        const wrapper = document.getElementById('docFrameWrapper');
+        const loading = document.getElementById('docLoading');
+        const error = document.getElementById('docError');
+        const errorMsg = document.getElementById('docErrorMessage');
+        const title = document.getElementById('docModalTitle');
+        const pageIndicator = document.getElementById('docPageIndicator');
+        const footer = document.getElementById('docModalFooter');
+        const pdfControls = document.getElementById('docPdfControls');
+        
+        // Reset state
+        currentZoom = 100;
+        currentPage = 1;
+        totalPages = 1;
+        applyZoom();
         
         // Show loading
-        loading.style.display = 'block';
-        frame.style.display = 'none';
-        error.style.display = 'none';
+        if (loading) loading.style.display = 'block';
+        if (frame) frame.style.display = 'none';
+        if (error) error.style.display = 'none';
+        if (pdfControls) pdfControls.style.display = 'none';
         
         // Update title
-        title.textContent = doc.filename || doc.original_name || doc.label || getDocTypeLabel(doc.type || doc.document_type);
+        const docName = doc.filename || doc.original_name || doc.name || getDocTypeLabel(doc.type || doc.document_type);
+        if (title) {
+            title.textContent = docName;
+        }
         
-        console.log('DocumentModal loading:', doc);
-            // #region agent log
-            console.log('[DocumentModal Debug] loadDocument entry:', {
-                hasId: !!doc.id,
-                hasCid: !!doc.cid,
-                hasPath: !!doc.path,
-                hasUrl: !!doc.url,
-                id: doc.id,
-                cid: doc.cid,
-                url: doc.url
-            });
-            // #endregion
+        if (pageIndicator) {
+            pageIndicator.style.display = 'none';
+        }
         
         try {
             let url = null;
             const token = getAuthToken();
             
-            // Priority 1: Check for UUID-style document ID (most reliable - always use this if available)
+            // Priority 1: Document ID (UUID)
             if (doc.id && typeof doc.id === 'string') {
                 const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id);
-                // #region agent log
-                console.log('[DocumentModal Debug] Checking UUID:', {hasId:!!doc.id,id:doc.id,isUUID});
-                // #endregion
                 if (isUUID) {
                     url = `/api/documents/${doc.id}/view`;
-                    // #region agent log
-                    console.log('[DocumentModal Debug] Using UUID URL:', url);
-                    // #endregion
-                    console.log('Using API URL from UUID:', url);
-                } else {
-                    // #region agent log
-                    console.log('[DocumentModal Debug] ID is not a valid UUID:', doc.id);
-                    // #endregion
                 }
-            } else {
-                // #region agent log
-                console.log('[DocumentModal Debug] No document ID available');
-                // #endregion
             }
             
-            // Priority 2: Check for data URL (base64)
+            // Priority 2: Data URL
             if (!url && doc.url && typeof doc.url === 'string' && doc.url.startsWith('data:')) {
                 url = doc.url;
-                // #region agent log
-                console.log('[DocumentModal Debug] Using data URL');
-                // #endregion
-                console.log('Using data URL');
             }
-            // Priority 3: Check for IPFS CID (if no ID available)
+            // Priority 3: IPFS CID
             else if (!url && (doc.cid || doc.ipfs_cid)) {
                 const cid = doc.cid || doc.ipfs_cid;
                 url = `/api/documents/ipfs/${cid}`;
-                // #region agent log
-                console.log('[DocumentModal Debug] Using IPFS URL (no ID available):', {url,cid});
-                // #endregion
-                console.log('Using IPFS URL:', url);
             }
-            // Priority 4: Check for direct URL already set (fallback - but prefer ID/CID routes)
-            else if (!url && doc.url && typeof doc.url === 'string' && (doc.url.startsWith('http') || doc.url.startsWith('/api/') || doc.url.startsWith('/uploads/'))) {
+            // Priority 4: Direct URL
+            else if (!url && doc.url && typeof doc.url === 'string' && 
+                     (doc.url.startsWith('http') || doc.url.startsWith('/api/') || doc.url.startsWith('/uploads/'))) {
                 url = doc.url;
-                // #region agent log
-                console.log('[DocumentModal Debug] Using provided URL (fallback, no ID/CID):', {url,urlStartsWith:doc.url.substring(0,30)});
-                // #endregion
-                console.log('Using provided URL (fallback):', url);
             }
-            // Check for file path - NOTE: This should not be used to construct /api/documents/file/ URLs
-            if (!url && (doc.path || doc.file_path)) {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:609',message:'DocumentModal - file path detected (should not construct URL)',data:{path:doc.path||doc.file_path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                // #endregion
-                // Don't use file path to construct URL - it's not a valid route
-                // If we only have path, we need document ID or CID
-                console.warn('Document has file path but no ID or CID - cannot construct valid URL');
-            }
-            // Fallback to url property
-            if (!url && doc.url) {
+            // Fallback
+            else if (!url && doc.url) {
                 url = doc.url;
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-modal.js:616',message:'DocumentModal - fallback to doc.url',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                // #endregion
-                console.log('Fallback to doc.url:', url);
             }
-            
-            // #region agent log
-            console.log('[DocumentModal Debug] Final URL decision:', {finalUrl:url,hasUrl:!!url});
-            // #endregion
             
             if (!url) {
                 throw new Error('No document URL available');
             }
             
-            // Check if it's an image based on URL pattern or filename
+            // Determine file type
             const urlStr = url || '';
-            const filenameStr = doc.filename || doc.original_name || doc.label || '';
+            const filenameStr = docName.toLowerCase();
+            const mimeType = doc.mime_type || doc.mimeType || '';
+            
             const isDataImage = urlStr.startsWith('data:image');
             const isFileImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(urlStr) || 
                                /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(filenameStr);
-            const isMimeImage = doc.mime_type && doc.mime_type.startsWith('image/');
+            const isMimeImage = mimeType.startsWith('image/');
             const isImage = isDataImage || isFileImage || isMimeImage;
+            
+            const isFilePdf = /\.pdf$/i.test(urlStr) || /\.pdf$/i.test(filenameStr);
+            const isMimePdf = mimeType === 'application/pdf';
+            const isPdf = isFilePdf || isMimePdf;
             
             // Handle data URLs directly
             if (url.startsWith('data:')) {
-                console.log('Rendering data URL');
                 if (isImage) {
-                    frame.innerHTML = `<img src="${url}" alt="${doc.filename || doc.label || 'Document'}" />`;
+                    if (wrapper) {
+                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" />`;
+                    }
                 } else {
-                    frame.innerHTML = `<iframe src="${url}" title="${doc.filename || doc.label || 'Document'}"></iframe>`;
+                    if (wrapper) {
+                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}"></iframe>`;
+                    }
                 }
             }
-            // For API/server endpoints, fetch with auth
+            // Handle API/server endpoints
             else if (url.startsWith('/api/') || url.startsWith('/uploads/')) {
-                console.log('Fetching from server:', url);
                 const response = await fetch(url, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -697,56 +1119,102 @@
                 }
                 
                 const blob = await response.blob();
-                console.log('Blob loaded, type:', blob.type, 'size:', blob.size);
                 
                 if (isImage || blob.type.startsWith('image/')) {
-                    // For images, convert to data URL to avoid CSP issues
+                    // Convert blob to data URL for images
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        frame.innerHTML = `<img src="${e.target.result}" alt="${doc.filename || doc.label || 'Document'}" />`;
+                        if (wrapper) {
+                            wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" />`;
+                        }
                     };
                     reader.onerror = function() {
-                        frame.innerHTML = `<div style="color:#e74c3c;text-align:center;">Image failed to load</div>`;
+                        throw new Error('Failed to read image file');
                     };
                     reader.readAsDataURL(blob);
-                } else {
-                    // For PDFs, use blob URL with iframe (more CSP-friendly than data URIs)
+                } else if (isPdf || blob.type === 'application/pdf') {
+                    // Use blob URL for PDFs
                     const blobUrl = URL.createObjectURL(blob);
-                    activeBlobUrls.push(blobUrl); // Track for cleanup
-                    frame.innerHTML = `
-                        <iframe src="${blobUrl}" type="application/pdf" style="width: 100%; height: 100%; border: none;" frameborder="0">
-                            <p style="text-align: center; padding: 40px;">
-                                Your browser does not support PDFs. 
-                                <a href="${url}" download style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Download PDF</a>
-                            </p>
-                        </iframe>
-                    `;
+                    activeBlobUrls.push(blobUrl);
+                    
+                    if (wrapper) {
+                        wrapper.innerHTML = `
+                            <iframe src="${blobUrl}" 
+                                    type="application/pdf" 
+                                    title="${escapeHtml(docName)}"
+                                    onload="this.contentWindow.addEventListener('load', function() {
+                                        try {
+                                            const pdf = this.document.querySelector('embed') || this.document;
+                                            if (pdf) {
+                                                const pages = pdf.querySelectorAll('.page') || [];
+                                                if (pages.length > 0) {
+                                                    window.documentModalUpdatePages(${activeBlobUrls.length - 1}, pages.length);
+                                                }
+                                            }
+                                        } catch(e) {}
+                                    });"></iframe>
+                        `;
+                    }
+                    
+                    // Show PDF controls
+                    if (pdfControls) pdfControls.style.display = 'flex';
+                    if (footer) footer.style.display = 'flex';
+                } else {
+                    // Other file types - show download option
+                    if (wrapper) {
+                        wrapper.innerHTML = `
+                            <div style="text-align: center; padding: 3rem; color: #ffffff;">
+                                <i class="fas fa-file-alt" style="font-size: 4rem; color: #60a5fa; margin-bottom: 1rem;"></i>
+                                <h3 style="margin: 0 0 0.5rem 0; color: #ffffff;">Preview Not Available</h3>
+                                <p style="color: #9ca3af; margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
+                                <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">
+                                    <i class="fas fa-download"></i> Download Document
+                                </button>
+                            </div>
+                        `;
+                    }
                 }
             } else {
-                // Direct URL (http/https)
-                console.log('Using direct external URL');
+                // Direct external URL
                 if (isImage) {
-                    frame.innerHTML = `<img src="${url}" alt="${doc.filename || doc.label || 'Document'}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'color:#e74c3c;text-align:center;\\'>Image failed to load</div>';" />`;
+                    if (wrapper) {
+                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'text-align:center;padding:2rem;color:#ef4444;\\'><i class=\\'fas fa-exclamation-triangle\\' style=\\'font-size:2rem;margin-bottom:0.5rem;\\'></i><p>Image failed to load</p></div>';" />`;
+                    }
                 } else {
-                    frame.innerHTML = `<iframe src="${url}" title="${doc.filename || doc.label || 'Document'}"></iframe>`;
+                    if (wrapper) {
+                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}"></iframe>`;
+                    }
                 }
             }
             
             // Show frame
-            loading.style.display = 'none';
-            frame.style.display = 'flex';
+            if (loading) loading.style.display = 'none';
+            if (frame) frame.style.display = 'flex';
+            if (footer) footer.style.display = 'flex';
             
         } catch (err) {
             console.error('Error loading document:', err);
-            console.error('Document was:', doc);
-            loading.style.display = 'none';
-            error.style.display = 'block';
-            document.getElementById('docViewerErrorMsg').textContent = err.message;
+            if (loading) loading.style.display = 'none';
+            if (frame) frame.style.display = 'none';
+            if (error) {
+                error.style.display = 'block';
+                if (errorMsg) {
+                    errorMsg.textContent = err.message || 'An unexpected error occurred';
+                }
+            }
         }
         
         // Update sidebar and counter
         renderSidebar();
         updateCounter();
+    }
+    
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     // Public API
@@ -756,17 +1224,17 @@
             this.viewMultiple([doc], 0);
         },
         
-        // View multiple documents with optional starting index
+        // View multiple documents
         viewMultiple: function(docs, startIndex = 0) {
             initModal();
             
             if (!docs || docs.length === 0) {
-                alert('No documents available to view');
+                console.error('DocumentModal: No documents provided');
                 return;
             }
             
             currentDocuments = Array.isArray(docs) ? docs : [docs];
-            currentDocIndex = startIndex;
+            currentDocIndex = Math.max(0, Math.min(startIndex, currentDocuments.length - 1));
             
             modalContainer.classList.add('active');
             loadDocument(currentDocuments[currentDocIndex]);
@@ -775,7 +1243,7 @@
             document.body.style.overflow = 'hidden';
         },
         
-        // Navigate to specific index
+        // Navigate to specific document index
         goTo: function(index) {
             if (index >= 0 && index < currentDocuments.length) {
                 currentDocIndex = index;
@@ -785,6 +1253,7 @@
         
         // Previous document
         prev: function() {
+            if (currentDocuments.length <= 1) return;
             if (currentDocIndex > 0) {
                 this.goTo(currentDocIndex - 1);
             } else {
@@ -794,6 +1263,7 @@
         
         // Next document
         next: function() {
+            if (currentDocuments.length <= 1) return;
             if (currentDocIndex < currentDocuments.length - 1) {
                 this.goTo(currentDocIndex + 1);
             } else {
@@ -803,7 +1273,7 @@
         
         // Close modal
         close: function() {
-            // Clean up all blob URLs
+            // Clean up blob URLs
             activeBlobUrls.forEach(url => {
                 try {
                     URL.revokeObjectURL(url);
@@ -825,15 +1295,26 @@
             if (!doc) return;
             
             try {
-                let url = doc.id ? `/api/documents/${doc.id}/download` : 
-                         (doc.url || doc.path || doc.file_path);
+                let url = null;
+                const token = getAuthToken();
+                
+                if (doc.id && typeof doc.id === 'string') {
+                    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id);
+                    if (isUUID) {
+                        url = `/api/documents/${doc.id}/download`;
+                    }
+                }
+                
+                if (!url && doc.url) {
+                    url = doc.url;
+                }
                 
                 if (!url) {
                     alert('Download not available for this document');
                     return;
                 }
                 
-                const token = getAuthToken();
+                const filename = doc.filename || doc.original_name || doc.name || 'document';
                 
                 if (url.startsWith('/api/')) {
                     const response = await fetch(url, {
@@ -846,14 +1327,15 @@
                     const blobUrl = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = blobUrl;
-                    a.download = doc.filename || doc.original_name || 'document';
+                    a.download = filename;
+                    document.body.appendChild(a);
                     a.click();
-                    URL.revokeObjectURL(blobUrl);
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
                 } else {
-                    // Trigger download without opening a new tab
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = doc.filename || doc.original_name || 'document';
+                    a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -873,10 +1355,94 @@
         
         // Toggle sidebar
         toggleSidebar: function() {
-            const sidebar = document.getElementById('docViewerSidebar');
+            const sidebar = document.getElementById('docSidebar');
             if (sidebar) {
                 sidebar.classList.toggle('collapsed');
             }
+        },
+        
+        // Zoom controls
+        zoomIn: function() {
+            currentZoom = Math.min(currentZoom + 25, 300);
+            applyZoom();
+        },
+        
+        zoomOut: function() {
+            currentZoom = Math.max(currentZoom - 25, 50);
+            applyZoom();
+        },
+        
+        zoomFit: function() {
+            const wrapper = document.getElementById('docFrameWrapper');
+            if (wrapper) {
+                const img = wrapper.querySelector('img');
+                if (img) {
+                    const container = wrapper.parentElement;
+                    if (container) {
+                        const scaleX = (container.clientWidth - 40) / img.naturalWidth;
+                        const scaleY = (container.clientHeight - 40) / img.naturalHeight;
+                        currentZoom = Math.min(scaleX, scaleY) * 100;
+                        currentZoom = Math.max(50, Math.min(currentZoom, 300));
+                        applyZoom();
+                    }
+                }
+            }
+        },
+        
+        zoomReset: function() {
+            currentZoom = 100;
+            applyZoom();
+        },
+        
+        // PDF page navigation
+        prevPage: function() {
+            if (currentPage > 1) {
+                this.goToPage(currentPage - 1);
+            }
+        },
+        
+        nextPage: function() {
+            if (currentPage < totalPages) {
+                this.goToPage(currentPage + 1);
+            }
+        },
+        
+        goToPage: function(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                const pageInput = document.getElementById('docPageInput');
+                if (pageInput) {
+                    pageInput.value = page;
+                }
+                const pageIndicator = document.getElementById('docPageIndicator');
+                if (pageIndicator) {
+                    pageIndicator.textContent = `Page ${page} of ${totalPages}`;
+                    pageIndicator.style.display = 'inline';
+                }
+                // Note: PDF page navigation would require PDF.js library for full implementation
+                // This is a placeholder for the UI
+            }
+        }
+    };
+    
+    // Global helper for PDF page updates (called from iframe)
+    window.documentModalUpdatePages = function(index, pages) {
+        totalPages = pages;
+        currentPage = 1;
+        const pageInput = document.getElementById('docPageInput');
+        const totalPagesEl = document.getElementById('docTotalPages');
+        const pageIndicator = document.getElementById('docPageIndicator');
+        
+        if (pageInput) {
+            pageInput.max = pages;
+            pageInput.value = 1;
+        }
+        if (totalPagesEl) {
+            totalPagesEl.textContent = pages;
+        }
+        if (pageIndicator) {
+            pageIndicator.textContent = `Page 1 of ${pages}`;
+            pageIndicator.style.display = 'inline';
         }
     };
     
@@ -884,15 +1450,42 @@
     document.addEventListener('keydown', function(e) {
         if (!modalContainer || !modalContainer.classList.contains('active')) return;
         
+        // Don't handle if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
         switch (e.key) {
             case 'Escape':
                 DocumentModal.close();
                 break;
             case 'ArrowLeft':
+                e.preventDefault();
                 DocumentModal.prev();
                 break;
             case 'ArrowRight':
+                e.preventDefault();
                 DocumentModal.next();
+                break;
+            case '+':
+            case '=':
+                if (e.shiftKey || e.key === '+') {
+                    e.preventDefault();
+                    DocumentModal.zoomIn();
+                }
+                break;
+            case '-':
+            case '_':
+                if (e.shiftKey || e.key === '-') {
+                    e.preventDefault();
+                    DocumentModal.zoomOut();
+                }
+                break;
+            case '0':
+                if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    DocumentModal.zoomReset();
+                }
                 break;
         }
     });
@@ -906,10 +1499,9 @@
     
 })();
 
-// Helper function for easy document viewing (can be called from anywhere)
+// Helper function for easy document viewing
 window.viewDocument = function(docOrId, allDocs) {
     if (typeof docOrId === 'string') {
-        // It's a document ID
         DocumentModal.view({ id: docOrId });
     } else if (typeof docOrId === 'object') {
         if (allDocs && Array.isArray(allDocs)) {
@@ -947,4 +1539,3 @@ window.viewVehicleDocuments = async function(vehicleId) {
         alert('Failed to load documents: ' + err.message);
     }
 };
-

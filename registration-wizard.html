@@ -1259,18 +1259,7 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="make">Make <span class="required">*</span></label>
-                                    <select id="make" name="make" required>
-                                        <option value="">Select Make</option>
-                                        <option value="toyota">Toyota</option>
-                                        <option value="honda">Honda</option>
-                                        <option value="ford">Ford</option>
-                                        <option value="nissan">Nissan</option>
-                                        <option value="mitsubishi">Mitsubishi</option>
-                                        <option value="hyundai">Hyundai</option>
-                                        <option value="suzuki">Suzuki</option>
-                                        <option value="isuzu">Isuzu</option>
-                                        <option value="mazda">Mazda</option>
-                                    </select>
+                                    <input type="text" id="make" name="make" placeholder="e.g., Toyota, Honda, Ford" required>
                                     <small class="form-hint">Example: Toyota, Honda, Ford</small>
                                 </div>
                                 <div class="form-group">
@@ -1309,46 +1298,13 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="vehicleType">Vehicle Type <span class="required">*</span></label>
-                                    <select id="vehicleType" name="vehicleType" required>
-                                        <option value="">Select Type</option>
-                                        <option value="Car">Car</option>
-                                        <option value="UV">UV (Utility Vehicle)</option>
-                                        <option value="SUV">SUV</option>
-                                        <option value="MC/TC">MC/TC (Motorcycle/Tricycle)</option>
-                                        <option value="Truck">Truck</option>
-                                        <option value="Bus">Bus</option>
-                                        <option value="Trailer">Trailer</option>
-                                    </select>
-                                    <small class="form-hint">Select the primary classification of the vehicle.</small>
+                                    <input type="text" id="vehicleType" name="vehicleType" placeholder="e.g., Car, SUV, Truck" required>
+                                    <small class="form-hint">Enter the primary classification of the vehicle (e.g., Car, UV, SUV, MC/TC, Truck, Bus, Trailer).</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="vehicleCategory">Vehicle Category (PNS) <span class="required">*</span></label>
-                                    <select id="vehicleCategory" name="vehicleCategory" required>
-                                        <option value="">Select Category</option>
-                                        <optgroup label="Motorcycles">
-                                            <option value="L1">L1 - 2-wheel, ≤50cc</option>
-                                            <option value="L2">L2 - 3-wheel, ≤50cc</option>
-                                            <option value="L3">L3 - 2-wheel, >50cc</option>
-                                            <option value="L5">L5 - 3-wheel, >50cc</option>
-                                        </optgroup>
-                                        <optgroup label="Passenger Vehicles">
-                                            <option value="M1">M1 - ≤8 passengers</option>
-                                            <option value="M2">M2 - 9-15 passengers, ≤5 tonnes</option>
-                                            <option value="M3">M3 - >15 passengers or >5 tonnes</option>
-                                        </optgroup>
-                                        <optgroup label="Goods Vehicles">
-                                            <option value="N1">N1 - ≤3.5 tonnes GVW</option>
-                                            <option value="N2">N2 - 3.5-12 tonnes GVW</option>
-                                            <option value="N3">N3 - >12 tonnes GVW</option>
-                                        </optgroup>
-                                        <optgroup label="Trailers">
-                                            <option value="O1">O1 - ≤0.75 tonnes</option>
-                                            <option value="O2">O2 - 0.75-3.5 tonnes</option>
-                                            <option value="O3">O3 - 3.5-10 tonnes</option>
-                                            <option value="O4">O4 - >10 tonnes</option>
-                                        </optgroup>
-                                    </select>
-                                    <small class="form-hint">Philippine National Standards (PNS) vehicle category code.</small>
+                                    <input type="text" id="vehicleCategory" name="vehicleCategory" placeholder="e.g., M1, L3, N2" required>
+                                    <small class="form-hint">Enter the Philippine National Standards (PNS) vehicle category code (e.g., M1, L3, N2, O1).</small>
                                 </div>
                             </div>
 
@@ -1360,14 +1316,8 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="classification">Classification <span class="required">*</span></label>
-                                    <select id="classification" name="classification" required>
-                                        <option value="">Select Classification</option>
-                                        <option value="Private">Private</option>
-                                        <option value="For Hire">For Hire</option>
-                                        <option value="Government">Government</option>
-                                        <option value="Exempt">Exempt</option>
-                                    </select>
-                                    <small class="form-hint">Vehicle registration classification.</small>
+                                    <input type="text" id="classification" name="classification" placeholder="e.g., Private, For Hire, Government" required>
+                                    <small class="form-hint">Enter vehicle registration classification (e.g., Private, For Hire, Government, Exempt).</small>
                                 </div>
                             </div>
 
@@ -1446,16 +1396,8 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="idType">ID Type <span class="required">*</span></label>
-                                    <select id="idType" name="idType" required>
-                                        <option value="">Select ID Type</option>
-                                        <option value="drivers-license">Driver's License</option>
-                                        <option value="passport">Passport</option>
-                                        <option value="national-id">National ID</option>
-                                        <option value="postal-id">Postal ID</option>
-                                        <option value="voters-id">Voter's ID</option>
-                                        <option value="sss-id">SSS ID</option>
-                                    </select>
-                                    <small class="form-hint">Choose your valid government-issued ID</small>
+                                    <input type="text" id="idType" name="idType" placeholder="e.g., Driver's License, Passport, National ID" required>
+                                    <small class="form-hint">Enter your valid government-issued ID type (e.g., Driver's License, Passport, National ID, Postal ID, Voter's ID, SSS ID).</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="idNumber">ID Number <span class="required">*</span></label>

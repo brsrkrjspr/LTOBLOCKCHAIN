@@ -60,11 +60,11 @@ function initializeRegistrationWizard() {
     }
     
     // Store vehicle type when it changes (for Step 2)
-    const vehicleTypeSelect = document.getElementById('vehicleType');
-    if (vehicleTypeSelect) {
-        vehicleTypeSelect.addEventListener('change', function() {
+    const vehicleTypeField = document.getElementById('vehicleType');
+    if (vehicleTypeField) {
+        vehicleTypeField.addEventListener('change', function() {
             storedVehicleType = this.value;
-            console.log('Vehicle type selected and stored:', storedVehicleType);
+            console.log('Vehicle type entered and stored:', storedVehicleType);
         });
     }
     
@@ -310,7 +310,7 @@ function validateVehicleInfo() {
     if (!vehicleType || !vehicleType.trim()) {
         if (vehicleTypeField) {
             vehicleTypeField.classList.add('invalid');
-            showFieldError(vehicleTypeField, 'Please select a vehicle type');
+            showFieldError(vehicleTypeField, 'Please enter a vehicle type');
         }
         errors.push('Vehicle type is required');
         isValid = false;
@@ -325,7 +325,7 @@ function validateVehicleInfo() {
     if (!vehicleCategory || !vehicleCategory.trim()) {
         if (vehicleCategoryField) {
             vehicleCategoryField.classList.add('invalid');
-            showFieldError(vehicleCategoryField, 'Please select a vehicle category');
+            showFieldError(vehicleCategoryField, 'Please enter a vehicle category');
         }
         errors.push('Vehicle category is required');
         isValid = false;
@@ -403,7 +403,7 @@ function validateVehicleInfo() {
     if (!classification || !classification.trim()) {
         if (classificationField) {
             classificationField.classList.add('invalid');
-            showFieldError(classificationField, 'Please select a classification');
+            showFieldError(classificationField, 'Please enter a classification');
         }
         errors.push('Classification is required');
         isValid = false;

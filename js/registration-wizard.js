@@ -71,8 +71,12 @@ function initializeRegistrationWizard() {
         FormPersistence.autoSave('registration-wizard', form);
     }
     
-    // Auto-fill owner info on initialization
-    autoFillOwnerInfo();
+    // Auto-fill owner info on initialization (will be called again when step 3 is shown)
+    // Note: This may run before step 3 is visible, so we also call it when navigating to step 3
+    setTimeout(() => {
+        console.log('[AutoFill Debug] Initial auto-fill attempt (step 3 may not be visible yet)');
+        autoFillOwnerInfo();
+    }, 500);
     
     // Don't load documents immediately - wait for car type selection
     // loadDocumentRequirements('NEW');
@@ -118,6 +122,15 @@ function nextStep() {
                 }, 100);
             }
             
+            // Auto-fill owner info when navigating to step 3 (Owner Information)
+            if (currentStep === 3) {
+                // Use setTimeout to ensure DOM is fully rendered before auto-filling
+                setTimeout(() => {
+                    console.log('[AutoFill Debug] Navigating to step 3, triggering auto-fill');
+                    autoFillOwnerInfo();
+                }, 100);
+            }
+            
             // Scroll to top of form
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -142,6 +155,15 @@ function prevStep() {
         prevStepElement.classList.add('active');
         prevProgressStep.classList.add('active');
         prevProgressStep.classList.remove('completed'); // Remove completed status when going back
+        
+        // Auto-fill owner info when navigating back to step 3 (Owner Information)
+        if (currentStep === 3) {
+            // Use setTimeout to ensure DOM is fully rendered before auto-filling
+            setTimeout(() => {
+                console.log('[AutoFill Debug] Navigating back to step 3, triggering auto-fill');
+                autoFillOwnerInfo();
+            }, 100);
+        }
         
         // Scroll to top of form
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1834,9 +1856,16 @@ function autoFillFromOCRData(extractedData, documentType) {
  */
 async function autoFillOwnerInfo() {
     try {
+        // #region agent log
+        console.log('[AutoFill Debug] autoFillOwnerInfo called');
+        // #endregion
+        
         // Check if user is logged in
         const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
         if (!apiClient) {
+            // #region agent log
+            console.log('[AutoFill Debug] API client not available, skipping auto-fill');
+            // #endregion
             console.log('API client not available, skipping auto-fill');
             return;
         }
@@ -1844,18 +1873,36 @@ async function autoFillOwnerInfo() {
         // Check if we have a token
         const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
         if (!token) {
+            // #region agent log
+            console.log('[AutoFill Debug] No authentication token found, skipping auto-fill');
+            // #endregion
             console.log('No authentication token found, skipping auto-fill');
             return;
         }
 
         // Fetch user profile
+        // #region agent log
+        console.log('[AutoFill Debug] Fetching user profile...');
+        // #endregion
         const profileResponse = await apiClient.get('/api/auth/profile');
         if (!profileResponse || !profileResponse.success || !profileResponse.user) {
+            // #region agent log
+            console.log('[AutoFill Debug] Could not fetch user profile:', profileResponse);
+            // #endregion
             console.log('Could not fetch user profile for auto-fill');
             return;
         }
 
         const user = profileResponse.user;
+        // #region agent log
+        console.log('[AutoFill Debug] User profile fetched:', {
+            hasFirstName: !!user.firstName,
+            hasLastName: !!user.lastName,
+            hasEmail: !!user.email,
+            hasPhone: !!user.phone,
+            hasAddress: !!user.address
+        });
+        // #endregion
         console.log('Auto-filling owner information from profile:', user);
 
         // Auto-fill owner fields (only if they're empty)
@@ -1865,32 +1912,75 @@ async function autoFillOwnerInfo() {
         const phoneField = document.getElementById('phone');
         const addressField = document.getElementById('address');
 
+        // #region agent log
+        console.log('[AutoFill Debug] Field availability check:', {
+            firstNameField: !!firstNameField,
+            lastNameField: !!lastNameField,
+            emailField: !!emailField,
+            phoneField: !!phoneField,
+            addressField: !!addressField,
+            firstNameValue: firstNameField?.value || '',
+            lastNameValue: lastNameField?.value || '',
+            emailValue: emailField?.value || '',
+            phoneValue: phoneField?.value || '',
+            addressValue: addressField?.value || ''
+        });
+        // #endregion
+
+        let fieldsFilled = 0;
+        
         if (firstNameField && !firstNameField.value && user.firstName) {
             firstNameField.value = user.firstName;
             firstNameField.classList.add('auto-filled');
+            fieldsFilled++;
+            // #region agent log
+            console.log('[AutoFill Debug] Filled firstName:', user.firstName);
+            // #endregion
         }
         if (lastNameField && !lastNameField.value && user.lastName) {
             lastNameField.value = user.lastName;
             lastNameField.classList.add('auto-filled');
+            fieldsFilled++;
+            // #region agent log
+            console.log('[AutoFill Debug] Filled lastName:', user.lastName);
+            // #endregion
         }
         if (emailField && !emailField.value && user.email) {
             emailField.value = user.email;
             emailField.classList.add('auto-filled');
+            fieldsFilled++;
+            // #region agent log
+            console.log('[AutoFill Debug] Filled email:', user.email);
+            // #endregion
         }
         if (phoneField && !phoneField.value && user.phone) {
             phoneField.value = user.phone;
             phoneField.classList.add('auto-filled');
+            fieldsFilled++;
+            // #region agent log
+            console.log('[AutoFill Debug] Filled phone:', user.phone);
+            // #endregion
         }
         if (addressField && !addressField.value && user.address) {
             addressField.value = user.address;
             addressField.classList.add('auto-filled');
+            fieldsFilled++;
+            // #region agent log
+            console.log('[AutoFill Debug] Filled address:', user.address);
+            // #endregion
         }
 
+        // #region agent log
+        console.log('[AutoFill Debug] Auto-fill complete:', {fieldsFilled});
+        // #endregion
+
         // Show notification if any fields were auto-filled
-        if ((firstNameField && firstNameField.classList.contains('auto-filled')) ||
-            (lastNameField && lastNameField.classList.contains('auto-filled')) ||
-            (emailField && emailField.classList.contains('auto-filled'))) {
+        if (fieldsFilled > 0) {
             showNotification('Owner information has been auto-filled from your profile. Upload documents in Step 1 for more accurate auto-fill.', 'info');
+        } else {
+            // #region agent log
+            console.log('[AutoFill Debug] No fields were auto-filled (fields may already have values or user profile missing data)');
+            // #endregion
         }
 
         // Optionally offer to copy from previous vehicle registration

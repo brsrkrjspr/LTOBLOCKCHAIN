@@ -134,10 +134,19 @@ function nextStep() {
                     
                     // Also re-apply OCR extracted data if available (fields might not have existed when OCR ran)
                     if (Object.keys(storedOCRExtractedData).length > 0) {
-                        console.log('[ID AutoFill Debug] Re-applying stored OCR data when Step 3 becomes visible:', storedOCRExtractedData);
+                        console.log('[ID AutoFill Debug] Re-applying stored OCR data when Step 3 becomes visible:', {
+                            storedKeys: Object.keys(storedOCRExtractedData),
+                            hasIdType: !!storedOCRExtractedData.idType,
+                            hasIdNumber: !!storedOCRExtractedData.idNumber,
+                            idType: storedOCRExtractedData.idType,
+                            idNumber: storedOCRExtractedData.idNumber,
+                            fullStoredData: JSON.stringify(storedOCRExtractedData, null, 2)
+                        });
                         // Determine document type from stored data (prefer ownerValidId if we have idType/idNumber)
                         const documentType = (storedOCRExtractedData.idType || storedOCRExtractedData.idNumber) ? 'ownerValidId' : 'owner_id';
                         autoFillFromOCRData(storedOCRExtractedData, documentType);
+                    } else {
+                        console.log('[ID AutoFill Debug] No stored OCR data to re-apply');
                     }
                 }, 100);
             }
@@ -1796,17 +1805,29 @@ async function processDocumentForOCRAutoFill(fileInput) {
                 hasIdNumber: !!(data.extractedData && data.extractedData.idNumber),
                 idType: data.extractedData?.idType,
                 idNumber: data.extractedData?.idNumber,
-                fullExtractedData: data.extractedData
+                fullExtractedData: data.extractedData,
+                documentType: documentType
             };
             console.log('[ID AutoFill Debug] OCR response received:', ocrDebugInfo);
             console.log('[ID AutoFill Debug] Full extractedData JSON:', JSON.stringify(data.extractedData, null, 2));
+            console.log('[ID AutoFill Debug] Document type was:', documentType);
+            if (documentType === 'ownerValidId' && (!data.extractedData || Object.keys(data.extractedData).length === 0)) {
+                console.warn('[ID AutoFill Debug] WARNING: ownerValidId document returned empty extractedData! Check backend logs for OCR extraction.');
+            }
             fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1722',message:'OCR response received',data:ocrDebugInfo,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
             // #endregion
             
             if (data.success && data.extractedData) {
                 // Store extracted data for later use (when Step 3 becomes visible)
                 storedOCRExtractedData = { ...storedOCRExtractedData, ...data.extractedData };
-                console.log('[ID AutoFill Debug] Stored OCR data:', storedOCRExtractedData);
+                console.log('[ID AutoFill Debug] Stored OCR data:', {
+                    storedKeys: Object.keys(storedOCRExtractedData),
+                    hasIdType: !!storedOCRExtractedData.idType,
+                    hasIdNumber: !!storedOCRExtractedData.idNumber,
+                    idType: storedOCRExtractedData.idType,
+                    idNumber: storedOCRExtractedData.idNumber,
+                    fullStoredData: JSON.stringify(storedOCRExtractedData, null, 2)
+                });
                 
                 // Auto-fill fields based on extracted data
                 autoFillFromOCRData(data.extractedData, documentType);

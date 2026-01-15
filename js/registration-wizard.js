@@ -1657,14 +1657,43 @@ function setupOCRAutoFill() {
     // We'll set up event listeners when the container is ready
     setTimeout(() => {
         const container = document.getElementById('document-upload-container');
-        if (!container) return;
+        console.log('[ID AutoFill Debug] setupOCRAutoFill - container found:', !!container);
+        if (!container) {
+            console.log('[ID AutoFill Debug] setupOCRAutoFill - container not found, retrying...');
+            // Retry after another second
+            setTimeout(() => {
+                const retryContainer = document.getElementById('document-upload-container');
+                console.log('[ID AutoFill Debug] setupOCRAutoFill - retry container found:', !!retryContainer);
+                if (retryContainer) {
+                    retryContainer.addEventListener('change', async function(e) {
+                        console.log('[ID AutoFill Debug] File input change event triggered:', {
+                            targetType: e.target.type,
+                            hasFiles: !!(e.target.files && e.target.files[0]),
+                            fileInputId: e.target.id,
+                            documentType: e.target.getAttribute('data-document-type') || e.target.id
+                        });
+                        if (e.target.type === 'file' && e.target.files && e.target.files[0]) {
+                            await processDocumentForOCRAutoFill(e.target);
+                        }
+                    });
+                }
+            }, 1000);
+            return;
+        }
         
         // Use event delegation to handle file inputs that are dynamically added
         container.addEventListener('change', async function(e) {
+            console.log('[ID AutoFill Debug] File input change event triggered:', {
+                targetType: e.target.type,
+                hasFiles: !!(e.target.files && e.target.files[0]),
+                fileInputId: e.target.id,
+                documentType: e.target.getAttribute('data-document-type') || e.target.id
+            });
             if (e.target.type === 'file' && e.target.files && e.target.files[0]) {
                 await processDocumentForOCRAutoFill(e.target);
             }
         });
+        console.log('[ID AutoFill Debug] setupOCRAutoFill - event listener attached');
     }, 1000);
 }
 
@@ -1672,10 +1701,24 @@ function setupOCRAutoFill() {
  * Process document upload and extract data via OCR for auto-fill
  */
 async function processDocumentForOCRAutoFill(fileInput) {
+    console.log('[ID AutoFill Debug] processDocumentForOCRAutoFill called:', {
+        fileInputId: fileInput.id,
+        hasFiles: !!fileInput.files,
+        fileCount: fileInput.files ? fileInput.files.length : 0
+    });
+    
     const file = fileInput.files[0];
-    if (!file) return;
+    if (!file) {
+        console.log('[ID AutoFill Debug] No file found in fileInput');
+        return;
+    }
     
     const documentType = fileInput.getAttribute('data-document-type') || fileInput.id;
+    console.log('[ID AutoFill Debug] Document type determined:', {
+        dataAttribute: fileInput.getAttribute('data-document-type'),
+        fileInputId: fileInput.id,
+        finalDocumentType: documentType
+    });
     
     try {
         const apiClient = window.apiClient || (window.APIClient && new window.APIClient());

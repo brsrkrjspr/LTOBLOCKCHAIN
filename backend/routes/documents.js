@@ -1535,13 +1535,30 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         
         let extractedData = {};
         try {
+            // #region agent log
+            console.log('[OCR API Debug] Calling parseVehicleInfo with:', {
+                documentType: finalDocumentType,
+                textLength: text ? text.length : 0,
+                hasText: !!text && text.length > 0
+            });
+            // #endregion
+            
             extractedData = ocrService.parseVehicleInfo(text, finalDocumentType);
+            
+            // #region agent log
+            console.log('[OCR API Debug] parseVehicleInfo completed successfully');
+            // #endregion
         } catch (parseError) {
+            // #region agent log
             console.error('[OCR API Debug] ERROR in parseVehicleInfo:', {
                 error: parseError.message,
+                errorName: parseError.name,
                 stack: parseError.stack,
-                documentType: finalDocumentType
+                documentType: finalDocumentType,
+                textLength: text ? text.length : 0
             });
+            // #endregion
+            
             // Continue with empty extractedData (graceful degradation)
             extractedData = {};
         }

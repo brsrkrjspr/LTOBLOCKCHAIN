@@ -612,7 +612,7 @@ class OCRService {
             
             // #region agent log
             if (!extracted.idType) {
-                console.log('[OCR Debug] ID Type not found after trying', idTypePatterns.length, 'patterns. Text sample:', text.substring(0, 500));
+                console.log('[OCR Debug] ID Type not found after trying all strategies. Text sample:', text.substring(0, 500));
                 console.log('[OCR Debug] Normalized text sample (for pattern debugging):', text.toUpperCase().replace(/\s+/g, ' ').substring(0, 500));
             }
             // #endregion
@@ -765,11 +765,14 @@ class OCRService {
             } catch (ownerIdError) {
                 console.error('[OCR Debug] ERROR processing owner ID document:', {
                     error: ownerIdError.message,
+                    errorName: ownerIdError.name,
                     stack: ownerIdError.stack,
-                    documentType: documentType
+                    documentType: documentType,
+                    textLength: text ? text.length : 0
                 });
                 // Return partial results if any fields were extracted before error
                 // (graceful degradation)
+                // extracted object may already have some fields populated
             }
         }
 

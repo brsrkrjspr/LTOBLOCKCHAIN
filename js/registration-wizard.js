@@ -1858,13 +1858,31 @@ async function autoFillOwnerInfo() {
     try {
         // #region agent log
         console.log('[AutoFill Debug] autoFillOwnerInfo called');
+        console.log('[AutoFill Debug] Window objects:', {
+            hasApiClient: typeof window !== 'undefined' && !!window.apiClient,
+            hasAPIClient: typeof window !== 'undefined' && !!window.APIClient,
+            hasAuthManager: typeof window !== 'undefined' && !!window.authManager,
+            windowKeys: typeof window !== 'undefined' ? Object.keys(window).filter(k => k.toLowerCase().includes('auth') || k.toLowerCase().includes('api') || k.toLowerCase().includes('client')).slice(0, 10) : []
+        });
         // #endregion
+        
+        // Wait a bit for scripts to load if needed
+        if (typeof window === 'undefined' || (!window.apiClient && !window.APIClient)) {
+            // #region agent log
+            console.log('[AutoFill Debug] Waiting for API client to load...');
+            // #endregion
+            // Wait up to 2 seconds for API client to be available
+            for (let i = 0; i < 20; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                if (window.apiClient || window.APIClient) break;
+            }
+        }
         
         // Check if user is logged in
         const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
         if (!apiClient) {
             // #region agent log
-            console.log('[AutoFill Debug] API client not available, skipping auto-fill');
+            console.log('[AutoFill Debug] API client not available after wait, skipping auto-fill');
             // #endregion
             console.log('API client not available, skipping auto-fill');
             return;
@@ -1875,10 +1893,20 @@ async function autoFillOwnerInfo() {
         if (apiClient && typeof apiClient.getAuthToken === 'function') {
             token = apiClient.getAuthToken();
             // #region agent log
-            console.log('[AutoFill Debug] Token from API client:', {hasToken: !!token, tokenLength: token ? token.length : 0});
+            console.log('[AutoFill Debug] Token from API client getAuthToken():', {
+                hasToken: !!token,
+                tokenLength: token ? token.length : 0,
+                tokenPrefix: token ? token.substring(0, 20) + '...' : 'none'
+            });
             // #endregion
         } else {
-            // Fallback: check multiple possible token storage locations
+            // #region agent log
+            console.log('[AutoFill Debug] API client getAuthToken() method not available, using fallback');
+            // #endregion
+        }
+        
+        // Fallback: check multiple possible token storage locations
+        if (!token) {
             token = localStorage.getItem('authToken') || 
                     localStorage.getItem('token') || 
                     localStorage.getItem('accessToken') ||
@@ -1886,50 +1914,79 @@ async function autoFillOwnerInfo() {
                     sessionStorage.getItem('token') ||
                     sessionStorage.getItem('accessToken');
             // #region agent log
-            console.log('[AutoFill Debug] Token from fallback check:', {
+            console.log('[AutoFill Debug] Token from localStorage/sessionStorage fallback:', {
                 hasToken: !!token,
                 checkedAuthToken: !!localStorage.getItem('authToken'),
                 checkedToken: !!localStorage.getItem('token'),
-                checkedAccessToken: !!localStorage.getItem('accessToken')
+                checkedAccessToken: !!localStorage.getItem('accessToken'),
+                sessionAuthToken: !!sessionStorage.getItem('authToken'),
+                sessionToken: !!sessionStorage.getItem('token')
             });
             // #endregion
         }
         
         // Also check AuthManager if available (as additional fallback)
         if (!token && typeof window !== 'undefined' && window.authManager) {
-            token = window.authManager.getAccessToken();
-            // #region agent log
-            console.log('[AutoFill Debug] Token from AuthManager:', {hasToken: !!token});
-            // #endregion
+            if (typeof window.authManager.getAccessToken === 'function') {
+                token = window.authManager.getAccessToken();
+                // #region agent log
+                console.log('[AutoFill Debug] Token from AuthManager.getAccessToken():', {hasToken: !!token});
+                // #endregion
+            }
         }
         
         if (!token) {
             // #region agent log
-            console.log('[AutoFill Debug] No authentication token found, skipping auto-fill', {
+            console.log('[AutoFill Debug] No authentication token found anywhere, skipping auto-fill', {
                 hasApiClient: !!apiClient,
                 hasGetAuthToken: !!(apiClient && typeof apiClient.getAuthToken === 'function'),
                 hasAuthManager: !!(typeof window !== 'undefined' && window.authManager),
                 localStorageAuthToken: !!localStorage.getItem('authToken'),
                 localStorageToken: !!localStorage.getItem('token'),
-                localStorageAccessToken: !!localStorage.getItem('accessToken')
+                localStorageAccessToken: !!localStorage.getItem('accessToken'),
+                allLocalStorageKeys: Object.keys(localStorage).filter(k => k.toLowerCase().includes('token') || k.toLowerCase().includes('auth')).slice(0, 10)
             });
             // #endregion
-            console.log('No authentication token found, skipping auto-fill');
+            console.log('No authentication token found, skipping auto-fill. User may not be logged in.');
+            console.log('Note: Auto-fill from profile requires user to be logged in. OCR auto-fill from documents will still work.');
             return;
         }
         
         // #region agent log
-        console.log('[AutoFill Debug] Token successfully retrieved:', {hasToken: !!token, tokenLength: token ? token.length : 0, tokenPrefix: token ? token.substring(0, 20) + '...' : 'none'});
+        console.log('[AutoFill Debug] Token successfully retrieved:', {
+            hasToken: !!token,
+            tokenLength: token ? token.length : 0,
+            tokenPrefix: token ? token.substring(0, 20) + '...' : 'none'
+        });
         // #endregion
 
-        // Fetch user profile
+        // Fetch user profile - use the API client which handles authentication automatically
         // #region agent log
-        console.log('[AutoFill Debug] Fetching user profile...');
+        console.log('[AutoFill Debug] Fetching user profile via API client...');
         // #endregion
-        const profileResponse = await apiClient.get('/api/auth/profile');
+        
+        let profileResponse;
+        try {
+            profileResponse = await apiClient.get('/api/auth/profile');
+        } catch (error) {
+            // #region agent log
+            console.log('[AutoFill Debug] Error fetching profile:', {
+                error: error.message,
+                status: error.status,
+                isAuthError: error.status === 401 || error.status === 403
+            });
+            // #endregion
+            console.log('Could not fetch user profile for auto-fill:', error.message);
+            return;
+        }
+        
         if (!profileResponse || !profileResponse.success || !profileResponse.user) {
             // #region agent log
-            console.log('[AutoFill Debug] Could not fetch user profile:', profileResponse);
+            console.log('[AutoFill Debug] Profile response invalid:', {
+                hasResponse: !!profileResponse,
+                success: profileResponse?.success,
+                hasUser: !!(profileResponse?.user)
+            });
             // #endregion
             console.log('Could not fetch user profile for auto-fill');
             return;

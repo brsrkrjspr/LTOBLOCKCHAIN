@@ -1349,6 +1349,17 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
 
         const { documentType } = req.body;
         
+        // #region agent log
+        console.log('[OCR API Debug] Request received:', {
+            hasFile: !!req.file,
+            fileName: req.file?.originalname,
+            fileMimeType: req.file?.mimetype,
+            documentType: documentType,
+            bodyKeys: Object.keys(req.body),
+            fullBody: req.body
+        });
+        // #endregion
+        
         // Check if OCR is enabled (can be disabled via environment variable)
         const ocrEnabled = process.env.OCR_ENABLED !== 'false';
         if (!ocrEnabled) {
@@ -1381,17 +1392,27 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         // Extract text from document
         const text = await ocrService.extractText(req.file.path, req.file.mimetype);
         
+        // #region agent log
+        console.log('[OCR API Debug] Text extraction result:', {
+            documentType: documentType || 'registration_cert',
+            textLength: text ? text.length : 0,
+            textPreview: text ? text.substring(0, 200) : 'NO TEXT EXTRACTED',
+            hasText: !!text && text.length > 0
+        });
+        // #endregion
+        
         // Parse vehicle/owner information
         const extractedData = ocrService.parseVehicleInfo(text, documentType || 'registration_cert');
         
         // #region agent log
-        console.log('[OCR API Debug] Extracted data:', {
+        console.log('[OCR API Debug] Parsed extracted data:', {
             documentType: documentType || 'registration_cert',
             extractedDataKeys: Object.keys(extractedData),
             hasIdType: !!extractedData.idType,
             hasIdNumber: !!extractedData.idNumber,
             idType: extractedData.idType,
-            idNumber: extractedData.idNumber
+            idNumber: extractedData.idNumber,
+            allExtractedFields: extractedData
         });
         // #endregion
         

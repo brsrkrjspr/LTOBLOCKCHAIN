@@ -31,15 +31,31 @@ class OCRService {
      */
     async extractText(filePath, mimeType) {
         try {
+            // #region agent log
+            console.log('[OCR Debug] extractText called:', {filePath, mimeType});
+            // #endregion
+            
+            let extractedText = '';
             if (mimeType === 'application/pdf') {
-                return await this.extractFromPDF(filePath);
+                extractedText = await this.extractFromPDF(filePath);
             } else if (mimeType.startsWith('image/')) {
-                return await this.extractFromImage(filePath);
+                extractedText = await this.extractFromImage(filePath);
             } else {
                 throw new Error(`Unsupported file type: ${mimeType}`);
             }
+            
+            // #region agent log
+            console.log('[OCR Debug] Text extraction result:', {
+                mimeType,
+                textLength: extractedText ? extractedText.length : 0,
+                textPreview: extractedText ? extractedText.substring(0, 500) : 'NO TEXT',
+                hasText: !!extractedText && extractedText.length > 0
+            });
+            // #endregion
+            
+            return extractedText;
         } catch (error) {
-            console.error('OCR extraction error:', error);
+            console.error('[OCR Debug] OCR extraction error:', error);
             throw error;
         }
     }
@@ -165,7 +181,19 @@ class OCRService {
     parseVehicleInfo(text, documentType) {
         const extracted = {};
 
+        // #region agent log
+        console.log('[OCR Debug] parseVehicleInfo called:', {
+            documentType,
+            hasText: !!text,
+            textLength: text ? text.length : 0,
+            textPreview: text ? text.substring(0, 300) : 'NO TEXT'
+        });
+        // #endregion
+
         if (!text || text.trim().length === 0) {
+            // #region agent log
+            console.log('[OCR Debug] WARNING: No text extracted from document! Returning empty object.');
+            // #endregion
             return extracted;
         }
 
@@ -309,29 +337,61 @@ class OCRService {
             // #endregion
             
             // Extract ID Number (various formats)
+            // Priority order: specific patterns first, then generic
             const idNumberPatterns = [
-                /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?|LICENSE\s*(?:NO|NUMBER|#)\.?|PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i,
-                /(?:NO\.?|NUMBER|#)\s*[:.]?\s*([A-Z]{1,3}[\d\-]{6,15})/i,
-                /\b([A-Z]{1,3}[\d\-]{8,15})\b/g, // Standalone ID numbers like A01-23-456789, N123456789, PP1234567
-                /\b(\d{2}[\-]?\d{2}[\-]?\d{6,10})\b/g // Numeric IDs like 01-23-456789
+                // Pattern 1: "LICENSE NO: D12-34-567890" or "LICENSE NO. D12-34-567890" (most specific)
+                /(?:LICENSE\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z]\d{2}[\-]\d{2}[\-]\d{6,})/i,
+                // Pattern 2: "ID NO: D12-34-567890" or "ID NUMBER: D12-34-567890"
+                /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
+                // Pattern 3: "LICENSE NO: " followed by alphanumeric (catch-all for license numbers)
+                /(?:LICENSE\s*(?:NO|NUMBER|#)\.?|PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i,
+                // Pattern 4: Standalone patterns like "D12-34-567890" (Driver's License format: D##-##-######)
+                /\b([A-Z]\d{2}[\-]\d{2}[\-]\d{6,})\b/g,
+                // Pattern 5: Generic standalone ID numbers like A01-23-456789, N123456789, PP1234567
+                /\b([A-Z]{1,3}[\d\-]{8,15})\b/g,
+                // Pattern 6: Numeric IDs like 01-23-456789
+                /\b(\d{2}[\-]?\d{2}[\-]?\d{6,10})\b/g
             ];
             
-            for (const pattern of idNumberPatterns) {
+            for (let i = 0; i < idNumberPatterns.length; i++) {
+                const pattern = idNumberPatterns[i];
                 const matches = text.match(pattern);
                 if (matches) {
                     // #region agent log
-                    console.log('[OCR Debug] ID Number pattern matched:', {pattern: pattern.toString(), matches: matches.length});
+                    console.log('[OCR Debug] ID Number pattern matched:', {
+                        patternIndex: i,
+                        pattern: pattern.toString(),
+                        matches: Array.isArray(matches) ? matches.length : 1,
+                        allMatches: Array.isArray(matches) ? matches : [matches]
+                    });
                     // #endregion
-                    // Get the last match (usually the actual ID number, not the label)
-                    const idNumber = matches[matches.length - 1].trim();
+                    
+                    // For patterns with global flag (g), matches is an array of all matches
+                    // For non-global patterns, matches[0] is full match, matches[1] is first capture group
+                    let idNumber = null;
+                    if (Array.isArray(matches) && matches.length > 1) {
+                        // Get the last capture group (usually the actual ID number)
+                        idNumber = matches[matches.length - 1].trim();
+                    } else if (matches[1]) {
+                        // First capture group
+                        idNumber = matches[1].trim();
+                    } else if (typeof matches === 'string') {
+                        idNumber = matches.trim();
+                    }
+                    
                     // #region agent log
-                    console.log('[OCR Debug] ID Number candidate:', {idNumber, length: idNumber.length, isValid: idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber)});
+                    console.log('[OCR Debug] ID Number candidate:', {
+                        idNumber,
+                        length: idNumber ? idNumber.length : 0,
+                        isValid: idNumber && idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber)
+                    });
                     // #endregion
+                    
                     // Validate it looks like an ID number (has letters and/or numbers, reasonable length)
-                    if (idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber)) {
+                    if (idNumber && idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber)) {
                         extracted.idNumber = idNumber;
                         // #region agent log
-                        console.log('[OCR Debug] ID Number extracted:', extracted.idNumber);
+                        console.log('[OCR Debug] ID Number extracted successfully:', extracted.idNumber);
                         // #endregion
                         break;
                     }

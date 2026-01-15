@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Insurance Verifier Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
@@ -499,8 +500,124 @@
            ============================================ */
         
         @media (max-width: 768px) {
+            /* Sidebar - Mobile Overlay */
+            .dashboard-sidebar {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 280px !important;
+                max-width: 85vw !important;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                z-index: 1000 !important;
+                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2) !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            .dashboard-sidebar.mobile-open {
+                transform: translateX(0) !important;
+            }
+            
+            .dashboard-sidebar.collapsed {
+                transform: translateX(-100%) !important;
+            }
+            
+            /* Mobile overlay when sidebar is open */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                backdrop-filter: blur(2px);
+                -webkit-backdrop-filter: blur(2px);
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
+            }
+            
+            /* Main content full width on mobile */
+            .dashboard-main {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            /* Fixed Mobile Header */
+            .dashboard-header {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                padding: 0.75rem 1rem !important;
+                background: white !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+                z-index: 100 !important;
+                height: 60px !important;
+            }
+            
+            .dashboard-header .container {
+                padding: 0 !important;
+                width: 100% !important;
+            }
+            
+            .dashboard-nav {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 0.75rem !important;
+                width: 100% !important;
+            }
+            
+            .dashboard-nav .logo {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .dashboard-nav .logo h1 {
+                font-size: 1.125rem !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .dashboard-nav .logo p {
+                display: none !important;
+            }
+            
+            /* Mobile menu toggle button */
+            .mobile-menu-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px !important;
+                min-height: 44px !important;
+                background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%) !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 10px !important;
+                cursor: pointer !important;
+                font-size: 1.25rem !important;
+                transition: all 0.2s ease !important;
+                flex-shrink: 0 !important;
+                box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3) !important;
+                margin-right: 1rem !important;
+            }
+            
+            .mobile-menu-toggle:active {
+                transform: scale(0.95) !important;
+            }
+            
+            /* Dashboard content padding for fixed header */
             .dashboard-content {
-                padding: 1rem;
+                padding: 80px 1rem 1rem 1rem !important;
             }
             
             .dashboard-content h1,
@@ -551,10 +668,31 @@
             
             .table-container {
                 overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
             
             .stats-grid {
                 grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+            
+            .stat-card {
+                padding: 1rem !important;
+            }
+            
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1rem !important;
+            }
+            
+            .filter-tabs {
+                flex-wrap: wrap !important;
+                gap: 0.5rem !important;
+            }
+            
+            .filter-tab {
+                flex: 1 1 auto !important;
+                min-width: calc(50% - 0.25rem) !important;
             }
         }
         
@@ -571,6 +709,10 @@
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
             }
+            
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
         }
         
         @media (min-width: 1025px) {
@@ -579,11 +721,88 @@
                 margin: 0 auto;
             }
             
-            .stats-grid {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 1.5rem;
-            }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--insurance-blue-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--insurance-gray-dark);
+            font-weight: 500;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .summary-item {
+            text-align: center;
+            padding: 1rem;
+            background: var(--insurance-gray-light);
+            border-radius: 8px;
+        }
+        
+        .summary-number {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--insurance-blue-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .summary-label {
+            font-size: 0.875rem;
+            color: var(--insurance-gray-dark);
+            font-weight: 500;
+        }
+        
+        .filter-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .filter-tab {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--insurance-gray);
+            background: var(--insurance-white);
+            color: var(--insurance-charcoal);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .filter-tab:hover {
+            border-color: var(--insurance-blue);
+            background: var(--insurance-gray-light);
+        }
+        
+        .filter-tab.active {
+            background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+            color: var(--insurance-white);
+            border-color: var(--insurance-blue);
+        }
+        
+        .card-icon {
+            margin-right: 0.5rem;
+        }
         }
         
         /* ============================================
@@ -685,6 +904,9 @@
             </div>
         </aside>
 
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- Main Content -->
         <div class="dashboard-main">
             <header class="dashboard-header">
@@ -720,26 +942,12 @@
                     </div>
                 </div>
 
-                <!-- Insurance Actions -->
-                <div class="dashboard-grid">
-                    <div class="dashboard-card">
-                        <h3><span class="card-icon">🛡️</span> Insurance Verification</h3>
-                        <p>Review and verify insurance certificates</p>
-                        <a href="#verification" class="btn-primary">View Tasks</a>
-                    </div>
-                </div>
-
-                <!-- Insurance Certificate Verification -->
-                <div class="dashboard-card" id="verification">
-                    <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
-                    <p>Review and verify insurance certificates uploaded by users</p>
-                    <a href="#verification" class="btn-primary">View Tasks</a>
-                </div>
-
                 <!-- Insurance Certificate Verification -->
                 <div class="dashboard-card">
-                    <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
-                    <p>Review and verify insurance certificates uploaded by users</p>
+                    <div class="section-header">
+                        <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
+                        <p class="subtitle">Review and verify insurance certificates uploaded by users</p>
+                    </div>
 
                     <!-- Status filter tabs -->
                     <div class="filter-tabs" style="display: flex; gap: 0.5rem; margin: 0.5rem 0 1rem 0; flex-wrap: wrap;">
@@ -780,8 +988,10 @@
 
                 <!-- Insurance Verification Summary -->
                 <div class="dashboard-card">
-                    <h3><span class="card-icon">📊</span> Insurance Verification Summary</h3>
-                    <div class="summary-grid">
+                    <div class="section-header">
+                        <h3><span class="card-icon">📊</span> Insurance Verification Summary</h3>
+                    </div>
+                    <div class="summary-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 1rem;">
                         <div class="summary-item">
                             <div class="summary-number">8</div>
                             <div class="summary-label">Approved Today</div>
@@ -820,6 +1030,7 @@
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
+    <script src="js/mobile-nav.js"></script>
     <script src="js/insurance-verifier-dashboard.js"></script>
     <script>
         // Initialize user data on page load
@@ -871,13 +1082,23 @@
                 sidebar.classList.add('collapsed');
             }
 
-            // Sidebar toggle via IV icon
+            // Sidebar toggle via IV icon (desktop only)
             const insuranceSidebarToggleIcon = document.getElementById('insuranceSidebarToggleIcon');
             
             if (insuranceSidebarToggleIcon && sidebar) {
                 const toggleSidebar = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    
+                    // On mobile, use mobile navigation
+                    if (window.innerWidth <= 768) {
+                        if (typeof window.MobileNav !== 'undefined') {
+                            window.MobileNav.toggle();
+                        }
+                        return;
+                    }
+                    
+                    // Desktop: toggle collapsed state
                     sidebar.classList.toggle('collapsed');
                     
                     // Save state to localStorage
@@ -892,6 +1113,21 @@
                     }
                 });
             }
+            
+            // Initialize mobile navigation
+            if (typeof window.MobileNav !== 'undefined') {
+                window.MobileNav.init();
+            }
+            
+            // Close mobile sidebar when clicking nav items
+            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768 && typeof window.MobileNav !== 'undefined') {
+                        window.MobileNav.close();
+                    }
+                });
+            });
 
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');

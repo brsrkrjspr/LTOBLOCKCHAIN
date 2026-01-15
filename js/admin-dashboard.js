@@ -2067,18 +2067,23 @@ function showApplicationModal(application) {
                 };
                 const displayName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
 
-                // Prefer secure API endpoints (mirrors HPG behavior)
+                // Prefer secure API endpoints - prioritize ID, then CID, don't use non-existent /api/documents/file/ route
                 let url = null;
-                if (doc.cid || doc.ipfs_cid) {
-                    url = `/api/documents/ipfs/${encodeURIComponent(doc.cid || doc.ipfs_cid)}`;
-                } else if (doc.id && typeof doc.id === 'string' &&
-                           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id)) {
+                // Priority 1: Use document ID if available (most reliable)
+                if (doc.id && typeof doc.id === 'string' &&
+                    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id)) {
                     url = `/api/documents/${doc.id}/view`;
-                } else if (doc.path || doc.file_path) {
-                    url = `/api/documents/file/${encodeURIComponent(doc.path || doc.file_path)}`;
-                } else if (doc.url) {
+                }
+                // Priority 2: Use IPFS CID if available
+                else if (doc.cid || doc.ipfs_cid) {
+                    url = `/api/documents/ipfs/${encodeURIComponent(doc.cid || doc.ipfs_cid)}`;
+                }
+                // Priority 3: Use provided URL if available
+                else if (doc.url) {
                     url = doc.url;
                 }
+                // Note: Don't construct /api/documents/file/ route - it doesn't exist
+                // If only path is available, we need document ID or CID from the backend
 
                 return {
                     id: doc.id,

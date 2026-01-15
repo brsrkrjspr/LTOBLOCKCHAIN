@@ -1768,6 +1768,10 @@ async function processDocumentForOCRAutoFill(fileInput) {
         finalDocumentType: documentType
     });
     
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1764',message:'Document type determined',data:{fileInputId:fileInput.id,dataAttribute:fileInput.getAttribute('data-document-type'),finalDocumentType:documentType,isOwnerId:fileInput.id==='ownerId',isOwnerValidId:documentType==='ownerValidId'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     try {
         const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
         if (!apiClient) {
@@ -1808,11 +1812,19 @@ async function processDocumentForOCRAutoFill(fileInput) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
             
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1811',message:'OCR request sent',data:{documentType:documentType,fileName:file.name,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            
             const response = await fetch('/api/documents/extract-info', {
                 method: 'POST',
                 headers: headers,
                 body: formData
             });
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1818',message:'OCR response received',data:{status:response.status,ok:response.ok,documentType:documentType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             
             // Check if response is OK before parsing JSON
             if (!response.ok) {
@@ -1854,11 +1866,15 @@ async function processDocumentForOCRAutoFill(fileInput) {
             if (documentType === 'ownerValidId' && (!data.extractedData || Object.keys(data.extractedData).length === 0)) {
                 console.warn('[ID AutoFill Debug] WARNING: ownerValidId document returned empty extractedData! Check backend logs for OCR extraction.');
             }
+            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1837',message:'OCR data parsed',data:{success:data.success,hasExtractedData:!!data.extractedData,extractedDataKeys:data.extractedData?Object.keys(data.extractedData):[],hasIdType:!!(data.extractedData&&data.extractedData.idType),hasIdNumber:!!(data.extractedData&&data.extractedData.idNumber),idType:data.extractedData?.idType,idNumber:data.extractedData?.idNumber,documentType:documentType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
             // #endregion
             
             if (data.success && data.extractedData) {
                 // For owner ID documents, store owner-specific data separately
                 // For vehicle documents, store vehicle-specific data
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1859',message:'Checking document type for storage',data:{documentType:documentType,isOwnerValidId:documentType==='ownerValidId',isOwnerId:documentType==='ownerId',isOwner_id:documentType==='owner_id',willStoreOwnerData:(documentType==='ownerValidId'||documentType==='owner_id'||documentType==='ownerId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                // #endregion
                 if (documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') {
                     // Store owner data (idType, idNumber, firstName, lastName, address, phone)
                     const ownerData = {
@@ -1870,11 +1886,17 @@ async function processDocumentForOCRAutoFill(fileInput) {
                         phone: data.extractedData.phone
                     };
                     // Merge owner data into stored data (don't overwrite with empty if extraction failed)
+                    // #region agent log
+                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1873',message:'Before storing owner data',data:{ownerData:ownerData,storedBefore:Object.keys(storedOCRExtractedData),documentType:documentType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                    // #endregion
                     Object.keys(ownerData).forEach(key => {
                         if (ownerData[key] !== undefined && ownerData[key] !== null && ownerData[key] !== '') {
                             storedOCRExtractedData[key] = ownerData[key];
                         }
                     });
+                    // #region agent log
+                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1878',message:'After storing owner data',data:{storedAfter:Object.keys(storedOCRExtractedData),hasIdType:!!storedOCRExtractedData.idType,hasIdNumber:!!storedOCRExtractedData.idNumber,idType:storedOCRExtractedData.idType,idNumber:storedOCRExtractedData.idNumber,documentType:documentType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                    // #endregion
                     console.log('[ID AutoFill Debug] Stored owner ID OCR data:', {
                         documentType,
                         extractedOwnerData: ownerData,
@@ -1909,6 +1931,9 @@ async function processDocumentForOCRAutoFill(fileInput) {
                 }
                 
                 // Auto-fill fields based on extracted data
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1912',message:'Calling autoFillFromOCRData',data:{documentType:documentType,hasExtractedData:!!data.extractedData,extractedDataKeys:data.extractedData?Object.keys(data.extractedData):[],hasIdType:!!(data.extractedData&&data.extractedData.idType),hasIdNumber:!!(data.extractedData&&data.extractedData.idNumber),step3Exists:!!document.getElementById('step-3'),step3Visible:!!document.getElementById('step-3')&&document.getElementById('step-3').classList.contains('active'),idTypeFieldExists:!!document.getElementById('idType'),idNumberFieldExists:!!document.getElementById('idNumber')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
                 autoFillFromOCRData(data.extractedData, documentType);
                 
                 indicator.textContent = '✓ Information extracted and auto-filled';
@@ -1924,10 +1949,19 @@ async function processDocumentForOCRAutoFill(fileInput) {
         } catch (ocrError) {
             // OCR endpoint not available yet (Task 4 not implemented)
             console.log('OCR extraction not available:', ocrError);
+            console.error('[ID AutoFill Debug] OCR ERROR DETAILS:', {
+                error: ocrError.message,
+                errorName: ocrError.name,
+                stack: ocrError.stack,
+                documentType: documentType,
+                fileInputId: fileInput.id
+            });
             indicator.remove();
             
             // Fallback: Still auto-fill owner info from profile if logged in
-            if (documentType === 'owner_id' || documentType === 'ownerId') {
+            // Also check for ownerValidId (not just ownerId/owner_id)
+            if (documentType === 'owner_id' || documentType === 'ownerId' || documentType === 'ownerValidId') {
+                console.log('[ID AutoFill Debug] OCR failed, attempting fallback auto-fill from profile');
                 autoFillOwnerInfo();
             }
         }
@@ -1953,6 +1987,7 @@ function autoFillFromOCRData(extractedData, documentType) {
         fullExtractedData: extractedData
     };
     console.log('[ID AutoFill Debug] autoFillFromOCRData called:', debugInfo);
+    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:1942',message:'autoFillFromOCRData entry',data:{documentType:documentType,extractedDataKeys:Object.keys(extractedData),hasIdType:!!extractedData.idType,hasIdNumber:!!extractedData.idNumber,idType:extractedData.idType,idNumber:extractedData.idNumber,step3Exists:!!document.getElementById('step-3'),step3Visible:!!document.getElementById('step-3')&&document.getElementById('step-3').classList.contains('active'),idTypeFieldExists:!!document.getElementById('idType'),idNumberFieldExists:!!document.getElementById('idNumber')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     
     // Map OCR fields to form field IDs
@@ -2028,8 +2063,29 @@ function autoFillFromOCRData(extractedData, documentType) {
         ownerDocumentTypes,
         isOwnerDoc: ownerDocumentTypes.includes(documentType),
         extractedDataKeys: Object.keys(extractedData),
-        extractedDataFull: JSON.stringify(extractedData, null, 2)
+        extractedDataFull: JSON.stringify(extractedData, null, 2),
+        step3Exists: !!document.getElementById('step-3'),
+        step3Visible: document.getElementById('step-3')?.classList.contains('active'),
+        idTypeFieldExists: !!document.getElementById('idType'),
+        idNumberFieldExists: !!document.getElementById('idNumber')
     });
+    
+    // CRITICAL: If Step 3 fields don't exist yet, store data for later application
+    const step3Exists = !!document.getElementById('step-3');
+    const idTypeField = document.getElementById('idType');
+    const idNumberField = document.getElementById('idNumber');
+    
+    if (!step3Exists || !idTypeField || !idNumberField) {
+        console.warn('[ID AutoFill Debug] Step 3 fields not available yet. Data will be applied when Step 3 becomes visible.');
+        console.log('[ID AutoFill Debug] Storing data for later:', {
+            hasIdType: !!extractedData.idType,
+            hasIdNumber: !!extractedData.idNumber,
+            idType: extractedData.idType,
+            idNumber: extractedData.idNumber
+        });
+        // Data is already stored in storedOCRExtractedData above, so it will be applied when navigating to Step 3
+        return; // Exit early - fields will be filled when Step 3 becomes visible
+    }
     
     if (ownerDocumentTypes.includes(documentType)) {
         // #region agent log
@@ -2066,6 +2122,7 @@ function autoFillFromOCRData(extractedData, documentType) {
                         step3Visible: !!document.getElementById('step-3'),
                         step3Active: document.getElementById('step-3')?.classList.contains('active')
                     });
+                    fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2052',message:'Processing idType/idNumber field',data:{key:key,value:value,fieldId:fieldId,fieldFound:!!field,fieldExistsInDOM:fieldExists,fieldTagName:field?.tagName,fieldCurrentValue:field?.value,fieldHasValue:!!(field&&field.value),step3Visible:!!document.getElementById('step-3'),step3Active:document.getElementById('step-3')?.classList.contains('active')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                 }
                 // #endregion
                 
@@ -2085,11 +2142,41 @@ function autoFillFromOCRData(extractedData, documentType) {
                         // #endregion
                         
                         // Try to find matching option by value or text
-                        const option = Array.from(field.options).find(opt => 
-                            opt.value.toLowerCase() === value.toLowerCase() ||
-                            opt.text.toLowerCase().includes(value.toLowerCase()) ||
-                            value.toLowerCase().includes(opt.value.toLowerCase())
-                        );
+                        // Enhanced matching: handle various ID type formats from OCR
+                        const normalizedValue = value.toLowerCase().trim();
+                        const option = Array.from(field.options).find(opt => {
+                            const optValue = opt.value.toLowerCase().trim();
+                            const optText = opt.text.toLowerCase().trim();
+                            
+                            // Exact match
+                            if (optValue === normalizedValue) return true;
+                            if (optText === normalizedValue) return true;
+                            
+                            // Contains match
+                            if (optText.includes(normalizedValue)) return true;
+                            if (normalizedValue.includes(optValue)) return true;
+                            
+                            // Handle common variations
+                            // "driver's license" -> "drivers-license"
+                            // "drivers license" -> "drivers-license"
+                            // "driver license" -> "drivers-license"
+                            const normalizedForMatching = normalizedValue
+                                .replace(/'/g, '')
+                                .replace(/\s+/g, '-')
+                                .replace(/s-license/g, 's-license');
+                            if (optValue === normalizedForMatching) return true;
+                            
+                            // Handle reverse: "drivers-license" -> "driver's license"
+                            const optValueExpanded = optValue.replace(/-/g, ' ').replace(/s license/g, "'s license");
+                            if (normalizedValue.includes(optValueExpanded) || optValueExpanded.includes(normalizedValue)) return true;
+                            
+                            // Additional fuzzy matching for common OCR variations
+                            // "DRIVER LICENSE" -> "drivers-license"
+                            // "Driver License" -> "drivers-license"  
+                            if (normalizedValue.replace(/[^a-z]/g, '') === optValue.replace(/[^a-z]/g, '')) return true;
+                            
+                            return false;
+                        });
                         
                         // #region agent log
                         if (key === 'idType') {
@@ -2105,6 +2192,7 @@ function autoFillFromOCRData(extractedData, documentType) {
                                     'value-contains'
                                 ) : 'no-match'
                             });
+                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2088',message:'idType field matching',data:{key:key,extractedValue:value,optionFound:!!option,optionValue:option?.value,optionText:option?.text,allOptions:Array.from(field.options).map(opt=>({value:opt.value,text:opt.text}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                         }
                         // #endregion
                         
@@ -2120,6 +2208,7 @@ function autoFillFromOCRData(extractedData, documentType) {
                                     selectedValue: field.value,
                                     selectedText: option.text
                                 });
+                                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2111',message:'idType field filled successfully',data:{extractedValue:value,selectedValue:field.value,selectedText:option.text},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                             }
                             // #endregion
                         } else {
@@ -2130,11 +2219,17 @@ function autoFillFromOCRData(extractedData, documentType) {
                                     availableValues: Array.from(field.options).map(opt => opt.value),
                                     availableTexts: Array.from(field.options).map(opt => opt.text)
                                 });
+                                fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2125',message:'idType field NO MATCH',data:{extractedValue:value,availableValues:Array.from(field.options).map(opt=>opt.value),availableTexts:Array.from(field.options).map(opt=>opt.text)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                             }
                             // #endregion
                         }
                     } else {
                         // Regular input fields (like idNumber)
+                        // #region agent log
+                        if (key === 'idNumber') {
+                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2137',message:'Before filling idNumber',data:{key:key,value:value,fieldId:fieldId,fieldExists:!!field,fieldCurrentValue:field?.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                        }
+                        // #endregion
                         field.value = value;
                         field.classList.add('ocr-auto-filled');
                         fieldsFilled.owner++;
@@ -2142,6 +2237,7 @@ function autoFillFromOCRData(extractedData, documentType) {
                         // #region agent log
                         if (key === 'idNumber') {
                             console.log('[ID AutoFill Debug] idNumber field filled successfully:', value);
+                            fetch('http://127.0.0.1:7243/ingest/bf0c9b1e-0617-4604-9ace-3c295cc66fb8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration-wizard.js:2143',message:'idNumber field filled successfully',data:{value:value,fieldValue:field.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
                         }
                         // #endregion
                     }

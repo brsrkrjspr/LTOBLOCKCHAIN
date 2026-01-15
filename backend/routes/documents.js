@@ -1339,6 +1339,11 @@ router.get('/search', authenticateToken, authorizeRole(['admin']), async (req, r
 // OCR Text Extraction Endpoint
 // Extracts information from uploaded documents for auto-fill
 router.post('/extract-info', authenticateToken, upload.single('document'), async (req, res) => {
+    // Declare variables in function scope (accessible in both try and catch)
+    let documentType = null;
+    let extractionMethod = 'none';
+    let finalDocumentType = null;
+    
     try {
         if (!req.file) {
             return res.status(400).json({
@@ -1350,8 +1355,6 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         // Extract documentType from req.body (FormData field)
         // Note: Multer should parse FormData fields into req.body, but sometimes they're undefined
         // Try multiple field name variations for maximum compatibility
-        let documentType = null;
-        let extractionMethod = 'none';
         
         // Strategy 1: Check req.body fields (multiple variations)
         if (req.body?.documentType) {
@@ -1539,7 +1542,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         
         // Parse vehicle/owner information
         // Use the documentType we determined (with fallback logic above)
-        const finalDocumentType = documentType || 'registration_cert';
+        finalDocumentType = documentType || 'registration_cert';
         
         // #region agent log
         console.log('[OCR API Debug] Starting data parsing:', {
@@ -1663,10 +1666,13 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
         // #region agent log
         console.error('[OCR API Debug] ERROR in OCR extraction:', {
             error: error.message,
+            errorName: error.name,
             stack: error.stack,
             fileName: req.file?.originalname,
-            documentType: documentType,
-            filePath: req.file?.path
+            documentType: documentType || 'unknown',
+            finalDocumentType: finalDocumentType || 'unknown',
+            filePath: req.file?.path,
+            hasFile: !!req.file
         });
         // #endregion
         
@@ -1684,7 +1690,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
             success: false,
             error: 'Failed to extract information from document',
             message: error.message,
-            documentType: documentType
+            documentType: documentType || 'unknown'
         });
     }
 });

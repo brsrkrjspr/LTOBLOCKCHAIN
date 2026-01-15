@@ -359,35 +359,43 @@ class OCRService {
      * @returns {Object} Extracted data
      */
     parseVehicleInfo(text, documentType) {
-        const extracted = {};
+        // CRITICAL: Wrap entire function in try/catch to prevent ANY crash
+        try {
+            const extracted = {};
 
-        // #region agent log
-        console.log('[OCR Debug] parseVehicleInfo called:', {
-            documentType,
-            hasText: !!text,
-            textLength: text ? text.length : 0,
-            textPreview: text ? text.substring(0, 300) : 'NO TEXT'
-        });
-        // #endregion
-
-        // Validate input parameters
-        if (!documentType) {
-            console.warn('[OCR Debug] WARNING: documentType is undefined or null. Using default: registration_cert');
-            documentType = 'registration_cert';
-        }
-
-        if (!text || text.trim().length === 0) {
             // #region agent log
-            console.log('[OCR Debug] WARNING: No text extracted from document! Returning empty object.');
+            console.log('[OCR Debug] parseVehicleInfo called:', {
+                documentType,
+                hasText: !!text,
+                textType: typeof text,
+                textLength: text ? text.length : 0,
+                textPreview: text ? text.substring(0, 300) : 'NO TEXT'
+            });
             // #endregion
-            return extracted;
-        }
 
-        // Validate text is a string
-        if (typeof text !== 'string') {
-            console.error('[OCR Debug] ERROR: text parameter is not a string. Type:', typeof text);
-            return extracted;
-        }
+            // Validate input parameters
+            if (!documentType) {
+                console.warn('[OCR Debug] WARNING: documentType is undefined or null. Using default: registration_cert');
+                documentType = 'registration_cert';
+            }
+
+            // Validate text parameter
+            if (!text) {
+                console.warn('[OCR Debug] WARNING: text parameter is null/undefined. Returning empty object.');
+                return extracted;
+            }
+
+            if (typeof text !== 'string') {
+                console.error('[OCR Debug] ERROR: text parameter is not a string. Type:', typeof text, 'Value:', text);
+                return extracted;
+            }
+
+            if (text.trim().length === 0) {
+                // #region agent log
+                console.log('[OCR Debug] WARNING: No text extracted from document! Returning empty object.');
+                // #endregion
+                return extracted;
+            }
 
         // Normalize text for better pattern matching
         const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
@@ -445,10 +453,22 @@ class OCRService {
             // #region agent log
             console.log('[OCR Debug] Processing owner ID document type:', {
                 documentType,
-                textLength: text.length,
-                textSample: text.substring(0, 500)
+                textLength: text ? text.length : 0,
+                textType: typeof text,
+                textSample: text ? text.substring(0, 500) : 'NO TEXT'
             });
             // #endregion
+            
+            // CRITICAL: Ensure text is a string before processing
+            if (!text || typeof text !== 'string') {
+                console.error('[OCR Debug] ERROR: text is not a valid string:', {
+                    textType: typeof text,
+                    textValue: text,
+                    documentType
+                });
+                // Return early with empty extracted data (graceful degradation)
+                return extracted;
+            }
             
             try {
             
@@ -458,19 +478,28 @@ class OCRService {
                 /^([A-Z]+(?:\s+[A-Z]+)+)/m // First line if all caps
             ];
 
-            for (const pattern of namePatterns) {
-                const nameMatch = text.match(pattern);
-                if (nameMatch) {
-                    const fullName = nameMatch[1].trim();
-                    const nameParts = fullName.split(/[,\s]+/).filter(Boolean);
-                    if (nameParts.length >= 2) {
-                        extracted.lastName = nameParts[0];
-                        extracted.firstName = nameParts.slice(1).join(' ');
-                    } else if (nameParts.length === 1) {
-                        extracted.firstName = nameParts[0];
+            try {
+                for (const pattern of namePatterns) {
+                    if (!text || typeof text !== 'string') break;
+                    const nameMatch = text.match(pattern);
+                    if (nameMatch && nameMatch[1]) {
+                        const fullName = nameMatch[1].trim();
+                        const nameParts = fullName.split(/[,\s]+/).filter(Boolean);
+                        if (nameParts.length >= 2) {
+                            extracted.lastName = nameParts[0];
+                            extracted.firstName = nameParts.slice(1).join(' ');
+                        } else if (nameParts.length === 1) {
+                            extracted.firstName = nameParts[0];
+                        }
+                        break;
                     }
-                    break;
                 }
+            } catch (nameError) {
+                console.error('[OCR Debug] ERROR extracting name:', {
+                    error: nameError.message,
+                    errorName: nameError.name
+                });
+                // Continue - name extraction failure is not critical
             }
 
             // Extract Address
@@ -479,25 +508,46 @@ class OCRService {
                 /(?:ADDRESS|RESIDENCE)\s*[:.]?\s*([^\n]{10,200})/i
             ];
 
-            for (const pattern of addressPatterns) {
-                const addressMatch = text.match(pattern);
-                if (addressMatch) {
-                    extracted.address = addressMatch[1].trim();
-                    break;
+            try {
+                for (const pattern of addressPatterns) {
+                    if (!text || typeof text !== 'string') break;
+                    const addressMatch = text.match(pattern);
+                    if (addressMatch && addressMatch[1]) {
+                        extracted.address = addressMatch[1].trim();
+                        break;
+                    }
                 }
+            } catch (addressError) {
+                console.error('[OCR Debug] ERROR extracting address:', {
+                    error: addressError.message,
+                    errorName: addressError.name
+                });
+                // Continue - address extraction failure is not critical
             }
 
             // Extract Phone Number
-            const phonePattern = /(?:PHONE|CONTACT|MOBILE|TEL)\s*[:.]?\s*([\+\d\s\-\(\)]{10,20})/i;
-            const phoneMatch = text.match(phonePattern);
-            if (phoneMatch) extracted.phone = phoneMatch[1].trim();
+            try {
+                if (text && typeof text === 'string') {
+                    const phonePattern = /(?:PHONE|CONTACT|MOBILE|TEL)\s*[:.]?\s*([\+\d\s\-\(\)]{10,20})/i;
+                    const phoneMatch = text.match(phonePattern);
+                    if (phoneMatch && phoneMatch[1]) {
+                        extracted.phone = phoneMatch[1].trim();
+                    }
+                }
+            } catch (phoneError) {
+                console.error('[OCR Debug] ERROR extracting phone:', {
+                    error: phoneError.message,
+                    errorName: phoneError.name
+                });
+                // Continue - phone extraction failure is not critical
+            }
             
             // #region agent log
             console.log('[OCR Debug] Starting ID Type/Number extraction for owner_id document:', {
                 documentType: documentType,
-                textLength: text.length,
-                textPreview: text.substring(0, 300),
-                normalizedTextPreview: text.toUpperCase().replace(/\s+/g, ' ').substring(0, 300)
+                textLength: text ? text.length : 0,
+                textPreview: text ? text.substring(0, 300) : 'NO TEXT',
+                normalizedTextPreview: text ? text.toUpperCase().replace(/\s+/g, ' ').substring(0, 300) : 'NO TEXT'
             });
             // #endregion
             
@@ -523,7 +573,7 @@ class OCRService {
             };
             
             // Strategy 1: Scan document title/header (first 200 chars) - most reliable location
-            const documentHeader = text.substring(0, 200).toUpperCase();
+            const documentHeader = (text && text.length > 0) ? text.substring(0, Math.min(200, text.length)).toUpperCase() : '';
             const headerPatterns = [
                 // Driver's License patterns (most common)
                 /DRIVER['\s]*S?\s*LICENSE/i,
@@ -554,35 +604,44 @@ class OCRService {
             // #endregion
             
             let foundInHeader = false;
-            for (let i = 0; i < headerPatterns.length && !foundInHeader; i++) {
-                const pattern = headerPatterns[i];
-                const match = documentHeader.match(pattern);
-                if (match) {
-                    const matchedText = match[0].toLowerCase();
-                    // #region agent log
-                    console.log('[OCR Debug] ID Type found in document header:', {
-                        patternIndex: i,
-                        pattern: pattern.toString(),
-                        matchedText,
-                        matchContext: documentHeader.substring(Math.max(0, match.index - 20), Math.min(documentHeader.length, match.index + match[0].length + 20))
-                    });
-                    // #endregion
-                    for (const [key, value] of Object.entries(idTypeMap)) {
-                        if (matchedText.includes(key)) {
-                            extracted.idType = value;
-                            foundInHeader = true;
-                            // #region agent log
-                            console.log('[OCR Debug] ID Type extracted from header successfully:', {
-                                matchedText,
-                                key,
-                                value,
-                                idType: extracted.idType
-                            });
-                            // #endregion
-                            break;
+            try {
+                for (let i = 0; i < headerPatterns.length && !foundInHeader; i++) {
+                    const pattern = headerPatterns[i];
+                    if (!documentHeader || typeof documentHeader !== 'string') break;
+                    const match = documentHeader.match(pattern);
+                    if (match && match[0]) {
+                        const matchedText = match[0].toLowerCase();
+                        // #region agent log
+                        console.log('[OCR Debug] ID Type found in document header:', {
+                            patternIndex: i,
+                            pattern: pattern.toString(),
+                            matchedText,
+                            matchContext: documentHeader.substring(Math.max(0, match.index - 20), Math.min(documentHeader.length, match.index + match[0].length + 20))
+                        });
+                        // #endregion
+                        for (const [key, value] of Object.entries(idTypeMap)) {
+                            if (matchedText.includes(key)) {
+                                extracted.idType = value;
+                                foundInHeader = true;
+                                // #region agent log
+                                console.log('[OCR Debug] ID Type extracted from header successfully:', {
+                                    matchedText,
+                                    key,
+                                    value,
+                                    idType: extracted.idType
+                                });
+                                // #endregion
+                                break;
+                            }
                         }
                     }
                 }
+            } catch (headerError) {
+                console.error('[OCR Debug] ERROR in header ID type extraction:', {
+                    error: headerError.message,
+                    errorName: headerError.name
+                });
+                // Continue - header extraction failure is not critical
             }
             
             // Strategy 2: If not found in header, scan entire text
@@ -619,53 +678,62 @@ class OCRService {
                 console.log('[OCR Debug] Attempting ID Type extraction with', idTypePatterns.length, 'patterns on full text');
                 // #endregion
                 
-                for (let i = 0; i < idTypePatterns.length; i++) {
-                    const pattern = idTypePatterns[i];
-                    const match = text.match(pattern);
-                    
-                    // #region agent log
-                    if (!match && i === 0) {
-                        // Log first pattern attempt for debugging
-                        console.log('[OCR Debug] ID Type pattern attempt', i + 1, ':', {
-                            pattern: pattern.toString(),
-                            matched: false
-                        });
-                    }
-                    // #endregion
-                    
-                    if (match) {
-                        const matchedText = match[0].toLowerCase();
+                try {
+                    for (let i = 0; i < idTypePatterns.length; i++) {
+                        const pattern = idTypePatterns[i];
+                        if (!text || typeof text !== 'string') break;
+                        const match = text.match(pattern);
+                        
                         // #region agent log
-                        console.log('[OCR Debug] ID Type pattern matched in full text:', {
-                            patternIndex: i,
-                            pattern: pattern.toString(),
-                            matchedText,
-                            matchContext: text.substring(Math.max(0, match.index - 20), Math.min(text.length, match.index + match[0].length + 20))
-                        });
-                        // #endregion
-                        for (const [key, value] of Object.entries(idTypeMap)) {
-                            if (matchedText.includes(key)) {
-                                extracted.idType = value;
-                                // #region agent log
-                                console.log('[OCR Debug] ID Type extracted from full text successfully:', {
-                                    matchedText,
-                                    key,
-                                    value,
-                                    idType: extracted.idType
-                                });
-                                // #endregion
-                                break;
-                            }
+                        if (!match && i === 0) {
+                            // Log first pattern attempt for debugging
+                            console.log('[OCR Debug] ID Type pattern attempt', i + 1, ':', {
+                                pattern: pattern.toString(),
+                                matched: false
+                            });
                         }
-                        if (extracted.idType) break;
+                        // #endregion
+                        
+                        if (match && match[0]) {
+                            const matchedText = match[0].toLowerCase();
+                            // #region agent log
+                            console.log('[OCR Debug] ID Type pattern matched in full text:', {
+                                patternIndex: i,
+                                pattern: pattern.toString(),
+                                matchedText,
+                                matchContext: text.substring(Math.max(0, match.index - 20), Math.min(text.length, match.index + match[0].length + 20))
+                            });
+                            // #endregion
+                            for (const [key, value] of Object.entries(idTypeMap)) {
+                                if (matchedText.includes(key)) {
+                                    extracted.idType = value;
+                                    // #region agent log
+                                    console.log('[OCR Debug] ID Type extracted from full text successfully:', {
+                                        matchedText,
+                                        key,
+                                        value,
+                                        idType: extracted.idType
+                                    });
+                                    // #endregion
+                                    break;
+                                }
+                            }
+                            if (extracted.idType) break;
+                        }
                     }
+                } catch (idTypeError) {
+                    console.error('[OCR Debug] ERROR in ID type extraction:', {
+                        error: idTypeError.message,
+                        errorName: idTypeError.name
+                    });
+                    // Continue - ID type extraction failure is not critical
                 }
             }
             
             // #region agent log
             if (!extracted.idType) {
-                console.log('[OCR Debug] ID Type not found after trying all strategies. Text sample:', text.substring(0, 500));
-                console.log('[OCR Debug] Normalized text sample (for pattern debugging):', text.toUpperCase().replace(/\s+/g, ' ').substring(0, 500));
+                console.log('[OCR Debug] ID Type not found after trying all strategies. Text sample:', text ? text.substring(0, 500) : 'NO TEXT');
+                console.log('[OCR Debug] Normalized text sample (for pattern debugging):', text ? text.toUpperCase().replace(/\s+/g, ' ').substring(0, 500) : 'NO TEXT');
             }
             // #endregion
             
@@ -706,51 +774,70 @@ class OCRService {
                 let idNumber = null;
                 let matchFound = false;
                 
-                if (isGlobalPattern) {
-                    // For global patterns, use exec() to get capture groups properly
-                    // Reset pattern lastIndex to ensure we start from beginning
-                    pattern.lastIndex = 0;
-                    let match;
-                    while ((match = pattern.exec(text)) !== null) {
-                        matchFound = true;
-                        // match[0] is full match, match[1] is first capture group
-                        if (match[1]) {
-                            idNumber = match[1].trim();
+                try {
+                    if (isGlobalPattern) {
+                        // For global patterns, use exec() to get capture groups properly
+                        // Reset pattern lastIndex to ensure we start from beginning
+                        if (!text || typeof text !== 'string') {
+                            console.warn('[OCR Debug] WARNING: text is not a string, skipping pattern', i);
+                            continue;
+                        }
+                        pattern.lastIndex = 0;
+                        let match;
+                        while ((match = pattern.exec(text)) !== null) {
+                            matchFound = true;
+                            // match[0] is full match, match[1] is first capture group
+                            if (match[1]) {
+                                idNumber = match[1].trim();
+                                // #region agent log
+                                console.log('[OCR Debug] ID Number pattern matched (global):', {
+                                    patternIndex: i,
+                                    pattern: pattern.toString(),
+                                    fullMatch: match[0],
+                                    captureGroup: match[1],
+                                    matchIndex: match.index
+                                });
+                                // #endregion
+                                break; // Use first match
+                            }
+                        }
+                    } else {
+                        // For non-global patterns, use match() which returns array with capture groups
+                        if (!text || typeof text !== 'string') {
+                            console.warn('[OCR Debug] WARNING: text is not a string, skipping pattern', i);
+                            continue;
+                        }
+                        const matches = text.match(pattern);
+                        if (matches) {
+                            matchFound = true;
+                            // matches[0] is full match, matches[1] is first capture group
+                            if (matches[1]) {
+                                idNumber = matches[1].trim();
+                            } else if (matches[0]) {
+                                // Fallback to full match if no capture group
+                                idNumber = matches[0].trim();
+                            }
+                            
                             // #region agent log
-                            console.log('[OCR Debug] ID Number pattern matched (global):', {
+                            console.log('[OCR Debug] ID Number pattern matched (non-global):', {
                                 patternIndex: i,
                                 pattern: pattern.toString(),
-                                fullMatch: match[0],
-                                captureGroup: match[1],
-                                matchIndex: match.index
+                                fullMatch: matches[0],
+                                captureGroup: matches[1],
+                                matchIndex: matches.index
                             });
                             // #endregion
-                            break; // Use first match
                         }
                     }
-                } else {
-                    // For non-global patterns, use match() which returns array with capture groups
-                    const matches = text.match(pattern);
-                    if (matches) {
-                        matchFound = true;
-                        // matches[0] is full match, matches[1] is first capture group
-                        if (matches[1]) {
-                            idNumber = matches[1].trim();
-                        } else if (matches[0]) {
-                            // Fallback to full match if no capture group
-                            idNumber = matches[0].trim();
-                        }
-                        
-                        // #region agent log
-                        console.log('[OCR Debug] ID Number pattern matched (non-global):', {
-                            patternIndex: i,
-                            pattern: pattern.toString(),
-                            fullMatch: matches[0],
-                            captureGroup: matches[1],
-                            matchIndex: matches.index
-                        });
-                        // #endregion
-                    }
+                } catch (patternError) {
+                    console.error('[OCR Debug] ERROR in pattern matching (pattern', i, '):', {
+                        error: patternError.message,
+                        errorName: patternError.name,
+                        pattern: pattern.toString(),
+                        textLength: text ? text.length : 0
+                    });
+                    // Continue to next pattern instead of crashing
+                    continue;
                 }
                 
                 if (matchFound && idNumber) {
@@ -802,8 +889,8 @@ class OCRService {
             
             // #region agent log
             if (!extracted.idNumber) {
-                console.log('[OCR Debug] ID Number not found after trying', idNumberPatterns.length, 'patterns. Text sample:', text.substring(0, 500));
-                console.log('[OCR Debug] Normalized text sample (for pattern debugging):', text.toUpperCase().replace(/\s+/g, ' ').substring(0, 500));
+                console.log('[OCR Debug] ID Number not found after trying', idNumberPatterns.length, 'patterns. Text sample:', text ? text.substring(0, 500) : 'NO TEXT');
+                console.log('[OCR Debug] Normalized text sample (for pattern debugging):', text ? text.toUpperCase().replace(/\s+/g, ' ').substring(0, 500) : 'NO TEXT');
             }
             console.log('[OCR Debug] Final extracted data for owner_id:', {
                 hasIdType: !!extracted.idType,
@@ -820,11 +907,14 @@ class OCRService {
                     errorName: ownerIdError.name,
                     stack: ownerIdError.stack,
                     documentType: documentType,
-                    textLength: text ? text.length : 0
+                    textLength: text ? text.length : 0,
+                    textType: typeof text,
+                    hasText: !!text
                 });
                 // Return partial results if any fields were extracted before error
                 // (graceful degradation)
                 // extracted object may already have some fields populated
+                // DO NOT throw - let the function return extracted object (even if empty)
             }
         }
 
@@ -992,7 +1082,20 @@ class OCRService {
             if (plateMatch) extracted.plateNumber = plateMatch[1].replace(/\s/g, '-').trim();
         }
 
-        return extracted;
+            return extracted;
+        } catch (topLevelError) {
+            // CRITICAL: Catch ANY error that escaped all other try/catch blocks
+            console.error('[OCR Debug] CRITICAL ERROR in parseVehicleInfo (top-level catch):', {
+                error: topLevelError.message,
+                errorName: topLevelError.name,
+                stack: topLevelError.stack,
+                documentType: documentType,
+                textType: typeof text,
+                textLength: text ? text.length : 0
+            });
+            // Always return empty object instead of throwing - prevents route crashes
+            return {};
+        }
     }
 
     /**

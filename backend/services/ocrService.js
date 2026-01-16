@@ -1438,24 +1438,128 @@ class OCRService {
             // Extract Vehicle Information from CSR (Certificate of Stock Report)
             
             // **IDENTIFIERS (High Confidence)**
-            // VIN (ISO Standard: 17 chars, excludes I, O, Q)
-            const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
-            const vinMatches = text.match(vinPattern);
-            if (vinMatches) extracted.vin = vinMatches[0].trim();
+            // Chassis / VIN - Single field that contains both values (they're the same)
+            // Try multiple patterns to handle all typography variations
+            let chassisVinValue = null;
             
-            // Engine Number
-            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
-            const engineMatches = text.match(enginePattern);
+            // Pattern 1: Table format "Chassis / VIN | CH9876543210" (exact spacing)
+            let pattern = /Chassis\s*\/\s*VIN\s*\|\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+            let matches = text.match(pattern);
+            if (matches) {
+                chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 2: Table format "Chassis/VIN | value" (no space around slash)
+            if (!chassisVinValue) {
+                pattern = /Chassis\s*\/\s*VIN\s*[|:]\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 3: Text format "Chassis / VIN CH9876543210" (no required delimiter)
+            if (!chassisVinValue) {
+                pattern = /Chassis\s*\/\s*VIN\s+([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 4: Text format without slash "Chassis Number value" or "VIN value"
+            if (!chassisVinValue) {
+                pattern = /(?:Chassis|VIN)\s*(?:Number)?\s+([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 5: "Chassis No. value" or "Chassis No value" (no required delimiter)
+            if (!chassisVinValue) {
+                pattern = /Chassis\s*No\.?\s+([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 6: Just "Chassis | value" (table format, no VIN mention)
+            if (!chassisVinValue) {
+                pattern = /Chassis\s*\|\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 7: Just "Chassis: value" (text format, no VIN mention)
+            if (!chassisVinValue) {
+                pattern = /Chassis\s*[:]\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 8: Just "VIN | value" (table format)
+            if (!chassisVinValue) {
+                pattern = /VIN\s*\|\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 9: Just "VIN: value" (text format)
+            if (!chassisVinValue) {
+                pattern = /VIN\s*[:]\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 10: Reversed "VIN / Chassis" format
+            if (!chassisVinValue) {
+                pattern = /VIN\s*\/\s*Chassis\s*[|:]\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 11: ISO VIN standard (17 chars, no I, O, Q) - standalone
+            if (!chassisVinValue) {
+                pattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[0].trim();
+            }
+            
+            // Pattern 12: Flexible alphanumeric 10-17 chars (most permissive)
+            if (!chassisVinValue) {
+                pattern = /(?:Chassis|VIN|Frame)\s*(?:\/\s*(?:Chassis|VIN))?\s*[|:]\s*([A-Z0-9\-]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            
+            // Map to both fields since they contain the same value
+            if (chassisVinValue) {
+                extracted.chassisNumber = chassisVinValue;
+                extracted.vin = chassisVinValue;  // Same value in both fields
+            }
+            
+            // Engine Number - Handle all variations
+            let enginePattern = /Engine\s*Number\s*\|\s*([A-Z0-9\-]+)/i;  // Table format with pipe
+            let engineMatches = text.match(enginePattern);
+            if (!engineMatches) {
+                enginePattern = /Engine\s*Number\s*[:]\s*([A-Z0-9\-]+)/i;  // Colon format
+                engineMatches = text.match(enginePattern);
+            }
+            if (!engineMatches) {
+                enginePattern = /Engine\s*No\.\s*[:]\s*([A-Z0-9\-]+)/i;  // "Engine No." with colon
+                engineMatches = text.match(enginePattern);
+            }
+            if (!engineMatches) {
+                enginePattern = /(?:Engine|Motor)\s*(?:No\.?|Number)?\s*[:.\s]*([A-Z0-9\-]+)/i;  // Generic text format
+                engineMatches = text.match(enginePattern);
+            }
             if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
             
-            // Chassis Number - Handle "Chassis / VIN" format with optional slash
-            const chassisPattern = /(?:Chassis|Frame)(?:\s*\/\s*VIN)?\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
-            const chassisMatches = text.match(chassisPattern);
-            if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
-            
-            // Plate Number
-            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
-            const plateMatches = text.match(platePattern);
+            // Plate Number - Handle all variations
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;  // Table format
+            let plateMatches = text.match(platePattern);
+            if (!plateMatches) {
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:]\s*([A-Z0-9\s\-]+)/i;  // Colon format
+                plateMatches = text.match(platePattern);
+            }
+            if (!plateMatches) {
+                platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;  // Standard format
+                plateMatches = text.match(platePattern);
+            }
             if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
             
             // MV File Number
@@ -1464,9 +1568,17 @@ class OCRService {
             if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
 
             // **DESCRIPTORS (Context-Based)**
-            // Make/Brand
-            const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
-            const makeMatches = text.match(makePattern);
+            // Make/Brand - Handle table and text formats
+            let makePattern = /Make\s*(?:\/\s*Brand)?\s*\|\s*([A-Za-z]+)/i;  // Table format
+            let makeMatches = text.match(makePattern);
+            if (!makeMatches) {
+                makePattern = /(?:Make|Brand)\s*[:]\s*([A-Za-z]+)/i;  // Colon format
+                makeMatches = text.match(makePattern);
+            }
+            if (!makeMatches) {
+                makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;  // Generic format
+                makeMatches = text.match(makePattern);
+            }
             if (makeMatches) extracted.make = makeMatches[1].trim();
             
                 // Series (Model line) - Skip slash and alternative field names

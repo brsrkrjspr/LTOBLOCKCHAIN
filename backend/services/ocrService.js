@@ -795,40 +795,80 @@ class OCRService {
 
         if (documentType === 'registration_cert' || documentType === 'registrationCert' || 
             documentType === 'or_cr' || documentType === 'orCr') {
-            // Extract VIN/Chassis Number (17 characters, alphanumeric, excludes I, O, Q)
-            const vinPattern = /(?:VIN|CHASSIS\s*(?:NO)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
-            const vinMatch = text.match(vinPattern);
-            if (vinMatch) extracted.vin = vinMatch[1].trim();
+            // Extract ALL LTO Vehicle Information fields with advanced regex patterns
+            
+            // **IDENTIFIERS (High Confidence)**
+            // VIN (ISO Standard: 17 chars, excludes I, O, Q)
+            const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
+            const vinMatches = text.match(vinPattern);
+            if (vinMatches) extracted.vin = vinMatches[0].trim();
+            
+            // Plate Number (various formats)
+            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
+            const plateMatches = text.match(platePattern);
+            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+            
+            // Engine Number
+            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
+            const engineMatches = text.match(enginePattern);
+            if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
+            
+            // MV File Number (format: XXXX-XXXXXXX or XXXX-XXXXXXXX)
+            const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
+            const mvFileMatches = text.match(mvFilePattern);
+            if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
 
-            // Extract Engine Number
-            const enginePattern = /(?:ENGINE\s*(?:NO)?\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
-            const engineMatch = text.match(enginePattern);
-            if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
+            // **DESCRIPTORS (Context-Based)**
+            // Make (Brand)
+            const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
+            const makeMatches = text.match(makePattern);
+            if (makeMatches) extracted.make = makeMatches[1].trim();
+            
+            // Series (Model line)
+            const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
+            const seriesMatches = text.match(seriesPattern);
+            if (seriesMatches) extracted.series = seriesMatches[1].trim();
+            
+            // Body Type
+            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
+            const bodyTypeMatches = text.match(bodyTypePattern);
+            if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
+            
+            // Year Model
+            const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
+            const yearModelMatches = text.match(yearModelPattern);
+            if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
+            
+            // Color
+            const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
+            const colorMatches = text.match(colorPattern);
+            if (colorMatches) extracted.color = colorMatches[1].trim();
+            
+            // Fuel Type
+            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
+            const fuelTypeMatches = text.match(fuelTypePattern);
+            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
 
-            // Extract Plate Number (Format: ABC-1234 or ABC 1234)
-            const platePattern = /(?:PLATE\s*(?:NO)?\.?|PLATE\s*NUMBER)\s*[:.]?\s*([A-Z]{2,3}[-\s]?\d{3,4})/i;
-            const plateMatch = text.match(platePattern);
-            if (plateMatch) extracted.plateNumber = plateMatch[1].replace(/\s/g, '-').trim();
+            // **WEIGHTS (Numeric)**
+            // Gross Weight
+            const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
+            const grossWeightMatches = text.match(grossWeightPattern);
+            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
+            
+            // Net Capacity / Net Weight
+            const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
+            const netCapacityMatches = text.match(netCapacityPattern);
+            if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
 
-            // Extract Make/Brand
-            const makePattern = /(?:MAKE|BRAND|MANUFACTURER)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-            const makeMatch = text.match(makePattern);
-            if (makeMatch) extracted.make = makeMatch[1].trim();
-
-            // Extract Model
-            const modelPattern = /(?:MODEL|SERIES|TYPE)\s*[:.]?\s*([A-Z0-9\s\-]+?)(?:\s*(?:YEAR|ENGINE|COLOR|VIN)|$)/i;
-            const modelMatch = text.match(modelPattern);
-            if (modelMatch) extracted.model = modelMatch[1].trim();
-
-            // Extract Year (4-digit year)
-            const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR|MANUFACTURE\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
-            const yearMatch = text.match(yearPattern);
-            if (yearMatch) extracted.year = yearMatch[1].trim();
-
-            // Extract Color
-            const colorPattern = /(?:COLOR|COLOUR)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-            const colorMatch = text.match(colorPattern);
-            if (colorMatch) extracted.color = colorMatch[1].trim();
+            // **BACKWARDS COMPATIBILITY: Keep older field names for Step 2 form**
+            // Map new fields to old field names where applicable
+            if (extracted.series) extracted.model = extracted.series;
+            if (extracted.yearModel) extracted.year = extracted.yearModel;
+            
+            // Chassis Number (alternative to VIN)
+            const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
+            const chassisMatches = text.match(chassisPattern);
+            if (chassisMatches) extracted.chassisNumber = chassisMatches[0].trim();
         }
 
         // Process owner ID documents with error handling
@@ -1268,40 +1308,77 @@ class OCRService {
             // Extract Vehicle Information from Sales Invoice
             // Wrap ALL sales invoice extraction in try/catch for fail-soft behavior
             try {
-                // VIN/Chassis Number
-                const vinPattern = /(?:VIN|CHASSIS\s*(?:NO|NUMBER)?\.?|FRAME\s*NO\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
-                const vinMatch = text.match(vinPattern);
-                if (vinMatch) extracted.vin = vinMatch[1].trim();
-
+                // **IDENTIFIERS (High Confidence)**
+                // VIN (ISO Standard: 17 chars, excludes I, O, Q)
+                const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
+                const vinMatches = text.match(vinPattern);
+                if (vinMatches) extracted.vin = vinMatches[0].trim();
+                
                 // Engine Number
-                const enginePattern = /(?:ENGINE\s*(?:NO|NUMBER)?\.?|MOTOR\s*NO\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
-                const engineMatch = text.match(enginePattern);
-                if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
+                const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
+                const engineMatches = text.match(enginePattern);
+                if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
+                
+                // Chassis Number
+                const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
+                const chassisMatches = text.match(chassisPattern);
+                if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
+                
+                // Plate Number
+                const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
+                const plateMatches = text.match(platePattern);
+                if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+                
+                // MV File Number
+                const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
+                const mvFileMatches = text.match(mvFilePattern);
+                if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
 
-                // Chassis Number (if different from VIN)
-                const chassisPattern = /(?:CHASSIS\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{10,17})/i;
-                const chassisMatch = text.match(chassisPattern);
-                if (chassisMatch && !extracted.vin) extracted.chassisNumber = chassisMatch[1].trim();
-
+                // **DESCRIPTORS (Context-Based)**
                 // Make/Brand
-                const makePattern = /(?:MAKE|BRAND|MANUFACTURER|CAR\s*MAKE)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-                const makeMatch = text.match(makePattern);
-                if (makeMatch) extracted.make = makeMatch[1].trim();
-
-                // Model
-                const modelPattern = /(?:MODEL|SERIES|TYPE|CAR\s*MODEL)\s*[:.]?\s*([A-Z0-9\s\-]+?)(?:\s*(?:YEAR|ENGINE|COLOR|VIN|PRICE|AMOUNT)|$)/i;
-                const modelMatch = text.match(modelPattern);
-                if (modelMatch) extracted.model = modelMatch[1].trim();
-
-                // Year
-                const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR|MANUFACTURE\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
-                const yearMatch = text.match(yearPattern);
-                if (yearMatch) extracted.year = yearMatch[1].trim();
-
+                const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
+                const makeMatches = text.match(makePattern);
+                if (makeMatches) extracted.make = makeMatches[1].trim();
+                
+                // Series (Model line)
+                const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches) extracted.series = seriesMatches[1].trim();
+                
+                // Body Type
+                const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
+                const bodyTypeMatches = text.match(bodyTypePattern);
+                if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
+                
+                // Year Model
+                const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
+                const yearModelMatches = text.match(yearModelPattern);
+                if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
+                
                 // Color
-                const colorPattern = /(?:COLOR|COLOUR|PAINT)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-                const colorMatch = text.match(colorPattern);
-                if (colorMatch) extracted.color = colorMatch[1].trim();
+                const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
+                const colorMatches = text.match(colorPattern);
+                if (colorMatches) extracted.color = colorMatches[1].trim();
+                
+                // Fuel Type
+                const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
+                const fuelTypeMatches = text.match(fuelTypePattern);
+                if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+
+                // **WEIGHTS (Numeric)**
+                // Gross Weight
+                const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
+                const grossWeightMatches = text.match(grossWeightPattern);
+                if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
+                
+                // Net Capacity / Net Weight
+                const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
+                const netCapacityMatches = text.match(netCapacityPattern);
+                if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
+
+                // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+                if (extracted.series) extracted.model = extracted.series;
+                if (extracted.yearModel) extracted.year = extracted.yearModel;
 
                 // Owner/Buyer Information from Sales Invoice
                 const buyerPatterns = [
@@ -1354,40 +1431,78 @@ class OCRService {
 
         if (documentType === 'csr' || documentType === 'certificateOfStockReport' || documentType === 'certificate_of_stock_report') {
             // Extract Vehicle Information from CSR (Certificate of Stock Report)
-            // VIN/Chassis Number
-            const vinPattern = /(?:VIN|CHASSIS\s*(?:NO|NUMBER)?\.?|FRAME\s*NO\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
-            const vinMatch = text.match(vinPattern);
-            if (vinMatch) extracted.vin = vinMatch[1].trim();
-
+            
+            // **IDENTIFIERS (High Confidence)**
+            // VIN (ISO Standard: 17 chars, excludes I, O, Q)
+            const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
+            const vinMatches = text.match(vinPattern);
+            if (vinMatches) extracted.vin = vinMatches[0].trim();
+            
             // Engine Number
-            const enginePattern = /(?:ENGINE\s*(?:NO|NUMBER)?\.?|MOTOR\s*NO\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
-            const engineMatch = text.match(enginePattern);
-            if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
-
+            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
+            const engineMatches = text.match(enginePattern);
+            if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
+            
             // Chassis Number
-            const chassisPattern = /(?:CHASSIS\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{10,17})/i;
-            const chassisMatch = text.match(chassisPattern);
-            if (chassisMatch) extracted.chassisNumber = chassisMatch[1].trim();
+            const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
+            const chassisMatches = text.match(chassisPattern);
+            if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
+            
+            // Plate Number
+            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
+            const plateMatches = text.match(platePattern);
+            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+            
+            // MV File Number
+            const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
+            const mvFileMatches = text.match(mvFilePattern);
+            if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
 
+            // **DESCRIPTORS (Context-Based)**
             // Make/Brand
-            const makePattern = /(?:MAKE|BRAND|MANUFACTURER)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-            const makeMatch = text.match(makePattern);
-            if (makeMatch) extracted.make = makeMatch[1].trim();
-
-            // Model
-            const modelPattern = /(?:MODEL|SERIES|TYPE)\s*[:.]?\s*([A-Z0-9\s\-]+?)(?:\s*(?:YEAR|ENGINE|COLOR|VIN|STOCK)|$)/i;
-            const modelMatch = text.match(modelPattern);
-            if (modelMatch) extracted.model = modelMatch[1].trim();
-
-            // Year
-            const yearPattern = /(?:YEAR|MODEL\s*YEAR|MFG\.?\s*YEAR)\s*[:.]?\s*((?:19|20)\d{2})/i;
-            const yearMatch = text.match(yearPattern);
-            if (yearMatch) extracted.year = yearMatch[1].trim();
-
+            const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
+            const makeMatches = text.match(makePattern);
+            if (makeMatches) extracted.make = makeMatches[1].trim();
+            
+            // Series (Model line)
+            const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
+            const seriesMatches = text.match(seriesPattern);
+            if (seriesMatches) extracted.series = seriesMatches[1].trim();
+            
+            // Body Type
+            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
+            const bodyTypeMatches = text.match(bodyTypePattern);
+            if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
+            
+            // Year Model
+            const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
+            const yearModelMatches = text.match(yearModelPattern);
+            if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
+            
             // Color
-            const colorPattern = /(?:COLOR|COLOUR)\s*[:.]?\s*([A-Z]+(?:\s+[A-Z]+)?)/i;
-            const colorMatch = text.match(colorPattern);
-            if (colorMatch) extracted.color = colorMatch[1].trim();
+            const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
+            const colorMatches = text.match(colorPattern);
+            if (colorMatches) extracted.color = colorMatches[1].trim();
+            
+            // Fuel Type
+            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
+            const fuelTypeMatches = text.match(fuelTypePattern);
+            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+
+            // **WEIGHTS (Numeric)**
+            // Gross Weight
+            const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
+            const grossWeightMatches = text.match(grossWeightPattern);
+            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
+            
+            // Net Capacity / Net Weight
+            const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
+            const netCapacityMatches = text.match(netCapacityPattern);
+            if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
+
+            // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+            if (extracted.series) extracted.model = extracted.series;
+            if (extracted.yearModel) extracted.year = extracted.yearModel;
 
             // CSR Number
             const csrNumberPattern = /(?:CSR\s*(?:NO|NUMBER)|CERTIFICATE\s*(?:NO|NUMBER)|STOCK\s*REPORT\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
@@ -1402,18 +1517,77 @@ class OCRService {
             const clearanceMatch = text.match(clearanceNumberPattern);
             if (clearanceMatch) extracted.clearanceNumber = clearanceMatch[1].trim();
 
-            // Vehicle details (similar to registration cert)
-            const vinPattern = /(?:VIN|CHASSIS\s*(?:NO)?\.?)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
-            const vinMatch = text.match(vinPattern);
-            if (vinMatch) extracted.vin = vinMatch[1].trim();
+            // **IDENTIFIERS (High Confidence)**
+            // VIN (ISO Standard: 17 chars, excludes I, O, Q)
+            const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
+            const vinMatches = text.match(vinPattern);
+            if (vinMatches) extracted.vin = vinMatches[0].trim();
+            
+            // Engine Number
+            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
+            const engineMatches = text.match(enginePattern);
+            if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
+            
+            // Plate Number
+            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
+            const plateMatches = text.match(platePattern);
+            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+            
+            // Chassis Number
+            const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
+            const chassisMatches = text.match(chassisPattern);
+            if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
+            
+            // MV File Number
+            const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
+            const mvFileMatches = text.match(mvFilePattern);
+            if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
 
-            const enginePattern = /(?:ENGINE\s*(?:NO)?\.?)\s*[:.]?\s*([A-Z0-9\-]{6,20})/i;
-            const engineMatch = text.match(enginePattern);
-            if (engineMatch) extracted.engineNumber = engineMatch[1].trim();
+            // **DESCRIPTORS (Context-Based)**
+            // Make/Brand
+            const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
+            const makeMatches = text.match(makePattern);
+            if (makeMatches) extracted.make = makeMatches[1].trim();
+            
+            // Series (Model line)
+            const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
+            const seriesMatches = text.match(seriesPattern);
+            if (seriesMatches) extracted.series = seriesMatches[1].trim();
+            
+            // Body Type
+            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
+            const bodyTypeMatches = text.match(bodyTypePattern);
+            if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
+            
+            // Year Model
+            const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
+            const yearModelMatches = text.match(yearModelPattern);
+            if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
+            
+            // Color
+            const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
+            const colorMatches = text.match(colorPattern);
+            if (colorMatches) extracted.color = colorMatches[1].trim();
+            
+            // Fuel Type
+            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
+            const fuelTypeMatches = text.match(fuelTypePattern);
+            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
 
-            const platePattern = /(?:PLATE\s*(?:NO)?\.?|PLATE\s*NUMBER)\s*[:.]?\s*([A-Z]{2,3}[-\s]?\d{3,4})/i;
-            const plateMatch = text.match(platePattern);
-            if (plateMatch) extracted.plateNumber = plateMatch[1].replace(/\s/g, '-').trim();
+            // **WEIGHTS (Numeric)**
+            // Gross Weight
+            const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
+            const grossWeightMatches = text.match(grossWeightPattern);
+            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
+            
+            // Net Capacity / Net Weight
+            const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
+            const netCapacityMatches = text.match(netCapacityPattern);
+            if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
+
+            // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+            if (extracted.series) extracted.model = extracted.series;
+            if (extracted.yearModel) extracted.year = extracted.yearModel;
         }
 
             return extracted;

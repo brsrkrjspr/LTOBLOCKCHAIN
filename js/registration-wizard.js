@@ -1949,381 +1949,105 @@ async function processDocumentForOCRAutoFill(fileInput) {
 
 /**
  * Auto-fill form fields from OCR extracted data
+ * Maps API response STRICTLY to HTML input IDs
  */
 function autoFillFromOCRData(extractedData, documentType) {
-    console.log('Auto-filling from OCR data:', extractedData, 'Document type:', documentType);
+    console.log('[OCR AutoFill] Processing extracted data:', extractedData, 'Document type:', documentType);
     
-    // #region agent log
-    const debugInfo = {
-        documentType,
-        extractedDataKeys: Object.keys(extractedData),
-        hasIdType: !!extractedData.idType,
-        hasIdNumber: !!extractedData.idNumber,
-        idType: extractedData.idType,
-        idNumber: extractedData.idNumber,
-        fullExtractedData: extractedData
-    };
-    console.log('[ID AutoFill Debug] autoFillFromOCRData called:', debugInfo);
-    // #endregion
-    
-    // Map OCR fields to form field IDs
-    const fieldMappings = {
-        // Vehicle fields
-        vin: 'vin',
-        engineNumber: 'engineNumber',
-        chassisNumber: 'chassisNumber',
-        plateNumber: 'plateNumber',
-        make: 'make',
-        model: 'model',
-        year: 'year',
-        color: 'color',
+    // **STRICT MAPPING: OCR Response Fields → HTML Input IDs**
+    // This mapping ensures ALL extracted fields are correctly placed
+    // Maps the OCR/backend response fields to the actual HTML form input IDs
+    const strictFieldMapping = {
+        // Identifiers
+        'vin': 'vin',
+        'chassisNumber': 'chassisNumber',
+        'engineNumber': 'engineNumber',
+        'plateNumber': 'plateNumber',
+        'mvFileNumber': 'mvFileNumber',  // If field exists in HTML
+        
+        // Descriptors (LTO Standard Names → Actual HTML IDs)
+        'make': 'make',
+        'series': 'model',              // Maps LTO "series" to HTML "model" field
+        'model': 'model',               // Fallback: map model to model
+        'bodyType': 'vehicleType',      // Maps LTO "bodyType" to HTML "vehicleType" field
+        'yearModel': 'year',            // Maps LTO "yearModel" to HTML "year" field
+        'year': 'year',                 // Fallback: map year to year
+        'color': 'color',
+        'fuelType': 'fuelType',         // If field exists in HTML
+        
+        // Weights (LTO Standard Names → Actual HTML IDs)
+        'grossWeight': 'grossVehicleWeight',  // Maps LTO "grossWeight" to HTML "grossVehicleWeight"
+        'netCapacity': 'netWeight',           // Maps LTO "netCapacity" to HTML "netWeight"
+        'netWeight': 'netWeight',             // Fallback: map netWeight to netWeight
         
         // Owner fields
-        firstName: 'firstName',
-        lastName: 'lastName',
-        address: 'address',
-        phone: 'phone',
-        idType: 'idType',
-        idNumber: 'idNumber'
+        'firstName': 'firstName',
+        'lastName': 'lastName',
+        'address': 'address',
+        'phone': 'phone',
+        'idType': 'idType',
+        'idNumber': 'idNumber'
     };
     
-    // Track which fields were auto-filled for notification
-    let fieldsFilled = {
-        vehicle: 0,
-        owner: 0
-    };
-    
-    // Auto-fill vehicle fields (Step 2) from Sales Invoice, CSR, or Registration Cert
-    const vehicleDocumentTypes = [
-        'registration_cert', 'registrationCert', 'or_cr', 'orCr',
-        'sales_invoice', 'salesInvoice',
-        'csr', 'certificateOfStockReport', 'certificate_of_stock_report',
-        'hpg_clearance', 'hpgClearance', 'pnpHpgClearance'
-    ];
-    
-    if (vehicleDocumentTypes.includes(documentType)) {
-        Object.entries(extractedData).forEach(([key, value]) => {
-            const fieldId = fieldMappings[key];
-            if (fieldId && (key === 'vin' || key === 'engineNumber' || key === 'chassisNumber' || 
-                           key === 'plateNumber' || key === 'make' || key === 'model' || 
-                           key === 'year' || key === 'color')) {
-                const field = document.getElementById(fieldId);
-                if (field && !field.value && value) {
-                    field.value = value;
-                    field.classList.add('ocr-auto-filled');
-                    fieldsFilled.vehicle++;
-                    
-                    // For select fields (like make), try to match option
-                    if (field.tagName === 'SELECT') {
-                        const option = Array.from(field.options).find(opt => 
-                            opt.value.toLowerCase() === value.toLowerCase() ||
-                            opt.text.toLowerCase().includes(value.toLowerCase())
-                        );
-                        if (option) {
-                            field.value = option.value;
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    // Auto-fill owner fields (Step 3) from Sales Invoice or Owner ID
-    const ownerDocumentTypes = [
-        'owner_id', 'ownerId', 'ownerValidId',
-        'sales_invoice', 'salesInvoice'
-    ];
-    
-    console.log('[ID AutoFill Debug] Checking owner document types:', {
+    // Debug logging
+    console.log('[OCR AutoFill] Strict field mapping applied:', {
         documentType,
-        ownerDocumentTypes,
-        isOwnerDoc: ownerDocumentTypes.includes(documentType),
-        extractedDataKeys: Object.keys(extractedData),
-        extractedDataFull: JSON.stringify(extractedData, null, 2),
-        step3Exists: !!document.getElementById('step-3'),
-        step3Visible: document.getElementById('step-3')?.classList.contains('active'),
-        idTypeFieldExists: !!document.getElementById('idType'),
-        idNumberFieldExists: !!document.getElementById('idNumber')
+        extractedKeys: Object.keys(extractedData),
+        mappedFields: Object.keys(strictFieldMapping)
     });
     
-    // CRITICAL: If Step 3 fields don't exist yet, store data for later application
-    const step3Exists = !!document.getElementById('step-3');
-    const idTypeField = document.getElementById('idType');
-    const idNumberField = document.getElementById('idNumber');
+    // **ITERATE THROUGH EXTRACTED DATA AND APPLY STRICT MAPPING**
+    let fieldsFilled = 0;
     
-    if (!step3Exists || !idTypeField || !idNumberField) {
-        console.warn('[ID AutoFill Debug] Step 3 fields not available yet. Data will be applied when Step 3 becomes visible.');
-        console.log('[ID AutoFill Debug] Storing data for later:', {
-            hasIdType: !!extractedData.idType,
-            hasIdNumber: !!extractedData.idNumber,
-            idType: extractedData.idType,
-            idNumber: extractedData.idNumber
-        });
-        // Data is already stored in storedOCRExtractedData above, so it will be applied when navigating to Step 3
-        return; // Exit early - fields will be filled when Step 3 becomes visible
-    }
-    
-    if (ownerDocumentTypes.includes(documentType)) {
-        // #region agent log
-        console.log('[ID AutoFill Debug] Processing owner document types:', {
-            documentType,
-            ownerDocumentTypes,
-            isIncluded: ownerDocumentTypes.includes(documentType),
-            hasIdType: !!extractedData.idType,
-            hasIdNumber: !!extractedData.idNumber,
-            idType: extractedData.idType,
-            idNumber: extractedData.idNumber
-        });
-        // #endregion
+    Object.keys(extractedData).forEach(ocrField => {
+        const value = extractedData[ocrField];
         
-        Object.entries(extractedData).forEach(([key, value]) => {
-            const fieldId = fieldMappings[key];
-            if (fieldId && (key === 'firstName' || key === 'lastName' || 
-                           key === 'address' || key === 'phone' ||
-                           key === 'idType' || key === 'idNumber')) {
-                const field = document.getElementById(fieldId);
-                
-                // #region agent log
-                if (key === 'idType' || key === 'idNumber') {
-                    const fieldExists = !!document.getElementById(fieldId);
-                    console.log('[ID AutoFill Debug] Processing field:', {
-                        key,
-                        value,
-                        fieldId,
-                        fieldFound: !!field,
-                        fieldExistsInDOM: fieldExists,
-                        fieldTagName: field?.tagName,
-                        fieldCurrentValue: field?.value,
-                        fieldHasValue: !!(field && field.value),
-                        step3Visible: !!document.getElementById('step-3'),
-                        step3Active: document.getElementById('step-3')?.classList.contains('active')
-                    });
-                }
-                // #endregion
-                
-                if (field && !field.value && value) {
-                    // Handle select fields (like idType) differently
-                    if (field.tagName === 'SELECT') {
-                        // #region agent log
-                        if (key === 'idType') {
-                            console.log('[ID AutoFill Debug] SELECT field - before matching:', {
-                                key,
-                                extractedValue: value,
-                                fieldId,
-                                fieldCurrentValue: field.value,
-                                allOptions: Array.from(field.options).map(opt => ({value: opt.value, text: opt.text}))
-                            });
-                        }
-                        // #endregion
-                        
-                        // Map OCR extracted ID type to dropdown value (explicit mapping)
-                        if (key === 'idType') {
-                            const idTypeMap = {
-                                'drivers-license': 'drivers-license',
-                                'driver\'s license': 'drivers-license',
-                                'driver license': 'drivers-license',
-                                'drivers license': 'drivers-license',
-                                'passport': 'passport',
-                                'national-id': 'national-id',
-                                'national id': 'national-id',
-                                'philid': 'national-id',
-                                'philippine id': 'national-id',
-                                'postal-id': 'postal-id',
-                                'postal id': 'postal-id',
-                                'voters-id': 'voters-id',
-                                'voter\'s id': 'voters-id',
-                                'voters id': 'voters-id',
-                                'voter id': 'voters-id',
-                                'sss-id': 'sss-id',
-                                'sss id': 'sss-id',
-                                'sss': 'sss-id',
-                                'tin': 'tin',
-                                'tax identification number': 'tin',
-                                'tax id': 'tin'
-                            };
-                            
-                            const normalizedValue = value.toLowerCase().trim();
-                            const mappedValue = idTypeMap[normalizedValue];
-                            
-                            if (mappedValue) {
-                                // Check if mapped value exists in dropdown
-                                const option = Array.from(field.options).find(opt => opt.value === mappedValue);
-                                if (option) {
-                                    field.value = mappedValue;
-                                    field.classList.add('ocr-auto-filled');
-                                    fieldsFilled.owner++;
-                                    // #region agent log
-                                    console.log('[ID AutoFill Debug] idType field filled via explicit mapping:', {
-                                        extractedValue: value,
-                                        mappedValue: mappedValue,
-                                        selectedValue: field.value
-                                    });
-                                    // #endregion
-                                    return; // Skip to next field (return from forEach callback)
-                                }
-                            }
-                        }
-                        
-                        // Try to find matching option by value or text (fallback to fuzzy matching)
-                        // Enhanced matching: handle various ID type formats from OCR
-                        const normalizedValue = value.toLowerCase().trim();
-                        const option = Array.from(field.options).find(opt => {
-                            const optValue = opt.value.toLowerCase().trim();
-                            const optText = opt.text.toLowerCase().trim();
-                            
-                            // Exact match
-                            if (optValue === normalizedValue) return true;
-                            if (optText === normalizedValue) return true;
-                            
-                            // Contains match
-                            if (optText.includes(normalizedValue)) return true;
-                            if (normalizedValue.includes(optValue)) return true;
-                            
-                            // Handle common variations
-                            // "driver's license" -> "drivers-license"
-                            // "drivers license" -> "drivers-license"
-                            // "driver license" -> "drivers-license"
-                            const normalizedForMatching = normalizedValue
-                                .replace(/'/g, '')
-                                .replace(/\s+/g, '-')
-                                .replace(/s-license/g, 's-license');
-                            if (optValue === normalizedForMatching) return true;
-                            
-                            // Handle reverse: "drivers-license" -> "driver's license"
-                            const optValueExpanded = optValue.replace(/-/g, ' ').replace(/s license/g, "'s license");
-                            if (normalizedValue.includes(optValueExpanded) || optValueExpanded.includes(normalizedValue)) return true;
-                            
-                            // Additional fuzzy matching for common OCR variations
-                            // "DRIVER LICENSE" -> "drivers-license"
-                            // "Driver License" -> "drivers-license"  
-                            if (normalizedValue.replace(/[^a-z]/g, '') === optValue.replace(/[^a-z]/g, '')) return true;
-                            
-                            return false;
-                        });
-                        
-                        // #region agent log
-                        if (key === 'idType') {
-                            console.log('[ID AutoFill Debug] SELECT field matching result:', {
-                                key,
-                                extractedValue: value,
-                                optionFound: !!option,
-                                optionValue: option?.value,
-                                optionText: option?.text,
-                                matchMethod: option ? (
-                                    option.value.toLowerCase() === value.toLowerCase() ? 'exact-value' :
-                                    option.text.toLowerCase().includes(value.toLowerCase()) ? 'text-contains' :
-                                    'value-contains'
-                                ) : 'no-match'
-                            });
-                        }
-                        // #endregion
-                        
-                        if (option) {
-                            field.value = option.value;
-                            field.classList.add('ocr-auto-filled');
-                            fieldsFilled.owner++;
-                            
-                            // #region agent log
-                            if (key === 'idType') {
-                                console.log('[ID AutoFill Debug] idType field filled successfully:', {
-                                    extractedValue: value,
-                                    selectedValue: field.value,
-                                    selectedText: option.text
-                                });
-                            }
-                            // #endregion
-                        } else {
-                            // #region agent log
-                            if (key === 'idType') {
-                                console.log('[ID AutoFill Debug] idType field - NO MATCH FOUND:', {
-                                    extractedValue: value,
-                                    availableValues: Array.from(field.options).map(opt => opt.value),
-                                    availableTexts: Array.from(field.options).map(opt => opt.text)
-                                });
-                            }
-                            // #endregion
-                        }
-                    } else {
-                        // Regular input fields (like idNumber and idType - now text inputs)
-                        let normalizedValue = value;
-                        
-                        // Normalize ID type for text input field
-                        if (key === 'idType' && value) {
-                            // Normalize common OCR variations of ID types
-                            const idTypeNormalizations = {
-                                'drivers license': "Driver's License",
-                                'driver license': "Driver's License",
-                                'driver\'s license': "Driver's License",
-                                'drivers-license': "Driver's License",
-                                'driver-license': "Driver's License",
-                                'passport': 'Passport',
-                                'national id': 'National ID',
-                                'national-id': 'National ID',
-                                'postal id': 'Postal ID',
-                                'postal-id': 'Postal ID',
-                                'voters id': "Voter's ID",
-                                'voter id': "Voter's ID",
-                                'voter\'s id': "Voter's ID",
-                                'voters-id': "Voter's ID",
-                                'sss id': 'SSS ID',
-                                'sss-id': 'SSS ID'
-                            };
-                            
-                            const lowerValue = value.toLowerCase().trim();
-                            if (idTypeNormalizations[lowerValue]) {
-                                normalizedValue = idTypeNormalizations[lowerValue];
-                            } else {
-                                // Capitalize first letter of each word if not found in normalization map
-                                normalizedValue = value.split(' ').map(word => 
-                                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                                ).join(' ');
-                            }
-                        }
-                        
-                        // #region agent log
-                        if (key === 'idType' || key === 'idNumber') {
-                            console.log('[ID AutoFill Debug] Processing text input field:', {
-                                key,
-                                originalValue: value,
-                                normalizedValue: normalizedValue,
-                                fieldId,
-                                fieldExists: !!field,
-                                fieldCurrentValue: field?.value
-                            });
-                        }
-                        // #endregion
-                        
-                        field.value = normalizedValue;
-                        field.classList.add('ocr-auto-filled');
-                        fieldsFilled.owner++;
-                        
-                        // #region agent log
-                        if (key === 'idType') {
-                            console.log('[ID AutoFill Debug] idType field filled successfully:', {
-                                originalValue: value,
-                                filledValue: normalizedValue,
-                                fieldValue: field.value
-                            });
-                        } else if (key === 'idNumber') {
-                            console.log('[ID AutoFill Debug] idNumber field filled successfully:', value);
-                        }
-                        // #endregion
-                    }
-                }
-            }
-        });
-    }
+        // Skip empty values
+        if (!value || value === '') {
+            console.log(`[OCR AutoFill] Skipping empty value for field: ${ocrField}`);
+            return;
+        }
+        
+        // Get mapped HTML input ID from strict mapping
+        const htmlInputId = strictFieldMapping[ocrField];
+        
+        if (!htmlInputId) {
+            console.log(`[OCR AutoFill] No mapping found for OCR field: ${ocrField}`);
+            return;
+        }
+        
+        // Get the HTML element
+        const inputElement = document.getElementById(htmlInputId);
+        if (!inputElement) {
+            console.log(`[OCR AutoFill] HTML element not found: ${htmlInputId}`);
+            return;
+        }
+        
+        // Skip if field already has a value
+        if (inputElement.value) {
+            console.log(`[OCR AutoFill] Field already has value, skipping: ${htmlInputId}`);
+            return;
+        }
+        
+        // Set the value
+        inputElement.value = value.trim();
+        inputElement.classList.add('ocr-auto-filled');
+        
+        // Trigger change and input events for any listeners (validation)
+        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        fieldsFilled++;
+        
+        // Debug logging
+        console.log(`[OCR AutoFill] Field filled: ${ocrField} → ${htmlInputId} = "${value.trim()}"`);
+    });
     
-    // Show notification with details
-    if (fieldsFilled.vehicle > 0 || fieldsFilled.owner > 0) {
-        const messages = [];
-        if (fieldsFilled.vehicle > 0) {
-            messages.push(`${fieldsFilled.vehicle} vehicle field(s) auto-filled`);
-        }
-        if (fieldsFilled.owner > 0) {
-            messages.push(`${fieldsFilled.owner} owner field(s) auto-filled`);
-        }
-        showNotification(`Information extracted from ${documentType}. ${messages.join(', ')}. Please verify all fields.`, 'success');
+    // Show success notification
+    if (fieldsFilled > 0) {
+        console.log(`[OCR AutoFill] Successfully auto-filled ${fieldsFilled} field(s) from document type: ${documentType}`);
+    } else {
+        console.warn(`[OCR AutoFill] No fields were auto-filled from document type: ${documentType}`);
     }
 }
 

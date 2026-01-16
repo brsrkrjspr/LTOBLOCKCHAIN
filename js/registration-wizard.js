@@ -1961,6 +1961,9 @@ function autoFillFromOCRData(extractedData, documentType) {
         // Identifiers
         'vin': 'vin',
         'chassisNumber': 'chassisNumber',
+        'chassis / vin': 'chassisNumber',        // Maps "Chassis / VIN" to chassisNumber
+        'chassis/vin': 'chassisNumber',          // Alternative format without spaces
+        'chassis vin': 'chassisNumber',          // Alternative format with space only
         'engineNumber': 'engineNumber',
         'plateNumber': 'plateNumber',
         'mvFileNumber': 'mvFileNumber',  // If field exists in HTML
@@ -2008,8 +2011,16 @@ function autoFillFromOCRData(extractedData, documentType) {
             return;
         }
         
-        // Get mapped HTML input ID from strict mapping
-        const htmlInputId = strictFieldMapping[ocrField];
+        // Normalize field name for case-insensitive and variation matching
+        const normalizedField = ocrField.trim().toLowerCase();
+        
+        // Get mapped HTML input ID from strict mapping (try normalized first)
+        let htmlInputId = strictFieldMapping[normalizedField];
+        
+        // If not found, try the original field name (for exact matches)
+        if (!htmlInputId) {
+            htmlInputId = strictFieldMapping[ocrField];
+        }
         
         if (!htmlInputId) {
             console.log(`[OCR AutoFill] No mapping found for OCR field: ${ocrField}`);
@@ -2034,7 +2045,20 @@ function autoFillFromOCRData(extractedData, documentType) {
         */
         
         // Set the value
-        inputElement.value = value.trim();
+        let formattedValue = value.trim();
+        
+        // Format plate number to XXXX-XXXX with hyphen
+        if (htmlInputId === 'plateNumber') {
+            formattedValue = formattedValue.replace(/\s/g, '').toUpperCase();
+            // Remove existing hyphens first, then reformat
+            formattedValue = formattedValue.replace(/-/g, '');
+            // Add hyphen in the middle for 8-character plates
+            if (formattedValue.length === 8) {
+                formattedValue = formattedValue.substring(0, 4) + '-' + formattedValue.substring(4);
+            }
+        }
+        
+        inputElement.value = formattedValue;
         inputElement.classList.add('ocr-auto-filled');
         
         // Trigger change and input events for any listeners (validation)
@@ -2044,7 +2068,7 @@ function autoFillFromOCRData(extractedData, documentType) {
         fieldsFilled++;
         
         // Debug logging
-        console.log(`[OCR AutoFill] Field filled: ${ocrField} → ${htmlInputId} = "${value.trim()}"`);
+        console.log(`[OCR AutoFill] Field filled: ${ocrField} → ${htmlInputId} = "${formattedValue}"`);
     });
     
     // Show success notification

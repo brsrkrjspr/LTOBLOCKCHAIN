@@ -2055,6 +2055,12 @@ function autoFillFromOCRData(extractedData, documentType) {
             return;
         }
         
+        // **SAFETY CHECK: If field is 'series' or 'model' and value is exactly 4 digits, it's likely a year - REJECT IT**
+        if ((htmlInputId === 'series' || htmlInputId === 'model') && /^\d{4}$/.test(value.trim())) {
+            console.warn(`[OCR AutoFill] REJECTED 4-digit year for Model field (${htmlInputId}): "${value.trim()}" - This is likely a year, not a model`);
+            return;
+        }
+        
         // Set the value
         inputElement.value = value.trim();
         inputElement.classList.add('ocr-auto-filled');

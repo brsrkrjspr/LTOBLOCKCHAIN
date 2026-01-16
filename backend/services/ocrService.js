@@ -738,15 +738,36 @@ class OCRService {
     }
 
     /**
+     * Pre-process OCR text for better regex matching
+     * Handles common OCR artifacts and standardizes formatting
+     * @param {string} text - Raw OCR text
+     * @returns {string} Cleaned text
+     */
+    preprocessOCRText(text) {
+        if (!text || typeof text !== 'string') return '';
+        
+        // Normalize common OCR artifacts
+        text = text.replace(/[:|]/g, ' ')  // Replace colons and pipes with spaces
+                   .replace(/\s+/g, ' ')   // Normalize multiple spaces to single space
+                   .trim();
+        
+        return text;
+    }
+
+    /**
      * Parse vehicle information from extracted text
      * @param {string} text - Extracted text from document
      * @param {string} documentType - Type of document (registration_cert, owner_id, etc.)
-     * @returns {Object} Extracted data
+     * @returns {Object} Extracted data with success flag
      */
     parseVehicleInfo(text, documentType) {
         // CRITICAL: Wrap entire function in try/catch to prevent ANY crash
         try {
-            const extracted = {};
+            const extracted = {
+                success: true,
+                data: {}
+            };
+            const data = extracted.data;
 
             // #region agent log
             console.log('[OCR Debug] parseVehicleInfo called:', {
@@ -782,8 +803,8 @@ class OCRService {
                 return extracted;
             }
 
-        // Normalize text for better pattern matching
-        const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
+            // **PRE-PROCESS TEXT** - Critical step for handling OCR artifacts
+            text = this.preprocessOCRText(text);
         
         // #region agent log
         console.log('[OCR Debug] Document type check:', {
@@ -830,8 +851,8 @@ class OCRService {
                 }
 
                 // **DESCRIPTORS (Context-Aware) - Philippine Document Aware**
-                // Make/Brand: Match compound labels like "Make/Brand" or just "Make"
-                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series)/i;
+                // Make/Brand: Match compound labels like "Make/Brand", "Make/Series", "Make/Model" or just "Make"
+                const makePattern = /(?:Make\/Series|Make\/Model|Make\/Brand|Make)\s*[:.]?\s*([A-Z\s-]+?)(?=\n|$|Year|Body)/i;
                 const makeMatches = text.match(makePattern);
                 if (makeMatches && makeMatches[1]) {
                     const makeValue = makeMatches[1].trim();
@@ -850,18 +871,27 @@ class OCRService {
                     }
                 }
                 
-                // Series/Model: Match compound labels like "Model/Series", "Series / Model", or just "Model"
-                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
-                const seriesMatches = text.match(seriesPattern);
-                if (seriesMatches && seriesMatches[1]) {
-                    extracted.series = seriesMatches[1].trim();
-                }
-                
-                // Year Model: Match "Year Model" or "Year"
+                // Year Model: MUST be matched BEFORE Model/Series to prevent collision
+                // Match "Year Model" or "Year" - captures 4-digit year
                 const yearModelPattern = /(?:Year\s*Model|Year)\s*[:.]?\s*(\d{4})/i;
                 const yearModelMatches = text.match(yearModelPattern);
                 if (yearModelMatches && yearModelMatches[1]) {
                     extracted.yearModel = yearModelMatches[1].trim();
+                }
+                
+                // Series/Model: Use negative lookbehind to EXCLUDE "Year Model" matches
+                // This prevents capturing "2025" as the model when "Year Model: 2025" appears
+                const seriesPattern = /(?<!Year\s)(?:Model\/Series|Series\s*\/\s*Model|Model|Series|Variant)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Color|Body|Year|$)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    let seriesValue = seriesMatches[1].trim();
+                    // SAFETY CHECK: If series is exactly 4 digits, it's likely a false positive (year)
+                    if (!/^\d{4}$/.test(seriesValue)) {
+                        extracted.series = seriesValue;
+                        console.debug('[RegCert] Series extracted (with 4-digit validation):', extracted.series);
+                    } else {
+                        console.warn('[RegCert] Series value was 4-digit year, rejecting:', seriesValue);
+                    }
                 }
                 
                 // Body Type: Match "Body Type"
@@ -1397,7 +1427,7 @@ class OCRService {
                 }
 
                 // Make/Brand with compound label support
-                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series|Engine)/i;
+                const makePattern = /(?:Make\/Series|Make\/Model|Make\/Brand|Make)\s*[:.]?\s*([A-Z\s-]+?)(?=\n|$|Year|Body)/i;
                 const makeMatches = text.match(makePattern);
                 if (makeMatches && makeMatches[1]) {
                     const fullMake = makeMatches[1].trim();
@@ -1406,20 +1436,26 @@ class OCRService {
                     console.debug('[Insurance] Make extracted:', extracted.make);
                 }
                 
-                // Series/Model with compound label support
-                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
-                const seriesMatches = text.match(seriesPattern);
-                if (seriesMatches && seriesMatches[1]) {
-                    extracted.series = seriesMatches[1].trim();
-                    console.debug('[Insurance] Series/Model extracted:', extracted.series);
-                }
-                
-                // Year Model
+                // Year Model: MUST be matched BEFORE Model/Series to prevent collision
                 const yearModelPattern = /(?:Year\s*Model|Year)\s*[:.]?\s*(\d{4})/i;
                 const yearModelMatches = text.match(yearModelPattern);
                 if (yearModelMatches && yearModelMatches[1]) {
                     extracted.yearModel = yearModelMatches[1].trim();
                     console.debug('[Insurance] Year Model extracted:', extracted.yearModel);
+                }
+                
+                // Series/Model: Use negative lookbehind to EXCLUDE "Year Model" matches
+                const seriesPattern = /(?<!Year\s)(?:Model\/Series|Series\s*\/\s*Model|Model|Series|Variant)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Color|Body|Year|$)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    let seriesValue = seriesMatches[1].trim();
+                    // SAFETY CHECK: If series is exactly 4 digits, it's likely a false positive (year)
+                    if (!/^\d{4}$/.test(seriesValue)) {
+                        extracted.series = seriesValue;
+                        console.debug('[Insurance] Series/Model extracted (with 4-digit validation):', extracted.series);
+                    } else {
+                        console.warn('[Insurance] Series value was 4-digit year, rejecting:', seriesValue);
+                    }
                 }
                 
                 // Body Type
@@ -1478,7 +1514,7 @@ class OCRService {
 
                 // **DESCRIPTORS (Context-Aware)**
                 // Make/Brand: Match compound labels
-                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series)/i;
+                const makePattern = /(?:Make\/Series|Make\/Model|Make\/Brand|Make)\s*[:.]?\s*([A-Z\s-]+?)(?=\n|$|Year|Body)/i;
                 const makeMatches = text.match(makePattern);
                 if (makeMatches && makeMatches[1]) {
                     const makeValue = makeMatches[1].trim();
@@ -1490,18 +1526,25 @@ class OCRService {
                     }
                 }
                 
-                // Series/Model: Match compound labels
-                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
-                const seriesMatches = text.match(seriesPattern);
-                if (seriesMatches && seriesMatches[1]) {
-                    extracted.series = seriesMatches[1].trim();
-                }
-                
-                // Year Model
+                // Year Model: MUST be matched BEFORE Model/Series to prevent collision
                 const yearModelPattern = /(?:Year\s*Model|Year)\s*[:.]?\s*(\d{4})/i;
                 const yearModelMatches = text.match(yearModelPattern);
                 if (yearModelMatches && yearModelMatches[1]) {
                     extracted.yearModel = yearModelMatches[1].trim();
+                }
+                
+                // Series/Model: Use negative lookbehind to EXCLUDE "Year Model" matches
+                const seriesPattern = /(?<!Year\s)(?:Model\/Series|Series\s*\/\s*Model|Model|Series|Variant)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Color|Body|Year|$)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    let seriesValue = seriesMatches[1].trim();
+                    // SAFETY CHECK: If series is exactly 4 digits, it's likely a false positive (year)
+                    if (!/^\d{4}$/.test(seriesValue)) {
+                        extracted.series = seriesValue;
+                        console.debug('[Sales Invoice] Series/Model extracted (with 4-digit validation):', extracted.series);
+                    } else {
+                        console.warn('[Sales Invoice] Series value was 4-digit year, rejecting:', seriesValue);
+                    }
                 }
                 
                 // Body Type
@@ -1624,8 +1667,8 @@ class OCRService {
                 }
 
                 // **DESCRIPTORS (Context-Based)**
-                // Make/Brand - handles compound label "Make/Brand"
-                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series|Engine)/i;
+                // Make/Brand - handles compound label "Make/Brand", "Make/Series", "Make/Model"
+                const makePattern = /(?:Make\/Series|Make\/Model|Make\/Brand|Make)\s*[:.]?\s*([A-Z\s-]+?)(?=\n|$|Year|Body)/i;
                 const makeMatches = text.match(makePattern);
                 if (makeMatches && makeMatches[1]) {
                     const fullMake = makeMatches[1].trim();
@@ -1634,23 +1677,7 @@ class OCRService {
                     console.debug('[CSR] Make extracted:', extracted.make, '(full:', extracted.makeComplete + ')');
                 }
                 
-                // Series/Model - handles compound labels: "Model/Series", "Series / Model", "Model"
-                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
-                const seriesMatches = text.match(seriesPattern);
-                if (seriesMatches && seriesMatches[1]) {
-                    extracted.series = seriesMatches[1].trim();
-                    console.debug('[CSR] Series/Model extracted:', extracted.series);
-                }
-                
-                // Body Type
-                const bodyTypePattern = /(?:Body\s*Type)\s*[:.]?\s*([A-Z0-9\s]+?)(?=\n|$|Year|Color)/i;
-                const bodyTypeMatches = text.match(bodyTypePattern);
-                if (bodyTypeMatches && bodyTypeMatches[1]) {
-                    extracted.bodyType = bodyTypeMatches[1].trim();
-                    console.debug('[CSR] Body Type extracted:', extracted.bodyType);
-                }
-                
-                // Year Model
+                // Year Model: MUST be matched BEFORE Model/Series to prevent collision
                 const yearModelPattern = /(?:Year|Model\s*Year)\s*[:.]?\s*(\d{4})/i;
                 const yearModelMatches = text.match(yearModelPattern);
                 if (yearModelMatches && yearModelMatches[1]) {
@@ -1658,10 +1685,19 @@ class OCRService {
                     console.debug('[CSR] Year Model extracted:', extracted.yearModel);
                 }
                 
-                // Color
-                const colorPattern = /(?:Color)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Fuel)/i;
-                const colorMatches = text.match(colorPattern);
-                if (colorMatches && colorMatches[1]) {
+                // Series/Model: Use negative lookbehind to EXCLUDE "Year Model" matches
+                const seriesPattern = /(?<!Year\s)(?:Model\/Series|Series\s*\/\s*Model|Model|Series|Variant)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Color|Body|Year|$)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    let seriesValue = seriesMatches[1].trim();
+                    // SAFETY CHECK: If series is exactly 4 digits, it's likely a false positive (year)
+                    if (!/^\d{4}$/.test(seriesValue)) {
+                        extracted.series = seriesValue;
+                        console.debug('[CSR] Series/Model extracted (with 4-digit validation):', extracted.series);
+                    } else {
+                        console.warn('[CSR] Series value was 4-digit year, rejecting:', seriesValue);
+                    }
+                }
                     extracted.color = colorMatches[1].trim();
                     console.debug('[CSR] Color extracted:', extracted.color);
                 }
@@ -1761,8 +1797,8 @@ class OCRService {
                 }
 
                 // **DESCRIPTORS (Context-Based)**
-                // Make/Brand - handles compound label "Make/Brand"
-                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series|Engine)/i;
+                // Make/Brand - handles compound label "Make/Brand", "Make/Series", "Make/Model"
+                const makePattern = /(?:Make\/Series|Make\/Model|Make\/Brand|Make)\s*[:.]?\s*([A-Z\s-]+?)(?=\n|$|Year|Body)/i;
                 const makeMatches = text.match(makePattern);
                 if (makeMatches && makeMatches[1]) {
                     const fullMake = makeMatches[1].trim();
@@ -1771,23 +1807,7 @@ class OCRService {
                     console.debug('[HPG] Make extracted:', extracted.make, '(full:', extracted.makeComplete + ')');
                 }
                 
-                // Series/Model - handles compound labels: "Model/Series", "Series / Model", "Model"
-                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
-                const seriesMatches = text.match(seriesPattern);
-                if (seriesMatches && seriesMatches[1]) {
-                    extracted.series = seriesMatches[1].trim();
-                    console.debug('[HPG] Series/Model extracted:', extracted.series);
-                }
-                
-                // Body Type
-                const bodyTypePattern = /(?:Body\s*Type)\s*[:.]?\s*([A-Z0-9\s]+?)(?=\n|$|Year|Color)/i;
-                const bodyTypeMatches = text.match(bodyTypePattern);
-                if (bodyTypeMatches && bodyTypeMatches[1]) {
-                    extracted.bodyType = bodyTypeMatches[1].trim();
-                    console.debug('[HPG] Body Type extracted:', extracted.bodyType);
-                }
-                
-                // Year Model
+                // Year Model: MUST be matched BEFORE Model/Series to prevent collision
                 const yearModelPattern = /(?:Year|Model\s*Year)\s*[:.]?\s*(\d{4})/i;
                 const yearModelMatches = text.match(yearModelPattern);
                 if (yearModelMatches && yearModelMatches[1]) {
@@ -1795,10 +1815,19 @@ class OCRService {
                     console.debug('[HPG] Year Model extracted:', extracted.yearModel);
                 }
                 
-                // Color
-                const colorPattern = /(?:Color)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Fuel)/i;
-                const colorMatches = text.match(colorPattern);
-                if (colorMatches && colorMatches[1]) {
+                // Series/Model: Use negative lookbehind to EXCLUDE "Year Model" matches
+                const seriesPattern = /(?<!Year\s)(?:Model\/Series|Series\s*\/\s*Model|Model|Series|Variant)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Color|Body|Year|$)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    let seriesValue = seriesMatches[1].trim();
+                    // SAFETY CHECK: If series is exactly 4 digits, it's likely a false positive (year)
+                    if (!/^\d{4}$/.test(seriesValue)) {
+                        extracted.series = seriesValue;
+                        console.debug('[HPG] Series/Model extracted (with 4-digit validation):', extracted.series);
+                    } else {
+                        console.warn('[HPG] Series value was 4-digit year, rejecting:', seriesValue);
+                    }
+                }
                     extracted.color = colorMatches[1].trim();
                     console.debug('[HPG] Color extracted:', extracted.color);
                 }

@@ -1442,11 +1442,40 @@ class OCRService {
             // Try multiple patterns to handle all typography variations
             let chassisVinValue = null;
             
-            // Pattern 1: Table format "Chassis / VIN | CH9876543210" (exact spacing)
-            let pattern = /Chassis\s*\/\s*VIN\s*\|\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+            // [ADD START]
+            // Pattern 0: Table format with pipe "/Chassis / VIN | CH9876543210"
+            let pattern = /\/Chassis\s*(?:\/\s*VIN)?\s*\|\s*([A-HJ-NPR-Z0-9]{10,17})/i;
             let matches = text.match(pattern);
-            if (matches) {
+            if (!chassisVinValue && matches) {
                 chassisVinValue = matches[1].trim();
+            }
+            
+            // Pattern 0b: Colon format "Chassis: CH9876543210" or "VIN: CH9876543210"
+            if (!chassisVinValue) {
+                pattern = /(?:Chassis|VIN)\s*[:]\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (!chassisVinValue && matches) {
+                    chassisVinValue = matches[1].trim();
+                }
+            }
+            
+            // Pattern 0c: Generic format "Chassis CH9876543210" or "VIN CH9876543210"
+            if (!chassisVinValue) {
+                pattern = /(?:Chassis|VIN)[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (!chassisVinValue && matches) {
+                    chassisVinValue = matches[1].trim();
+                }
+            }
+            // [ADD END]
+            
+            // Pattern 1: Table format "Chassis / VIN | CH9876543210" (exact spacing)
+            if (!chassisVinValue) {
+                pattern = /Chassis\s*\/\s*VIN\s*\|\s*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) {
+                    chassisVinValue = matches[1].trim();
+                }
             }
             
             // Pattern 2: Table format "Chassis/VIN | value" (no space around slash)
@@ -1525,6 +1554,15 @@ class OCRService {
                 matches = text.match(pattern);
                 if (matches) chassisVinValue = matches[1].trim();
             }
+            
+            // [FIX START] Pattern 13: CSV/Newlines format (handles "Chassis/VIN" \n "CH...")
+            // Matches: Chassis/VIN -> optional quotes/newlines/commas -> VIN
+            if (!chassisVinValue) {
+                pattern = /Chassis\s*\/\s*VIN[^A-Z0-9]*([A-HJ-NPR-Z0-9]{10,17})/i;
+                matches = text.match(pattern);
+                if (matches) chassisVinValue = matches[1].trim();
+            }
+            // [FIX END]
             
             // Map to both fields since they contain the same value
             if (chassisVinValue) {

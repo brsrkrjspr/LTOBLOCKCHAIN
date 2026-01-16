@@ -795,80 +795,134 @@ class OCRService {
 
         if (documentType === 'registration_cert' || documentType === 'registrationCert' || 
             documentType === 'or_cr' || documentType === 'orCr') {
-            // Extract ALL LTO Vehicle Information fields with advanced regex patterns
+            // Extract ALL LTO Vehicle Information fields with document-aware regex patterns
+            // Handles Philippine vehicle documents with compound labels (e.g., "Chassis/VIN", "Make/Brand")
             
-            // **IDENTIFIERS (High Confidence)**
-            // VIN (ISO Standard: 17 chars, excludes I, O, Q)
-            const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
-            const vinMatches = text.match(vinPattern);
-            if (vinMatches) extracted.vin = vinMatches[0].trim();
-            
-            // Plate Number (various formats)
-            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
-            const plateMatches = text.match(platePattern);
-            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
-            
-            // Engine Number
-            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
-            const engineMatches = text.match(enginePattern);
-            if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
-            
-            // MV File Number (format: XXXX-XXXXXXX or XXXX-XXXXXXXX)
-            const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
-            const mvFileMatches = text.match(mvFilePattern);
-            if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
+            try {
+                // **IDENTIFIERS (High Confidence) - Philippine Document Aware**
+                // VIN/Chassis: Match compound labels like "Chassis/VIN", "Chassis No", or "VIN"
+                const vinPattern = /(?:Chassis\/VIN|Chassis\s*No\.?|VIN)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+                const vinMatches = text.match(vinPattern);
+                if (vinMatches && vinMatches[1]) {
+                    extracted.vin = vinMatches[1].trim();
+                    // Also set chassis number to same value (they are the same in Philippine docs)
+                    extracted.chassisNumber = vinMatches[1].trim();
+                }
+                
+                // Engine Number: Match "Engine Number", "Engine No", or "Motor No"
+                const enginePattern = /(?:Engine\s*Number|Engine\s*No\.?|Motor\s*No\.?)\s*[:.]?\s*([A-Z0-9]+)/i;
+                const engineMatches = text.match(enginePattern);
+                if (engineMatches && engineMatches[1]) {
+                    extracted.engineNumber = engineMatches[1].trim();
+                }
+                
+                // Plate Number: Match "Plate No." or "Plate Number", handle "To be issued"
+                const platePattern = /(?:Plate\s*(?:No\.?|Number))\s*[:.]?\s*([A-Z]{3}\s?[-]?\s?\d{3,4}|To\s*be\s*issued)/i;
+                const plateMatches = text.match(platePattern);
+                if (plateMatches && plateMatches[1]) {
+                    // Handle "To be issued" case - return empty string
+                    if (plateMatches[1].toLowerCase().includes('to be issued')) {
+                        extracted.plateNumber = '';
+                    } else {
+                        // Clean up spacing and standardize format
+                        extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+                    }
+                }
 
-            // **DESCRIPTORS (Context-Based)**
-            // Make (Brand)
-            const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
-            const makeMatches = text.match(makePattern);
-            if (makeMatches) extracted.make = makeMatches[1].trim();
-            
-            // Series (Model line)
-            const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
-            const seriesMatches = text.match(seriesPattern);
-            if (seriesMatches) extracted.series = seriesMatches[1].trim();
-            
-            // Body Type
-            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
-            const bodyTypeMatches = text.match(bodyTypePattern);
-            if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
-            
-            // Year Model
-            const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
-            const yearModelMatches = text.match(yearModelPattern);
-            if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
-            
-            // Color
-            const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
-            const colorMatches = text.match(colorPattern);
-            if (colorMatches) extracted.color = colorMatches[1].trim();
-            
-            // Fuel Type
-            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
-            const fuelTypeMatches = text.match(fuelTypePattern);
-            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+                // **DESCRIPTORS (Context-Aware) - Philippine Document Aware**
+                // Make/Brand: Match compound labels like "Make/Brand" or just "Make"
+                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series)/i;
+                const makeMatches = text.match(makePattern);
+                if (makeMatches && makeMatches[1]) {
+                    const makeValue = makeMatches[1].trim();
+                    // Check if Make contains the Series (e.g., "Toyota Corolla")
+                    if (makeValue.includes(' ') && !extracted.series) {
+                        const parts = makeValue.split(/\s+/);
+                        if (parts.length >= 2) {
+                            extracted.make = parts[0].trim();
+                            // Store the full value; frontend can decide how to split
+                            extracted.makeComplete = makeValue;
+                        } else {
+                            extracted.make = makeValue;
+                        }
+                    } else {
+                        extracted.make = makeValue;
+                    }
+                }
+                
+                // Series/Model: Match compound labels like "Model/Series", "Series / Model", or just "Model"
+                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    extracted.series = seriesMatches[1].trim();
+                }
+                
+                // Year Model: Match "Year Model" or "Year"
+                const yearModelPattern = /(?:Year\s*Model|Year)\s*[:.]?\s*(\d{4})/i;
+                const yearModelMatches = text.match(yearModelPattern);
+                if (yearModelMatches && yearModelMatches[1]) {
+                    extracted.yearModel = yearModelMatches[1].trim();
+                }
+                
+                // Body Type: Match "Body Type"
+                const bodyTypePattern = /(?:Body\s*Type)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Color)/i;
+                const bodyTypeMatches = text.match(bodyTypePattern);
+                if (bodyTypeMatches && bodyTypeMatches[1]) {
+                    extracted.bodyType = bodyTypeMatches[1].trim();
+                }
+                
+                // Color: Match "Color"
+                const colorPattern = /(?:Color)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Fuel|Engine)/i;
+                const colorMatches = text.match(colorPattern);
+                if (colorMatches && colorMatches[1]) {
+                    extracted.color = colorMatches[1].trim();
+                }
+                
+                // Fuel Type: Match "Fuel" or "Propulsion"
+                const fuelTypePattern = /(?:Fuel|Propulsion)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Engine|Weight)/i;
+                const fuelTypeMatches = text.match(fuelTypePattern);
+                if (fuelTypeMatches && fuelTypeMatches[1]) {
+                    extracted.fuelType = fuelTypeMatches[1].trim();
+                }
 
-            // **WEIGHTS (Numeric)**
-            // Gross Weight
-            const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
-            const grossWeightMatches = text.match(grossWeightPattern);
-            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
-            
-            // Net Capacity / Net Weight
-            const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
-            const netCapacityMatches = text.match(netCapacityPattern);
-            if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
+                // **WEIGHTS (Numeric)**
+                // Gross Weight
+                const grossWeightPattern = /(?:Gross\s*Wt\.?|Gross\s*Weight)\s*[:.]?\s*(\d+(?:\.\d+)?)/i;
+                const grossWeightMatches = text.match(grossWeightPattern);
+                if (grossWeightMatches && grossWeightMatches[1]) {
+                    extracted.grossWeight = grossWeightMatches[1].trim();
+                }
+                
+                // Net Capacity / Net Weight
+                const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Capacity|Net\s*Wt\.?|Net\s*Weight)\s*[:.]?\s*(\d+(?:\.\d+)?)/i;
+                const netCapacityMatches = text.match(netCapacityPattern);
+                if (netCapacityMatches && netCapacityMatches[1]) {
+                    extracted.netCapacity = netCapacityMatches[1].trim();
+                }
 
-            // **BACKWARDS COMPATIBILITY: Keep older field names for Step 2 form**
-            // Map new fields to old field names where applicable
-            if (extracted.series) extracted.model = extracted.series;
-            if (extracted.yearModel) extracted.year = extracted.yearModel;
-            
-            // Chassis Number (alternative to VIN)
-            const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
-            const chassisMatches = text.match(chassisPattern);
-            if (chassisMatches) extracted.chassisNumber = chassisMatches[0].trim();
+                // **BACKWARDS COMPATIBILITY: Keep older field names for Step 2 form**
+                if (extracted.series) extracted.model = extracted.series;
+                if (extracted.yearModel) extracted.year = extracted.yearModel;
+                
+                // #region agent log
+                console.log('[OCR Debug] Registration cert extraction successful:', {
+                    documentType,
+                    hasVin: !!extracted.vin,
+                    hasEngine: !!extracted.engineNumber,
+                    hasPlate: !!extracted.plateNumber,
+                    hasMake: !!extracted.make,
+                    hasSeries: !!extracted.series,
+                    allExtractedKeys: Object.keys(extracted)
+                });
+                // #endregion
+
+            } catch (regexError) {
+                console.error('[OCR Debug] ERROR in registration cert extraction:', {
+                    error: regexError.message,
+                    documentType
+                });
+                // Continue with any partially extracted data
+            }
         }
 
         // Process owner ID documents with error handling
@@ -1293,90 +1347,185 @@ class OCRService {
         }
 
         if (documentType === 'insurance_cert' || documentType === 'insuranceCert') {
-            // Extract Policy Number
-            const policyPattern = /(?:POLICY\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i;
-            const policyMatch = text.match(policyPattern);
-            if (policyMatch) extracted.insurancePolicyNumber = policyMatch[1].trim();
+            // Extract from Insurance Certificate
+            try {
+                // Extract Policy Number
+                const policyPattern = /(?:POLICY\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i;
+                const policyMatch = text.match(policyPattern);
+                if (policyMatch && policyMatch[1]) {
+                    extracted.insurancePolicyNumber = policyMatch[1].trim();
+                    console.debug('[Insurance] Policy Number extracted:', extracted.insurancePolicyNumber);
+                }
 
-            // Extract Expiry Date
-            const expiryPattern = /(?:EXPIR|VALID\s*UNTIL|EFFECTIVE\s*TO|EXPIRY)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i;
-            const expiryMatch = text.match(expiryPattern);
-            if (expiryMatch) extracted.insuranceExpiry = expiryMatch[1].trim();
+                // Extract Expiry Date
+                const expiryPattern = /(?:EXPIR|VALID\s*UNTIL|EFFECTIVE\s*TO|EXPIRY)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i;
+                const expiryMatch = text.match(expiryPattern);
+                if (expiryMatch && expiryMatch[1]) {
+                    extracted.insuranceExpiry = expiryMatch[1].trim();
+                    console.debug('[Insurance] Expiry Date extracted:', extracted.insuranceExpiry);
+                }
+
+                // Extract Vehicle Info from Insurance Certificate
+                // VIN/Chassis with compound label support
+                const vinPattern = /(?:Chassis\/VIN|Chassis\s*No\.?|VIN)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+                const vinMatches = text.match(vinPattern);
+                if (vinMatches && vinMatches[1]) {
+                    extracted.vin = vinMatches[1].trim();
+                    extracted.chassisNumber = vinMatches[1].trim();  // Dual assignment
+                    console.debug('[Insurance] VIN extracted:', extracted.vin);
+                }
+                
+                // Engine Number
+                const enginePattern = /(?:Engine\s*Number|Engine\s*No\.?|Motor\s*No\.?)\s*[:.]?\s*([A-Z0-9]+)/i;
+                const engineMatches = text.match(enginePattern);
+                if (engineMatches && engineMatches[1]) {
+                    extracted.engineNumber = engineMatches[1].trim();
+                    console.debug('[Insurance] Engine Number extracted:', extracted.engineNumber);
+                }
+                
+                // Plate Number: Handle "To be issued" explicitly
+                const platePattern = /(?:Plate\s*(?:No\.?|Number))\s*[:.]?\s*([A-Z]{3}\s?[-]?\s?\d{3,4}|To\s*be\s*issued)/i;
+                const plateMatches = text.match(platePattern);
+                if (plateMatches && plateMatches[1]) {
+                    if (plateMatches[1].toLowerCase().includes('to be issued')) {
+                        extracted.plateNumber = '';  // Empty string for unissued plates
+                        console.debug('[Insurance] Plate marked as "To be issued" - set to empty');
+                    } else {
+                        extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+                        console.debug('[Insurance] Plate Number extracted:', extracted.plateNumber);
+                    }
+                }
+
+                // Make/Brand with compound label support
+                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series|Engine)/i;
+                const makeMatches = text.match(makePattern);
+                if (makeMatches && makeMatches[1]) {
+                    const fullMake = makeMatches[1].trim();
+                    extracted.makeComplete = fullMake;
+                    extracted.make = fullMake.split(/\s+/)[0];  // First word as main make
+                    console.debug('[Insurance] Make extracted:', extracted.make);
+                }
+                
+                // Series/Model with compound label support
+                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    extracted.series = seriesMatches[1].trim();
+                    console.debug('[Insurance] Series/Model extracted:', extracted.series);
+                }
+                
+                // Year Model
+                const yearModelPattern = /(?:Year\s*Model|Year)\s*[:.]?\s*(\d{4})/i;
+                const yearModelMatches = text.match(yearModelPattern);
+                if (yearModelMatches && yearModelMatches[1]) {
+                    extracted.yearModel = yearModelMatches[1].trim();
+                    console.debug('[Insurance] Year Model extracted:', extracted.yearModel);
+                }
+                
+                // Body Type
+                const bodyTypePattern = /(?:Body\s*Type)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Color)/i;
+                const bodyTypeMatches = text.match(bodyTypePattern);
+                if (bodyTypeMatches && bodyTypeMatches[1]) {
+                    extracted.bodyType = bodyTypeMatches[1].trim();
+                    console.debug('[Insurance] Body Type extracted:', extracted.bodyType);
+                }
+                
+                // Color
+                const colorPattern = /(?:Color)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Fuel|Engine)/i;
+                const colorMatches = text.match(colorPattern);
+                if (colorMatches && colorMatches[1]) {
+                    extracted.color = colorMatches[1].trim();
+                    console.debug('[Insurance] Color extracted:', extracted.color);
+                }
+
+                // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+                if (extracted.series) extracted.model = extracted.series;
+                if (extracted.yearModel) extracted.year = extracted.yearModel;
+            } catch (error) {
+                console.error('[Insurance] Error during extraction:', error);
+            }
         }
 
         if (documentType === 'sales_invoice' || documentType === 'salesInvoice') {
-            // Extract Vehicle Information from Sales Invoice
-            // Wrap ALL sales invoice extraction in try/catch for fail-soft behavior
+            // Extract Vehicle Information from Sales Invoice with Philippine document awareness
             try {
-                // **IDENTIFIERS (High Confidence)**
-                // VIN (ISO Standard: 17 chars, excludes I, O, Q)
-                const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
+                // **IDENTIFIERS (High Confidence) - Philippine Document Aware**
+                // VIN/Chassis: Match compound labels
+                const vinPattern = /(?:Chassis\/VIN|Chassis\s*No\.?|VIN)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
                 const vinMatches = text.match(vinPattern);
-                if (vinMatches) extracted.vin = vinMatches[0].trim();
+                if (vinMatches && vinMatches[1]) {
+                    extracted.vin = vinMatches[1].trim();
+                    extracted.chassisNumber = vinMatches[1].trim();
+                }
                 
                 // Engine Number
-                const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
+                const enginePattern = /(?:Engine\s*Number|Engine\s*No\.?|Motor\s*No\.?)\s*[:.]?\s*([A-Z0-9]+)/i;
                 const engineMatches = text.match(enginePattern);
-                if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
+                if (engineMatches && engineMatches[1]) {
+                    extracted.engineNumber = engineMatches[1].trim();
+                }
                 
-                // Chassis Number
-                const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
-                const chassisMatches = text.match(chassisPattern);
-                if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
-                
-                // Plate Number
-                const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
+                // Plate Number: Handle "To be issued"
+                const platePattern = /(?:Plate\s*(?:No\.?|Number))\s*[:.]?\s*([A-Z]{3}\s?[-]?\s?\d{3,4}|To\s*be\s*issued)/i;
                 const plateMatches = text.match(platePattern);
-                if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
-                
-                // MV File Number
-                const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
-                const mvFileMatches = text.match(mvFilePattern);
-                if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
+                if (plateMatches && plateMatches[1]) {
+                    if (plateMatches[1].toLowerCase().includes('to be issued')) {
+                        extracted.plateNumber = '';
+                    } else {
+                        extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+                    }
+                }
 
-                // **DESCRIPTORS (Context-Based)**
-                // Make/Brand
-                const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
+                // **DESCRIPTORS (Context-Aware)**
+                // Make/Brand: Match compound labels
+                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series)/i;
                 const makeMatches = text.match(makePattern);
-                if (makeMatches) extracted.make = makeMatches[1].trim();
+                if (makeMatches && makeMatches[1]) {
+                    const makeValue = makeMatches[1].trim();
+                    if (makeValue.includes(' ') && !extracted.series) {
+                        extracted.make = makeValue.split(/\s+/)[0].trim();
+                        extracted.makeComplete = makeValue;
+                    } else {
+                        extracted.make = makeValue;
+                    }
+                }
                 
-                // Series (Model line)
-                const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
+                // Series/Model: Match compound labels
+                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
                 const seriesMatches = text.match(seriesPattern);
-                if (seriesMatches) extracted.series = seriesMatches[1].trim();
-                
-                // Body Type
-                const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
-                const bodyTypeMatches = text.match(bodyTypePattern);
-                if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
+                if (seriesMatches && seriesMatches[1]) {
+                    extracted.series = seriesMatches[1].trim();
+                }
                 
                 // Year Model
-                const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
+                const yearModelPattern = /(?:Year\s*Model|Year)\s*[:.]?\s*(\d{4})/i;
                 const yearModelMatches = text.match(yearModelPattern);
-                if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
+                if (yearModelMatches && yearModelMatches[1]) {
+                    extracted.yearModel = yearModelMatches[1].trim();
+                }
+                
+                // Body Type
+                const bodyTypePattern = /(?:Body\s*Type)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Color)/i;
+                const bodyTypeMatches = text.match(bodyTypePattern);
+                if (bodyTypeMatches && bodyTypeMatches[1]) {
+                    extracted.bodyType = bodyTypeMatches[1].trim();
+                }
                 
                 // Color
-                const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
+                const colorPattern = /(?:Color)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Fuel|Engine)/i;
                 const colorMatches = text.match(colorPattern);
-                if (colorMatches) extracted.color = colorMatches[1].trim();
+                if (colorMatches && colorMatches[1]) {
+                    extracted.color = colorMatches[1].trim();
+                }
                 
                 // Fuel Type
-                const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
+                const fuelTypePattern = /(?:Fuel|Propulsion)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Engine|Weight)/i;
                 const fuelTypeMatches = text.match(fuelTypePattern);
-                if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+                if (fuelTypeMatches && fuelTypeMatches[1]) {
+                    extracted.fuelType = fuelTypeMatches[1].trim();
+                }
 
-                // **WEIGHTS (Numeric)**
-                // Gross Weight
-                const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
-                const grossWeightMatches = text.match(grossWeightPattern);
-                if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
-                
-                // Net Capacity / Net Weight
-                const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
-                const netCapacityMatches = text.match(netCapacityPattern);
-                if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
-
-                // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+                // **BACKWARDS COMPATIBILITY**
                 if (extracted.series) extracted.model = extracted.series;
                 if (extracted.yearModel) extracted.year = extracted.yearModel;
 
@@ -1430,164 +1579,261 @@ class OCRService {
         }
 
         if (documentType === 'csr' || documentType === 'certificateOfStockReport' || documentType === 'certificate_of_stock_report') {
-            // Extract Vehicle Information from CSR (Certificate of Stock Report)
-            
-            // **IDENTIFIERS (High Confidence)**
-            // VIN (ISO Standard: 17 chars, excludes I, O, Q)
-            const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
-            const vinMatches = text.match(vinPattern);
-            if (vinMatches) extracted.vin = vinMatches[0].trim();
-            
-            // Engine Number
-            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
-            const engineMatches = text.match(enginePattern);
-            if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
-            
-            // Chassis Number
-            const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
-            const chassisMatches = text.match(chassisPattern);
-            if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
-            
-            // Plate Number
-            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
-            const plateMatches = text.match(platePattern);
-            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
-            
-            // MV File Number
-            const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
-            const mvFileMatches = text.match(mvFilePattern);
-            if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
+            // Extract Vehicle Information from CSR (Certificate of Stock Report - Philippine document)
+            try {
+                // **IDENTIFIERS (High Confidence)**
+                // VIN (ISO Standard: 17 chars, excludes I, O, Q)
+                // Handles compound labels: "Chassis/VIN", "Chassis No.", "VIN"
+                const vinPattern = /(?:Chassis\/VIN|Chassis\s*No\.?|VIN)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+                const vinMatches = text.match(vinPattern);
+                if (vinMatches && vinMatches[1]) {
+                    extracted.vin = vinMatches[1].trim();
+                    extracted.chassisNumber = vinMatches[1].trim();  // Dual assignment: VIN = Chassis in PH docs
+                    console.debug('[CSR] VIN extracted (compound-label-aware):', extracted.vin);
+                }
+                
+                // Engine Number
+                // Handles variants: "Engine Number", "Engine No.", "Motor No."
+                const enginePattern = /(?:Engine\s*Number|Engine\s*No\.?|Motor\s*No\.?)\s*[:.]?\s*([A-Z0-9]+)/i;
+                const engineMatches = text.match(enginePattern);
+                if (engineMatches && engineMatches[1]) {
+                    extracted.engineNumber = engineMatches[1].trim();
+                    console.debug('[CSR] Engine Number extracted:', extracted.engineNumber);
+                }
+                
+                // Plate Number
+                // Handles: "Plate No.", "Plate Number", "To be issued"
+                const platePattern = /(?:Plate\s*(?:No\.?|Number))\s*[:.]?\s*([A-Z]{3}\s?[-]?\s?\d{3,4}|To\s*be\s*issued)/i;
+                const plateMatches = text.match(platePattern);
+                if (plateMatches && plateMatches[1]) {
+                    if (plateMatches[1].toLowerCase().includes('to be issued')) {
+                        extracted.plateNumber = '';  // Empty string for unissued plates
+                        console.debug('[CSR] Plate marked as "To be issued" - set to empty');
+                    } else {
+                        extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+                        console.debug('[CSR] Plate Number extracted:', extracted.plateNumber);
+                    }
+                }
+                
+                // MV File Number
+                const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
+                const mvFileMatches = text.match(mvFilePattern);
+                if (mvFileMatches && mvFileMatches[1]) {
+                    extracted.mvFileNumber = mvFileMatches[1].trim();
+                    console.debug('[CSR] MV File Number extracted:', extracted.mvFileNumber);
+                }
 
-            // **DESCRIPTORS (Context-Based)**
-            // Make/Brand
-            const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
-            const makeMatches = text.match(makePattern);
-            if (makeMatches) extracted.make = makeMatches[1].trim();
-            
-            // Series (Model line)
-            const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
-            const seriesMatches = text.match(seriesPattern);
-            if (seriesMatches) extracted.series = seriesMatches[1].trim();
-            
-            // Body Type
-            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
-            const bodyTypeMatches = text.match(bodyTypePattern);
-            if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
-            
-            // Year Model
-            const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
-            const yearModelMatches = text.match(yearModelPattern);
-            if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
-            
-            // Color
-            const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
-            const colorMatches = text.match(colorPattern);
-            if (colorMatches) extracted.color = colorMatches[1].trim();
-            
-            // Fuel Type
-            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
-            const fuelTypeMatches = text.match(fuelTypePattern);
-            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+                // **DESCRIPTORS (Context-Based)**
+                // Make/Brand - handles compound label "Make/Brand"
+                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series|Engine)/i;
+                const makeMatches = text.match(makePattern);
+                if (makeMatches && makeMatches[1]) {
+                    const fullMake = makeMatches[1].trim();
+                    extracted.makeComplete = fullMake;
+                    extracted.make = fullMake.split(/\s+/)[0];  // First word as main make
+                    console.debug('[CSR] Make extracted:', extracted.make, '(full:', extracted.makeComplete + ')');
+                }
+                
+                // Series/Model - handles compound labels: "Model/Series", "Series / Model", "Model"
+                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    extracted.series = seriesMatches[1].trim();
+                    console.debug('[CSR] Series/Model extracted:', extracted.series);
+                }
+                
+                // Body Type
+                const bodyTypePattern = /(?:Body\s*Type)\s*[:.]?\s*([A-Z0-9\s]+?)(?=\n|$|Year|Color)/i;
+                const bodyTypeMatches = text.match(bodyTypePattern);
+                if (bodyTypeMatches && bodyTypeMatches[1]) {
+                    extracted.bodyType = bodyTypeMatches[1].trim();
+                    console.debug('[CSR] Body Type extracted:', extracted.bodyType);
+                }
+                
+                // Year Model
+                const yearModelPattern = /(?:Year|Model\s*Year)\s*[:.]?\s*(\d{4})/i;
+                const yearModelMatches = text.match(yearModelPattern);
+                if (yearModelMatches && yearModelMatches[1]) {
+                    extracted.yearModel = yearModelMatches[1].trim();
+                    console.debug('[CSR] Year Model extracted:', extracted.yearModel);
+                }
+                
+                // Color
+                const colorPattern = /(?:Color)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Fuel)/i;
+                const colorMatches = text.match(colorPattern);
+                if (colorMatches && colorMatches[1]) {
+                    extracted.color = colorMatches[1].trim();
+                    console.debug('[CSR] Color extracted:', extracted.color);
+                }
+                
+                // Fuel Type
+                const fuelTypePattern = /(?:Fuel\s*Type|Propulsion)\s*[:.]?\s*([A-Z]+)/i;
+                const fuelTypeMatches = text.match(fuelTypePattern);
+                if (fuelTypeMatches && fuelTypeMatches[1]) {
+                    extracted.fuelType = fuelTypeMatches[1].trim();
+                    console.debug('[CSR] Fuel Type extracted:', extracted.fuelType);
+                }
 
-            // **WEIGHTS (Numeric)**
-            // Gross Weight
-            const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
-            const grossWeightMatches = text.match(grossWeightPattern);
-            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
-            
-            // Net Capacity / Net Weight
-            const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
-            const netCapacityMatches = text.match(netCapacityPattern);
-            if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
+                // **WEIGHTS (Numeric with decimal support)**
+                // Gross Weight
+                const grossWeightPattern = /(?:Gross\s*(?:Wt|Weight)\.?)\s*[:.]?\s*(\d+(?:\.\d+)?)/i;
+                const grossWeightMatches = text.match(grossWeightPattern);
+                if (grossWeightMatches && grossWeightMatches[1]) {
+                    extracted.grossWeight = grossWeightMatches[1].trim();
+                    console.debug('[CSR] Gross Weight extracted:', extracted.grossWeight);
+                }
+                
+                // Net Capacity / Net Weight
+                const netCapacityPattern = /(?:Net\s*(?:Cap|Capacity|Wt|Weight)\.?)\s*[:.]?\s*(\d+(?:\.\d+)?)/i;
+                const netCapacityMatches = text.match(netCapacityPattern);
+                if (netCapacityMatches && netCapacityMatches[1]) {
+                    extracted.netCapacity = netCapacityMatches[1].trim();
+                    console.debug('[CSR] Net Capacity extracted:', extracted.netCapacity);
+                }
 
-            // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
-            if (extracted.series) extracted.model = extracted.series;
-            if (extracted.yearModel) extracted.year = extracted.yearModel;
+                // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+                if (extracted.series) extracted.model = extracted.series;
+                if (extracted.yearModel) extracted.year = extracted.yearModel;
 
-            // CSR Number
-            const csrNumberPattern = /(?:CSR\s*(?:NO|NUMBER)|CERTIFICATE\s*(?:NO|NUMBER)|STOCK\s*REPORT\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
-            const csrNumberMatch = text.match(csrNumberPattern);
-            if (csrNumberMatch) extracted.csrNumber = csrNumberMatch[1].trim();
+                // CSR Number
+                const csrNumberPattern = /(?:CSR\s*(?:NO|NUMBER)|CERTIFICATE\s*(?:NO|NUMBER)|STOCK\s*REPORT\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
+                const csrNumberMatch = text.match(csrNumberPattern);
+                if (csrNumberMatch && csrNumberMatch[1]) {
+                    extracted.csrNumber = csrNumberMatch[1].trim();
+                    console.debug('[CSR] CSR Number extracted:', extracted.csrNumber);
+                }
+            } catch (error) {
+                console.error('[CSR] Error during extraction:', error);
+            }
         }
 
         if (documentType === 'hpg_clearance' || documentType === 'hpgClearance' || documentType === 'pnpHpgClearance') {
-            // Extract from HPG Clearance Certificate
-            // Clearance Number
-            const clearanceNumberPattern = /(?:CLEARANCE\s*(?:NO|NUMBER)|CERTIFICATE\s*(?:NO|NUMBER)|MV\s*CLEARANCE\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
-            const clearanceMatch = text.match(clearanceNumberPattern);
-            if (clearanceMatch) extracted.clearanceNumber = clearanceMatch[1].trim();
+            // Extract from HPG Clearance Certificate (Philippine PNP document)
+            try {
+                // Clearance Number
+                const clearanceNumberPattern = /(?:CLEARANCE\s*(?:NO|NUMBER)|CERTIFICATE\s*(?:NO|NUMBER)|MV\s*CLEARANCE\s*(?:NO|NUMBER))\s*[:.]?\s*([A-Z0-9\-]+)/i;
+                const clearanceMatch = text.match(clearanceNumberPattern);
+                if (clearanceMatch && clearanceMatch[1]) {
+                    extracted.clearanceNumber = clearanceMatch[1].trim();
+                    console.debug('[HPG] Clearance Number extracted:', extracted.clearanceNumber);
+                }
 
-            // **IDENTIFIERS (High Confidence)**
-            // VIN (ISO Standard: 17 chars, excludes I, O, Q)
-            const vinPattern = /\b(?![IOQ])[A-HJ-NPR-Z0-9]{17}\b/;
-            const vinMatches = text.match(vinPattern);
-            if (vinMatches) extracted.vin = vinMatches[0].trim();
-            
-            // Engine Number
-            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
-            const engineMatches = text.match(enginePattern);
-            if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
-            
-            // Plate Number
-            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
-            const plateMatches = text.match(platePattern);
-            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
-            
-            // Chassis Number
-            const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
-            const chassisMatches = text.match(chassisPattern);
-            if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
-            
-            // MV File Number
-            const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
-            const mvFileMatches = text.match(mvFilePattern);
-            if (mvFileMatches) extracted.mvFileNumber = mvFileMatches[1].trim();
+                // **IDENTIFIERS (High Confidence)**
+                // VIN (ISO Standard: 17 chars, excludes I, O, Q)
+                // Handles compound labels: "Chassis/VIN", "Chassis No.", "VIN"
+                const vinPattern = /(?:Chassis\/VIN|Chassis\s*No\.?|VIN)\s*[:.]?\s*([A-HJ-NPR-Z0-9]{17})/i;
+                const vinMatches = text.match(vinPattern);
+                if (vinMatches && vinMatches[1]) {
+                    extracted.vin = vinMatches[1].trim();
+                    extracted.chassisNumber = vinMatches[1].trim();  // Dual assignment: VIN = Chassis in PH docs
+                    console.debug('[HPG] VIN extracted (compound-label-aware):', extracted.vin);
+                }
+                
+                // Engine Number
+                // Handles variants: "Engine Number", "Engine No.", "Motor No."
+                const enginePattern = /(?:Engine\s*Number|Engine\s*No\.?|Motor\s*No\.?)\s*[:.]?\s*([A-Z0-9]+)/i;
+                const engineMatches = text.match(enginePattern);
+                if (engineMatches && engineMatches[1]) {
+                    extracted.engineNumber = engineMatches[1].trim();
+                    console.debug('[HPG] Engine Number extracted:', extracted.engineNumber);
+                }
+                
+                // Plate Number
+                // Handles: "Plate No.", "Plate Number", "To be issued"
+                const platePattern = /(?:Plate\s*(?:No\.?|Number))\s*[:.]?\s*([A-Z]{3}\s?[-]?\s?\d{3,4}|To\s*be\s*issued)/i;
+                const plateMatches = text.match(platePattern);
+                if (plateMatches && plateMatches[1]) {
+                    if (plateMatches[1].toLowerCase().includes('to be issued')) {
+                        extracted.plateNumber = '';  // Empty string for unissued plates
+                        console.debug('[HPG] Plate marked as "To be issued" - set to empty');
+                    } else {
+                        extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+                        console.debug('[HPG] Plate Number extracted:', extracted.plateNumber);
+                    }
+                }
+                
+                // MV File Number
+                const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
+                const mvFileMatches = text.match(mvFilePattern);
+                if (mvFileMatches && mvFileMatches[1]) {
+                    extracted.mvFileNumber = mvFileMatches[1].trim();
+                    console.debug('[HPG] MV File Number extracted:', extracted.mvFileNumber);
+                }
 
-            // **DESCRIPTORS (Context-Based)**
-            // Make/Brand
-            const makePattern = /(?:Make|Brand)[\s:.]*([A-Z]+)/i;
-            const makeMatches = text.match(makePattern);
-            if (makeMatches) extracted.make = makeMatches[1].trim();
-            
-            // Series (Model line)
-            const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
-            const seriesMatches = text.match(seriesPattern);
-            if (seriesMatches) extracted.series = seriesMatches[1].trim();
-            
-            // Body Type
-            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
-            const bodyTypeMatches = text.match(bodyTypePattern);
-            if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
-            
-            // Year Model
-            const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
-            const yearModelMatches = text.match(yearModelPattern);
-            if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
-            
-            // Color
-            const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
-            const colorMatches = text.match(colorPattern);
-            if (colorMatches) extracted.color = colorMatches[1].trim();
-            
-            // Fuel Type
-            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
-            const fuelTypeMatches = text.match(fuelTypePattern);
-            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+                // **DESCRIPTORS (Context-Based)**
+                // Make/Brand - handles compound label "Make/Brand"
+                const makePattern = /(?:Make\/Brand|Make)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Model|Series|Engine)/i;
+                const makeMatches = text.match(makePattern);
+                if (makeMatches && makeMatches[1]) {
+                    const fullMake = makeMatches[1].trim();
+                    extracted.makeComplete = fullMake;
+                    extracted.make = fullMake.split(/\s+/)[0];  // First word as main make
+                    console.debug('[HPG] Make extracted:', extracted.make, '(full:', extracted.makeComplete + ')');
+                }
+                
+                // Series/Model - handles compound labels: "Model/Series", "Series / Model", "Model"
+                const seriesPattern = /(?:Model\/Series|Series\s*\/\s*Model|Model)\s*[:.]?\s*([A-Z0-9\s-]+?)(?=\n|$|Variant|Body|Year)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches && seriesMatches[1]) {
+                    extracted.series = seriesMatches[1].trim();
+                    console.debug('[HPG] Series/Model extracted:', extracted.series);
+                }
+                
+                // Body Type
+                const bodyTypePattern = /(?:Body\s*Type)\s*[:.]?\s*([A-Z0-9\s]+?)(?=\n|$|Year|Color)/i;
+                const bodyTypeMatches = text.match(bodyTypePattern);
+                if (bodyTypeMatches && bodyTypeMatches[1]) {
+                    extracted.bodyType = bodyTypeMatches[1].trim();
+                    console.debug('[HPG] Body Type extracted:', extracted.bodyType);
+                }
+                
+                // Year Model
+                const yearModelPattern = /(?:Year|Model\s*Year)\s*[:.]?\s*(\d{4})/i;
+                const yearModelMatches = text.match(yearModelPattern);
+                if (yearModelMatches && yearModelMatches[1]) {
+                    extracted.yearModel = yearModelMatches[1].trim();
+                    console.debug('[HPG] Year Model extracted:', extracted.yearModel);
+                }
+                
+                // Color
+                const colorPattern = /(?:Color)\s*[:.]?\s*([A-Z\s]+?)(?=\n|$|Fuel)/i;
+                const colorMatches = text.match(colorPattern);
+                if (colorMatches && colorMatches[1]) {
+                    extracted.color = colorMatches[1].trim();
+                    console.debug('[HPG] Color extracted:', extracted.color);
+                }
+                
+                // Fuel Type
+                const fuelTypePattern = /(?:Fuel\s*Type|Propulsion)\s*[:.]?\s*([A-Z]+)/i;
+                const fuelTypeMatches = text.match(fuelTypePattern);
+                if (fuelTypeMatches && fuelTypeMatches[1]) {
+                    extracted.fuelType = fuelTypeMatches[1].trim();
+                    console.debug('[HPG] Fuel Type extracted:', extracted.fuelType);
+                }
 
-            // **WEIGHTS (Numeric)**
-            // Gross Weight
-            const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
-            const grossWeightMatches = text.match(grossWeightPattern);
-            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
-            
-            // Net Capacity / Net Weight
-            const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
-            const netCapacityMatches = text.match(netCapacityPattern);
-            if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
+                // **WEIGHTS (Numeric with decimal support)**
+                // Gross Weight
+                const grossWeightPattern = /(?:Gross\s*(?:Wt|Weight)\.?)\s*[:.]?\s*(\d+(?:\.\d+)?)/i;
+                const grossWeightMatches = text.match(grossWeightPattern);
+                if (grossWeightMatches && grossWeightMatches[1]) {
+                    extracted.grossWeight = grossWeightMatches[1].trim();
+                    console.debug('[HPG] Gross Weight extracted:', extracted.grossWeight);
+                }
+                
+                // Net Capacity / Net Weight
+                const netCapacityPattern = /(?:Net\s*(?:Cap|Capacity|Wt|Weight)\.?)\s*[:.]?\s*(\d+(?:\.\d+)?)/i;
+                const netCapacityMatches = text.match(netCapacityPattern);
+                if (netCapacityMatches && netCapacityMatches[1]) {
+                    extracted.netCapacity = netCapacityMatches[1].trim();
+                    console.debug('[HPG] Net Capacity extracted:', extracted.netCapacity);
+                }
 
-            // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
-            if (extracted.series) extracted.model = extracted.series;
-            if (extracted.yearModel) extracted.year = extracted.yearModel;
+                // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+                if (extracted.series) extracted.model = extracted.series;
+                if (extracted.yearModel) extracted.year = extracted.yearModel;
+            } catch (error) {
+                console.error('[HPG] Error during extraction:', error);
+            }
         }
 
             return extracted;

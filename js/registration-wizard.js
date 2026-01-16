@@ -2008,6 +2008,32 @@ function autoFillFromOCRData(extractedData, documentType) {
             return;
         }
         
+        // **SPECIAL HANDLING: VIN should populate BOTH vin AND chassisNumber inputs**
+        // In Philippine docs, VIN and Chassis Number are the same field
+        if (ocrField === 'vin' && value) {
+            const vinInput = document.getElementById('vin');
+            const chassisInput = document.getElementById('chassisNumber');
+            
+            if (vinInput && !vinInput.value) {
+                vinInput.value = value.trim();
+                vinInput.classList.add('ocr-auto-filled');
+                vinInput.dispatchEvent(new Event('change', { bubbles: true }));
+                vinInput.dispatchEvent(new Event('input', { bubbles: true }));
+                fieldsFilled++;
+                console.log(`[OCR AutoFill] VIN field filled: vin = "${value.trim()}"`);
+            }
+            
+            if (chassisInput && !chassisInput.value) {
+                chassisInput.value = value.trim();
+                chassisInput.classList.add('ocr-auto-filled');
+                chassisInput.dispatchEvent(new Event('change', { bubbles: true }));
+                chassisInput.dispatchEvent(new Event('input', { bubbles: true }));
+                fieldsFilled++;
+                console.log(`[OCR AutoFill] Chassis Number field filled (from VIN): chassisNumber = "${value.trim()}"`);
+            }
+            return;  // Skip regular mapping for VIN
+        }
+        
         // Get mapped HTML input ID from strict mapping
         const htmlInputId = strictFieldMapping[ocrField];
         

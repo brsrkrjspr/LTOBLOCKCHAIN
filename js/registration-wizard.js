@@ -20,6 +20,7 @@ function initializeRegistrationWizard() {
     initializeFormValidation();
     initializeFileUploads();
     initializeProgressTracking();
+    initializeIDNumberValidation();
     
     // Ensure only step 1 is visible initially
     // Other steps should be hidden until their previous step is completed
@@ -2115,7 +2116,55 @@ function autoFillFromOCRData(extractedData, documentType) {
                         }
                         // #endregion
                         
-                        // Try to find matching option by value or text
+                        // Map OCR extracted ID type to dropdown value (explicit mapping)
+                        if (key === 'idType') {
+                            const idTypeMap = {
+                                'drivers-license': 'drivers-license',
+                                'driver\'s license': 'drivers-license',
+                                'driver license': 'drivers-license',
+                                'drivers license': 'drivers-license',
+                                'passport': 'passport',
+                                'national-id': 'national-id',
+                                'national id': 'national-id',
+                                'philid': 'national-id',
+                                'philippine id': 'national-id',
+                                'postal-id': 'postal-id',
+                                'postal id': 'postal-id',
+                                'voters-id': 'voters-id',
+                                'voter\'s id': 'voters-id',
+                                'voters id': 'voters-id',
+                                'voter id': 'voters-id',
+                                'sss-id': 'sss-id',
+                                'sss id': 'sss-id',
+                                'sss': 'sss-id',
+                                'tin': 'tin',
+                                'tax identification number': 'tin',
+                                'tax id': 'tin'
+                            };
+                            
+                            const normalizedValue = value.toLowerCase().trim();
+                            const mappedValue = idTypeMap[normalizedValue];
+                            
+                            if (mappedValue) {
+                                // Check if mapped value exists in dropdown
+                                const option = Array.from(field.options).find(opt => opt.value === mappedValue);
+                                if (option) {
+                                    field.value = mappedValue;
+                                    field.classList.add('ocr-auto-filled');
+                                    fieldsFilled.owner++;
+                                    // #region agent log
+                                    console.log('[ID AutoFill Debug] idType field filled via explicit mapping:', {
+                                        extractedValue: value,
+                                        mappedValue: mappedValue,
+                                        selectedValue: field.value
+                                    });
+                                    // #endregion
+                                    continue; // Skip to next field
+                                }
+                            }
+                        }
+                        
+                        // Try to find matching option by value or text (fallback to fuzzy matching)
                         // Enhanced matching: handle various ID type formats from OCR
                         const normalizedValue = value.toLowerCase().trim();
                         const option = Array.from(field.options).find(opt => {
@@ -2275,6 +2324,98 @@ function autoFillFromOCRData(extractedData, documentType) {
             messages.push(`${fieldsFilled.owner} owner field(s) auto-filled`);
         }
         showNotification(`Information extracted from ${documentType}. ${messages.join(', ')}. Please verify all fields.`, 'success');
+    }
+}
+
+/**
+ * Validate ID number format based on ID type
+ * @param {string} idNumber - ID number to validate
+ * @param {string} idType - Type of ID (drivers-license, passport, etc.)
+ * @returns {Object} Validation result with valid flag and message
+ */
+function validateIDNumber(idNumber, idType) {
+    if (!idNumber || !idType) {
+        return { valid: false, message: 'ID number and type required' };
+    }
+    
+    const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
+    const patterns = {
+        'drivers-license': /^D\d{2}-\d{2}-\d{6,}$/,
+        'passport': /^[A-Z]{2}\d{7}$/,
+        'national-id': /^\d{4}-\d{4}-\d{4}-\d{1,3}$/,
+        'postal-id': /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/,
+        'voters-id': /^\d{4}-\d{4}-\d{4}$/,
+        'sss-id': /^\d{2}-\d{7}-\d{1}$/,
+        'tin': /^\d{3}-\d{3}-\d{3}-\d{3}$/
+    };
+    
+    const pattern = patterns[idType];
+    if (pattern && pattern.test(cleaned)) {
+        return { valid: true, message: 'Valid format' };
+    }
+    
+    return { valid: false, message: `Invalid ${idType.replace(/-/g, ' ')} format` };
+}
+
+/**
+ * Initialize ID number validation on form fields
+ * This sets up real-time validation when user leaves the ID number field
+ */
+function initializeIDNumberValidation() {
+    const idNumberField = document.getElementById('idNumber');
+    const idTypeField = document.getElementById('idType');
+    
+    if (idNumberField && idTypeField) {
+        // Validate on blur (when user leaves the field)
+        idNumberField.addEventListener('blur', function() {
+            const idType = idTypeField.value;
+            const idNumber = idNumberField.value;
+            
+            if (idType && idNumber) {
+                const validation = validateIDNumber(idNumber, idType);
+                if (!validation.valid) {
+                    showFieldError(idNumberField, validation.message);
+                } else {
+                    hideFieldError(idNumberField);
+                }
+            } else if (idNumber && !idType) {
+                // Show error if ID number entered but no ID type selected
+                showFieldError(idNumberField, 'Please select an ID type first');
+            } else {
+                hideFieldError(idNumberField);
+            }
+        });
+        
+        // Also validate when ID type changes
+        idTypeField.addEventListener('change', function() {
+            const idType = idTypeField.value;
+            const idNumber = idNumberField.value;
+            
+            if (idType && idNumber) {
+                const validation = validateIDNumber(idNumber, idType);
+                if (!validation.valid) {
+                    showFieldError(idNumberField, validation.message);
+                } else {
+                    hideFieldError(idNumberField);
+                }
+            } else {
+                hideFieldError(idNumberField);
+            }
+        });
+        
+        // Clear error on input (optional - provides better UX)
+        idNumberField.addEventListener('input', function() {
+            // Only clear error if field has value and ID type is selected
+            const idType = idTypeField.value;
+            const idNumber = idNumberField.value;
+            
+            if (idType && idNumber) {
+                const validation = validateIDNumber(idNumber, idType);
+                if (validation.valid) {
+                    hideFieldError(idNumberField);
+                }
+            }
+        });
     }
 }
 

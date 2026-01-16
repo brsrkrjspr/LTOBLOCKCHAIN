@@ -475,6 +475,269 @@ class OCRService {
     }
 
     /**
+     * Validate ID number format based on ID type
+     * @param {string} idNumber - ID number to validate
+     * @param {string} idType - Type of ID (drivers-license, passport, etc.)
+     * @returns {Object} Validation result with confidence score
+     */
+    validateIDFormat(idNumber, idType) {
+        if (!idNumber || !idType) {
+            return { valid: false, confidence: 0, reason: 'Missing idNumber or idType' };
+        }
+
+        const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
+        
+        // Format-specific validation patterns
+        const formatPatterns = {
+            'drivers-license': /^D\d{2}-\d{2}-\d{6,}$/,
+            'passport': /^[A-Z]{2}\d{7}$/,
+            'national-id': /^\d{4}-\d{4}-\d{4}-\d{1,3}$/,
+            'postal-id': /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/,
+            'voters-id': /^\d{4}-\d{4}-\d{4}$/,
+            'sss-id': /^\d{2}-\d{7}-\d{1}$/,
+            'tin': /^\d{3}-\d{3}-\d{3}-\d{3}$/
+        };
+
+        const pattern = formatPatterns[idType];
+        if (!pattern) {
+            return { valid: false, confidence: 0, reason: `Unknown ID type: ${idType}` };
+        }
+
+        const isValid = pattern.test(cleaned);
+        return {
+            valid: isValid,
+            confidence: isValid ? 1.0 : 0.0,
+            reason: isValid ? 'Valid format' : `Invalid ${idType} format`
+        };
+    }
+
+    /**
+     * Get format-specific regex patterns for ID number extraction
+     * @param {string} idType - Type of ID (drivers-license, passport, etc.)
+     * @returns {Array} Array of regex patterns prioritized by specificity
+     */
+    getIDNumberPatterns(idType) {
+        const patterns = {
+            'drivers-license': [
+                // Pattern 1: "LICENSE NO: D12-34-567890" (most specific with context)
+                /(?:LICENSE\s*(?:NO|NUMBER|#)\.?|DRIVER['\s]*S?\s*LICENSE\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*(D\d{2}-\d{2}-\d{6,})/i,
+                // Pattern 2: Standalone "D12-34-567890" format
+                /\b(D\d{2}-\d{2}-\d{6,})\b/g
+            ],
+            'passport': [
+                // Pattern 1: "PASSPORT NO: AA1234567" (most specific with context)
+                /(?:PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z]{2}\d{7})/i,
+                // Pattern 2: Standalone "AA1234567" format
+                /\b([A-Z]{2}\d{7})\b/g
+            ],
+            'national-id': [
+                // Pattern 1: "NATIONAL ID: 1234-5678-9012-3" or "CRN: 1234-5678-9012-3"
+                /(?:NATIONAL\s*ID|CRN|PHILID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*(\d{4}-\d{4}-\d{4}-\d{1,3})/i,
+                // Pattern 2: Standalone "1234-5678-9012-3" format
+                /\b(\d{4}-\d{4}-\d{4}-\d{1,3})\b/g
+            ],
+            'postal-id': [
+                // Pattern 1: "POSTAL ID: AB123456" or "POSTAL ID NO: AB123456"
+                /(?:POSTAL\s*ID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*([A-Z]{2,3}\d{6,9}|\d{8,10})/i,
+                // Pattern 2: Standalone format
+                /\b([A-Z]{2,3}\d{6,9}|\d{8,10})\b/g
+            ],
+            'voters-id': [
+                // Pattern 1: "VOTER['\s]*S?\s*ID: 1234-5678-9012"
+                /(?:VOTER['\s]*S?\s*ID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*(\d{4}-\d{4}-\d{4})/i,
+                // Pattern 2: Standalone "1234-5678-9012" format
+                /\b(\d{4}-\d{4}-\d{4})\b/g
+            ],
+            'sss-id': [
+                // Pattern 1: "SSS ID: 12-3456789-0" or "SSS NO: 12-3456789-0"
+                /(?:SSS)\s*(?:ID|NO|NUMBER|#)\.?\s*[:.]?\s*(\d{2}-\d{7}-\d{1})/i,
+                // Pattern 2: Standalone "12-3456789-0" format
+                /\b(\d{2}-\d{7}-\d{1})\b/g
+            ],
+            'tin': [
+                // Pattern 1: "TIN: 123-456-789-000" or "TAX ID: 123-456-789-000"
+                /(?:TIN|TAX\s*(?:ID|IDENTIFICATION\s*NUMBER))\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*(\d{3}-\d{3}-\d{3}-\d{3})/i,
+                // Pattern 2: Standalone "123-456-789-000" format
+                /\b(\d{3}-\d{3}-\d{3}-\d{3})\b/g
+            ]
+        };
+
+        // Return format-specific patterns if available, otherwise return generic patterns
+        if (patterns[idType]) {
+            return patterns[idType];
+        }
+
+        // Generic fallback patterns (less specific)
+        return [
+            /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
+            /\b([A-Z0-9\-]{8,20})\b/g
+        ];
+    }
+
+    /**
+     * Extract ID number with format validation and confidence scoring
+     * @param {string} text - Extracted text from document
+     * @param {string} idType - Type of ID (drivers-license, passport, etc.)
+     * @returns {Object} Extraction result with ID number, confidence, and candidates
+     */
+    extractIDNumberWithValidation(text, idType) {
+        if (!text || typeof text !== 'string') {
+            return { idNumber: null, confidence: 0, candidates: [] };
+        }
+
+        const patterns = this.getIDNumberPatterns(idType);
+        const candidates = [];
+        const seen = new Set(); // Track seen ID numbers to avoid duplicates
+
+        // Find all potential matches
+        for (let i = 0; i < patterns.length; i++) {
+            const pattern = patterns[i];
+            const isGlobalPattern = pattern.global;
+
+            try {
+                if (isGlobalPattern) {
+                    // For global patterns, use exec() to get all matches
+                    pattern.lastIndex = 0;
+                    let match;
+                    while ((match = pattern.exec(text)) !== null) {
+                        if (match[1]) {
+                            const candidate = match[1].trim().replace(/\s+/g, '').toUpperCase();
+                            if (!seen.has(candidate)) {
+                                seen.add(candidate);
+                                
+                                // Validate format
+                                const validation = this.validateIDFormat(candidate, idType);
+                                
+                                // Calculate confidence
+                                let confidence = validation.confidence; // 0.0 or 1.0 from format validation
+                                
+                                // Bonus for proximity to ID type keywords (0-0.3)
+                                const keywordBonus = this.calculateKeywordProximity(text, match.index, idType);
+                                confidence += keywordBonus;
+                                
+                                // Bonus for pattern specificity (0-0.2)
+                                // First pattern (with context) gets higher score
+                                const specificityBonus = i === 0 ? 0.2 : 0.1;
+                                confidence += specificityBonus;
+                                
+                                // Cap confidence at 1.0
+                                confidence = Math.min(confidence, 1.0);
+
+                                candidates.push({
+                                    idNumber: candidate,
+                                    confidence: confidence,
+                                    patternIndex: i,
+                                    matchIndex: match.index,
+                                    validation: validation
+                                });
+                            }
+                        }
+                    }
+                } else {
+                    // For non-global patterns, use match()
+                    const matches = text.match(pattern);
+                    if (matches && matches[1]) {
+                        const candidate = matches[1].trim().replace(/\s+/g, '').toUpperCase();
+                        if (!seen.has(candidate)) {
+                            seen.add(candidate);
+                            
+                            // Validate format
+                            const validation = this.validateIDFormat(candidate, idType);
+                            
+                            // Calculate confidence
+                            let confidence = validation.confidence;
+                            
+                            // Bonus for proximity to ID type keywords
+                            const matchIndex = matches.index || 0;
+                            const keywordBonus = this.calculateKeywordProximity(text, matchIndex, idType);
+                            confidence += keywordBonus;
+                            
+                            // Bonus for pattern specificity
+                            const specificityBonus = i === 0 ? 0.2 : 0.1;
+                            confidence += specificityBonus;
+                            
+                            confidence = Math.min(confidence, 1.0);
+
+                            candidates.push({
+                                idNumber: candidate,
+                                confidence: confidence,
+                                patternIndex: i,
+                                matchIndex: matchIndex,
+                                validation: validation
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('[OCR Debug] Error in pattern matching:', {
+                    error: error.message,
+                    patternIndex: i,
+                    idType: idType
+                });
+                continue;
+            }
+        }
+
+        // Sort candidates by confidence (highest first)
+        candidates.sort((a, b) => b.confidence - a.confidence);
+
+        // Return best candidate if confidence > 0.5
+        const bestCandidate = candidates.length > 0 && candidates[0].confidence > 0.5 
+            ? candidates[0] 
+            : null;
+
+        return {
+            idNumber: bestCandidate ? bestCandidate.idNumber : null,
+            confidence: bestCandidate ? bestCandidate.confidence : 0,
+            candidates: candidates.slice(0, 5) // Top 5 for debugging
+        };
+    }
+
+    /**
+     * Calculate confidence bonus based on proximity to ID type keywords
+     * @param {string} text - Full text
+     * @param {number} matchIndex - Index where ID number was found
+     * @param {string} idType - Type of ID
+     * @returns {number} Bonus score (0-0.3)
+     */
+    calculateKeywordProximity(text, matchIndex, idType) {
+        const keywordMap = {
+            'drivers-license': ['LICENSE', 'DRIVER', 'DL'],
+            'passport': ['PASSPORT', 'PASSPORT NO', 'PASSPORT NUMBER'],
+            'national-id': ['NATIONAL ID', 'CRN', 'PHILID', 'PHILIPPINE ID'],
+            'postal-id': ['POSTAL ID', 'POSTAL'],
+            'voters-id': ['VOTER', 'VOTERS ID'],
+            'sss-id': ['SSS', 'SSS ID', 'SSS NUMBER'],
+            'tin': ['TIN', 'TAX ID', 'TAX IDENTIFICATION']
+        };
+
+        const keywords = keywordMap[idType] || [];
+        if (keywords.length === 0) return 0;
+
+        // Check 100 characters before and after the match
+        const searchStart = Math.max(0, matchIndex - 100);
+        const searchEnd = Math.min(text.length, matchIndex + 100);
+        const context = text.substring(searchStart, searchEnd).toUpperCase();
+
+        // Check if any keyword appears in context
+        for (const keyword of keywords) {
+            if (context.includes(keyword)) {
+                // Calculate distance from keyword to match
+                const keywordIndex = context.indexOf(keyword);
+                const distance = Math.abs(keywordIndex - (matchIndex - searchStart));
+                
+                // Closer keywords get higher bonus (max 0.3)
+                // Within 20 chars = 0.3, within 50 chars = 0.2, within 100 chars = 0.1
+                if (distance <= 20) return 0.3;
+                if (distance <= 50) return 0.2;
+                if (distance <= 100) return 0.1;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
      * Parse vehicle information from extracted text
      * @param {string} text - Extracted text from document
      * @param {string} documentType - Type of document (registration_cert, owner_id, etc.)
@@ -859,159 +1122,108 @@ class OCRService {
             }
             // #endregion
             
-            // Extract ID Number (various formats)
-            // Priority order: specific patterns first, then generic
+            // Extract ID Number with format validation
             // #region agent log
-            console.log('[OCR Debug] Starting ID Number extraction');
+            console.log('[OCR Debug] Starting ID Number extraction with validation');
             // #endregion
             
-            const idNumberPatterns = [
-                // Pattern 1: "LICENSE NO: D12-34-567890" or "LICENSE NO. D12-34-567890" (most specific)
-                /(?:LICENSE\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z]\d{2}[\-]\d{2}[\-]\d{6,})/i,
-                // Pattern 2: "ID NO: D12-34-567890" or "ID NUMBER: D12-34-567890"
-                /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                // Pattern 3: "LICENSE NO: " followed by alphanumeric (catch-all for license numbers)
-                /(?:LICENSE\s*(?:NO|NUMBER|#)\.?|PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i,
-                // Pattern 4: Standalone patterns like "D12-34-567890" (Driver's License format: D##-##-######)
-                /\b([A-Z]\d{2}[\-]\d{2}[\-]\d{6,})\b/g,
-                // Pattern 5: Generic standalone ID numbers like A01-23-456789, N123456789, PP1234567
-                /\b([A-Z]{1,3}[\d\-]{8,15})\b/g,
-                // Pattern 6: Numeric IDs like 01-23-456789
-                /\b(\d{2}[\-]?\d{2}[\-]?\d{6,10})\b/g
-            ];
-            
-            for (let i = 0; i < idNumberPatterns.length; i++) {
-                const pattern = idNumberPatterns[i];
-                const isGlobalPattern = pattern.global;
+            if (extracted.idType) {
+                const idExtraction = this.extractIDNumberWithValidation(text, extracted.idType);
                 
-                // #region agent log
-                if (i === 0) {
-                    console.log('[OCR Debug] ID Number pattern attempt', i + 1, ':', {
-                        pattern: pattern.toString(),
-                        isGlobal: isGlobalPattern
-                    });
-                }
-                // #endregion
-                
-                let idNumber = null;
-                let matchFound = false;
-                
-                try {
-                    if (isGlobalPattern) {
-                        // For global patterns, use exec() to get capture groups properly
-                        // Reset pattern lastIndex to ensure we start from beginning
-                        if (!text || typeof text !== 'string') {
-                            console.warn('[OCR Debug] WARNING: text is not a string, skipping pattern', i);
-                            continue;
-                        }
-                        pattern.lastIndex = 0;
-                        let match;
-                        while ((match = pattern.exec(text)) !== null) {
-                            matchFound = true;
-                            // match[0] is full match, match[1] is first capture group
-                            if (match[1]) {
-                                idNumber = match[1].trim();
-                                // #region agent log
-                                console.log('[OCR Debug] ID Number pattern matched (global):', {
-                                    patternIndex: i,
-                                    pattern: pattern.toString(),
-                                    fullMatch: match[0],
-                                    captureGroup: match[1],
-                                    matchIndex: match.index
-                                });
-                                // #endregion
-                                break; // Use first match
-                            }
-                        }
-                    } else {
-                        // For non-global patterns, use match() which returns array with capture groups
-                        if (!text || typeof text !== 'string') {
-                            console.warn('[OCR Debug] WARNING: text is not a string, skipping pattern', i);
-                            continue;
-                        }
-                        const matches = text.match(pattern);
-                        if (matches) {
-                            matchFound = true;
-                            // matches[0] is full match, matches[1] is first capture group
-                            if (matches[1]) {
-                                idNumber = matches[1].trim();
-                            } else if (matches[0]) {
-                                // Fallback to full match if no capture group
-                                idNumber = matches[0].trim();
-                            }
-                            
-                            // #region agent log
-                            console.log('[OCR Debug] ID Number pattern matched (non-global):', {
-                                patternIndex: i,
-                                pattern: pattern.toString(),
-                                fullMatch: matches[0],
-                                captureGroup: matches[1],
-                                matchIndex: matches.index
-                            });
-                            // #endregion
-                        }
-                    }
-                } catch (patternError) {
-                    console.error('[OCR Debug] ERROR in pattern matching (pattern', i, '):', {
-                        error: patternError.message,
-                        errorName: patternError.name,
-                        pattern: pattern.toString(),
-                        textLength: text ? text.length : 0
-                    });
-                    // Continue to next pattern instead of crashing
-                    continue;
-                }
-                
-                if (matchFound && idNumber) {
-                    // Clean up ID number (remove extra spaces, normalize dashes)
-                    idNumber = idNumber.replace(/\s+/g, '').replace(/[^\w\-]/g, '').toUpperCase();
-                    
+                if (idExtraction.idNumber && idExtraction.confidence > 0.5) {
+                    extracted.idNumber = idExtraction.idNumber;
                     // #region agent log
-                    console.log('[OCR Debug] ID Number candidate:', {
-                        idNumber,
-                        length: idNumber.length,
-                        isValid: idNumber.length >= 6 && idNumber.length <= 20 && /[A-Z0-9]/.test(idNumber),
-                        validationDetails: {
-                            minLength: idNumber.length >= 6,
-                            maxLength: idNumber.length <= 20,
-                            hasAlphanumeric: /[A-Z0-9]/.test(idNumber)
-                        }
+                    console.log('[OCR Debug] ID Number extracted with validation:', {
+                        idNumber: extracted.idNumber,
+                        confidence: idExtraction.confidence,
+                        idType: extracted.idType,
+                        topCandidates: idExtraction.candidates.slice(0, 3)
                     });
                     // #endregion
+                } else {
+                    // #region agent log
+                    console.warn('[OCR Debug] No valid ID number found:', {
+                        idType: extracted.idType,
+                        candidates: idExtraction.candidates,
+                        reason: 'No candidate met confidence threshold (0.5)',
+                        topCandidate: idExtraction.candidates.length > 0 ? idExtraction.candidates[0] : null
+                    });
+                    // #endregion
+                }
+            } else {
+                // If ID type not detected, try generic extraction but with stricter validation
+                // #region agent log
+                console.warn('[OCR Debug] ID Type not detected, attempting generic ID number extraction');
+                // #endregion
+                
+                // Use generic patterns but still validate against common formats
+                const genericPatterns = [
+                    /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?|LICENSE\s*(?:NO|NUMBER|#)\.?|PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
+                    /\b([A-Z]\d{2}-\d{2}-\d{6,})\b/g, // Driver's License format
+                    /\b([A-Z]{2}\d{7})\b/g, // Passport format
+                    /\b(\d{4}-\d{4}-\d{4}-\d{1,3})\b/g, // National ID format
+                    /\b(\d{4}-\d{4}-\d{4})\b/g, // Voter's ID format
+                    /\b(\d{2}-\d{7}-\d{1})\b/g, // SSS ID format
+                    /\b(\d{3}-\d{3}-\d{3}-\d{3})\b/g // TIN format
+                ];
+                
+                let foundValidID = false;
+                for (let i = 0; i < genericPatterns.length && !foundValidID; i++) {
+                    const pattern = genericPatterns[i];
+                    const isGlobalPattern = pattern.global;
                     
-                    // Enhanced validation: check length, format, and content
-                    const isValidLength = idNumber.length >= 6 && idNumber.length <= 20;
-                    const hasAlphanumeric = /[A-Z0-9]/.test(idNumber);
-                    const hasReasonableFormat = /^[A-Z0-9\-]+$/.test(idNumber);
-                    
-                    if (isValidLength && hasAlphanumeric && hasReasonableFormat) {
-                        extracted.idNumber = idNumber;
-                        // #region agent log
-                        console.log('[OCR Debug] ID Number extracted successfully:', {
-                            idNumber: extracted.idNumber,
-                            patternIndex: i,
-                            pattern: pattern.toString()
-                        });
-                        // #endregion
-                        break;
-                    } else {
-                        // #region agent log
-                        console.log('[OCR Debug] ID Number candidate failed validation:', {
-                            idNumber,
-                            reasons: {
-                                length: !isValidLength,
-                                alphanumeric: !hasAlphanumeric,
-                                format: !hasReasonableFormat
+                    try {
+                        if (isGlobalPattern) {
+                            pattern.lastIndex = 0;
+                            let match;
+                            while ((match = pattern.exec(text)) !== null && !foundValidID) {
+                                if (match[1]) {
+                                    const candidate = match[1].trim().replace(/\s+/g, '').toUpperCase();
+                                    // Basic validation: length and format
+                                    if (candidate.length >= 8 && candidate.length <= 20 && /^[A-Z0-9\-]+$/.test(candidate)) {
+                                        extracted.idNumber = candidate;
+                                        foundValidID = true;
+                                        // #region agent log
+                                        console.log('[OCR Debug] Generic ID Number extracted:', {
+                                            idNumber: extracted.idNumber,
+                                            patternIndex: i
+                                        });
+                                        // #endregion
+                                    }
+                                }
                             }
-                        });
-                        // #endregion
+                        } else {
+                            const matches = text.match(pattern);
+                            if (matches && matches[1]) {
+                                const candidate = matches[1].trim().replace(/\s+/g, '').toUpperCase();
+                                if (candidate.length >= 8 && candidate.length <= 20 && /^[A-Z0-9\-]+$/.test(candidate)) {
+                                    extracted.idNumber = candidate;
+                                    foundValidID = true;
+                                    // #region agent log
+                                    console.log('[OCR Debug] Generic ID Number extracted:', {
+                                        idNumber: extracted.idNumber,
+                                        patternIndex: i
+                                    });
+                                    // #endregion
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('[OCR Debug] Error in generic pattern matching:', error.message);
+                        continue;
                     }
+                }
+                
+                if (!foundValidID) {
+                    // #region agent log
+                    console.warn('[OCR Debug] No valid ID number found with generic patterns');
+                    // #endregion
                 }
             }
             
             // #region agent log
             if (!extracted.idNumber) {
-                console.log('[OCR Debug] ID Number not found after trying', idNumberPatterns.length, 'patterns. Text sample:', text ? text.substring(0, 500) : 'NO TEXT');
+                console.log('[OCR Debug] ID Number not found. Text sample:', text ? text.substring(0, 500) : 'NO TEXT');
                 console.log('[OCR Debug] Normalized text sample (for pattern debugging):', text ? text.toUpperCase().replace(/\s+/g, ' ').substring(0, 500) : 'NO TEXT');
             }
             console.log('[OCR Debug] Final extracted data for owner_id:', {

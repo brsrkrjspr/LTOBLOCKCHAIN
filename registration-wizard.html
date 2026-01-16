@@ -1302,6 +1302,22 @@
                                     <small class="form-hint">Enter the primary classification of the vehicle (e.g., Car, UV, SUV, MC/TC, Truck, Bus, Trailer).</small>
                                 </div>
                                 <div class="form-group">
+                                    <label for="fuelType">Fuel Type</label>
+                                    <select id="fuelType" name="fuelType">
+                                        <option value="">Select Fuel Type</option>
+                                        <option value="Gasoline">Gasoline</option>
+                                        <option value="Diesel">Diesel</option>
+                                        <option value="Electric">Electric</option>
+                                        <option value="Hybrid">Hybrid</option>
+                                        <option value="LPG">LPG</option>
+                                        <option value="CNG">CNG</option>
+                                    </select>
+                                    <small class="form-hint">Fuel type can be auto-filled from OCR documents.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
                                     <label for="vehicleCategory">Vehicle Category (PNS) <span class="required">*</span></label>
                                     <select id="vehicleCategory" name="vehicleCategory" required>
                                         <option value="">Select Category</option>

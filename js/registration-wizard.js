@@ -2023,11 +2023,15 @@ function autoFillFromOCRData(extractedData, documentType) {
             return;
         }
         
-        // Skip if field already has a value
+        // ALLOW OVERWRITE: Updated to allow new documents to update existing fields
+        // This enables correcting mistakes or updating with better document scans
+        // Commented out to enable field updates
+        /*
         if (inputElement.value) {
             console.log(`[OCR AutoFill] Field already has value, skipping: ${htmlInputId}`);
             return;
         }
+        */
         
         // Set the value
         inputElement.value = value.trim();

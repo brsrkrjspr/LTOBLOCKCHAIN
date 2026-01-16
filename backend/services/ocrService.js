@@ -824,13 +824,13 @@ class OCRService {
             const makeMatches = text.match(makePattern);
             if (makeMatches) extracted.make = makeMatches[1].trim();
             
-            // Series (Model line)
-            const seriesPattern = /(?:Series|Model)[\s:.]*([A-Z0-9\s]+?)(?=\n|Body)/i;
+            // Series (Model line) - FIXED: Use [^\n]+ to stop at newline (prevents leakage)
+            const seriesPattern = /(?:Series|Model)[\s:.]*([^\n]+?)(?=\n|Body)/i;
             const seriesMatches = text.match(seriesPattern);
             if (seriesMatches) extracted.series = seriesMatches[1].trim();
             
-            // Body Type
-            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([A-Z0-9\s]+)/i;
+            // Body Type - FIXED: Use [^\n]+ to capture only current line
+            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([^\n]+?)(?=\n|Color|Engine)/i;
             const bodyTypeMatches = text.match(bodyTypePattern);
             if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
             
@@ -839,13 +839,13 @@ class OCRService {
             const yearModelMatches = text.match(yearModelPattern);
             if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
             
-            // Color
-            const colorPattern = /(?:Color)[\s:.]*([A-Z]+)/i;
+            // Color - FIXED: Use [^\n]+ to capture only single line
+            const colorPattern = /(?:Color)[\s:.]*([^\n]+?)(?=\n|Fuel|Engine)/i;
             const colorMatches = text.match(colorPattern);
             if (colorMatches) extracted.color = colorMatches[1].trim();
             
-            // Fuel Type
-            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([A-Z]+)/i;
+            // Fuel Type - FIXED: Use [^\n]+ and proper lookahead
+            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
             const fuelTypeMatches = text.match(fuelTypePattern);
             if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
 

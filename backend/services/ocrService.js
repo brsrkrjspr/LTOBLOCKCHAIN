@@ -21,6 +21,9 @@ try {
 
 const fs = require('fs').promises;
 const path = require('path');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 class OCRService {
     /**
@@ -244,13 +247,132 @@ class OCRService {
     }
 
     /**
-     * Extract text from PDF by converting first page to image (fallback)
+     * Extract text from PDF by converting to images and using Tesseract OCR
+     * Fallback for image-only PDFs where pdf-parse returns no text
+     * Supports up to 5 pages per PDF (configurable via OCR_MAX_PAGES)
+     * @param {string} filePath - Path to PDF file
+     * @returns {Promise<string>} Extracted text from all pages
      */
     async extractFromPDFAsImage(filePath) {
-        // This would require pdf-poppler or similar - for now, return empty
-        // Can be enhanced later if needed
-        console.warn('PDF to image conversion not implemented, returning empty text');
-        return '';
+        const maxPages = parseInt(process.env.OCR_MAX_PAGES) || 5;
+        const tempDir = process.env.OCR_TEMP_DIR || path.join(__dirname, '../temp-ocr');
+        const timeout = parseInt(process.env.OCR_TIMEOUT) || 30000;
+        
+        // Ensure temp directory exists
+        try {
+            await fs.mkdir(tempDir, { recursive: true });
+        } catch (mkdirError) {
+            console.error('[OCR Debug] Failed to create temp directory:', mkdirError.message);
+            return ''; // Graceful degradation
+        }
+        
+        const baseName = path.basename(filePath, path.extname(filePath));
+        const outputPattern = path.join(tempDir, `${baseName}-%d.png`);
+        const outputBase = path.join(tempDir, baseName);
+        
+        let imageFiles = [];
+        let extractedText = '';
+        
+        try {
+            // Convert PDF to images using pdftoppm
+            // -png: output PNG format
+            // -f 1: start from page 1
+            // -l N: limit to N pages (maxPages)
+            const command = `pdftoppm -png -f 1 -l ${maxPages} "${filePath}" "${outputBase}"`;
+            
+            console.log('[OCR Debug] Converting PDF to images:', {
+                command: command,
+                outputPattern: outputPattern,
+                maxPages: maxPages
+            });
+            
+            // Execute with timeout
+            const { stdout, stderr } = await Promise.race([
+                execAsync(command, { maxBuffer: 10 * 1024 * 1024 }), // 10MB buffer
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('PDF conversion timeout')), timeout)
+                )
+            ]);
+            
+            if (stderr && !stderr.includes('Writing')) {
+                console.warn('[OCR Debug] pdftoppm stderr:', stderr);
+            }
+            
+            // Find generated image files
+            const files = await fs.readdir(tempDir);
+            imageFiles = files
+                .filter(f => f.startsWith(baseName) && f.endsWith('.png'))
+                .sort((a, b) => {
+                    // Sort by page number (e.g., doc-1.png, doc-2.png)
+                    const numA = parseInt(a.match(/-(\d+)\.png$/)?.[1] || '0');
+                    const numB = parseInt(b.match(/-(\d+)\.png$/)?.[1] || '0');
+                    return numA - numB;
+                })
+                .map(f => path.join(tempDir, f));
+            
+            console.log('[OCR Debug] Generated images from PDF:', {
+                count: imageFiles.length,
+                files: imageFiles.map(f => path.basename(f))
+            });
+            
+            if (imageFiles.length === 0) {
+                console.warn('[OCR Debug] No images generated from PDF');
+                return '';
+            }
+            
+            // Process each image with OCR
+            for (const imagePath of imageFiles) {
+                try {
+                    console.log('[OCR Debug] Running Tesseract OCR on:', path.basename(imagePath));
+                    const pageText = await this.extractFromImage(imagePath);
+                    if (pageText && pageText.trim().length > 0) {
+                        extractedText += pageText + '\n\n';
+                    }
+                } catch (imageError) {
+                    console.error('[OCR Debug] Error processing image:', {
+                        image: path.basename(imagePath),
+                        error: imageError.message
+                    });
+                    // Continue with other pages
+                }
+            }
+            
+            console.log('[OCR Debug] Tesseract OCR result:', {
+                textLength: extractedText.length,
+                hasText: extractedText.trim().length > 0,
+                pagesProcessed: imageFiles.length
+            });
+            
+        } catch (error) {
+            console.error('[OCR Debug] PDF to image conversion error:', {
+                error: error.message,
+                errorName: error.name,
+                filePath: path.basename(filePath)
+            });
+            
+            // Check if pdftoppm is installed
+            if (error.message.includes('pdftoppm') || error.code === 'ENOENT') {
+                console.error('[OCR Debug] ERROR: pdftoppm command not found. Install with: sudo apt-get install poppler-utils');
+            }
+            
+            return ''; // Graceful degradation
+        } finally {
+            // Cleanup temp images
+            const shouldCleanup = process.env.OCR_CLEANUP_ON_SUCCESS !== 'false' && 
+                                 process.env.OCR_CLEANUP_ON_ERROR !== 'false';
+            
+            if (shouldCleanup) {
+                for (const imageFile of imageFiles) {
+                    try {
+                        await fs.unlink(imageFile);
+                    } catch (cleanupError) {
+                        console.warn('[OCR Debug] Failed to cleanup temp image:', cleanupError.message);
+                    }
+                }
+            }
+        }
+        
+        return extractedText.trim();
     }
 
     /**

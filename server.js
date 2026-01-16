@@ -107,6 +107,7 @@ app.use('/api/insurance', require('./backend/routes/insurance'));
 app.use('/api/emission', require('./backend/routes/emission'));
 app.use('/api/vehicles/transfer', require('./backend/routes/transfer'));
 app.use('/api/admin', require('./backend/routes/admin'));
+app.use('/api/officers', require('./backend/routes/officers'));
 app.use('/api/integrity', require('./backend/routes/integrity'));
 app.use('/api/document-requirements', require('./backend/routes/document-requirements'));
 

@@ -22,7 +22,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Set user name
     if (currentUser.firstName && currentUser.lastName) {
-        document.getElementById('userName').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+        const userNameEl = document.getElementById('sidebarUserName');
+        if (userNameEl) {
+            userNameEl.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+        }
     }
 
     // Set inspection officer to current user

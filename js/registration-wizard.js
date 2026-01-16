@@ -2159,7 +2159,7 @@ function autoFillFromOCRData(extractedData, documentType) {
                                         selectedValue: field.value
                                     });
                                     // #endregion
-                                    continue; // Skip to next field
+                                    return; // Skip to next field (return from forEach callback)
                                 }
                             }
                         }

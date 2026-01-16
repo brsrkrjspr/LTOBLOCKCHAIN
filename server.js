@@ -90,6 +90,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static files - serve HTML files from root directory
 app.use(express.static(path.join(__dirname)));
 
+// Serve uploaded inspection documents
+app.use('/uploads/inspection-documents', express.static(path.join(__dirname, 'backend/uploads/inspection-documents')));
+
 // API Routes
 app.use('/api/auth', require('./backend/routes/auth'));
 app.use('/api/vehicles', require('./backend/routes/vehicles'));

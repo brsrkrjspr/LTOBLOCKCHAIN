@@ -2118,7 +2118,7 @@ function showApplicationModal(application) {
                     <h6 style="color: #64748b; font-weight: 600; margin-bottom: 1rem; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">
                         <i class="fas fa-folder-open me-2"></i>Inspection Evidence
                     </h6>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                         <!-- MVIR Document Card -->
                         <div style="background: #fff; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1.5rem; text-align: center;">
                             <i class="fas fa-file-alt" style="font-size: 2rem; color: #64748b; margin-bottom: 0.75rem; display: block;"></i>
@@ -2136,10 +2136,22 @@ function showApplicationModal(application) {
                             <i class="fas fa-camera" style="font-size: 2rem; color: #64748b; margin-bottom: 0.75rem; display: block;"></i>
                             <h6 style="color: #1e293b; margin: 0.5rem 0; font-weight: 600;">Vehicle Photos & Stencils</h6>
                             <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">Chassis/Engine rubbings, Photos</p>
-                            <button onclick="viewInspectionGallery('${application.id}')" 
+                            <button onclick="viewInspectionDocument('photos', '${application.id}')" 
                                 style="padding: 0.5rem 1rem; border: 1px solid #0284c7; color: #0284c7; background: transparent; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;"
                                 onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='transparent'">
                                 <i class="fas fa-images me-1"></i>View Gallery
+                            </button>
+                        </div>
+
+                        <!-- Additional Documents Card -->
+                        <div style="background: #fff; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                            <i class="fas fa-file-pdf" style="font-size: 2rem; color: #64748b; margin-bottom: 0.75rem; display: block;"></i>
+                            <h6 style="color: #1e293b; margin: 0.5rem 0; font-weight: 600;">Additional Documents</h6>
+                            <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">Supporting inspection files</p>
+                            <button onclick="viewInspectionDocument('additional', '${application.id}')" 
+                                style="padding: 0.5rem 1rem; border: 1px solid #0284c7; color: #0284c7; background: transparent; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;"
+                                onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='transparent'">
+                                <i class="fas fa-paperclip me-1"></i>View Files
                             </button>
                         </div>
                     </div>
@@ -3495,26 +3507,108 @@ function switchModalTab(tabName) {
  */
 async function viewInspectionDocument(docType, applicationId) {
     try {
-        showNotification('Loading inspection document...', 'info');
+        showNotification('Loading inspection documents...', 'info');
         
-        const response = await ApiClient.get(`/api/applications/${applicationId}/inspection-documents/${docType}`);
-        if (response.success && response.document) {
-            // Use existing DocumentModal if available
-            if (typeof DocumentModal !== 'undefined') {
-                DocumentModal.show({
-                    name: response.document.name || `${docType.toUpperCase()} Document`,
-                    url: response.document.url
-                });
+        // Get vehicle documents using the new endpoint
+        const response = await ApiClient.get(`/api/lto/inspect-documents/${applicationId}`);
+        if (response.success && response.documentReferences) {
+            const docs = response.documentReferences;
+            let documentToView = null;
+            
+            // Determine which document to view based on docType
+            if (docType === 'mvir' && docs.mvirDocument) {
+                documentToView = docs.mvirDocument;
+            } else if (docType === 'photos' && docs.vehiclePhotos && docs.vehiclePhotos.length > 0) {
+                // Show gallery for photos
+                showInspectionPhotoGallery(docs.vehiclePhotos);
+                return;
+            } else if (docType === 'additional' && docs.additionalDocuments && docs.additionalDocuments.length > 0) {
+                // Show gallery for additional documents
+                showInspectionDocumentsGallery(docs.additionalDocuments);
+                return;
+            }
+            
+            if (documentToView) {
+                // Use existing DocumentModal if available
+                if (typeof DocumentModal !== 'undefined') {
+                    DocumentModal.show({
+                        name: documentToView.originalName || `${docType.toUpperCase()} Document`,
+                        url: documentToView.path
+                    });
+                } else {
+                    window.open(documentToView.path, '_blank');
+                }
             } else {
-                window.open(response.document.url, '_blank');
+                showNotification(`No ${docType} document available`, 'warning');
             }
         } else {
-            showNotification('No inspection document uploaded yet', 'warning');
+            showNotification('Failed to load inspection documents', 'warning');
         }
     } catch (error) {
         console.error('Error viewing inspection document:', error);
         showNotification('Failed to load inspection document', 'error');
     }
+}
+
+/**
+ * Show inspection photo gallery
+ */
+function showInspectionPhotoGallery(photos) {
+    const galleryModal = document.createElement('div');
+    galleryModal.className = 'modal';
+    galleryModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; align-items: center; justify-content: center;';
+    
+    galleryModal.innerHTML = `
+        <div style="max-width: 90%; max-height: 90%; overflow: auto; background: white; border-radius: 8px; padding: 1.5rem; max-width: 1000px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
+                <h4 style="margin: 0; color: #0f172a;">Vehicle Inspection Photos</h4>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">×</button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                ${photos.map(photo => `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s;" onclick="window.open('${photo.path}', '_blank')" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'; this.style.transform='scale(1.02)';" onmouseout="this.style.boxShadow='none'; this.style.transform='scale(1)';">
+                        <img src="${photo.path}" alt="${photo.originalName}" style="width: 100%; height: 150px; object-fit: cover;">
+                        <p style="padding: 0.5rem; margin: 0; font-size: 0.8rem; text-align: center; color: #64748b;">${photo.originalName}</p>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    
+    galleryModal.onclick = (e) => { if (e.target === galleryModal) galleryModal.remove(); };
+    document.body.appendChild(galleryModal);
+}
+
+/**
+ * Show additional documents gallery
+ */
+function showInspectionDocumentsGallery(documents) {
+    const galleryModal = document.createElement('div');
+    galleryModal.className = 'modal';
+    galleryModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; align-items: center; justify-content: center;';
+    
+    galleryModal.innerHTML = `
+        <div style="max-width: 90%; max-height: 90%; overflow: auto; background: white; border-radius: 8px; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
+                <h4 style="margin: 0; color: #0f172a;">Additional Inspection Documents</h4>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">×</button>
+            </div>
+            <div style="max-width: 600px;">
+                ${documents.map(doc => `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <p style="margin: 0; font-weight: 600; color: #0f172a;">${doc.originalName}</p>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: #64748b;">${(doc.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                        <a href="${doc.path}" target="_blank" style="padding: 0.5rem 1rem; background: #0284c7; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem;">View</a>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    
+    galleryModal.onclick = (e) => { if (e.target === galleryModal) galleryModal.remove(); };
+    document.body.appendChild(galleryModal);
 }
 
 /**

@@ -55,6 +55,34 @@ function setupEventListeners() {
         await submitInspection();
     });
 
+    // Photo preview
+    const vehiclePhotosInput = document.getElementById('vehiclePhotos');
+    if (vehiclePhotosInput) {
+        vehiclePhotosInput.addEventListener('change', function(e) {
+            const photoPreview = document.getElementById('photoPreview');
+            if (!photoPreview) return;
+            
+            photoPreview.innerHTML = '';
+            const files = Array.from(this.files);
+            
+            if (files.length === 0) {
+                return;
+            }
+            
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.style.cursor = 'pointer';
+                    img.title = file.name;
+                    photoPreview.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    }
+
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', function(e) {
         e.preventDefault();
@@ -162,7 +190,6 @@ async function submitInspection() {
     }
     
     const form = document.getElementById('inspectionForm');
-    const formData = new FormData(form);
     
     // Get form values
     const inspectionResult = form.querySelector('input[name="inspectionResult"]:checked')?.value;
@@ -171,32 +198,94 @@ async function submitInspection() {
     const inspectionOfficer = document.getElementById('inspectionOfficer').value.trim();
     const inspectionNotes = document.getElementById('inspectionNotes').value.trim();
     
-    // Validate
+    // Get file inputs
+    const mvirDocument = document.getElementById('mvirDocument').files[0];
+    const vehiclePhotos = document.getElementById('vehiclePhotos').files;
+    const additionalDocuments = document.getElementById('additionalDocuments').files;
+    
+    // Validate required fields
     if (!inspectionResult || !roadworthinessStatus || !emissionCompliance || !inspectionOfficer) {
-        showError('Please fill in all required fields');
+        showError('Please fill in all required inspection fields');
         return;
+    }
+    
+    // Validate file uploads
+    if (!mvirDocument) {
+        showError('Please upload the MVIR document');
+        return;
+    }
+    
+    if (vehiclePhotos.length === 0) {
+        showError('Please upload at least one vehicle photo');
+        return;
+    }
+    
+    // Validate file sizes
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    if (mvirDocument.size > maxFileSize) {
+        showError('MVIR document is too large (max 10MB)');
+        return;
+    }
+    
+    for (let photo of vehiclePhotos) {
+        if (photo.size > maxFileSize) {
+            showError('One or more vehicle photos are too large (max 10MB each)');
+            return;
+        }
     }
     
     // Show loading
     const submitButton = form.querySelector('button[type="submit"]');
     const originalText = submitButton.innerHTML;
     submitButton.disabled = true;
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading and submitting...';
     
     try {
         const apiClient = window.apiClient || new APIClient();
-        const response = await apiClient.post('/api/lto/inspect', {
+        
+        // First upload the inspection documents
+        const inspectionDocumentsFormData = new FormData();
+        inspectionDocumentsFormData.append('vehicleId', currentVehicleId);
+        inspectionDocumentsFormData.append('mvirDocument', mvirDocument);
+        
+        for (let photo of vehiclePhotos) {
+            inspectionDocumentsFormData.append('vehiclePhotos', photo);
+        }
+        
+        for (let doc of additionalDocuments) {
+            inspectionDocumentsFormData.append('additionalDocuments', doc);
+        }
+        
+        // Upload inspection documents
+        const docResponse = await fetch('/api/lto/inspect-documents', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: inspectionDocumentsFormData
+        });
+        
+        if (!docResponse.ok) {
+            const errorData = await docResponse.json();
+            throw new Error(errorData.error || 'Failed to upload inspection documents');
+        }
+        
+        const docData = await docResponse.json();
+        
+        // Now submit the inspection results with document references
+        const inspectionResponse = await apiClient.post('/api/lto/inspect', {
             vehicleId: currentVehicleId,
             inspectionResult,
             roadworthinessStatus,
             emissionCompliance,
             inspectionOfficer,
-            inspectionNotes: inspectionNotes || null
+            inspectionNotes: inspectionNotes || null,
+            documentReferences: docData.documentReferences || {}
         });
         
-        if (response.success) {
+        if (inspectionResponse.success) {
             // Show success message
-            document.getElementById('mvirNumberDisplay').textContent = response.inspection.mvirNumber;
+            document.getElementById('mvirNumberDisplay').textContent = inspectionResponse.inspection.mvirNumber;
             document.getElementById('inspectionFormCard').style.display = 'none';
             document.getElementById('successCard').style.display = 'block';
             
@@ -205,10 +294,10 @@ async function submitInspection() {
             
             // Show toast notification
             if (window.ToastNotification) {
-                ToastNotification.show(`Inspection completed! MVIR: ${response.inspection.mvirNumber}`, 'success');
+                ToastNotification.show(`Inspection completed! MVIR: ${inspectionResponse.inspection.mvirNumber}`, 'success');
             }
         } else {
-            throw new Error(response.error || 'Failed to submit inspection');
+            throw new Error(inspectionResponse.error || 'Failed to submit inspection');
         }
     } catch (error) {
         console.error('Error submitting inspection:', error);

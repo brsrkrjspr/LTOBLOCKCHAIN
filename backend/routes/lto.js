@@ -4,10 +4,56 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const fabricService = require('../services/optimizedFabricService');
+
+// Configure multer for file uploads
+const inspectionDocsDir = path.join(__dirname, '../uploads/inspection-documents');
+if (!fs.existsSync(inspectionDocsDir)) {
+    fs.mkdirSync(inspectionDocsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, inspectionDocsDir);
+    },
+    filename: function (req, file, cb) {
+        // Generate unique filename
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB per file
+    },
+    fileFilter: function (req, file, cb) {
+        // Allowed file types for inspection documents
+        const allowedMimes = [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ];
+        
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Invalid file type: ${file.mimetype}`));
+        }
+    }
+});
 
 // Perform LTO vehicle inspection
 router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -126,6 +172,142 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
         res.status(500).json({
             success: false,
             error: 'Failed to perform inspection: ' + error.message
+        });
+    }
+});
+
+// Upload inspection documents (MVIR, photos, etc.)
+router.post('/inspect-documents', authenticateToken, authorizeRole(['admin']), upload.any(), async (req, res) => {
+    try {
+        const { vehicleId } = req.body;
+        
+        if (!vehicleId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Vehicle ID is required'
+            });
+        }
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No files uploaded'
+            });
+        }
+
+        // Get vehicle
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Organize documents by type
+        const documentReferences = {
+            mvirDocument: null,
+            vehiclePhotos: [],
+            additionalDocuments: []
+        };
+
+        // Process uploaded files
+        for (const file of req.files) {
+            const fileReference = {
+                filename: file.filename,
+                originalName: file.originalname,
+                mimetype: file.mimetype,
+                size: file.size,
+                uploadedAt: new Date().toISOString(),
+                path: `/uploads/inspection-documents/${file.filename}`
+            };
+
+            // Categorize by field name
+            if (file.fieldname === 'mvirDocument') {
+                documentReferences.mvirDocument = fileReference;
+            } else if (file.fieldname === 'vehiclePhotos') {
+                documentReferences.vehiclePhotos.push(fileReference);
+            } else if (file.fieldname === 'additionalDocuments') {
+                documentReferences.additionalDocuments.push(fileReference);
+            }
+        }
+
+        // Store document references in a JSON file or database record
+        // For now, we'll store it in a temporary location that can be retrieved later
+        const docRefFile = path.join(inspectionDocsDir, `${vehicleId}-documents.json`);
+        fs.writeFileSync(docRefFile, JSON.stringify(documentReferences, null, 2));
+
+        res.json({
+            success: true,
+            message: 'Inspection documents uploaded successfully',
+            documentReferences: documentReferences
+        });
+
+    } catch (error) {
+        console.error('Error uploading inspection documents:', error);
+        
+        // Clean up uploaded files on error
+        if (req.files) {
+            req.files.forEach(file => {
+                const filepath = path.join(inspectionDocsDir, file.filename);
+                if (fs.existsSync(filepath)) {
+                    fs.unlinkSync(filepath);
+                }
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: 'Failed to upload inspection documents: ' + error.message
+        });
+    }
+});
+
+// Get inspection documents for a vehicle
+router.get('/inspect-documents/:vehicleId', authenticateToken, authorizeRole(['admin', 'vehicle_owner']), async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Check if user has permission
+        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'You do not have permission to view these documents'
+            });
+        }
+
+        // Try to load document references
+        const docRefFile = path.join(inspectionDocsDir, `${vehicleId}-documents.json`);
+        if (fs.existsSync(docRefFile)) {
+            const documentReferences = JSON.parse(fs.readFileSync(docRefFile, 'utf-8'));
+            res.json({
+                success: true,
+                documentReferences: documentReferences
+            });
+        } else {
+            res.json({
+                success: true,
+                documentReferences: {
+                    mvirDocument: null,
+                    vehiclePhotos: [],
+                    additionalDocuments: []
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error('Error retrieving inspection documents:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve inspection documents: ' + error.message
         });
     }
 });

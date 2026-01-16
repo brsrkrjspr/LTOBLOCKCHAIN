@@ -2058,11 +2058,21 @@ function autoFillFromOCRData(extractedData, documentType) {
             }
         }
         
+        // [FIX START] Normalize fuelType to match dropdown options (Gasoline, Diesel, etc.)
+        if (htmlInputId === 'fuelType') {
+            // Convert to title case (first letter uppercase, rest lowercase)
+            formattedValue = formattedValue.charAt(0).toUpperCase() + formattedValue.slice(1).toLowerCase();
+        }
+        // [FIX END]
+        
         // Handle dropdown/select elements (e.g., fuelType)
         if (inputElement.tagName === 'SELECT') {
-            // For dropdown: try to match by value, then by option text
+            // For dropdown: try to match by value, then by option text (case-insensitive)
             const optionExists = Array.from(inputElement.options).find(opt => 
-                opt.value === formattedValue || opt.textContent.trim() === formattedValue
+                opt.value === formattedValue || 
+                opt.textContent.trim() === formattedValue ||
+                opt.value.toLowerCase() === formattedValue.toLowerCase() ||
+                opt.textContent.trim().toLowerCase() === formattedValue.toLowerCase()
             );
             if (optionExists) {
                 inputElement.value = optionExists.value;

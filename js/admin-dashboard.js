@@ -1916,13 +1916,70 @@ function showApplicationModal(application) {
     modal.style.alignItems = 'center';
     modal.style.justifyContent = 'center';
     
+    // Prepare vehicle data (handle both nested and flat structures)
+    const vehicle = application.vehicle || {};
+    const inspectionStatus = vehicle.inspection_result || vehicle.inspectionResult || 'PENDING';
+    const mvirNumber = vehicle.mvir_number || vehicle.mvirNumber || '';
+    const inspectionDate = vehicle.inspection_date || vehicle.inspectionDate || '';
+    const inspectionOfficer = vehicle.inspection_officer || vehicle.inspectionOfficer || 'N/A';
+    const roadworthinessStatus = vehicle.roadworthiness_status || vehicle.roadworthinessStatus || 'PENDING';
+    const emissionCompliance = vehicle.emission_compliance || vehicle.emissionCompliance || 'PENDING';
+    
+    // Format date for input field
+    const formattedInspectionDate = inspectionDate ? inspectionDate.split('T')[0] : '';
+    
+    // Helper function to get status badge color
+    const getStatusColor = (status) => {
+        const colorMap = {
+            'PASS': '#d4edda',
+            'PASSED': '#d4edda',
+            'FAIL': '#f8d7da',
+            'FAILED': '#f8d7da',
+            'PENDING': '#fff3cd',
+            'ROADWORTHY': '#d4edda',
+            'NOT_ROADWORTHY': '#f8d7da',
+            'COMPLIANT': '#d4edda',
+            'NON_COMPLIANT': '#f8d7da'
+        };
+        return colorMap[status] || '#fff3cd';
+    };
+    
+    const getStatusTextColor = (status) => {
+        const colorMap = {
+            'PASS': '#155724',
+            'PASSED': '#155724',
+            'FAIL': '#721c24',
+            'FAILED': '#721c24',
+            'PENDING': '#856404',
+            'ROADWORTHY': '#155724',
+            'NOT_ROADWORTHY': '#721c24',
+            'COMPLIANT': '#155724',
+            'NON_COMPLIANT': '#721c24'
+        };
+        return colorMap[status] || '#856404';
+    };
+    
     modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Application Details - ${application.id}</h3>
-                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+        <div class="modal-content" style="background: white; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e2e8f0;">
+                <h3 style="margin: 0; color: #0f172a;">Application Details - ${application.id}</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">×</button>
             </div>
-            <div class="modal-body">
+            
+            <!-- Tab Navigation -->
+            <div class="modal-tabs" style="display: flex; border-bottom: 2px solid #e2e8f0; padding: 0 1.5rem; background: #f8fafc;">
+                <button class="modal-tab active" data-tab="details" onclick="switchModalTab('details')" style="padding: 1rem 1.5rem; border: none; background: transparent; font-weight: 600; color: #0284c7; border-bottom: 3px solid #0284c7; cursor: pointer; transition: all 0.2s;">
+                    <i class="fas fa-file-alt me-2"></i>Application Details
+                </button>
+                <button class="modal-tab" data-tab="inspection" onclick="switchModalTab('inspection')" style="padding: 1rem 1.5rem; border: none; background: transparent; font-weight: 600; color: #64748b; border-bottom: none; cursor: pointer; transition: all 0.2s;">
+                    <i class="fas fa-clipboard-check me-2"></i>Inspection & Emission
+                </button>
+            </div>
+            
+            <!-- Tab Content Container -->
+            <div style="overflow-y: auto; flex: 1;">
+                <!-- Details Tab (existing content) -->
+                <div class="tab-pane" id="details-pane" style="display: block; padding: 1.5rem;">
                 <div class="application-details">
                     <div class="detail-section">
                         <h4>Vehicle Information</h4>
@@ -2030,8 +2087,108 @@ function showApplicationModal(application) {
                         </div>
                     </div>
                 </div>
+                </div>
+                
+                <!-- Inspection Tab (new content) -->
+                <div class="tab-pane" id="inspection-pane" style="display: none; padding: 1.5rem;">
+                    <!-- Status Overview -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+                        <div>
+                            <strong style="color: #0f172a;">Inspection Status:</strong>
+                            <span id="inspectionStatusBadge" class="status-badge" style="margin-left: 0.5rem; padding: 0.35rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${getStatusColor(inspectionStatus)}; color: ${getStatusTextColor(inspectionStatus)};">
+                                ${inspectionStatus}
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                            <div>
+                                <small style="color: #64748b; display: block; margin-bottom: 0.25rem;">MVIR No:</small>
+                                <input type="text" id="mvirNumberInput" value="${mvirNumber}" 
+                                    placeholder="Enter MVIR No." 
+                                    style="width: 150px; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem;">
+                            </div>
+                            <div>
+                                <small style="color: #64748b; display: block; margin-bottom: 0.25rem;">Date:</small>
+                                <input type="date" id="inspectionDateInput" value="${formattedInspectionDate}"
+                                    style="padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inspection Evidence Cards -->
+                    <h6 style="color: #64748b; font-weight: 600; margin-bottom: 1rem; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <i class="fas fa-folder-open me-2"></i>Inspection Evidence
+                    </h6>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                        <!-- MVIR Document Card -->
+                        <div style="background: #fff; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                            <i class="fas fa-file-alt" style="font-size: 2rem; color: #64748b; margin-bottom: 0.75rem; display: block;"></i>
+                            <h6 style="color: #1e293b; margin: 0.5rem 0; font-weight: 600;">Scanned MVIR</h6>
+                            <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">Motor Vehicle Inspection Report</p>
+                            <button onclick="viewInspectionDocument('mvir', '${application.id}')" 
+                                style="padding: 0.5rem 1rem; border: 1px solid #0284c7; color: #0284c7; background: transparent; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;" 
+                                onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='transparent'">
+                                <i class="fas fa-eye me-1"></i>View Document
+                            </button>
+                        </div>
+                        
+                        <!-- Photos & Stencils Card -->
+                        <div style="background: #fff; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                            <i class="fas fa-camera" style="font-size: 2rem; color: #64748b; margin-bottom: 0.75rem; display: block;"></i>
+                            <h6 style="color: #1e293b; margin: 0.5rem 0; font-weight: 600;">Vehicle Photos & Stencils</h6>
+                            <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">Chassis/Engine rubbings, Photos</p>
+                            <button onclick="viewInspectionGallery('${application.id}')" 
+                                style="padding: 0.5rem 1rem; border: 1px solid #0284c7; color: #0284c7; background: transparent; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;"
+                                onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='transparent'">
+                                <i class="fas fa-images me-1"></i>View Gallery
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Summary (Readonly from existing inspection) -->
+                    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <h6 style="color: #0c4a6e; margin-bottom: 0.75rem; margin-top: 0;"><i class="fas fa-info-circle me-2"></i>Inspection Summary</h6>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font-size: 0.9rem;">
+                            <div>
+                                <span style="color: #64748b; display: block; margin-bottom: 0.25rem;">Roadworthiness:</span>
+                                <strong style="display: block; color: ${roadworthinessStatus === 'ROADWORTHY' ? '#10b981' : '#ef4444'}; font-size: 0.95rem;">
+                                    ${roadworthinessStatus || 'Not Assessed'}
+                                </strong>
+                            </div>
+                            <div>
+                                <span style="color: #64748b; display: block; margin-bottom: 0.25rem;">Emission:</span>
+                                <strong style="display: block; color: ${emissionCompliance === 'COMPLIANT' ? '#10b981' : '#ef4444'}; font-size: 0.95rem;">
+                                    ${emissionCompliance || 'Not Tested'}
+                                </strong>
+                            </div>
+                            <div>
+                                <span style="color: #64748b; display: block; margin-bottom: 0.25rem;">Inspector:</span>
+                                <strong style="display: block; color: #1e293b; font-size: 0.95rem;">${inspectionOfficer}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                        <button onclick="window.open('lto-inspection-form.html?vehicleId=${vehicle.id}', '_blank')" 
+                            style="padding: 0.75rem 1.25rem; background: transparent; border: 1px solid #e2e8f0; color: #64748b; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;" 
+                            onmouseover="this.style.borderColor='#64748b'; this.style.color='#0f172a';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.color='#64748b';">
+                            <i class="fas fa-external-link-alt me-2"></i>Open Full Checklist
+                        </button>
+                        <button onclick="markInspectionFailed('${application.id}')" 
+                            style="padding: 0.75rem 1.25rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;" 
+                            onmouseover="this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.4)';" onmouseout="this.style.boxShadow='none';">
+                            <i class="fas fa-times-circle me-2"></i>Fail Inspection
+                        </button>
+                        <button onclick="markInspectionPassed('${application.id}')" 
+                            style="padding: 0.75rem 1.25rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;" 
+                            onmouseover="this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.4)';" onmouseout="this.style.boxShadow='none';">
+                            <i class="fas fa-check-circle me-2"></i>Confirm & Pass
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: space-between;">
+            
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: space-between; padding: 1rem 1.5rem; border-top: 1px solid #e2e8f0; background: #f8fafc;">
                 ${!isFinalState ? `
                 <div style="display: flex; gap: 10px;">
                     <button class="btn-primary" onclick="approveApplication('${application.id}')">Approve</button>
@@ -3297,5 +3454,194 @@ function closeIntegrityModal() {
     const modal = document.getElementById('integrityModal');
     if (modal) {
         modal.style.display = 'none';
+    }
+}
+
+// ========================================
+// INSPECTION TAB FUNCTIONS
+// ========================================
+
+/**
+ * Switch between modal tabs (Details vs Inspection)
+ * @param {string} tabName - Tab name: 'details' or 'inspection'
+ */
+function switchModalTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.modal-tab').forEach(tab => {
+        if (tab.dataset.tab === tabName) {
+            tab.style.color = '#0284c7';
+            tab.style.borderBottom = '3px solid #0284c7';
+        } else {
+            tab.style.color = '#64748b';
+            tab.style.borderBottom = 'none';
+        }
+    });
+    
+    // Update tab content panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.style.display = 'none';
+    });
+    
+    const activePane = document.getElementById(tabName + '-pane');
+    if (activePane) {
+        activePane.style.display = 'block';
+    }
+}
+
+/**
+ * View MVIR or other inspection documents
+ * @param {string} docType - Document type: 'mvir', 'stencil', 'photos'
+ * @param {string} applicationId - Application ID
+ */
+async function viewInspectionDocument(docType, applicationId) {
+    try {
+        showNotification('Loading inspection document...', 'info');
+        
+        const response = await ApiClient.get(`/api/applications/${applicationId}/inspection-documents/${docType}`);
+        if (response.success && response.document) {
+            // Use existing DocumentModal if available
+            if (typeof DocumentModal !== 'undefined') {
+                DocumentModal.show({
+                    name: response.document.name || `${docType.toUpperCase()} Document`,
+                    url: response.document.url
+                });
+            } else {
+                window.open(response.document.url, '_blank');
+            }
+        } else {
+            showNotification('No inspection document uploaded yet', 'warning');
+        }
+    } catch (error) {
+        console.error('Error viewing inspection document:', error);
+        showNotification('Failed to load inspection document', 'error');
+    }
+}
+
+/**
+ * View vehicle photos gallery from inspection
+ * @param {string} applicationId - Application ID
+ */
+async function viewInspectionGallery(applicationId) {
+    try {
+        const response = await ApiClient.get(`/api/applications/${applicationId}/inspection-photos`);
+        if (response.success && response.photos && response.photos.length > 0) {
+            // Create a simple gallery modal
+            const galleryModal = document.createElement('div');
+            galleryModal.className = 'modal';
+            galleryModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; align-items: center; justify-content: center;';
+            
+            galleryModal.innerHTML = `
+                <div style="max-width: 90%; max-height: 90%; overflow: auto; background: white; border-radius: 8px; padding: 1.5rem; max-width: 1000px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
+                        <h4 style="margin: 0; color: #0f172a;">Vehicle Photos & Stencils</h4>
+                        <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">×</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        ${response.photos.map(photo => `
+                            <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s;" onclick="window.open('${photo.url}', '_blank')" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'; this.style.transform='scale(1.02)';" onmouseout="this.style.boxShadow='none'; this.style.transform='scale(1)';">
+                                <img src="${photo.url}" alt="${photo.name}" style="width: 100%; height: 150px; object-fit: cover;">
+                                <p style="padding: 0.5rem; margin: 0; font-size: 0.8rem; text-align: center; color: #64748b;">${photo.name}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            galleryModal.onclick = (e) => { if (e.target === galleryModal) galleryModal.remove(); };
+            document.body.appendChild(galleryModal);
+        } else {
+            showNotification('No inspection photos uploaded yet', 'warning');
+        }
+    } catch (error) {
+        console.error('Error loading inspection gallery:', error);
+        showNotification('Failed to load inspection photos', 'error');
+    }
+}
+
+/**
+ * Mark inspection as passed
+ * @param {string} applicationId - Application ID
+ */
+async function markInspectionPassed(applicationId) {
+    if (!confirm('Confirm that the vehicle inspection has PASSED?')) return;
+    
+    try {
+        const mvirNumber = document.getElementById('mvirNumberInput')?.value;
+        const inspectionDate = document.getElementById('inspectionDateInput')?.value;
+        
+        if (!mvirNumber || mvirNumber.trim() === '') {
+            showNotification('Please enter the MVIR Number', 'warning');
+            return;
+        }
+        
+        showNotification('Updating inspection status...', 'info');
+        
+        const response = await ApiClient.post(`/api/applications/${applicationId}/inspection-status`, {
+            status: 'PASS',
+            mvirNumber: mvirNumber.trim(),
+            inspectionDate: inspectionDate || new Date().toISOString().split('T')[0],
+            roadworthinessStatus: 'ROADWORTHY',
+            emissionCompliance: 'COMPLIANT'
+        });
+        
+        if (response.success) {
+            showNotification('✓ Inspection marked as PASSED successfully!', 'success');
+            // Update badge
+            const badge = document.getElementById('inspectionStatusBadge');
+            if (badge) {
+                badge.textContent = 'PASSED';
+                badge.style.background = '#d4edda';
+                badge.style.color = '#155724';
+            }
+            // Refresh applications list after short delay
+            setTimeout(() => {
+                loadApplications();
+            }, 1000);
+        } else {
+            showNotification(response.error || 'Failed to update inspection status', 'error');
+        }
+    } catch (error) {
+        console.error('Error marking inspection as passed:', error);
+        showNotification('Failed to update inspection status', 'error');
+    }
+}
+
+/**
+ * Mark inspection as failed
+ * @param {string} applicationId - Application ID
+ */
+async function markInspectionFailed(applicationId) {
+    const reason = prompt('Please enter the reason for inspection failure:');
+    if (!reason || reason.trim() === '') return;
+    
+    try {
+        showNotification('Updating inspection status...', 'info');
+        
+        const response = await ApiClient.post(`/api/applications/${applicationId}/inspection-status`, {
+            status: 'FAIL',
+            roadworthinessStatus: 'NOT_ROADWORTHY',
+            emissionCompliance: 'NON_COMPLIANT',
+            inspectionNotes: reason.trim()
+        });
+        
+        if (response.success) {
+            showNotification('✓ Inspection marked as FAILED', 'warning');
+            // Update badge
+            const badge = document.getElementById('inspectionStatusBadge');
+            if (badge) {
+                badge.textContent = 'FAILED';
+                badge.style.background = '#f8d7da';
+                badge.style.color = '#721c24';
+            }
+            // Refresh applications list after short delay
+            setTimeout(() => {
+                loadApplications();
+            }, 1000);
+        } else {
+            showNotification(response.error || 'Failed to update inspection status', 'error');
+        }
+    } catch (error) {
+        console.error('Error marking inspection as failed:', error);
+        showNotification('Failed to update inspection status', 'error');
     }
 }

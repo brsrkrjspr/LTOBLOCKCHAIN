@@ -1448,8 +1448,8 @@ class OCRService {
             const engineMatches = text.match(enginePattern);
             if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
             
-            // Chassis Number
-            const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
+            // Chassis Number - Handle "Chassis / VIN" format with optional slash
+            const chassisPattern = /(?:Chassis|Frame)(?:\s*\/\s*VIN)?\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
             const chassisMatches = text.match(chassisPattern);
             if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
             
@@ -1494,11 +1494,12 @@ class OCRService {
                 const colorMatches = text.match(colorPattern);
                 if (colorMatches) extracted.color = colorMatches[1].trim();
                 
-                // Fuel Type - Remove "Type" prefix if present
-                const fuelTypePattern = /(?:Fuel|Propulsion)\s*(?:Type)?[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
+                // Fuel Type - Handle table format with pipe delimiters
+                const fuelTypePattern = /Fuel\s+Type\s*\|\s*(\w+)|(?:Fuel|Propulsion)\s*(?:Type)?\s*[:.\s]*([A-Za-z]+)/i;
                 const fuelTypeMatches = text.match(fuelTypePattern);
                 if (fuelTypeMatches) {
-                    let fuelValue = fuelTypeMatches[1].trim();
+                    let fuelValue = fuelTypeMatches[1] || fuelTypeMatches[2]; // Use whichever group matched
+                    fuelValue = fuelValue.trim();
                     // Remove "Type" prefix if captured as part of the value
                     fuelValue = fuelValue.replace(/^Type[\s:\/]*/, '').trim();
                     extracted.fuelType = fuelValue;

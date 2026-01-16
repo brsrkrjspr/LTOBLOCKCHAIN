@@ -2211,7 +2211,7 @@ function autoFillFromOCRData(extractedData, documentType) {
                                 optionText: option?.text,
                                 matchMethod: option ? (
                                     option.value.toLowerCase() === value.toLowerCase() ? 'exact-value' :
-                                    opt.text.toLowerCase().includes(value.toLowerCase()) ? 'text-contains' :
+                                    option.text.toLowerCase().includes(value.toLowerCase()) ? 'text-contains' :
                                     'value-contains'
                                 ) : 'no-match'
                             });

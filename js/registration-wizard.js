@@ -1959,7 +1959,7 @@ function autoFillFromOCRData(extractedData, documentType) {
     // Maps the OCR/backend response fields to the actual HTML form input IDs
     const strictFieldMapping = {
         // Identifiers
-        'vin': 'vin',
+        'vin': 'chassisNumber',                  // Map VIN to chassisNumber (same field)
         'chassisNumber': 'chassisNumber',
         'chassis / vin': 'chassisNumber',        // Maps "Chassis / VIN" to chassisNumber
         'chassis/vin': 'chassisNumber',          // Alternative format without spaces
@@ -2058,7 +2058,22 @@ function autoFillFromOCRData(extractedData, documentType) {
             }
         }
         
-        inputElement.value = formattedValue;
+        // Handle dropdown/select elements (e.g., fuelType)
+        if (inputElement.tagName === 'SELECT') {
+            // For dropdown: try to match by value, then by option text
+            const optionExists = Array.from(inputElement.options).find(opt => 
+                opt.value === formattedValue || opt.textContent.trim() === formattedValue
+            );
+            if (optionExists) {
+                inputElement.value = optionExists.value;
+                console.log(`[OCR AutoFill] Dropdown matched: ${formattedValue} -> ${optionExists.value}`);
+            } else {
+                console.log(`[OCR AutoFill] Dropdown value not found in options: ${formattedValue}`);
+                inputElement.value = formattedValue;
+            }
+        } else {
+            inputElement.value = formattedValue;
+        }
         inputElement.classList.add('ocr-auto-filled');
         
         // Trigger change and input events for any listeners (validation)

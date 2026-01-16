@@ -1340,10 +1340,15 @@ class OCRService {
                 const makeMatches = text.match(makePattern);
                 if (makeMatches) extracted.make = makeMatches[1].trim();
                 
-                // Series (Model line)
-                const seriesPattern = /(?:Series|Model)[\s:.]*([^\n]+?)(?=\n|Body)/i;
+                // Series (Model line) - Skip slash and alternative field names
+                const seriesPattern = /(?:Model\s*\/\s*Series|Series\s*\/\s*Model|Model|Series)[\s:./]*([^\n]+?)(?=\n|Body|Variant)/i;
                 const seriesMatches = text.match(seriesPattern);
-                if (seriesMatches) extracted.series = seriesMatches[1].trim();
+                if (seriesMatches) {
+                    let seriesValue = seriesMatches[1].trim();
+                    // Remove leading slash or alternative names if captured
+                    seriesValue = seriesValue.replace(/^[\s/]*(?:Series|Model)[\s:/]*/, '').trim();
+                    extracted.series = seriesValue;
+                }
                 
                 // Body Type
                 const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([^\n]+?)(?=\n|Color|Engine)/i;
@@ -1464,43 +1469,40 @@ class OCRService {
             const makeMatches = text.match(makePattern);
             if (makeMatches) extracted.make = makeMatches[1].trim();
             
-            // Series (Model line)
-            const seriesPattern = /(?:Series|Model)[\s:.]*([^\n]+?)(?=\n|Body)/i;
-            const seriesMatches = text.match(seriesPattern);
-            if (seriesMatches) extracted.series = seriesMatches[1].trim();
-            
-            // Body Type
-            const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([^\n]+?)(?=\n|Color|Engine)/i;
-            const bodyTypeMatches = text.match(bodyTypePattern);
-            if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
-            
-            // Year Model
-            const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
-            const yearModelMatches = text.match(yearModelPattern);
-            if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
-            
-            // Color
-            const colorPattern = /(?:Color)[\s:.]*([^\n]+?)(?=\n|Fuel|Engine)/i;
-            const colorMatches = text.match(colorPattern);
-            if (colorMatches) extracted.color = colorMatches[1].trim();
-            
-            // Fuel Type
-            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
-            const fuelTypeMatches = text.match(fuelTypePattern);
-            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
-
-            // **WEIGHTS (Numeric)**
-            // Gross Weight
-            const grossWeightPattern = /(?:Gross\s*Wt\.?)[\s:.]*(\d+)/i;
-            const grossWeightMatches = text.match(grossWeightPattern);
-            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
-            
-            // Net Capacity / Net Weight
-            const netCapacityPattern = /(?:Net\s*Cap\.?|Net\s*Wt\.?)[\s:.]*(\d+)/i;
-            const netCapacityMatches = text.match(netCapacityPattern);
-            if (netCapacityMatches) extracted.netCapacity = netCapacityMatches[1].trim();
-
-            // **BACKWARDS COMPATIBILITY: Map new fields to old field names**
+                // Series (Model line) - Skip slash and alternative field names
+                const seriesPattern = /(?:Model\s*\/\s*Series|Series\s*\/\s*Model|Model|Series)[\s:./]*([^\n]+?)(?=\n|Body|Variant)/i;
+                const seriesMatches = text.match(seriesPattern);
+                if (seriesMatches) {
+                    let seriesValue = seriesMatches[1].trim();
+                    // Remove leading slash or alternative names if captured
+                    seriesValue = seriesValue.replace(/^[\s/]*(?:Series|Model)[\s:/]*/, '').trim();
+                    extracted.series = seriesValue;
+                }
+                
+                // Body Type
+                const bodyTypePattern = /(?:Body\s*Type)[\s:.]*([^\n]+?)(?=\n|Color|Engine)/i;
+                const bodyTypeMatches = text.match(bodyTypePattern);
+                if (bodyTypeMatches) extracted.bodyType = bodyTypeMatches[1].trim();
+                
+                // Year Model
+                const yearModelPattern = /(?:Year|Model)[\s:.]*(\d{4})/;
+                const yearModelMatches = text.match(yearModelPattern);
+                if (yearModelMatches) extracted.yearModel = yearModelMatches[1].trim();
+                
+                // Color
+                const colorPattern = /(?:Color)[\s:.]*([^\n]+?)(?=\n|Fuel|Engine)/i;
+                const colorMatches = text.match(colorPattern);
+                if (colorMatches) extracted.color = colorMatches[1].trim();
+                
+                // Fuel Type - Remove "Type" prefix if present
+                const fuelTypePattern = /(?:Fuel|Propulsion)\s*(?:Type)?[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
+                const fuelTypeMatches = text.match(fuelTypePattern);
+                if (fuelTypeMatches) {
+                    let fuelValue = fuelTypeMatches[1].trim();
+                    // Remove "Type" prefix if captured as part of the value
+                    fuelValue = fuelValue.replace(/^Type[\s:\/]*/, '').trim();
+                    extracted.fuelType = fuelValue;
+                }
             if (extracted.series) extracted.model = extracted.series;
             if (extracted.yearModel) extracted.year = extracted.yearModel;
 
@@ -1569,10 +1571,15 @@ class OCRService {
             const colorMatches = text.match(colorPattern);
             if (colorMatches) extracted.color = colorMatches[1].trim();
             
-            // Fuel Type
-            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
+            // Fuel Type - Remove "Type" prefix if present
+            const fuelTypePattern = /(?:Fuel|Propulsion)\s*(?:Type)?[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
             const fuelTypeMatches = text.match(fuelTypePattern);
-            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+            if (fuelTypeMatches) {
+                let fuelValue = fuelTypeMatches[1].trim();
+                // Remove "Type" prefix if captured as part of the value
+                fuelValue = fuelValue.replace(/^Type[\s:\/]*/, '').trim();
+                extracted.fuelType = fuelValue;
+            }
 
             // **WEIGHTS (Numeric)**
             // Gross Weight

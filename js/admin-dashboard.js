@@ -1960,14 +1960,14 @@ function showApplicationModal(application) {
     };
     
     modal.innerHTML = `
-        <div class="modal-content" style="background: white; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
-            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e2e8f0;">
+        <div class="modal-content" style="background: white; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e2e8f0; flex-shrink: 0;">
                 <h3 style="margin: 0; color: #0f172a;">Application Details - ${application.id}</h3>
                 <button class="modal-close" onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">×</button>
             </div>
             
             <!-- Tab Navigation -->
-            <div class="modal-tabs" style="display: flex; border-bottom: 2px solid #e2e8f0; padding: 0 1.5rem; background: #f8fafc;">
+            <div class="modal-tabs" style="display: flex; border-bottom: 2px solid #e2e8f0; padding: 0 1.5rem; background: #f8fafc; flex-shrink: 0; z-index: 10;">
                 <button class="modal-tab active" data-tab="details" onclick="switchModalTab('details')" style="padding: 1rem 1.5rem; border: none; background: transparent; font-weight: 600; color: #0284c7; border-bottom: 3px solid #0284c7; cursor: pointer; transition: all 0.2s;">
                     <i class="fas fa-file-alt me-2"></i>Application Details
                 </button>
@@ -1977,7 +1977,7 @@ function showApplicationModal(application) {
             </div>
             
             <!-- Tab Content Container -->
-            <div style="overflow-y: auto; flex: 1;">
+            <div style="overflow-y: auto; flex: 1; min-height: 0;">
                 <!-- Details Tab (existing content) -->
                 <div class="tab-pane" id="details-pane" style="display: block; padding: 1.5rem;">
                 <div class="application-details">

@@ -33,10 +33,17 @@ RUN addgroup -g 1001 -S nodejs && \
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (including Chromium for Puppeteer)
 RUN apk add --no-cache \
     curl \
     dumb-init \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
     && rm -rf /var/cache/apk/*
 
 # Copy built application

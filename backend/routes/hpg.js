@@ -423,8 +423,14 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with HPG approval`);
         }
 
-        // Update vehicle verification status (if vehicle_verifications table supports hpg)
-        // For now, we'll just update the clearance request
+        // Update vehicle verification status
+        await db.updateVerificationStatus(
+            clearanceRequest.vehicle_id,
+            'hpg',
+            'APPROVED',
+            req.user.userId,
+            remarks || null
+        );
 
         // Add to vehicle history
         await db.addVehicleHistory({
@@ -533,6 +539,15 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
             }
             console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with HPG rejection`);
         }
+
+        // Update vehicle verification status
+        await db.updateVerificationStatus(
+            clearanceRequest.vehicle_id,
+            'hpg',
+            'REJECTED',
+            req.user.userId,
+            reason
+        );
 
         // Add to vehicle history
         await db.addVehicleHistory({

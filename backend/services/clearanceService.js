@@ -167,51 +167,60 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         }
 
         // 3. Send to Emission (requires: emission_cert)
-        // Use document type mapping to properly detect documents
-        const hasEmissionDoc = allDocuments.some(d => {
-            const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-            return logicalType === 'emissionCert' ||
-                   d.document_type === 'emission_cert' ||
-                   d.document_type === 'emission';
-        }) || (documents && (
-            documents.emissionCert ||
-            documents.emission
-        ));
+        // NOTE: Emission is NOT required for NEW registrations (only for renewals/transfers)
+        // Skip emission verification for NEW registration type
+        if (!isNewRegistration) {
+            // Use document type mapping to properly detect documents
+            const hasEmissionDoc = allDocuments.some(d => {
+                const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+                return logicalType === 'emissionCert' ||
+                       d.document_type === 'emission_cert' ||
+                       d.document_type === 'emission';
+            }) || (documents && (
+                documents.emissionCert ||
+                documents.emission
+            ));
 
-        if (hasEmissionDoc) {
-            try {
-                console.log(`[Auto-Send→Emission] Sending request for vehicle ${vehicleId}`);
-                const emissionResult = await sendToEmission(vehicleId, vehicle, allDocuments, requestedBy);
-                results.emission = emissionResult;
-                console.log(`[Auto-Send→Emission] Result:`, emissionResult);
-            } catch (error) {
-                console.error('[Auto-Send→Emission] Error:', error);
-                console.error('[Auto-Send→Emission] Error stack:', error.stack);
-                results.emission.error = error.message;
+            if (hasEmissionDoc) {
+                try {
+                    console.log(`[Auto-Send→Emission] Sending request for vehicle ${vehicleId}`);
+                    const emissionResult = await sendToEmission(vehicleId, vehicle, allDocuments, requestedBy);
+                    results.emission = emissionResult;
+                    console.log(`[Auto-Send→Emission] Result:`, emissionResult);
+                } catch (error) {
+                    console.error('[Auto-Send→Emission] Error:', error);
+                    console.error('[Auto-Send→Emission] Error stack:', error.stack);
+                    results.emission.error = error.message;
+                }
+            } else {
+                console.log(`[Auto-Send→Emission] Skipping - no emission_cert document found`);
+                // Enhanced logging
+                console.log(`[Auto-Send→Emission] Available document types:`, 
+                    allDocuments.map(d => ({
+                        id: d.id,
+                        type: d.document_type,
+                        logicalType: docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type),
+                        filename: d.original_name || d.filename
+                    }))
+                );
+                
+                // Check if 'other' documents exist that might be emission
+                const otherDocs = allDocuments.filter(d => d.document_type === 'other');
+                if (otherDocs.length > 0) {
+                    console.warn(`[Auto-Send→Emission] Found ${otherDocs.length} document(s) with type 'other' that may need correction:`, 
+                        otherDocs.map(d => ({ id: d.id, filename: d.original_name || d.filename }))
+                    );
+                }
             }
         } else {
-            console.log(`[Auto-Send→Emission] Skipping - no emission_cert document found`);
-            // Enhanced logging
-            console.log(`[Auto-Send→Emission] Available document types:`, 
-                allDocuments.map(d => ({
-                    id: d.id,
-                    type: d.document_type,
-                    logicalType: docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type),
-                    filename: d.original_name || d.filename
-                }))
-            );
-            
-            // Check if 'other' documents exist that might be emission
-            const otherDocs = allDocuments.filter(d => d.document_type === 'other');
-            if (otherDocs.length > 0) {
-                console.warn(`[Auto-Send→Emission] Found ${otherDocs.length} document(s) with type 'other' that may need correction:`, 
-                    otherDocs.map(d => ({ id: d.id, filename: d.original_name || d.filename }))
-                );
-            }
+            console.log(`[Auto-Send→Emission] Skipping - emission not required for NEW registration`);
+            results.emission = { sent: false, reason: 'Not required for NEW registration' };
         }
 
         // Update vehicle status to PENDING_VERIFICATION if at least one request was sent
-        const anySent = results.hpg.sent || results.insurance.sent || results.emission.sent;
+        // For NEW registrations, emission is not included
+        const anySent = results.hpg.sent || results.insurance.sent || 
+                       (!isNewRegistration && results.emission.sent);
         if (anySent) {
             await db.updateVehicle(vehicleId, { status: 'PENDING_VERIFICATION' });
             
@@ -409,6 +418,9 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         },
         assignedTo
     });
+
+    // Update vehicle verification status (create initial PENDING record)
+    await db.updateVerificationStatus(vehicleId, 'hpg', 'PENDING', null, null);
 
     // Add to history
     await db.addVehicleHistory({

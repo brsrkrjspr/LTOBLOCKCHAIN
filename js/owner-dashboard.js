@@ -1324,14 +1324,9 @@ function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
     
     const isEmpty = !verificationStatus || typeof verificationStatus !== 'object' || Object.keys(verificationStatus).length === 0;
     
-    // If verificationStatus is empty but application is PENDING_BLOCKCHAIN, show all as Pending
-    if (isEmpty && !isPendingBlockchain) {
+    // If verificationStatus is empty, show dash
+    if (isEmpty) {
         return '<span style="color: #6c757d;">-</span>';
-    }
-    
-    // For PENDING_BLOCKCHAIN, show all as Pending even if verificationStatus is empty
-    if (isEmpty && isPendingBlockchain) {
-        return '<span style="color: #ffc107;"><i class="fas fa-clock"></i> HPG</span> | <span style="color: #ffc107;"><i class="fas fa-clock"></i> Insurance</span> | <span style="color: #ffc107;"><i class="fas fa-clock"></i> Emission</span>';
     }
     
     const statuses = [];

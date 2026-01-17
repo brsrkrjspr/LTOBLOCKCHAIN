@@ -14,11 +14,62 @@ const certificateBlockchain = require('../services/certificateBlockchainService'
 const storageService = require('../services/storageService');
 
 /**
- * Generate certificates for a vehicle
+ * DEPRECATED: Generate certificates for a vehicle
  * POST /api/certificates/generate
- * Body: { vehicleId, types: ['insurance', 'emission', 'hpg'] }
+ * 
+ * ⚠️ DEPRECATION NOTICE:
+ * This endpoint is DEPRECATED as of 2026-01-17.
+ * 
+ * REASON: LTO cannot generate insurance, emission, or HPG certificates.
+ * These must be issued by the authorized external organizations:
+ * - Insurance: Insurance Companies
+ * - Emission: Emission Testing Centers
+ * - HPG: Philippine National Police - Highway Patrol Group
+ * 
+ * MIGRATION PATH:
+ * 1. External organizations issue certificates using:
+ *    POST /api/issuer/insurance/issue-certificate
+ *    POST /api/issuer/emission/issue-certificate
+ *    POST /api/issuer/hpg/issue-clearance
+ * 
+ * 2. Vehicle owners upload certificates using:
+ *    POST /api/certificate-uploads/submit
+ * 
+ * 3. System automatically verifies certificate authenticity by hash matching
+ *    against blockchain records.
+ * 
+ * This endpoint will be REMOVED on 2026-02-17.
+ * Please update your code immediately.
  */
 router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    console.warn('⚠️  DEPRECATED ENDPOINT: POST /api/certificates/generate');
+    console.warn('   Use external issuer APIs instead');
+    console.warn('   This endpoint will be removed on 2026-02-17');
+    
+    return res.status(410).json({
+        success: false,
+        error: 'This endpoint is deprecated and no longer supported',
+        deprecation: {
+            status: 'DEPRECATED',
+            deprecatedSince: '2026-01-17',
+            removedOn: '2026-02-17',
+            reason: 'LTO cannot generate third-party certificates. These must be issued by authorized external organizations.',
+            migrationGuide: {
+                step1: 'External organizations issue certificates using POST /api/issuer/{type}/issue-certificate',
+                step2: 'Vehicle owners submit certificates using POST /api/certificate-uploads/submit',
+                step3: 'System verifies authenticity by hash matching against blockchain'
+            },
+            documentation: 'See /backend/routes/issuer.js and /backend/routes/certificate-upload.js for new endpoints'
+        }
+    });
+});
+
+/**
+ * OLD IMPLEMENTATION (ARCHIVED - DO NOT USE)
+ * This is the deprecated certificate generation logic.
+ * Kept for reference only during migration period.
+ * 
+ * router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { vehicleId, types } = req.body;
 

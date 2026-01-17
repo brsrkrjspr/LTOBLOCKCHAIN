@@ -1,5 +1,28 @@
 // TrustChain LTO - Certificate Generator Service
-// Generates PDF certificates from HTML templates
+// DEPRECATED: This service is no longer used for certificate generation.
+// 
+// ⚠️ DEPRECATION NOTICE (Effective: 2026-01-17):
+// Certificate generation by LTO system has been discontinued.
+// 
+// REASON:
+// LTO cannot legally generate insurance, emission, or HPG certificates.
+// These must be issued by authorized external organizations only:
+// - Insurance Certificates: Issued by Insurance Companies
+// - Emission Certificates: Issued by Emission Testing Centers  
+// - HPG Clearances: Issued by Philippine National Police - HPG
+// 
+// NEW PROCESS:
+// 1. External organizations issue certificates using /backend/routes/issuer.js
+// 2. Vehicle owners upload certificates using /backend/routes/certificate-upload.js
+// 3. System verifies authenticity by matching file hashes against blockchain
+// 
+// MIGRATION DEADLINE: 2026-02-17
+// After this date, all methods in this service will throw errors.
+// 
+// For questions or migration assistance, see:
+// - CERTIFICATE_ARCHITECTURE_MIGRATION.md (migration guide)
+// - backend/routes/issuer.js (external issuer APIs)
+// - backend/routes/certificate-upload.js (owner upload system)
 
 const fs = require('fs').promises;
 const path = require('path');
@@ -151,165 +174,66 @@ class CertificateGeneratorService {
     }
 
     /**
-     * Generate Insurance Certificate
+     * DEPRECATED - Generate Insurance Certificate
+     * @deprecated Use POST /api/issuer/insurance/issue-certificate instead
      * @param {Object} vehicleData - Vehicle information
      * @param {Object} ownerData - Owner information
      * @param {string} certificateNumber - Certificate number (optional, will generate if not provided)
      * @returns {Promise<Object>} Certificate data with PDF buffer and hash
      */
     async generateInsuranceCertificate(vehicleData, ownerData, certificateNumber = null) {
-        try {
-            const template = await this.loadTemplate('insurance-certificate');
-            
-            const effectiveDate = new Date();
-            const expiryDate = new Date();
-            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-
-            const data = {
-                policyNumber: certificateNumber || this.generateCertificateNumber('insurance', vehicleData.vin, 1),
-                companyName: 'LTO Insurance Services',
-                companyAddress: 'Land Transportation Office, Quezon City',
-                companyContact: '(02) 1234-5678',
-                companyLicense: '001-CTPL-2025',
-                effectiveDate: this.formatDate(effectiveDate),
-                expiryDate: this.formatDate(expiryDate),
-                bodilyInjuryCoverage: 'PHP 100,000 per person / PHP 200,000 per accident',
-                propertyDamageCoverage: 'PHP 50,000 per accident',
-                coverageType: 'Third-Party Liability Only',
-                vehicleType: vehicleData.vehicle_type || 'Motorcycle',
-                make: vehicleData.make,
-                model: vehicleData.model,
-                engineNumber: vehicleData.engine_number || 'N/A',
-                chassisNumber: vehicleData.chassis_number || 'N/A',
-                plateNumber: vehicleData.plate_number || 'To be issued',
-                ownerName: `${ownerData.first_name || ''} ${ownerData.last_name || ''}`.trim(),
-                ownerAddress: ownerData.address || 'N/A',
-                signatoryName: 'LTO Insurance Manager',
-                signatoryPosition: 'CTPL Department Manager'
-            };
-
-            const html = this.renderTemplate(template, data);
-            const pdfBuffer = await this.htmlToPDF(html);
-            const fileHash = this.calculateFileHash(pdfBuffer);
-
-            return {
-                success: true,
-                certificateNumber: data.policyNumber,
-                pdfBuffer,
-                fileHash,
-                data,
-                type: 'insurance'
-            };
-        } catch (error) {
-            console.error('Error generating insurance certificate:', error);
-            throw error;
-        }
+        console.error('❌ DEPRECATED METHOD: generateInsuranceCertificate()');
+        console.error('   Use POST /api/issuer/insurance/issue-certificate instead');
+        console.error('   This method will be removed on 2026-02-17');
+        
+        throw new Error(
+            'DEPRECATED: generateInsuranceCertificate() is no longer supported.\n' +
+            'Insurance certificates must be issued by authorized insurance companies.\n' +
+            'Use POST /api/issuer/insurance/issue-certificate instead.\n' +
+            'Migration deadline: 2026-02-17'
+        );
     }
 
     /**
-     * Generate Emission Certificate
+     * DEPRECATED - Generate Emission Certificate
+     * @deprecated Use POST /api/issuer/emission/issue-certificate instead
      * @param {Object} vehicleData - Vehicle information
      * @param {Object} ownerData - Owner information
      * @param {string} certificateNumber - Certificate number (optional)
      * @returns {Promise<Object>} Certificate data with PDF buffer and hash
      */
     async generateEmissionCertificate(vehicleData, ownerData, certificateNumber = null) {
-        try {
-            const template = await this.loadTemplate('emission-certificate');
-            
-            const issueDate = new Date();
-            const expiryDate = new Date();
-            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-
-            const data = {
-                certificateNumber: certificateNumber || this.generateCertificateNumber('emission', vehicleData.vin, 1),
-                ownerName: `${ownerData.first_name || ''} ${ownerData.last_name || ''}`.trim(),
-                ownerAddress: ownerData.address || 'N/A',
-                make: vehicleData.make,
-                model: vehicleData.model,
-                year: vehicleData.year,
-                bodyType: vehicleData.vehicle_type || 'Sedan',
-                color: vehicleData.color || 'N/A',
-                engineNumber: vehicleData.engine_number || 'N/A',
-                chassisVIN: vehicleData.vin,
-                plateNumber: vehicleData.plate_number || 'N/A',
-                fuelType: vehicleData.fuel_type || 'Gasoline',
-                coLevel: '0.20% - Pass',
-                hcLevel: '120 ppm - Pass',
-                noxLevel: '0.25% - Pass',
-                smokeOpacity: '18% - Pass',
-                overallResult: 'PASS',
-                inspectorName: 'Engr. LTO Emission Inspector',
-                issueDate: this.formatDate(issueDate, 'short'),
-                expiryDate: this.formatDate(expiryDate, 'short')
-            };
-
-            const html = this.renderTemplate(template, data);
-            const pdfBuffer = await this.htmlToPDF(html);
-            const fileHash = this.calculateFileHash(pdfBuffer);
-
-            return {
-                success: true,
-                certificateNumber: data.certificateNumber,
-                pdfBuffer,
-                fileHash,
-                data,
-                type: 'emission'
-            };
-        } catch (error) {
-            console.error('Error generating emission certificate:', error);
-            throw error;
-        }
+        console.error('❌ DEPRECATED METHOD: generateEmissionCertificate()');
+        console.error('   Use POST /api/issuer/emission/issue-certificate instead');
+        console.error('   This method will be removed on 2026-02-17');
+        
+        throw new Error(
+            'DEPRECATED: generateEmissionCertificate() is no longer supported.\n' +
+            'Emission certificates must be issued by authorized emission testing centers.\n' +
+            'Use POST /api/issuer/emission/issue-certificate instead.\n' +
+            'Migration deadline: 2026-02-17'
+        );
     }
 
     /**
-     * Generate HPG Clearance Certificate
+     * DEPRECATED - Generate HPG Clearance Certificate
+     * @deprecated Use POST /api/issuer/hpg/issue-clearance instead
      * @param {Object} vehicleData - Vehicle information
      * @param {Object} ownerData - Owner information
      * @param {string} certificateNumber - Certificate number (optional)
      * @returns {Promise<Object>} Certificate data with PDF buffer and hash
      */
     async generateHPGClearance(vehicleData, ownerData, certificateNumber = null) {
-        try {
-            const template = await this.loadTemplate('hpg-clearance');
-            
-            const issueDate = new Date();
-
-            const data = {
-                certificateNumber: certificateNumber || this.generateCertificateNumber('hpg', vehicleData.vin, 1),
-                dateIssued: this.formatDate(issueDate, 'long'),
-                statement: 'This is to certify that the motor vehicle described below has been verified by the Philippine National Police – Highway Patrol Group and is found to be FREE FROM ANY POLICE RECORD, HOLD, LIEN, ENCUMBRANCE, OR CRIMINAL CASE as of the date of issuance of this certificate.',
-                ownerName: `${ownerData.first_name || ''} ${ownerData.last_name || ''}`.trim(),
-                ownerAddress: ownerData.address || 'N/A',
-                make: vehicleData.make,
-                model: vehicleData.model,
-                year: vehicleData.year,
-                bodyType: vehicleData.vehicle_type || 'Sedan',
-                color: vehicleData.color || 'N/A',
-                engineNumber: vehicleData.engine_number || 'N/A',
-                chassisVIN: vehicleData.vin,
-                plateNumber: vehicleData.plate_number || 'N/A',
-                purpose: 'This clearance is issued for the purpose of vehicle registration, transfer of ownership, and other lawful transactions.',
-                officerName: 'P/Supt. LTO HPG Officer',
-                officerPosition: 'Authorized Officer, PNP-HPG'
-            };
-
-            const html = this.renderTemplate(template, data);
-            const pdfBuffer = await this.htmlToPDF(html);
-            const fileHash = this.calculateFileHash(pdfBuffer);
-
-            return {
-                success: true,
-                certificateNumber: data.certificateNumber,
-                pdfBuffer,
-                fileHash,
-                data,
-                type: 'hpg'
-            };
-        } catch (error) {
-            console.error('Error generating HPG clearance:', error);
-            throw error;
-        }
+        console.error('❌ DEPRECATED METHOD: generateHPGClearance()');
+        console.error('   Use POST /api/issuer/hpg/issue-clearance instead');
+        console.error('   This method will be removed on 2026-02-17');
+        
+        throw new Error(
+            'DEPRECATED: generateHPGClearance() is no longer supported.\n' +
+            'HPG clearances must be issued by the Philippine National Police - Highway Patrol Group.\n' +
+            'Use POST /api/issuer/hpg/issue-clearance instead.\n' +
+            'Migration deadline: 2026-02-17'
+        );
     }
 
     /**

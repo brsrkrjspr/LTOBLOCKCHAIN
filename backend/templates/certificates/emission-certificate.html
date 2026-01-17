@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vehicle Emission Test Certificate</title>
+<style>
+* { 
+  box-sizing: border-box; 
+  font-family: "Times New Roman", "Georgia", serif; 
+}
+
+body { 
+  background: #f3f3f3; 
+  padding: 20px; 
+  margin: 0;
+}
+
+.certificate {
+  width: 8.5in;
+  max-width: 8.5in;
+  height: 11in;
+  max-height: 11in;
+  margin: auto;
+  background: #fff;
+  padding: 25px 40px;
+  border: 6px solid #1a1a1a;
+  border-radius: 0;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 0 0 2px #1a1a1a, 0 0 0 8px #fff, 0 0 0 10px #1a1a1a, 0 4px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  font-size: 90px;
+  font-weight: bold;
+  color: rgba(45, 122, 79, 0.04);
+  z-index: 0;
+  pointer-events: none;
+  letter-spacing: 15px;
+  white-space: nowrap;
+}
+
+.border {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 12px;
+}
+
+.border h1 {
+  font-size: 20px;
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: bold;
+  color: #1e5f3f;
+  line-height: 1.2;
+}
+
+.border h2 {
+  font-size: 15px;
+  margin: 2px 0;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: normal;
+  color: #2d7a4f;
+  line-height: 1.3;
+}
+
+.border h3 {
+  font-size: 18px;
+  margin: 8px 0 6px 0;
+  text-decoration: underline;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: bold;
+  color: #1e5f3f;
+  line-height: 1.2;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid #1a1a1a;
+  margin: 8px 0 12px 0;
+}
+
+.cert-ref {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: #1e5f3f;
+}
+
+.intro {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 12px;
+}
+
+.intro p {
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+  text-align: justify;
+}
+
+.info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+
+.info .owner, .info .vehicle {
+  width: 48%;
+}
+
+.info h3 { 
+  font-size: 14px; 
+  text-decoration: underline; 
+  margin-bottom: 6px; 
+  font-weight: bold;
+  text-align: center;
+}
+
+.info p {
+  margin: 4px 0;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.results {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+}
+
+.results h3 { 
+  font-size: 14px; 
+  text-decoration: underline; 
+  margin-bottom: 6px; 
+  font-weight: bold;
+}
+
+.results table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+  border: 2px solid #1a1a1a;
+}
+
+.results td {
+  border: 1px solid #1a1a1a;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.results td:first-child {
+  font-weight: bold;
+  width: 40%;
+  background-color: #e8f5e9;
+}
+
+.results tr.final td {
+  border-top: 3px solid #1a1a1a;
+  font-weight: bold;
+  text-align: center;
+  background-color: #c8e6c9;
+  padding: 8px;
+}
+
+.declaration {
+  position: relative;
+  z-index: 1;
+  margin: 10px 0;
+}
+
+.declaration p {
+  font-size: 12px;
+  margin: 0;
+  font-style: italic;
+  line-height: 1.4;
+  text-align: justify;
+}
+
+.signature-section {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.sign, .seal { 
+  width: 45%; 
+}
+
+.signature-placeholder {
+  margin: 5px auto 8px;
+  border-bottom: 1px solid #000;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #666;
+}
+
+.inspector-name {
+  margin: 8px 0 3px 0;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.inspector-title {
+  margin: 3px 0;
+  font-size: 11px;
+  color: #555;
+}
+
+.seal {
+  position: relative;
+}
+
+.seal p {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.stamp-box {
+  width: 140px;
+  height: 140px;
+  margin: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seal-circle {
+  width: 100%;
+  height: 100%;
+  border: 4px solid #2d7a4f;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  box-shadow: inset 0 0 10px rgba(45, 122, 79, 0.2);
+}
+
+.seal-text-outer {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #1e5f3f;
+}
+
+.seal-text-inner {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #1e5f3f;
+}
+
+.seal-center {
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  color: #1e5f3f;
+  margin-top: 5px;
+}
+
+.footer-note {
+  margin-top: 12px;
+  font-size: 11px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid #ccc;
+  padding-top: 8px;
+}
+
+.field-value {
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+@media print {
+  body { 
+    background: white; 
+    padding: 0; 
+    margin: 0;
+    width: 8.5in;
+    height: 11in;
+  }
+
+  .certificate {
+    width: 8.5in;
+    max-width: 8.5in;
+    height: 11in;
+    max-height: 11in;
+    margin: 0;
+    padding: 25px 40px;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+    overflow: hidden;
+  }
+
+  .watermark {
+    display: block;
+    opacity: 0.05;
+    color: rgba(45, 122, 79, 0.05);
+  }
+
+  .signature-section {
+    page-break-inside: avoid;
+  }
+
+  * {
+    color: #000 !important;
+    background: white !important;
+  }
+
+  .results td:first-child {
+    background-color: #e8f5e9 !important;
+  }
+
+  .results tr.final td {
+    background-color: #c8e6c9 !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="certificate">
+  
+  <!-- Watermark -->
+  <div class="watermark">DENR / LTO</div>
+
+  <!-- Official Header -->
+  <div class="border">
+    <h1>Republic of the Philippines</h1>
+    <h2>Department of Environment and Natural Resources</h2>
+    <h2>Land Transportation Office</h2>
+    <h3>Vehicle Emission Test Certificate</h3>
+    <hr>
+  </div>
+
+  <!-- Certificate Reference Number -->
+  <div class="cert-ref">
+    <span>Certificate Reference No.: <span class="field-value">{{certificateNumber}}</span></span>
+  </div>
+
+  <!-- Certificate Intro -->
+  <div class="intro">
+    <p>This is to certify that the motor vehicle described below has undergone a standard emission test and meets the environmental requirements set by the governing authorities.</p>
+  </div>
+
+  <!-- Owner & Vehicle Info -->
+  <section class="info">
+    <div class="owner">
+      <h3>Owner Information</h3>
+      <p><strong>Name:</strong> {{ownerName}}</p>
+      <p><strong>Address:</strong> {{ownerAddress}}</p>
+    </div>
+    <div class="vehicle">
+      <h3>Vehicle Information</h3>
+      <p><strong>Make / Model:</strong> {{make}} {{model}}</p>
+      <p><strong>Year Model:</strong> {{year}}</p>
+      <p><strong>Body Type:</strong> {{bodyType}}</p>
+      <p><strong>Color:</strong> {{color}}</p>
+      <p><strong>Engine No.:</strong> {{engineNumber}}</p>
+      <p><strong>Chassis / VIN:</strong> {{chassisVIN}}</p>
+      <p><strong>Plate No.:</strong> {{plateNumber}}</p>
+      <p><strong>Fuel Type:</strong> {{fuelType}}</p>
+    </div>
+  </section>
+
+  <!-- Test Results -->
+  <section class="results">
+    <h3>Emission Test Results</h3>
+    <table>
+      <tr>
+        <td>CO Level</td>
+        <td>{{coLevel}}</td>
+      </tr>
+      <tr>
+        <td>HC Level</td>
+        <td>{{hcLevel}}</td>
+      </tr>
+      <tr>
+        <td>NOx Level</td>
+        <td>{{noxLevel}}</td>
+      </tr>
+      <tr>
+        <td>Smoke Opacity (Diesel)</td>
+        <td>{{smokeOpacity}}</td>
+      </tr>
+      <tr class="final">
+        <td colspan="2">
+          <strong>Overall Result: </strong>{{overallResult}}
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- Certification Statement -->
+  <div class="declaration">
+    <p>Certified by the authorized inspector that this vehicle complies with emission standards required for registration and operation.</p>
+  </div>
+
+  <!-- Signature / Seal -->
+  <section class="signature-section">
+    <div class="sign">
+      <div class="signature-placeholder">
+        Authorized Signature
+      </div>
+      <p class="inspector-name">{{inspectorName}}</p>
+      <p class="inspector-title">Authorized Inspector</p>
+    </div>
+    <div class="seal">
+      <p>Official Stamp / Seal</p>
+      <div class="stamp-box">
+        <div class="seal-circle">
+          <div class="seal-text-outer">DEPARTMENT OF ENVIRONMENT AND NATURAL RESOURCES</div>
+          <div class="seal-text-inner">LAND TRANSPORTATION OFFICE</div>
+          <div class="seal-center">OFFICIAL SEAL</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <p class="footer-note">
+    Certificate No.: {{certificateNumber}} | 
+    Date of Issue: {{issueDate}} | 
+    Valid Until: {{expiryDate}}
+  </p>
+
+</div>
+
+</body>
+</html>

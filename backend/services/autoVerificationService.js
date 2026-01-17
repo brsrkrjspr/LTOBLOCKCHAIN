@@ -5,9 +5,11 @@ const ocrService = require('./ocrService');
 const insuranceDatabase = require('./insuranceDatabaseService');
 const emissionDatabase = require('./emissionDatabaseService');
 const fraudDetectionService = require('./fraudDetectionService');
+const certificateBlockchain = require('./certificateBlockchainService');
 const db = require('../database/services');
 const fs = require('fs').promises;
 const path = require('path');
+const crypto = require('crypto');
 
 class AutoVerificationService {
     constructor() {
@@ -45,62 +47,118 @@ class AutoVerificationService {
             const ocrData = await ocrService.extractInsuranceInfo(filePath, insuranceDoc.mime_type || insuranceDoc.mimeType);
             console.log(`[Auto-Verify] OCR extracted:`, ocrData);
 
-            // Cross-verify with insurance database
-            const databaseCheck = insuranceDatabase.lookupVehicle({
-                plateNumber: vehicle.plate_number,
-                policyNumber: ocrData.insurancePolicyNumber || ocrData.policyNumber,
-                engineNumber: vehicle.engine_number,
-                chassisNumber: vehicle.chassis_number
-            });
-            console.log(`[Auto-Verify] Database check:`, databaseCheck.status);
+            const policyNumber = ocrData.insurancePolicyNumber || ocrData.policyNumber;
+            if (!policyNumber) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: 'Policy number not found in document',
+                    confidence: 0
+                };
+            }
+
+            // Pattern validation
+            const patternCheck = this.validateDocumentNumberFormat(policyNumber, 'insurance');
+            console.log(`[Auto-Verify] Pattern check:`, patternCheck);
+
+            if (!patternCheck.valid) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: `Invalid policy number format: ${patternCheck.reason}`,
+                    confidence: 0,
+                    patternCheck
+                };
+            }
 
             // Check expiry date
             const expiryCheck = this.checkExpiry(ocrData.insuranceExpiry || ocrData.expiryDate);
             
-            // Fraud detection
-            const fraudAnalysis = fraudDetectionService.analyzeDocument({
-                ...ocrData,
-                documentType: 'insurance'
-            }, databaseCheck);
-            console.log(`[Auto-Verify] Fraud score:`, fraudAnalysis.fraudScore);
+            // Calculate file hash
+            const fileHash = insuranceDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+            
+            // Generate composite hash
+            const expiryDateISO = expiryCheck.expiryDate || new Date().toISOString();
+            const compositeHash = certificateBlockchain.generateCompositeHash(
+                policyNumber,
+                vehicle.vin,
+                expiryDateISO,
+                fileHash
+            );
+            console.log(`[Auto-Verify] Composite hash: ${compositeHash.substring(0, 16)}...`);
 
-            // Calculate verification score
-            const checks = {
-                databaseMatch: databaseCheck.status === 'VALID',
-                notExpired: expiryCheck.isValid,
-                dataConsistent: this.checkDataConsistency(ocrData, databaseCheck, vehicle),
-                documentQuality: ocrData.insurancePolicyNumber ? 1.0 : 0.5,
-                fraudScore: fraudAnalysis.fraudScore
-            };
+            // Check for duplicate hash (document reuse)
+            const hashCheck = await certificateBlockchain.checkHashDuplicate(compositeHash);
+            console.log(`[Auto-Verify] Hash duplicate check:`, hashCheck);
 
-            const verificationScore = this.calculateVerificationScore(checks);
+            if (hashCheck.exists) {
+                return {
+                    status: 'REJECTED',
+                    automated: false,
+                    reason: `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`,
+                    confidence: 0,
+                    hashCheck
+                };
+            }
+
+            // Calculate pattern-based score
+            const verificationScore = this.calculatePatternBasedScore(
+                policyNumber,
+                'insurance',
+                !hashCheck.exists,
+                expiryCheck.isValid
+            );
             console.log(`[Auto-Verify] Verification score: ${verificationScore.percentage}%`);
 
-            // Decision logic
-            const shouldApprove = verificationScore.percentage >= this.minScore &&
-                                  checks.databaseMatch &&
-                                  checks.notExpired &&
-                                  checks.dataConsistent &&
-                                  fraudAnalysis.passed;
+            // Decision logic: Pattern valid + Hash unique + Not expired
+            const shouldApprove = verificationScore.percentage >= 80 &&
+                                  patternCheck.valid &&
+                                  !hashCheck.exists &&
+                                  expiryCheck.isValid;
 
             if (shouldApprove) {
+                // Store hash on blockchain
+                let blockchainTxId = null;
+                try {
+                    const blockchainResult = await certificateBlockchain.storeCertificateHashOnBlockchain(
+                        compositeHash,
+                        {
+                            certificateType: 'insurance',
+                            vehicleVIN: vehicle.vin,
+                            vehicleId: vehicleId,
+                            certificateNumber: policyNumber,
+                            applicationStatus: 'PENDING', // Will update when application approved
+                            issuedAt: new Date().toISOString(),
+                            issuedBy: 'system',
+                            fileHash: fileHash
+                        }
+                    );
+                    blockchainTxId = blockchainResult.transactionId;
+                    console.log(`[Auto-Verify] Hash stored on blockchain: ${blockchainTxId}`);
+                } catch (blockchainError) {
+                    console.error('[Auto-Verify] Blockchain storage failed:', blockchainError);
+                    // Continue with approval even if blockchain storage fails
+                }
+
                 // Auto-approve
-                const systemUserId = 'system'; // Use 'system' as verified_by for automated verifications
+                const systemUserId = 'system';
                 await db.updateVerificationStatus(
                     vehicleId,
                     'insurance',
                     'APPROVED',
                     systemUserId,
-                    `Auto-verified: Score ${verificationScore.percentage}%, Policy: ${ocrData.insurancePolicyNumber || 'N/A'}`,
+                    `Auto-verified: Pattern valid, Hash unique, Score ${verificationScore.percentage}%, Policy: ${policyNumber}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
                         verificationMetadata: {
                             ocrData,
-                            databaseCheck,
+                            patternCheck,
+                            hashCheck,
                             expiryCheck,
-                            fraudAnalysis,
-                            checks,
+                            compositeHash,
+                            blockchainTxId,
+                            verificationScore,
                             verifiedAt: new Date().toISOString()
                         }
                     }
@@ -111,17 +169,20 @@ class AutoVerificationService {
                     automated: true,
                     confidence: verificationScore.percentage / 100,
                     score: verificationScore.percentage,
-                    basis: checks,
+                    basis: verificationScore.checks,
                     ocrData,
-                    databaseCheck
+                    patternCheck,
+                    hashCheck,
+                    compositeHash,
+                    blockchainTxId
                 };
             } else {
                 // Flag for manual review
                 const reasons = [];
-                if (!checks.databaseMatch) reasons.push('Database verification failed');
-                if (!checks.notExpired) reasons.push('Document expired');
-                if (!checks.dataConsistent) reasons.push('Data inconsistency detected');
-                if (!fraudAnalysis.passed) reasons.push(`Fraud risk: ${fraudAnalysis.riskLevel}`);
+                if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
+                if (hashCheck.exists) reasons.push('Document already used (duplicate)');
+                if (!expiryCheck.isValid) reasons.push('Document expired');
+                if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
 
                 // Update verification status with metadata
                 await db.updateVerificationStatus(
@@ -129,16 +190,16 @@ class AutoVerificationService {
                     'insurance',
                     'PENDING',
                     null,
-                    `Auto-verified but flagged: ${reasons.join(', ')}`,
+                    `Auto-verification flagged: ${reasons.join(', ')}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
                         verificationMetadata: {
                             ocrData,
-                            databaseCheck,
+                            patternCheck,
+                            hashCheck,
                             expiryCheck,
-                            fraudAnalysis,
-                            checks,
+                            verificationScore,
                             flaggedAt: new Date().toISOString(),
                             flagReasons: reasons
                         }
@@ -151,9 +212,10 @@ class AutoVerificationService {
                     reason: reasons.join(', '),
                     confidence: verificationScore.percentage / 100,
                     score: verificationScore.percentage,
-                    basis: checks,
+                    basis: verificationScore.checks,
                     ocrData,
-                    databaseCheck
+                    patternCheck,
+                    hashCheck
                 };
             }
         } catch (error) {
@@ -197,13 +259,29 @@ class AutoVerificationService {
             const ocrData = await ocrService.extractEmissionInfo(filePath, emissionDoc.mime_type || emissionDoc.mimeType);
             console.log(`[Auto-Verify] OCR extracted:`, ocrData);
 
-            // Cross-verify with emission database
-            const databaseCheck = emissionDatabase.lookupVehicle({
-                plateNumber: vehicle.plate_number,
-                engineNumber: vehicle.engine_number,
-                chassisNumber: vehicle.chassis_number
-            });
-            console.log(`[Auto-Verify] Database check:`, databaseCheck.status);
+            const certificateNumber = ocrData.certificateNumber || ocrData.certificateRefNumber || ocrData.certRefNumber;
+            if (!certificateNumber) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: 'Certificate number not found in document',
+                    confidence: 0
+                };
+            }
+
+            // Pattern validation
+            const patternCheck = this.validateDocumentNumberFormat(certificateNumber, 'emission');
+            console.log(`[Auto-Verify] Pattern check:`, patternCheck);
+
+            if (!patternCheck.valid) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: `Invalid certificate number format: ${patternCheck.reason}`,
+                    confidence: 0,
+                    patternCheck
+                };
+            }
 
             // Check expiry date
             const expiryCheck = this.checkExpiry(ocrData.expiryDate);
@@ -218,33 +296,73 @@ class AutoVerificationService {
                              (ocrData.smoke === undefined || ocrData.smoke <= 50)
             };
 
-            // Fraud detection
-            const fraudAnalysis = fraudDetectionService.analyzeDocument({
-                ...ocrData,
-                documentType: 'emission'
-            }, databaseCheck);
+            // Calculate file hash
+            const fileHash = emissionDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+            
+            // Generate composite hash
+            const expiryDateISO = expiryCheck.expiryDate || new Date().toISOString();
+            const compositeHash = certificateBlockchain.generateCompositeHash(
+                certificateNumber,
+                vehicle.vin,
+                expiryDateISO,
+                fileHash
+            );
+            console.log(`[Auto-Verify] Composite hash: ${compositeHash.substring(0, 16)}...`);
 
-            // Calculate verification score
-            const checks = {
-                databaseMatch: databaseCheck.status === 'VALID',
-                notExpired: expiryCheck.isValid,
-                dataConsistent: this.checkDataConsistency(ocrData, databaseCheck, vehicle),
-                documentQuality: ocrData.testDate ? 1.0 : 0.5,
-                fraudScore: fraudAnalysis.fraudScore,
-                compliance: complianceCheck.allCompliant
-            };
+            // Check for duplicate hash (document reuse)
+            const hashCheck = await certificateBlockchain.checkHashDuplicate(compositeHash);
+            console.log(`[Auto-Verify] Hash duplicate check:`, hashCheck);
 
-            const verificationScore = this.calculateVerificationScore(checks);
+            if (hashCheck.exists) {
+                return {
+                    status: 'REJECTED',
+                    automated: false,
+                    reason: `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`,
+                    confidence: 0,
+                    hashCheck
+                };
+            }
+
+            // Calculate pattern-based score
+            const verificationScore = this.calculatePatternBasedScore(
+                certificateNumber,
+                'emission',
+                !hashCheck.exists,
+                expiryCheck.isValid
+            );
             console.log(`[Auto-Verify] Verification score: ${verificationScore.percentage}%`);
 
-            // Decision logic
-            const shouldApprove = verificationScore.percentage >= this.minScore &&
-                                  checks.databaseMatch &&
-                                  checks.notExpired &&
-                                  checks.compliance &&
-                                  fraudAnalysis.passed;
+            // Decision logic: Pattern valid + Hash unique + Not expired + Compliant
+            const shouldApprove = verificationScore.percentage >= 80 &&
+                                  patternCheck.valid &&
+                                  !hashCheck.exists &&
+                                  expiryCheck.isValid &&
+                                  complianceCheck.allCompliant;
 
             if (shouldApprove) {
+                // Store hash on blockchain
+                let blockchainTxId = null;
+                try {
+                    const blockchainResult = await certificateBlockchain.storeCertificateHashOnBlockchain(
+                        compositeHash,
+                        {
+                            certificateType: 'emission',
+                            vehicleVIN: vehicle.vin,
+                            vehicleId: vehicleId,
+                            certificateNumber: certificateNumber,
+                            applicationStatus: 'PENDING',
+                            issuedAt: new Date().toISOString(),
+                            issuedBy: 'system',
+                            fileHash: fileHash
+                        }
+                    );
+                    blockchainTxId = blockchainResult.transactionId;
+                    console.log(`[Auto-Verify] Hash stored on blockchain: ${blockchainTxId}`);
+                } catch (blockchainError) {
+                    console.error('[Auto-Verify] Blockchain storage failed:', blockchainError);
+                    // Continue with approval even if blockchain storage fails
+                }
+
                 // Auto-approve
                 const systemUserId = 'system';
                 await db.updateVerificationStatus(
@@ -252,17 +370,19 @@ class AutoVerificationService {
                     'emission',
                     'APPROVED',
                     systemUserId,
-                    `Auto-verified: Score ${verificationScore.percentage}%, Test Date: ${ocrData.testDate || 'N/A'}`,
+                    `Auto-verified: Pattern valid, Hash unique, Score ${verificationScore.percentage}%, Certificate: ${certificateNumber}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
                         verificationMetadata: {
                             ocrData,
-                            databaseCheck,
+                            patternCheck,
+                            hashCheck,
                             expiryCheck,
                             complianceCheck,
-                            fraudAnalysis,
-                            checks,
+                            compositeHash,
+                            blockchainTxId,
+                            verificationScore,
                             verifiedAt: new Date().toISOString()
                         }
                     }
@@ -273,17 +393,21 @@ class AutoVerificationService {
                     automated: true,
                     confidence: verificationScore.percentage / 100,
                     score: verificationScore.percentage,
-                    basis: checks,
+                    basis: verificationScore.checks,
                     ocrData,
-                    databaseCheck
+                    patternCheck,
+                    hashCheck,
+                    compositeHash,
+                    blockchainTxId
                 };
             } else {
                 // Flag for manual review
                 const reasons = [];
-                if (!checks.databaseMatch) reasons.push('Database verification failed');
-                if (!checks.notExpired) reasons.push('Certificate expired');
-                if (!checks.compliance) reasons.push('Test results non-compliant');
-                if (!fraudAnalysis.passed) reasons.push(`Fraud risk: ${fraudAnalysis.riskLevel}`);
+                if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
+                if (hashCheck.exists) reasons.push('Document already used (duplicate)');
+                if (!expiryCheck.isValid) reasons.push('Certificate expired');
+                if (!complianceCheck.allCompliant) reasons.push('Test results non-compliant');
+                if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
 
                 // Update verification status with metadata
                 await db.updateVerificationStatus(
@@ -291,17 +415,17 @@ class AutoVerificationService {
                     'emission',
                     'PENDING',
                     null,
-                    `Auto-verified but flagged: ${reasons.join(', ')}`,
+                    `Auto-verification flagged: ${reasons.join(', ')}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
                         verificationMetadata: {
                             ocrData,
-                            databaseCheck,
+                            patternCheck,
+                            hashCheck,
                             expiryCheck,
                             complianceCheck,
-                            fraudAnalysis,
-                            checks,
+                            verificationScore,
                             flaggedAt: new Date().toISOString(),
                             flagReasons: reasons
                         }
@@ -314,9 +438,10 @@ class AutoVerificationService {
                     reason: reasons.join(', '),
                     confidence: verificationScore.percentage / 100,
                     score: verificationScore.percentage,
-                    basis: checks,
+                    basis: verificationScore.checks,
                     ocrData,
-                    databaseCheck
+                    patternCheck,
+                    hashCheck
                 };
             }
         } catch (error) {
@@ -581,6 +706,137 @@ class AutoVerificationService {
         } catch {
             return false;
         }
+    }
+
+    /**
+     * Get document number patterns for validation
+     * @param {string} documentType - Document type: 'insurance', 'emission', 'hpg'
+     * @returns {Object} Pattern object with regex and description
+     */
+    getDocumentNumberPatterns(documentType) {
+        const patterns = {
+            insurance: {
+                regex: /^CTPL-\d{4}-\d{6}$/,
+                description: 'CTPL-YYYY-NNNNNN (e.g., CTPL-2026-000123)',
+                example: 'CTPL-2026-000123'
+            },
+            emission: {
+                regex: /^ETC-\d{8}-\d{3}$/,
+                description: 'ETC-YYYYMMDD-NNN (e.g., ETC-20260113-001)',
+                example: 'ETC-20260113-001'
+            },
+            hpg: {
+                regex: /^HPG-\d{4}-\d{6}$/,
+                description: 'HPG-YYYY-NNNNNN (e.g., HPG-2026-000123)',
+                example: 'HPG-2026-000123'
+            }
+        };
+
+        return patterns[documentType] || null;
+    }
+
+    /**
+     * Validate document number format
+     * @param {string} documentNumber - Document number to validate
+     * @param {string} documentType - Document type: 'insurance', 'emission', 'hpg'
+     * @returns {Object} Validation result
+     */
+    validateDocumentNumberFormat(documentNumber, documentType) {
+        if (!documentNumber || !documentType) {
+            return {
+                valid: false,
+                confidence: 0,
+                reason: 'Document number or type is missing'
+            };
+        }
+
+        const pattern = this.getDocumentNumberPatterns(documentType);
+        if (!pattern) {
+            return {
+                valid: false,
+                confidence: 0,
+                reason: `Unknown document type: ${documentType}`
+            };
+        }
+
+        const normalized = documentNumber.trim().toUpperCase();
+        const matches = pattern.regex.test(normalized);
+
+        if (matches) {
+            return {
+                valid: true,
+                confidence: 100,
+                normalized,
+                pattern: pattern.description,
+                reason: 'Format matches expected pattern'
+            };
+        } else {
+            return {
+                valid: false,
+                confidence: 0,
+                normalized,
+                expectedPattern: pattern.description,
+                example: pattern.example,
+                reason: `Format does not match expected pattern: ${pattern.description}`
+            };
+        }
+    }
+
+    /**
+     * Calculate pattern-based score for verification
+     * @param {string} documentNumber - Document number
+     * @param {string} documentType - Document type
+     * @param {boolean} hashUnique - Whether hash is unique (not duplicate)
+     * @param {boolean} notExpired - Whether document is not expired
+     * @returns {Object} Score result
+     */
+    calculatePatternBasedScore(documentNumber, documentType, hashUnique, notExpired) {
+        const patternCheck = this.validateDocumentNumberFormat(documentNumber, documentType);
+        
+        let score = 0;
+        let maxScore = 0;
+        const checks = {};
+
+        // Pattern validation (50 points)
+        maxScore += 50;
+        if (patternCheck.valid) {
+            score += 50;
+            checks.patternValid = true;
+        } else {
+            checks.patternValid = false;
+            checks.patternReason = patternCheck.reason;
+        }
+
+        // Hash uniqueness (30 points)
+        maxScore += 30;
+        if (hashUnique) {
+            score += 30;
+            checks.hashUnique = true;
+        } else {
+            checks.hashUnique = false;
+            checks.hashReason = 'Hash already exists (duplicate document)';
+        }
+
+        // Expiry check (20 points)
+        maxScore += 20;
+        if (notExpired) {
+            score += 20;
+            checks.notExpired = true;
+        } else {
+            checks.notExpired = false;
+            checks.expiryReason = 'Document has expired';
+        }
+
+        const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+
+        return {
+            score,
+            maxScore,
+            percentage,
+            checks,
+            patternCheck,
+            decision: percentage >= 80 ? 'APPROVE' : percentage >= 60 ? 'REVIEW' : 'REJECT'
+        };
     }
 
 }

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CTPL Insurance Certificate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+    font-family: "Times New Roman", serif;
+    background: #f0f0f0;
+    padding: 20px;
+}
+
+.document {
+    width: 8.5in;
+    min-height: 11in;
+    margin: auto;
+    background: #fff;
+    padding: 1in;
+    box-shadow: 0 0 10px rgba(0,0,0,.2);
+}
+
+h1 {
+    text-align: center;
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+h2 {
+    font-size: 16px;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    text-decoration: underline;
+}
+
+p {
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: justify;
+}
+
+.field-value {
+    border-bottom: 1px solid #000;
+    font-family: inherit;
+    font-size: 14px;
+    display: inline-block;
+    min-width: 200px;
+    padding: 2px 4px;
+}
+
+.field-value.full { 
+    width: 100%; 
+    display: block;
+}
+
+.field-value.wide { 
+    width: 300px; 
+}
+
+.note {
+    margin-top: 40px;
+    font-size: 12px;
+    text-align: justify;
+    font-style: italic;
+}
+
+@media print {
+    body {
+        background: none;
+        padding: 0;
+    }
+
+    .document {
+        box-shadow: none;
+        margin: 0;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="document">
+
+<h1>Insurance Certificate of Cover (Third-Party Liability)</h1>
+
+<p>
+This certifies that the following vehicle is covered under a Third-Party Liability (CTPL) insurance policy as required by the Land Transportation Office (LTO) for registration purposes.
+</p>
+
+<div class="section">
+    <h2>Insurance Company Details</h2>
+    <p>
+        Company Name: <span class="field-value full">{{companyName}}</span><br>
+        Address: <span class="field-value full">{{companyAddress}}</span><br>
+        Contact: <span class="field-value">{{companyContact}}</span><br>
+        License No.: <span class="field-value">{{companyLicense}}</span>
+    </p>
+</div>
+
+<div class="section">
+    <h2>Policy Details</h2>
+    <p>
+        Policy / Certificate No.: <span class="field-value full">{{policyNumber}}</span><br>
+        Effective Date: <span class="field-value">{{effectiveDate}}</span> &nbsp;&nbsp;
+        Expiry Date: <span class="field-value">{{expiryDate}}</span><br>
+        Coverage Limit:<br>
+        &nbsp;&nbsp;Bodily Injury: <span class="field-value">{{bodilyInjuryCoverage}}</span><br>
+        &nbsp;&nbsp;Property Damage: <span class="field-value">{{propertyDamageCoverage}}</span><br>
+        Coverage Type: <span class="field-value">{{coverageType}}</span>
+    </p>
+</div>
+
+<div class="section">
+    <h2>Vehicle Information</h2>
+    <p>
+        Vehicle Type: <span class="field-value">{{vehicleType}}</span><br>
+        Make / Brand: <span class="field-value">{{make}}</span><br>
+        Model: <span class="field-value">{{model}}</span><br>
+        Engine No.: <span class="field-value wide">{{engineNumber}}</span><br>
+        Chassis No.: <span class="field-value wide">{{chassisNumber}}</span><br>
+        Plate No.: <span class="field-value">{{plateNumber}}</span>
+    </p>
+</div>
+
+<div class="section">
+    <h2>Owner Information</h2>
+    <p>
+        Name: <span class="field-value full">{{ownerName}}</span><br>
+        Address: <span class="field-value full">{{ownerAddress}}</span>
+    </p>
+</div>
+
+<div class="section">
+    <h2>Authorized Signatory</h2>
+    <p>
+        Name: <span class="field-value">{{signatoryName}}</span><br>
+        Position: <span class="field-value">{{signatoryPosition}}</span><br>
+        Signature / Seal: __________________________
+    </p>
+</div>
+
+<p class="note">
+Note: This certificate serves as proof of Third-Party Liability insurance required by the Land Transportation Office for registration purposes.
+</p>
+
+</div>
+
+</body>
+</html>

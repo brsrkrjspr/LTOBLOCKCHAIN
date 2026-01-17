@@ -2086,6 +2086,18 @@ function showApplicationModal(application) {
                             ${application.lastUpdated ? `<p><strong>Last Updated:</strong> ${new Date(application.lastUpdated).toLocaleString()}</p>` : ''}
                         </div>
                     </div>
+                    
+                    <div class="detail-section">
+                        <h4>Certificates</h4>
+                        <div id="certificates-section-${application.id}" style="margin-top: 10px;">
+                            <button class="btn-primary" onclick="generateCertificates('${application.id}')" style="margin-right: 10px;">
+                                <i class="fas fa-certificate"></i> Generate Certificates
+                            </button>
+                            <div id="certificates-list-${application.id}" style="margin-top: 15px;">
+                                <p style="color: #999; font-style: italic;">Loading certificates...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 </div>
                 
@@ -2222,6 +2234,9 @@ function showApplicationModal(application) {
     
     document.body.appendChild(modal);
     console.log('✅ Modal appended to body');
+    
+    // Load certificates for this vehicle
+    loadCertificatesForVehicle(application.id, application.vehicle?.id || application.id);
     
     // Attach document click handlers using DocumentModal (mirroring HPG behavior)
     if (application.documents && application.documents.length > 0) {
@@ -3273,6 +3288,169 @@ window.AdminDashboard = {
 
 // Make inspectVehicle globally available
 window.inspectVehicle = inspectVehicle;
+
+/**
+ * Generate certificates for a vehicle
+ * @param {string} vehicleId - Vehicle ID
+ */
+async function generateCertificates(vehicleId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Show loading
+        const button = event?.target || document.querySelector(`[onclick*="generateCertificates('${vehicleId}')"]`);
+        if (button) {
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            
+            try {
+                const response = await apiClient.post('/api/certificates/generate', {
+                    vehicleId: vehicleId,
+                    types: ['insurance', 'emission', 'hpg']
+                });
+                
+                if (response && response.success) {
+                    const successCount = response.results.filter(r => r.success).length;
+                    ToastNotification.show(
+                        `Certificates generated: ${successCount}/${response.results.length} successful`,
+                        'success'
+                    );
+                    
+                    // Reload certificates list
+                    loadCertificatesForVehicle(vehicleId, vehicleId);
+                } else {
+                    throw new Error(response?.error || 'Failed to generate certificates');
+                }
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+    } catch (error) {
+        console.error('Error generating certificates:', error);
+        ToastNotification.show(`Failed to generate certificates: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Load certificates for a vehicle and display them
+ * @param {string} applicationId - Application ID (for DOM element ID)
+ * @param {string} vehicleId - Vehicle ID
+ */
+async function loadCertificatesForVehicle(applicationId, vehicleId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/certificates/vehicle/${vehicleId}`);
+        
+        const certificatesList = document.getElementById(`certificates-list-${applicationId}`);
+        if (!certificatesList) return;
+        
+        if (response && response.success && response.certificates && response.certificates.length > 0) {
+            const certsHtml = response.certificates.map(cert => {
+                const typeNames = {
+                    'insurance': 'Insurance Certificate',
+                    'emission': 'Emission Certificate',
+                    'hpg_clearance': 'HPG Clearance'
+                };
+                const statusColors = {
+                    'ISSUED': '#3b82f6',
+                    'APPROVED': '#10b981',
+                    'REJECTED': '#ef4444',
+                    'REVOKED': '#ef4444',
+                    'ACTIVE': '#10b981',
+                    'EXPIRED': '#f59e0b'
+                };
+                
+                return `
+                    <div style="padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${typeNames[cert.certificateType] || cert.certificateType}</strong>
+                            <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                                ${cert.certificateNumber} | 
+                                <span style="color: ${statusColors[cert.status] || '#64748b'}">${cert.status}</span>
+                                ${cert.blockchainTxId ? ' | <i class="fas fa-link"></i> On Blockchain' : ''}
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn-secondary btn-sm" onclick="downloadCertificate('${cert.id}')" style="margin-right: 5px;">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                            <button class="btn-info btn-sm" onclick="verifyCertificateOnBlockchain('${cert.id}')">
+                                <i class="fas fa-shield-alt"></i> Verify
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            certificatesList.innerHTML = certsHtml;
+        } else {
+            certificatesList.innerHTML = '<p style="color: #999; font-style: italic;">No certificates generated yet. Click "Generate Certificates" to create them.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading certificates:', error);
+        const certificatesList = document.getElementById(`certificates-list-${applicationId}`);
+        if (certificatesList) {
+            certificatesList.innerHTML = '<p style="color: #ef4444;">Error loading certificates</p>';
+        }
+    }
+}
+
+/**
+ * Download certificate PDF
+ * @param {string} certificateId - Certificate ID
+ */
+async function downloadCertificate(certificateId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const url = `/api/certificates/${certificateId}/download`;
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `certificate-${certificateId}.pdf`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        ToastNotification.show('Certificate download started', 'info');
+    } catch (error) {
+        console.error('Error downloading certificate:', error);
+        ToastNotification.show(`Failed to download certificate: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Verify certificate on blockchain
+ * @param {string} certificateId - Certificate ID
+ */
+async function verifyCertificateOnBlockchain(certificateId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.post(`/api/certificates/${certificateId}/verify`);
+        
+        if (response && response.success) {
+            if (response.valid) {
+                ToastNotification.show('Certificate verified on blockchain ✓', 'success');
+            } else {
+                ToastNotification.show(`Certificate verification failed: ${response.reason}`, 'error');
+            }
+        } else {
+            throw new Error(response?.error || 'Verification failed');
+        }
+    } catch (error) {
+        console.error('Error verifying certificate:', error);
+        ToastNotification.show(`Failed to verify certificate: ${error.message}`, 'error');
+    }
+}
+
+// Make functions globally available
+window.generateCertificates = generateCertificates;
+window.downloadCertificate = downloadCertificate;
+window.verifyCertificateOnBlockchain = verifyCertificateOnBlockchain;
+window.loadCertificatesForVehicle = loadCertificatesForVehicle;
 
 // Check data integrity for a vehicle
 async function checkDataIntegrity(vehicleId, vin) {

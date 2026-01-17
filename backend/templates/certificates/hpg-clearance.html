@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNP-HPG Motor Vehicle Clearance Certificate</title>
+<style>
+* {
+  box-sizing: border-box;
+  font-family: "Times New Roman", serif;
+}
+
+body {
+  background: #eaeaea;
+  margin: 0;
+  padding: 20px;
+}
+
+.page {
+  width: 8.5in;
+  margin: auto;
+}
+
+.certificate {
+  min-height: 10in;
+  background: #fff;
+  padding: 40px;
+  border: 10px solid #222;
+  position: relative;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.republic {
+  font-size: 14px;
+  margin: 0;
+}
+
+.agency {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 5px 0;
+}
+
+.sub-agency {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.header h1 {
+  font-size: 22px;
+  text-decoration: underline;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.cert-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.cert-meta p {
+  margin: 0;
+}
+
+.content {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.statement {
+  text-align: justify;
+  margin-bottom: 20px;
+}
+
+.purpose {
+  text-align: center;
+  margin-top: 20px;
+  font-style: italic;
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.info-table th {
+  background: #f0f0f0;
+  border: 1px solid #000;
+  padding: 6px;
+  text-align: left;
+  font-weight: bold;
+}
+
+.info-table td {
+  border: 1px solid #000;
+  padding: 6px;
+}
+
+.info-table td:first-child {
+  width: 35%;
+  font-weight: normal;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 50px;
+  align-items: flex-start;
+}
+
+.signature {
+  width: 45%;
+  text-align: center;
+}
+
+.signature-box {
+  height: 80px;
+  border-bottom: 1px solid #000;
+  margin-bottom: 5px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signature-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #666;
+}
+
+.signature .name {
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.signature .position {
+  margin: 5px 0 0 0;
+  font-size: 12px;
+}
+
+.seal {
+  width: 45%;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.official-seal {
+  display: inline-block;
+}
+
+.seal-circle {
+  width: 140px;
+  height: 140px;
+  border: 3px solid #000;
+  border-radius: 50%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  position: relative;
+}
+
+.seal-inner {
+  text-align: center;
+  padding: 15px;
+}
+
+.seal-text-top {
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+.seal-text-middle {
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin: 6px 0;
+  border-top: 2px solid #000;
+  border-bottom: 2px solid #000;
+  padding: 4px 0;
+}
+
+.seal-text-bottom {
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+.field-value {
+  font-weight: normal;
+}
+
+@media print {
+  body {
+    background: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .certificate {
+    border: 10px solid #000;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+
+  .seal {
+    page-break-inside: avoid;
+  }
+
+  .header,
+  .content,
+  .footer {
+    page-break-inside: avoid;
+  }
+
+  .info-table {
+    page-break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="certificate" id="certificate">
+
+    <!-- HEADER -->
+    <div class="header">
+      <p class="republic">Republic of the Philippines</p>
+      <p class="agency">PHILIPPINE NATIONAL POLICE</p>
+      <p class="sub-agency">Highway Patrol Group (HPG)</p>
+      <h1>Motor Vehicle Clearance Certificate</h1>
+    </div>
+
+    <div class="cert-meta">
+      <p><strong>Certificate No.:</strong> {{certificateNumber}}</p>
+      <p><strong>Date Issued:</strong> {{dateIssued}}</p>
+    </div>
+
+    <!-- BODY -->
+    <div class="content">
+      <p class="statement">
+        {{statement}}
+      </p>
+
+      <table class="info-table">
+        <tr>
+          <th colspan="2">OWNER INFORMATION</th>
+        </tr>
+        <tr>
+          <td>Registered Owner</td>
+          <td>{{ownerName}}</td>
+        </tr>
+        <tr>
+          <td>Address</td>
+          <td>{{ownerAddress}}</td>
+        </tr>
+
+        <tr>
+          <th colspan="2">VEHICLE INFORMATION</th>
+        </tr>
+        <tr>
+          <td>Make / Model</td>
+          <td>{{make}} {{model}}</td>
+        </tr>
+        <tr>
+          <td>Year Model</td>
+          <td>{{year}}</td>
+        </tr>
+        <tr>
+          <td>Body Type</td>
+          <td>{{bodyType}}</td>
+        </tr>
+        <tr>
+          <td>Color</td>
+          <td>{{color}}</td>
+        </tr>
+        <tr>
+          <td>Engine Number</td>
+          <td>{{engineNumber}}</td>
+        </tr>
+        <tr>
+          <td>Chassis / VIN</td>
+          <td>{{chassisVIN}}</td>
+        </tr>
+        <tr>
+          <td>Plate Number</td>
+          <td>{{plateNumber}}</td>
+        </tr>
+      </table>
+
+      <p class="purpose">
+        {{purpose}}
+      </p>
+    </div>
+
+    <!-- SIGNATURE -->
+    <div class="footer">
+      <div class="signature">
+        <div class="signature-box">
+          <div class="signature-placeholder">
+            Authorized Signature
+          </div>
+        </div>
+        <p class="name">{{officerName}}</p>
+        <p class="position">{{officerPosition}}</p>
+      </div>
+
+      <div class="seal">
+        <div class="official-seal">
+          <div class="seal-circle">
+            <div class="seal-inner">
+              <div class="seal-text-top">PNP</div>
+              <div class="seal-text-middle">HPG</div>
+              <div class="seal-text-bottom">OFFICIAL SEAL</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>

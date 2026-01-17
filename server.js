@@ -97,7 +97,8 @@ app.use('/uploads/inspection-documents', express.static(path.join(__dirname, 'ba
 app.use('/api/auth', require('./backend/routes/auth'));
 app.use('/api/vehicles', require('./backend/routes/vehicles'));
 app.use('/api/documents', require('./backend/routes/documents'));
-app.use('/api/certificates', require('./backend/routes/certificates-public'));
+app.use('/api/certificates', require('./backend/routes/certificates'));
+app.use('/api/certificates/public', require('./backend/routes/certificates-public'));
 app.use('/api/blockchain', require('./backend/routes/blockchain'));
 app.use('/api/ledger', require('./backend/routes/ledger'));
 app.use('/api/notifications', require('./backend/routes/notifications'));

@@ -610,13 +610,36 @@ async function assignClearanceRequest(id, assignedTo) {
 // ============================================
 
 async function createCertificate(certificateData) {
-    const { clearanceRequestId, vehicleId, certificateType, certificateNumber, filePath, ipfsCid, issuedBy, expiresAt, metadata } = certificateData;
+    const { 
+        clearanceRequestId, vehicleId, certificateType, certificateNumber, filePath, ipfsCid, 
+        issuedBy, expiresAt, metadata, fileHash, compositeHash, blockchainTxId, 
+        documentId, applicationStatus, status 
+    } = certificateData;
+    
     const result = await db.query(
         `INSERT INTO certificates 
-         (clearance_request_id, vehicle_id, certificate_type, certificate_number, file_path, ipfs_cid, issued_by, expires_at, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (clearance_request_id, vehicle_id, certificate_type, certificate_number, file_path, ipfs_cid, 
+          issued_by, expires_at, metadata, file_hash, composite_hash, blockchain_tx_id, 
+          document_id, application_status, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING *`,
-        [clearanceRequestId || null, vehicleId, certificateType, certificateNumber, filePath || null, ipfsCid || null, issuedBy, expiresAt || null, JSON.stringify(metadata || {})]
+        [
+            clearanceRequestId || null, 
+            vehicleId, 
+            certificateType, 
+            certificateNumber, 
+            filePath || null, 
+            ipfsCid || null, 
+            issuedBy, 
+            expiresAt || null, 
+            JSON.stringify(metadata || {}),
+            fileHash || null,
+            compositeHash || null,
+            blockchainTxId || null,
+            documentId || null,
+            applicationStatus || 'PENDING',
+            status || 'ISSUED'
+        ]
     );
     
     // Update clearance request with certificate_id

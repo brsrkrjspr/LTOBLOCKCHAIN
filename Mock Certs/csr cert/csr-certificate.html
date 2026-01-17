@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Certificate of Stock Reported (CSR)</title>
+<link rel="stylesheet" href="csr-certificate.css">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- CERTIFICATE -->
+  <div class="certificate" id="certificate">
+
+    <!-- HEADER -->
+    <div class="header">
+      <p class="republic">Republic of the Philippines</p>
+      <p class="agency">LAND TRANSPORTATION OFFICE</p>
+      <p class="company"><input type="text" value="ABC MOTOR VEHICLE DEALER, INC."></p>
+      <p class="company-sub"><input type="text" value="LTO Accredited Dealer No. 12345"></p>
+      <h1>CERTIFICATE OF STOCK REPORTED</h1>
+    </div>
+
+    <!-- META -->
+    <div class="meta">
+      <p><strong>CSR No.:</strong> <input type="text" value="CSR-2026-000123"></p>
+      <p><strong>Date Issued:</strong> <input type="date" id="dateIssued"></p>
+    </div>
+
+    <!-- BODY -->
+    <div class="content">
+
+      <textarea class="statement">
+This is to certify that the motor vehicle described below has been duly reported as stock to the Land Transportation Office and is included in the official inventory of the undersigned dealer/importer.
+      </textarea>
+
+      <!-- VEHICLE INFO -->
+      <table>
+        <tr><th colspan="2">VEHICLE INFORMATION</th></tr>
+        <tr><td>Make / Brand</td><td><input type="text" value="Toyota"></td></tr>
+        <tr><td>Model / Series</td><td><input type="text" value="Corolla Altis"></td></tr>
+        <tr><td>Variant / Type</td><td><input type="text" value="1.8 G CVT"></td></tr>
+        <tr><td>Year Model</td><td><input type="text" value="2025"></td></tr>
+        <tr><td>Body Type</td><td><input type="text" value="Sedan"></td></tr>
+        <tr><td>Color</td><td><input type="text" value="White"></td></tr>
+        <tr><td>Fuel Type</td><td><input type="text" value="Gasoline"></td></tr>
+        <tr><td>Engine Number</td><td><input type="text" value="2NR-FE123456"></td></tr>
+        <tr><td>Chassis / VIN</td><td><input type="text" value="1HGBH41JXMN109186"></td></tr>
+      </table>
+
+      <p class="purpose">
+        Issued for <strong>initial registration with the Land Transportation Office</strong> and for whatever legal purpose it may serve.
+      </p>
+    </div>
+
+    <!-- SIGNATURE -->
+    <div class="footer">
+      <div class="signatory">
+        <canvas id="signatureCanvas" width="300" height="100"></canvas>
+        <button id="clearSig">Clear Signature</button>
+        <p><input type="text" value="Juan D. Manager"></p>
+        <p><input type="text" value="Authorized Representative"></p>
+      </div>
+
+      <div class="seal">
+        <div class="seal-container">
+          <svg class="seal-svg" viewBox="0 0 200 200">
+            <defs>
+              <linearGradient id="sealGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#003366;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#004080;stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <!-- Outer circle with gradient -->
+            <circle cx="100" cy="100" r="95" fill="none" stroke="url(#sealGradient)" stroke-width="3"/>
+            <!-- Inner decorative circle -->
+            <circle cx="100" cy="100" r="82" fill="none" stroke="#003366" stroke-width="1.5"/>
+            <!-- Center circle with subtle fill -->
+            <circle cx="100" cy="100" r="55" fill="#003366" opacity="0.08"/>
+            <!-- Decorative corner elements -->
+            <polygon points="100,20 105,30 115,30 107,36 109,46 100,40 91,46 93,36 85,30 95,30" fill="#003366" opacity="0.8"/>
+            <polygon points="100,180 105,170 115,170 107,164 109,154 100,160 91,154 93,164 85,170 95,170" fill="#003366" opacity="0.8"/>
+            <polygon points="20,100 30,95 30,85 36,93 46,91 40,100 46,109 36,107 30,115 30,105" fill="#003366" opacity="0.8"/>
+            <polygon points="180,100 170,105 170,115 164,107 154,109 160,100 154,91 164,93 170,85 170,95" fill="#003366" opacity="0.8"/>
+            <!-- Top arc text -->
+            <path id="seal-text-top" d="M 35,100 A 65,65 0 0,1 165,100" fill="none"/>
+            <text class="seal-text-top">
+              <textPath href="#seal-text-top" startOffset="50%" text-anchor="middle">
+                ABC MOTOR VEHICLE DEALER, INC.
+              </textPath>
+            </text>
+            <!-- Bottom arc text -->
+            <path id="seal-text-bottom" d="M 165,100 A 65,65 0 0,1 35,100" fill="none"/>
+            <text class="seal-text-bottom">
+              <textPath href="#seal-text-bottom" startOffset="50%" text-anchor="middle">
+                LTO ACCREDITED DEALER
+              </textPath>
+            </text>
+            <!-- Center text -->
+            <text x="100" y="92" text-anchor="middle" font-size="13" font-weight="bold" fill="#003366" font-family="serif">OFFICIAL</text>
+            <text x="100" y="108" text-anchor="middle" font-size="13" font-weight="bold" fill="#003366" font-family="serif">SEAL</text>
+            <!-- Decorative line -->
+            <line x1="70" y1="115" x2="130" y2="115" stroke="#003366" stroke-width="1"/>
+            <!-- Year -->
+            <text x="100" y="132" text-anchor="middle" font-size="9" fill="#003366" font-weight="bold">2025</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ACTION BUTTONS -->
+  <div class="actions">
+    <button id="previewBtn">Preview Certificate</button>
+    <button id="editBtn" style="display:none;">Back to Edit</button>
+    <button id="downloadBtn">Download Certificate</button>
+  </div>
+
+</div>
+
+<script>
+/* DATE */
+document.getElementById("dateIssued").valueAsDate = new Date();
+
+/* SIGNATURE */
+const canvas = document.getElementById("signatureCanvas");
+const ctx = canvas.getContext("2d");
+let drawing = false;
+
+canvas.addEventListener("mousedown", e => { drawing = true; ctx.moveTo(e.offsetX, e.offsetY); });
+canvas.addEventListener("mousemove", e => { if(drawing){ ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); }});
+canvas.addEventListener("mouseup", () => drawing = false);
+canvas.addEventListener("mouseout", () => drawing = false);
+
+document.getElementById("clearSig").onclick = () => ctx.clearRect(0,0,canvas.width,canvas.height);
+
+/* PREVIEW / EDIT */
+const inputs = document.querySelectorAll("input, textarea");
+const previewBtn = document.getElementById("previewBtn");
+const editBtn = document.getElementById("editBtn");
+
+previewBtn.onclick = () => {
+  inputs.forEach(el => el.readOnly = true);
+  canvas.style.pointerEvents = "none";
+  previewBtn.style.display = "none";
+  editBtn.style.display = "inline-block";
+};
+
+editBtn.onclick = () => {
+  inputs.forEach(el => el.readOnly = false);
+  canvas.style.pointerEvents = "auto";
+  previewBtn.style.display = "inline-block";
+  editBtn.style.display = "none";
+};
+
+/* DOWNLOAD */
+document.getElementById("downloadBtn").onclick = () => {
+  previewBtn.click();
+  window.print();
+};
+</script>
+
+</body>
+</html>

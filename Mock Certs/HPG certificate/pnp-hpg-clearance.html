@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNP-HPG Motor Vehicle Clearance Certificate</title>
+<link rel="stylesheet" href="pnp-hpg-clearance.css">
+</head>
+<body>
+
+<div class="page">
+
+  <div class="certificate" id="certificate">
+
+    <!-- HEADER -->
+    <div class="header">
+      <p class="republic">Republic of the Philippines</p>
+      <p class="agency">PHILIPPINE NATIONAL POLICE</p>
+      <p class="sub-agency">Highway Patrol Group (HPG)</p>
+      <h1>Motor Vehicle Clearance Certificate</h1>
+    </div>
+
+    <div class="cert-meta">
+      <p><strong>Certificate No.:</strong> <input type="text" class="editable-field" id="cert-number" value="HPG-2026-000123"></p>
+      <p><strong>Date Issued:</strong> <input type="text" class="editable-field" id="date-issued" value="January 13, 2026"></p>
+    </div>
+
+    <!-- BODY -->
+    <div class="content">
+      <p class="statement">
+        <textarea class="editable-textarea" id="statement-text" rows="3">This is to certify that the motor vehicle described below has been verified by the Philippine National Police – Highway Patrol Group and is found to be FREE FROM ANY POLICE RECORD, HOLD, LIEN, ENCUMBRANCE, OR CRIMINAL CASE as of the date of issuance of this certificate.</textarea>
+      </p>
+
+      <table class="info-table">
+        <tr>
+          <th colspan="2">OWNER INFORMATION</th>
+        </tr>
+        <tr>
+          <td>Registered Owner</td>
+          <td><input type="text" class="editable-field" id="owner-name" value="Juan Dela Cruz"></td>
+        </tr>
+        <tr>
+          <td>Address</td>
+          <td><input type="text" class="editable-field" id="owner-address" value="456 Sampaguita St., Quezon City"></td>
+        </tr>
+
+        <tr>
+          <th colspan="2">VEHICLE INFORMATION</th>
+        </tr>
+        <tr>
+          <td>Make / Model</td>
+          <td><input type="text" class="editable-field" id="make-model" value="Toyota Corolla Altis"></td>
+        </tr>
+        <tr>
+          <td>Year Model</td>
+          <td><input type="text" class="editable-field" id="year-model" value="2025"></td>
+        </tr>
+        <tr>
+          <td>Body Type</td>
+          <td><input type="text" class="editable-field" id="body-type" value="Sedan"></td>
+        </tr>
+        <tr>
+          <td>Color</td>
+          <td><input type="text" class="editable-field" id="color" value="White"></td>
+        </tr>
+        <tr>
+          <td>Engine Number</td>
+          <td><input type="text" class="editable-field" id="engine-number" value="2NR-FE123456"></td>
+        </tr>
+        <tr>
+          <td>Chassis / VIN</td>
+          <td><input type="text" class="editable-field" id="chassis-vin" value="1HGBH41JXMN109186"></td>
+        </tr>
+        <tr>
+          <td>Plate Number</td>
+          <td><input type="text" class="editable-field" id="plate-number" value="ABC-1234"></td>
+        </tr>
+      </table>
+
+      <p class="purpose">
+        <textarea class="editable-textarea" id="purpose-text" rows="2">This clearance is issued for the purpose of vehicle registration, transfer of ownership, and other lawful transactions.</textarea>
+      </p>
+    </div>
+
+    <!-- SIGNATURE -->
+    <div class="footer">
+      <div class="signature">
+        <div class="signature-box">
+          <canvas id="signature-canvas" class="signature-canvas"></canvas>
+          <button type="button" id="clear-signature-btn" class="clear-signature-btn" title="Clear Signature">Clear</button>
+        </div>
+        <p class="name"><input type="text" class="editable-field" id="officer-name" value="P/Supt. Maria Santos"></p>
+        <p class="position"><input type="text" class="editable-field" id="officer-position" value="Authorized Officer, PNP-HPG"></p>
+      </div>
+
+      <div class="seal">
+        <div class="official-seal">
+          <div class="seal-circle">
+            <div class="seal-inner">
+              <div class="seal-text-top">PNP</div>
+              <div class="seal-text-middle">HPG</div>
+              <div class="seal-text-bottom">OFFICIAL SEAL</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ACTION BUTTONS (NOT PRINTED) -->
+  <div class="actions" id="actions">
+    <button id="preview-btn" onclick="enterPreviewMode()">Preview Certificate</button>
+    <button id="download-btn" onclick="downloadCertificate()">Download Certificate</button>
+    <button id="back-btn" onclick="exitPreviewMode()" style="display: none;">Back to Edit</button>
+  </div>
+
+</div>
+
+<script>
+  // ============================================
+  // EDIT/PREVIEW MODE MANAGEMENT
+  // ============================================
+
+  /**
+   * Enter Preview Mode
+   * Makes all fields read-only and hides edit buttons
+   */
+  function enterPreviewMode() {
+    // Get all editable fields
+    const editableFields = document.querySelectorAll('.editable-field, .editable-textarea');
+    
+    // Make all fields read-only
+    editableFields.forEach(field => {
+      field.readOnly = true;
+      field.classList.add('preview-mode');
+    });
+
+    // Disable signature canvas drawing
+    const signatureCanvas = document.getElementById('signature-canvas');
+    if (signatureCanvas) {
+      signatureCanvas.classList.add('preview-mode');
+    }
+
+    // Hide clear signature button
+    const clearBtn = document.getElementById('clear-signature-btn');
+    if (clearBtn) {
+      clearBtn.style.display = 'none';
+    }
+
+    // Hide Preview and Download buttons, show Back button
+    document.getElementById('preview-btn').style.display = 'none';
+    document.getElementById('download-btn').style.display = 'none';
+    document.getElementById('back-btn').style.display = 'inline-block';
+  }
+
+  /**
+   * Exit Preview Mode
+   * Makes all fields editable again and shows edit buttons
+   */
+  function exitPreviewMode() {
+    // Get all editable fields
+    const editableFields = document.querySelectorAll('.editable-field, .editable-textarea');
+    
+    // Make all fields editable
+    editableFields.forEach(field => {
+      field.readOnly = false;
+      field.classList.remove('preview-mode');
+    });
+
+    // Enable signature canvas drawing
+    const signatureCanvas = document.getElementById('signature-canvas');
+    if (signatureCanvas) {
+      signatureCanvas.classList.remove('preview-mode');
+    }
+
+    // Show clear signature button
+    const clearBtn = document.getElementById('clear-signature-btn');
+    if (clearBtn) {
+      clearBtn.style.display = 'inline-block';
+    }
+
+    // Show Preview and Download buttons, hide Back button
+    document.getElementById('preview-btn').style.display = 'inline-block';
+    document.getElementById('download-btn').style.display = 'inline-block';
+    document.getElementById('back-btn').style.display = 'none';
+  }
+
+  /**
+   * Download Certificate
+   * Triggers browser print dialog for PDF download
+   */
+  function downloadCertificate() {
+    // Enter preview mode before printing
+    enterPreviewMode();
+    
+    // Small delay to ensure preview mode is applied
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  }
+
+  // ============================================
+  // SIGNATURE CANVAS DRAWING
+  // ============================================
+
+  let isDrawing = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  /**
+   * Initialize signature canvas
+   */
+  function initSignatureCanvas() {
+    const canvas = document.getElementById('signature-canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const signatureBox = canvas.parentElement;
+    
+    // Set canvas size to match container
+    canvas.width = signatureBox.offsetWidth;
+    canvas.height = signatureBox.offsetHeight - 30; // Account for clear button
+
+    // Set drawing style
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Mouse events
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+
+    // Touch events for mobile devices
+    canvas.addEventListener('touchstart', handleTouch);
+    canvas.addEventListener('touchmove', handleTouch);
+    canvas.addEventListener('touchend', stopDrawing);
+    canvas.addEventListener('touchcancel', stopDrawing);
+  }
+
+  /**
+   * Start drawing
+   */
+  function startDrawing(e) {
+    const canvas = document.getElementById('signature-canvas');
+    if (canvas.classList.contains('preview-mode')) return;
+
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    lastX = (e.clientX || e.touches[0].clientX) - rect.left;
+    lastY = (e.clientY || e.touches[0].clientY) - rect.top;
+  }
+
+  /**
+   * Draw on canvas
+   */
+  function draw(e) {
+    if (!isDrawing) return;
+
+    const canvas = document.getElementById('signature-canvas');
+    if (canvas.classList.contains('preview-mode')) return;
+
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const currentX = (e.clientX || e.touches[0].clientX) - rect.left;
+    const currentY = (e.clientY || e.touches[0].clientY) - rect.top;
+
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(currentX, currentY);
+    ctx.stroke();
+
+    lastX = currentX;
+    lastY = currentY;
+  }
+
+  /**
+   * Stop drawing
+   */
+  function stopDrawing() {
+    isDrawing = false;
+  }
+
+  /**
+   * Handle touch events
+   */
+  function handleTouch(e) {
+    e.preventDefault();
+    if (e.type === 'touchstart') {
+      startDrawing(e);
+    } else if (e.type === 'touchmove') {
+      draw(e);
+    }
+  }
+
+  /**
+   * Clear signature
+   */
+  function clearSignature() {
+    const canvas = document.getElementById('signature-canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ============================================
+  // AUTO-RESIZE TEXTAREAS
+  // ============================================
+
+  /**
+   * Auto-resize textareas to fit content
+   */
+  function autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+  }
+
+  // Apply auto-resize to all textareas and initialize signature canvas
+  document.addEventListener('DOMContentLoaded', function() {
+    const textareas = document.querySelectorAll('.editable-textarea');
+    textareas.forEach(textarea => {
+      // Initial resize
+      autoResizeTextarea(textarea);
+      
+      // Resize on input
+      textarea.addEventListener('input', function() {
+        autoResizeTextarea(this);
+      });
+    });
+
+    // Initialize signature canvas
+    initSignatureCanvas();
+
+    // Set up clear signature button
+    const clearBtn = document.getElementById('clear-signature-btn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', clearSignature);
+    }
+  });
+
+  // ============================================
+  // PRINT EVENT HANDLING
+  // ============================================
+
+  /**
+   * Handle window after print event
+   * Returns to edit mode after printing
+   */
+  window.addEventListener('afterprint', function() {
+    exitPreviewMode();
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Affidavit of Attachment for Sidecar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="controls">
+    <button onclick="window.print()">📄 Preview / Download PDF</button>
+    <button onclick="clearSignature()">✍️ Clear Signature</button>
+</div>
+
+<div class="document">
+
+    <h1>AFFIDAVIT OF ATTACHMENT</h1>
+
+    <p>
+        I, <input class="wide" placeholder="Full Name of Owner">, Filipino, of legal age,
+        <input placeholder="Civil Status">, and a resident of
+        <input class="wide" placeholder="Complete Address">, after having been duly sworn
+        to in accordance with law, hereby depose and state:
+    </p>
+
+   <p class="section">
+        1. That I am the lawful owner of a brand new motorcycle described as follows:
+    </p>
+
+    <p>
+        Make / Brand: <input value="Honda"> &nbsp;&nbsp;
+        Model: <input value="TMX 155 Alpha"><br><br>
+        Engine Number: <input class="wide" value="2NR-FE123456"><br><br>
+        Chassis / Frame Number: <input class="wide" value="1HGBH41JXMN109186">
+    </p>
+
+    <p class="section">
+        2. That a sidecar has been attached to the above-described motorcycle on or about
+        <input value="January 10, 2026">, making it suitable for tricycle (TC)
+        operation, and that said sidecar is permanently and securely installed.
+    </p>
+
+    <p class="section">
+        3. That the sidecar was fabricated and attached by
+        <input class="wide" value="Juan dela Cruz">,
+        with address at <input class="wide" value="123 Fabricator St., Quezon City">.
+    </p>
+
+
+    <p class="section">
+        4. That this affidavit is being executed to attest to the truth of the foregoing
+        facts and for purposes of new registration with the Land Transportation Office (LTO).
+    </p>
+
+    <div class="two-col">
+        <div class="col">
+            <div class="signature-box">
+                <canvas id="signature"></canvas>
+            </div>
+            <div class="signature-label">
+                Signature of Owner over Printed Name
+            </div>
+        </div>
+
+        <div class="col">
+            <div style="margin-top: 40px; text-align: center;">
+                <input class="wide" placeholder="Printed Name of Owner" style="text-align: center;">
+            </div>
+            <div class="signature-label">
+                Printed Name of Owner
+            </div>
+        </div>
+    </div>
+
+    <p class="section">
+        SUBSCRIBED AND SWORN to before me this
+        <input placeholder="Day"> day of
+        <input placeholder="Month, Year">
+        at <input class="wide" placeholder="Place of Notarization">,
+        affiant exhibiting to me competent proof of identity.
+    </p>
+
+    <div class="notary-section">
+        <div class="notary-stamp">
+            <div class="stamp-circle">
+                <div class="stamp-text-outer">REPUBLIC OF THE PHILIPPINES</div>
+                <div class="stamp-text-inner">NOTARY PUBLIC</div>
+                <div class="stamp-text-bottom">UNTIL DECEMBER 31, 2026</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const canvas = document.getElementById('signature');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    function resizeCanvas() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    canvas.addEventListener('mousedown', () => drawing = true);
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseout', () => drawing = false);
+
+    canvas.addEventListener('mousemove', e => {
+        if (!drawing) return;
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000';
+        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    });
+
+    function clearSignature() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+    }
+</script>
+
+</body>
+</html>

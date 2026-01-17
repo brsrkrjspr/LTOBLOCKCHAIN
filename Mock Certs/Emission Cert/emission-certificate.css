@@ -1,0 +1,580 @@
+/* ============================================
+   Base Styles
+   ============================================ */
+* { 
+  box-sizing: border-box; 
+  font-family: "Times New Roman", "Georgia", serif; 
+}
+
+body { 
+  background: #f3f3f3; 
+  padding: 20px; 
+  margin: 0;
+}
+
+/* ============================================
+   Certificate Container - Letter Size (8.5" x 11")
+   ============================================ */
+.certificate {
+  width: 8.5in;
+  max-width: 8.5in;
+  height: 11in;
+  max-height: 11in;
+  margin: auto;
+  background: #fff;
+  padding: 25px 40px;
+  /* Double Border: Outer bold + Inner fine */
+  border: 6px solid #1a1a1a;
+  border-radius: 0;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  /* Inner border using box-shadow */
+  box-shadow: 0 0 0 2px #1a1a1a, 0 0 0 8px #fff, 0 0 0 10px #1a1a1a, 0 4px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+/* ============================================
+   Watermark
+   ============================================ */
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  font-size: 90px;
+  font-weight: bold;
+  color: rgba(45, 122, 79, 0.04);
+  z-index: 0;
+  pointer-events: none;
+  letter-spacing: 15px;
+  white-space: nowrap;
+}
+
+/* ============================================
+   Official Header
+   ============================================ */
+.border {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 12px;
+}
+
+.border h1 {
+  font-size: 20px;
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: bold;
+  color: #1e5f3f;
+  line-height: 1.2;
+}
+
+.border h2 {
+  font-size: 15px;
+  margin: 2px 0;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: normal;
+  color: #2d7a4f;
+  line-height: 1.3;
+}
+
+.border h3 {
+  font-size: 18px;
+  margin: 8px 0 6px 0;
+  text-decoration: underline;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: bold;
+  color: #1e5f3f;
+  line-height: 1.2;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid #1a1a1a;
+  margin: 8px 0 12px 0;
+}
+
+/* ============================================
+   Certificate Reference Number
+   ============================================ */
+.cert-ref {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: #1e5f3f;
+}
+
+.cert-ref input {
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* ============================================
+   Certificate Intro
+   ============================================ */
+.intro {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 12px;
+}
+
+.intro p {
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+  text-align: justify;
+}
+
+/* ============================================
+   Owner & Vehicle Information
+   ============================================ */
+.info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+
+.info .owner, .info .vehicle {
+  width: 48%;
+}
+
+.info h3 { 
+  font-size: 14px; 
+  text-decoration: underline; 
+  margin-bottom: 6px; 
+  font-weight: bold;
+  text-align: center;
+}
+
+.info p {
+  margin: 4px 0;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* ============================================
+   Test Results Table
+   ============================================ */
+.results {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+}
+
+.results h3 { 
+  font-size: 14px; 
+  text-decoration: underline; 
+  margin-bottom: 6px; 
+  font-weight: bold;
+}
+
+.results table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+  border: 2px solid #1a1a1a;
+}
+
+.results td {
+  border: 1px solid #1a1a1a;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.results td:first-child {
+  font-weight: bold;
+  width: 40%;
+  background-color: #e8f5e9;
+}
+
+.results tr.final td {
+  border-top: 3px solid #1a1a1a;
+  font-weight: bold;
+  text-align: center;
+  background-color: #c8e6c9;
+  padding: 8px;
+}
+
+/* ============================================
+   Declaration
+   ============================================ */
+.declaration {
+  position: relative;
+  z-index: 1;
+  margin: 10px 0;
+}
+
+.declaration p {
+  font-size: 12px;
+  margin: 0;
+  font-style: italic;
+  line-height: 1.4;
+  text-align: justify;
+}
+
+/* ============================================
+   Signature Section
+   ============================================ */
+.signature-section {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.sign, .seal { 
+  width: 45%; 
+}
+
+/* Signature Canvas and Image */
+.signature-container {
+  margin: 5px auto 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  position: relative;
+}
+
+#signature-canvas {
+  display: block;
+  cursor: crosshair;
+  background: #fff;
+  border: none;
+  width: 100%;
+  height: auto;
+}
+
+.signature-display {
+  max-width: 250px;
+  max-height: 80px;
+  display: block;
+  margin: 0 auto;
+}
+
+.clear-btn {
+  display: block;
+  margin: 4px auto 6px;
+  padding: 4px 12px;
+  font-size: 11px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+}
+
+.clear-btn:hover {
+  background: #c82333;
+}
+
+.inspector-name {
+  margin: 8px 0 3px 0;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.inspector-title {
+  margin: 3px 0;
+  font-size: 11px;
+  color: #555;
+}
+
+/* Official Seal */
+.seal {
+  position: relative;
+}
+
+.seal p {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.stamp-box {
+  width: 140px;
+  height: 140px;
+  margin: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seal-circle {
+  width: 100%;
+  height: 100%;
+  border: 4px solid #2d7a4f;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  box-shadow: inset 0 0 10px rgba(45, 122, 79, 0.2);
+}
+
+.seal-text-outer {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #1e5f3f;
+}
+
+.seal-text-inner {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #1e5f3f;
+}
+
+.seal-center {
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  color: #1e5f3f;
+  margin-top: 5px;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+.footer-note {
+  margin-top: 12px;
+  font-size: 11px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid #ccc;
+  padding-top: 8px;
+}
+
+/* ============================================
+   Editable Fields
+   ============================================ */
+.editable-field {
+  border: none;
+  background: transparent;
+  font-family: "Times New Roman", "Georgia", serif;
+  font-size: inherit;
+  color: inherit;
+  padding: 2px 4px;
+  margin: 0;
+  width: auto;
+  min-width: 100px;
+  outline: none;
+  text-align: inherit;
+}
+
+.editable-field.edit-mode {
+  border-bottom: 1px dashed #999;
+  background: rgba(255, 255, 240, 0.5);
+}
+
+.editable-field.preview-mode {
+  border: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.editable-field:focus {
+  background: rgba(255, 255, 200, 0.7);
+  border-bottom: 1px solid #333;
+}
+
+.table-input {
+  width: 100%;
+  text-align: left;
+}
+
+/* ============================================
+   Control Buttons
+   ============================================ */
+.controls, .preview-controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 30px;
+  padding: 20px;
+  flex-wrap: wrap;
+}
+
+.control-btn {
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: background 0.3s, transform 0.1s;
+  min-width: 160px;
+}
+
+.control-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.control-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.control-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Emission-themed colors: Green and Teal */
+#edit-btn {
+  background: #2d7a4f; /* Emission Green */
+}
+
+#edit-btn:hover:not(:disabled) {
+  background: #1e5f3f;
+}
+
+#preview-btn {
+  background: #1e8a6f; /* Teal Green */
+}
+
+#preview-btn:hover:not(:disabled) {
+  background: #156b55;
+}
+
+#download-btn, #download-preview-btn {
+  background: #2d7a4f; /* Emission Green */
+}
+
+#download-btn:hover:not(:disabled), #download-preview-btn:hover:not(:disabled) {
+  background: #1e5f3f;
+}
+
+.back-btn {
+  background: #1e8a6f; /* Teal Green */
+}
+
+.back-btn:hover:not(:disabled) {
+  background: #156b55;
+}
+
+/* Responsive buttons for mobile */
+@media (max-width: 768px) {
+  .controls, .preview-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .control-btn {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+/* ============================================
+   Print Styles - Letter Size (8.5" x 11")
+   ============================================ */
+@page {
+  size: letter portrait;
+  margin: 0;
+}
+
+@media print {
+  body { 
+    background: white; 
+    padding: 0; 
+    margin: 0;
+    width: 8.5in;
+    height: 11in;
+  }
+
+  .certificate {
+    width: 8.5in;
+    max-width: 8.5in;
+    height: 11in;
+    max-height: 11in;
+    margin: 0;
+    padding: 25px 40px;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+    overflow: hidden;
+  }
+
+  .watermark {
+    display: block;
+    opacity: 0.05;
+    color: rgba(45, 122, 79, 0.05);
+  }
+
+  .controls, .preview-controls {
+    display: none !important;
+  }
+
+  .clear-btn {
+    display: none !important;
+  }
+
+  .editable-field {
+    border: none !important;
+    background: transparent !important;
+    pointer-events: none;
+  }
+
+  #signature-canvas {
+    display: none !important;
+  }
+
+  .signature-display {
+    display: block !important;
+  }
+
+
+  /* Ensure signature and seal are visible */
+  .signature-section {
+    page-break-inside: avoid;
+  }
+
+  /* High contrast for printing */
+  * {
+    color: #000 !important;
+    background: white !important;
+  }
+
+  .results td:first-child {
+    background-color: #e8f5e9 !important;
+  }
+
+  .results tr.final td {
+    background-color: #c8e6c9 !important;
+  }
+}

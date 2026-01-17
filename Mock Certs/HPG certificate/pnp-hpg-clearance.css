@@ -1,0 +1,427 @@
+/* ============================================
+   PAGE SIZE & PRINT SETTINGS
+   ============================================ */
+@page {
+  size: 8.5in 11in;
+  margin: 0.5in;
+}
+
+/* ============================================
+   GLOBAL STYLES
+   ============================================ */
+* {
+  box-sizing: border-box;
+  font-family: "Times New Roman", serif;
+}
+
+body {
+  background: #eaeaea;
+  margin: 0;
+  padding: 20px;
+}
+
+/* ============================================
+   PAGE CONTAINER
+   ============================================ */
+.page {
+  width: 8.5in;
+  margin: auto;
+}
+
+/* ============================================
+   CERTIFICATE CONTAINER
+   ============================================ */
+.certificate {
+  min-height: 10in;
+  background: #fff;
+  padding: 40px;
+  border: 10px solid #222;
+  position: relative;
+}
+
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.republic {
+  font-size: 14px;
+  margin: 0;
+}
+
+.agency {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 5px 0;
+}
+
+.sub-agency {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.header h1 {
+  font-size: 22px;
+  text-decoration: underline;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+/* ============================================
+   CERTIFICATE META (Certificate No. & Date)
+   ============================================ */
+.cert-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.cert-meta p {
+  margin: 0;
+}
+
+/* ============================================
+   CONTENT SECTION
+   ============================================ */
+.content {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.statement {
+  text-align: justify;
+  margin-bottom: 20px;
+}
+
+.purpose {
+  text-align: center;
+  margin-top: 20px;
+  font-style: italic;
+}
+
+/* ============================================
+   INFORMATION TABLE
+   ============================================ */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.info-table th {
+  background: #f0f0f0;
+  border: 1px solid #000;
+  padding: 6px;
+  text-align: left;
+  font-weight: bold;
+}
+
+.info-table td {
+  border: 1px solid #000;
+  padding: 6px;
+}
+
+.info-table td:first-child {
+  width: 35%;
+  font-weight: normal;
+}
+
+/* ============================================
+   EDITABLE FIELDS STYLING
+   ============================================ */
+
+/* Input fields (short text) */
+.editable-field {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: "Times New Roman", serif;
+  font-size: inherit;
+  color: #000;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  text-align: inherit;
+}
+
+/* Textarea fields (paragraphs) */
+.editable-textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: "Times New Roman", serif;
+  font-size: inherit;
+  color: #000;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  line-height: inherit;
+  text-align: inherit;
+}
+
+/* Signature field */
+.editable-signature {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  font-family: "Times New Roman", serif;
+  font-size: 12px;
+  color: #000;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* Editable field focus state (only in edit mode) */
+.editable-field:not(.preview-mode):focus,
+.editable-textarea:not(.preview-mode):focus,
+.editable-signature:not(.preview-mode):focus {
+  background: rgba(255, 255, 200, 0.3);
+  border-radius: 2px;
+}
+
+/* Preview mode - fields look like static text */
+.editable-field.preview-mode,
+.editable-textarea.preview-mode,
+.editable-signature.preview-mode {
+  cursor: default;
+  background: transparent !important;
+}
+
+/* ============================================
+   FOOTER SECTION (Signature & Seal)
+   ============================================ */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 50px;
+  align-items: flex-start;
+}
+
+.signature {
+  width: 45%;
+  text-align: center;
+}
+
+.signature-box {
+  height: 80px;
+  border-bottom: 1px solid #000;
+  margin-bottom: 5px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signature-canvas {
+  width: 100%;
+  height: calc(100% - 25px);
+  cursor: crosshair;
+  touch-action: none;
+  background: transparent;
+}
+
+.signature-canvas.preview-mode {
+  cursor: default;
+  pointer-events: none;
+}
+
+.clear-signature-btn {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  padding: 2px 8px;
+  font-size: 10px;
+  background: #f0f0f0;
+  color: #333;
+  border: 1px solid #999;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.clear-signature-btn:hover {
+  opacity: 1;
+  background: #e0e0e0;
+}
+
+.clear-signature-btn:active {
+  background: #d0d0d0;
+}
+
+.signature .name {
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.signature .position {
+  margin: 5px 0 0 0;
+  font-size: 12px;
+}
+
+.seal {
+  width: 45%;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+   OFFICIAL GOVERNMENT SEAL (Inside Certificate)
+   ============================================ */
+.official-seal {
+  display: inline-block;
+}
+
+.seal-circle {
+  width: 140px;
+  height: 140px;
+  border: 3px solid #000;
+  border-radius: 50%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  position: relative;
+}
+
+.seal-inner {
+  text-align: center;
+  padding: 15px;
+}
+
+.seal-text-top {
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+.seal-text-middle {
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin: 6px 0;
+  border-top: 2px solid #000;
+  border-bottom: 2px solid #000;
+  padding: 4px 0;
+}
+
+.seal-text-bottom {
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================ */
+.actions {
+  text-align: center;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.actions button {
+  padding: 12px 28px;
+  font-size: 15px;
+  background: #003366;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin: 0 8px;
+  font-family: Arial, sans-serif;
+  transition: background 0.3s;
+}
+
+.actions button:hover {
+  background: #004488;
+}
+
+.actions button:active {
+  background: #002244;
+}
+
+/* ============================================
+   PRINT MEDIA QUERIES
+   ============================================ */
+@media print {
+  /* Reset body for print */
+  body {
+    background: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Hide action buttons */
+  .actions {
+    display: none !important;
+  }
+
+  /* Ensure certificate border prints */
+  .certificate {
+    border: 10px solid #000;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Ensure seal prints on same page */
+  .seal {
+    page-break-inside: avoid;
+  }
+
+  /* Remove any focus highlights in print */
+  .editable-field:focus,
+  .editable-textarea:focus {
+    background: transparent !important;
+    outline: none !important;
+  }
+
+  /* Ensure all fields look like static text when printing */
+  .editable-field,
+  .editable-textarea {
+    background: transparent !important;
+    border: none !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  /* Hide clear signature button when printing */
+  .clear-signature-btn {
+    display: none !important;
+  }
+
+  /* Ensure signature canvas prints correctly */
+  .signature-canvas {
+    cursor: default !important;
+  }
+
+  /* Prevent page breaks inside critical sections */
+  .header,
+  .content,
+  .footer {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure table doesn't break across pages */
+  .info-table {
+    page-break-inside: avoid;
+  }
+}

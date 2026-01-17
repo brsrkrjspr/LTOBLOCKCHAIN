@@ -100,6 +100,7 @@ app.use('/api/documents', require('./backend/routes/documents'));
 app.use('/api/certificates', require('./backend/routes/certificates'));
 app.use('/api/certificates/public', require('./backend/routes/certificates-public'));
 app.use('/api/certificate-uploads', require('./backend/routes/certificate-upload'));
+app.use('/api/certificate-generation', require('./backend/routes/certificate-generation'));
 app.use('/api/issuer', require('./backend/routes/issuer'));
 app.use('/api/blockchain', require('./backend/routes/blockchain'));
 app.use('/api/ledger', require('./backend/routes/ledger'));

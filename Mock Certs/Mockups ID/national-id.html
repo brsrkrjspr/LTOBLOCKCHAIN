@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Philippine National ID - Document Viewer</title>
+    <style>
+        :root {
+            --card-width: 600px;
+            --card-height: 380px;
+            --ph-blue: #0038A8;
+            --ph-red: #CE1126;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #e6e9ef;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Modal Container */
+        .modal-overlay {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 95%;
+            max-height: 95vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #1a1a1a;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .close-modal {
+            background: #f44336;
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+
+        .close-modal:hover {
+            background: #d32f2f;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            transition: all 0.3s;
+            min-width: 160px;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .control-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+
+        #edit-btn {
+            background: #4CAF50;
+        }
+
+        #edit-btn:hover:not(:disabled) {
+            background: #45a049;
+        }
+
+        #preview-btn {
+            background: #FF9800;
+        }
+
+        #preview-btn:hover:not(:disabled) {
+            background: #F57C00;
+        }
+
+        #print-preview-btn {
+            background: #607D8B;
+        }
+
+        #print-preview-btn:hover:not(:disabled) {
+            background: #455A64;
+        }
+
+        #download-png-btn {
+            background: #9C27B0;
+        }
+
+        #download-png-btn:hover:not(:disabled) {
+            background: #7B1FA2;
+        }
+
+        #download-pdf-btn {
+            background: #F44336;
+        }
+
+        #download-pdf-btn:hover:not(:disabled) {
+            background: #D32F2F;
+        }
+
+        #download-preview-btn {
+            background: #009688;
+        }
+
+        #download-preview-btn:hover:not(:disabled) {
+            background: #00796B;
+        }
+
+        /* Preview Window */
+        .preview-window {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .preview-window.active {
+            display: flex;
+        }
+
+        .preview-content {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .preview-content img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .preview-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f44336;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-close:hover {
+            background: #d32f2f;
+        }
+
+        /* ID Card Styles */
+        .id-card {
+            width: var(--card-width);
+            height: var(--card-height);
+            background-color: #fff;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+            border: 1px solid #bbb;
+        }
+
+        /* Swirl Pattern Background */
+        .id-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0.15;
+            background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 100 C 20 0, 80 0, 100 100 S 180 200, 200 100' stroke='%230038A8' fill='transparent' stroke-width='0.5'/%3E%3Cpath d='M0 110 C 20 10, 80 10, 100 110 S 180 210, 200 110' stroke='%23CE1126' fill='transparent' stroke-width='0.5'/%3E%3C/svg%3E");
+            background-size: 150px 150px;
+            z-index: 1;
+        }
+
+        /* Red/Blue Side Gradients */
+        .swoosh-blue {
+            position: absolute;
+            top: -50px; left: -50px;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(0,56,168,0.1) 0%, transparent 70%);
+            z-index: 2;
+        }
+
+        .swoosh-red {
+            position: absolute;
+            bottom: -50px; right: -50px;
+            width: 350px; height: 350px;
+            background: radial-gradient(circle, rgba(206,17,38,0.1) 0%, transparent 70%);
+            z-index: 2;
+        }
+
+        /* Content Layout */
+        .card-content {
+            position: relative;
+            z-index: 10;
+        }
+
+        .header {
+            display: grid;
+            grid-template-columns: 80px 1fr 80px;
+            align-items: center;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            margin: 0;
+            font-weight: 800;
+            color: #222;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .header h2 {
+            font-size: 12px;
+            margin: 0;
+            font-weight: normal;
+            color: #444;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .header .title-main {
+            font-size: 20px;
+            font-weight: 900;
+            margin-top: 4px;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .pcn-number {
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #111;
+        }
+
+        .main-body {
+            display: flex;
+            gap: 25px;
+        }
+
+        .photo-area {
+            width: 160px;
+            height: 200px;
+            border: 2px solid #ddd;
+            background: #eee;
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .photo-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: none;
+        }
+        
+        /* Edit Mode Visual Indicator */
+        .id-card.edit-mode-active {
+            box-shadow: 0 15px 35px rgba(76, 175, 80, 0.3);
+            border: 2px solid rgba(76, 175, 80, 0.5);
+        }
+        
+        .id-card.preview-mode-active {
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .edit-mode-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            z-index: 100;
+            display: none;
+        }
+        
+        .id-card.edit-mode-active .edit-mode-indicator {
+            display: block;
+        }
+
+        .photo-area .avatar-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            width: 100%;
+            height: 100%;
+            padding-bottom: 10px;
+        }
+
+        .avatar-head {
+            width: 60px;
+            height: 60px;
+            background: #666;
+            border-radius: 50%;
+            margin-bottom: 5px;
+        }
+
+        .avatar-body {
+            width: 100px;
+            height: 80px;
+            background: #666;
+            border-radius: 40% 40% 0 0;
+        }
+
+        .photo-upload-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(33, 150, 243, 0.9);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0.9;
+            transition: opacity 0.3s, transform 0.2s, background 0.2s;
+            z-index: 20;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .photo-upload-btn:hover {
+            background: rgba(33, 150, 243, 1);
+            transform: scale(1.05);
+            opacity: 1;
+        }
+
+        .photo-upload-btn.preview-mode {
+            display: none;
+        }
+
+        .photo-upload-input {
+            display: none;
+        }
+
+        .data-fields {
+            flex: 1;
+        }
+
+        .field {
+            margin-bottom: 12px;
+        }
+
+        .label {
+            font-size: 10px;
+            color: #666;
+            font-style: italic;
+            display: block;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #000;
+            text-transform: uppercase;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        /* Editable Fields */
+        .editable-field {
+            border: none;
+            background: transparent;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: inherit;
+            color: inherit;
+            padding: 2px 4px;
+            margin: 0;
+            width: 100%;
+            outline: none;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 1px dashed transparent;
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .editable-field.edit-mode {
+            border-bottom-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .editable-field:focus {
+            border-bottom-color: #333;
+            background: rgba(255, 255, 200, 0.5);
+        }
+
+        .editable-field.preview-mode {
+            border: none;
+            background: transparent;
+            pointer-events: none;
+        }
+
+        .address-section {
+            margin-top: 15px;
+        }
+
+        .address-section .editable-field {
+            font-size: 14px;
+            line-height: 1.2;
+        }
+
+        .fingerprint {
+            border: 1.5px solid var(--ph-blue);
+            padding: 5px;
+            border-radius: 5px;
+            opacity: 0.6;
+        }
+
+        .phl-watermark {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            font-size: 40px;
+            font-weight: 900;
+            color: rgba(206,17,38,0.15);
+            z-index: 3;
+        }
+
+        /* Print Styles - Letter Size */
+        @page {
+            size: letter portrait;
+            margin: 0.5in;
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Hide modal overlay background - show only ID card */
+            .modal-overlay {
+                display: block !important;
+                position: static !important;
+                background: transparent !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                overflow: visible !important;
+            }
+
+            .modal-content {
+                max-width: 100% !important;
+                max-height: 100% !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                min-height: 100vh !important;
+                margin: 0 !important;
+            }
+
+            /* Hide all UI controls - only show ID card */
+            .modal-header,
+            .controls,
+            .close-modal,
+            .photo-upload-btn,
+            .edit-mode-indicator,
+            .preview-window {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            /* ID card - maintain its exact shape (600px x 380px), centered, clean */
+            .id-card {
+                width: 600px !important;
+                max-width: 600px !important;
+                height: 380px !important;
+                max-height: 380px !important;
+                border-radius: 20px !important;
+                box-shadow: 0 15px 35px rgba(0,0,0,0.2) !important;
+                page-break-inside: avoid !important;
+                margin: 0 auto !important;
+                transform: scale(1) !important;
+                position: relative !important;
+                background-color: #fff !important;
+            }
+            
+            .editable-field {
+                border: none !important;
+                background: transparent !important;
+                pointer-events: none !important;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .id-card {
+                width: 100%;
+                max-width: var(--card-width);
+                height: auto;
+                min-height: var(--card-height);
+            }
+
+            .main-body {
+                flex-direction: column;
+            }
+
+            .photo-area {
+                width: 120px;
+                height: 150px;
+                margin: 0 auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Modal Overlay -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Philippine National ID</h2>
+            <button class="close-modal" id="close-modal">×</button>
+        </div>
+
+        <div class="id-card" id="id-card">
+            <div class="edit-mode-indicator">EDIT MODE</div>
+            <div class="swoosh-blue"></div>
+            <div class="swoosh-red"></div>
+            <div class="phl-watermark">PHL</div>
+
+            <div class="card-content">
+                <div class="header">
+                    <div class="logo">
+                        <svg width="60" height="60" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#ccc" stroke-width="1"/>
+                            <text x="50" y="55" font-size="10" text-anchor="middle">LOGO</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1>Republic of the Philippines</h1>
+                        <div class="title-main">Philippine Identification Card</div>
+                    </div>
+                    <div class="fingerprint">
+                        <svg width="50" height="50" viewBox="0 0 100 100">
+                            <path d="M30 80 Q 50 10 70 80 M 40 80 Q 50 30 60 80" stroke="black" fill="none" stroke-width="2"/>
+                        </svg>
+                    </div>
+                </div>
+                
+                <h5>ID Number</h5>
+                <input type="text" id="id-number" class="pcn-number editable-field" value="1234-5678-9101-1213" data-field="id-number">
+
+                <div class="main-body">
+                    <div class="photo-area">
+                        <img id="photo-image" src="" alt="Photo">
+                        <div class="avatar-placeholder" id="avatar-placeholder">
+                            <div class="avatar-head"></div>
+                            <div class="avatar-body"></div>
+                        </div>
+                        <input type="file" id="photo-upload" class="photo-upload-input" accept="image/*">
+                        <button class="photo-upload-btn" id="photo-upload-trigger" type="button">📷 Change Photo</button>
+                    </div>
+
+                    <div class="data-fields">
+                        <div class="field">
+                            <span class="label">Apelyido/Last Name</span>
+                            <input type="text" id="last-name" class="value editable-field" value="DELA CRUZ" data-field="last-name">
+                        </div>
+                        <div class="field">
+                            <span class="label">Mga Pangalan/Given Names</span>
+                            <input type="text" id="given-names" class="value editable-field" value="JUAN" data-field="given-names">
+                        </div>
+                        <div class="field">
+                            <span class="label">Gitnang Apelyido/Middle Name</span>
+                            <input type="text" id="middle-name" class="value editable-field" value="MARTINEZ" data-field="middle-name">
+                        </div>
+                        <div class="field">
+                            <span class="label">Petsa ng Kapanganakan/Date of Birth</span>
+                            <input type="text" id="date-birth" class="value editable-field" value="JANUARY 01, 1990" data-field="date-birth">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="address-section">
+                    <span class="label">Tirahan/Address</span>
+                    <input type="text" id="address" class="value editable-field" value="833 SISA ST., BRGY 526, ZONE 52 SAMPALOK, MANILA CITY, METRO MANILA" data-field="address">
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button id="edit-btn" class="control-btn">Edit</button>
+            <button id="preview-btn" class="control-btn">Preview</button>
+            <button id="print-preview-btn" class="control-btn">🖨️ Print Preview</button>
+            <button id="download-preview-btn" class="control-btn">📥 Download Preview</button>
+            <button id="download-png-btn" class="control-btn">Download PNG</button>
+            <button id="download-pdf-btn" class="control-btn">Download PDF</button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Window -->
+<div class="preview-window" id="preview-window">
+    <div class="preview-content">
+        <button class="preview-close" id="preview-close">×</button>
+        <div id="preview-container"></div>
+    </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" 
+        onerror="console.error('Failed to load html2canvas from CDN'); alert('Failed to load html2canvas library. Please check your internet connection.');"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+        onerror="console.error('Failed to load jsPDF from CDN'); alert('Failed to load jsPDF library. Please check your internet connection.');"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+        onerror="console.error('Failed to load html2pdf from CDN'); alert('Failed to load html2pdf library. Please check your internet connection.');"></script>
+
+<script>
+    // Wait for libraries to load
+    function waitForLibraries(callback) {
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max wait
+        
+        function checkLibraries() {
+            attempts++;
+            // Check for html2canvas and jsPDF (jsPDF might be window.jsPDF or window.jspdf.jsPDF)
+            const jsPDFAvailable = typeof window.jsPDF !== 'undefined' || 
+                                   typeof window.jspdf !== 'undefined' ||
+                                   (typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF !== 'undefined');
+            
+            if (typeof html2canvas !== 'undefined' && jsPDFAvailable) {
+                callback();
+            } else if (attempts < maxAttempts) {
+                setTimeout(checkLibraries, 100);
+            } else {
+                console.error('Libraries failed to load', {
+                    html2canvas: typeof html2canvas,
+                    jsPDF: typeof window.jsPDF,
+                    jspdf: typeof window.jspdf
+                });
+                alert('Libraries are taking too long to load. Please refresh the page.');
+            }
+        }
+        
+        checkLibraries();
+    }
+
+    // Initialize when DOM is ready
+    function initializeApp() {
+        // State Management
+        let isEditMode = true;
+        const editableFields = document.querySelectorAll('.editable-field');
+        const photoUpload = document.getElementById('photo-upload');
+        const photoImage = document.getElementById('photo-image');
+        const avatarPlaceholder = document.getElementById('avatar-placeholder');
+
+        // DOM Elements
+        const modalOverlay = document.getElementById('modal-overlay');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const editBtn = document.getElementById('edit-btn');
+        const previewBtn = document.getElementById('preview-btn');
+        const printPreviewBtn = document.getElementById('print-preview-btn');
+        const downloadPreviewBtn = document.getElementById('download-preview-btn');
+        const downloadPngBtn = document.getElementById('download-png-btn');
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        const idCard = document.getElementById('id-card');
+        const previewWindow = document.getElementById('preview-window');
+        const previewClose = document.getElementById('preview-close');
+        const previewContainer = document.getElementById('preview-container');
+
+        // Defensive checks - Graceful error handling
+        if (!idCard) {
+            console.error('ID card element not found');
+            alert('ID card element not found. Please refresh the page.');
+            return;
+        }
+        
+        // Optional elements - check but don't fail
+        const elements = {
+            closeModalBtn: closeModalBtn,
+            editBtn: editBtn,
+            previewBtn: previewBtn,
+            printPreviewBtn: printPreviewBtn,
+            downloadPreviewBtn: downloadPreviewBtn,
+            downloadPngBtn: downloadPngBtn,
+            downloadPdfBtn: downloadPdfBtn,
+            photoUpload: photoUpload,
+            photoImage: photoImage,
+            avatarPlaceholder: avatarPlaceholder
+        };
+        
+        console.log('Elements found:', Object.keys(elements).reduce((acc, key) => {
+            acc[key] = !!elements[key];
+            return acc;
+        }, {}));
+
+        // Modal Functions - Modal is already displayed by default
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    if (modalOverlay) {
+                        modalOverlay.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Close modal error:', error);
+                }
+            });
+        }
+
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', function(e) {
+                try {
+                    if (e.target === modalOverlay) {
+                        modalOverlay.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Modal overlay click error:', error);
+                }
+            });
+        }
+
+        // Photo Upload - Maintains aspect ratio, no page reload
+        if (photoUpload) {
+            photoUpload.addEventListener('change', function(e) {
+                try {
+                    const file = e.target.files[0];
+                    if (!file) {
+                        return;
+                    }
+                    
+                    // Validate file type - images only
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please select an image file (JPG, PNG, etc.).');
+                        e.target.value = ''; // Reset input
+                        return;
+                    }
+                    
+                    // Validate file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('Image size should be less than 5MB. Please choose a smaller image.');
+                        e.target.value = ''; // Reset input
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            if (!photoImage || !avatarPlaceholder) {
+                                console.error('Photo elements not found');
+                                return;
+                            }
+                            
+                            // Create image to check dimensions and maintain aspect ratio
+                            const img = new Image();
+                            img.onload = function() {
+                                photoImage.src = event.target.result;
+                                photoImage.style.display = 'block';
+                                photoImage.style.objectFit = 'cover';
+                                photoImage.style.objectPosition = 'center';
+                                avatarPlaceholder.style.display = 'none';
+                                
+                                // Reset input to allow re-uploading same file
+                                photoUpload.value = '';
+                            };
+                            img.onerror = function() {
+                                alert('Error loading image. Please try a different file.');
+                                photoUpload.value = '';
+                            };
+                            img.src = event.target.result;
+                        } catch (err) {
+                            console.error('Error processing image:', err);
+                            alert('Error processing image. Please try again.');
+                            photoUpload.value = '';
+                        }
+                    };
+                    reader.onerror = function() {
+                        alert('Error reading the image file. Please try again.');
+                        photoUpload.value = '';
+                    };
+                    reader.readAsDataURL(file);
+                } catch (error) {
+                    console.error('Photo upload error:', error);
+                    alert('An error occurred while uploading the image. Please try again.');
+                    if (photoUpload) {
+                        photoUpload.value = '';
+                    }
+                }
+            });
+        }
+
+        // Photo upload trigger button - Opens file picker, accepts images only
+        const photoUploadTrigger = document.getElementById('photo-upload-trigger');
+        if (photoUploadTrigger && photoUpload) {
+            photoUploadTrigger.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (isEditMode && photoUpload) {
+                        photoUpload.click();
+                    } else {
+                        alert('Please switch to Edit mode to change the photo.');
+                    }
+                } catch (error) {
+                    console.error('Photo upload trigger error:', error);
+                    alert('Error opening file picker. Please try again.');
+                }
+            });
+
+            // Make photo area clickable to upload (only in edit mode)
+            const photoArea = document.querySelector('.photo-area');
+            if (photoArea && photoUpload) {
+                photoArea.addEventListener('click', function(e) {
+                    try {
+                        if (e.target !== photoUpload && e.target !== photoImage && e.target !== photoUploadTrigger && isEditMode) {
+                            photoUpload.click();
+                        }
+                    } catch (error) {
+                        console.error('Photo area click error:', error);
+                    }
+                });
+            }
+        }
+
+        // Mode Switching with Visual Indicators
+        function setEditMode() {
+            try {
+                isEditMode = true;
+                
+                // Enable all editable fields
+                if (editableFields && editableFields.length > 0) {
+                    editableFields.forEach(field => {
+                        if (field) {
+                            field.disabled = false;
+                            field.classList.add('edit-mode');
+                            field.classList.remove('preview-mode');
+                        }
+                    });
+                }
+                
+                // Show photo upload button
+                if (photoUploadTrigger) {
+                    photoUploadTrigger.classList.remove('preview-mode');
+                    photoUploadTrigger.style.display = 'block';
+                }
+                
+                // Visual indicator - green border and indicator
+                if (idCard) {
+                    idCard.classList.add('edit-mode-active');
+                    idCard.classList.remove('preview-mode-active');
+                }
+                
+                // Button states
+                if (editBtn) editBtn.disabled = true;
+                if (previewBtn) previewBtn.disabled = false;
+            } catch (error) {
+                console.error('Error in setEditMode:', error);
+            }
+        }
+
+        function setPreviewMode() {
+            try {
+                isEditMode = false;
+                
+                // Disable all editable fields - hide form inputs
+                if (editableFields && editableFields.length > 0) {
+                    editableFields.forEach(field => {
+                        if (field) {
+                            field.disabled = true;
+                            field.classList.remove('edit-mode');
+                            field.classList.add('preview-mode');
+                        }
+                    });
+                }
+                
+                // Hide photo upload button
+                if (photoUploadTrigger) {
+                    photoUploadTrigger.classList.add('preview-mode');
+                    photoUploadTrigger.style.display = 'none';
+                }
+                
+                // Visual indicator - normal border
+                if (idCard) {
+                    idCard.classList.remove('edit-mode-active');
+                    idCard.classList.add('preview-mode-active');
+                }
+                
+                // Button states
+                if (editBtn) editBtn.disabled = false;
+                if (previewBtn) previewBtn.disabled = true;
+            } catch (error) {
+                console.error('Error in setPreviewMode:', error);
+            }
+        }
+
+        // Edit Button - Toggle editable mode with visual indicator
+        if (editBtn) {
+            editBtn.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditMode();
+                } catch (error) {
+                    console.error('Edit button error:', error);
+                    alert('Error switching to edit mode. Please try again.');
+                }
+            });
+        }
+        
+        // Preview Button - Clean preview mode, hide form inputs
+        if (previewBtn) {
+            previewBtn.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPreviewMode();
+                } catch (error) {
+                    console.error('Preview button error:', error);
+                    alert('Error switching to preview mode. Please try again.');
+                }
+            });
+        }
+
+        // Preview Window Controls
+        if (previewClose) {
+            previewClose.addEventListener('click', () => {
+                previewWindow.classList.remove('active');
+                previewContainer.innerHTML = '';
+            });
+        }
+
+        if (previewWindow) {
+            previewWindow.addEventListener('click', (e) => {
+                if (e.target === previewWindow) {
+                    previewWindow.classList.remove('active');
+                    previewContainer.innerHTML = '';
+                }
+            });
+        }
+
+        // Download Preview - Captures ID only, no UI controls
+        if (downloadPreviewBtn) {
+            downloadPreviewBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Check if html2canvas is loaded
+                if (typeof html2canvas === 'undefined') {
+                    alert('html2canvas library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                if (!idCard || !previewContainer || !previewWindow) {
+                    alert('Required elements not found. Please refresh the page.');
+                    return;
+                }
+                
+                const wasEditMode = isEditMode;
+                try {
+                    // Switch to preview mode first
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+
+                    downloadPreviewBtn.textContent = 'Generating Preview...';
+                    downloadPreviewBtn.disabled = true;
+
+                    // Hide all UI elements before capture - only show ID card
+                    const controls = document.querySelector('.controls');
+                    const modalHeader = document.querySelector('.modal-header');
+                    const modalOverlay = document.querySelector('.modal-overlay');
+                    const modalContent = document.querySelector('.modal-content');
+                    const editIndicator = document.querySelector('.edit-mode-indicator');
+                    
+                    // Store original styles
+                    const originalStyles = {
+                        controls: controls ? controls.style.display : '',
+                        modalHeader: modalHeader ? modalHeader.style.display : '',
+                        overlayBg: modalOverlay ? modalOverlay.style.background : '',
+                        overlayDisplay: modalOverlay ? modalOverlay.style.display : '',
+                        contentBg: modalContent ? modalContent.style.background : '',
+                        contentPadding: modalContent ? modalContent.style.padding : '',
+                        contentBoxShadow: modalContent ? modalContent.style.boxShadow : '',
+                        editIndicator: editIndicator ? editIndicator.style.display : ''
+                    };
+                    
+                    // Hide ALL UI elements - make everything transparent/invisible
+                    if (controls) controls.style.display = 'none';
+                    if (modalHeader) modalHeader.style.display = 'none';
+                    if (editIndicator) editIndicator.style.display = 'none';
+                    if (modalOverlay) {
+                        modalOverlay.style.background = 'transparent';
+                        modalOverlay.style.display = 'flex';
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = 'transparent';
+                        modalContent.style.padding = '0';
+                        modalContent.style.boxShadow = 'none';
+                        modalContent.style.borderRadius = '0';
+                    }
+
+                    // Wait for DOM update
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    // Verify element is still accessible
+                    if (!idCard || !document.body.contains(idCard)) {
+                        throw new Error('ID card element is not accessible');
+                    }
+
+                    // Ensure element is visible and ready
+                    idCard.style.display = 'block';
+                    idCard.style.visibility = 'visible';
+                    idCard.style.opacity = '1';
+                    
+                    // Force a reflow to ensure styles are applied
+                    idCard.offsetHeight;
+                    
+                    // High resolution capture - ONLY the ID card, exactly as shown in image
+                    // Use method that avoids iframe issues by cloning to temporary container
+                    let canvas;
+                    let tempContainer = null;
+                    let clonedCard = null;
+                    
+                    try {
+                        // Method 1: Try direct capture first
+                        canvas = await html2canvas(idCard, {
+                            scale: 3,
+                            backgroundColor: '#fff',
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: true,
+                            foreignObjectRendering: false,
+                            ignoreElements: function(element) {
+                                if (!element || !element.classList) return false;
+                                return element.classList.contains('controls') || 
+                                       element.classList.contains('modal-header') ||
+                                       element.classList.contains('close-modal') ||
+                                       element.classList.contains('photo-upload-btn') ||
+                                       element.classList.contains('edit-mode-indicator');
+                            }
+                        });
+                    } catch (canvasError) {
+                        console.warn('Direct capture failed, trying clone method:', canvasError);
+                        
+                        // Method 2: Clone element to temporary container (avoids iframe issues)
+                        try {
+                            // Create temporary container
+                            tempContainer = document.createElement('div');
+                            tempContainer.style.position = 'absolute';
+                            tempContainer.style.left = '-9999px';
+                            tempContainer.style.top = '0';
+                            tempContainer.style.width = idCard.offsetWidth + 'px';
+                            tempContainer.style.height = idCard.offsetHeight + 'px';
+                            document.body.appendChild(tempContainer);
+                            
+                            // Clone the card
+                            clonedCard = idCard.cloneNode(true);
+                            clonedCard.id = 'id-card-clone';
+                            clonedCard.style.display = 'block';
+                            clonedCard.style.visibility = 'visible';
+                            clonedCard.style.opacity = '1';
+                            clonedCard.style.position = 'relative';
+                            clonedCard.style.margin = '0';
+                            tempContainer.appendChild(clonedCard);
+                            
+                            // Wait for clone to render
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                            // Capture the clone
+                            canvas = await html2canvas(clonedCard, {
+                                scale: 3,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } catch (cloneError) {
+                            console.error('Clone method also failed:', cloneError);
+                            // Final fallback: simple capture
+                            canvas = await html2canvas(idCard, {
+                                scale: 2,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } finally {
+                            // Clean up temporary container
+                            if (tempContainer && tempContainer.parentNode) {
+                                tempContainer.parentNode.removeChild(tempContainer);
+                            }
+                        }
+                    }
+
+                    // Restore UI elements
+                    if (controls) controls.style.display = originalStyles.controls;
+                    if (modalHeader) modalHeader.style.display = originalStyles.modalHeader;
+                    if (editIndicator) editIndicator.style.display = originalStyles.editIndicator;
+                    if (modalOverlay) {
+                        modalOverlay.style.background = originalStyles.overlayBg;
+                        modalOverlay.style.display = originalStyles.overlayDisplay;
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = originalStyles.contentBg;
+                        modalContent.style.padding = originalStyles.contentPadding;
+                        modalContent.style.boxShadow = originalStyles.contentBoxShadow;
+                        modalContent.style.borderRadius = '';
+                    }
+
+                    const img = document.createElement('img');
+                    img.src = canvas.toDataURL('image/png');
+                    // Maintain ID card aspect ratio in preview
+                    img.style.width = 'auto';
+                    img.style.height = 'auto';
+                    img.style.maxWidth = '90vw';
+                    img.style.maxHeight = '90vh';
+                    img.style.display = 'block';
+                    img.style.objectFit = 'contain';
+                    
+                    // Create download button for preview
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.textContent = '📥 Download PNG';
+                    downloadBtn.className = 'preview-download-btn';
+                    downloadBtn.style.cssText = 'margin-top: 15px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;';
+                    downloadBtn.addEventListener('click', function() {
+                        const link = document.createElement('a');
+                        link.download = 'philippine-national-id.png';
+                        link.href = canvas.toDataURL('image/png', 1.0);
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        setTimeout(() => {
+                            document.body.removeChild(link);
+                        }, 100);
+                    });
+                    
+                    previewContainer.innerHTML = '';
+                    previewContainer.appendChild(img);
+                    previewContainer.appendChild(downloadBtn);
+                    previewWindow.classList.add('active');
+
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 100);
+                    }
+                } catch (error) {
+                    console.error('Preview generation error:', error);
+                    alert('Error generating preview: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                } finally {
+                    downloadPreviewBtn.textContent = '📥 Download Preview';
+                    downloadPreviewBtn.disabled = false;
+                }
+            });
+        }
+
+        // Print Preview - Letter size, centered, no UI controls
+        if (printPreviewBtn) {
+            printPreviewBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const wasEditMode = isEditMode;
+                try {
+                    // Switch to preview mode
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                    
+                    // Print will use @media print styles
+                    window.print();
+                    
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 500);
+                    }
+                } catch (error) {
+                    console.error('Print error:', error);
+                    alert('Error opening print preview: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                }
+            });
+        }
+
+        // Download PNG - High resolution, correct scaling, no cropping
+        if (downloadPngBtn) {
+            downloadPngBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Check if html2canvas is loaded
+                if (typeof html2canvas === 'undefined') {
+                    alert('html2canvas library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                if (!idCard) {
+                    alert('ID card element not found. Please refresh the page.');
+                    return;
+                }
+                
+                const wasEditMode = isEditMode;
+                try {
+                    // Switch to preview mode
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+
+                    downloadPngBtn.textContent = 'Generating PNG...';
+                    downloadPngBtn.disabled = true;
+
+                    // Hide all UI elements before capture - only show ID card
+                    const controls = document.querySelector('.controls');
+                    const modalHeader = document.querySelector('.modal-header');
+                    const modalOverlay = document.querySelector('.modal-overlay');
+                    const modalContent = document.querySelector('.modal-content');
+                    const editIndicator = document.querySelector('.edit-mode-indicator');
+                    
+                    // Store original styles
+                    const originalStyles = {
+                        controls: controls ? controls.style.display : '',
+                        modalHeader: modalHeader ? modalHeader.style.display : '',
+                        overlayBg: modalOverlay ? modalOverlay.style.background : '',
+                        overlayDisplay: modalOverlay ? modalOverlay.style.display : '',
+                        contentBg: modalContent ? modalContent.style.background : '',
+                        contentPadding: modalContent ? modalContent.style.padding : '',
+                        contentBoxShadow: modalContent ? modalContent.style.boxShadow : '',
+                        editIndicator: editIndicator ? editIndicator.style.display : ''
+                    };
+                    
+                    // Hide ALL UI elements - make everything transparent/invisible
+                    if (controls) controls.style.display = 'none';
+                    if (modalHeader) modalHeader.style.display = 'none';
+                    if (editIndicator) editIndicator.style.display = 'none';
+                    if (modalOverlay) {
+                        modalOverlay.style.background = 'transparent';
+                        modalOverlay.style.display = 'flex';
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = 'transparent';
+                        modalContent.style.padding = '0';
+                        modalContent.style.boxShadow = 'none';
+                        modalContent.style.borderRadius = '0';
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    // Verify element is still accessible
+                    if (!idCard || !document.body.contains(idCard)) {
+                        throw new Error('ID card element is not accessible');
+                    }
+
+                    // Ensure element is visible and ready
+                    idCard.style.display = 'block';
+                    idCard.style.visibility = 'visible';
+                    idCard.style.opacity = '1';
+                    
+                    // Force a reflow to ensure styles are applied
+                    idCard.offsetHeight;
+                    
+                    // High resolution capture - ONLY the ID card, exactly as shown in image
+                    // Use method that avoids iframe issues by cloning to temporary container
+                    let canvas;
+                    let tempContainer = null;
+                    let clonedCard = null;
+                    
+                    try {
+                        // Method 1: Try direct capture first
+                        canvas = await html2canvas(idCard, {
+                            scale: 3, // High resolution
+                            backgroundColor: '#fff',
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: true,
+                            foreignObjectRendering: false,
+                            ignoreElements: function(element) {
+                                if (!element || !element.classList) return false;
+                                return element.classList.contains('controls') || 
+                                       element.classList.contains('modal-header') ||
+                                       element.classList.contains('close-modal') ||
+                                       element.classList.contains('photo-upload-btn') ||
+                                       element.classList.contains('edit-mode-indicator');
+                            }
+                        });
+                    } catch (canvasError) {
+                        console.warn('Direct capture failed, trying clone method:', canvasError);
+                        
+                        // Method 2: Clone element to temporary container (avoids iframe issues)
+                        try {
+                            // Create temporary container
+                            tempContainer = document.createElement('div');
+                            tempContainer.style.position = 'absolute';
+                            tempContainer.style.left = '-9999px';
+                            tempContainer.style.top = '0';
+                            tempContainer.style.width = idCard.offsetWidth + 'px';
+                            tempContainer.style.height = idCard.offsetHeight + 'px';
+                            document.body.appendChild(tempContainer);
+                            
+                            // Clone the card
+                            clonedCard = idCard.cloneNode(true);
+                            clonedCard.id = 'id-card-clone';
+                            clonedCard.style.display = 'block';
+                            clonedCard.style.visibility = 'visible';
+                            clonedCard.style.opacity = '1';
+                            clonedCard.style.position = 'relative';
+                            clonedCard.style.margin = '0';
+                            tempContainer.appendChild(clonedCard);
+                            
+                            // Wait for clone to render
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                            // Capture the clone
+                            canvas = await html2canvas(clonedCard, {
+                                scale: 3,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } catch (cloneError) {
+                            console.error('Clone method also failed:', cloneError);
+                            // Final fallback: simple capture
+                            canvas = await html2canvas(idCard, {
+                                scale: 2,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } finally {
+                            // Clean up temporary container
+                            if (tempContainer && tempContainer.parentNode) {
+                                tempContainer.parentNode.removeChild(tempContainer);
+                            }
+                        }
+                    }
+
+                    // Restore UI elements
+                    if (controls) controls.style.display = originalStyles.controls;
+                    if (modalHeader) modalHeader.style.display = originalStyles.modalHeader;
+                    if (editIndicator) editIndicator.style.display = originalStyles.editIndicator;
+                    if (modalOverlay) {
+                        modalOverlay.style.background = originalStyles.overlayBg;
+                        modalOverlay.style.display = originalStyles.overlayDisplay;
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = originalStyles.contentBg;
+                        modalContent.style.padding = originalStyles.contentPadding;
+                        modalContent.style.boxShadow = originalStyles.contentBoxShadow;
+                        modalContent.style.borderRadius = '';
+                    }
+
+                    // Create download link with high quality PNG
+                    const link = document.createElement('a');
+                    link.download = 'philippine-national-id.png';
+                    link.href = canvas.toDataURL('image/png', 1.0); // Maximum quality
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    // Clean up after a short delay
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                    }, 100);
+
+                    // Show success message with back button
+                    const successMsg = document.createElement('div');
+                    successMsg.id = 'download-success-msg';
+                    successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; gap: 15px;';
+                    successMsg.innerHTML = '<span>✓ PNG downloaded successfully!</span>';
+                    
+                    const backBtn = document.createElement('button');
+                    backBtn.textContent = '← Back';
+                    backBtn.style.cssText = 'background: white; color: #4CAF50; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;';
+                    backBtn.addEventListener('click', function() {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    });
+                    successMsg.appendChild(backBtn);
+                    
+                    document.body.appendChild(successMsg);
+                    
+                    // Auto-remove after 5 seconds
+                    setTimeout(() => {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    }, 5000);
+
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 100);
+                    }
+                } catch (error) {
+                    console.error('PNG generation error:', error);
+                    alert('Error generating PNG: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                } finally {
+                    downloadPngBtn.textContent = 'Download PNG';
+                    downloadPngBtn.disabled = false;
+                }
+            });
+        }
+
+        // Download PDF - Uses same capture method as PNG for identical design
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Check if libraries are loaded
+                if (typeof html2canvas === 'undefined') {
+                    alert('html2canvas library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                // jsPDF might be available as window.jsPDF or window.jspdf.jsPDF
+                const jsPDF = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
+                if (!jsPDF) {
+                    alert('jsPDF library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                if (!idCard) {
+                    alert('ID card element not found. Please refresh the page.');
+                    return;
+                }
+                
+                const wasEditMode = isEditMode;
+                try {
+                    // Switch to preview mode
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+
+                    downloadPdfBtn.textContent = 'Generating PDF...';
+                    downloadPdfBtn.disabled = true;
+
+                    // Hide all UI elements before capture - only show ID card
+                    const controls = document.querySelector('.controls');
+                    const modalHeader = document.querySelector('.modal-header');
+                    const modalOverlay = document.querySelector('.modal-overlay');
+                    const modalContent = document.querySelector('.modal-content');
+                    const editIndicator = document.querySelector('.edit-mode-indicator');
+                    
+                    // Store original styles
+                    const originalStyles = {
+                        controls: controls ? controls.style.display : '',
+                        modalHeader: modalHeader ? modalHeader.style.display : '',
+                        overlayBg: modalOverlay ? modalOverlay.style.background : '',
+                        overlayDisplay: modalOverlay ? modalOverlay.style.display : '',
+                        contentBg: modalContent ? modalContent.style.background : '',
+                        contentPadding: modalContent ? modalContent.style.padding : '',
+                        contentBoxShadow: modalContent ? modalContent.style.boxShadow : '',
+                        editIndicator: editIndicator ? editIndicator.style.display : ''
+                    };
+                    
+                    // Hide ALL UI elements - make everything transparent/invisible
+                    if (controls) controls.style.display = 'none';
+                    if (modalHeader) modalHeader.style.display = 'none';
+                    if (editIndicator) editIndicator.style.display = 'none';
+                    if (modalOverlay) {
+                        modalOverlay.style.background = 'transparent';
+                        modalOverlay.style.display = 'flex';
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = 'transparent';
+                        modalContent.style.padding = '0';
+                        modalContent.style.boxShadow = 'none';
+                        modalContent.style.borderRadius = '0';
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    // Verify element is still accessible
+                    if (!idCard || !document.body.contains(idCard)) {
+                        throw new Error('ID card element is not accessible');
+                    }
+
+                    // Ensure element is visible and ready
+                    idCard.style.display = 'block';
+                    idCard.style.visibility = 'visible';
+                    idCard.style.opacity = '1';
+                    
+                    // Force a reflow to ensure styles are applied
+                    idCard.offsetHeight;
+                    
+                    // Use SAME capture method as PNG - ensures identical design
+                    let canvas;
+                    let tempContainer = null;
+                    let clonedCard = null;
+                    
+                    try {
+                        // Method 1: Try direct capture first
+                        canvas = await html2canvas(idCard, {
+                            scale: 3, // High resolution (same as PNG)
+                            backgroundColor: '#fff',
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: true,
+                            foreignObjectRendering: false,
+                            ignoreElements: function(element) {
+                                if (!element || !element.classList) return false;
+                                return element.classList.contains('controls') || 
+                                       element.classList.contains('modal-header') ||
+                                       element.classList.contains('close-modal') ||
+                                       element.classList.contains('photo-upload-btn') ||
+                                       element.classList.contains('edit-mode-indicator');
+                            }
+                        });
+                    } catch (canvasError) {
+                        console.warn('Direct capture failed, trying clone method:', canvasError);
+                        
+                        // Method 2: Clone element to temporary container (avoids iframe issues)
+                        try {
+                            // Create temporary container
+                            tempContainer = document.createElement('div');
+                            tempContainer.style.position = 'absolute';
+                            tempContainer.style.left = '-9999px';
+                            tempContainer.style.top = '0';
+                            tempContainer.style.width = idCard.offsetWidth + 'px';
+                            tempContainer.style.height = idCard.offsetHeight + 'px';
+                            document.body.appendChild(tempContainer);
+                            
+                            // Clone the card
+                            clonedCard = idCard.cloneNode(true);
+                            clonedCard.id = 'id-card-clone';
+                            clonedCard.style.display = 'block';
+                            clonedCard.style.visibility = 'visible';
+                            clonedCard.style.opacity = '1';
+                            clonedCard.style.position = 'relative';
+                            clonedCard.style.margin = '0';
+                            tempContainer.appendChild(clonedCard);
+                            
+                            // Wait for clone to render
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                            // Capture the clone
+                            canvas = await html2canvas(clonedCard, {
+                                scale: 3,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } catch (cloneError) {
+                            console.error('Clone method also failed:', cloneError);
+                            // Final fallback: simple capture
+                            canvas = await html2canvas(idCard, {
+                                scale: 2,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } finally {
+                            // Clean up temporary container
+                            if (tempContainer && tempContainer.parentNode) {
+                                tempContainer.parentNode.removeChild(tempContainer);
+                            }
+                        }
+                    }
+
+                    // Restore UI elements
+                    if (controls) controls.style.display = originalStyles.controls;
+                    if (modalHeader) modalHeader.style.display = originalStyles.modalHeader;
+                    if (editIndicator) editIndicator.style.display = originalStyles.editIndicator;
+                    if (modalOverlay) {
+                        modalOverlay.style.background = originalStyles.overlayBg;
+                        modalOverlay.style.display = originalStyles.overlayDisplay;
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = originalStyles.contentBg;
+                        modalContent.style.padding = originalStyles.contentPadding;
+                        modalContent.style.boxShadow = originalStyles.contentBoxShadow;
+                        modalContent.style.borderRadius = '';
+                    }
+
+                    // Convert canvas to PDF using jsPDF (same design as PNG)
+                    // Get jsPDF - might be window.jsPDF or window.jspdf.jsPDF
+                    const jsPDF = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
+                    
+                    if (!jsPDF) {
+                        throw new Error('jsPDF is not available');
+                    }
+                    
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    
+                    // Calculate PDF dimensions based on canvas size (maintain aspect ratio)
+                    const canvasWidth = canvas.width;
+                    const canvasHeight = canvas.height;
+                    
+                    // Convert pixels to mm (96 DPI = 0.264583 mm per pixel)
+                    const mmPerPixel = 0.264583;
+                    const pdfWidth = canvasWidth * mmPerPixel;
+                    const pdfHeight = canvasHeight * mmPerPixel;
+                    
+                    // Create PDF with exact ID card dimensions
+                    const pdf = new jsPDF({
+                        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+                        unit: 'mm',
+                        format: [pdfWidth, pdfHeight]
+                    });
+                    
+                    // Add image to PDF (full size, no margins)
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    
+                    // Save PDF
+                    pdf.save('philippine-national-id.pdf');
+
+                    // Show success message with back button
+                    const successMsg = document.createElement('div');
+                    successMsg.id = 'download-success-msg';
+                    successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #F44336; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; gap: 15px;';
+                    successMsg.innerHTML = '<span>✓ PDF downloaded successfully!</span>';
+                    
+                    const backBtn = document.createElement('button');
+                    backBtn.textContent = '← Back';
+                    backBtn.style.cssText = 'background: white; color: #F44336; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;';
+                    backBtn.addEventListener('click', function() {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    });
+                    successMsg.appendChild(backBtn);
+                    
+                    document.body.appendChild(successMsg);
+                    
+                    // Auto-remove after 5 seconds
+                    setTimeout(() => {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    }, 5000);
+
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 100);
+                    }
+                } catch (error) {
+                    console.error('PDF generation error:', error);
+                    alert('Error generating PDF: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                } finally {
+                    downloadPdfBtn.textContent = 'Download PDF';
+                    downloadPdfBtn.disabled = false;
+                }
+            });
+        }
+
+        // Initialize
+        setEditMode();
+        
+        // Debug: Log that initialization is complete
+        console.log('National ID App initialized successfully');
+        console.log('Buttons ready:', {
+            editBtn: !!editBtn,
+            previewBtn: !!previewBtn,
+            printPreviewBtn: !!printPreviewBtn,
+            downloadPreviewBtn: !!downloadPreviewBtn,
+            downloadPngBtn: !!downloadPngBtn,
+            downloadPdfBtn: !!downloadPdfBtn
+        });
+    }
+
+    // Start initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            waitForLibraries(initializeApp);
+        });
+    } else {
+        waitForLibraries(initializeApp);
+    }
+    
+    // Fallback: Try to initialize after a delay if libraries are already loaded
+    setTimeout(function() {
+        const jsPDFAvailable = typeof window.jsPDF !== 'undefined' || 
+                               typeof window.jspdf !== 'undefined' ||
+                               (typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF !== 'undefined');
+        
+        if (typeof html2canvas !== 'undefined' && jsPDFAvailable) {
+            if (typeof initializeApp === 'function') {
+                try {
+                    initializeApp();
+                } catch(e) {
+                    console.error('Error in fallback initialization:', e);
+                }
+            }
+        }
+    }, 2000);
+</script>
+
+</body>
+</html>

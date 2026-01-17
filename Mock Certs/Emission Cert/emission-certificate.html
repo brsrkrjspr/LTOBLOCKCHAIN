@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vehicle Emission Test Certificate</title>
+<link rel="stylesheet" href="emission-certificate.css">
+</head>
+<body>
+
+<div class="certificate">
+  
+  <!-- Watermark -->
+  <div class="watermark">DENR / LTO</div>
+
+  <!-- Official Header -->
+  <div class="border">
+    <h1>Republic of the Philippines</h1>
+    <h2>Department of Environment and Natural Resources</h2>
+    <h2>Land Transportation Office</h2>
+    <h3>Vehicle Emission Test Certificate</h3>
+    <hr>
+  </div>
+
+  <!-- Certificate Reference Number -->
+  <div class="cert-ref">
+    <span>Certificate Reference No.: </span>
+    <input type="text" id="cert-ref-input" class="editable-field" value="ETC-20260113-001" data-field="cert-ref">
+  </div>
+
+  <!-- Certificate Intro -->
+  <div class="intro">
+    <p>This is to certify that the motor vehicle described below has undergone a standard emission test and meets the environmental requirements set by the governing authorities.</p>
+  </div>
+
+  <!-- Owner & Vehicle Info -->
+  <section class="info">
+    <div class="owner">
+      <h3>Owner Information</h3>
+      <p><strong>Name:</strong> <input type="text" id="owner-name" class="editable-field" value="Juan Dela Cruz" data-field="owner-name"></p>
+      <p><strong>Address:</strong> <input type="text" id="owner-address" class="editable-field" value="456 Sampaguita St., Quezon City" data-field="owner-address"></p>
+    </div>
+    <div class="vehicle">
+      <h3>Vehicle Information</h3>
+      <p><strong>Make / Model:</strong> <input type="text" id="vehicle-make" class="editable-field" value="Toyota Corolla Altis" data-field="vehicle-make"></p>
+      <p><strong>Year Model:</strong> <input type="text" id="vehicle-year" class="editable-field" value="2025" data-field="vehicle-year"></p>
+      <p><strong>Body Type:</strong> <input type="text" id="vehicle-body" class="editable-field" value="Sedan" data-field="vehicle-body"></p>
+      <p><strong>Color:</strong> <input type="text" id="vehicle-color" class="editable-field" value="White" data-field="vehicle-color"></p>
+      <p><strong>Engine No.:</strong> <input type="text" id="engine-no" class="editable-field" value="2NR-FE123456" data-field="engine-no"></p>
+      <p><strong>Chassis / VIN:</strong> <input type="text" id="chassis-vin" class="editable-field" value="1HGBH41JXMN109186" data-field="chassis-vin"></p>
+      <p><strong>Plate No.:</strong> <input type="text" id="plate-no" class="editable-field" value="ABC1234" data-field="plate-no"></p>
+      <p><strong>Fuel Type:</strong> <input type="text" id="fuel-type" class="editable-field" value="Gasoline" data-field="fuel-type"></p>
+    </div>
+  </section>
+
+  <!-- Test Results -->
+  <section class="results">
+    <h3>Emission Test Results</h3>
+    <table>
+      <tr>
+        <td>CO Level</td>
+        <td>
+          <input type="text" id="co-level" class="editable-field table-input" value="0.20% - Pass" data-field="co-level">
+        </td>
+      </tr>
+      <tr>
+        <td>HC Level</td>
+        <td>
+          <input type="text" id="hc-level" class="editable-field table-input" value="120 ppm - Pass" data-field="hc-level">
+        </td>
+      </tr>
+      <tr>
+        <td>NOx Level</td>
+        <td>
+          <input type="text" id="nox-level" class="editable-field table-input" value="0.25% - Pass" data-field="nox-level">
+        </td>
+      </tr>
+      <tr>
+        <td>Smoke Opacity (Diesel)</td>
+        <td>
+          <input type="text" id="smoke-opacity" class="editable-field table-input" value="18% - Pass" data-field="smoke-opacity">
+        </td>
+      </tr>
+      <tr class="final">
+        <td colspan="2">
+          <strong>Overall Result: </strong>
+          <input type="text" id="overall-result" class="editable-field table-input" value="PASS" data-field="overall-result">
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- Certification Statement -->
+  <div class="declaration">
+    <p>Certified by the authorized inspector that this vehicle complies with emission standards required for registration and operation.</p>
+  </div>
+
+  <!-- Signature / Seal -->
+  <section class="signature-section">
+    <div class="sign">
+      <div class="signature-container">
+        <canvas id="signature-canvas" width="250" height="80"></canvas>
+        <img id="signature-image" class="signature-display" style="display: none;" alt="Signature">
+      </div>
+      <button id="clear-signature" class="clear-btn">Clear Signature</button>
+      <p class="inspector-name">
+        <input type="text" id="inspector-name" class="editable-field" value="Engr. Maria Santos" data-field="inspector-name">
+      </p>
+      <p class="inspector-title">Authorized Inspector</p>
+    </div>
+    <div class="seal">
+      <p>Official Stamp / Seal</p>
+      <div class="stamp-box">
+        <div class="seal-circle">
+          <div class="seal-text-outer">DEPARTMENT OF ENVIRONMENT AND NATURAL RESOURCES</div>
+          <div class="seal-text-inner">LAND TRANSPORTATION OFFICE</div>
+          <div class="seal-center">OFFICIAL SEAL</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <p class="footer-note">
+    Certificate No.: <span id="cert-no-display">ETC-20260113-001</span> | 
+    Date of Issue: <span id="date-issue"></span> | 
+    Valid Until: <span id="date-expiry"></span>
+  </p>
+
+</div>
+
+<!-- Control Buttons -->
+<div class="controls" id="controls">
+  <button id="edit-btn" class="control-btn">Edit Certificate</button>
+  <button id="preview-btn" class="control-btn">Preview Certificate</button>
+  <button id="download-btn" class="control-btn">Download Certificate</button>
+</div>
+
+<!-- Back to Edit Button (shown only in Preview Mode) -->
+<div class="preview-controls" id="preview-controls" style="display: none;">
+  <button id="back-edit-btn" class="control-btn back-btn">Back to Edit</button>
+  <button id="download-preview-btn" class="control-btn">Download Certificate</button>
+</div>
+
+<script>
+  // ============================================
+  // State Management
+  // ============================================
+  let isEditMode = true;
+  let isDrawing = false;
+  let signatureDrawn = false;
+
+  // ============================================
+  // DOM Elements
+  // ============================================
+  const canvas = document.getElementById('signature-canvas');
+  const ctx = canvas.getContext('2d');
+  const signatureImage = document.getElementById('signature-image');
+  const clearBtn = document.getElementById('clear-signature');
+  const editBtn = document.getElementById('edit-btn');
+  const previewBtn = document.getElementById('preview-btn');
+  const downloadBtn = document.getElementById('download-btn');
+  const backEditBtn = document.getElementById('back-edit-btn');
+  const downloadPreviewBtn = document.getElementById('download-preview-btn');
+  const controls = document.getElementById('controls');
+  const previewControls = document.getElementById('preview-controls');
+  const editableFields = document.querySelectorAll('.editable-field');
+  const certRefInput = document.getElementById('cert-ref-input');
+  const certNoDisplay = document.getElementById('cert-no-display');
+
+  // ============================================
+  // Canvas Setup
+  // ============================================
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // ============================================
+  // Signature Drawing Functions
+  // ============================================
+  function getCanvasCoordinates(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    if (e.touches && e.touches.length > 0) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY
+      };
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  function startDrawing(e) {
+    if (!isEditMode) return;
+    e.preventDefault();
+    isDrawing = true;
+    const coords = getCanvasCoordinates(e);
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+  }
+
+  function draw(e) {
+    if (!isDrawing || !isEditMode) return;
+    e.preventDefault();
+    const coords = getCanvasCoordinates(e);
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
+    signatureDrawn = true;
+  }
+
+  function stopDrawing(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    isDrawing = false;
+  }
+
+  // Mouse events
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseleave', stopDrawing);
+
+  // Touch events
+  canvas.addEventListener('touchstart', startDrawing);
+  canvas.addEventListener('touchmove', draw);
+  canvas.addEventListener('touchend', stopDrawing);
+  canvas.addEventListener('touchcancel', stopDrawing);
+
+  // Clear signature
+  clearBtn.addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    signatureImage.style.display = 'none';
+    canvas.style.display = 'block';
+    signatureDrawn = false;
+  });
+
+  // ============================================
+  // Convert Canvas to Image
+  // ============================================
+  function convertCanvasToImage() {
+    // Always convert canvas to image for preview/print
+    // This ensures signature is preserved as image
+    const dataURL = canvas.toDataURL('image/png');
+    signatureImage.src = dataURL;
+    
+    // Only show image if signature was actually drawn
+    if (signatureDrawn) {
+      signatureImage.style.display = 'block';
+      canvas.style.display = 'none';
+    }
+  }
+
+  // ============================================
+  // Mode Switching Functions
+  // ============================================
+  function setEditMode() {
+    isEditMode = true;
+    
+    // Enable all inputs
+    editableFields.forEach(field => {
+      field.disabled = false;
+      field.classList.add('edit-mode');
+      field.classList.remove('preview-mode');
+    });
+    
+    // Show canvas, hide image
+    canvas.style.display = 'block';
+    signatureImage.style.display = 'none';
+    
+    // Show clear button
+    clearBtn.style.display = 'block';
+    
+    // Enable canvas drawing
+    canvas.style.pointerEvents = 'auto';
+    
+    // Show edit controls, hide preview controls
+    controls.style.display = 'flex';
+    previewControls.style.display = 'none';
+    
+    // Update button states
+    editBtn.disabled = true;
+    previewBtn.disabled = false;
+  }
+
+  function setPreviewMode() {
+    isEditMode = false;
+    
+    // Convert signature to image
+    convertCanvasToImage();
+    
+    // Disable all inputs
+    editableFields.forEach(field => {
+      field.disabled = true;
+      field.classList.remove('edit-mode');
+      field.classList.add('preview-mode');
+    });
+    
+    // Hide clear button
+    clearBtn.style.display = 'none';
+    
+    // Disable canvas drawing
+    canvas.style.pointerEvents = 'none';
+    
+    // Hide edit controls, show preview controls
+    controls.style.display = 'none';
+    previewControls.style.display = 'flex';
+    
+    // Update button states
+    editBtn.disabled = false;
+    previewBtn.disabled = true;
+  }
+
+  // ============================================
+  // Certificate Reference Number Sync
+  // ============================================
+  certRefInput.addEventListener('input', (e) => {
+    certNoDisplay.textContent = e.target.value;
+  });
+
+  // ============================================
+  // Button Event Handlers
+  // ============================================
+  editBtn.addEventListener('click', setEditMode);
+  previewBtn.addEventListener('click', setPreviewMode);
+  backEditBtn.addEventListener('click', setEditMode);
+  
+  // Download from edit mode
+  downloadBtn.addEventListener('click', () => {
+    // Convert to preview mode first
+    setPreviewMode();
+    
+    // Small delay to ensure conversion completes
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  });
+  
+  // Download from preview mode
+  downloadPreviewBtn.addEventListener('click', () => {
+    // Small delay to ensure everything is ready
+    setTimeout(() => {
+      window.print();
+    }, 50);
+  });
+
+  // ============================================
+  // Date Initialization
+  // ============================================
+  const today = new Date();
+  const nextYear = new Date();
+  nextYear.setFullYear(today.getFullYear() + 1);
+
+  const formatDate = d => d.toLocaleDateString("en-US", {
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit'
+  });
+
+  document.getElementById("date-issue").textContent = formatDate(today);
+  document.getElementById("date-expiry").textContent = formatDate(nextYear);
+
+  // ============================================
+  // Initialize in Edit Mode
+  // ============================================
+  setEditMode();
+</script>
+
+</body>
+</html>

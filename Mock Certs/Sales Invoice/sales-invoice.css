@@ -1,0 +1,498 @@
+* {
+  box-sizing: border-box;
+  font-family: "Courier New", monospace;
+}
+
+body {
+  background: #eaeaea;
+  padding: 20px;
+}
+
+.receipt {
+  background: #fff;
+  max-width: 700px;
+  margin: auto;
+  padding: 20px;
+  border: 1px dashed #999;
+}
+
+/* PDF optimization - compact layout */
+.receipt.pdf-mode {
+  padding: 10px 12px;
+  max-width: 100%;
+  width: 8.1in; /* Fit within letter size (8.5in - margins) */
+  margin: 0 auto;
+  overflow: visible;
+  height: auto;
+  min-height: auto;
+  box-sizing: border-box;
+}
+
+.receipt.pdf-mode section {
+  margin-bottom: 6px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.receipt.pdf-mode hr {
+  margin: 6px 0;
+  border-top: 1px dashed #000;
+}
+
+.receipt.pdf-mode .header h1 {
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.receipt.pdf-mode .header h2 {
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.receipt.pdf-mode section h3 {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.receipt.pdf-mode section p {
+  font-size: 11px;
+  margin: 2px 0;
+  line-height: 1.3;
+}
+
+.receipt.pdf-mode table {
+  font-size: 11px;
+}
+
+.receipt.pdf-mode table td {
+  padding: 2px 0;
+  line-height: 1.3;
+}
+
+.receipt.pdf-mode .signatures {
+  gap: 15px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.receipt.pdf-mode .signature-svg {
+  height: 35px;
+  max-width: 160px;
+}
+
+.receipt.pdf-mode .signature-line {
+  margin-bottom: 10px;
+}
+
+.receipt.pdf-mode .stamp-seal {
+  width: 130px;
+  height: 130px;
+}
+
+.receipt.pdf-mode .stamp-seal::before {
+  width: 115px;
+  height: 115px;
+}
+
+.receipt.pdf-mode .stamp-inner {
+  padding: 12px;
+}
+
+.receipt.pdf-mode .stamp-text-top {
+  font-size: 9px;
+  margin-bottom: 6px;
+}
+
+.receipt.pdf-mode .stamp-text-center {
+  font-size: 12px;
+  margin: 3px 0;
+}
+
+.receipt.pdf-mode .stamp-text-center-sub {
+  font-size: 10px;
+  margin: 3px 0;
+}
+
+.receipt.pdf-mode .stamp-text-bottom {
+  font-size: 8px;
+  margin-top: 6px;
+}
+
+.receipt.pdf-mode .stamp-date {
+  font-size: 9px;
+  margin-top: 8px;
+  padding-top: 4px;
+}
+
+.receipt.pdf-mode .footer-note {
+  font-size: 9px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.receipt.pdf-mode .declaration {
+  font-size: 10px;
+  margin: 4px 0;
+  padding: 4px 0;
+}
+
+.receipt.pdf-mode .signature-details {
+  font-size: 10px;
+  margin-top: 6px;
+}
+
+.receipt.pdf-mode .signature-details p {
+  margin: 2px 0;
+  font-size: 10px;
+}
+
+.receipt.pdf-mode .meta {
+  font-size: 11px;
+  margin-bottom: 4px;
+  margin-top: 2px;
+}
+
+.receipt.pdf-mode .authentication {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.receipt.pdf-mode .authentication p {
+  margin: 2px 0;
+  font-size: 10px;
+}
+
+.receipt.pdf-mode .stamp-row {
+  margin-top: 6px;
+  gap: 15px;
+}
+
+/* Ensure all elements are visible in PDF */
+.receipt.pdf-mode * {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.receipt.pdf-mode input.editable-field {
+  color: #000 !important;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.pdf-text-replacement {
+  font-family: "Courier New", monospace;
+  font-size: inherit;
+  color: #000;
+  display: inline;
+  white-space: pre-wrap;
+  line-height: 1.3;
+  vertical-align: baseline;
+}
+
+.header {
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.header h2 {
+  margin-top: 10px;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+section h3 {
+  font-size: 14px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+section p {
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table td {
+  padding: 4px 0;
+}
+
+.amounts td:last-child {
+  text-align: right;
+}
+
+.total td {
+  border-top: 1px dashed #000;
+  font-weight: bold;
+}
+
+.declaration {
+  font-style: italic;
+  font-size: 12px;
+}
+
+.signatures {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  font-size: 12px;
+}
+
+.signature-box {
+  flex: 1;
+  text-align: center;
+}
+
+.signature-line {
+  margin-bottom: 15px;
+}
+
+.signature-svg {
+  width: 100%;
+  max-width: 200px;
+  height: 50px;
+  margin-bottom: 5px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.signature-line p:first-child {
+  margin-bottom: 5px;
+  font-size: 14px;
+  min-height: 20px;
+}
+
+.signature-label {
+  font-weight: bold;
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.signature-details {
+  text-align: left;
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.signature-details p {
+  margin: 4px 0;
+}
+
+.stamp-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 10px;
+}
+
+.stamp-row p {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.stamp-container {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.stamp-seal {
+  width: 180px;
+  height: 180px;
+  border: 4px solid #c00;
+  border-radius: 50%;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stamp-seal::before {
+  content: '';
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border: 2px solid #c00;
+  border-radius: 50%;
+  border-style: dashed;
+}
+
+.stamp-inner {
+  text-align: center;
+  z-index: 1;
+  padding: 20px;
+  position: relative;
+}
+
+.stamp-text-top {
+  font-size: 10px;
+  font-weight: bold;
+  color: #c00;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.stamp-text-center {
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  margin: 4px 0;
+  letter-spacing: 1px;
+}
+
+.stamp-text-center-sub {
+  font-size: 12px;
+  font-weight: bold;
+  color: #000;
+  margin: 4px 0;
+  letter-spacing: 1px;
+}
+
+.stamp-text-bottom {
+  font-size: 9px;
+  color: #333;
+  margin-top: 8px;
+  letter-spacing: 1px;
+}
+
+.stamp-date {
+  font-size: 10px;
+  color: #666;
+  margin-top: 10px;
+  font-weight: bold;
+  border-top: 1px solid #ccc;
+  padding-top: 6px;
+}
+
+.footer-note {
+  text-align: center;
+  font-size: 11px;
+  margin-top: 20px;
+}
+
+hr {
+  border: none;
+  border-top: 1px dashed #000;
+  margin: 12px 0;
+}
+
+/* Editable fields */
+.editable-field {
+  border: 1px solid #ccc;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-family: "Courier New", monospace;
+  background: #fff;
+  min-width: 200px;
+  border-radius: 3px;
+}
+
+.editable-field:focus {
+  outline: 2px solid #4a90e2;
+  border-color: #4a90e2;
+  background: #f8f9fa;
+}
+
+table .editable-field {
+  width: 100%;
+  min-width: 150px;
+}
+
+/* Download button */
+.download-container {
+  max-width: 700px;
+  margin: 20px auto;
+  text-align: center;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.preview-btn,
+.download-btn {
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  font-family: "Courier New", monospace;
+}
+
+.preview-btn {
+  background: #28a745;
+}
+
+.preview-btn:hover {
+  background: #218838;
+}
+
+.preview-btn:active {
+  background: #1e7e34;
+}
+
+.preview-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.download-btn {
+  background: #4a90e2;
+}
+
+.download-btn:hover {
+  background: #357abd;
+}
+
+.download-btn:active {
+  background: #2a5f94;
+}
+
+.download-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Hide input borders in PDF */
+@media print {
+  .editable-field {
+    border: none;
+    background: transparent;
+    padding: 0;
+  }
+  
+  .download-container {
+    display: none;
+  }
+}
+
+/* Print optimization */
+@media print {
+  body {
+    background: none;
+    padding: 0;
+  }
+  .receipt {
+    border: none;
+  }
+}

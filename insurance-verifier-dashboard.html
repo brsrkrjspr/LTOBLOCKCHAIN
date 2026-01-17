@@ -948,6 +948,100 @@
                 <!-- Insurance Certificate Verification -->
                 <div class="dashboard-card">
                     <div class="section-header">
+                                        <!-- ============================================
+                                           INSURANCE CERTIFICATE GENERATION
+                                           ============================================ -->
+                                        <div class="dashboard-card">
+                                            <div class="section-header">
+                                                <h3><span class="card-icon">📄</span> Generate Insurance Certificate</h3>
+                                                <p class="subtitle">Issue a new insurance certificate for a vehicle owner</p>
+                                            </div>
+
+                                            <form id="generateInsuranceCertForm" class="form-container" style="max-width: 900px;">
+                                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                                    <div class="form-group">
+                                                        <label for="insuranceOwnerEmail">Owner Email *</label>
+                                                        <input type="email" id="insuranceOwnerEmail" name="ownerEmail" required 
+                                                               placeholder="owner@example.com" 
+                                                               class="form-control">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="insuranceOwnerName">Owner Full Name *</label>
+                                                        <input type="text" id="insuranceOwnerName" name="ownerName" required 
+                                                               placeholder="Juan Dela Cruz" 
+                                                               class="form-control">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                                    <div class="form-group">
+                                                        <label for="insuranceVehicleVIN">Vehicle VIN *</label>
+                                                        <input type="text" id="insuranceVehicleVIN" name="vehicleVIN" required 
+                                                               placeholder="MHRVJ06P447123456" 
+                                                               maxlength="17" 
+                                                               class="form-control">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="insurancePolicyNumber">Policy Number *</label>
+                                                        <input type="text" id="insurancePolicyNumber" name="policyNumber" required 
+                                                               placeholder="CTPL-2026-00001" 
+                                                               class="form-control">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                                    <div class="form-group">
+                                                        <label for="insuranceCoverageType">Coverage Type *</label>
+                                                        <select id="insuranceCoverageType" name="coverageType" required class="form-control">
+                                                            <option value="">Select Coverage Type</option>
+                                                            <option value="CTPL">CTPL (Compulsory Third Party Liability)</option>
+                                                            <option value="Comprehensive">Comprehensive</option>
+                                                            <option value="Third Party">Third Party</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="insuranceCoverageAmount">Coverage Amount *</label>
+                                                        <input type="text" id="insuranceCoverageAmount" name="coverageAmount" required 
+                                                               placeholder="PHP 100,000" 
+                                                               class="form-control">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                                    <div class="form-group">
+                                                        <label for="insuranceEffectiveDate">Effective Date *</label>
+                                                        <input type="date" id="insuranceEffectiveDate" name="effectiveDate" required class="form-control">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="insuranceExpiryDate">Expiry Date *</label>
+                                                        <input type="date" id="insuranceExpiryDate" name="expiryDate" required class="form-control">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="insuranceAdditionalCoverage">Additional Coverage (Optional)</label>
+                                                    <textarea id="insuranceAdditionalCoverage" name="additionalCoverage" 
+                                                              placeholder="e.g., Bodily injury: PHP 100,000&#10;Property damage: PHP 50,000&#10;Acts of Nature: PHP 25,000" 
+                                                              rows="3" 
+                                                              class="form-control"></textarea>
+                                                </div>
+
+                                                <div class="button-group" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                                    <button type="reset" class="btn btn-secondary">
+                                                        <i class="fas fa-undo"></i> Reset Form
+                                                    </button>
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="fas fa-paper-plane"></i> Generate & Send Certificate
+                                                    </button>
+                                                </div>
+
+                                                <div id="insuranceCertGenerationStatus" style="margin-top: 1rem; display: none;" class="alert"></div>
+                                            </form>
+                                        </div>
+
+                                        <!-- Insurance Certificate Verification -->
+                                        <div class="dashboard-card">
+                                            <div class="section-header">
                         <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
                         <p class="subtitle">Review and verify insurance certificates uploaded by users</p>
                     </div>
@@ -1026,6 +1120,121 @@
                 window.authManager.init().catch(error => {
                     console.error('AuthManager init error:', error);
                 });
+                <script>
+                    // ============================================
+                    // INSURANCE CERTIFICATE GENERATION
+                    // ============================================
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const insuranceCertForm = document.getElementById('generateInsuranceCertForm');
+                        const statusDiv = document.getElementById('insuranceCertGenerationStatus');
+            
+                        if (insuranceCertForm) {
+                            // Set default dates (effective date = today, expiry = 1 year from today)
+                            const effectiveDateInput = document.getElementById('insuranceEffectiveDate');
+                            const expiryDateInput = document.getElementById('insuranceExpiryDate');
+                
+                            if (effectiveDateInput && expiryDateInput) {
+                                const today = new Date();
+                                const oneYearLater = new Date(today);
+                                oneYearLater.setFullYear(today.getFullYear() + 1);
+                    
+                                effectiveDateInput.valueAsDate = today;
+                                expiryDateInput.valueAsDate = oneYearLater;
+                            }
+                
+                            insuranceCertForm.addEventListener('submit', async function(e) {
+                                e.preventDefault();
+                    
+                                // Show loading state
+                                const submitBtn = insuranceCertForm.querySelector('button[type="submit"]');
+                                const originalBtnText = submitBtn.innerHTML;
+                                submitBtn.disabled = true;
+                                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                    
+                                // Hide previous status
+                                statusDiv.style.display = 'none';
+                                statusDiv.className = 'alert';
+                    
+                                try {
+                                    // Get form data
+                                    const formData = {
+                                        ownerEmail: document.getElementById('insuranceOwnerEmail').value,
+                                        ownerName: document.getElementById('insuranceOwnerName').value,
+                                        vehicleVIN: document.getElementById('insuranceVehicleVIN').value,
+                                        policyNumber: document.getElementById('insurancePolicyNumber').value,
+                                        coverageType: document.getElementById('insuranceCoverageType').value,
+                                        coverageAmount: document.getElementById('insuranceCoverageAmount').value,
+                                        effectiveDate: document.getElementById('insuranceEffectiveDate').value,
+                                        expiryDate: document.getElementById('insuranceExpiryDate').value,
+                                        additionalCoverage: document.getElementById('insuranceAdditionalCoverage').value || null
+                                    };
+                        
+                                    // Validate VIN format
+                                    if (formData.vehicleVIN.length !== 17) {
+                                        throw new Error('VIN must be exactly 17 characters');
+                                    }
+                        
+                                    // Validate dates
+                                    const effectiveDate = new Date(formData.effectiveDate);
+                                    const expiryDate = new Date(formData.expiryDate);
+                                    if (expiryDate <= effectiveDate) {
+                                        throw new Error('Expiry date must be after effective date');
+                                    }
+                        
+                                    // Call backend API
+                                    let response;
+                                    if (typeof ApiClient !== 'undefined' && ApiClient.post) {
+                                        response = await ApiClient.post('/api/certificate-generation/insurance/generate-and-send', formData);
+                                    } else {
+                                        response = await fetch('/api/certificate-generation/insurance/generate-and-send', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify(formData)
+                                        }).then(r => r.json());
+                                    }
+                        
+                                    if (!response || response.success !== true) {
+                                        throw new Error(response?.error || 'API error generating certificate');
+                                    }
+                        
+                                    // Success
+                                    statusDiv.className = 'alert alert-success';
+                                    statusDiv.innerHTML = `
+                                        <i class="fas fa-check-circle"></i>
+                                        <strong>Success!</strong> Insurance certificate generated and sent to ${formData.ownerEmail}
+                                        <br><small>Policy Number: ${formData.policyNumber}</small>
+                                    `;
+                                    statusDiv.style.display = 'block';
+                        
+                                    // Reset form
+                                    insuranceCertForm.reset();
+                        
+                                    // Reset dates to defaults
+                                    const today = new Date();
+                                    const oneYearLater = new Date(today);
+                                    oneYearLater.setFullYear(today.getFullYear() + 1);
+                                    effectiveDateInput.valueAsDate = today;
+                                    expiryDateInput.valueAsDate = oneYearLater;
+                        
+                                } catch (error) {
+                                    console.error('Error generating certificate:', error);
+                                    statusDiv.className = 'alert alert-danger';
+                                    statusDiv.innerHTML = `
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <strong>Error:</strong> ${error.message || 'Failed to generate certificate. Please try again.'}
+                                    `;
+                                    statusDiv.style.display = 'block';
+                                } finally {
+                                    // Restore button
+                                    submitBtn.disabled = false;
+                                    submitBtn.innerHTML = originalBtnText;
+                                }
+                            });
+                        }
+                    });
+                </script>
             }
         });
     </script>

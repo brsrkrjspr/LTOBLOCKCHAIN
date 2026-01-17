@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Philippine Driver's License Mockup</title>
+    <style>
+        :root {
+            --bg-blue: #dcf2f8;
+            --accent-blue: #1e4b7a;
+            --text-dark: #122a44;
+            --label-gray: #4a4a4a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #e0e0e0;
+        }
+
+        /* Modal Container */
+        .modal-overlay {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 95%;
+            max-height: 95vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #1a1a1a;
+        }
+
+        .close-modal {
+            background: #f44336;
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+
+        .close-modal:hover {
+            background: #d32f2f;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 160px;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .control-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        #edit-btn { background: #4CAF50; }
+        #edit-btn:hover:not(:disabled) { background: #45a049; }
+        #preview-btn { background: #FF9800; }
+        #preview-btn:hover:not(:disabled) { background: #F57C00; }
+        #print-preview-btn { background: #607D8B; }
+        #print-preview-btn:hover:not(:disabled) { background: #455A64; }
+        #download-png-btn { background: #9C27B0; }
+        #download-png-btn:hover:not(:disabled) { background: #7B1FA2; }
+        #download-pdf-btn { background: #F44336; }
+        #download-pdf-btn:hover:not(:disabled) { background: #D32F2F; }
+        #download-preview-btn { background: #009688; }
+        #download-preview-btn:hover:not(:disabled) { background: #00796B; }
+
+        /* Preview Window */
+        .preview-window {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .preview-window.active {
+            display: flex;
+        }
+
+        .preview-content {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .preview-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f44336;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-close:hover {
+            background: #d32f2f;
+        }
+
+        /* Card Container */
+        .id-card {
+            width: 650px;
+            height: 400px;
+            background-color: var(--bg-blue);
+            background-image: 
+                repeating-linear-gradient(45deg, rgba(30, 75, 122, 0.03) 0px, rgba(30, 75, 122, 0.03) 1px, transparent 1px, transparent 10px),
+                repeating-linear-gradient(-45deg, rgba(30, 75, 122, 0.03) 0px, rgba(30, 75, 122, 0.03) 1px, transparent 1px, transparent 10px),
+                radial-gradient(circle at 50% 50%, rgba(255,255,255,0.8) 0%, transparent 80%);
+            border-radius: 18px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid #b0c4de;
+            position: relative;
+            color: var(--text-dark);
+        }
+
+        /* Edit Mode Visual Indicator */
+        .id-card.edit-mode-active {
+            box-shadow: 0 15px 35px rgba(76, 175, 80, 0.3);
+            border: 2px solid rgba(76, 175, 80, 0.5);
+        }
+        
+        .id-card.preview-mode-active {
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .edit-mode-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            z-index: 100;
+            display: none;
+        }
+        
+        .id-card.edit-mode-active .edit-mode-indicator {
+            display: block;
+        }
+
+        /* Header Layout */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid rgba(30, 75, 122, 0.2);
+            padding-bottom: 8px;
+        }
+
+        .flag-box img { width: 65px; border: 1px solid #ccc; }
+        .lto-logo img { width: 60px; }
+
+        .header-center {
+            text-align: center;
+            flex-grow: 1;
+        }
+
+        .header-center h1 { font-size: 15px; margin: 0; letter-spacing: 0.5px; }
+        .header-center h2 { font-size: 12px; margin: 2px 0; font-weight: normal; }
+        .header-center h3 { font-size: 11px; margin: 0; font-weight: 600; }
+        .license-title { 
+            font-size: 16px !important; 
+            font-weight: 900 !important; 
+            margin-top: 6px !important;
+            letter-spacing: 1px;
+        }
+
+        /* Main Content */
+        .card-body {
+            display: flex;
+            margin-top: 15px;
+        }
+
+        /* Left Side: Photo & Signature */
+        .sidebar {
+            width: 160px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .photo-holder {
+            width: 140px;
+            height: 170px;
+            background: #cbd5e0;
+            border: 3px solid #fff;
+            border-radius: 4px;
+            position: relative;
+            background: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .photo-holder::after {
+            content: "AUTODEAL";
+            font-size: 14px;
+            font-weight: bold;
+            color: rgba(255,255,255,0.3);
+            transform: rotate(-20deg);
+        }
+
+        .photo-holder.has-photo::after {
+            display: none;
+        }
+
+        .photo-holder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: none;
+        }
+
+        .photo-upload-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(33, 150, 243, 0.9);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0.9;
+            transition: opacity 0.3s, transform 0.2s, background 0.2s;
+            z-index: 20;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .photo-upload-btn:hover {
+            background: rgba(33, 150, 243, 1);
+            transform: scale(1.05);
+            opacity: 1;
+        }
+
+        .photo-upload-btn.preview-mode {
+            display: none;
+        }
+
+        .photo-upload-input {
+            display: none;
+        }
+
+        .signature-box {
+            margin-top: 15px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .sig-img { width: 110px; opacity: 0.8; }
+        .sig-label { 
+            font-size: 10px; 
+            font-weight: bold; 
+            border-top: 1px solid #333; 
+            margin-top: 2px;
+            padding-top: 2px;
+        }
+
+        /* Right Side: Data Fields */
+        .data-section {
+            flex-grow: 1;
+            padding-left: 20px;
+        }
+
+        .field { margin-bottom: 8px; }
+        .label { 
+            font-size: 9px; 
+            font-weight: bold; 
+            color: var(--label-gray); 
+            text-transform: uppercase;
+            margin-bottom: 1px;
+        }
+        .value { 
+            font-size: 15px; 
+            font-weight: 800; 
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* Editable Fields */
+        .editable-field {
+            border: none;
+            background: transparent;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: inherit;
+            color: inherit;
+            padding: 2px 4px;
+            margin: 0;
+            width: 100%;
+            outline: none;
+            font-weight: 800;
+            border-bottom: 1px dashed transparent;
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .editable-field.edit-mode {
+            border-bottom-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .editable-field:focus {
+            border-bottom-color: #333;
+            background: rgba(255, 255, 200, 0.5);
+        }
+
+        .editable-field.preview-mode {
+            border: none;
+            background: transparent;
+            pointer-events: none;
+        }
+
+        .flex-row { display: flex; gap: 15px; margin-bottom: 8px; }
+        .flex-item { flex: 1; }
+
+        /* Official Signature Area */
+        .official-sign-container {
+            position: absolute;
+            bottom: 25px;
+            right: 30px;
+            text-align: center;
+        }
+
+        .official-sig { width: 90px; margin-bottom: -10px; }
+        .official-name { font-size: 11px; font-weight: bold; margin: 0; }
+        .official-title { font-size: 9px; margin: 0; }
+
+        /* Small Text Overlays */
+        .date-overlay {
+            position: absolute;
+            bottom: 100px;
+            left: 30px;
+            font-size: 10px;
+            font-weight: bold;
+            color: rgba(0,0,0,0.5);
+        }
+
+        /* Print Styles - Letter Size */
+        @page {
+            size: letter portrait;
+            margin: 0.5in;
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .modal-overlay {
+                display: block !important;
+                position: static !important;
+                background: transparent !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                overflow: visible !important;
+            }
+
+            .modal-content {
+                max-width: 100% !important;
+                max-height: 100% !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                min-height: 100vh !important;
+                margin: 0 !important;
+            }
+
+            .modal-header,
+            .controls,
+            .close-modal,
+            .photo-upload-btn,
+            .edit-mode-indicator,
+            .preview-window {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            .id-card {
+                width: 650px !important;
+                max-width: 650px !important;
+                height: 400px !important;
+                max-height: 400px !important;
+                page-break-inside: avoid !important;
+                margin: 0 auto !important;
+                transform: scale(1) !important;
+            }
+            
+            .editable-field {
+                border: none !important;
+                background: transparent !important;
+                pointer-events: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Modal Overlay -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Philippine Driver's License</h2>
+            <button class="close-modal" id="close-modal-btn">×</button>
+        </div>
+
+        <div class="id-card" id="id-card">
+            <div class="edit-mode-indicator">EDIT MODE</div>
+
+            <header>
+                <div class="flag-box">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Flag_of_the_Philippines.svg/800px-Flag_of_the_Philippines.svg.png" alt="PH Flag">
+                </div>
+                <div class="header-center">
+                    <h1>REPUBLIC OF THE PHILIPPINES</h1>
+                    <h2>DEPARTMENT OF TRANSPORTATION</h2>
+                    <h3>LAND TRANSPORTATION OFFICE</h3>
+                    <h2 class="license-title">NON-PROFESSIONAL DRIVER'S LICENSE</h2>
+                </div>
+                <div class="lto-logo">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Land_Transportation_Office.svg/1200px-Land_Transportation_Office.svg.png" alt="LTO Logo">
+                </div>
+            </header>
+
+            <div class="card-body">
+                <div class="sidebar">
+                    <div class="photo-holder">
+                        <img id="photo-image" src="" alt="Photo">
+                        <input type="file" id="photo-upload" class="photo-upload-input" accept="image/*">
+                        <button class="photo-upload-btn" id="photo-upload-trigger" type="button">📷 Change Photo</button>
+                    </div>
+                    <div class="signature-box">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a2/Signature_of_John_Hancock.svg" alt="Licensee Sig" class="sig-img">
+                        <div class="sig-label">Signature of Licensee</div>
+                    </div>
+                </div>
+
+                <div class="data-section">
+                    <div class="field">
+                        <div class="label">Last Name, First Name, Middle Name</div>
+                        <input type="text" id="full-name" class="value editable-field" value="DELA CRUZ, JUAN PEDRO GARCIA" data-field="full-name">
+                    </div>
+
+                    <div class="flex-row">
+                        <div class="flex-item">
+                            <div class="label">Nationality</div>
+                            <input type="text" id="nationality" class="value editable-field" value="PHL" data-field="nationality">
+                        </div>
+                        <div class="flex-item">
+                            <div class="label">Sex</div>
+                            <input type="text" id="sex" class="value editable-field" value="M" data-field="sex">
+                        </div>
+                        <div class="flex-item" style="flex: 2;">
+                            <div class="label">Date of Birth</div>
+                            <input type="text" id="date-birth" class="value editable-field" value="1987/10/04" data-field="date-birth">
+                        </div>
+                        <div class="flex-item">
+                            <div class="label">Weight (kg)</div>
+                            <input type="text" id="weight" class="value editable-field" value="70" data-field="weight">
+                        </div>
+                        <div class="flex-item">
+                            <div class="label">Height (m)</div>
+                            <input type="text" id="height" class="value editable-field" value="1.55" data-field="height">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="label">Address</div>
+                        <input type="text" id="address" class="value editable-field" value="UNIT/HOUSE NO. BUILDING, STREET NAME, BARANGAY, CITY/MUNICIPALITY" data-field="address" style="font-size: 12px;">
+                    </div>
+
+                    <div class="flex-row">
+                        <div class="flex-item" style="flex: 1.5;">
+                            <div class="label">License No.</div>
+                            <input type="text" id="license-no" class="value editable-field" value="N03-12-123456" data-field="license-no">
+                        </div>
+                        <div class="flex-item" style="flex: 1.5;">
+                            <div class="label">Expiration Date</div>
+                            <input type="text" id="expiration-date" class="value editable-field" value="2022/10/04" data-field="expiration-date">
+                        </div>
+                        <div class="flex-item">
+                            <div class="label">Agency Code</div>
+                            <input type="text" id="agency-code" class="value editable-field" value="N32" data-field="agency-code">
+                        </div>
+                    </div>
+
+                    <div class="flex-row">
+                        <div class="flex-item">
+                            <div class="label">Blood Type</div>
+                            <input type="text" id="blood-type" class="value editable-field" value="O+" data-field="blood-type">
+                        </div>
+                        <div class="flex-item">
+                            <div class="label">Eyes Color</div>
+                            <input type="text" id="eyes-color" class="value editable-field" value="BLACK" data-field="eyes-color">
+                        </div>
+                        <div class="flex-item" style="flex: 2;"></div>
+                    </div>
+
+                    <div class="flex-row">
+                        <div class="flex-item">
+                            <div class="label">Restrictions</div>
+                            <input type="text" id="restrictions" class="value editable-field" value="1, 2" data-field="restrictions">
+                        </div>
+                        <div class="flex-item">
+                            <div class="label">Conditions</div>
+                            <input type="text" id="conditions" class="value editable-field" value="NONE" data-field="conditions">
+                        </div>
+                        <div class="flex-item" style="flex: 1;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="date-overlay">
+                <input type="text" id="date-overlay" class="editable-field" value="2017/11/24" data-field="date-overlay" style="font-size: 10px; font-weight: bold; color: rgba(0,0,0,0.5); background: transparent; border: none; width: auto;">
+            </div>
+
+            <div class="official-sign-container">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/d/d4/James_Monroe_Signature.svg" alt="Official Signature" class="official-sig">
+                <p class="official-name">EDGAR C. GALVANTE</p>
+                <p class="official-title">Assistant Secretary</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button id="edit-btn" class="control-btn">Edit</button>
+            <button id="preview-btn" class="control-btn">Preview</button>
+            <button id="print-preview-btn" class="control-btn">🖨️ Print Preview</button>
+            <button id="download-preview-btn" class="control-btn">📥 Download Preview</button>
+            <button id="download-png-btn" class="control-btn">Download PNG</button>
+            <button id="download-pdf-btn" class="control-btn">Download PDF</button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Window -->
+<div class="preview-window" id="preview-window">
+    <div class="preview-content">
+        <button class="preview-close" id="preview-close">×</button>
+        <div id="preview-container"></div>
+    </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" 
+        onerror="console.error('Failed to load html2canvas from CDN'); alert('Failed to load html2canvas library. Please check your internet connection.');"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+        onerror="console.error('Failed to load jsPDF from CDN'); alert('Failed to load jsPDF library. Please check your internet connection.');"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+        onerror="console.error('Failed to load html2pdf from CDN'); alert('Failed to load html2pdf library. Please check your internet connection.');"></script>
+
+<script>
+    // Wait for libraries to load
+    function waitForLibraries(callback) {
+        let attempts = 0;
+        const maxAttempts = 50;
+        
+        function checkLibraries() {
+            attempts++;
+            const jsPDFAvailable = typeof window.jsPDF !== 'undefined' || 
+                                   typeof window.jspdf !== 'undefined' ||
+                                   (typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF !== 'undefined');
+            
+            if (typeof html2canvas !== 'undefined' && jsPDFAvailable) {
+                callback();
+            } else if (attempts < maxAttempts) {
+                setTimeout(checkLibraries, 100);
+            } else {
+                console.error('Libraries failed to load', {
+                    html2canvas: typeof html2canvas,
+                    jsPDF: typeof window.jsPDF,
+                    jspdf: typeof window.jspdf
+                });
+                alert('Libraries are taking too long to load. Please refresh the page.');
+            }
+        }
+        
+        checkLibraries();
+    }
+
+    // Initialize when DOM is ready
+    function initializeApp() {
+        // State Management
+        let isEditMode = true;
+        const editableFields = document.querySelectorAll('.editable-field');
+        const photoUpload = document.getElementById('photo-upload');
+        const photoImage = document.getElementById('photo-image');
+        const photoHolder = document.querySelector('.photo-holder');
+
+        // DOM Elements
+        const modalOverlay = document.getElementById('modal-overlay');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const editBtn = document.getElementById('edit-btn');
+        const previewBtn = document.getElementById('preview-btn');
+        const printPreviewBtn = document.getElementById('print-preview-btn');
+        const downloadPreviewBtn = document.getElementById('download-preview-btn');
+        const downloadPngBtn = document.getElementById('download-png-btn');
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        const idCard = document.getElementById('id-card');
+        const previewWindow = document.getElementById('preview-window');
+        const previewClose = document.getElementById('preview-close');
+        const previewContainer = document.getElementById('preview-container');
+
+        // Defensive checks
+        if (!idCard) {
+            console.error('ID card element not found');
+            alert('ID card element not found. Please refresh the page.');
+            return;
+        }
+
+        // Modal Functions
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    if (modalOverlay) {
+                        modalOverlay.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Close modal error:', error);
+                }
+            });
+        }
+
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', function(e) {
+                try {
+                    if (e.target === modalOverlay) {
+                        modalOverlay.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Modal overlay click error:', error);
+                }
+            });
+        }
+
+        // Photo Upload
+        if (photoUpload) {
+            photoUpload.addEventListener('change', function(e) {
+                try {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please select an image file (JPG, PNG, etc.).');
+                        e.target.value = '';
+                        return;
+                    }
+                    
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('Image size should be less than 5MB. Please choose a smaller image.');
+                        e.target.value = '';
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            if (!photoImage || !photoHolder) {
+                                console.error('Photo elements not found');
+                                return;
+                            }
+                            
+                            const img = new Image();
+                            img.onload = function() {
+                                photoImage.src = event.target.result;
+                                photoImage.style.display = 'block';
+                                photoImage.style.objectFit = 'cover';
+                                photoImage.style.objectPosition = 'center';
+                                // Hide the ::after pseudo-element by adding a class
+                                photoHolder.classList.add('has-photo');
+                                photoUpload.value = '';
+                            };
+                            img.onerror = function() {
+                                alert('Error loading image. Please try a different file.');
+                                photoUpload.value = '';
+                            };
+                            img.src = event.target.result;
+                        } catch (err) {
+                            console.error('Error processing image:', err);
+                            alert('Error processing image. Please try again.');
+                            photoUpload.value = '';
+                        }
+                    };
+                    reader.onerror = function() {
+                        alert('Error reading the image file. Please try again.');
+                        photoUpload.value = '';
+                    };
+                    reader.readAsDataURL(file);
+                } catch (error) {
+                    console.error('Photo upload error:', error);
+                    alert('An error occurred while uploading the image. Please try again.');
+                    if (photoUpload) {
+                        photoUpload.value = '';
+                    }
+                }
+            });
+        }
+
+        // Photo upload trigger button
+        const photoUploadTrigger = document.getElementById('photo-upload-trigger');
+        if (photoUploadTrigger && photoUpload) {
+            photoUploadTrigger.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (isEditMode && photoUpload) {
+                        photoUpload.click();
+                    } else {
+                        alert('Please switch to Edit mode to change the photo.');
+                    }
+                } catch (error) {
+                    console.error('Photo upload trigger error:', error);
+                    alert('Error opening file picker. Please try again.');
+                }
+            });
+
+            if (photoHolder && photoUpload) {
+                photoHolder.addEventListener('click', function(e) {
+                    try {
+                        if (e.target !== photoUpload && e.target !== photoImage && e.target !== photoUploadTrigger && isEditMode) {
+                            photoUpload.click();
+                        }
+                    } catch (error) {
+                        console.error('Photo area click error:', error);
+                    }
+                });
+            }
+        }
+
+        // Mode Switching
+        function setEditMode() {
+            try {
+                isEditMode = true;
+                
+                if (editableFields && editableFields.length > 0) {
+                    editableFields.forEach(field => {
+                        if (field) {
+                            field.disabled = false;
+                            field.classList.add('edit-mode');
+                            field.classList.remove('preview-mode');
+                        }
+                    });
+                }
+                
+                if (photoUploadTrigger) {
+                    photoUploadTrigger.classList.remove('preview-mode');
+                    photoUploadTrigger.style.display = 'block';
+                }
+                
+                if (idCard) {
+                    idCard.classList.add('edit-mode-active');
+                    idCard.classList.remove('preview-mode-active');
+                }
+                
+                if (editBtn) editBtn.disabled = true;
+                if (previewBtn) previewBtn.disabled = false;
+            } catch (error) {
+                console.error('Error in setEditMode:', error);
+            }
+        }
+
+        function setPreviewMode() {
+            try {
+                isEditMode = false;
+                
+                if (editableFields && editableFields.length > 0) {
+                    editableFields.forEach(field => {
+                        if (field) {
+                            field.disabled = true;
+                            field.classList.remove('edit-mode');
+                            field.classList.add('preview-mode');
+                        }
+                    });
+                }
+                
+                if (photoUploadTrigger) {
+                    photoUploadTrigger.classList.add('preview-mode');
+                    photoUploadTrigger.style.display = 'none';
+                }
+                
+                if (idCard) {
+                    idCard.classList.remove('edit-mode-active');
+                    idCard.classList.add('preview-mode-active');
+                }
+                
+                if (editBtn) editBtn.disabled = false;
+                if (previewBtn) previewBtn.disabled = true;
+            } catch (error) {
+                console.error('Error in setPreviewMode:', error);
+            }
+        }
+
+        // Edit Button
+        if (editBtn) {
+            editBtn.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditMode();
+                } catch (error) {
+                    console.error('Edit button error:', error);
+                    alert('Error switching to edit mode. Please try again.');
+                }
+            });
+        }
+        
+        // Preview Button
+        if (previewBtn) {
+            previewBtn.addEventListener('click', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPreviewMode();
+                } catch (error) {
+                    console.error('Preview button error:', error);
+                    alert('Error switching to preview mode. Please try again.');
+                }
+            });
+        }
+
+        // Preview Window Controls
+        if (previewClose) {
+            previewClose.addEventListener('click', () => {
+                previewWindow.classList.remove('active');
+                previewContainer.innerHTML = '';
+            });
+        }
+
+        if (previewWindow) {
+            previewWindow.addEventListener('click', (e) => {
+                if (e.target === previewWindow) {
+                    previewWindow.classList.remove('active');
+                    previewContainer.innerHTML = '';
+                }
+            });
+        }
+
+        // Download Preview
+        if (downloadPreviewBtn) {
+            downloadPreviewBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (typeof html2canvas === 'undefined') {
+                    alert('html2canvas library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                if (!idCard || !previewContainer || !previewWindow) {
+                    alert('Required elements not found. Please refresh the page.');
+                    return;
+                }
+                
+                const wasEditMode = isEditMode;
+                try {
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+
+                    downloadPreviewBtn.textContent = 'Generating Preview...';
+                    downloadPreviewBtn.disabled = true;
+
+                    const controls = document.querySelector('.controls');
+                    const modalHeader = document.querySelector('.modal-header');
+                    const modalOverlay = document.querySelector('.modal-overlay');
+                    const modalContent = document.querySelector('.modal-content');
+                    const editIndicator = document.querySelector('.edit-mode-indicator');
+                    
+                    const originalStyles = {
+                        controls: controls ? controls.style.display : '',
+                        modalHeader: modalHeader ? modalHeader.style.display : '',
+                        overlayBg: modalOverlay ? modalOverlay.style.background : '',
+                        overlayDisplay: modalOverlay ? modalOverlay.style.display : '',
+                        contentBg: modalContent ? modalContent.style.background : '',
+                        contentPadding: modalContent ? modalContent.style.padding : '',
+                        contentBoxShadow: modalContent ? modalContent.style.boxShadow : '',
+                        editIndicator: editIndicator ? editIndicator.style.display : ''
+                    };
+                    
+                    if (controls) controls.style.display = 'none';
+                    if (modalHeader) modalHeader.style.display = 'none';
+                    if (editIndicator) editIndicator.style.display = 'none';
+                    if (modalOverlay) {
+                        modalOverlay.style.background = 'transparent';
+                        modalOverlay.style.display = 'flex';
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = 'transparent';
+                        modalContent.style.padding = '0';
+                        modalContent.style.boxShadow = 'none';
+                        modalContent.style.borderRadius = '0';
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    if (!idCard || !document.body.contains(idCard)) {
+                        throw new Error('ID card element is not accessible');
+                    }
+
+                    idCard.style.display = 'block';
+                    idCard.style.visibility = 'visible';
+                    idCard.style.opacity = '1';
+                    idCard.offsetHeight;
+                    
+                    let canvas;
+                    let tempContainer = null;
+                    let clonedCard = null;
+                    
+                    try {
+                        canvas = await html2canvas(idCard, {
+                            scale: 3,
+                            backgroundColor: '#fff',
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: true,
+                            foreignObjectRendering: false,
+                            ignoreElements: function(element) {
+                                if (!element || !element.classList) return false;
+                                return element.classList.contains('controls') || 
+                                       element.classList.contains('modal-header') ||
+                                       element.classList.contains('close-modal') ||
+                                       element.classList.contains('photo-upload-btn') ||
+                                       element.classList.contains('edit-mode-indicator');
+                            }
+                        });
+                    } catch (canvasError) {
+                        console.warn('Direct capture failed, trying clone method:', canvasError);
+                        
+                        try {
+                            tempContainer = document.createElement('div');
+                            tempContainer.style.position = 'absolute';
+                            tempContainer.style.left = '-9999px';
+                            tempContainer.style.top = '0';
+                            tempContainer.style.width = idCard.offsetWidth + 'px';
+                            tempContainer.style.height = idCard.offsetHeight + 'px';
+                            document.body.appendChild(tempContainer);
+                            
+                            clonedCard = idCard.cloneNode(true);
+                            clonedCard.id = 'id-card-clone';
+                            clonedCard.style.display = 'block';
+                            clonedCard.style.visibility = 'visible';
+                            clonedCard.style.opacity = '1';
+                            clonedCard.style.position = 'relative';
+                            clonedCard.style.margin = '0';
+                            tempContainer.appendChild(clonedCard);
+                            
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                            canvas = await html2canvas(clonedCard, {
+                                scale: 3,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } catch (cloneError) {
+                            console.error('Clone method also failed:', cloneError);
+                            canvas = await html2canvas(idCard, {
+                                scale: 2,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } finally {
+                            if (tempContainer && tempContainer.parentNode) {
+                                tempContainer.parentNode.removeChild(tempContainer);
+                            }
+                        }
+                    }
+
+                    if (controls) controls.style.display = originalStyles.controls;
+                    if (modalHeader) modalHeader.style.display = originalStyles.modalHeader;
+                    if (editIndicator) editIndicator.style.display = originalStyles.editIndicator;
+                    if (modalOverlay) {
+                        modalOverlay.style.background = originalStyles.overlayBg;
+                        modalOverlay.style.display = originalStyles.overlayDisplay;
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = originalStyles.contentBg;
+                        modalContent.style.padding = originalStyles.contentPadding;
+                        modalContent.style.boxShadow = originalStyles.contentBoxShadow;
+                        modalContent.style.borderRadius = '';
+                    }
+
+                    const img = document.createElement('img');
+                    img.src = canvas.toDataURL('image/png');
+                    img.style.width = 'auto';
+                    img.style.height = 'auto';
+                    img.style.maxWidth = '90vw';
+                    img.style.maxHeight = '90vh';
+                    img.style.display = 'block';
+                    img.style.objectFit = 'contain';
+                    
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.textContent = '📥 Download PNG';
+                    downloadBtn.className = 'preview-download-btn';
+                    downloadBtn.style.cssText = 'margin-top: 15px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;';
+                    downloadBtn.addEventListener('click', function() {
+                        const link = document.createElement('a');
+                        link.download = 'philippine-drivers-license.png';
+                        link.href = canvas.toDataURL('image/png', 1.0);
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        setTimeout(() => {
+                            document.body.removeChild(link);
+                        }, 100);
+                    });
+                    
+                    previewContainer.innerHTML = '';
+                    previewContainer.appendChild(img);
+                    previewContainer.appendChild(downloadBtn);
+                    previewWindow.classList.add('active');
+
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 100);
+                    }
+                } catch (error) {
+                    console.error('Preview generation error:', error);
+                    alert('Error generating preview: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                } finally {
+                    downloadPreviewBtn.textContent = '📥 Download Preview';
+                    downloadPreviewBtn.disabled = false;
+                }
+            });
+        }
+
+        // Print Preview
+        if (printPreviewBtn) {
+            printPreviewBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const wasEditMode = isEditMode;
+                try {
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                    
+                    window.print();
+                    
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 500);
+                    }
+                } catch (error) {
+                    console.error('Print error:', error);
+                    alert('Error opening print preview: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                }
+            });
+        }
+
+        // Download PNG
+        if (downloadPngBtn) {
+            downloadPngBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (typeof html2canvas === 'undefined') {
+                    alert('html2canvas library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                if (!idCard) {
+                    alert('ID card element not found. Please refresh the page.');
+                    return;
+                }
+                
+                const wasEditMode = isEditMode;
+                try {
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+
+                    downloadPngBtn.textContent = 'Generating PNG...';
+                    downloadPngBtn.disabled = true;
+
+                    const controls = document.querySelector('.controls');
+                    const modalHeader = document.querySelector('.modal-header');
+                    const modalOverlay = document.querySelector('.modal-overlay');
+                    const modalContent = document.querySelector('.modal-content');
+                    const editIndicator = document.querySelector('.edit-mode-indicator');
+                    
+                    const originalStyles = {
+                        controls: controls ? controls.style.display : '',
+                        modalHeader: modalHeader ? modalHeader.style.display : '',
+                        overlayBg: modalOverlay ? modalOverlay.style.background : '',
+                        overlayDisplay: modalOverlay ? modalOverlay.style.display : '',
+                        contentBg: modalContent ? modalContent.style.background : '',
+                        contentPadding: modalContent ? modalContent.style.padding : '',
+                        contentBoxShadow: modalContent ? modalContent.style.boxShadow : '',
+                        editIndicator: editIndicator ? editIndicator.style.display : ''
+                    };
+                    
+                    if (controls) controls.style.display = 'none';
+                    if (modalHeader) modalHeader.style.display = 'none';
+                    if (editIndicator) editIndicator.style.display = 'none';
+                    if (modalOverlay) {
+                        modalOverlay.style.background = 'transparent';
+                        modalOverlay.style.display = 'flex';
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = 'transparent';
+                        modalContent.style.padding = '0';
+                        modalContent.style.boxShadow = 'none';
+                        modalContent.style.borderRadius = '0';
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    if (!idCard || !document.body.contains(idCard)) {
+                        throw new Error('ID card element is not accessible');
+                    }
+
+                    idCard.style.display = 'block';
+                    idCard.style.visibility = 'visible';
+                    idCard.style.opacity = '1';
+                    idCard.offsetHeight;
+                    
+                    let canvas;
+                    let tempContainer = null;
+                    let clonedCard = null;
+                    
+                    try {
+                        canvas = await html2canvas(idCard, {
+                            scale: 3,
+                            backgroundColor: '#fff',
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: true,
+                            foreignObjectRendering: false,
+                            ignoreElements: function(element) {
+                                if (!element || !element.classList) return false;
+                                return element.classList.contains('controls') || 
+                                       element.classList.contains('modal-header') ||
+                                       element.classList.contains('close-modal') ||
+                                       element.classList.contains('photo-upload-btn') ||
+                                       element.classList.contains('edit-mode-indicator');
+                            }
+                        });
+                    } catch (canvasError) {
+                        console.warn('Direct capture failed, trying clone method:', canvasError);
+                        
+                        try {
+                            tempContainer = document.createElement('div');
+                            tempContainer.style.position = 'absolute';
+                            tempContainer.style.left = '-9999px';
+                            tempContainer.style.top = '0';
+                            tempContainer.style.width = idCard.offsetWidth + 'px';
+                            tempContainer.style.height = idCard.offsetHeight + 'px';
+                            document.body.appendChild(tempContainer);
+                            
+                            clonedCard = idCard.cloneNode(true);
+                            clonedCard.id = 'id-card-clone';
+                            clonedCard.style.display = 'block';
+                            clonedCard.style.visibility = 'visible';
+                            clonedCard.style.opacity = '1';
+                            clonedCard.style.position = 'relative';
+                            clonedCard.style.margin = '0';
+                            tempContainer.appendChild(clonedCard);
+                            
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                            canvas = await html2canvas(clonedCard, {
+                                scale: 3,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } catch (cloneError) {
+                            console.error('Clone method also failed:', cloneError);
+                            canvas = await html2canvas(idCard, {
+                                scale: 2,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } finally {
+                            if (tempContainer && tempContainer.parentNode) {
+                                tempContainer.parentNode.removeChild(tempContainer);
+                            }
+                        }
+                    }
+
+                    if (controls) controls.style.display = originalStyles.controls;
+                    if (modalHeader) modalHeader.style.display = originalStyles.modalHeader;
+                    if (editIndicator) editIndicator.style.display = originalStyles.editIndicator;
+                    if (modalOverlay) {
+                        modalOverlay.style.background = originalStyles.overlayBg;
+                        modalOverlay.style.display = originalStyles.overlayDisplay;
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = originalStyles.contentBg;
+                        modalContent.style.padding = originalStyles.contentPadding;
+                        modalContent.style.boxShadow = originalStyles.contentBoxShadow;
+                        modalContent.style.borderRadius = '';
+                    }
+
+                    const link = document.createElement('a');
+                    link.download = 'philippine-drivers-license.png';
+                    link.href = canvas.toDataURL('image/png', 1.0);
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                    }, 100);
+
+                    const successMsg = document.createElement('div');
+                    successMsg.id = 'download-success-msg';
+                    successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; gap: 15px;';
+                    successMsg.innerHTML = '<span>✓ PNG downloaded successfully!</span>';
+                    
+                    const backBtn = document.createElement('button');
+                    backBtn.textContent = '← Back';
+                    backBtn.style.cssText = 'background: white; color: #4CAF50; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;';
+                    backBtn.addEventListener('click', function() {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    });
+                    successMsg.appendChild(backBtn);
+                    
+                    document.body.appendChild(successMsg);
+                    
+                    setTimeout(() => {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    }, 5000);
+
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 100);
+                    }
+                } catch (error) {
+                    console.error('PNG generation error:', error);
+                    alert('Error generating PNG: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                } finally {
+                    downloadPngBtn.textContent = 'Download PNG';
+                    downloadPngBtn.disabled = false;
+                }
+            });
+        }
+
+        // Download PDF
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (typeof html2canvas === 'undefined') {
+                    alert('html2canvas library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                const jsPDF = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
+                if (!jsPDF) {
+                    alert('jsPDF library is not loaded. Please refresh the page and wait for libraries to load.');
+                    return;
+                }
+                
+                if (!idCard) {
+                    alert('ID card element not found. Please refresh the page.');
+                    return;
+                }
+                
+                const wasEditMode = isEditMode;
+                try {
+                    if (isEditMode) {
+                        setPreviewMode();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+
+                    downloadPdfBtn.textContent = 'Generating PDF...';
+                    downloadPdfBtn.disabled = true;
+
+                    const controls = document.querySelector('.controls');
+                    const modalHeader = document.querySelector('.modal-header');
+                    const modalOverlay = document.querySelector('.modal-overlay');
+                    const modalContent = document.querySelector('.modal-content');
+                    const editIndicator = document.querySelector('.edit-mode-indicator');
+                    
+                    const originalStyles = {
+                        controls: controls ? controls.style.display : '',
+                        modalHeader: modalHeader ? modalHeader.style.display : '',
+                        overlayBg: modalOverlay ? modalOverlay.style.background : '',
+                        overlayDisplay: modalOverlay ? modalOverlay.style.display : '',
+                        contentBg: modalContent ? modalContent.style.background : '',
+                        contentPadding: modalContent ? modalContent.style.padding : '',
+                        contentBoxShadow: modalContent ? modalContent.style.boxShadow : '',
+                        editIndicator: editIndicator ? editIndicator.style.display : ''
+                    };
+                    
+                    if (controls) controls.style.display = 'none';
+                    if (modalHeader) modalHeader.style.display = 'none';
+                    if (editIndicator) editIndicator.style.display = 'none';
+                    if (modalOverlay) {
+                        modalOverlay.style.background = 'transparent';
+                        modalOverlay.style.display = 'flex';
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = 'transparent';
+                        modalContent.style.padding = '0';
+                        modalContent.style.boxShadow = 'none';
+                        modalContent.style.borderRadius = '0';
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    if (!idCard || !document.body.contains(idCard)) {
+                        throw new Error('ID card element is not accessible');
+                    }
+
+                    idCard.style.display = 'block';
+                    idCard.style.visibility = 'visible';
+                    idCard.style.opacity = '1';
+                    idCard.offsetHeight;
+                    
+                    let canvas;
+                    let tempContainer = null;
+                    let clonedCard = null;
+                    
+                    try {
+                        canvas = await html2canvas(idCard, {
+                            scale: 3,
+                            backgroundColor: '#fff',
+                            useCORS: true,
+                            logging: false,
+                            allowTaint: true,
+                            foreignObjectRendering: false,
+                            ignoreElements: function(element) {
+                                if (!element || !element.classList) return false;
+                                return element.classList.contains('controls') || 
+                                       element.classList.contains('modal-header') ||
+                                       element.classList.contains('close-modal') ||
+                                       element.classList.contains('photo-upload-btn') ||
+                                       element.classList.contains('edit-mode-indicator');
+                            }
+                        });
+                    } catch (canvasError) {
+                        console.warn('Direct capture failed, trying clone method:', canvasError);
+                        
+                        try {
+                            tempContainer = document.createElement('div');
+                            tempContainer.style.position = 'absolute';
+                            tempContainer.style.left = '-9999px';
+                            tempContainer.style.top = '0';
+                            tempContainer.style.width = idCard.offsetWidth + 'px';
+                            tempContainer.style.height = idCard.offsetHeight + 'px';
+                            document.body.appendChild(tempContainer);
+                            
+                            clonedCard = idCard.cloneNode(true);
+                            clonedCard.id = 'id-card-clone';
+                            clonedCard.style.display = 'block';
+                            clonedCard.style.visibility = 'visible';
+                            clonedCard.style.opacity = '1';
+                            clonedCard.style.position = 'relative';
+                            clonedCard.style.margin = '0';
+                            tempContainer.appendChild(clonedCard);
+                            
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                            canvas = await html2canvas(clonedCard, {
+                                scale: 3,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } catch (cloneError) {
+                            console.error('Clone method also failed:', cloneError);
+                            canvas = await html2canvas(idCard, {
+                                scale: 2,
+                                backgroundColor: '#fff',
+                                useCORS: true,
+                                logging: false,
+                                allowTaint: true
+                            });
+                        } finally {
+                            if (tempContainer && tempContainer.parentNode) {
+                                tempContainer.parentNode.removeChild(tempContainer);
+                            }
+                        }
+                    }
+
+                    if (controls) controls.style.display = originalStyles.controls;
+                    if (modalHeader) modalHeader.style.display = originalStyles.modalHeader;
+                    if (editIndicator) editIndicator.style.display = originalStyles.editIndicator;
+                    if (modalOverlay) {
+                        modalOverlay.style.background = originalStyles.overlayBg;
+                        modalOverlay.style.display = originalStyles.overlayDisplay;
+                    }
+                    if (modalContent) {
+                        modalContent.style.background = originalStyles.contentBg;
+                        modalContent.style.padding = originalStyles.contentPadding;
+                        modalContent.style.boxShadow = originalStyles.contentBoxShadow;
+                        modalContent.style.borderRadius = '';
+                    }
+
+                    const jsPDFLib = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
+                    
+                    if (!jsPDFLib) {
+                        throw new Error('jsPDF is not available');
+                    }
+                    
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    
+                    const canvasWidth = canvas.width;
+                    const canvasHeight = canvas.height;
+                    
+                    const mmPerPixel = 0.264583;
+                    const pdfWidth = canvasWidth * mmPerPixel;
+                    const pdfHeight = canvasHeight * mmPerPixel;
+                    
+                    const pdf = new jsPDFLib({
+                        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+                        unit: 'mm',
+                        format: [pdfWidth, pdfHeight]
+                    });
+                    
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    
+                    pdf.save('philippine-drivers-license.pdf');
+
+                    const successMsg = document.createElement('div');
+                    successMsg.id = 'download-success-msg';
+                    successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #F44336; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; gap: 15px;';
+                    successMsg.innerHTML = '<span>✓ PDF downloaded successfully!</span>';
+                    
+                    const backBtn = document.createElement('button');
+                    backBtn.textContent = '← Back';
+                    backBtn.style.cssText = 'background: white; color: #F44336; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;';
+                    backBtn.addEventListener('click', function() {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    });
+                    successMsg.appendChild(backBtn);
+                    
+                    document.body.appendChild(successMsg);
+                    
+                    setTimeout(() => {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    }, 5000);
+
+                    if (wasEditMode) {
+                        setTimeout(() => setEditMode(), 100);
+                    }
+                } catch (error) {
+                    console.error('PDF generation error:', error);
+                    alert('Error generating PDF: ' + (error.message || 'Unknown error'));
+                    if (wasEditMode) {
+                        setEditMode();
+                    }
+                } finally {
+                    downloadPdfBtn.textContent = 'Download PDF';
+                    downloadPdfBtn.disabled = false;
+                }
+            });
+        }
+
+        // Initialize
+        setEditMode();
+        
+        console.log('Driver\'s License App initialized successfully');
+    }
+
+    // Start initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            waitForLibraries(initializeApp);
+        });
+    } else {
+        waitForLibraries(initializeApp);
+    }
+    
+    // Fallback: Try to initialize after a delay if libraries are already loaded
+    setTimeout(function() {
+        const jsPDFAvailable = typeof window.jsPDF !== 'undefined' || 
+                               typeof window.jspdf !== 'undefined' ||
+                               (typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF !== 'undefined');
+        
+        if (typeof html2canvas !== 'undefined' && jsPDFAvailable) {
+            if (typeof initializeApp === 'function') {
+                try {
+                    initializeApp();
+                } catch(e) {
+                    console.error('Error in fallback initialization:', e);
+                }
+            }
+        }
+    }, 2000);
+</script>
+
+</body>
+</html>

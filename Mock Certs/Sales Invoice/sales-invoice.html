@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Authenticated Sales Invoice</title>
+  <link rel="stylesheet" href="sales-invoice.css">
+</head>
+<body>
+
+<div class="receipt">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>ABC MOTORS CORPORATION</h1>
+    <p>123 Main Street, Manila, Philippines</p>
+    <p>TIN: 123-456-789</p>
+    <p>Dealer Accreditation No.: DA-2023-001</p>
+    <hr>
+    <h2>AUTHENTICATED SALES INVOICE</h2>
+  </div>
+
+  <!-- INVOICE META -->
+  <div class="meta">
+    <div>
+      <strong>Invoice No:</strong> INV-20260113-001
+    </div>
+    <div>
+      <strong>Date of Sale:</strong> <span id="date-sale"></span>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- BUYER INFO -->
+  <section>
+    <h3>Buyer Information</h3>
+    <p><strong>Name:</strong> <input type="text" id="buyer-name" value="Juan Dela Cruz" class="editable-field"></p>
+  </section>
+
+  <hr>
+
+  <!-- VEHICLE INFO -->
+  <section>
+    <h3>Vehicle Details</h3>
+    <table>
+      <tr><td>Make</td><td><input type="text" id="vehicle-make" value="Toyota" class="editable-field"></td></tr>
+      <tr><td>Series / Model</td><td><input type="text" id="vehicle-model" value="Corolla Altis" class="editable-field"></td></tr>
+      <tr><td>Year Model</td><td><input type="text" id="vehicle-year" value="2025" class="editable-field"></td></tr>
+      <tr><td>Body Type</td><td><input type="text" id="vehicle-body" value="Sedan" class="editable-field"></td></tr>
+      <tr><td>Color</td><td><input type="text" id="vehicle-color" value="White" class="editable-field"></td></tr>
+      <tr><td>Fuel Type</td><td><input type="text" id="vehicle-fuel" value="Gasoline" class="editable-field"></td></tr>
+      <tr><td>Engine No.</td><td><input type="text" id="vehicle-engine" value="2NR-FE123456" class="editable-field"></td></tr>
+      <tr><td>Chassis / VIN</td><td><input type="text" id="vehicle-chassis" value="1HGBH41JXMN109186" class="editable-field"></td></tr>
+      <tr><td>Plate No.</td><td><input type="text" id="vehicle-plate" value="ABC1234" class="editable-field"></td></tr>
+    </table>
+  </section>
+
+  <hr>
+
+  <!-- PAYMENT DETAILS -->
+  <section>
+    <h3>Purchase Price</h3>
+    <table class="amounts">
+      <tr class="total">
+        <td>Total Amount Paid</td>
+        <td>₱1,120,000.00</td>
+      </tr>
+    </table>
+  </section>
+
+  <hr>
+
+  <!-- SIGNATURES -->
+  <section class="signatures">
+    <div class="signature-box">
+      <div class="signature-line">
+        <svg class="signature-svg" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5,35 Q15,25 25,30 T45,28 T65,32 T85,30 T105,28 T125,30 T145,32 T165,30 T185,28" 
+                stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M20,25 Q30,20 40,22" stroke="#000" stroke-width="1.2" fill="none"/>
+          <path d="M160,28 Q170,25 175,30" stroke="#000" stroke-width="1.2" fill="none"/>
+        </svg>
+        <p class="signature-label">Seller / Authorized Signatory</p>
+      </div>
+      <div class="signature-details">
+        <p><strong>Name:</strong> John M. Santos</p>
+        <p><strong>Position:</strong> Sales Manager</p>
+        <p><strong>Date:</strong> <span id="seller-date"></span></p>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- AUTHENTICATION -->
+  <section class="authentication">
+    <p><strong>Date Authenticated:</strong> <span id="date-auth"></span></p>
+    <p><strong>Place:</strong> Manila, Philippines</p>
+    <div class="stamp-row">
+      <p><strong>Official Stamp / Notary Seal:</strong></p>
+      <div class="stamp-container">
+        <div class="stamp-seal">
+          <div class="stamp-inner">
+            <div class="stamp-text-top">AUTHENTICATED</div>
+            <div class="stamp-text-center">ABC MOTORS</div>
+            <div class="stamp-text-center-sub">CORPORATION</div>
+            <div class="stamp-text-bottom">MANILA, PHILIPPINES</div>
+            <div class="stamp-date" id="stamp-date"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="footer-note">
+    * This document is system-generated for record and registration purposes *
+  </p>
+
+</div>
+
+<!-- Download Buttons -->
+<div class="download-container">
+  <button id="preview-pdf-btn" class="preview-btn">Preview PDF</button>
+  <button id="download-pdf-btn" class="download-btn">Download as PDF</button>
+</div>
+
+<!-- html2pdf library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+  const today = new Date();
+  const formatDate = d =>
+    d.toLocaleDateString("en-US", { year:"numeric", month:"2-digit", day:"2-digit" });
+
+  document.getElementById("date-sale").textContent = formatDate(today);
+  document.getElementById("date-auth").textContent = formatDate(today);
+  document.getElementById("stamp-date").textContent = formatDate(today);
+  document.getElementById("seller-date").textContent = formatDate(today);
+
+  // Shared function to prepare element for PDF
+  function prepareElementForPDF() {
+    const element = document.querySelector(".receipt");
+    const inputs = element.querySelectorAll(".editable-field");
+    const replacements = [];
+    
+    // Replace inputs with text spans for better PDF rendering
+    inputs.forEach(input => {
+      const value = input.value || input.textContent || '';
+      const span = document.createElement('span');
+      span.textContent = value;
+      span.className = 'pdf-text-replacement';
+      span.style.display = 'inline';
+      span.style.color = '#000';
+      
+      // Store original for restoration
+      replacements.push({
+        input: input,
+        span: span,
+        parent: input.parentNode
+      });
+      
+      // Replace input with span
+      input.parentNode.insertBefore(span, input);
+      input.style.display = 'none';
+    });
+
+    // Add PDF-optimized class
+    element.classList.add("pdf-mode");
+    
+    return { element, inputs, replacements };
+  }
+
+  // Shared function to restore element after PDF
+  function restoreElementAfterPDF(element, inputs, replacements) {
+    // Restore inputs from spans
+    if (replacements) {
+      replacements.forEach(({ input, span, parent }) => {
+        if (span && span.parentNode) {
+          span.parentNode.removeChild(span);
+        }
+        input.style.display = "";
+      });
+    } else {
+      // Fallback: just restore input styles
+      inputs.forEach(input => {
+        input.style.border = "";
+        input.style.background = "";
+        input.style.padding = "";
+        input.style.display = "";
+      });
+    }
+    element.classList.remove("pdf-mode");
+  }
+
+  // Shared PDF options
+  function getPDFOptions(element) {
+    // Use smaller margins and scale to fit everything on one page
+    const margin = 0.2; // Reduced margin
+    
+    return {
+      margin: [margin, margin, margin, margin],
+      filename: "sales-invoice.pdf",
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { 
+        scale: 1.2, // Reduced scale to prevent overlap
+        useCORS: true,
+        letterRendering: true,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        scrollX: 0,
+        scrollY: 0
+      },
+      jsPDF: { 
+        unit: "in", 
+        format: "letter", 
+        orientation: "portrait",
+        compress: true
+      },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+  }
+
+  // Preview PDF function
+  document.getElementById("preview-pdf-btn").addEventListener("click", function() {
+    const { element, inputs, replacements } = prepareElementForPDF();
+    
+    // Show loading state
+    const originalText = this.textContent;
+    const btn = this;
+    this.textContent = "Generating Preview...";
+    this.disabled = true;
+
+    // Wait a bit for styles to apply and ensure element is ready
+    setTimeout(() => {
+      // Force reflow to ensure styles are applied
+      element.offsetHeight;
+      
+      const opt = getPDFOptions(element);
+      
+      html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
+        // Create object URL for the PDF
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        
+        // Open PDF in new window
+        const previewWindow = window.open(pdfUrl, '_blank');
+        
+        // Clean up object URL after window opens
+        if (previewWindow) {
+          setTimeout(() => URL.revokeObjectURL(pdfUrl), 2000);
+        }
+        
+        // Restore element
+        restoreElementAfterPDF(element, inputs, replacements);
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }).catch((error) => {
+        console.error("PDF preview error:", error);
+        restoreElementAfterPDF(element, inputs, replacements);
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert("Error generating preview. Please try again.");
+      });
+    }, 150);
+  });
+
+  // Download PDF function
+  document.getElementById("download-pdf-btn").addEventListener("click", function() {
+    const { element, inputs, replacements } = prepareElementForPDF();
+
+    // Show loading state
+    const originalText = this.textContent;
+    const btn = this;
+    this.textContent = "Generating PDF...";
+    this.disabled = true;
+
+    // Wait a bit for styles to apply and ensure element is ready
+    setTimeout(() => {
+      // Force reflow to ensure styles are applied
+      element.offsetHeight;
+      
+      const opt = getPDFOptions(element);
+      
+      html2pdf().set(opt).from(element).save().then(() => {
+        restoreElementAfterPDF(element, inputs, replacements);
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }).catch((error) => {
+        console.error("PDF generation error:", error);
+        restoreElementAfterPDF(element, inputs, replacements);
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert("Error generating PDF. Please try again.");
+      });
+    }, 150);
+  });
+</script>
+
+</body>
+</html>

@@ -808,6 +808,74 @@
                             </button>
                         </div>
 
+                        <!-- ============================================
+                           EMISSION CERTIFICATE GENERATION
+                           ============================================ -->
+                        <div class="dashboard-card">
+                            <div class="section-header">
+                                <h3><span class="card-icon">📄</span> Generate Emission Certificate</h3>
+                                <p class="subtitle">Issue a new emission test certificate</p>
+                            </div>
+
+                            <form id="generateEmissionCertForm" class="form-container" style="max-width: 900px;">
+                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label for="emissionOwnerEmail">Owner Email *</label>
+                                        <input type="email" id="emissionOwnerEmail" name="ownerEmail" required class="form-control" placeholder="owner@example.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emissionOwnerName">Owner Full Name *</label>
+                                        <input type="text" id="emissionOwnerName" name="ownerName" required class="form-control" placeholder="Juan Dela Cruz">
+                                    </div>
+                                </div>
+
+                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label for="emissionVehicleVIN">Vehicle VIN *</label>
+                                        <input type="text" id="emissionVehicleVIN" name="vehicleVIN" required class="form-control" placeholder="MHRVJ06P447123456" maxlength="17">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emissionVehiclePlate">Plate Number (Optional)</label>
+                                        <input type="text" id="emissionVehiclePlate" name="vehiclePlate" class="form-control" placeholder="ABC-1234">
+                                    </div>
+                                </div>
+
+                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label for="emissionCertificateNumber">Certificate Number *</label>
+                                        <input type="text" id="emissionCertificateNumber" name="certificateNumber" required class="form-control" placeholder="EMIT-2026-00001">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emissionTestDate">Test Date *</label>
+                                        <input type="date" id="emissionTestDate" name="testDate" required class="form-control">
+                                    </div>
+                                </div>
+
+                                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label for="emissionExpiryDate">Expiry Date *</label>
+                                        <input type="date" id="emissionExpiryDate" name="expiryDate" required class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Test Results *</label>
+                                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
+                                            <input type="text" id="emissionCO" placeholder="CO" class="form-control" required>
+                                            <input type="text" id="emissionHC" placeholder="HC" class="form-control" required>
+                                            <input type="text" id="emissionNOx" placeholder="NOx" class="form-control" required>
+                                            <input type="text" id="emissionSmoke" placeholder="Smoke" class="form-control" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="button-group" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                    <button type="reset" class="btn btn-secondary"><i class="fas fa-undo"></i> Reset Form</button>
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Generate & Send Certificate</button>
+                                </div>
+
+                                <div id="emissionCertGenerationStatus" style="margin-top: 1rem; display: none;" class="alert"></div>
+                            </form>
+                        </div>
+
                         <div class="table-container">
                             <table class="table">
                                 <thead>
@@ -933,6 +1001,99 @@
                             localStorage.clear();
                             window.location.href = 'index.html';
                         }
+                    }
+                });
+            }
+
+            // ============================================
+            // EMISSION CERTIFICATE GENERATION HANDLER
+            // ============================================
+            const emissionForm = document.getElementById('generateEmissionCertForm');
+            const statusDiv = document.getElementById('emissionCertGenerationStatus');
+            
+            if (emissionForm) {
+                // Default dates: testDate today, expiry +1 year
+                const testDateInput = document.getElementById('emissionTestDate');
+                const expiryDateInput = document.getElementById('emissionExpiryDate');
+                const today = new Date();
+                const oneYearLater = new Date(today);
+                oneYearLater.setFullYear(today.getFullYear() + 1);
+                if (testDateInput && expiryDateInput) {
+                    testDateInput.valueAsDate = today;
+                    expiryDateInput.valueAsDate = oneYearLater;
+                }
+                
+                emissionForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const submitBtn = emissionForm.querySelector('button[type="submit"]');
+                    const originalBtnText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                    
+                    statusDiv.style.display = 'none';
+                    statusDiv.className = 'alert';
+                    
+                    try {
+                        const formData = {
+                            ownerEmail: document.getElementById('emissionOwnerEmail').value,
+                            ownerName: document.getElementById('emissionOwnerName').value,
+                            vehicleVIN: document.getElementById('emissionVehicleVIN').value,
+                            vehiclePlate: document.getElementById('emissionVehiclePlate').value || null,
+                            certificateNumber: document.getElementById('emissionCertificateNumber').value,
+                            testDate: document.getElementById('emissionTestDate').value,
+                            expiryDate: document.getElementById('emissionExpiryDate').value,
+                            testResults: {
+                                co: document.getElementById('emissionCO').value,
+                                hc: document.getElementById('emissionHC').value,
+                                nox: document.getElementById('emissionNOx').value,
+                                smoke: document.getElementById('emissionSmoke').value,
+                            }
+                        };
+                        
+                        if (formData.vehicleVIN.length !== 17) {
+                            throw new Error('VIN must be exactly 17 characters');
+                        }
+                        
+                        // Call backend API
+                        let response;
+                        if (typeof ApiClient !== 'undefined' && ApiClient.post) {
+                            response = await ApiClient.post('/api/certificate-generation/emission/generate-and-send', formData);
+                        } else {
+                            response = await fetch('/api/certificate-generation/emission/generate-and-send', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(formData)
+                            }).then(r => r.json());
+                        }
+                        
+                        if (!response || response.success !== true) {
+                            throw new Error(response?.error || 'API error generating certificate');
+                        }
+                        
+                        statusDiv.className = 'alert alert-success';
+                        statusDiv.innerHTML = `
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Success!</strong> Emission certificate ${formData.certificateNumber} sent to ${formData.ownerEmail}
+                        `;
+                        statusDiv.style.display = 'block';
+                        emissionForm.reset();
+                        
+                        if (testDateInput && expiryDateInput) {
+                            testDateInput.valueAsDate = today;
+                            expiryDateInput.valueAsDate = oneYearLater;
+                        }
+                    } catch (error) {
+                        console.error('Error generating emission certificate:', error);
+                        statusDiv.className = 'alert alert-danger';
+                        statusDiv.innerHTML = `
+                            <i class="fas fa-exclamation-circle"></i>
+                            <strong>Error:</strong> ${error.message || 'Failed to generate certificate'}
+                        `;
+                        statusDiv.style.display = 'block';
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
                     }
                 });
             }

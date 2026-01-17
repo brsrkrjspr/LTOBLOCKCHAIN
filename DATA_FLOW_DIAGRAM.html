@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustChain LTO - Data Flow Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .tab-button {
+            padding: 12px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1em;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        .tab-button:hover {
+            color: #667eea;
+        }
+        .diagram-container {
+            display: none;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+        .diagram-container.active {
+            display: block;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        .legend {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        .legend h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 8px;
+        }
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔗 TrustChain LTO - Data Flow Architecture</h1>
+            <p>Blockchain-based Vehicle Registration System</p>
+        </header>
+
+        <div class="content">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('overview')">System Overview</button>
+                <button class="tab-button" onclick="switchTab('registration')">Registration Flow</button>
+                <button class="tab-button" onclick="switchTab('transfer')">Transfer Ownership</button>
+                <button class="tab-button" onclick="switchTab('approvals')">Multi-Org Approvals</button>
+                <button class="tab-button" onclick="switchTab('storage')">Data Storage</button>
+            </div>
+
+            <!-- TAB 1: System Overview -->
+            <div id="overview" class="diagram-container active">
+                <h2 style="margin-bottom: 20px;">Complete System Architecture</h2>
+                <div class="mermaid">
+graph TB
+    subgraph Frontend["📱 Frontend Layer"]
+        A["Vehicle Owner<br/>Dashboard"]
+        B["LTO Admin<br/>Dashboard"]
+        C["HPG/Insurance/Emission<br/>Dashboards"]
+        D["Document Viewer<br/>Verification Page"]
+    end
+
+    subgraph API["🔌 API Layer<br/>Node.js/Express"]
+        E["Auth Routes<br/>JWT Tokens"]
+        F["Vehicle Routes<br/>CRUD Operations"]
+        G["Transfer Routes<br/>Ownership Transfer"]
+        H["Document Routes<br/>Upload/Verify"]
+        I["Organization Routes<br/>HPG/Insurance/Emission"]
+    end
+
+    subgraph Middleware["⚙️ Middleware Layer"]
+        J["Authentication<br/>Authorization"]
+        K["Error Handling<br/>Validation"]
+        L["Rate Limiting<br/>Security"]
+    end
+
+    subgraph Service["🛠️ Service Layer<br/>Business Logic"]
+        M["Fabric Service<br/>Blockchain"]
+        N["IPFS Service<br/>Document Storage"]
+        O["Database Service<br/>PostgreSQL"]
+        P["Email Service<br/>Notifications"]
+    end
+
+    subgraph Data["💾 Data Layer"]
+        Q["PostgreSQL<br/>Application Data"]
+        R["Hyperledger Fabric<br/>Immutable Ledger"]
+        S["IPFS Network<br/>Document Storage"]
+        T["CouchDB<br/>Fabric StateDB"]
+    end
+
+    A --> E
+    B --> F
+    C --> I
+    D --> H
+    
+    E --> J
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+    
+    J --> K
+    K --> L
+    
+    L --> M
+    L --> N
+    L --> O
+    L --> P
+    
+    M --> R
+    M --> T
+    N --> S
+    O --> Q
+
+    style Frontend fill:#e3f2fd
+    style API fill:#f3e5f5
+    style Middleware fill:#fff3e0
+    style Service fill:#e8f5e9
+    style Data fill:#fce4ec
+                </div>
+                <div class="legend">
+                    <h3>🔑 Layer Descriptions</h3>
+                    <div class="legend-item"><span class="legend-color" style="background: #bbdefb;"></span>Frontend: User-facing interfaces</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #e1bee7;"></span>API: REST endpoints</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #ffe0b2;"></span>Middleware: Request processing</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #c8e6c9;"></span>Services: Business logic</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #f8bbd0;"></span>Data: Persistent storage</div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Registration Flow -->
+            <div id="registration" class="diagram-container">
+                <h2 style="margin-bottom: 20px;">Vehicle Registration Data Flow</h2>
+                <div class="mermaid">
+sequenceDiagram
+    participant User as Vehicle Owner
+    participant FE as Frontend
+    participant API as Express API
+    participant Fabric as Hyperledger Fabric
+    participant IPFS as IPFS Network
+    participant DB as PostgreSQL
+    participant Admin as LTO Admin
+
+    User->>FE: 1. Register Account
+    FE->>API: POST /api/auth/register
+    API->>DB: Create User (vehicle_owner role)
+    DB-->>API: User ID + JWT Token
+    API-->>FE: Authentication Token
+    FE-->>User: Redirect to Dashboard
+
+    User->>FE: 2. Upload Documents
+    FE->>API: POST /api/documents/upload
+    API->>IPFS: Store Document File
+    IPFS-->>API: IPFS CID (Content ID)
+    API->>DB: Save Document Record + CID
+    DB-->>API: Document ID
+    API-->>FE: Upload Success
+
+    User->>FE: 3. Submit Vehicle Registration
+    FE->>API: POST /api/vehicles/register<br/>(Vehicle Info + Doc IDs)
+    API->>DB: Create Vehicle Record<br/>(Status: SUBMITTED)
+    API->>DB: Link Documents to Vehicle
+    API->>API: Prepare Blockchain Data
+    
+    API->>Fabric: Invoke Chaincode<br/>registerVehicle()
+    Fabric->>Fabric: Record on Ledger
+    Fabric-->>API: Transaction ID
+    API->>DB: Update Vehicle Status<br/>(REGISTERED_ON_BLOCKCHAIN)
+    
+    DB-->>API: Confirmation
+    API-->>FE: Registration Complete
+    FE-->>User: Show Confirmation + TX ID
+
+    Admin->>FE: 4. Review Registration
+    FE->>API: GET /api/vehicles/{vin}/details
+    API->>DB: Fetch Vehicle + Documents
+    API->>IPFS: Verify Document CIDs
+    DB-->>API: Vehicle Data
+    API-->>FE: Display for Review
+    FE-->>Admin: Show Details
+
+    Admin->>FE: 5. Approve Registration
+    FE->>API: POST /api/vehicles/{vin}/approve
+    API->>Fabric: Invoke updateStatus(APPROVED)
+    Fabric-->>API: Transaction ID
+    API->>DB: Update Vehicle Status
+    API->>API: Send Notification Email
+    API-->>FE: Success
+    FE-->>Admin: Confirmation
+
+    Admin-->>User: Email: Registration Approved
+                </div>
+            </div>
+
+            <!-- TAB 3: Transfer Ownership -->
+            <div id="transfer" class="diagram-container">
+                <h2 style="margin-bottom: 20px;">Transfer of Ownership Data Flow</h2>
+                <div class="mermaid">
+sequenceDiagram
+    participant Seller as Current Owner
+    participant Buyer as New Owner
+    participant FE as Frontend
+    participant API as Express API
+    participant Fabric as Blockchain
+    participant DB as PostgreSQL
+
+    Seller->>FE: 1. Initiate Transfer
+    FE->>API: POST /api/vehicles/transfer/requests<br/>{vehicleVIN, buyerEmail}
+    API->>DB: Create TransferRequest<br/>(Status: PENDING)
+    API->>API: Send Email to Buyer
+    API->>Fabric: Record Transfer Request<br/>on Blockchain
+    DB-->>API: Request ID
+    API-->>FE: Transfer Initiated
+    FE-->>Seller: Show Confirmation
+
+    Buyer->>FE: 2. Accept Transfer
+    Buyer->>FE: Click "Accept Transfer"
+    FE->>API: POST /api/vehicles/transfer/requests/{id}/accept
+    API->>DB: Update Status: REVIEWING
+    API->>Fabric: Record Buyer Acceptance
+    API->>API: Notify LTO Admin
+    DB-->>API: Confirmation
+    API-->>FE: Transfer Request Created
+    FE-->>Buyer: Awaiting Admin Review
+
+    Seller-->>FE: Review Details
+    Buyer-->>FE: Review Details
+
+    FE->>FE: 3. Documents & Verification
+    note over FE,DB: Both parties can view<br/>transfer documents<br/>and verification status
+
+    Seller->>FE: 4. LTO Admin Review
+    FE->>API: GET /api/vehicles/transfer/requests/{id}
+    API->>DB: Fetch Transfer Details
+    API->>API: Fetch Documents from IPFS
+    DB-->>API: Transfer Data
+    API-->>FE: Display Transfer Details
+    FE-->>Seller: Show Documents & Status
+                </div>
+            </div>
+
+            <!-- TAB 4: Multi-Org Approvals -->
+            <div id="approvals" class="diagram-container">
+                <h2 style="margin-bottom: 20px;">Multi-Organization Approval Flow</h2>
+                <div class="mermaid">
+graph TD
+    A["Transfer Request<br/>Status: REVIEWING"] 
+    
+    B["LTO Admin Forwards<br/>to Organizations"]
+    
+    C["HPG Approval<br/>Process"]
+    D["Insurance Approval<br/>Process"]
+    E["Emission Approval<br/>Process"]
+    
+    F["Check All Approvals<br/>Received?"]
+    
+    G["All Approved<br/>✅"]
+    H["Any Rejected<br/>❌"]
+    
+    I["Update Status<br/>APPROVED"]
+    J["Update Status<br/>REJECTED"]
+    
+    K["Execute Blockchain<br/>Transfer"]
+    L["Record Rejection<br/>on Blockchain"]
+    
+    M["New Owner Added<br/>to Vehicle<br/>on Blockchain"]
+    N["Transfer Request<br/>Closed"]
+    
+    A --> B
+    B --> C
+    B --> D
+    B --> E
+    
+    C --> F
+    D --> F
+    E --> F
+    
+    F -->|All OK| G
+    F -->|Any Rejected| H
+    
+    G --> I
+    H --> J
+    
+    I --> K
+    J --> L
+    
+    K --> M
+    L --> N
+    M --> N
+    
+    style A fill:#fff3e0
+    style G fill:#c8e6c9
+    style H fill:#ffcdd2
+    style M fill:#e1bee7
+    style N fill:#b3e5fc
+                </div>
+                <div class="legend">
+                    <h3>📋 Approval Status Tracking</h3>
+                    <p><strong>hpg_approval_status:</strong> PENDING → APPROVED/REJECTED</p>
+                    <p><strong>insurance_approval_status:</strong> PENDING → APPROVED/REJECTED</p>
+                    <p><strong>emission_approval_status:</strong> PENDING → APPROVED/REJECTED</p>
+                    <p><strong>Action:</strong> LTO Admin can only approve when all three organizations have approved.</p>
+                </div>
+            </div>
+
+            <!-- TAB 5: Data Storage -->
+            <div id="storage" class="diagram-container">
+                <h2 style="margin-bottom: 20px;">Data Storage & Relationships</h2>
+                <div class="mermaid">
+graph LR
+    subgraph "PostgreSQL Database"
+        U["users<br/>PK: user_id<br/>email, password, role"]
+        V["vehicles<br/>PK: vehicle_id<br/>vin, owner_id, status"]
+        D["documents<br/>PK: document_id<br/>vehicle_id, ipfs_cid"]
+        T["transfer_requests<br/>PK: request_id<br/>vehicle_id, seller_id,<br/>buyer_id, status"]
+        O["organizations<br/>PK: org_id<br/>hpg, insurance,<br/>emission"]
+        TA["transfer_approvals<br/>PK: approval_id<br/>request_id, org_id,<br/>approval_status"]
+    end
+
+    subgraph "Hyperledger Fabric"
+        FB["Vehicle Registration<br/>Smart Contract<br/>State: Vehicle + Owner"]
+        FT["Transfer Contract<br/>State: Transfer Request<br/>+ Approvals"]
+        FL["Immutable Ledger<br/>All Transactions<br/>with Timestamps"]
+    end
+
+    subgraph "IPFS Network"
+        IP["Document Files<br/>Stored by CID<br/>Content-Addressed"]
+    end
+
+    U -->|owns| V
+    V -->|has| D
+    V -->|in transfer| T
+    U -->|creates| T
+    T -->|approval from| O
+    T -->|has| TA
+    O -->|gives approval| TA
+    
+    D -->|CID stored| IP
+    V -->|registered on| FB
+    T -->|recorded on| FT
+    FB -->|transaction in| FL
+    FT -->|transaction in| FL
+
+    style U fill:#bbdefb
+    style V fill:#bbdefb
+    style D fill:#bbdefb
+    style T fill:#bbdefb
+    style O fill:#bbdefb
+    style TA fill:#bbdefb
+    style FB fill:#c8e6c9
+    style FT fill:#c8e6c9
+    style FL fill:#c8e6c9
+    style IP fill:#ffe0b2
+                </div>
+                <div class="legend">
+                    <h3>🗄️ Data Storage Details</h3>
+                    <div style="margin-top: 15px;">
+                        <p><strong>PostgreSQL:</strong> Relational data, user accounts, vehicle records, transfer requests, approval tracking</p>
+                        <p><strong>Hyperledger Fabric:</strong> Immutable blockchain ledger, smart contract state, cryptographic proof of all transactions</p>
+                        <p><strong>IPFS:</strong> Document files indexed by Content Identifier (CID), decentralized storage</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>TrustChain LTO System - Data Flow Architecture Diagram | Generated: January 2026</p>
+            <p>For more information, see: SYSTEM_ARCHITECTURE_AND_GUIDELINES.md | SYSTEM-FUNCTIONALITY-DOCUMENTATION.md</p>
+        </footer>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all diagrams
+            const diagrams = document.querySelectorAll('.diagram-container');
+            diagrams.forEach(d => d.classList.remove('active'));
+            
+            // Remove active from all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(b => b.classList.remove('active'));
+            
+            // Show selected diagram
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active to clicked button
+            event.target.classList.add('active');
+            
+            // Re-render mermaid diagrams
+            mermaid.contentLoaded();
+        }
+
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+    </script>
+</body>
+</html>

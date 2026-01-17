@@ -898,3 +898,122 @@ ORDER BY table_name;
 ## Last Updated
 
 This document reflects the database structure as of the latest migration (transfer_requests, clearance_requests, certificates, refresh_tokens, sessions, token_blacklist, email_verification_tokens).
+
+
+
+
+
+
+ONE TIME
+
+# ============================================
+# COMPREHENSIVE DATABASE VERIFICATION
+# ============================================
+
+echo "============================================"
+echo "DATABASE VERIFICATION REPORT"
+echo "============================================"
+echo ""
+
+# Check database connection
+echo "1. Database Connection:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT version();" 2>/dev/null && echo "✅ Connected" || echo "❌ Connection failed"
+echo ""
+
+# Check all tables
+echo "2. All Tables:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "\dt" | grep -E "public|Schema"
+echo ""
+
+# Check table counts
+echo "3. Table Record Counts:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT 
+    'users' as table_name, COUNT(*) as count FROM users
+UNION ALL
+SELECT 'vehicles', COUNT(*) FROM vehicles
+UNION ALL
+SELECT 'documents', COUNT(*) FROM documents
+UNION ALL
+SELECT 'certificates', COUNT(*) FROM certificates
+UNION ALL
+SELECT 'clearance_requests', COUNT(*) FROM clearance_requests
+UNION ALL
+SELECT 'transfer_requests', COUNT(*) FROM transfer_requests
+UNION ALL
+SELECT 'refresh_tokens', COUNT(*) FROM refresh_tokens
+UNION ALL
+SELECT 'sessions', COUNT(*) FROM sessions
+UNION ALL
+SELECT 'token_blacklist', COUNT(*) FROM token_blacklist;
+"
+echo ""
+
+# Check document_type enum values
+echo "4. Document Type Enum Values:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT enumlabel FROM pg_enum 
+WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'document_type') 
+ORDER BY enumsortorder;
+"
+echo ""
+
+# Check if 'other' type exists
+echo "5. Checking for 'other' document type:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT EXISTS(
+    SELECT 1 FROM pg_enum 
+    WHERE enumlabel = 'other' 
+    AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'document_type')
+) as other_exists;
+"
+echo ""
+
+# Check vehicles status distribution
+echo "6. Vehicles by Status:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT status, COUNT(*) as count 
+FROM vehicles 
+GROUP BY status 
+ORDER BY count DESC;
+"
+echo ""
+
+# Check critical columns exist
+echo "7. Checking Critical Columns:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT 
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'certificates' 
+        AND column_name = 'file_hash'
+    ) THEN '✅ certificates.file_hash' ELSE '❌ certificates.file_hash MISSING' END as file_hash_check,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'certificates' 
+        AND column_name = 'composite_hash'
+    ) THEN '✅ certificates.composite_hash' ELSE '❌ certificates.composite_hash MISSING' END as composite_hash_check,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'certificates' 
+        AND column_name = 'blockchain_tx_id'
+    ) THEN '✅ certificates.blockchain_tx_id' ELSE '❌ certificates.blockchain_tx_id MISSING' END as blockchain_tx_check;
+"
+echo ""
+
+# Check functions exist
+echo "8. Checking Critical Functions:"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT 
+    CASE WHEN EXISTS (
+        SELECT 1 FROM pg_proc WHERE proname = 'cleanup_expired_blacklist'
+    ) THEN '✅ cleanup_expired_blacklist()' ELSE '❌ cleanup_expired_blacklist() MISSING' END as cleanup_func_check,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM pg_proc WHERE proname = 'cleanup_expired_tokens'
+    ) THEN '✅ cleanup_expired_tokens()' ELSE '❌ cleanup_expired_tokens() MISSING' END as tokens_func_check;
+"
+echo ""
+
+echo "============================================"
+echo "VERIFICATION COMPLETE"
+echo "============================================"

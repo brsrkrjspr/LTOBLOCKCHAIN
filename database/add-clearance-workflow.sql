@@ -54,9 +54,19 @@ CREATE INDEX IF NOT EXISTS idx_certificates_issued_by ON certificates(issued_by)
 
 -- Add foreign key constraint for certificate_id in clearance_requests
 -- (We'll add this after certificates table exists)
-ALTER TABLE clearance_requests 
-ADD CONSTRAINT fk_clearance_certificate 
-FOREIGN KEY (certificate_id) REFERENCES certificates(id) ON DELETE SET NULL;
+-- FIXED: Make this idempotent
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_clearance_certificate' 
+        AND table_name = 'clearance_requests'
+    ) THEN
+        ALTER TABLE clearance_requests 
+        ADD CONSTRAINT fk_clearance_certificate 
+        FOREIGN KEY (certificate_id) REFERENCES certificates(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Add clearance_request_id to vehicle_verifications table
 ALTER TABLE vehicle_verifications 
@@ -73,6 +83,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- FIXED: Make trigger creation idempotent
+DROP TRIGGER IF EXISTS trigger_update_clearance_requests_updated_at ON clearance_requests;
 CREATE TRIGGER trigger_update_clearance_requests_updated_at
 BEFORE UPDATE ON clearance_requests
 FOR EACH ROW

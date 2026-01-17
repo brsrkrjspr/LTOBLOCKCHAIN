@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustChain LTO - Blockchain Packet Tracer Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #667eea; }
+        header h1 { color: #667eea; font-size: 2.5em; margin-bottom: 10px; }
+        header p { color: #666; font-size: 1.1em; }
+        
+        .tabs { display: flex; gap: 8px; margin-bottom: 30px; flex-wrap: wrap; }
+        .tab-button { padding: 12px 18px; border: 2px solid #667eea; background: white; color: #667eea; cursor: pointer; border-radius: 8px; font-weight: bold; transition: all 0.3s; font-size: 14px; }
+        .tab-button:hover { background: #f0f4ff; transform: translateY(-2px); }
+        .tab-button.active { background: #667eea; color: white; }
+        
+        .diagram-container { display: none; }
+        .diagram-container.active { display: block; }
+        .diagram-box { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .mermaid { width: 100%; max-width: 1400px; margin: 0 auto; }
+        .description { color: #555; line-height: 1.6; margin-bottom: 20px; font-size: 0.95em; }
+        
+        /* Controls */
+        .controls { background: linear-gradient(135deg, #e8f4f8 0%, #f0f9ff 100%); padding: 20px; border-radius: 10px; margin: 20px 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; border: 2px solid #0ea5e9; }
+        .btn { padding: 11px 22px; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; transition: all 0.3s; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .btn-success:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(16,185,129,0.3); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn-danger:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(239,68,68,0.3); }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .btn-warning:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(245,158,11,0.3); }
+        .btn-primary { background: linear-gradient(135deg, #667eea, #5568d3); color: white; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(102,126,234,0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        /* Simulation Canvas */
+        .simulation-canvas { background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%); border: 3px solid #cbd5e1; border-radius: 12px; min-height: 580px; margin: 20px 0; position: relative; box-shadow: inset 0 2px 8px rgba(0,0,0,0.05); }
+        .simulation-canvas svg { width: 100%; height: 100%; }
+        
+        /* SVG Elements */
+        .node-group rect { stroke: white; stroke-width: 3; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.15)); transition: all 0.3s; }
+        .node-group:hover rect { transform: scale(1.05); filter: drop-shadow(0 6px 16px rgba(0,0,0,0.25)); }
+        .node-label { font-size: 13px; font-weight: 700; text-anchor: middle; fill: white; pointer-events: none; letter-spacing: 0.5px; }
+        .node-status { font-size: 10px; font-weight: 600; fill: white; opacity: 0.9; }
+        
+        .connection-line { stroke: #cbd5e1; stroke-width: 2; fill: none; opacity: 0.6; }
+        .connection-line.active { stroke: #3b82f6; stroke-width: 3; opacity: 1; animation: flow-pulse 1.5s ease-in-out infinite; }
+        @keyframes flow-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .animated-path { stroke: #60a5fa; stroke-width: 4; fill: none; stroke-dasharray: 10 5; }
+        @keyframes dash-flow { to { stroke-dashoffset: -15; } }
+        
+        /* Packet Styles */
+        .packet-group { cursor: pointer; transition: transform 0.2s; }
+        .packet-group:hover { transform: scale(1.15); }
+        .packet-circle { filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3)); }
+        .packet-label { font-size: 11px; font-weight: 700; text-anchor: middle; fill: white; dominant-baseline: middle; pointer-events: none; }
+        
+        /* Packet Types */
+        .packet-proposal { fill: #3b82f6; }
+        .packet-endorsement { fill: #8b5cf6; }
+        .packet-transaction { fill: #ef4444; }
+        .packet-vote { fill: #f59e0b; }
+        .packet-block { fill: #10b981; }
+        .packet-error { fill: #dc2626; }
+        
+        /* Detail Panel */
+        .detail-panel { position: absolute; background: white; border: 2px solid #667eea; border-radius: 8px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); max-width: 350px; z-index: 1000; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+        .detail-panel.visible { opacity: 1; pointer-events: auto; }
+        .detail-header { font-weight: 700; color: #667eea; margin-bottom: 10px; font-size: 13px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+        .detail-field { display: flex; justify-content: space-between; margin: 6px 0; font-size: 11px; }
+        .detail-label { font-weight: 600; color: #64748b; }
+        .detail-value { color: #1e293b; font-family: 'Courier New', monospace; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+        .detail-close { position: absolute; top: 8px; right: 8px; cursor: pointer; font-size: 18px; color: #94a3b8; }
+        .detail-close:hover { color: #ef4444; }
+        
+        /* Queue Indicator */
+        .queue-badge { fill: #f59e0b; stroke: white; stroke-width: 2; }
+        .queue-text { fill: white; font-size: 11px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
+        
+        /* Progress Bar */
+        .progress-container { opacity: 0; transition: opacity 0.3s; }
+        .progress-container.visible { opacity: 1; }
+        .progress-bg { fill: #e5e7eb; }
+        .progress-fill { fill: #10b981; transition: width 0.3s ease; }
+        .progress-label { font-size: 10px; fill: #475569; font-weight: 600; text-anchor: middle; }
+        
+        /* Speed & Step Controls */
+        .speed-control { display: inline-flex; align-items: center; gap: 8px; background: white; padding: 8px 14px; border-radius: 6px; border: 2px solid #cbd5e1; }
+        .speed-control input { width: 100px; cursor: pointer; }
+        .speed-control label { font-weight: 600; color: #334155; font-size: 13px; }
+        .speed-value { font-weight: 700; color: #667eea; min-width: 35px; }
+        
+        .step-indicator { display: inline-flex; align-items: center; gap: 10px; background: white; padding: 10px 18px; border-radius: 6px; border: 2px solid #667eea; margin-left: auto; }
+        .step-indicator span { font-weight: 700; color: #667eea; font-size: 14px; }
+        
+        /* Log */
+        .log { background: #1e293b; border: 2px solid #334155; border-radius: 8px; padding: 16px; margin-top: 20px; max-height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; box-shadow: inset 0 2px 8px rgba(0,0,0,0.3); }
+        .log-entry { padding: 6px 0; border-bottom: 1px solid #334155; display: flex; gap: 10px; animation: log-appear 0.3s ease; }
+        @keyframes log-appear { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; min-width: 95px; font-weight: 600; font-size: 11px; }
+        .log-icon { min-width: 22px; font-size: 14px; }
+        .log-message { flex: 1; }
+        .log-entry.success { color: #34d399; }
+        .log-entry.error { color: #f87171; }
+        .log-entry.info { color: #60a5fa; }
+        .log-entry.warning { color: #fbbf24; }
+        .log-entry.highlight { color: #c084fc; font-weight: 600; }
+        
+        /* Scrollbar */
+        .log::-webkit-scrollbar { width: 10px; }
+        .log::-webkit-scrollbar-track { background: #0f172a; border-radius: 5px; }
+        .log::-webkit-scrollbar-thumb { background: #475569; border-radius: 5px; }
+        .log::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+        }
+        
+        footer { text-align: center; margin-top: 40px; padding: 20px; color: #64748b; font-size: 14px; }
+        footer strong { color: #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔗 TrustChain LTO - Blockchain Packet Tracer</h1>
+            <p>Interactive Consensus Visualization with Real-Time Packet Flow</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('dfd-level0', this)">DFD Level 0</button>
+            <button class="tab-button" onclick="switchTab('dfd-level1', this)">DFD Level 1</button>
+            <button class="tab-button" onclick="switchTab('registration-flow', this)">Registration</button>
+            <button class="tab-button" onclick="switchTab('transfer-flow', this)">Transfer</button>
+            <button class="tab-button" onclick="switchTab('approval-flow', this)">Approval</button>
+            <button class="tab-button" onclick="switchTab('data-entities', this)">Data</button>
+            <button class="tab-button" onclick="switchTab('consensus-flow', this)">Consensus Flow</button>
+            <button class="tab-button" onclick="switchTab('peer-disagreement', this)">Peer Conflict</button>
+            <button class="tab-button" onclick="switchTab('raft-consensus', this)">Raft Consensus</button>
+        </div>
+
+        <!-- Static Diagrams -->
+        <div id="dfd-level0" class="diagram-container active">
+            <h2>📊 DFD Level 0 - Context Diagram</h2>
+            <div class="diagram-box"><div class="mermaid" id="dfd0"></div></div>
+        </div>
+
+        <div id="dfd-level1" class="diagram-container">
+            <h2>🔍 DFD Level 1 - Detailed Process Flows</h2>
+            <div class="diagram-box"><div class="mermaid" id="dfd1"></div></div>
+        </div>
+
+        <div id="registration-flow" class="diagram-container">
+            <h2>🚗 Vehicle Registration Flow</h2>
+            <div class="diagram-box"><div class="mermaid" id="regFlow"></div></div>
+        </div>
+
+        <div id="transfer-flow" class="diagram-container">
+            <h2>🔄 Vehicle Transfer Flow</h2>
+            <div class="diagram-box"><div class="mermaid" id="transferFlow"></div></div>
+        </div>
+
+        <div id="approval-flow" class="diagram-container">
+            <h2>✅ Transfer Approval Flow</h2>
+            <div class="diagram-box"><div class="mermaid" id="approvalFlow"></div></div>
+        </div>
+
+        <div id="data-entities" class="diagram-container">
+            <h2>🗄️ Data Entity Relationships</h2>
+            <div class="diagram-box"><div class="mermaid" id="erDiagram"></div></div>
+        </div>
+
+        <!-- Interactive Packet Tracer Simulations -->
+        <div id="consensus-flow" class="diagram-container">
+            <h2>🔗 Consensus Flow - Packet Tracer Mode</h2>
+            <p class="description">Watch transaction packets travel through the network from client proposal to blockchain commitment. Each packet shows real data (hash, signatures, payload) as it moves through endorsement and consensus.</p>
+            
+            <div class="controls">
+                <button class="btn btn-success" onclick="consensusSim.run('normal')" id="consensus-normal">▶️ Normal Flow</button>
+                <button class="btn btn-danger" onclick="consensusSim.run('disagree')" id="consensus-disagree">⚠️ Peer Conflict</button>
+                <button class="btn btn-warning" onclick="consensusSim.run('failure')" id="consensus-failure">🔧 Orderer Down</button>
+                <button class="btn btn-primary btn-sm" onclick="consensusSim.pause()" id="consensus-pause" disabled>⏸️ Pause</button>
+                <button class="btn btn-primary btn-sm" onclick="consensusSim.reset()" id="consensus-reset">🔄 Reset</button>
+                <div class="speed-control">
+                    <label>Speed:</label>
+                    <input type="range" min="0.5" max="2" step="0.25" value="1" id="consensus-speed" onchange="consensusSim.setSpeed(this.value)">
+                    <span class="speed-value" id="consensus-speed-label">1×</span>
+                </div>
+                <div class="step-indicator">
+                    <span>Step <span id="consensus-step">0</span>/<span id="consensus-total">7</span></span>
+                </div>
+            </div>
+            
+            <div class="simulation-canvas" id="consensusCanvas"></div>
+            <div class="log" id="consensusLog"></div>
+        </div>
+
+        <div id="peer-disagreement" class="diagram-container">
+            <h2>⚠️ Peer Disagreement - Fork Detection</h2>
+            <p class="description">Observe transaction packets fork to multiple peers, watch parallel execution, and see how endorsement mismatch prevents consensus corruption.</p>
+            
+            <div class="controls">
+                <button class="btn btn-success" onclick="peerSim.run('agree')" id="peer-agree">✅ Agreement</button>
+                <button class="btn btn-danger" onclick="peerSim.run('conflict')" id="peer-conflict">❌ Mismatch</button>
+                <button class="btn btn-primary btn-sm" onclick="peerSim.reset()" id="peer-reset">🔄 Reset</button>
+                <div class="speed-control">
+                    <label>Speed:</label>
+                    <input type="range" min="0.5" max="2" step="0.25" value="1" id="peer-speed" onchange="peerSim.setSpeed(this.value)">
+                    <span class="speed-value" id="peer-speed-label">1×</span>
+                </div>
+            </div>
+            
+            <div class="simulation-canvas" id="disagreementCanvas"></div>
+            <div class="log" id="disagreementLog"></div>
+        </div>
+
+        <div id="raft-consensus" class="diagram-container">
+            <h2>⛓️ Raft Consensus - Log Replication</h2>
+            <p class="description">Visualize leader election, log replication packets, vote messages, and Byzantine fault tolerance with live progress bars showing replication status.</p>
+            
+            <div class="controls">
+                <button class="btn btn-success" onclick="raftSim.run('success')" id="raft-success">✅ All Online</button>
+                <button class="btn btn-warning" onclick="raftSim.run('one-down')" id="raft-one">⚠️ 1 Down</button>
+                <button class="btn btn-danger" onclick="raftSim.run('majority-fail')" id="raft-majority">❌ Majority Fail</button>
+                <button class="btn btn-primary btn-sm" onclick="raftSim.reset()" id="raft-reset">🔄 Reset</button>
+                <div class="speed-control">
+                    <label>Speed:</label>
+                    <input type="range" min="0.5" max="2" step="0.25" value="1" id="raft-speed" onchange="raftSim.setSpeed(this.value)">
+                    <span class="speed-value" id="raft-speed-label">1×</span>
+                </div>
+            </div>
+            
+            <div class="simulation-canvas" id="raftCanvas"></div>
+            <div class="log" id="raftLog"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p><strong>TrustChain LTO</strong> - Hyperledger Fabric 2.5 • Raft Consensus • Real-Time Packet Visualization</p>
+    </footer>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+
+        // Mermaid Definitions
+        const diagramDefs = {
+            dfd0: `graph TD
+                VO[Vehicle Owners] -->|Register/Transfer| TS[TrustChain System]
+                LA[LTO Admins] -->|Verify/Approve| TS
+                EO[External Orgs] -->|Query Records| TS
+                TS -->|Vehicle Data| VO
+                TS -->|Blockchain Proof| LA
+                TS -->|Certificate| EO`,
+            
+            dfd1: `graph TD
+                Users[Users] -->|Login| Auth[Authentication]
+                Auth -->|Credentials| UserDB[(User DB)]
+                Users -->|Register Vehicle| RegVehicle[Register Vehicle]
+                RegVehicle -->|Save| VehicleDB[(Vehicle DB)]
+                RegVehicle -->|Store| BlockchainLedger[(Blockchain)]
+                Users -->|Request Transfer| Transfer[Transfer Process]
+                Transfer -->|Update| TransferDB[(Transfer DB)]
+                Transfer -->|Submit| Approval[Admin Approval]
+                Approval -->|Finalize| BlockchainLedger`,
+            
+            regFlow: `graph TD
+                S[Start] --> A{Has Account?}
+                A -->|No| C[Create Account]
+                C --> L[Login]
+                A -->|Yes| L
+                L --> F[Fill Registration Form]
+                F --> U[Upload Documents]
+                U --> V[Validate Data]
+                V --> D[Save to Database]
+                D --> B[Submit to Blockchain]
+                B --> E[Generate Certificate]
+                E --> End[End]`,
+            
+            transferFlow: `graph TD
+                S[Start] --> L[Login as Owner]
+                L --> V[View My Vehicles]
+                V --> ST[Select Vehicle to Transfer]
+                ST --> E[Enter New Owner Email]
+                E --> C[Create Transfer Request]
+                C --> DB[(Transfer DB)]
+                DB --> N[Notify New Owner]
+                N --> R{New Owner Accepts?}
+                R -->|Yes| A[Pending Admin Approval]
+                R -->|No| X[Transfer Cancelled]
+                A --> End[End]`,
+            
+            approvalFlow: `graph TD
+                S[Start] --> AL[Admin Login]
+                AL --> P[View Pending Transfers]
+                P --> R[Review Transfer Request]
+                R --> VD[Verify Documents]
+                VD --> D{Decision}
+                D -->|Approve| U[Update Database Status]
+                D -->|Reject| RJ[Reject Transfer]
+                U --> BC[Submit to Blockchain]
+                BC --> NO[Notify Both Parties]
+                RJ --> NR[Notify Rejection]
+                NO --> End[End]
+                NR --> End`,
+            
+            erDiagram: `erDiagram
+                USERS ||--o{ VEHICLES : owns
+                USERS ||--o{ TRANSFERS : initiates
+                VEHICLES ||--o{ TRANSFERS : involves
+                USERS {
+                    int id PK
+                    string email
+                    string password
+                    string role
+                }
+                VEHICLES {
+                    int id PK
+                    string vin UK
+                    string owner_id FK
+                    string blockchain_tx
+                }
+                TRANSFERS {
+                    int id PK
+                    int vehicle_id FK
+                    int from_user FK
+                    int to_user FK
+                    string status
+                }`
+        };
+
+        // Render Mermaid diagrams
+        async function renderDiagram(diagramId) {
+            const element = document.getElementById(diagramId);
+            if (!element || !diagramDefs[diagramId]) return;
+            try {
+                const { svg } = await mermaid.render('mermaid-' + diagramId, diagramDefs[diagramId]);
+                element.innerHTML = svg;
+            } catch (error) {
+                console.error('Mermaid error:', error);
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabName, button) {
+            document.querySelectorAll('.diagram-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            button.classList.add('active');
+            
+            const diagramMap = {
+                'dfd-level0': 'dfd0', 'dfd-level1': 'dfd1', 'registration-flow': 'regFlow',
+                'transfer-flow': 'transferFlow', 'approval-flow': 'approvalFlow', 'data-entities': 'erDiagram'
+            };
+            if (diagramMap[tabName]) renderDiagram(diagramMap[tabName]);
+        }
+
+        // Utilities
+        function log(cId, msg, type = 'info') {
+            const c = document.getElementById(cId);
+            const e = document.createElement('div');
+            e.className = `log-entry ${type}`;
+            const t = new Date().toLocaleTimeString();
+            const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️', highlight: '🔸' };
+            e.innerHTML = `<span class="log-time">${t}</span><span class="log-icon">${icons[type]}</span><span class="log-message">${msg}</span>`;
+            c.appendChild(e);
+            c.scrollTop = c.scrollHeight;
+        }
+        function clearLog(cId) { document.getElementById(cId).innerHTML = ''; }
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function generateHash() { return '0x' + Array.from({length: 8}, () => Math.floor(Math.random() * 16).toString(16)).join(''); }
+
+        // ============ PACKET CLASS ============
+        class Packet {
+            constructor(type, data) {
+                this.id = 'pkt_' + Date.now() + Math.random().toString(36).substr(2, 9);
+                this.type = type; // 'proposal', 'endorsement', 'transaction', 'vote', 'block'
+                this.state = 'created'; // created, queued, in-transit, processing, confirmed, failed
+                this.data = {
+                    hash: data.hash || generateHash(),
+                    from: data.from || 'Unknown',
+                    to: data.to || 'Unknown',
+                    payload: data.payload || 'Transaction Data',
+                    timestamp: new Date().toISOString(),
+                    ...data
+                };
+                this.position = { x: 0, y: 0 };
+            }
+
+            getColor() {
+                const colors = {
+                    proposal: '#3b82f6',
+                    endorsement: '#8b5cf6',
+                    transaction: '#ef4444',
+                    vote: '#f59e0b',
+                    block: '#10b981',
+                    error: '#dc2626'
+                };
+                return colors[this.type] || '#64748b';
+            }
+
+            getLabel() {
+                const labels = {
+                    proposal: 'PROP',
+                    endorsement: 'END',
+                    transaction: 'TX',
+                    vote: 'VOTE',
+                    block: 'BLK',
+                    error: 'ERR'
+                };
+                return labels[this.type] || 'PKT';
+            }
+        }
+
+        // ============ CONSENSUS SIMULATION ============
+        class ConsensusSim {
+            constructor(canvasId, logId) {
+                this.canvasId = canvasId;
+                this.logId = logId;
+                this.speed = 1;
+                this.isRunning = false;
+                this.isPaused = false;
+                this.packets = [];
+                this.w = 1500;
+                this.h = 580;
+                this.currentStep = 0;
+                this.totalSteps = 7;
+                this.setupCanvas();
+            }
+
+            setupCanvas() {
+                const c = document.getElementById(this.canvasId);
+                c.innerHTML = '';
+                this.svg = d3.select(`#${this.canvasId}`).append('svg')
+                    .attr('width', '100%').attr('height', '100%')
+                    .attr('viewBox', `0 0 ${this.w} ${this.h}`)
+                    .attr('preserveAspectRatio', 'xMidYMid meet');
+            }
+
+            drawNetwork(nodes) {
+                this.nodes = nodes;
+                
+                // Define ALL possible bidirectional connections
+                const allConnections = [
+                    { from: 'client', to: 'peerA' },
+                    { from: 'peerA', to: 'client' },
+                    { from: 'client', to: 'peerB' },
+                    { from: 'peerB', to: 'client' },
+                    { from: 'peerA', to: 'orderer2' },
+                    { from: 'peerB', to: 'orderer2' },
+                    { from: 'orderer1', to: 'orderer2' },
+                    { from: 'orderer2', to: 'orderer1' },
+                    { from: 'orderer2', to: 'orderer3' },
+                    { from: 'orderer3', to: 'orderer2' },
+                    { from: 'orderer2', to: 'blockchain' }
+                ];
+                
+                // Store connection map for quick lookup
+                this.connections = {};
+                allConnections.forEach(c => {
+                    this.connections[`${c.from}-${c.to}`] = c;
+                });
+                
+                // Draw connection lines
+                this.svg.selectAll('.connection-line').data(allConnections).enter()
+                    .append('line').attr('class', 'connection-line')
+                    .attr('x1', d => nodes[d.from].x).attr('y1', d => nodes[d.from].y)
+                    .attr('x2', d => nodes[d.to].x).attr('y2', d => nodes[d.to].y)
+                    .attr('data-from', d => d.from)
+                    .attr('data-to', d => d.to);
+                
+                // Draw nodes
+                const ng = this.svg.selectAll('.node-group').data(Object.entries(nodes)).enter()
+                    .append('g').attr('class', 'node-group')
+                    .attr('transform', d => `translate(${d[1].x},${d[1].y})`);
+                
+                ng.append('rect').attr('x', -55).attr('y', -24).attr('width', 110).attr('height', 48)
+                    .attr('rx', 7).attr('fill', d => d[1].color);
+                ng.append('text').attr('class', 'node-label').attr('y', -4).text(d => d[1].label);
+                ng.append('text').attr('class', 'node-status').attr('y', 13).attr('data-node', d => d[0]);
+                
+                // Packet layer
+                this.packetLayer = this.svg.append('g').attr('class', 'packet-layer');
+            }
+
+            createPacket(type, from, to, data = {}) {
+                const packet = new Packet(type, { from, to, ...data });
+                packet.position = { x: this.nodes[from].x, y: this.nodes[from].y };
+                this.packets.push(packet);
+                return packet;
+            }
+
+            renderPacket(packet) {
+                const g = this.packetLayer.append('g')
+                    .attr('class', 'packet-group')
+                    .attr('id', packet.id)
+                    .attr('transform', `translate(${packet.position.x},${packet.position.y})`);
+                
+                g.append('circle')
+                    .attr('class', `packet-circle packet-${packet.type}`)
+                    .attr('r', 18);
+                
+                g.append('text')
+                    .attr('class', 'packet-label')
+                    .text(packet.getLabel());
+                
+                // Hover effect
+                g.on('mouseenter', () => this.showPacketDetail(packet))
+                  .on('mouseleave', () => this.hidePacketDetail());
+                
+                return g;
+            }
+
+            async animatePacket(packet, from, to, duration = 1200) {
+                const fromNode = this.nodes[from];
+                const toNode = this.nodes[to];
+                
+                // Calculate curved Bezier path
+                const dx = toNode.x - fromNode.x;
+                const dy = toNode.y - fromNode.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const controlX = fromNode.x + dx / 2;
+                const controlY = fromNode.y + dy / 2 - distance * 0.25;
+                
+                const pathData = `M ${fromNode.x} ${fromNode.y} Q ${controlX} ${controlY} ${toNode.x} ${toNode.y}`;
+                
+                // Create visible animated path
+                const animPath = this.svg.insert('path', ':first-child')
+                    .attr('class', 'animated-path')
+                    .attr('d', pathData)
+                    .style('opacity', 0)
+                    .style('animation', 'dash-flow 1s linear infinite');
+                
+                animPath.transition().duration(200).style('opacity', 0.7);
+                
+                // Create guide path (invisible)
+                const guidePath = this.svg.append('path')
+                    .attr('d', pathData)
+                    .style('display', 'none');
+                
+                const pathLength = guidePath.node().getTotalLength();
+                const g = this.renderPacket(packet);
+                
+                // Activate connection line
+                this.svg.selectAll('.connection-line')
+                    .filter(function() {
+                        return d3.select(this).attr('data-from') === from && 
+                               d3.select(this).attr('data-to') === to;
+                    })
+                    .classed('active', true);
+                
+                packet.state = 'in-transit';
+                
+                return new Promise(resolve => {
+                    g.transition()
+                        .duration(duration / this.speed)
+                        .ease(d3.easeCubicInOut)
+                        .attrTween('transform', function() {
+                            return function(t) {
+                                const point = guidePath.node().getPointAtLength(t * pathLength);
+                                packet.position = { x: point.x, y: point.y };
+                                return `translate(${point.x},${point.y})`;
+                            };
+                        })
+                        .on('end', () => {
+                            packet.state = 'confirmed';
+                            g.transition().duration(300).style('opacity', 0).remove();
+                            animPath.transition().duration(400).style('opacity', 0).remove();
+                            guidePath.remove();
+                            
+                            this.svg.selectAll('.connection-line')
+                                .filter(function() {
+                                    return d3.select(this).attr('data-from') === from && 
+                                           d3.select(this).attr('data-to') === to;
+                                })
+                                .classed('active', false);
+                            
+                            setTimeout(resolve, 100);
+                        });
+                });
+            }
+
+            showPacketDetail(packet) {
+                // Implementation placeholder for hover detail panel
+                console.log('Packet details:', packet.data);
+            }
+
+            hidePacketDetail() {
+                // Implementation placeholder
+            }
+
+            updateNodeStatus(nodeId, status, color) {
+                this.svg.selectAll('.node-status')
+                    .filter(function() { return d3.select(this).attr('data-node') === nodeId; })
+                    .text(status);
+                if (color) {
+                    this.svg.selectAll('.node-group')
+                        .filter(function() { return d3.select(this.parentNode).select('.node-status').attr('data-node') === nodeId; })
+                        .select('rect').transition().duration(300).attr('fill', color);
+                }
+            }
+
+            updateStep(step) {
+                this.currentStep = step;
+                document.getElementById('consensus-step').textContent = step;
+            }
+
+            async run(scenario) {
+                if (this.isRunning) return;
+                this.isRunning = true;
+                this.isPaused = false;
+                clearLog(this.logId);
+                this.packets = [];
+                
+                const nodes = {
+                    client: { x: 750, y: 50, label: 'CLIENT', color: '#3b82f6' },
+                    peerA: { x: 380, y: 190, label: 'Peer A', color: '#8b5cf6' },
+                    peerB: { x: 1120, y: 190, label: 'Peer B', color: '#8b5cf6' },
+                    orderer1: { x: 280, y: 360, label: 'Orderer 1', color: '#f59e0b' },
+                    orderer2: { x: 750, y: 360, label: 'Orderer 2', color: '#f59e0b' },
+                    orderer3: { x: 1220, y: 360, label: 'Orderer 3', color: '#f59e0b' },
+                    blockchain: { x: 750, y: 510, label: 'BLOCKCHAIN', color: '#10b981' }
+                };
+                
+                this.drawNetwork(nodes);
+                
+                if (scenario === 'normal') await this.normalFlow();
+                else if (scenario === 'disagree') await this.disagreeFlow();
+                else if (scenario === 'failure') await this.failureFlow();
+                
+                this.isRunning = false;
+                document.getElementById('consensus-pause').disabled = true;
+            }
+
+            async normalFlow() {
+                this.updateStep(1);
+                log(this.logId, 'Client creating transaction proposal packet...', 'info');
+                await sleep(600 / this.speed);
+                
+                this.updateStep(2);
+                log(this.logId, 'Broadcasting PROPOSAL packets to endorsing peers', 'highlight');
+                this.updateNodeStatus('peerA', 'EVAL', '#9333ea');
+                this.updateNodeStatus('peerB', 'EVAL', '#9333ea');
+                
+                const prop1 = this.createPacket('proposal', 'client', 'peerA', { payload: 'RegisterVehicle(VIN123)' });
+                const prop2 = this.createPacket('proposal', 'client', 'peerB', { payload: 'RegisterVehicle(VIN123)' });
+                
+                await Promise.all([
+                    this.animatePacket(prop1, 'client', 'peerA'),
+                    this.animatePacket(prop2, 'client', 'peerB')
+                ]);
+                
+                await sleep(1000 / this.speed);
+                
+                this.updateStep(3);
+                this.updateNodeStatus('peerA', 'SIGNED', '#10b981');
+                log(this.logId, 'Peer A: Simulation successful, signing endorsement', 'success');
+                await sleep(500 / this.speed);
+                
+                this.updateNodeStatus('peerB', 'SIGNED', '#10b981');
+                log(this.logId, 'Peer B: Simulation successful, signing endorsement', 'success');
+                await sleep(800 / this.speed);
+                
+                log(this.logId, 'Peers returning ENDORSEMENT packets to client', 'highlight');
+                const end1 = this.createPacket('endorsement', 'peerA', 'client', { payload: 'Signature: ' + generateHash() });
+                const end2 = this.createPacket('endorsement', 'peerB', 'client', { payload: 'Signature: ' + generateHash() });
+                
+                await Promise.all([
+                    this.animatePacket(end1, 'peerA', 'client'),
+                    this.animatePacket(end2, 'peerB', 'client')
+                ]);
+                
+                this.updateStep(4);
+                log(this.logId, 'Client validating endorsement signatures...', 'info');
+                await sleep(700 / this.speed);
+                log(this.logId, '✓ All endorsements match! Building transaction envelope', 'success');
+                await sleep(800 / this.speed);
+                
+                this.updateStep(5);
+                log(this.logId, 'Sending TRANSACTION packet to orderer network', 'highlight');
+                this.updateNodeStatus('orderer2', 'LEADER', '#f97316');
+                
+                const tx = this.createPacket('transaction', 'client', 'orderer2', { payload: 'Endorsed TX: ' + generateHash() });
+                await this.animatePacket(tx, 'client', 'orderer2');
+                
+                await sleep(1000 / this.speed);
+                
+                this.updateStep(6);
+                log(this.logId, 'Orderer 2 (Leader) replicating to followers...', 'info');
+                this.updateNodeStatus('orderer1', 'SYNC', '#f59e0b');
+                this.updateNodeStatus('orderer3', 'SYNC', '#f59e0b');
+                
+                const vote1 = this.createPacket('vote', 'orderer2', 'orderer1', { payload: 'Log Entry' });
+                const vote3 = this.createPacket('vote', 'orderer2', 'orderer3', { payload: 'Log Entry' });
+                
+                await Promise.all([
+                    this.animatePacket(vote1, 'orderer2', 'orderer1', 800),
+                    this.animatePacket(vote3, 'orderer2', 'orderer3', 800)
+                ]);
+                
+                await sleep(600 / this.speed);
+                this.updateNodeStatus('orderer1', 'ACK ✓', '#10b981');
+                log(this.logId, 'Orderer 1: ACK received (1/3 votes)', 'success');
+                await sleep(400 / this.speed);
+                
+                this.updateNodeStatus('orderer3', 'ACK ✓', '#10b981');
+                log(this.logId, 'Orderer 3: ACK received (3/3 votes)', 'success');
+                await sleep(800 / this.speed);
+                
+                this.updateStep(7);
+                log(this.logId, '🎉 CONSENSUS REACHED - Creating block', 'highlight');
+                await sleep(500 / this.speed);
+                
+                const block = this.createPacket('block', 'orderer2', 'blockchain', { payload: 'Block #' + Math.floor(Math.random() * 1000) });
+                await this.animatePacket(block, 'orderer2', 'blockchain');
+                
+                log(this.logId, '⛓️ Block committed to blockchain - IMMUTABLE', 'success');
+            }
+
+            async disagreeFlow() {
+                this.updateStep(1);
+                log(this.logId, 'Client creating transaction proposal...', 'info');
+                await sleep(600 / this.speed);
+                
+                this.updateStep(2);
+                log(this.logId, 'Broadcasting PROPOSAL: RegisterVehicle(VIN123)', 'highlight');
+                this.updateNodeStatus('peerA', 'EVAL', '#9333ea');
+                this.updateNodeStatus('peerB', 'EVAL', '#9333ea');
+                
+                const prop1 = this.createPacket('proposal', 'client', 'peerA');
+                const prop2 = this.createPacket('proposal', 'client', 'peerB');
+                
+                await Promise.all([
+                    this.animatePacket(prop1, 'client', 'peerA'),
+                    this.animatePacket(prop2, 'client', 'peerB')
+                ]);
+                
+                await sleep(1000 / this.speed);
+                
+                this.updateNodeStatus('peerA', 'REJECT', '#ef4444');
+                log(this.logId, 'Peer A: VIN123 EXISTS in world state → REJECT', 'error');
+                await sleep(500 / this.speed);
+                
+                this.updateNodeStatus('peerB', 'APPROVE', '#10b981');
+                log(this.logId, 'Peer B: VIN123 NOT FOUND → APPROVE', 'success');
+                await sleep(800 / this.speed);
+                
+                log(this.logId, 'Peers returning ENDORSEMENT packets...', 'highlight');
+                const end1 = this.createPacket('error', 'peerA', 'client', { payload: 'REJECT' });
+                const end2 = this.createPacket('endorsement', 'peerB', 'client', { payload: 'APPROVE' });
+                
+                await Promise.all([
+                    this.animatePacket(end1, 'peerA', 'client'),
+                    this.animatePacket(end2, 'peerB', 'client')
+                ]);
+                
+                this.updateStep(3);
+                log(this.logId, 'Client comparing endorsements...', 'info');
+                await sleep(700 / this.speed);
+                log(this.logId, '⚠️ MISMATCH DETECTED: Peer A ≠ Peer B', 'error');
+                await sleep(600 / this.speed);
+                log(this.logId, '🛑 TRANSACTION ABORTED - Never sent to orderer', 'error');
+                await sleep(400 / this.speed);
+                log(this.logId, '✓ Ledger remains consistent, no corruption', 'success');
+            }
+
+            async failureFlow() {
+                log(this.logId, 'Transaction already endorsed...', 'info');
+                await sleep(600 / this.speed);
+                
+                const nodes = this.nodes;
+                nodes.orderer1.color = '#64748b';
+                this.drawNetwork(nodes);
+                
+                log(this.logId, 'Sending TRANSACTION to orderer network', 'highlight');
+                this.updateNodeStatus('orderer1', 'DOWN', '#64748b');
+                this.updateNodeStatus('orderer2', 'LEADER', '#f97316');
+                log(this.logId, '⚠️ Orderer 1 is OFFLINE', 'warning');
+                
+                const tx = this.createPacket('transaction', 'client', 'orderer2');
+                await this.animatePacket(tx, 'client', 'orderer2');
+                
+                await sleep(1000 / this.speed);
+                log(this.logId, 'Leader replicating to available orderers...', 'info');
+                
+                const vote3 = this.createPacket('vote', 'orderer2', 'orderer3');
+                await this.animatePacket(vote3, 'orderer2', 'orderer3', 800);
+                
+                await sleep(600 / this.speed);
+                this.updateNodeStatus('orderer3', 'ACK ✓', '#10b981');
+                log(this.logId, 'Orderer 3: ACK received (2/3 votes)', 'success');
+                await sleep(800 / this.speed);
+                
+                log(this.logId, '✓ CONSENSUS REACHED with 2/3 majority', 'highlight');
+                await sleep(500 / this.speed);
+                
+                const block = this.createPacket('block', 'orderer2', 'blockchain');
+                await this.animatePacket(block, 'orderer2', 'blockchain');
+                
+                log(this.logId, '🛡️ Byzantine Fault Tolerance SUCCESS', 'success');
+            }
+
+            pause() {
+                this.isPaused = !this.isPaused;
+                // Pause implementation
+            }
+
+            reset() {
+                this.isRunning = false;
+                this.isPaused = false;
+                this.packets = [];
+                this.currentStep = 0;
+                this.updateStep(0);
+                clearLog(this.logId);
+                this.setupCanvas();
+                document.getElementById('consensus-pause').disabled = true;
+            }
+
+            setSpeed(value) {
+                this.speed = parseFloat(value);
+                document.getElementById('consensus-speed-label').textContent = value + '×';
+            }
+        }
+
+        // ============ PEER DISAGREEMENT SIMULATION ============
+        class PeerSim {
+            constructor(canvasId, logId) {
+                this.canvasId = canvasId;
+                this.logId = logId;
+                this.speed = 1;
+                this.isRunning = false;
+                this.packets = [];
+                this.w = 1500;
+                this.h = 580;
+                this.setupCanvas();
+            }
+
+            setupCanvas() {
+                const c = document.getElementById(this.canvasId);
+                c.innerHTML = '';
+                this.svg = d3.select(`#${this.canvasId}`).append('svg')
+                    .attr('width', '100%').attr('height', '100%')
+                    .attr('viewBox', `0 0 ${this.w} ${this.h}`)
+                    .attr('preserveAspectRatio', 'xMidYMid meet');
+            }
+
+            drawNetwork(nodes) {
+                this.nodes = nodes;
+                
+                const connections = [
+                    { from: 'client', to: 'peerA' },
+                    { from: 'client', to: 'peerB' },
+                    { from: 'peerA', to: 'result' },
+                    { from: 'peerB', to: 'result' }
+                ];
+                
+                this.connections = {};
+                connections.forEach(c => {
+                    this.connections[`${c.from}-${c.to}`] = c;
+                });
+                
+                this.svg.selectAll('.connection-line').data(connections).enter()
+                    .append('line').attr('class', 'connection-line')
+                    .attr('x1', d => nodes[d.from].x).attr('y1', d => nodes[d.from].y)
+                    .attr('x2', d => nodes[d.to].x).attr('y2', d => nodes[d.to].y)
+                    .attr('data-from', d => d.from)
+                    .attr('data-to', d => d.to);
+                
+                const ng = this.svg.selectAll('.node-group').data(Object.entries(nodes)).enter()
+                    .append('g').attr('class', 'node-group')
+                    .attr('transform', d => `translate(${d[1].x},${d[1].y})`);
+                
+                ng.append('rect').attr('x', -65).attr('y', -28).attr('width', 130).attr('height', 56)
+                    .attr('rx', 7).attr('fill', d => d[1].color);
+                ng.append('text').attr('class', 'node-label').attr('y', -5).text(d => d[1].label);
+                ng.append('text').attr('class', 'node-status').attr('y', 15).attr('data-node', d => d[0]);
+                
+                this.packetLayer = this.svg.append('g').attr('class', 'packet-layer');
+            }
+
+            createPacket(type, from, to, data = {}) {
+                const packet = new Packet(type, { from, to, ...data });
+                packet.position = { x: this.nodes[from].x, y: this.nodes[from].y };
+                this.packets.push(packet);
+                return packet;
+            }
+
+            renderPacket(packet) {
+                const g = this.packetLayer.append('g')
+                    .attr('class', 'packet-group')
+                    .attr('id', packet.id)
+                    .attr('transform', `translate(${packet.position.x},${packet.position.y})`);
+                
+                g.append('circle')
+                    .attr('class', `packet-circle packet-${packet.type}`)
+                    .attr('r', 18);
+                
+                g.append('text')
+                    .attr('class', 'packet-label')
+                    .text(packet.getLabel());
+                
+                return g;
+            }
+
+            async animatePacket(packet, from, to, duration = 1200) {
+                const fromNode = this.nodes[from];
+                const toNode = this.nodes[to];
+                
+                const dx = toNode.x - fromNode.x;
+                const dy = toNode.y - fromNode.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const controlX = fromNode.x + dx / 2;
+                const controlY = fromNode.y + dy / 2 - distance * 0.25;
+                
+                const pathData = `M ${fromNode.x} ${fromNode.y} Q ${controlX} ${controlY} ${toNode.x} ${toNode.y}`;
+                
+                const animPath = this.svg.insert('path', ':first-child')
+                    .attr('class', 'animated-path')
+                    .attr('d', pathData)
+                    .style('opacity', 0)
+                    .style('animation', 'dash-flow 1s linear infinite');
+                
+                animPath.transition().duration(200).style('opacity', 0.7);
+                
+                const guidePath = this.svg.append('path')
+                    .attr('d', pathData)
+                    .style('display', 'none');
+                
+                const pathLength = guidePath.node().getTotalLength();
+                const g = this.renderPacket(packet);
+                
+                this.svg.selectAll('.connection-line')
+                    .filter(function() {
+                        return d3.select(this).attr('data-from') === from && 
+                               d3.select(this).attr('data-to') === to;
+                    })
+                    .classed('active', true);
+                
+                packet.state = 'in-transit';
+                
+                return new Promise(resolve => {
+                    g.transition()
+                        .duration(duration / this.speed)
+                        .ease(d3.easeCubicInOut)
+                        .attrTween('transform', function() {
+                            return function(t) {
+                                const point = guidePath.node().getPointAtLength(t * pathLength);
+                                return `translate(${point.x},${point.y})`;
+                            };
+                        })
+                        .on('end', () => {
+                            packet.state = 'confirmed';
+                            g.transition().duration(300).style('opacity', 0).remove();
+                            animPath.transition().duration(400).style('opacity', 0).remove();
+                            guidePath.remove();
+                            
+                            this.svg.selectAll('.connection-line')
+                                .filter(function() {
+                                    return d3.select(this).attr('data-from') === from && 
+                                           d3.select(this).attr('data-to') === to;
+                                })
+                                .classed('active', false);
+                            
+                            setTimeout(resolve, 100);
+                        });
+                });
+            }
+
+            updateNodeStatus(nodeId, status, color) {
+                this.svg.selectAll('.node-status')
+                    .filter(function() { return d3.select(this).attr('data-node') === nodeId; })
+                    .text(status);
+                if (color) {
+                    this.svg.selectAll('rect')
+                        .filter(function() {
+                            const parent = d3.select(this.parentNode);
+                            return parent.select('.node-status').attr('data-node') === nodeId;
+                        })
+                        .transition().duration(300).attr('fill', color);
+                }
+            }
+
+            async run(scenario) {
+                if (this.isRunning) return;
+                this.isRunning = true;
+                clearLog(this.logId);
+                this.packets = [];
+                
+                const nodes = {
+                    client: { x: 750, y: 80, label: 'CLIENT TX', color: '#3b82f6' },
+                    peerA: { x: 350, y: 280, label: 'Peer A', color: '#8b5cf6' },
+                    peerB: { x: 1150, y: 280, label: 'Peer B', color: '#8b5cf6' },
+                    result: { x: 750, y: 480, label: 'VALIDATION', color: '#64748b' }
+                };
+                
+                this.drawNetwork(nodes);
+                
+                log(this.logId, 'Transaction proposal: RegisterVehicle(VIN123)', 'highlight');
+                await sleep(600 / this.speed);
+                
+                log(this.logId, 'Broadcasting PROPOSAL to peers for parallel evaluation...', 'info');
+                this.updateNodeStatus('peerA', 'EVAL', '#9333ea');
+                this.updateNodeStatus('peerB', 'EVAL', '#9333ea');
+                
+                const prop1 = this.createPacket('proposal', 'client', 'peerA');
+                const prop2 = this.createPacket('proposal', 'client', 'peerB');
+                
+                // Stagger slightly for visual clarity
+                await this.animatePacket(prop1, 'client', 'peerA', 1000);
+                await sleep(100 / this.speed);
+                await this.animatePacket(prop2, 'client', 'peerB', 1000);
+                
+                await sleep(800 / this.speed);
+                
+                if (scenario === 'agree') {
+                    this.updateNodeStatus('peerA', 'NEW ✓', '#10b981');
+                    log(this.logId, 'Peer A: VIN123 not found → APPROVE', 'success');
+                    await sleep(500 / this.speed);
+                    
+                    this.updateNodeStatus('peerB', 'NEW ✓', '#10b981');
+                    log(this.logId, 'Peer B: VIN123 not found → APPROVE', 'success');
+                    await sleep(800 / this.speed);
+                    
+                    this.updateNodeStatus('result', 'MATCH ✓', '#10b981');
+                    log(this.logId, '✓ Both endorsements match - Proceed to ordering', 'success');
+                    
+                } else {
+                    this.updateNodeStatus('peerA', 'EXISTS ✗', '#ef4444');
+                    log(this.logId, 'Peer A: VIN123 already exists → REJECT', 'error');
+                    await sleep(500 / this.speed);
+                    
+                    this.updateNodeStatus('peerB', 'NEW ✓', '#10b981');
+                    log(this.logId, 'Peer B: VIN123 not found → APPROVE', 'success');
+                    await sleep(800 / this.speed);
+                    
+                    this.updateNodeStatus('result', 'CONFLICT ✗', '#ef4444');
+                    log(this.logId, '⚠️ ENDORSEMENT MISMATCH DETECTED', 'error');
+                    await sleep(500 / this.speed);
+                    log(this.logId, '🛑 Transaction ABORTED - Never sent to orderer', 'error');
+                    await sleep(300 / this.speed);
+                    log(this.logId, '✓ Ledger protected from corruption', 'success');
+                }
+                
+                this.isRunning = false;
+            }
+
+            reset() {
+                this.isRunning = false;
+                clearLog(this.logId);
+                this.setupCanvas();
+            }
+
+            setSpeed(value) {
+                this.speed = parseFloat(value);
+                document.getElementById('peer-speed-label').textContent = value + '×';
+            }
+        }
+
+        // ============ RAFT CONSENSUS SIMULATION ============
+        class RaftSim {
+            constructor(canvasId, logId) {
+                this.canvasId = canvasId;
+                this.logId = logId;
+                this.speed = 1;
+                this.isRunning = false;
+                this.packets = [];
+                this.w = 1500;
+                this.h = 580;
+                this.setupCanvas();
+            }
+
+            setupCanvas() {
+                const c = document.getElementById(this.canvasId);
+                c.innerHTML = '';
+                this.svg = d3.select(`#${this.canvasId}`).append('svg')
+                    .attr('width', '100%').attr('height', '100%')
+                    .attr('viewBox', `0 0 ${this.w} ${this.h}`)
+                    .attr('preserveAspectRatio', 'xMidYMid meet');
+            }
+
+            drawNetwork(nodes) {
+                this.nodes = nodes;
+                
+                const connections = [
+                    { from: 'orderer2', to: 'orderer1' },
+                    { from: 'orderer2', to: 'orderer3' },
+                    { from: 'orderer2', to: 'blockchain' }
+                ];
+                
+                this.connections = {};
+                connections.forEach(c => {
+                    this.connections[`${c.from}-${c.to}`] = c;
+                });
+                
+                this.svg.selectAll('.connection-line').data(connections).enter()
+                    .append('line').attr('class', 'connection-line')
+                    .attr('x1', d => nodes[d.from].x).attr('y1', d => nodes[d.from].y)
+                    .attr('x2', d => nodes[d.to].x).attr('y2', d => nodes[d.to].y)
+                    .attr('data-from', d => d.from)
+                    .attr('data-to', d => d.to);
+                
+                const ng = this.svg.selectAll('.node-group').data(Object.entries(nodes)).enter()
+                    .append('g').attr('class', 'node-group')
+                    .attr('transform', d => `translate(${d[1].x},${d[1].y})`);
+                
+                ng.append('rect').attr('x', -70).attr('y', -28).attr('width', 140).attr('height', 56)
+                    .attr('rx', 7).attr('fill', d => d[1].color);
+                ng.append('text').attr('class', 'node-label').attr('y', -5).text(d => d[1].label);
+                ng.append('text').attr('class', 'node-status').attr('y', 15).attr('data-node', d => d[0]);
+                
+                this.packetLayer = this.svg.append('g').attr('class', 'packet-layer');
+            }
+
+            createPacket(type, from, to, data = {}) {
+                const packet = new Packet(type, { from, to, ...data });
+                packet.position = { x: this.nodes[from].x, y: this.nodes[from].y };
+                this.packets.push(packet);
+                return packet;
+            }
+
+            renderPacket(packet) {
+                const g = this.packetLayer.append('g')
+                    .attr('class', 'packet-group')
+                    .attr('id', packet.id)
+                    .attr('transform', `translate(${packet.position.x},${packet.position.y})`);
+                
+                g.append('circle')
+                    .attr('class', `packet-circle packet-${packet.type}`)
+                    .attr('r', 18);
+                
+                g.append('text')
+                    .attr('class', 'packet-label')
+                    .text(packet.getLabel());
+                
+                return g;
+            }
+
+            async animatePacket(packet, from, to, duration = 1000) {
+                const fromNode = this.nodes[from];
+                const toNode = this.nodes[to];
+                
+                const dx = toNode.x - fromNode.x;
+                const dy = toNode.y - fromNode.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const controlX = fromNode.x + dx / 2;
+                const controlY = fromNode.y + dy / 2 - distance * 0.2;
+                
+                const pathData = `M ${fromNode.x} ${fromNode.y} Q ${controlX} ${controlY} ${toNode.x} ${toNode.y}`;
+                
+                const animPath = this.svg.insert('path', ':first-child')
+                    .attr('class', 'animated-path')
+                    .attr('d', pathData)
+                    .style('opacity', 0)
+                    .style('animation', 'dash-flow 1s linear infinite');
+                
+                animPath.transition().duration(200).style('opacity', 0.7);
+                
+                const guidePath = this.svg.append('path')
+                    .attr('d', pathData)
+                    .style('display', 'none');
+                
+                const pathLength = guidePath.node().getTotalLength();
+                const g = this.renderPacket(packet);
+                
+                this.svg.selectAll('.connection-line')
+                    .filter(function() {
+                        return d3.select(this).attr('data-from') === from && 
+                               d3.select(this).attr('data-to') === to;
+                    })
+                    .classed('active', true);
+                
+                packet.state = 'in-transit';
+                
+                return new Promise(resolve => {
+                    g.transition()
+                        .duration(duration / this.speed)
+                        .ease(d3.easeCubicInOut)
+                        .attrTween('transform', function() {
+                            return function(t) {
+                                const point = guidePath.node().getPointAtLength(t * pathLength);
+                                return `translate(${point.x},${point.y})`;
+                            };
+                        })
+                        .on('end', () => {
+                            packet.state = 'confirmed';
+                            g.transition().duration(300).style('opacity', 0).remove();
+                            animPath.transition().duration(400).style('opacity', 0).remove();
+                            guidePath.remove();
+                            
+                            this.svg.selectAll('.connection-line')
+                                .filter(function() {
+                                    return d3.select(this).attr('data-from') === from && 
+                                           d3.select(this).attr('data-to') === to;
+                                })
+                                .classed('active', false);
+                            
+                            setTimeout(resolve, 100);
+                        });
+                });
+            }
+
+            updateNodeStatus(nodeId, status, color) {
+                this.svg.selectAll('.node-status')
+                    .filter(function() { return d3.select(this).attr('data-node') === nodeId; })
+                    .text(status);
+                if (color) {
+                    this.svg.selectAll('rect')
+                        .filter(function() {
+                            const parent = d3.select(this.parentNode);
+                            return parent.select('.node-status').attr('data-node') === nodeId;
+                        })
+                        .transition().duration(300).attr('fill', color);
+                }
+            }
+
+            async run(scenario) {
+                if (this.isRunning) return;
+                this.isRunning = true;
+                clearLog(this.logId);
+                this.packets = [];
+                
+                const ordererColors = {
+                    success: { orderer1: '#f59e0b', orderer2: '#f59e0b', orderer3: '#f59e0b' },
+                    'one-down': { orderer1: '#f59e0b', orderer2: '#f59e0b', orderer3: '#64748b' },
+                    'majority-fail': { orderer1: '#64748b', orderer2: '#f59e0b', orderer3: '#64748b' }
+                };
+                
+                const colors = ordererColors[scenario] || ordererColors.success;
+                
+                const nodes = {
+                    orderer1: { x: 300, y: 200, label: 'Orderer 1', color: colors.orderer1 },
+                    orderer2: { x: 750, y: 200, label: 'Orderer 2', color: colors.orderer2 },
+                    orderer3: { x: 1200, y: 200, label: 'Orderer 3', color: colors.orderer3 },
+                    blockchain: { x: 750, y: 450, label: 'BLOCKCHAIN', color: '#10b981' }
+                };
+                
+                this.drawNetwork(nodes);
+                
+                log(this.logId, '🔹 Raft Consensus: Leader Election & Log Replication', 'highlight');
+                await sleep(600 / this.speed);
+                
+                this.updateNodeStatus('orderer2', 'LEADER 👑', '#f97316');
+                log(this.logId, 'Leader elected: Orderer 2', 'success');
+                await sleep(800 / this.speed);
+                
+                if (scenario === 'success') {
+                    log(this.logId, 'Leader replicating log to followers...', 'info');
+                    this.updateNodeStatus('orderer1', 'REPL', '#9333ea');
+                    this.updateNodeStatus('orderer3', 'REPL', '#9333ea');
+                    await sleep(400 / this.speed);
+                    
+                    const vote1 = this.createPacket('vote', 'orderer2', 'orderer1');
+                    const vote3 = this.createPacket('vote', 'orderer2', 'orderer3');
+                    
+                    await this.animatePacket(vote1, 'orderer2', 'orderer1', 900);
+                    await sleep(150 / this.speed);
+                    await this.animatePacket(vote3, 'orderer2', 'orderer3', 900);
+                    
+                    await sleep(700 / this.speed);
+                    
+                    this.updateNodeStatus('orderer1', 'ACK ✓', '#10b981');
+                    log(this.logId, 'Orderer 1: Log replicated (1/3 votes)', 'success');
+                    await sleep(500 / this.speed);
+                    
+                    this.updateNodeStatus('orderer3', 'ACK ✓', '#10b981');
+                    log(this.logId, 'Orderer 3: Log replicated (3/3 votes)', 'success');
+                    await sleep(800 / this.speed);
+                    
+                    log(this.logId, '🎉 CONSENSUS REACHED: All 3/3 orderers agree', 'highlight');
+                    await sleep(600 / this.speed);
+                    
+                    const block = this.createPacket('block', 'orderer2', 'blockchain');
+                    await this.animatePacket(block, 'orderer2', 'blockchain');
+                    
+                    log(this.logId, '⛓️ Block committed to ledger - IMMUTABLE', 'success');
+                    
+                } else if (scenario === 'one-down') {
+                    log(this.logId, '⚠️ Orderer 3 is OFFLINE', 'warning');
+                    this.updateNodeStatus('orderer3', 'DOWN ❌', '#64748b');
+                    await sleep(600 / this.speed);
+                    
+                    log(this.logId, 'Leader replicating to available followers...', 'info');
+                    this.updateNodeStatus('orderer1', 'REPL', '#9333ea');
+                    await sleep(300 / this.speed);
+                    
+                    const vote1 = this.createPacket('vote', 'orderer2', 'orderer1');
+                    await this.animatePacket(vote1, 'orderer2', 'orderer1', 900);
+                    
+                    await sleep(800 / this.speed);
+                    
+                    this.updateNodeStatus('orderer1', 'ACK ✓', '#10b981');
+                    log(this.logId, 'Orderer 1: ACK received (2/3 votes)', 'success');
+                    await sleep(800 / this.speed);
+                    
+                    log(this.logId, '✓ CONSENSUS with 2/3 majority', 'highlight');
+                    await sleep(600 / this.speed);
+                    
+                    const block = this.createPacket('block', 'orderer2', 'blockchain');
+                    await this.animatePacket(block, 'orderer2', 'blockchain');
+                    
+                    log(this.logId, '🛡️ Byzantine Fault Tolerance SUCCESS', 'success');
+                    
+                } else {
+                    log(this.logId, '❌ CRITICAL: 2 of 3 orderers OFFLINE', 'error');
+                    this.updateNodeStatus('orderer1', 'DOWN ❌', '#64748b');
+                    this.updateNodeStatus('orderer3', 'DOWN ❌', '#64748b');
+                    this.updateNodeStatus('orderer2', 'ISOLATED', '#f59e0b');
+                    await sleep(800 / this.speed);
+                    
+                    log(this.logId, 'Leader has < 2/3 quorum', 'error');
+                    await sleep(600 / this.speed);
+                    log(this.logId, '🛑 CONSENSUS IMPOSSIBLE - System unavailable', 'error');
+                    await sleep(500 / this.speed);
+                    log(this.logId, '⏳ Waiting for recovery...', 'warning');
+                }
+                
+                this.isRunning = false;
+            }
+
+            reset() {
+                this.isRunning = false;
+                clearLog(this.logId);
+                this.setupCanvas();
+            }
+
+            setSpeed(value) {
+                this.speed = parseFloat(value);
+                document.getElementById('raft-speed-label').textContent = value + '×';
+            }
+        }
+
+        // Initialize
+        let consensusSim, peerSim, raftSim;
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDiagram('dfd0');
+            consensusSim = new ConsensusSim('consensusCanvas', 'consensusLog');
+            peerSim = new PeerSim('disagreementCanvas', 'disagreementLog');
+            raftSim = new RaftSim('raftCanvas', 'raftLog');
+        });
+    </script>
+</body>
+</html>

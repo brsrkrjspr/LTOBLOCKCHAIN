@@ -1,0 +1,505 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustChain LTO - 3D Blockchain Packet Tracer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', 'Consolas', 'Monaco', monospace; 
+            background: #0a0e27; 
+            background-image: 
+                linear-gradient(30deg, transparent 24%, rgba(102, 126, 234, 0.05) 25%, rgba(102, 126, 234, 0.05) 26%, transparent 27%, transparent 74%, rgba(102, 126, 234, 0.05) 75%, rgba(102, 126, 234, 0.05) 76%, transparent 77%, transparent),
+                linear-gradient(150deg, transparent 24%, rgba(102, 126, 234, 0.05) 25%, rgba(102, 126, 234, 0.05) 26%, transparent 27%, transparent 74%, rgba(102, 126, 234, 0.05) 75%, rgba(102, 126, 234, 0.05) 76%, transparent 77%, transparent);
+            background-size: 50px 87px;
+            overflow: hidden; 
+        }
+        
+        .control-panel { position: fixed; top: 20px; left: 20px; background: rgba(10, 14, 39, 0.98); border: 2px solid #0ff; border-radius: 8px; padding: 20px; width: 320px; box-shadow: 0 0 20px rgba(0, 255, 255, 0.2), inset 0 0 10px rgba(102, 126, 234, 0.1); z-index: 100; }
+        .control-title { color: #0ff; font-size: 14px; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #0ff; padding-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        .control-group { margin-bottom: 15px; }
+        .control-label { color: #94a3b8; font-size: 12px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-3d { padding: 10px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.3s; text-transform: uppercase; }
+        .btn-register { background: linear-gradient(135deg, #00d084, #00a366); color: #000; font-weight: bold; }
+        .btn-register:hover { transform: translateY(-2px); box-shadow: 0 0 15px rgba(0, 208, 132, 0.6); }
+        .btn-transfer { background: linear-gradient(135deg, #00a8ff, #0080cc); color: #000; font-weight: bold; }
+        .btn-transfer:hover { transform: translateY(-2px); box-shadow: 0 0 15px rgba(0, 168, 255, 0.6); }
+        .btn-verify { background: linear-gradient(135deg, #ffa500, #ff8c00); color: #000; font-weight: bold; }
+        .btn-verify:hover { transform: translateY(-2px); box-shadow: 0 0 15px rgba(255, 165, 0, 0.6); }
+        .btn-block { background: linear-gradient(135deg, #9d4edd, #7209b7); color: #0ff; font-weight: bold; }
+        .btn-block:hover { transform: translateY(-2px); box-shadow: 0 0 15px rgba(157, 78, 221, 0.6); }
+        .btn-reset { background: linear-gradient(135deg, #64748b, #475569); color: white; }
+        .btn-reset:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(100,116,139,0.4); }
+        
+        .speed-control { display: flex; align-items: center; gap: 10px; }
+        .speed-slider { flex: 1; height: 5px; background: #334155; border-radius: 3px; outline: none; }
+        .speed-value { color: #60a5fa; font-weight: bold; min-width: 35px; font-size: 12px; }
+        
+        .stats-panel { position: fixed; top: 20px; right: 20px; background: rgba(10, 14, 39, 0.98); border: 2px solid #8b5cf6; border-radius: 8px; padding: 15px; width: 320px; box-shadow: 0 0 15px rgba(139, 92, 246, 0.3), inset 0 0 10px rgba(139, 92, 246, 0.1); z-index: 100; }
+        .stat-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 12px; font-family: 'Courier New', monospace; }
+        .stat-label { color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { color: #0ff; font-weight: bold; }
+        
+        .log { position: fixed; bottom: 20px; right: 20px; background: rgba(10, 14, 39, 0.98); border: 2px solid #00ff00; border-radius: 6px; padding: 12px; width: 380px; max-height: 300px; overflow-y: auto; box-shadow: 0 0 15px rgba(0, 255, 0, 0.2), inset 0 0 10px rgba(0, 255, 0, 0.05); font-size: 11px; z-index: 100; }
+        .log-entry { margin: 4px 0; padding: 4px; border-left: 3px solid #00ff00; padding-left: 8px; color: #00ff00; font-family: 'Courier New', monospace; }
+        .log-entry::before { content: '> '; color: #0ff; font-weight: bold; }
+        .log-entry.success { border-left-color: #00ff00; color: #00ff00; }
+        .log-entry.error { border-left-color: #ff0000; color: #ff6666; }
+        .log-entry.warning { border-left-color: #ffaa00; color: #ffdd00; }
+        .log-entry.info { border-left-color: #0ff; color: #00ffff; }
+        
+        .tooltip { position: fixed; background: rgba(15, 23, 42, 0.98); border: 1px solid #667eea; border-radius: 6px; padding: 8px 12px; color: #cbd5e1; font-size: 11px; pointer-events: none; display: none; z-index: 1000; }
+    </style>
+</head>
+<body>
+    <div class="control-panel">
+        <div class="control-title"> TrustChain 3D Simulator</div>
+        <div class="control-group">
+            <div class="control-label">Vehicle Registration</div>
+            <div class="btn-group">
+                <button class="btn-3d btn-register" onclick="simulator.startRegistration()"> Register</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="control-label">Ownership Transfer</div>
+            <div class="btn-group">
+                <button class="btn-3d btn-transfer" onclick="simulator.startTransfer()"> Transfer</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="control-label">Multi-Org Verification</div>
+            <div class="btn-group">
+                <button class="btn-3d btn-verify" onclick="simulator.startVerification()"> Verify</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="control-label">Blockchain Consensus</div>
+            <div class="btn-group">
+                <button class="btn-3d btn-block" onclick="simulator.commitBlock()"> Commit</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="control-label">Animation Speed</div>
+            <div class="speed-control">
+                <input type="range" min="0.5" max="2" step="0.25" value="1" class="speed-slider" onchange="simulator.setSpeed(this.value)">
+                <span class="speed-value" id="speedVal">1.0</span>
+            </div>
+        </div>
+        <div class="control-group">
+            <button class="btn-3d btn-reset" onclick="simulator.reset()" style="width: 100%;"> Reset</button>
+        </div>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #334155; font-size: 10px; color: #64748b;">
+             Drag to rotate | Scroll to zoom
+        </div>
+    </div>
+    
+    <div class="stats-panel">
+        <div style="color: #60a5fa; font-weight: bold; margin-bottom: 10px;"> Network Stats</div>
+        <div class="stat-row"><span class="stat-label">Packets:</span><span class="stat-value" id="packetCount">0</span></div>
+        <div class="stat-row"><span class="stat-label">FPS:</span><span class="stat-value" id="fpsCounter">60</span></div>
+        <div class="stat-row"><span class="stat-label">Nodes:</span><span class="stat-value" id="nodeCount">9</span></div>
+        <div class="stat-row"><span class="stat-label">TX:</span><span class="stat-value" id="txCount">0</span></div>
+    </div>
+    
+    <div class="log" id="eventLog">
+        <div style="color: #60a5fa; font-weight: bold; margin-bottom: 8px;"> Event Log</div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e27);
+scene.fog = new THREE.Fog(0x0a0e27, 150, 300);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(60, 50, 60);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(50, 80, 50);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const gridHelper = new THREE.GridHelper(200, 40, 0x334155, 0x1e293b);
+scene.add(gridHelper);
+
+const nodeDefinitions = {
+    owner: { pos: [-60, 20, -60], color: 0x3b82f6, label: 'Vehicle Owner', size: 8 },
+    lto: { pos: [0, 20, -70], color: 0x10b981, label: 'LTO Admin', size: 10 },
+    hpg: { pos: [-50, 20, 0], color: 0xf59e0b, label: 'HPG Verifier', size: 8 },
+    insurance: { pos: [0, 20, 50], color: 0x8b5cf6, label: 'Insurance', size: 8 },
+    emission: { pos: [50, 20, 0], color: 0xef4444, label: 'Emission', size: 8 },
+    peer: { pos: [-30, 60, 0], color: 0x6366f1, label: 'Peer Node', size: 9 },
+    orderer: { pos: [30, 60, 0], color: 0xec4899, label: 'Orderer', size: 9 },
+    blockchain: { pos: [0, 100, 0], color: 0x10b981, label: 'Blockchain', size: 12 },
+    ipfs: { pos: [0, 20, 70], color: 0x06b6d4, label: 'IPFS', size: 8 }
+};
+
+class NetworkNode {
+    constructor(key, def) {
+        this.key = key;
+        this.label = def.label;
+        this.position = new THREE.Vector3(...def.pos);
+        
+        const geom = new THREE.SphereGeometry(def.size, 32, 32);
+        const mat = new THREE.MeshStandardMaterial({
+            color: def.color, roughness: 0.3, metalness: 0.6,
+            emissive: def.color, emissiveIntensity: 0.3
+        });
+        this.mesh = new THREE.Mesh(geom, mat);
+        this.mesh.position.copy(this.position);
+        this.mesh.castShadow = true;
+        scene.add(this.mesh);
+        
+        const ringGeom = new THREE.TorusGeometry(def.size * 1.5, 1, 32, 100);
+        const ringMat = new THREE.MeshBasicMaterial({ color: def.color });
+        this.ring = new THREE.Mesh(ringGeom, ringMat);
+        this.ring.position.copy(this.position);
+        this.ring.rotation.x = Math.PI / 2.5;
+        scene.add(this.ring);
+        
+        this.isActive = false;
+        this.baseColor = def.color;
+    }
+    
+    setActive(active) { this.isActive = active; }
+    
+    updateGlow(delta) {
+        if (this.isActive) {
+            const glow = Math.sin(Date.now() * 0.001) * 0.5 + 0.5;
+            this.mesh.material.emissiveIntensity = 0.3 + glow * 0.4;
+            this.ring.rotation.z += delta * 0.5;
+        } else {
+            this.mesh.material.emissiveIntensity = 0.2;
+        }
+    }
+}
+
+const nodes = {};
+for (const [key, def] of Object.entries(nodeDefinitions)) {
+    nodes[key] = new NetworkNode(key, def);
+}
+
+class NetworkConnection {
+    constructor(from, to) {
+        const geom = new THREE.BufferGeometry();
+        const positions = new Float32Array([from.x, from.y, from.z, to.x, to.y, to.z]);
+        geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        this.baseMat = new THREE.LineBasicMaterial({ color: 0x667eea, linewidth: 2 });
+        this.activeMat = new THREE.LineBasicMaterial({ color: 0x0ff, linewidth: 4 });
+        this.line = new THREE.Line(geom, this.baseMat);
+        scene.add(this.line);
+        this.isActive = false;
+    }
+    
+    setActive(active) {
+        this.isActive = active;
+        this.line.material = active ? this.activeMat : this.baseMat;
+    }
+}
+
+const connections = [
+    new NetworkConnection(nodes.owner.position, nodes.lto.position),
+    new NetworkConnection(nodes.lto.position, nodes.hpg.position),
+    new NetworkConnection(nodes.lto.position, nodes.insurance.position),
+    new NetworkConnection(nodes.lto.position, nodes.emission.position),
+    new NetworkConnection(nodes.lto.position, nodes.ipfs.position),
+    new NetworkConnection(nodes.lto.position, nodes.peer.position),
+    new NetworkConnection(nodes.peer.position, nodes.orderer.position),
+    new NetworkConnection(nodes.orderer.position, nodes.blockchain.position)
+];
+
+class Packet {
+    constructor(fromNode, toNode, type = 'data', speed = 20) {
+        this.fromNode = fromNode;
+        this.toNode = toNode;
+        this.speed = 8;
+        this.progress = 0;
+        this.alive = true;
+        
+        const colors = { data: 0x3b82f6, verification: 0xf59e0b, approval: 0x10b981, commitment: 0x8b5cf6 };
+        const geom = new THREE.OctahedronGeometry(3, 0);
+        const mat = new THREE.MeshStandardMaterial({
+            color: colors[type] || 0x3b82f6, emissive: colors[type] || 0x3b82f6,
+            emissiveIntensity: 0.8, metalness: 0.8, roughness: 0.1
+        });
+        this.mesh = new THREE.Mesh(geom, mat);
+        this.mesh.position.copy(fromNode.position);
+        this.mesh.userData.type = type;
+        scene.add(this.mesh);
+        
+        // Add direction cone
+        const coneGeom = new THREE.ConeGeometry(2, 4, 8);
+        const coneMat = new THREE.MeshStandardMaterial({ color: colors[type], emissive: colors[type], emissiveIntensity: 0.6 });
+        this.cone = new THREE.Mesh(coneGeom, coneMat);
+        this.cone.position.copy(fromNode.position);
+        scene.add(this.cone);
+        
+        this.trail = [];
+        this.trailGeom = new THREE.BufferGeometry();
+        const trailMat = new THREE.LineBasicMaterial({ color: colors[type], transparent: true, opacity: 0.6 });
+        this.trailLine = new THREE.Line(this.trailGeom, trailMat);
+        scene.add(this.trailLine);
+    }
+    
+    update(delta) {
+        this.progress += this.speed * delta;
+        if (this.progress > 1) {
+            this.alive = false;
+            scene.remove(this.mesh);
+            scene.remove(this.cone);
+            scene.remove(this.trailLine);
+            return;
+        }
+        
+        const p = this.progress;
+        const pos = new THREE.Vector3().lerpVectors(this.fromNode.position, this.toNode.position, p);
+        const midpoint = new THREE.Vector3().addVectors(this.fromNode.position, this.toNode.position).multiplyScalar(0.5);
+        const height = this.fromNode.position.distanceTo(this.toNode.position) * 0.3;
+        midpoint.y += height;
+        
+        if (p < 0.5) pos.lerp(midpoint, (p * 2) * 0.3);
+        else pos.lerp(midpoint, (1 - (p - 0.5) * 2) * 0.3);
+        
+        this.mesh.position.copy(pos);
+        this.mesh.rotation.x += delta * 3;
+        this.mesh.rotation.y += delta * 2;
+        
+        // Update cone direction
+        const direction = new THREE.Vector3().subVectors(this.toNode.position, this.fromNode.position).normalize();
+        this.cone.position.copy(pos);
+        this.cone.lookAt(pos.clone().add(direction));
+        
+        this.trail.push(pos.clone());
+        if (this.trail.length > 50) this.trail.shift();
+        
+        const trailPositions = new Float32Array(this.trail.length * 3);
+        this.trail.forEach((p, i) => {
+            const opacity = i / this.trail.length;
+            trailPositions[i * 3] = p.x;
+            trailPositions[i * 3 + 1] = p.y;
+            trailPositions[i * 3 + 2] = p.z;
+        });
+        this.trailGeom.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        this.trailLine.material.opacity = 0.2 + (this.progress * 0.4);
+    }
+}
+
+class Simulator {
+    constructor() {
+        this.packets = [];
+        this.speed = 1;
+        this.clock = new THREE.Clock();
+        this.txCount = 0;
+        this.isRunning = false;
+        this.connectionMap = new Map();
+        
+        // Build connection map from connections array
+        for (let i = 0; i < connections.length; i++) {
+            const conn = connections[i];
+            this.connectionMap.set(i, conn);
+        }
+    }
+    
+    addPacket(fromKey, toKey, type = 'data') {
+        if (!nodes[fromKey] || !nodes[toKey]) return;
+        const packet = new Packet(nodes[fromKey], nodes[toKey], type);
+        this.packets.push(packet);
+        
+        // Highlight connection
+        for (const [idx, conn] of this.connectionMap) {
+            const fromPos = nodes[fromKey].position;
+            const toPos = nodes[toKey].position;
+            if (conn.line.geometry.attributes.position.array[0] === fromPos.x &&
+                conn.line.geometry.attributes.position.array[3] === toPos.x) {
+                conn.setActive(true);
+                setTimeout(() => conn.setActive(false), 3000);
+            }
+        }
+        
+        this.txCount++;
+        this.addLog(`Packet: ${fromKey}  ${toKey}`, 'info');
+    }
+    
+    async startRegistration() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.addLog('Vehicle Registration Started - Step 1/3', 'success');
+        nodes.owner.setActive(true);
+        this.addPacket('owner', 'lto', 'data');
+        await this.sleep(3500);
+        this.addLog('Registration: LTO Processing - Step 2/3', 'info');
+        nodes.lto.setActive(true);
+        await this.sleep(4000);
+        this.addLog('Registration: Committing to Blockchain - Step 3/3', 'warning');
+        this.addPacket('lto', 'blockchain', 'commitment');
+        nodes.blockchain.setActive(true);
+        this.addLog('Vehicle registered on blockchain', 'success');
+        await this.sleep(2000);
+        this.isRunning = false;
+    }
+    
+    async startTransfer() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.addLog('Transfer Started - Step 1/7', 'success');
+        this.addPacket('owner', 'lto', 'data');
+        await this.sleep(3500);
+        this.addLog('Transfer: Requesting HPG Verification - Step 2/7', 'info');
+        this.addPacket('lto', 'hpg', 'verification');
+        await this.sleep(1800);
+        this.addLog('Transfer: Requesting Insurance Verification - Step 3/7', 'info');
+        this.addPacket('lto', 'insurance', 'verification');
+        await this.sleep(1800);
+        this.addLog('Transfer: Requesting Emission Verification - Step 4/7', 'info');
+        this.addPacket('lto', 'emission', 'verification');
+        await this.sleep(4000);
+        this.addLog('Transfer: Receiving Approvals - Step 5/7', 'info');
+        this.addPacket('hpg', 'lto', 'approval');
+        await this.sleep(1200);
+        this.addPacket('insurance', 'lto', 'approval');
+        await this.sleep(1200);
+        this.addPacket('emission', 'lto', 'approval');
+        await this.sleep(3000);
+        this.addLog('Transfer: Committing to Blockchain - Step 6/7', 'warning');
+        this.addPacket('lto', 'blockchain', 'commitment');
+        nodes.blockchain.setActive(true);
+        this.addLog('Transfer complete - Step 7/7', 'success');
+        await this.sleep(2000);
+        this.isRunning = false;
+    }
+    
+    async startVerification() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.addLog('Verification Started - Step 1/6', 'success');
+        nodes.lto.setActive(true);
+        this.addPacket('lto', 'hpg', 'verification');
+        await this.sleep(2200);
+        this.addLog('Verification: HPG Checking - Step 2/6', 'info');
+        this.addPacket('hpg', 'lto', 'approval');
+        await this.sleep(2200);
+        this.addLog('Verification: Requesting Insurance - Step 3/6', 'info');
+        this.addPacket('lto', 'insurance', 'verification');
+        await this.sleep(3200);
+        this.addLog('Verification: Insurance Approved - Step 4/6', 'info');
+        this.addPacket('insurance', 'lto', 'approval');
+        await this.sleep(2200);
+        this.addLog('Verification: Requesting Emission - Step 5/6', 'info');
+        this.addPacket('lto', 'emission', 'verification');
+        await this.sleep(3200);
+        this.addLog('Verification Complete - Step 6/6', 'success');
+        this.addPacket('emission', 'lto', 'approval');
+        await this.sleep(2000);
+        this.isRunning = false;
+    }
+    
+    async commitBlock() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.addLog('Committing block - Step 1/3: LTO→Peer', 'warning');
+        nodes.peer.setActive(true);
+        nodes.orderer.setActive(true);
+        this.addPacket('lto', 'peer', 'data');
+        await this.sleep(2200);
+        this.addLog('Committing block - Step 2/3: Peer→Orderer', 'warning');
+        this.addPacket('peer', 'orderer', 'data');
+        await this.sleep(2600);
+        this.addLog('Committing block - Step 3/3: Orderer→Blockchain', 'warning');
+        this.addPacket('orderer', 'blockchain', 'commitment');
+        nodes.blockchain.setActive(true);
+        this.addLog('Block committed - All nodes synchronized', 'success');
+        await this.sleep(3000);
+        this.isRunning = false;
+    }
+    
+    reset() {
+        this.packets = [];
+        this.txCount = 0;
+        for (const node of Object.values(nodes)) node.setActive(false);
+        document.getElementById('eventLog').innerHTML = '<div style="color: #60a5fa; font-weight: bold; margin-bottom: 8px;"> Event Log</div>';
+        this.addLog('Scene reset', 'info');
+    }
+    
+    setSpeed(val) {
+        this.speed = parseFloat(val);
+        document.getElementById('speedVal').textContent = val + '';
+    }
+    
+    addLog(msg, type = 'info') {
+        const log = document.getElementById('eventLog');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+    
+    sleep(ms) { return new Promise(r => setTimeout(r, ms / this.speed)); }
+    
+    update() {
+        const delta = this.clock.getDelta();
+        for (const node of Object.values(nodes)) node.updateGlow(delta);
+        for (let i = this.packets.length - 1; i >= 0; i--) {
+            this.packets[i].update(delta * this.speed);
+            if (!this.packets[i].alive) this.packets.splice(i, 1);
+        }
+        document.getElementById('packetCount').textContent = this.packets.length;
+        document.getElementById('txCount').textContent = this.txCount;
+        document.getElementById('fpsCounter').textContent = Math.round(1 / delta);
+    }
+}
+
+const simulator = new Simulator();
+
+let isDragging = false, previousMousePosition = { x: 0, y: 0 };
+document.addEventListener('mousedown', (e) => { isDragging = true; previousMousePosition = { x: e.clientX, y: e.clientY }; });
+document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        const deltaX = e.clientX - previousMousePosition.x;
+        const deltaY = e.clientY - previousMousePosition.y;
+        const qx = new THREE.Quaternion();
+        qx.setFromAxisAngle(new THREE.Vector3(0, 1, 0), deltaX * 0.01);
+        camera.position.applyQuaternion(qx);
+        camera.lookAt(0, 30, 0);
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    }
+});
+document.addEventListener('mouseup', () => isDragging = false);
+document.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const direction = camera.position.clone().normalize();
+    const distance = camera.position.length();
+    const newDistance = distance + e.deltaY * 0.1;
+    camera.position.copy(direction.multiplyScalar(Math.max(20, newDistance)));
+    camera.lookAt(0, 30, 0);
+}, { passive: false });
+
+function animate() {
+    requestAnimationFrame(animate);
+    simulator.update();
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+simulator.addLog('3D Simulator Ready', 'success');
+</script>
+</body>
+</html>

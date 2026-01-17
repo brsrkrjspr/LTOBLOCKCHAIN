@@ -12,11 +12,16 @@ echo ""
 cd ~/LTOBLOCKCHAIN
 
 # ============================================
-# STEP 1: STOP ALL CONTAINERS AND CLEAN VOLUMES
+# STEP 1: STOP ALL CONTAINERS (PRESERVE POSTGRES VOLUME)
 # ============================================
-echo "Step 1: Stopping all containers and cleaning volumes..."
-docker compose -f docker-compose.unified.yml down -v 2>/dev/null || true
+echo "Step 1: Stopping all containers (preserving postgres-data volume)..."
+# CRITICAL: Only stop containers, don't remove postgres-data volume
+docker compose -f docker-compose.unified.yml down 2>/dev/null || true
 docker compose -f docker-compose.fabric.yml down -v 2>/dev/null || true
+
+# Remove ONLY Fabric-related volumes (not postgres-data)
+echo "Removing Fabric volumes only..."
+docker volume ls | grep -E "(orderer-data|couchdb-data|fabric)" | awk '{print $2}' | xargs -r docker volume rm 2>/dev/null || true
 
 # Remove ALL crypto materials, artifacts, and wallet
 echo "Removing old crypto materials, artifacts, and wallet..."
@@ -29,7 +34,7 @@ mkdir -p fabric-network/crypto-config
 mkdir -p fabric-network/channel-artifacts
 mkdir -p wallet
 
-echo "✅ Cleanup complete"
+echo "✅ Cleanup complete (postgres-data volume preserved)"
 echo ""
 
 # ============================================
@@ -182,9 +187,95 @@ echo "✅ Peer joined channel"
 echo ""
 
 # ============================================
-# STEP 9: REGENERATE WALLET (CRITICAL!)
+# STEP 9: DEPLOY CHAINCODE
 # ============================================
-echo "Step 9: Regenerating wallet with NEW admin identity..."
+echo "Step 9: Deploying chaincode..."
+
+# Package chaincode
+echo "Packaging chaincode..."
+docker exec cli peer lifecycle chaincode package vehicle-registration.tar.gz \
+    --path /opt/gopath/src/github.com/chaincode/vehicle-registration-production \
+    --lang node \
+    --label vehicle-registration_1.0
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to package chaincode"
+    exit 1
+fi
+echo "✅ Chaincode packaged"
+
+# Install chaincode
+echo "Installing chaincode..."
+docker exec cli peer lifecycle chaincode install vehicle-registration.tar.gz
+echo "Waiting for chaincode installation (15s)..."
+sleep 15
+
+# Get package ID
+echo "Getting package ID..."
+PACKAGE_ID=$(docker exec cli peer lifecycle chaincode queryinstalled 2>&1 | \
+    grep "vehicle-registration_1.0:" | \
+    sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+
+if [ -z "$PACKAGE_ID" ]; then
+    echo "❌ Failed to get package ID"
+    docker exec cli peer lifecycle chaincode queryinstalled
+    exit 1
+fi
+echo "✅ Package ID: ${PACKAGE_ID:0:40}..."
+
+# Approve chaincode
+echo "Approving chaincode..."
+docker exec cli peer lifecycle chaincode approveformyorg \
+    -o orderer.lto.gov.ph:7050 \
+    --channelID ltochannel \
+    --name vehicle-registration \
+    --version 1.0 \
+    --package-id "$PACKAGE_ID" \
+    --sequence 1 \
+    --tls \
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to approve chaincode"
+    exit 1
+fi
+
+echo "Waiting for approval to propagate (10s)..."
+sleep 10
+echo "✅ Chaincode approved"
+
+# Commit chaincode
+echo "Committing chaincode..."
+docker exec cli peer lifecycle chaincode commit \
+    -o orderer.lto.gov.ph:7050 \
+    --channelID ltochannel \
+    --name vehicle-registration \
+    --version 1.0 \
+    --sequence 1 \
+    --tls \
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to commit chaincode"
+    exit 1
+fi
+
+echo "Waiting for commit (10s)..."
+sleep 10
+
+# Verify chaincode is committed
+if docker exec cli peer lifecycle chaincode querycommitted --channelID ltochannel --name vehicle-registration 2>/dev/null; then
+    echo "✅ Chaincode committed successfully"
+else
+    echo "❌ Chaincode commit verification failed"
+    exit 1
+fi
+echo ""
+
+# ============================================
+# STEP 10: REGENERATE WALLET (CRITICAL!)
+# ============================================
+echo "Step 10: Regenerating wallet with NEW admin identity..."
 node scripts/setup-fabric-wallet.js
 
 if [ ! -d "wallet" ] || [ ! -f "wallet/admin.id" ]; then
@@ -206,9 +297,14 @@ echo "All components are now using matching certificates:"
 echo "  - Crypto materials: Fresh generation"
 echo "  - Genesis block: Regenerated with new MSP"
 echo "  - Channel transaction: Regenerated"
+echo "  - Channel: Created and peer joined"
+echo "  - Chaincode: Deployed and committed"
 echo "  - Wallet: Regenerated with new admin identity"
 echo ""
 echo "Next steps:"
-echo "  1. Deploy chaincode (if needed)"
-echo "  2. Restart lto-app: docker compose -f docker-compose.unified.yml restart lto-app"
+echo "  1. Run database migrations (if needed):"
+echo "     docker exec -i postgres psql -U lto_user -d lto_blockchain < backend/migrations/add_refresh_tokens.sql"
+echo "     docker exec -i postgres psql -U lto_user -d lto_blockchain < backend/migrations/add_token_blacklist.sql"
+echo "  2. Restart lto-app:"
+echo "     docker compose -f docker-compose.unified.yml up -d --build lto-app"
 echo ""

@@ -5,6 +5,7 @@
 
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -84,6 +85,58 @@ class CertificatePdfGenerator {
     generateCompositeHash(certificateNumber, vehicleVIN, expiryDate, fileHash) {
         const compositeString = `${certificateNumber}|${vehicleVIN}|${expiryDate}|${fileHash}`;
         return crypto.createHash('sha256').update(compositeString).digest('hex');
+    }
+
+    /**
+     * Get Chromium executable path for Alpine Linux
+     * @returns {string|null} Path to Chromium executable or null if not found
+     */
+    getChromiumExecutablePath() {
+        // Common paths for Chromium in Alpine Linux
+        const possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/usr/bin/chrome',
+            '/usr/bin/google-chrome'
+        ];
+
+        for (const chromiumPath of possiblePaths) {
+            try {
+                if (fsSync.existsSync(chromiumPath)) {
+                    return chromiumPath;
+                }
+            } catch (error) {
+                // Continue checking other paths
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get Puppeteer launch options with Chromium path detection
+     * @returns {Object} Puppeteer launch options
+     */
+    getPuppeteerLaunchOptions() {
+        const chromiumPath = this.getChromiumExecutablePath();
+        const options = {
+            headless: 'new',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage', // Important for Docker containers
+                '--disable-gpu' // Helpful in headless environments
+            ]
+        };
+
+        if (chromiumPath) {
+            options.executablePath = chromiumPath;
+            console.log(`[Puppeteer] Using Chromium at: ${chromiumPath}`);
+        } else {
+            console.warn('[Puppeteer] Chromium executable not found, Puppeteer will try to use bundled Chrome');
+        }
+
+        return options;
     }
 
     /**
@@ -184,10 +237,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF using Puppeteer
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();
@@ -330,10 +380,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();
@@ -448,10 +495,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();
@@ -620,10 +664,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();

@@ -1830,44 +1830,69 @@ class OCRService {
             const vinMatches = text.match(vinPattern);
             if (vinMatches) extracted.vin = vinMatches[0].trim();
             
-            // Plate Number - STRICT VALIDATION: Only ABC-1234 format (3 letters, 4 numbers)
-            // Pattern 1: Table format with label - extract and validate
-            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z]{3}[\s-]?\d{4})/i;
+            // Plate Number - Cascading patterns (consistent with registration_cert)
+            // Pattern 1: Table format with label
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
             let plateMatches = text.match(platePattern);
             
             // Pattern 2: Colon format with label
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z]{3}[\s-]?\d{4})/i;
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
                 plateMatches = text.match(platePattern);
             }
             
             // Pattern 3: Context-based (look near keywords)
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z]{3}[\s-]?\d{4})/i;
+                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
                 plateMatches = text.match(platePattern);
             }
             
-            // Pattern 4: Standalone ABC-1234 format ONLY (strict)
+            // Pattern 4: Philippine formats standalone (fallback)
             if (!plateMatches) {
-                platePattern = /\b([A-Z]{3}[\s-]?\d{4})\b/;
+                platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
                 plateMatches = text.match(platePattern);
             }
             
             if (plateMatches) {
                 let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
-                // Validate STRICT format: ABC1234 (3 letters + 4 numbers = 7 chars)
+                // Normalize to ABC-1234 format (3 letters, hyphen, 4 numbers)
                 if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
-                    // Valid: normalize to ABC-1234 format
-                    extracted.plateNumber = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
-                    // #region agent log
-                    console.log('[OCR] Plate number extracted (valid format):', extracted.plateNumber);
-                    // #endregion
-                } else {
-                    // Invalid format - REJECT, do NOT extract
-                    // #region agent log
-                    console.log('[OCR] Plate number REJECTED (invalid format):', plateValue, '- expected ABC-1234 format');
-                    // #endregion
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.includes('-')) {
+                    // Already has hyphen, just normalize
+                    plateValue = plateValue.replace(/-/g, '');
+                    if (plateValue.length >= 6 && /^[A-Z]{3}/.test(plateValue)) {
+                        plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                    }
                 }
+                extracted.plateNumber = plateValue;
+                // #region agent log
+                console.log('[OCR] Plate number extracted:', extracted.plateNumber);
+                // #endregion
+            }
+            
+            // Engine Number - Handle all variations (consistent with CSR)
+            let enginePattern = /Engine\s*Number\s*\|\s*([A-Z0-9\-]+)/i;  // Table format with pipe
+            let engineMatches = text.match(enginePattern);
+            if (!engineMatches) {
+                enginePattern = /Engine\s*Number\s*[:]\s*([A-Z0-9\-]+)/i;  // Colon format
+                engineMatches = text.match(enginePattern);
+            }
+            if (!engineMatches) {
+                enginePattern = /Engine\s*No\.\s*[:]\s*([A-Z0-9\-]+)/i;  // "Engine No." with colon
+                engineMatches = text.match(enginePattern);
+            }
+            if (!engineMatches) {
+                enginePattern = /(?:Engine|Motor)\s*(?:No\.?|Number)?\s*[:.\s]*([A-Z0-9\-]+)/i;  // Generic text format
+                engineMatches = text.match(enginePattern);
+            }
+            if (engineMatches) {
+                extracted.engineNumber = engineMatches[1].trim();
+                // #region agent log
+                console.log('[OCR] Engine number extracted:', extracted.engineNumber);
+                // #endregion
             }
             
             // Chassis Number

@@ -123,8 +123,16 @@ function nextStep() {
             if (currentStep === 4) {
                 // Use setTimeout to ensure DOM is fully rendered before updating
                 setTimeout(() => {
-                    updateUploadedDocumentsList();
-                    updateReviewData();
+                    try {
+                        updateUploadedDocumentsList();
+                    } catch (err) {
+                        console.error('[Review] Error updating documents list:', err);
+                    }
+                    try {
+                        updateReviewData();
+                    } catch (err) {
+                        console.error('[Review] Error updating review data:', err, err.stack);
+                    }
                 }, 100);
             }
             
@@ -292,7 +300,6 @@ function validateVehicleInfo() {
     const year = document.getElementById('year')?.value || '';
     const engineNumber = document.getElementById('engineNumber')?.value.trim() || '';
     const chassisNumber = document.getElementById('chassisNumber')?.value.trim() || '';
-    const vin = document.getElementById('vin')?.value.trim().toUpperCase() || '';
     const vehicleType = document.getElementById('vehicleType')?.value || '';
     const vehicleCategory = document.getElementById('vehicleCategory')?.value || '';
     const passengerCapacity = parseInt(document.getElementById('passengerCapacity')?.value || 0);
@@ -416,24 +423,6 @@ function validateVehicleInfo() {
         classificationField.classList.remove('invalid');
         classificationField.classList.add('valid');
         hideFieldError(classificationField);
-    }
-    
-    // Validate VIN (17 characters, alphanumeric, no I, O, Q)
-    const vinField = document.getElementById('vin');
-    if (vin) {
-        const vinPattern = /^[A-HJ-NPR-Z0-9]{17}$/;
-        if (!vinPattern.test(vin)) {
-            if (vinField) {
-                vinField.classList.add('invalid');
-                showFieldError(vinField, 'VIN must be exactly 17 characters (alphanumeric, no I, O, or Q)');
-            }
-            errors.push('VIN must be exactly 17 characters (alphanumeric, no I, O, or Q)');
-            isValid = false;
-        } else if (vinField) {
-            vinField.classList.remove('invalid');
-            vinField.classList.add('valid');
-            hideFieldError(vinField);
-        }
     }
     
     // Validate license plate format
@@ -739,6 +728,8 @@ function updateProgressBar() {
 }
 
 function updateReviewData() {
+    console.log('[Review] updateReviewData() started');
+    
     // Helper: Get value from form input, fallback to stored OCR data
     const getFieldValue = (formElementId, ocrDataKey) => {
         const formValue = document.getElementById(formElementId)?.value || '';
@@ -764,6 +755,8 @@ function updateReviewData() {
     const phone = getFieldValue('phone', 'phone');
     const idType = getFieldValue('idType', 'idType');
     const idNumber = getFieldValue('idNumber', 'idNumber');
+    
+    console.log('[Review] Basic fields extracted');
     
     // Handle vehicle type with OCR fallback
     const vehicleTypeElement = document.getElementById('vehicleType');
@@ -829,7 +822,7 @@ function updateReviewData() {
     if (vehicleTypeElement) {
         const selectedValue = vehicleTypeElement.value;
         const selectedIndex = vehicleTypeElement.selectedIndex;
-        const selectedOption = vehicleTypeElement.options[selectedIndex];
+        const selectedOption = selectedIndex >= 0 ? vehicleTypeElement.options[selectedIndex] : null;
         
         console.log('updateReviewData - select element details:', {
             selectedValue,
@@ -875,7 +868,7 @@ function updateReviewData() {
     const idTypeElement = document.getElementById('idType');
     if (idTypeElement) {
         const selectedIndex = idTypeElement.selectedIndex;
-        const selectedOption = idTypeElement.options[selectedIndex];
+        const selectedOption = selectedIndex >= 0 ? idTypeElement.options[selectedIndex] : null;
         displayIdType = (selectedOption && selectedOption.text) ? selectedOption.text : (idTypeElement.value || '-');
     } else {
         const idTypeMap = {

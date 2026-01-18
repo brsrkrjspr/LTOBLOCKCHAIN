@@ -29,11 +29,11 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             additionalCoverage
         } = req.body;
 
-        // Validate required fields
-        if (!ownerEmail || !ownerName || !vehicleVIN || !policyNumber || !coverageType || !coverageAmount || !effectiveDate || !expiryDate) {
+        // Validate required fields (ownerEmail and ownerName are required, others can be auto-generated)
+        if (!ownerEmail || !ownerName) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'Missing required fields: ownerEmail and ownerName are required'
             });
         }
 
@@ -46,13 +46,44 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             });
         }
 
-        // Validate VIN format (17 characters)
-        if (vehicleVIN.length !== 17) {
+        // Auto-generate certificate number if not provided
+        const generateCertificateNumber = (type) => {
+            const year = new Date().getFullYear();
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            switch (type) {
+                case 'insurance':
+                    return `CTPL-${year}-${random}`;
+                case 'emission':
+                    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+                    const day = String(new Date().getDate()).padStart(2, '0');
+                    return `ETC-${year}${month}${day}-${random}`;
+                case 'hpg':
+                    return `HPG-${year}-${random}`;
+                default:
+                    return `CERT-${year}-${random}`;
+            }
+        };
+
+        const finalPolicyNumber = policyNumber || generateCertificateNumber('insurance');
+        const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
+        
+        // Validate VIN format if provided (must be 17 characters)
+        if (vehicleVIN && vehicleVIN.length !== 17) {
             return res.status(400).json({
                 success: false,
                 error: 'VIN must be exactly 17 characters'
             });
         }
+
+        // Set defaults for optional fields
+        const finalCoverageType = coverageType || 'CTPL';
+        const finalCoverageAmount = coverageAmount || 'PHP 200,000 / PHP 50,000';
+        const finalEffectiveDate = effectiveDate || new Date().toISOString();
+        const finalExpiryDate = expiryDate || (() => {
+            const date = new Date();
+            date.setFullYear(date.getFullYear() + 1);
+            return date.toISOString();
+        })();
 
         // Validate dates
         const effective = new Date(effectiveDate);
@@ -64,17 +95,17 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             });
         }
 
-        console.log(`[Insurance Certificate] Generating for VIN: ${vehicleVIN}, Policy: ${policyNumber}`);
+        console.log(`[Insurance Certificate] Generating for VIN: ${finalVIN}, Policy: ${finalPolicyNumber}`);
 
         // Generate PDF certificate
         const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateInsuranceCertificate({
             ownerName,
-            vehicleVIN,
-            policyNumber,
-            coverageType,
-            coverageAmount,
-            effectiveDate,
-            expiryDate,
+            vehicleVIN: finalVIN,
+            policyNumber: finalPolicyNumber,
+            coverageType: finalCoverageType,
+            coverageAmount: finalCoverageAmount,
+            effectiveDate: finalEffectiveDate,
+            expiryDate: finalExpiryDate,
             additionalCoverage
         });
 
@@ -83,8 +114,8 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
         // Generate composite hash for blockchain
         const compositeHash = certificatePdfGenerator.generateCompositeHash(
             certificateNumber,
-            vehicleVIN,
-            expiryDate,
+            finalVIN,
+            finalExpiryDate,
             fileHash
         );
 
@@ -134,9 +165,9 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             to: ownerEmail,
             ownerName,
             policyNumber: certificateNumber,
-            vehicleVIN,
+            vehicleVIN: finalVIN,
             pdfBuffer,
-            expiryDate
+            expiryDate: finalExpiryDate
         });
 
         console.log(`[Insurance Certificate] Email sent to ${ownerEmail}, messageId: ${emailResult.id}`);
@@ -146,11 +177,11 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             message: 'Insurance certificate generated and sent successfully',
             certificate: {
                 certificateNumber,
-                vehicleVIN,
+                vehicleVIN: finalVIN,
                 ownerName,
                 fileHash,
                 compositeHash,
-                expiryDate,
+                expiryDate: finalExpiryDate,
                 emailSent: true,
                 emailId: emailResult.id
             }
@@ -183,11 +214,11 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
             testResults
         } = req.body;
 
-        // Validate required fields
-        if (!ownerEmail || !ownerName || !vehicleVIN || !certificateNumber || !testDate || !expiryDate) {
+        // Validate required fields (ownerEmail and ownerName are required, others can be auto-generated)
+        if (!ownerEmail || !ownerName) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'Missing required fields: ownerEmail and ownerName are required'
             });
         }
 
@@ -200,25 +231,52 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
             });
         }
 
-        console.log(`[Emission Certificate] Generating for VIN: ${vehicleVIN}, Cert: ${certificateNumber}`);
+        // Auto-generate certificate number if not provided
+        const generateCertificateNumber = (type) => {
+            const year = new Date().getFullYear();
+            const month = String(new Date().getMonth() + 1).padStart(2, '0');
+            const day = String(new Date().getDate()).padStart(2, '0');
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            switch (type) {
+                case 'insurance':
+                    return `CTPL-${year}-${random}`;
+                case 'emission':
+                    return `ETC-${year}${month}${day}-${random}`;
+                case 'hpg':
+                    return `HPG-${year}-${random}`;
+                default:
+                    return `CERT-${year}-${random}`;
+            }
+        };
+
+        const finalCertificateNumber = certificateNumber || generateCertificateNumber('emission');
+        const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
+        const finalTestDate = testDate || new Date().toISOString();
+        const finalExpiryDate = expiryDate || (() => {
+            const date = new Date();
+            date.setFullYear(date.getFullYear() + 1);
+            return date.toISOString();
+        })();
+
+        console.log(`[Emission Certificate] Generating for VIN: ${finalVIN}, Cert: ${finalCertificateNumber}`);
 
         // Generate PDF
         const { pdfBuffer, fileHash } = await certificatePdfGenerator.generateEmissionCertificate({
             ownerName,
-            vehicleVIN,
+            vehicleVIN: finalVIN,
             vehiclePlate,
-            certificateNumber,
-            testDate,
-            expiryDate,
+            certificateNumber: finalCertificateNumber,
+            testDate: finalTestDate,
+            expiryDate: finalExpiryDate,
             testResults
         });
 
         console.log(`[Emission Certificate] PDF generated, hash: ${fileHash}`);
 
         const compositeHash = certificatePdfGenerator.generateCompositeHash(
-            certificateNumber,
-            vehicleVIN,
-            expiryDate,
+            finalCertificateNumber,
+            finalVIN,
+            finalExpiryDate,
             fileHash
         );
 
@@ -237,14 +295,14 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
                     [
                         issuerQuery.rows[0].id,
                         'emission',
-                        certificateNumber,
-                        vehicleVIN,
+                        finalCertificateNumber,
+                        finalVIN,
                         ownerName,
                         fileHash,
                         compositeHash,
                         JSON.stringify({ testResults, vehiclePlate }),
-                        testDate,
-                        expiryDate
+                        finalTestDate,
+                        finalExpiryDate
                     ]
                 );
             }
@@ -256,10 +314,10 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
         const emailResult = await certificateEmailService.sendEmissionCertificate({
             to: ownerEmail,
             ownerName,
-            certificateNumber,
-            vehicleVIN,
+            certificateNumber: finalCertificateNumber,
+            vehicleVIN: finalVIN,
             pdfBuffer,
-            expiryDate
+            expiryDate: finalExpiryDate
         });
 
         console.log(`[Emission Certificate] Email sent, messageId: ${emailResult.id}`);
@@ -268,8 +326,8 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
             success: true,
             message: 'Emission certificate generated and sent successfully',
             certificate: {
-                certificateNumber,
-                vehicleVIN,
+                certificateNumber: finalCertificateNumber,
+                vehicleVIN: finalVIN,
                 fileHash,
                 compositeHash,
                 emailSent: true
@@ -302,30 +360,52 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
             verificationDetails
         } = req.body;
 
-        // Validate
-        if (!ownerEmail || !ownerName || !vehicleVIN || !clearanceNumber || !issueDate) {
+        // Validate required fields (ownerEmail and ownerName are required, others can be auto-generated)
+        if (!ownerEmail || !ownerName) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'Missing required fields: ownerEmail and ownerName are required'
             });
         }
 
-        console.log(`[HPG Clearance] Generating for VIN: ${vehicleVIN}, Clearance: ${clearanceNumber}`);
+        // Auto-generate certificate number if not provided
+        const generateCertificateNumber = (type) => {
+            const year = new Date().getFullYear();
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            switch (type) {
+                case 'insurance':
+                    return `CTPL-${year}-${random}`;
+                case 'emission':
+                    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+                    const day = String(new Date().getDate()).padStart(2, '0');
+                    return `ETC-${year}${month}${day}-${random}`;
+                case 'hpg':
+                    return `HPG-${year}-${random}`;
+                default:
+                    return `CERT-${year}-${random}`;
+            }
+        };
+
+        const finalClearanceNumber = clearanceNumber || generateCertificateNumber('hpg');
+        const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
+        const finalIssueDate = issueDate || new Date().toISOString();
+
+        console.log(`[HPG Clearance] Generating for VIN: ${finalVIN}, Clearance: ${finalClearanceNumber}`);
 
         // Generate PDF
         const { pdfBuffer, fileHash } = await certificatePdfGenerator.generateHpgClearance({
             ownerName,
-            vehicleVIN,
+            vehicleVIN: finalVIN,
             vehiclePlate,
-            clearanceNumber,
-            issueDate,
+            clearanceNumber: finalClearanceNumber,
+            issueDate: finalIssueDate,
             verificationDetails
         });
 
         const compositeHash = certificatePdfGenerator.generateCompositeHash(
-            clearanceNumber,
-            vehicleVIN,
-            issueDate,
+            finalClearanceNumber,
+            finalVIN,
+            finalIssueDate,
             fileHash
         );
 
@@ -344,13 +424,13 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
                     [
                         issuerQuery.rows[0].id,
                         'hpg_clearance',
-                        clearanceNumber,
-                        vehicleVIN,
+                        finalClearanceNumber,
+                        finalVIN,
                         ownerName,
                         fileHash,
                         compositeHash,
                         JSON.stringify({ verificationDetails, vehiclePlate }),
-                        issueDate
+                        finalIssueDate
                     ]
                 );
             }
@@ -362,8 +442,8 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
         const emailResult = await certificateEmailService.sendHpgClearance({
             to: ownerEmail,
             ownerName,
-            clearanceNumber,
-            vehicleVIN,
+            clearanceNumber: finalClearanceNumber,
+            vehicleVIN: finalVIN,
             pdfBuffer
         });
 
@@ -373,8 +453,8 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
             success: true,
             message: 'HPG clearance generated and sent successfully',
             certificate: {
-                clearanceNumber,
-                vehicleVIN,
+                clearanceNumber: finalClearanceNumber,
+                vehicleVIN: finalVIN,
                 fileHash,
                 compositeHash,
                 emailSent: true
@@ -449,11 +529,11 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             issuanceDate
         } = req.body;
 
-        // Validate required fields
-        if (!dealerEmail || !dealerName || !dealerLtoNumber || !vehicleVIN || !vehicleMake || !vehicleModel || !vehicleYear) {
+        // Validate required fields (dealerEmail and dealerName are required, others can be auto-generated)
+        if (!dealerEmail || !dealerName) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'Missing required fields: dealerEmail and dealerName are required'
             });
         }
 
@@ -466,30 +546,45 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             });
         }
 
-        // Validate VIN format (17 characters)
-        if (vehicleVIN.length !== 17) {
+        // Auto-generate values if not provided
+        const generateCertificateNumber = (type) => {
+            const year = new Date().getFullYear();
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            return `CSR-${year}-${random}`;
+        };
+
+        const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
+        const finalEngineNumber = engineNumber || certificatePdfGenerator.generateRandomEngineNumber();
+        const finalDealerLtoNumber = dealerLtoNumber || `LTO-${Math.floor(1000 + Math.random() * 9000)}`;
+        const finalVehicleMake = vehicleMake || 'Toyota';
+        const finalVehicleModel = vehicleModel || 'Vios';
+        const finalVehicleYear = vehicleYear || new Date().getFullYear();
+        const finalIssuanceDate = issuanceDate || new Date().toISOString();
+
+        // Validate VIN format if provided (must be 17 characters)
+        if (vehicleVIN && vehicleVIN.length !== 17) {
             return res.status(400).json({
                 success: false,
                 error: 'VIN must be exactly 17 characters'
             });
         }
 
-        console.log(`[CSR Certificate] Generating for VIN: ${vehicleVIN}, Make: ${vehicleMake}`);
+        console.log(`[CSR Certificate] Generating for VIN: ${finalVIN}, Make: ${finalVehicleMake}`);
 
         // Generate PDF certificate
         const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
             dealerName,
-            dealerLtoNumber,
-            vehicleMake,
-            vehicleModel,
+            dealerLtoNumber: finalDealerLtoNumber,
+            vehicleMake: finalVehicleMake,
+            vehicleModel: finalVehicleModel || vehicleModel,
             vehicleVariant,
-            vehicleYear,
+            vehicleYear: finalVehicleYear,
             bodyType,
             color,
             fuelType,
-            engineNumber,
-            vehicleVIN,
-            issuanceDate
+            engineNumber: finalEngineNumber,
+            vehicleVIN: finalVIN,
+            issuanceDate: finalIssuanceDate
         });
 
         console.log(`[CSR Certificate] PDF generated, hash: ${fileHash}`);
@@ -497,8 +592,8 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
         // Generate composite hash for blockchain
         const compositeHash = certificatePdfGenerator.generateCompositeHash(
             certificateNumber,
-            vehicleVIN,
-            issuanceDate || new Date().toISOString().split('T')[0],
+            finalVIN,
+            finalIssuanceDate.split('T')[0],
             fileHash
         );
 
@@ -518,12 +613,21 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
                         issuerQuery.rows[0].id,
                         'csr',
                         certificateNumber,
-                        vehicleVIN,
+                        finalVIN,
                         dealerName,
                         fileHash,
                         compositeHash,
-                        JSON.stringify({ vehicleMake, vehicleModel, vehicleVariant, vehicleYear, bodyType, color, fuelType, engineNumber }),
-                        issuanceDate || new Date().toISOString().split('T')[0]
+                        JSON.stringify({ 
+                            vehicleMake: finalVehicleMake, 
+                            vehicleModel: finalVehicleModel || vehicleModel, 
+                            vehicleVariant, 
+                            vehicleYear: finalVehicleYear, 
+                            bodyType, 
+                            color, 
+                            fuelType, 
+                            engineNumber: finalEngineNumber 
+                        }),
+                        finalIssuanceDate.split('T')[0]
                     ]
                 );
             }
@@ -536,9 +640,9 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             to: dealerEmail,
             dealerName,
             csrNumber: certificateNumber,
-            vehicleVIN,
-            vehicleMake,
-            vehicleModel,
+            vehicleVIN: finalVIN,
+            vehicleMake: finalVehicleMake,
+            vehicleModel: finalVehicleModel || vehicleModel,
             pdfBuffer
         });
 
@@ -549,9 +653,9 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             message: 'CSR certificate generated and sent successfully',
             certificate: {
                 csrNumber: certificateNumber,
-                vehicleVIN,
-                vehicleMake,
-                vehicleModel,
+                vehicleVIN: finalVIN,
+                vehicleMake: finalVehicleMake,
+                vehicleModel: finalVehicleModel || vehicleModel,
                 fileHash,
                 compositeHash,
                 emailSent: true

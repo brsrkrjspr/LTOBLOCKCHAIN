@@ -276,7 +276,7 @@ services:
       - ./network-config.yaml:/app/network-config.yaml
       - ./wallet:/app/wallet
       - app-logs:/app/logs
-      - ./Mock Certs:/app/Mock Certs:ro
+      - ./mock_certs:/app/mock_certs:ro
     depends_on:
       - postgres
       - ipfs-cluster

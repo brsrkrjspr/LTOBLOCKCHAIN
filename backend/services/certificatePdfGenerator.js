@@ -5,12 +5,64 @@
 
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 class CertificatePdfGenerator {
     constructor() {
-        this.templatesPath = path.join(__dirname, '..', '..', 'Mock Certs');
+        this.templatesPath = path.join(__dirname, '..', '..', 'mock_certs');
+    }
+
+    /**
+     * Generate random VIN (17 characters, excludes I, O, Q)
+     * @returns {string} Random VIN
+     */
+    generateRandomVIN() {
+        const chars = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789'; // Excludes I, O, Q
+        let vin = '';
+        for (let i = 0; i < 17; i++) {
+            vin += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return vin;
+    }
+
+    /**
+     * Generate random engine number (format: XXX-XX######)
+     * @returns {string} Random engine number
+     */
+    generateRandomEngineNumber() {
+        const prefix = ['2NR', '1GR', '3UR', '4GR', '5VZ'][Math.floor(Math.random() * 5)];
+        const middle = ['FE', 'GE', 'DE', 'CE', 'BE'][Math.floor(Math.random() * 5)];
+        const numbers = Math.floor(100000 + Math.random() * 900000).toString();
+        return `${prefix}-${middle}${numbers}`;
+    }
+
+    /**
+     * Generate random chassis number (10-17 alphanumeric)
+     * @returns {string} Random chassis number
+     */
+    generateRandomChassisNumber() {
+        const chars = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
+        const length = 10 + Math.floor(Math.random() * 8); // 10-17 chars
+        let chassis = '';
+        for (let i = 0; i < length; i++) {
+            chassis += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return chassis;
+    }
+
+    /**
+     * Generate random plate number (format: ABC-1234)
+     * @returns {string} Random plate number
+     */
+    generateRandomPlateNumber() {
+        const letters = 'ABCDEFGHJKLMNPRSTUVWXYZ';
+        const letterPart = Array.from({ length: 3 }, () => 
+            letters.charAt(Math.floor(Math.random() * letters.length))
+        ).join('');
+        const numberPart = Math.floor(1000 + Math.random() * 9000).toString();
+        return `${letterPart}-${numberPart}`;
     }
 
     /**
@@ -33,6 +85,58 @@ class CertificatePdfGenerator {
     generateCompositeHash(certificateNumber, vehicleVIN, expiryDate, fileHash) {
         const compositeString = `${certificateNumber}|${vehicleVIN}|${expiryDate}|${fileHash}`;
         return crypto.createHash('sha256').update(compositeString).digest('hex');
+    }
+
+    /**
+     * Get Chromium executable path for Alpine Linux
+     * @returns {string|null} Path to Chromium executable or null if not found
+     */
+    getChromiumExecutablePath() {
+        // Common paths for Chromium in Alpine Linux
+        const possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/usr/bin/chrome',
+            '/usr/bin/google-chrome'
+        ];
+
+        for (const chromiumPath of possiblePaths) {
+            try {
+                if (fsSync.existsSync(chromiumPath)) {
+                    return chromiumPath;
+                }
+            } catch (error) {
+                // Continue checking other paths
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get Puppeteer launch options with Chromium path detection
+     * @returns {Object} Puppeteer launch options
+     */
+    getPuppeteerLaunchOptions() {
+        const chromiumPath = this.getChromiumExecutablePath();
+        const options = {
+            headless: 'new',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage', // Important for Docker containers
+                '--disable-gpu' // Helpful in headless environments
+            ]
+        };
+
+        if (chromiumPath) {
+            options.executablePath = chromiumPath;
+            console.log(`[Puppeteer] Using Chromium at: ${chromiumPath}`);
+        } else {
+            console.warn('[Puppeteer] Chromium executable not found, Puppeteer will try to use bundled Chrome');
+        }
+
+        return options;
     }
 
     /**
@@ -113,10 +217,11 @@ class CertificatePdfGenerator {
             `$1${ownerName}$2`
         );
         
-        // Chassis No. (VIN) - match the full line
+        // Chassis No. (VIN) - match the full line (use provided or generate random)
+        const finalVIN = vehicleVIN || this.generateRandomVIN();
         htmlTemplate = htmlTemplate.replace(
             /(Chassis No\.: <input class="wide" value=")[^"]*(")/,
-            `$1${vehicleVIN}$2`
+            `$1${finalVIN}$2`
         );
 
         // Inline CSS for Insurance certificate
@@ -132,10 +237,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF using Puppeteer
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();
@@ -213,16 +315,18 @@ class CertificatePdfGenerator {
             `id="owner-name" class="editable-field" value="${ownerName}" data-field="owner-name"`
         );
         
-        // Chassis / VIN
+        // Chassis / VIN (use provided or generate random)
+        const finalVIN = vehicleVIN || this.generateRandomVIN();
         htmlTemplate = htmlTemplate.replace(
             /id="chassis-vin"[^>]*value="[^"]*"/,
-            `id="chassis-vin" class="editable-field" value="${vehicleVIN}" data-field="chassis-vin"`
+            `id="chassis-vin" class="editable-field" value="${finalVIN}" data-field="chassis-vin"`
         );
         
-        // Plate No.
+        // Plate No. (use provided or generate random)
+        const finalPlate = vehiclePlate || this.generateRandomPlateNumber();
         htmlTemplate = htmlTemplate.replace(
             /id="plate-no"[^>]*value="[^"]*"/,
-            `id="plate-no" class="editable-field" value="${vehiclePlate || 'PENDING'}" data-field="plate-no"`
+            `id="plate-no" class="editable-field" value="${finalPlate}" data-field="plate-no"`
         );
         
         // Test Results - CO Level
@@ -276,10 +380,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();
@@ -361,16 +462,18 @@ class CertificatePdfGenerator {
             `id="owner-name" class="editable-field" value="${ownerName}"`
         );
         
-        // Chassis / VIN
+        // Chassis / VIN (use provided or generate random)
+        const finalVIN = vehicleVIN || this.generateRandomVIN();
         htmlTemplate = htmlTemplate.replace(
             /id="chassis-vin"[^>]*value="[^"]*"/,
-            `id="chassis-vin" class="editable-field" value="${vehicleVIN}"`
+            `id="chassis-vin" class="editable-field" value="${finalVIN}"`
         );
         
-        // Plate Number
+        // Plate Number (use provided or generate random)
+        const finalPlate = vehiclePlate || this.generateRandomPlateNumber();
         htmlTemplate = htmlTemplate.replace(
             /id="plate-number"[^>]*value="[^"]*"/,
-            `id="plate-number" class="editable-field" value="${vehiclePlate || 'PENDING'}"`
+            `id="plate-number" class="editable-field" value="${finalPlate}"`
         );
         
         // Verification Details (statement textarea)
@@ -392,10 +495,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();
@@ -537,16 +637,18 @@ class CertificatePdfGenerator {
             `<tr><td>Fuel Type</td><td><input type="text" value="${fuelType || 'Gasoline'}"`
         );
         
-        // Engine Number
+        // Engine Number (use provided or generate random)
+        const finalEngineNumber = engineNumber || this.generateRandomEngineNumber();
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Engine Number<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Engine Number</td><td><input type="text" value="${engineNumber || '2NR-FE123456'}"`
+            `<tr><td>Engine Number</td><td><input type="text" value="${finalEngineNumber}"`
         );
         
-        // Chassis / VIN
+        // Chassis / VIN (use provided or generate random)
+        const finalVIN = vehicleVIN || this.generateRandomVIN();
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Chassis \/ VIN<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Chassis / VIN</td><td><input type="text" value="${vehicleVIN || '1HGBH41JXMN109186'}"`
+            `<tr><td>Chassis / VIN</td><td><input type="text" value="${finalVIN}"`
         );
 
         // Inline CSS for CSR certificate
@@ -562,10 +664,7 @@ class CertificatePdfGenerator {
         }
 
         // Generate PDF
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
 
         try {
             const page = await browser.newPage();

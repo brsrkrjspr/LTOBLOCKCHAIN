@@ -209,7 +209,12 @@ class CertificatePdfGenerator {
             effectiveDate,
             expiryDate,
             additionalCoverage
-        } = data;
+        } = data || {};
+
+        // Validate required fields
+        if (!ownerName || !policyNumber || !effectiveDate || !expiryDate) {
+            throw new Error('Missing required fields for Insurance Certificate: ownerName, policyNumber, effectiveDate, expiryDate are required');
+        }
 
         // Read template
         const templatePath = path.join(this.templatesPath, 'Insurance Cert', 'index.html');
@@ -252,15 +257,16 @@ class CertificatePdfGenerator {
         );
         
         // Coverage Amount - Bodily Injury - match the full line
-        const coverageParts = coverageAmount.split('/');
-        const bodilyInjury = coverageParts[0] || coverageAmount;
+        const coverageAmountStr = coverageAmount || 'PHP 200,000 / PHP 50,000';
+        const coverageParts = coverageAmountStr.split('/');
+        const bodilyInjury = coverageParts[0] || coverageAmountStr;
         htmlTemplate = htmlTemplate.replace(
             /(&nbsp;&nbsp;Bodily Injury: <input value=")[^"]*(")/,
             `$1${bodilyInjury.trim()} per person / PHP 200,000 per accident$2`
         );
         
         // Coverage Amount - Property Damage - match the full line
-        const propertyDamage = coverageParts[1] || 'PHP 50,000';
+        const propertyDamage = coverageParts[1]?.trim() || 'PHP 50,000';
         htmlTemplate = htmlTemplate.replace(
             /(&nbsp;&nbsp;Property Damage: <input value=")[^"]*(")/,
             `$1${propertyDamage.trim()} per accident$2`

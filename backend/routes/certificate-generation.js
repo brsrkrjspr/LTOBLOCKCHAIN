@@ -784,11 +784,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             let existingVehicle = null;
             do {
                 finalPlate = certificatePdfGenerator.generateRandomPlateNumber();
-                const plateCheck = await db.query(
-                    'SELECT id FROM vehicles WHERE plate_number = $1',
-                    [finalPlate]
-                );
-                existingVehicle = plateCheck.rows && plateCheck.rows.length > 0 ? plateCheck.rows[0] : null;
+                existingVehicle = await db.getVehicleByPlate(finalPlate);
                 attempts++;
                 if (attempts >= 10) {
                     return res.status(500).json({
@@ -800,11 +796,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             console.log(`[Batch] Generated unique plate: ${finalPlate} (attempts: ${attempts})`);
         } else {
             // Check if provided plate already exists
-            const plateCheck = await db.query(
-                'SELECT id FROM vehicles WHERE plate_number = $1',
-                [finalPlate]
-            );
-            if (plateCheck.rows && plateCheck.rows.length > 0) {
+            const existingVehicle = await db.getVehicleByPlate(finalPlate);
+            if (existingVehicle) {
                 return res.status(409).json({
                     success: false,
                     error: `Vehicle with plate number ${finalPlate} already exists in the system`

@@ -67,6 +67,14 @@ async function getVehicleByVin(vin) {
     return result.rows[0] || null;
 }
 
+async function getVehicleByPlate(plateNumber) {
+    const result = await db.query(
+        'SELECT id FROM vehicles WHERE plate_number = $1',
+        [plateNumber]
+    );
+    return result.rows[0] || null;
+}
+
 async function getVehicleById(id) {
     const result = await db.query(
         `SELECT v.*, 
@@ -1732,6 +1740,7 @@ module.exports = {
     
     // Vehicle operations
     getVehicleByVin,
+    getVehicleByPlate,
     getVehicleById,
     createVehicle,
     updateVehicle,

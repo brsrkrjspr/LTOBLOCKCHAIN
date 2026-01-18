@@ -259,7 +259,6 @@ function initializeAdminDashboard() {
     initializeAuditLogs();
     initializeReports();
     loadOrgVerificationStatus();
-    loadOtherDocuments(); // Load documents with 'other' type for correction
     }, 2000); // Load after 2 seconds
     
     // Set up smart auto-refresh (replaces old setInterval calls)
@@ -382,198 +381,6 @@ async function loadOrgVerificationStatus() {
 }
 
 // Render verification responses table
-// Load documents with 'other' type for correction
-async function loadOtherDocuments() {
-    try {
-        const container = document.getElementById('otherDocumentsContainer');
-        if (!container) return;
-        
-        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading documents...</div>';
-        
-        const apiClient = window.apiClient || new APIClient();
-        
-        // Search for documents with 'other' type
-        const response = await apiClient.get('/api/documents/search', {
-            params: {
-                documentType: 'other',
-                limit: 100
-            }
-        });
-        
-        if (!response || !response.success) {
-            throw new Error(response?.error || 'Failed to load documents');
-        }
-        
-        // Handle both response formats
-        const documents = response.documents || response.data?.documents || [];
-        
-        if (documents.length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: #27ae60;">
-                    <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                    <p style="font-size: 1.1rem; margin: 0;">No documents with 'other' type found. All documents are properly categorized!</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Build table
-        let html = `
-            <div style="overflow-x: auto;">
-                <table class="data-table" style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th>Document ID</th>
-                            <th>Filename</th>
-                            <th>Vehicle VIN</th>
-                            <th>Uploaded</th>
-                            <th>Current Type</th>
-                            <th>Correct Type</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        for (const doc of documents) {
-            const vehicleInfo = (doc.vehicle && doc.vehicle.vin) ? doc.vehicle.vin : (doc.vin || 'Not linked');
-            const uploadedDate = doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'Unknown';
-            
-            html += `
-                <tr id="doc-row-${doc.id}">
-                    <td>${doc.id.substring(0, 8)}...</td>
-                    <td>${doc.original_name || doc.filename || 'Unknown'}</td>
-                    <td>${vehicleInfo}</td>
-                    <td>${uploadedDate}</td>
-                    <td><span class="badge" style="background: #e74c3c;">${doc.document_type || 'other'}</span></td>
-                    <td>
-                        <select id="doc-type-select-${doc.id}" class="form-control" style="min-width: 150px;">
-                            <option value="">Select type...</option>
-                            <option value="registrationCert">Registration Certificate</option>
-                            <option value="insuranceCert">Insurance Certificate</option>
-                            <option value="emissionCert">Emission Certificate</option>
-                            <option value="ownerId">Owner ID</option>
-                            <option value="deedOfSale">Deed of Sale</option>
-                            <option value="sellerId">Seller ID</option>
-                            <option value="buyerId">Buyer ID</option>
-                            <option value="csr">CSR</option>
-                            <option value="hpgClearance">HPG Clearance</option>
-                            <option value="salesInvoice">Sales Invoice</option>
-                        </select>
-                    </td>
-                    <td>
-                        <button class="btn-primary btn-sm" onclick="correctDocumentType('${doc.id}')" style="margin-right: 0.5rem;">
-                            <i class="fas fa-save"></i> Save
-                        </button>
-                        <button class="btn-secondary btn-sm" onclick="viewDocumentPreview('${doc.id}')">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }
-        
-        html += `
-                    </tbody>
-                </table>
-            </div>
-            <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                <strong><i class="fas fa-info-circle"></i> Note:</strong> Only correct document types when you are certain of the document's actual type. 
-                Consider the vehicle context and upload source when making corrections.
-            </div>
-        `;
-        
-        container.innerHTML = html;
-        
-    } catch (error) {
-        console.error('Error loading other documents:', error);
-        const container = document.getElementById('otherDocumentsContainer');
-        if (container) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: #e74c3c;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                    <p style="font-size: 1.1rem; margin: 0;">Error loading documents: ${error.message}</p>
-                </div>
-            `;
-        }
-    }
-}
-
-// Correct document type
-async function correctDocumentType(documentId) {
-    try {
-        const select = document.getElementById(`doc-type-select-${documentId}`);
-        if (!select || !select.value) {
-            if (window.ToastNotification) {
-                ToastNotification.show('Please select a document type', 'error');
-            } else {
-                alert('Please select a document type');
-            }
-            return;
-        }
-        
-        const newType = select.value;
-        
-        // Show loading state
-        const row = document.getElementById(`doc-row-${documentId}`);
-        if (row) {
-            row.style.opacity = '0.5';
-        }
-        
-        const apiClient = window.apiClient || new APIClient();
-        
-        const response = await apiClient.patch(`/api/documents/${documentId}/type`, {
-            documentType: newType
-        });
-        
-        if (!response || !response.success) {
-            throw new Error(response?.error || 'Failed to update document type');
-        }
-        
-        // Update UI
-        if (row) {
-            const currentTypeCell = row.querySelector('td:nth-child(5)');
-            if (currentTypeCell) {
-                currentTypeCell.innerHTML = `<span class="badge" style="background: #27ae60;">${response.document.documentType}</span>`;
-            }
-            row.style.opacity = '1';
-            row.style.background = '#d4edda';
-            setTimeout(() => {
-                row.style.background = '';
-            }, 2000);
-        }
-        
-        // Remove from list if type is no longer 'other'
-        if (response.document.documentType !== 'other') {
-            setTimeout(() => {
-                loadOtherDocuments(); // Reload to refresh list
-            }, 1000);
-        }
-        
-        if (window.ToastNotification) {
-            ToastNotification.show(`Document type updated to ${response.document.logicalType}`, 'success');
-        } else {
-            alert(`Document type updated successfully!`);
-        }
-        
-    } catch (error) {
-        console.error('Error correcting document type:', error);
-        const row = document.getElementById(`doc-row-${documentId}`);
-        if (row) {
-            row.style.opacity = '1';
-        }
-        
-        if (window.ToastNotification) {
-            ToastNotification.show(`Error: ${error.message}`, 'error');
-        } else {
-            alert(`Error: ${error.message}`);
-        }
-    }
-}
-
-// View document preview
-function viewDocumentPreview(documentId) {
-    // Use existing document modal if available
     if (typeof openDocumentModal === 'function') {
         openDocumentModal(documentId);
     } else {
@@ -1782,21 +1589,12 @@ async function viewApplication(applicationId) {
                 
                 if (response && response.success && response.vehicle) {
                     const vehicle = response.vehicle;
-                    
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1784',message:'Vehicle loaded from API',data:{vehicleId:vehicle.id,documentsCount:vehicle.documents?.length||0,documentTypes:vehicle.documents?.map(d=>d.document_type||d.documentType)||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
-                    
                     const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
                     
                     if (mapper) {
                         // Start with canonical mapping
                         const baseApp = mapper(vehicle);
                         const verificationStatus = baseApp.verificationStatus || {};
-                        
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1792',message:'After mapper - documents check',data:{documentsCount:baseApp.documents?.length||0,documentTypes:baseApp.documents?.map(d=>d.document_type||d.documentType)||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                        // #endregion
                         
                         // Extend with admin-specific fields (using Object.assign for compatibility)
                         application = Object.assign({}, baseApp, {
@@ -1855,10 +1653,6 @@ async function viewApplication(applicationId) {
                         };
                     }
                     
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1848',message:'Final application documents',data:{documentsCount:application.documents?.length||0,documentTypes:application.documents?.map(d=>d.document_type||d.documentType||'unknown')||[],isArray:Array.isArray(application.documents)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
-                    
                     console.log('✅ Application loaded from API:', application);
                 }
             } catch (apiError) {
@@ -1905,10 +1699,6 @@ window.viewApplication = viewApplication;
 
 function showApplicationModal(application) {
     console.log('📋 showApplicationModal called with:', application);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1893',message:'showApplicationModal - documents check',data:{documentsCount:application.documents?.length||0,documentTypes:application.documents?.map(d=>d.document_type||d.documentType||'unknown')||[],isArray:Array.isArray(application.documents),documents:application.documents},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     
     // Normalize status to lowercase for consistent comparison
     const normalizedStatus = (application.status || '').toLowerCase();

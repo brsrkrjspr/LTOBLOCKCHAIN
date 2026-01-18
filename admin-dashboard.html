@@ -41,7 +41,6 @@
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
     <!-- AuthManager.init() is now called in admin-dashboard.js to ensure proper initialization order -->
-    <script src="js/error-tracker.js"></script>
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
@@ -1245,25 +1244,6 @@
                             <span>View Documents</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>
-                    </div>
-                </div>
-
-                <!-- Document Type Correction Section -->
-                <div class="section-header">
-                    <h2 class="section-title"><i class="fas fa-edit" style="color: #e74c3c;"></i> Document Type Correction</h2>
-                    <p class="section-subtitle">Correct document types for documents incorrectly stored as 'other'</p>
-                </div>
-                <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3 style="margin: 0;"><i class="fas fa-file-exclamation"></i> Documents with 'Other' Type</h3>
-                        <button class="btn-secondary btn-sm" onclick="loadOtherDocuments()">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
-                    <div id="otherDocumentsContainer" style="min-height: 200px;">
-                        <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading documents...
-                        </div>
                     </div>
                 </div>
 

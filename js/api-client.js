@@ -114,9 +114,6 @@ class APIClient {
 
     // Make API request with automatic token handling
     async request(endpoint, options = {}) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.js:116',message:'API request initiated',data:{endpoint,method:options.method||'GET'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         const token = this.getAuthToken();
         
         // If token is required and not available, redirect to login (only if auth is enabled)
@@ -170,10 +167,6 @@ class APIClient {
         try {
             const response = await fetch(url, requestOptions);
             clearTimeout(timeoutId);
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.js:169',message:'API response received',data:{endpoint,url,status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
 
             // Handle 401 Unauthorized
             if (response.status === 401) {
@@ -255,9 +248,6 @@ class APIClient {
 
             // Handle 404 Not Found
             if (response.status === 404) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.js:250',message:'404 - Endpoint not found',data:{endpoint,url,status:404},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
                 throw new Error('Resource not found.');
             }
 
@@ -323,10 +313,6 @@ class APIClient {
             return data;
         } catch (error) {
             clearTimeout(timeoutId);
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.js:323',message:'API request error caught',data:{endpoint,url,errorMessage:error.message,errorName:error.name,errorStatus:error.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             
             // Preserve error status and conflict flag if set
             if (error.status) {

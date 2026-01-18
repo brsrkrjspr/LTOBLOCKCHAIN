@@ -513,6 +513,131 @@ class OCRService {
     }
 
     /**
+     * PATTERN-FIRST: Identify ID type(s) from format alone (no keywords required)
+     * Tests an ID number string against ALL format patterns and returns matching types
+     * @param {string} idNumber - Raw ID number to test (e.g., "1234-5678-9101-1213")
+     * @returns {Object} { matchingTypes: Array, primaryType: String|null, confidence: Number, ambiguous: Boolean }
+     *   matchingTypes: Array of {type, confidence} for all patterns that match
+     *   primaryType: Single best match (highest confidence), or null if no matches
+     *   confidence: Confidence of primaryType match (0-1.0)
+     *   ambiguous: True if multiple types matched (collision case)
+     */
+    identifyIDTypeFromFormat(idNumber) {
+        if (!idNumber || typeof idNumber !== 'string') {
+            return {
+                matchingTypes: [],
+                primaryType: null,
+                confidence: 0,
+                ambiguous: false,
+                reason: 'Invalid input'
+            };
+        }
+
+        const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
+        const matchingTypes = [];
+
+        // ALL format validation patterns - tested in this order
+        const allPatterns = {
+            'national-id': {
+                pattern: /^\d{4}-\d{4}-\d{4}-\d{4}$/,
+                specificity: 95,
+                reason: '4-4-4-4 format is unique to National ID'
+            },
+            'philhealth-id': {
+                pattern: /^\d{2}-\d{7}-\d{2}$/,
+                specificity: 90,
+                reason: '2-7-2 format matches PhilHealth (11 total digits)'
+            },
+            'sss-id': {
+                pattern: /^\d{2}-\d{7}-\d{1}$/,
+                specificity: 90,
+                reason: '2-7-1 format matches SSS ID (10 total digits)'
+            },
+            'drivers-license': {
+                pattern: /^[A-Z]\d{2}-\d{2}-\d{6,}$/,
+                specificity: 85,
+                reason: '[A-Z]2-2-6+ format unique to Driver License'
+            },
+            'tin': {
+                pattern: /^\d{3}-\d{3}-\d{3}-\d{3}$/,
+                specificity: 80,
+                reason: '3-3-3-3 format (12 digits) matches TIN'
+            },
+            'voters-id': {
+                pattern: /^\d{4}-\d{4}-\d{4}$/,
+                specificity: 70,
+                reason: '4-4-4 format (12 digits) matches Voters ID'
+            },
+            'postal-id': {
+                pattern: /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/,
+                specificity: 60,
+                reason: 'Letters+digits or numeric-only format'
+            },
+            'passport': {
+                pattern: /^[A-Z]{2}\d{7}$/,
+                specificity: 75,
+                reason: '2 letters + 7 digits format'
+            }
+        };
+
+        // Test against all patterns
+        for (const [idType, { pattern, specificity, reason }] of Object.entries(allPatterns)) {
+            if (pattern.test(cleaned)) {
+                matchingTypes.push({
+                    type: idType,
+                    confidence: 1.0,
+                    specificity: specificity,
+                    reason: reason
+                });
+
+                // #region agent log
+                console.log('[OCR Debug] Pattern match found for ID type:', {
+                    idNumber: cleaned,
+                    idType: idType,
+                    specificity: specificity,
+                    reason: reason
+                });
+                // #endregion
+            }
+        }
+
+        // Sort by specificity (highest first)
+        matchingTypes.sort((a, b) => b.specificity - a.specificity);
+
+        const result = {
+            matchingTypes: matchingTypes,
+            primaryType: matchingTypes.length > 0 ? matchingTypes[0].type : null,
+            confidence: matchingTypes.length > 0 ? matchingTypes[0].confidence : 0,
+            ambiguous: matchingTypes.length > 1,
+            cleanedNumber: cleaned
+        };
+
+        // #region agent log
+        if (matchingTypes.length > 1) {
+            console.warn('[OCR Debug] AMBIGUOUS ID FORMAT - Multiple types matched:', {
+                idNumber: cleaned,
+                matchingTypes: matchingTypes.map(m => ({ type: m.type, specificity: m.specificity })),
+                warning: 'Format alone cannot disambiguate. Use keyword proximity or user confirmation.'
+            });
+        } else if (matchingTypes.length === 0) {
+            console.warn('[OCR Debug] NO FORMAT MATCH - ID number does not match any known format:', {
+                idNumber: cleaned,
+                length: cleaned.length,
+                suggestion: 'Fall back to keyword detection or manual verification'
+            });
+        } else {
+            console.log('[OCR Debug] UNAMBIGUOUS FORMAT MATCH:', {
+                idNumber: cleaned,
+                primaryType: result.primaryType,
+                confidence: result.confidence
+            });
+        }
+        // #endregion
+
+        return result;
+    }
+
+    /**
      * Get format-specific regex patterns for ID number extraction
      * @param {string} idType - Type of ID (drivers-license, passport, etc.)
      * @returns {Array} Array of regex patterns prioritized by specificity
@@ -1040,17 +1165,16 @@ class OCRService {
                 { pattern: /^([A-Z]{2})(\d{7})$/, type: 'passport', description: 'Passport (AA1234567)' }
             ];
             
-            // Try to extract ID number and determine type from format
+            // PATTERN-FIRST ID TYPE DETECTION: Extract potential ID numbers and use format to identify type
             const extractedNumbers = [];
             if (text && typeof text === 'string') {
-                // Extract all potential ID numbers from text
+                // Extract all potential ID numbers from text (loose patterns to catch everything)
                 const numberPatterns = [
-                    /(\d{4})[-\s](\d{4})[-\s](\d{4})[-\s](\d{4})/g,  // 4-4-4-4
-                    /(\d{2})[-\s](\d{7})[-\s](\d{2})/g,                 // 2-7-2
-                    /(\d{2})[-\s](\d{7})[-\s](\d{1})/g,                 // 2-7-1
-                    /([A-Z])[-\s](\d{2})[-\s](\d{2})[-\s](\d{6,})/g,   // [A-Z]2-2-6+
-                    /(\d{3})[-\s](\d{3})[-\s](\d{3})[-\s](\d{3})/g,     // 3-3-3-3
-                    /(\d{4})[-\s](\d{4})[-\s](\d{4})/g,                 // 4-4-4
+                    /(\d{4})[-\s](\d{4})[-\s](\d{4})[-\s](\d{4})/g,  // 4-4-4-4 (National ID, Voters ID)
+                    /(\d{2})[-\s](\d{7})[-\s](\d{2})/g,                 // 2-7-2 (PhilHealth)
+                    /(\d{2})[-\s](\d{7})[-\s](\d{1})/g,                 // 2-7-1 (SSS ID)
+                    /([A-Z])[-\s](\d{2})[-\s](\d{2})[-\s](\d{6,})/g,   // [A-Z]2-2-6+ (Driver's License)
+                    /(\d{3})[-\s](\d{3})[-\s](\d{3})[-\s](\d{3})/g,     // 3-3-3-3 (TIN)
                     /([A-Z]{1,2}\d{6})/g,                               // Postal
                     /([A-Z]{2})(\d{7})/g                                // Passport
                 ];
@@ -1058,39 +1182,101 @@ class OCRService {
                 for (const pattern of numberPatterns) {
                     let match;
                     while ((match = pattern.exec(text)) !== null) {
-                        extractedNumbers.push(match[0]);
-                    }
-                }
-            }
-            
-            // Determine ID type from extracted number using ordered pattern matching
-            if (extractedNumbers.length > 0) {
-                for (const numberStr of extractedNumbers) {
-                    for (const patternObj of idNumberPatterns) {
-                        if (patternObj.pattern.test(numberStr)) {
-                            extracted.idType = patternObj.type;
-                            // #region agent log
-                            console.log('[OCR Debug] ID Type detected by pattern matching:', {
-                                numberStr,
-                                pattern: patternObj.description,
-                                idType: extracted.idType
-                            });
-                            // #endregion
-                            break;
+                        if (match[0] && !extractedNumbers.includes(match[0])) {
+                            extractedNumbers.push(match[0]);
                         }
                     }
-                    if (extracted.idType) break; // Stop after first match
                 }
             }
             
-            // Fallback: If no ID type detected from patterns, log for debugging
+            // PATTERN-FIRST: Use the new identifyIDTypeFromFormat() function to determine type
+            // This function tests against all format patterns and returns matching types with confidence
+            let formatDetectionResult = null;
+            if (extractedNumbers.length > 0) {
+                // Try to identify type from the first extracted number
+                formatDetectionResult = this.identifyIDTypeFromFormat(extractedNumbers[0]);
+                
+                if (formatDetectionResult.primaryType) {
+                    extracted.idType = formatDetectionResult.primaryType;
+                    extracted.idTypeConfidence = formatDetectionResult.confidence;
+                    extracted.idTypeDetectionMethod = 'format';
+                    extracted.idTypeAmbiguous = formatDetectionResult.ambiguous;
+                    
+                    // #region agent log
+                    console.log('[OCR Debug] ID Type detected by FORMAT matching (pattern-first approach):', {
+                        idNumber: formatDetectionResult.cleanedNumber,
+                        primaryType: extracted.idType,
+                        confidence: formatDetectionResult.confidence,
+                        ambiguous: formatDetectionResult.ambiguous,
+                        allMatches: formatDetectionResult.matchingTypes.map(m => m.type)
+                    });
+                    // #endregion
+                    
+                    // If ambiguous (multiple types matched), use keyword proximity to disambiguate
+                    if (formatDetectionResult.ambiguous) {
+                        console.warn('[OCR Debug] AMBIGUOUS: Multiple ID types matched the number format. Using keyword proximity to disambiguate:', {
+                            matchedTypes: formatDetectionResult.matchingTypes.map(m => m.type),
+                            selectedType: extracted.idType,
+                            note: 'May need manual verification'
+                        });
+                    }
+                } else {
+                    // No format match found - will fall back to keyword detection later
+                    console.log('[OCR Debug] Pattern-first detection failed. No ID format matched the extracted numbers:', {
+                        extractedNumbers: extractedNumbers,
+                        note: 'Will attempt keyword-based detection as fallback'
+                    });
+                }
+            }
+            
+            // FALLBACK: If pattern-first didn't work, try keyword-based detection
             if (!extracted.idType) {
-                // #region agent log
-                console.log('[OCR Debug] ID Type not determined from pattern matching. No recognized ID format found in:', {
-                    textPreview: text ? text.substring(0, 300) : 'NO TEXT',
-                    extractedNumbers: extractedNumbers
-                });
-                // #endregion
+                console.log('[OCR Debug] Pattern-first detection did not identify ID type. Attempting keyword-based detection fallback...');
+                
+                const idTypeMap = {
+                    'driver': 'drivers-license',
+                    'license': 'drivers-license',
+                    'dl': 'drivers-license',
+                    'passport': 'passport',
+                    'pp': 'passport',
+                    'national': 'national-id',
+                    'nid': 'national-id',
+                    'philippine': 'national-id',
+                    'philid': 'national-id',
+                    'postal': 'postal-id',
+                    'voter': 'voters-id',
+                    'sss': 'sss-id',
+                    'social': 'sss-id',
+                    'security': 'sss-id'
+                };
+                
+                // Strategy: Scan document header first (most reliable)
+                const documentHeader = text ? text.substring(0, Math.min(300, text.length)).toUpperCase() : '';
+                const headerKeywords = ['DRIVER', 'LICENSE', 'PASSPORT', 'NATIONAL', 'POSTAL', 'VOTER', 'SSS'];
+                
+                for (const keyword of headerKeywords) {
+                    if (documentHeader.includes(keyword)) {
+                        for (const [key, value] of Object.entries(idTypeMap)) {
+                            if (keyword.includes(key) || key.includes(keyword.substring(0, 3))) {
+                                extracted.idType = value;
+                                extracted.idTypeConfidence = 0.6;
+                                extracted.idTypeDetectionMethod = 'keyword-fallback';
+                                
+                                console.log('[OCR Debug] ID Type detected by KEYWORD fallback:', {
+                                    keyword: keyword,
+                                    idType: extracted.idType,
+                                    confidence: 0.6
+                                });
+                                break;
+                            }
+                        }
+                        if (extracted.idType) break;
+                    }
+                }
+                
+                if (!extracted.idType) {
+                    console.warn('[OCR Debug] ID Type could NOT be determined. Both pattern-first and keyword fallback failed.');
+                }
             }
             
             // Extract ID Number with format validation
@@ -1103,11 +1289,19 @@ class OCRService {
                 
                 if (idExtraction.idNumber && idExtraction.confidence > 0.5) {
                     extracted.idNumber = idExtraction.idNumber;
+                    extracted.idNumberConfidence = idExtraction.confidence;
+                    // Preserve or set the detection method if not already set
+                    if (!extracted.idTypeDetectionMethod) {
+                        extracted.idTypeDetectionMethod = 'format';
+                    }
+                    
                     // #region agent log
                     console.log('[OCR Debug] ID Number extracted with validation:', {
                         idNumber: extracted.idNumber,
                         confidence: idExtraction.confidence,
                         idType: extracted.idType,
+                        detectionMethod: extracted.idTypeDetectionMethod,
+                        typeConfidence: extracted.idTypeConfidence,
                         topCandidates: idExtraction.candidates.slice(0, 3)
                     });
                     // #endregion

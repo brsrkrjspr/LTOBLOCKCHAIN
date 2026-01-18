@@ -394,8 +394,32 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
 /**
  * POST /api/certificate-generation/csr/generate-and-send
  * Generate CSR certificate and send via email
+ * 
+ * Authorization: Admin, Staff, or users with organization matching dealer requirements
  */
-router.post('/csr/generate-and-send', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
+    // Custom authorization: Allow admin, staff, or organization-based access
+    const allowedRoles = ['admin', 'staff'];
+    const userRole = req.user?.role;
+    
+    // Check if user has allowed role
+    if (!allowedRoles.includes(userRole)) {
+        // Additional check: Allow if user's organization indicates they're a dealer
+        // This allows organizations like "ABC Motor Dealer" to generate CSR
+        const userOrg = req.user?.organization || '';
+        const isDealerOrg = userOrg.toLowerCase().includes('dealer') || 
+                           userOrg.toLowerCase().includes('motor') ||
+                           userOrg.toLowerCase().includes('vehicle');
+        
+        if (!isDealerOrg) {
+            return res.status(403).json({
+                success: false,
+                error: 'Insufficient permissions',
+                message: `CSR generation requires admin/staff role or dealer organization. Your role: ${userRole || 'none'}, Organization: ${userOrg || 'none'}`
+            });
+        }
+    }
+    
     try {
         const {
             dealerEmail,

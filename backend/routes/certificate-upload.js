@@ -126,6 +126,47 @@ router.post('/submit',
             const filePath = await saveFile(file.buffer, filename);
 
             // ============================================
+            // DUPLICATE DETECTION - PREVENT CERTIFICATE REUSE
+            // ============================================
+            
+            // Check if this certificate was already submitted by another vehicle owner
+            const duplicateSubmission = await db.query(
+                `SELECT cs.id, cs.vehicle_id, cs.verification_status, cs.submitted_at,
+                        v.vin as vehicle_vin, v.plate_number,
+                        u.email as submitted_by_email
+                 FROM certificate_submissions cs
+                 LEFT JOIN vehicles v ON cs.vehicle_id = v.id
+                 LEFT JOIN users u ON cs.submitted_by = u.id
+                 WHERE cs.uploaded_file_hash = $1 
+                   AND cs.certificate_type = $2
+                   AND cs.vehicle_id != $3`,
+                [fileHash, certificateType, vehicleId]
+            );
+
+            if (duplicateSubmission.rows && duplicateSubmission.rows.length > 0) {
+                // Clean up the file we just saved
+                try {
+                    await fs.unlink(filePath);
+                } catch (cleanupError) {
+                    console.error('File cleanup error:', cleanupError);
+                }
+
+                const existingSubmission = duplicateSubmission.rows[0];
+                return res.status(409).json({
+                    success: false,
+                    error: 'Certificate already submitted',
+                    message: 'This certificate has already been submitted by another vehicle owner. Each certificate can only be used once.',
+                    details: {
+                        existingVehicleVIN: existingSubmission.vehicle_vin,
+                        existingPlateNumber: existingSubmission.plate_number,
+                        submittedAt: existingSubmission.submitted_at,
+                        verificationStatus: existingSubmission.verification_status,
+                        submittedBy: existingSubmission.submitted_by_email
+                    }
+                });
+            }
+
+            // ============================================
             // AUTO-VERIFICATION AGAINST BLOCKCHAIN
             // ============================================
 

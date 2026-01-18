@@ -109,6 +109,19 @@ BEGIN
         RAISE NOTICE '✅ EXISTS: vehicles.origin_type';
     END IF;
     
+    -- Check vehicles.registration_expiry_date
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'registration_expiry_date'
+    ) INTO col_exists;
+    
+    IF NOT col_exists THEN
+        missing_columns := array_append(missing_columns, 'vehicles.registration_expiry_date');
+        RAISE NOTICE '❌ MISSING: vehicles.registration_expiry_date';
+    ELSE
+        RAISE NOTICE '✅ EXISTS: vehicles.registration_expiry_date';
+    END IF;
+    
     RAISE NOTICE '';
     RAISE NOTICE '========================================';
     
@@ -207,6 +220,90 @@ BEGIN
         RAISE NOTICE '✅ Added vehicles.origin_type';
     END IF;
 END $$;
+
+-- Add expiry tracking columns (if missing)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'registration_expiry_date'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN registration_expiry_date TIMESTAMP;
+        CREATE INDEX IF NOT EXISTS idx_vehicles_registration_expiry ON vehicles(registration_expiry_date);
+        RAISE NOTICE '✅ Added vehicles.registration_expiry_date';
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'insurance_expiry_date'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN insurance_expiry_date TIMESTAMP;
+        CREATE INDEX IF NOT EXISTS idx_vehicles_insurance_expiry ON vehicles(insurance_expiry_date);
+        RAISE NOTICE '✅ Added vehicles.insurance_expiry_date';
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'emission_expiry_date'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN emission_expiry_date TIMESTAMP;
+        RAISE NOTICE '✅ Added vehicles.emission_expiry_date';
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'expiry_notified_30d'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN expiry_notified_30d BOOLEAN DEFAULT FALSE;
+        RAISE NOTICE '✅ Added vehicles.expiry_notified_30d';
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'expiry_notified_7d'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN expiry_notified_7d BOOLEAN DEFAULT FALSE;
+        RAISE NOTICE '✅ Added vehicles.expiry_notified_7d';
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'expiry_notified_1d'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN expiry_notified_1d BOOLEAN DEFAULT FALSE;
+        RAISE NOTICE '✅ Added vehicles.expiry_notified_1d';
+    END IF;
+END $$;
+
+-- Create expiry_notifications table if missing
+CREATE TABLE IF NOT EXISTS expiry_notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    notification_type VARCHAR(50) NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    email_sent BOOLEAN DEFAULT FALSE,
+    sms_sent BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_expiry_notifications_vehicle ON expiry_notifications(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_expiry_notifications_user ON expiry_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_expiry_notifications_type ON expiry_notifications(notification_type);
 
 -- ============================================
 -- STEP 3: Set Default Values for Existing Vehicles
@@ -319,6 +416,13 @@ BEGIN
         WHERE table_name = 'vehicles' AND column_name = 'gross_vehicle_weight'
     ) THEN
         RAISE EXCEPTION 'vehicles.gross_vehicle_weight still missing after migration';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicles' AND column_name = 'registration_expiry_date'
+    ) THEN
+        RAISE EXCEPTION 'vehicles.registration_expiry_date still missing after migration';
     END IF;
     
     RAISE NOTICE '✅ All required columns verified!';

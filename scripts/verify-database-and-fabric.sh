@@ -48,14 +48,21 @@ fi
 # Verify from application container perspective
 echo ""
 echo "Verifying from application container..."
+# Get DB credentials from container environment
+DB_HOST=$(docker exec lto-app printenv DB_HOST 2>/dev/null || echo "postgres")
+DB_PORT=$(docker exec lto-app printenv DB_PORT 2>/dev/null || echo "5432")
+DB_NAME=$(docker exec lto-app printenv DB_NAME 2>/dev/null || echo "lto_blockchain")
+DB_USER=$(docker exec lto-app printenv DB_USER 2>/dev/null || echo "lto_user")
+DB_PASSWORD=$(docker exec lto-app printenv DB_PASSWORD 2>/dev/null || echo "")
+
 APP_CHECK=$(docker exec lto-app node -e "
 const { Pool } = require('pg');
 const pool = new Pool({
-    host: process.env.DB_HOST || 'postgres',
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'lto_blockchain',
-    user: process.env.DB_USER || 'lto_user',
-    password: process.env.DB_PASSWORD || 'lto_password'
+    host: '${DB_HOST}',
+    port: ${DB_PORT},
+    database: '${DB_NAME}',
+    user: '${DB_USER}',
+    password: '${DB_PASSWORD}'
 });
 
 (async () => {

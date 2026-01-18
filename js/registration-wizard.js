@@ -1922,7 +1922,6 @@ async function processDocumentForOCRAutoFill(fileInput) {
                 } else {
                     // For vehicle documents, store vehicle data (don't mix with owner data)
                     const vehicleData = {
-                        vin: data.extractedData.vin,
                         engineNumber: data.extractedData.engineNumber,
                         chassisNumber: data.extractedData.chassisNumber,
                         plateNumber: data.extractedData.plateNumber,

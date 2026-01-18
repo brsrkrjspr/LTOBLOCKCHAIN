@@ -66,6 +66,31 @@ class CertificatePdfGenerator {
     }
 
     /**
+     * Validate PDF buffer
+     * @param {Buffer} buffer - PDF buffer to validate
+     * @param {string} certificateType - Type of certificate for logging
+     * @throws {Error} If PDF buffer is invalid
+     */
+    validatePdfBuffer(buffer, certificateType = 'Certificate') {
+        if (!buffer || !Buffer.isBuffer(buffer)) {
+            throw new Error(`${certificateType} PDF generation returned invalid buffer`);
+        }
+
+        if (buffer.length === 0) {
+            throw new Error(`${certificateType} PDF generation returned empty buffer`);
+        }
+
+        // Validate PDF header (PDF files start with %PDF)
+        const pdfHeader = buffer.toString('ascii', 0, Math.min(4, buffer.length));
+        if (pdfHeader !== '%PDF') {
+            console.error(`[${certificateType}] Invalid PDF header: ${pdfHeader}, buffer length: ${buffer.length}`);
+            throw new Error(`Invalid PDF format: expected %PDF header, got ${pdfHeader}`);
+        }
+
+        console.log(`[${certificateType}] PDF validated: ${buffer.length} bytes, header: ${pdfHeader}`);
+    }
+
+    /**
      * Calculate SHA-256 hash of a buffer
      * @param {Buffer} buffer - PDF buffer
      * @returns {string} - Hex hash
@@ -245,6 +270,9 @@ class CertificatePdfGenerator {
                 waitUntil: 'networkidle0'
             });
 
+            // Wait a bit more to ensure all fonts and resources are loaded
+            await page.waitForTimeout(500);
+
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
@@ -257,6 +285,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Validate PDF buffer
+            this.validatePdfBuffer(pdfBuffer, 'Insurance Certificate');
 
             // Calculate file hash
             const fileHash = this.calculateFileHash(pdfBuffer);
@@ -388,6 +419,9 @@ class CertificatePdfGenerator {
                 waitUntil: 'networkidle0'
             });
 
+            // Wait a bit more to ensure all fonts and resources are loaded
+            await page.waitForTimeout(500);
+
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
@@ -400,6 +434,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Validate PDF buffer
+            this.validatePdfBuffer(pdfBuffer, 'Emission Certificate');
 
             const fileHash = this.calculateFileHash(pdfBuffer);
 
@@ -503,6 +540,9 @@ class CertificatePdfGenerator {
                 waitUntil: 'networkidle0'
             });
 
+            // Wait a bit more to ensure all fonts and resources are loaded
+            await page.waitForTimeout(500);
+
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
@@ -515,6 +555,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Validate PDF buffer
+            this.validatePdfBuffer(pdfBuffer, 'HPG Clearance');
 
             const fileHash = this.calculateFileHash(pdfBuffer);
 
@@ -672,6 +715,9 @@ class CertificatePdfGenerator {
                 waitUntil: 'networkidle0'
             });
 
+            // Wait a bit more to ensure all fonts and resources are loaded
+            await page.waitForTimeout(500);
+
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
@@ -684,6 +730,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Validate PDF buffer
+            this.validatePdfBuffer(pdfBuffer, 'CSR Certificate');
 
             const fileHash = this.calculateFileHash(pdfBuffer);
 

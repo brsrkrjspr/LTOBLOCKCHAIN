@@ -271,7 +271,23 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
             testResults
         });
 
-        console.log(`[Emission Certificate] PDF generated, hash: ${fileHash}`);
+        console.log(`[Emission Certificate] PDF generated, hash: ${fileHash}, size: ${pdfBuffer.length} bytes`);
+
+        // Additional validation before sending
+        if (!Buffer.isBuffer(pdfBuffer)) {
+            throw new Error('PDF buffer is not a valid Buffer instance');
+        }
+
+        if (pdfBuffer.length === 0) {
+            throw new Error('PDF buffer is empty');
+        }
+
+        // Verify PDF header
+        const pdfHeader = pdfBuffer.toString('ascii', 0, Math.min(4, pdfBuffer.length));
+        if (pdfHeader !== '%PDF') {
+            console.error(`[Emission Certificate] Invalid PDF header before sending: ${pdfHeader}`);
+            throw new Error(`Invalid PDF format detected: ${pdfHeader}`);
+        }
 
         const compositeHash = certificatePdfGenerator.generateCompositeHash(
             finalCertificateNumber,

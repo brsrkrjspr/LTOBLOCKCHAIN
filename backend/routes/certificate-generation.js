@@ -8,7 +8,8 @@ const router = express.Router();
 const db = require('../database/services');
 const certificatePdfGenerator = require('../services/certificatePdfGenerator');
 const certificateEmailService = require('../services/certificateEmailService');
-const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authorizeRole } = require('../middleware/authorize');
 
 /**
  * POST /api/certificate-generation/insurance/generate-and-send

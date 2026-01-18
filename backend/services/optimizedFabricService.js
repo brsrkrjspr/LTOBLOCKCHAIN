@@ -119,11 +119,23 @@ class OptimizedFabricService {
 
     // Register vehicle - Fabric only (with separate OR and CR)
     async registerVehicle(vehicleData) {
+        // Auto-reconnect if connection lost
         if (!this.isConnected || this.mode !== 'fabric') {
-            throw new Error('Not connected to Fabric network. Cannot register vehicle.');
+            console.log('⚠️ Fabric connection lost, attempting to reconnect...');
+            try {
+                await this.initialize();
+                console.log('✅ Fabric connection restored');
+            } catch (reconnectError) {
+                throw new Error(`Not connected to Fabric network and reconnection failed: ${reconnectError.message}`);
+            }
         }
 
         try {
+            // Ensure contract is available
+            if (!this.contract) {
+                throw new Error('Fabric contract not initialized. Connection may have been lost.');
+            }
+
             // Ensure vehicleData includes separate OR and CR numbers
             const vehiclePayload = {
                 ...vehicleData,

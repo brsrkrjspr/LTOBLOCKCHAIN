@@ -135,30 +135,28 @@ function nextStep() {
                     autoFillOwnerInfo();
                     
                     // Also re-apply OCR extracted data if available (fields might not have existed when OCR ran)
-                    // Only re-apply owner data (idType, idNumber, firstName, lastName, address, phone) for Step 3
-                    const ownerDataFromStorage = {
+                    // ONLY re-apply ID info (idType, idNumber) for Step 3 - personal info comes from account
+                    const ownerIdDataFromStorage = {
                         idType: storedOCRExtractedData.idType,
-                        idNumber: storedOCRExtractedData.idNumber,
-                        firstName: storedOCRExtractedData.firstName,
-                        lastName: storedOCRExtractedData.lastName,
-                        address: storedOCRExtractedData.address,
-                        phone: storedOCRExtractedData.phone
+                        idNumber: storedOCRExtractedData.idNumber
+                        // Note: firstName, lastName, address, phone excluded - these come from account profile
                     };
                     
-                    const hasOwnerData = Object.values(ownerDataFromStorage).some(val => val !== undefined && val !== null && val !== '');
+                    const hasOwnerIdData = Object.values(ownerIdDataFromStorage).some(val => val !== undefined && val !== null && val !== '');
                     
-                    if (hasOwnerData) {
-                        console.log('[ID AutoFill Debug] Re-applying stored owner OCR data when Step 3 becomes visible:', {
-                            ownerDataFromStorage,
+                    if (hasOwnerIdData) {
+                        console.log('[ID AutoFill Debug] Re-applying stored owner ID data (ID info only) when Step 3 becomes visible:', {
+                            ownerIdDataFromStorage,
                             hasIdType: !!storedOCRExtractedData.idType,
                             hasIdNumber: !!storedOCRExtractedData.idNumber,
                             idType: storedOCRExtractedData.idType,
-                            idNumber: storedOCRExtractedData.idNumber
+                            idNumber: storedOCRExtractedData.idNumber,
+                            note: 'Personal info (name, address, phone) loaded from account, not document'
                         });
-                        // Use ownerValidId document type for owner data
-                        autoFillFromOCRData(ownerDataFromStorage, 'ownerValidId');
+                        // Use ownerValidId document type to trigger personal info filtering
+                        autoFillFromOCRData(ownerIdDataFromStorage, 'ownerValidId');
                     } else {
-                        console.log('[ID AutoFill Debug] No stored owner OCR data to re-apply (only vehicle data available)');
+                        console.log('[ID AutoFill Debug] No stored owner ID data to re-apply (only vehicle data available)');
                     }
                 }, 100);
             }
@@ -196,21 +194,18 @@ function prevStep() {
                 autoFillOwnerInfo();
                 
                 // Also re-apply OCR extracted data if available
-                // Only re-apply owner data (idType, idNumber, firstName, lastName, address, phone) for Step 3
-                const ownerDataFromStorage = {
+                // ONLY re-apply ID info (idType, idNumber) for Step 3 - personal info comes from account
+                const ownerIdDataFromStorage = {
                     idType: storedOCRExtractedData.idType,
-                    idNumber: storedOCRExtractedData.idNumber,
-                    firstName: storedOCRExtractedData.firstName,
-                    lastName: storedOCRExtractedData.lastName,
-                    address: storedOCRExtractedData.address,
-                    phone: storedOCRExtractedData.phone
+                    idNumber: storedOCRExtractedData.idNumber
+                    // Note: firstName, lastName, address, phone excluded - these come from account profile
                 };
                 
-                const hasOwnerData = Object.values(ownerDataFromStorage).some(val => val !== undefined && val !== null && val !== '');
+                const hasOwnerIdData = Object.values(ownerIdDataFromStorage).some(val => val !== undefined && val !== null && val !== '');
                 
-                if (hasOwnerData) {
-                    console.log('[ID AutoFill Debug] Re-applying stored owner OCR data when navigating back to Step 3:', ownerDataFromStorage);
-                    autoFillFromOCRData(ownerDataFromStorage, 'ownerValidId');
+                if (hasOwnerIdData) {
+                    console.log('[ID AutoFill Debug] Re-applying stored owner ID data (ID info only) when navigating back to Step 3:', ownerIdDataFromStorage);
+                    autoFillFromOCRData(ownerIdDataFromStorage, 'ownerValidId');
                 }
             }, 100);
         }
@@ -1892,32 +1887,29 @@ async function processDocumentForOCRAutoFill(fileInput) {
             // #endregion
             
             if (data.success && data.extractedData) {
-                // For owner ID documents, store owner-specific data separately
-                // For vehicle documents, store vehicle-specific data
+                // For owner ID documents, ONLY extract ID type and number
+                // Personal information (name, address, phone) should come from account, not documents
                 if (documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') {
-                    // Store owner data (idType, idNumber, firstName, lastName, address, phone)
-                    const ownerData = {
+                    // Store ONLY ID-related data (NOT personal information like name, address, phone)
+                    const ownerIdData = {
                         idType: data.extractedData.idType,
-                        idNumber: data.extractedData.idNumber,
-                        firstName: data.extractedData.firstName,
-                        lastName: data.extractedData.lastName,
-                        address: data.extractedData.address,
-                        phone: data.extractedData.phone
+                        idNumber: data.extractedData.idNumber
                     };
-                    // Merge owner data into stored data (don't overwrite with empty if extraction failed)
-                    Object.keys(ownerData).forEach(key => {
-                        if (ownerData[key] !== undefined && ownerData[key] !== null && ownerData[key] !== '') {
-                            storedOCRExtractedData[key] = ownerData[key];
+                    // Merge ID data into stored data (don't overwrite with empty if extraction failed)
+                    Object.keys(ownerIdData).forEach(key => {
+                        if (ownerIdData[key] !== undefined && ownerIdData[key] !== null && ownerIdData[key] !== '') {
+                            storedOCRExtractedData[key] = ownerIdData[key];
                         }
                     });
-                    console.log('[ID AutoFill Debug] Stored owner ID OCR data:', {
+                    console.log('[ID AutoFill Debug] Stored owner ID OCR data (ID info only):', {
                         documentType,
-                        extractedOwnerData: ownerData,
+                        extractedIdData: ownerIdData,
                         storedKeys: Object.keys(storedOCRExtractedData),
                         hasIdType: !!storedOCRExtractedData.idType,
                         hasIdNumber: !!storedOCRExtractedData.idNumber,
                         idType: storedOCRExtractedData.idType,
-                        idNumber: storedOCRExtractedData.idNumber
+                        idNumber: storedOCRExtractedData.idNumber,
+                        note: 'Personal info (name, address, phone) will be loaded from user account'
                     });
                 } else {
                     // For vehicle documents, store vehicle data (don't mix with owner data)
@@ -2016,13 +2008,11 @@ function autoFillFromOCRData(extractedData, documentType) {
         'netCapacity': 'netWeight',           // Maps LTO "netCapacity" to HTML "netWeight"
         'netWeight': 'netWeight',             // Fallback: map netWeight to netWeight
         
-        // Owner fields
-        'firstName': 'firstName',
-        'lastName': 'lastName',
-        'address': 'address',
-        'phone': 'phone',
+        // Owner ID fields - ONLY ID type and number from documents
+        // Personal info (firstName, lastName, address, phone) should come from account profile
         'idType': 'idType',
         'idNumber': 'idNumber'
+        // Note: firstName, lastName, address, phone mappings removed - these come from user account
     };
     
     // Debug logging
@@ -2048,12 +2038,23 @@ function autoFillFromOCRData(extractedData, documentType) {
     // **ITERATE THROUGH EXTRACTED DATA AND APPLY STRICT MAPPING**
     let fieldsFilled = 0;
     
+    // For owner ID documents, skip personal information fields (they come from account)
+    const personalInfoFields = ['firstName', 'lastName', 'address', 'phone', 'email'];
+    
     Object.keys(extractedData).forEach(ocrField => {
         const value = extractedData[ocrField];
         
         // Skip empty values
         if (!value || value === '') {
             console.log(`[OCR AutoFill] Skipping empty value for field: ${ocrField}`);
+            return;
+        }
+        
+        // CRITICAL: For owner ID documents, skip personal information
+        // Only extract ID type and number from documents; personal info comes from account
+        if ((documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') &&
+            personalInfoFields.includes(ocrField)) {
+            console.log(`[OCR AutoFill] Skipping personal info field for owner ID: ${ocrField} (data comes from account, not document)`);
             return;
         }
         
@@ -2093,14 +2094,18 @@ function autoFillFromOCRData(extractedData, documentType) {
         // Set the value
         let formattedValue = value.trim();
         
-        // Format plate number to XXXX-XXXX with hyphen
+        // Format plate number to ABC-1234 with hyphen (3 letters, hyphen, 3-4 numbers)
         if (htmlInputId === 'plateNumber') {
             formattedValue = formattedValue.replace(/\s/g, '').toUpperCase();
             // Remove existing hyphens first, then reformat
             formattedValue = formattedValue.replace(/-/g, '');
-            // Add hyphen in the middle for 8-character plates
-            if (formattedValue.length === 8) {
-                formattedValue = formattedValue.substring(0, 4) + '-' + formattedValue.substring(4);
+            // Add hyphen for ABC-1234 format (3 letters, hyphen, 3-4 numbers)
+            if (formattedValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(formattedValue)) {
+                // ABC1234 -> ABC-1234
+                formattedValue = formattedValue.substring(0, 3) + '-' + formattedValue.substring(3);
+            } else if (formattedValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(formattedValue)) {
+                // ABC123 -> ABC-123
+                formattedValue = formattedValue.substring(0, 3) + '-' + formattedValue.substring(3);
             }
         }
         
@@ -2170,12 +2175,13 @@ function detectIDTypeFromNumber(idNumber) {
     if (!idNumber) return null;
     const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
     const candidates = [
-        { idType: 'drivers-license', pattern: /^D\d{2}-\d{2}-\d{6,}$/ },
+        { idType: 'drivers-license', pattern: /^[A-Z]\d{2}-\d{2}-\d{6,}$/ },
         { idType: 'passport', pattern: /^[A-Z]{2}\d{7}$/ },
-        { idType: 'national-id', pattern: /^\d{4}-\d{4}-\d{4}-\d{1,3}$/ },
+        { idType: 'national-id', pattern: /^\d{4}-\d{4}-\d{4}-\d{4}$/ },
         { idType: 'postal-id', pattern: /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/ },
         { idType: 'voters-id', pattern: /^\d{4}-\d{4}-\d{4}$/ },
         { idType: 'sss-id', pattern: /^\d{2}-\d{7}-\d{1}$/ },
+        { idType: 'philhealth-id', pattern: /^\d{2}-\d{7}-\d{2}$/ },
         { idType: 'tin', pattern: /^\d{3}-\d{3}-\d{3}-\d{3}$/ }
     ];
     for (const c of candidates) {
@@ -2219,12 +2225,13 @@ function validateIDNumber(idNumber, idType) {
     
     const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
     const patterns = {
-        'drivers-license': /^D\d{2}-\d{2}-\d{6,}$/,
+        'drivers-license': /^[A-Z]\d{2}-\d{2}-\d{6,}$/,
         'passport': /^[A-Z]{2}\d{7}$/,
-        'national-id': /^\d{4}-\d{4}-\d{4}-\d{1,3}$/,
+        'national-id': /^\d{4}-\d{4}-\d{4}-\d{4}$/,
         'postal-id': /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/,
         'voters-id': /^\d{4}-\d{4}-\d{4}$/,
         'sss-id': /^\d{2}-\d{7}-\d{1}$/,
+        'philhealth-id': /^\d{2}-\d{7}-\d{2}$/,
         'tin': /^\d{3}-\d{3}-\d{3}-\d{3}$/
     };
     

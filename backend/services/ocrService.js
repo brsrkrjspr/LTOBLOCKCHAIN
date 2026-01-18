@@ -489,12 +489,13 @@ class OCRService {
         
         // Format-specific validation patterns
         const formatPatterns = {
-            'drivers-license': /^D\d{2}-\d{2}-\d{6,}$/,
+            'drivers-license': /^[A-Z]\d{2}-\d{2}-\d{6,}$/,
             'passport': /^[A-Z]{2}\d{7}$/,
-            'national-id': /^\d{4}-\d{4}-\d{4}-\d{1,3}$/,
+            'national-id': /^\d{4}-\d{4}-\d{4}-\d{4}$/,
             'postal-id': /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/,
             'voters-id': /^\d{4}-\d{4}-\d{4}$/,
             'sss-id': /^\d{2}-\d{7}-\d{1}$/,
+            'philhealth-id': /^\d{2}-\d{7}-\d{2}$/,
             'tin': /^\d{3}-\d{3}-\d{3}-\d{3}$/
         };
 
@@ -519,10 +520,10 @@ class OCRService {
     getIDNumberPatterns(idType) {
         const patterns = {
             'drivers-license': [
-                // Pattern 1: "LICENSE NO: D12-34-567890" (most specific with context)
-                /(?:LICENSE\s*(?:NO|NUMBER|#)\.?|DRIVER['\s]*S?\s*LICENSE\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*(D\d{2}-\d{2}-\d{6,})/i,
-                // Pattern 2: Standalone "D12-34-567890" format
-                /\b(D\d{2}-\d{2}-\d{6,})\b/g
+                // Pattern 1: "LICENSE NO: D12-34-567890" or "N03-12-123456" (most specific with context)
+                /(?:LICENSE\s*(?:NO|NUMBER|#)\.?|DRIVER['\s]*S?\s*LICENSE\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z]\d{2}-\d{2}-\d{6,})/i,
+                // Pattern 2: Standalone "D12-34-567890" or "N03-12-123456" format
+                /\b([A-Z]\d{2}-\d{2}-\d{6,})\b/g
             ],
             'passport': [
                 // Pattern 1: "PASSPORT NO: AA1234567" (most specific with context)
@@ -531,10 +532,10 @@ class OCRService {
                 /\b([A-Z]{2}\d{7})\b/g
             ],
             'national-id': [
-                // Pattern 1: "NATIONAL ID: 1234-5678-9012-3" or "CRN: 1234-5678-9012-3"
-                /(?:NATIONAL\s*ID|CRN|PHILID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*(\d{4}-\d{4}-\d{4}-\d{1,3})/i,
-                // Pattern 2: Standalone "1234-5678-9012-3" format
-                /\b(\d{4}-\d{4}-\d{4}-\d{1,3})\b/g
+                // Pattern 1: "NATIONAL ID: 1234-5678-9101-1213" or "CRN: 1234-5678-9101-1213" (16 digits, 4-4-4-4 format)
+                /(?:NATIONAL\s*ID|CRN|PHILID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*(\d{4}-\d{4}-\d{4}-\d{4})/i,
+                // Pattern 2: Standalone "1234-5678-9101-1213" format
+                /\b(\d{4}-\d{4}-\d{4}-\d{4})\b/g
             ],
             'postal-id': [
                 // Pattern 1: "POSTAL ID: AB123456" or "POSTAL ID NO: AB123456"
@@ -553,6 +554,12 @@ class OCRService {
                 /(?:SSS)\s*(?:ID|NO|NUMBER|#)\.?\s*[:.]?\s*(\d{2}-\d{7}-\d{1})/i,
                 // Pattern 2: Standalone "12-3456789-0" format
                 /\b(\d{2}-\d{7}-\d{1})\b/g
+            ],
+            'philhealth-id': [
+                // Pattern 1: "PHILHEALTH ID: 12-345678901-2" or "PIN: 12-345678901-2"
+                /(?:PHILHEALTH|PHIC|PIN)\s*(?:ID|NO|NUMBER|#)\.?\s*[:.]?\s*(\d{2}-\d{7}-\d{2})/i,
+                // Pattern 2: Standalone "12-345678901-2" format
+                /\b(\d{2}-\d{7}-\d{2})\b/g
             ],
             'tin': [
                 // Pattern 1: "TIN: 123-456-789-000" or "TAX ID: 123-456-789-000"
@@ -803,10 +810,45 @@ class OCRService {
             const vinMatches = text.match(vinPattern);
             if (vinMatches) extracted.vin = vinMatches[0].trim();
             
-            // Plate Number (various formats)
-            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
-            const plateMatches = text.match(platePattern);
-            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+            // Plate Number - Cascading patterns (similar to body type extraction)
+            // Pattern 1: Table format with label
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
+            let plateMatches = text.match(platePattern);
+            
+            // Pattern 2: Colon format with label
+            if (!plateMatches) {
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
+                plateMatches = text.match(platePattern);
+            }
+            
+            // Pattern 3: Context-based (look near keywords)
+            if (!plateMatches) {
+                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
+                plateMatches = text.match(platePattern);
+            }
+            
+            // Pattern 4: Philippine formats standalone (fallback)
+            if (!plateMatches) {
+                platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
+                plateMatches = text.match(platePattern);
+            }
+            
+            if (plateMatches) {
+                let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
+                // Normalize to ABC-1234 format (3 letters, hyphen, 4 numbers)
+                if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.includes('-')) {
+                    // Already has hyphen, just normalize
+                    plateValue = plateValue.replace(/-/g, '');
+                    if (plateValue.length >= 6 && /^[A-Z]{3}/.test(plateValue)) {
+                        plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                    }
+                }
+                extracted.plateNumber = plateValue;
+            }
             
             // Engine Number
             const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
@@ -880,7 +922,8 @@ class OCRService {
                 documentType,
                 textLength: text ? text.length : 0,
                 textType: typeof text,
-                textSample: text ? text.substring(0, 500) : 'NO TEXT'
+                textSample: text ? text.substring(0, 500) : 'NO TEXT',
+                note: 'IMPORTANT: Personal info (name, address, phone) extracted here should NOT be used in Owner Information section. Only ID type and number should be used. Personal info must come from user account.'
             });
             // #endregion
             
@@ -1201,9 +1244,10 @@ class OCRService {
                     /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?|LICENSE\s*(?:NO|NUMBER|#)\.?|PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
                     /\b([A-Z]\d{2}-\d{2}-\d{6,})\b/g, // Driver's License format
                     /\b([A-Z]{2}\d{7})\b/g, // Passport format
-                    /\b(\d{4}-\d{4}-\d{4}-\d{1,3})\b/g, // National ID format
+                    /\b(\d{4}-\d{4}-\d{4}-\d{4})\b/g, // National ID format (16 digits)
                     /\b(\d{4}-\d{4}-\d{4})\b/g, // Voter's ID format
                     /\b(\d{2}-\d{7}-\d{1})\b/g, // SSS ID format
+                    /\b(\d{2}-\d{7}-\d{2})\b/g, // PhilHealth ID format
                     /\b(\d{3}-\d{3}-\d{3}-\d{3})\b/g // TIN format
                 ];
                 
@@ -1272,7 +1316,8 @@ class OCRService {
                 idType: extracted.idType,
                 idNumber: extracted.idNumber,
                 allExtractedFields: Object.keys(extracted),
-                extractionSuccess: !!(extracted.idType && extracted.idNumber)
+                extractionSuccess: !!(extracted.idType && extracted.idNumber),
+                note: 'CRITICAL: Personal info (firstName, lastName, address, phone) should NOT be used in Owner Information section. Only idType and idNumber should be used. Personal info must come from user account profile.'
             });
             // #endregion
             } catch (ownerIdError) {
@@ -1587,30 +1632,42 @@ class OCRService {
             }
             if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
             
-            // Plate Number - Handle all variations with improved patterns
-            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;  // Table format
+            // Plate Number - Cascading patterns (similar to body type extraction)
+            // Pattern 1: Table format with label
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
             let plateMatches = text.match(platePattern);
+            
+            // Pattern 2: Colon format with label
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;  // Colon/equals format
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
                 plateMatches = text.match(platePattern);
             }
+            
+            // Pattern 3: Context-based (look near keywords)
             if (!plateMatches) {
-                // Philippine plate formats: ABC1234, ABC-1234, A123BC, A-123-BC, 1234ABC
+                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
+                plateMatches = text.match(platePattern);
+            }
+            
+            // Pattern 4: Philippine formats standalone (fallback)
+            if (!plateMatches) {
                 platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
                 plateMatches = text.match(platePattern);
             }
-            if (!plateMatches) {
-                // Fallback: Look for isolated alphanumeric near "Plate" keyword
-                const plateContext = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
-                plateMatches = text.match(plateContext);
-            }
+            
             if (plateMatches) {
                 let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
-                // Normalize to ABC-1234 or similar format
+                // Normalize to ABC-1234 format (3 letters, hyphen, 4 numbers)
                 if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
                     plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
                 } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
                     plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.includes('-')) {
+                    // Already has hyphen, just normalize
+                    plateValue = plateValue.replace(/-/g, '');
+                    if (plateValue.length >= 6 && /^[A-Z]{3}/.test(plateValue)) {
+                        plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                    }
                 }
                 extracted.plateNumber = plateValue;
             }
@@ -1696,10 +1753,45 @@ class OCRService {
             const engineMatches = text.match(enginePattern);
             if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
             
-            // Plate Number
-            const platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;
-            const plateMatches = text.match(platePattern);
-            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+            // Plate Number - Cascading patterns (similar to body type extraction)
+            // Pattern 1: Table format with label
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
+            let plateMatches = text.match(platePattern);
+            
+            // Pattern 2: Colon format with label
+            if (!plateMatches) {
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
+                plateMatches = text.match(platePattern);
+            }
+            
+            // Pattern 3: Context-based (look near keywords)
+            if (!plateMatches) {
+                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
+                plateMatches = text.match(platePattern);
+            }
+            
+            // Pattern 4: Philippine formats standalone (fallback)
+            if (!plateMatches) {
+                platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
+                plateMatches = text.match(platePattern);
+            }
+            
+            if (plateMatches) {
+                let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
+                // Normalize to ABC-1234 format (3 letters, hyphen, 4 numbers)
+                if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.includes('-')) {
+                    // Already has hyphen, just normalize
+                    plateValue = plateValue.replace(/-/g, '');
+                    if (plateValue.length >= 6 && /^[A-Z]{3}/.test(plateValue)) {
+                        plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                    }
+                }
+                extracted.plateNumber = plateValue;
+            }
             
             // Chassis Number
             const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;

@@ -13,7 +13,7 @@ Or if you need to run it from your local machine with Docker access:
 
 ```bash
 # First, copy the script to the container (if needed)
-docker cp scripts/reset-hpg-password.js <backend-container-name>:/app/scripts/
+docker cp scripts/reset-hpg-password.js lto-app:/app/scripts/
 
 # Then run it
 docker exec -it <backend-container-name> node /app/scripts/reset-hpg-password.js SecurePass123!

@@ -1830,11 +1830,11 @@ class OCRService {
             const vinMatches = text.match(vinPattern);
             if (vinMatches) extracted.vin = vinMatches[0].trim();
             
-            // Plate Number - Cascading patterns (consistent with registration_cert)
+            // Plate Number - Flexible extraction (match first, normalize after)
             // Pattern 1: Table format with label
             let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
             let plateMatches = text.match(platePattern);
-            
+
             // Pattern 2: Colon format with label
             if (!plateMatches) {
                 platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
@@ -1855,13 +1855,13 @@ class OCRService {
             
             if (plateMatches) {
                 let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
-                // Normalize to ABC-1234 format (3 letters, hyphen, 4 numbers)
+                // Normalize to ABC-1234 format when possible
                 if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
                     plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
                 } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
                     plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
                 } else if (plateValue.includes('-')) {
-                    // Already has hyphen, just normalize
+                    // Already has hyphen, normalize spacing and placement
                     plateValue = plateValue.replace(/-/g, '');
                     if (plateValue.length >= 6 && /^[A-Z]{3}/.test(plateValue)) {
                         plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
@@ -1869,29 +1869,7 @@ class OCRService {
                 }
                 extracted.plateNumber = plateValue;
                 // #region agent log
-                console.log('[OCR] Plate number extracted:', extracted.plateNumber);
-                // #endregion
-            }
-            
-            // Engine Number - Handle all variations (consistent with CSR)
-            let enginePattern = /Engine\s*Number\s*\|\s*([A-Z0-9\-]+)/i;  // Table format with pipe
-            let engineMatches = text.match(enginePattern);
-            if (!engineMatches) {
-                enginePattern = /Engine\s*Number\s*[:]\s*([A-Z0-9\-]+)/i;  // Colon format
-                engineMatches = text.match(enginePattern);
-            }
-            if (!engineMatches) {
-                enginePattern = /Engine\s*No\.\s*[:]\s*([A-Z0-9\-]+)/i;  // "Engine No." with colon
-                engineMatches = text.match(enginePattern);
-            }
-            if (!engineMatches) {
-                enginePattern = /(?:Engine|Motor)\s*(?:No\.?|Number)?\s*[:.\s]*([A-Z0-9\-]+)/i;  // Generic text format
-                engineMatches = text.match(enginePattern);
-            }
-            if (engineMatches) {
-                extracted.engineNumber = engineMatches[1].trim();
-                // #region agent log
-                console.log('[OCR] Engine number extracted:', extracted.engineNumber);
+                console.log('[OCR] Plate number extracted (HPG normalized):', extracted.plateNumber);
                 // #endregion
             }
             

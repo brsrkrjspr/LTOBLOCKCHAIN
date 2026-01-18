@@ -402,11 +402,23 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
     const allowedRoles = ['admin', 'staff'];
     const userRole = req.user?.role;
     
+    // Fetch user from database to get organization (JWT doesn't include organization)
+    let userOrg = '';
+    if (!allowedRoles.includes(userRole)) {
+        try {
+            const user = await db.getUserById(req.user.userId);
+            if (user) {
+                userOrg = user.organization || '';
+            }
+        } catch (dbError) {
+            console.error('[CSR Certificate] Error fetching user:', dbError);
+        }
+    }
+    
     // Check if user has allowed role
     if (!allowedRoles.includes(userRole)) {
         // Additional check: Allow if user's organization indicates they're a dealer
         // This allows organizations like "ABC Motor Dealer" to generate CSR
-        const userOrg = req.user?.organization || '';
         const isDealerOrg = userOrg.toLowerCase().includes('dealer') || 
                            userOrg.toLowerCase().includes('motor') ||
                            userOrg.toLowerCase().includes('vehicle');

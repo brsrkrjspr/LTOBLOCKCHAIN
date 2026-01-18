@@ -4,7 +4,7 @@
 -- external_issuers table
 CREATE TABLE IF NOT EXISTS external_issuers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    issuer_type VARCHAR(20) NOT NULL CHECK (issuer_type IN ('insurance', 'emission', 'hpg')),
+    issuer_type VARCHAR(20) NOT NULL CHECK (issuer_type IN ('insurance', 'emission', 'hpg', 'csr')),
     company_name VARCHAR(255) NOT NULL,
     license_number VARCHAR(100) UNIQUE NOT NULL,
     api_key VARCHAR(255) UNIQUE NOT NULL,
@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_external_issuers_active ON external_issuers(is_ac
 CREATE TABLE IF NOT EXISTS issued_certificates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     issuer_id UUID NOT NULL REFERENCES external_issuers(id) ON DELETE CASCADE,
-    certificate_type VARCHAR(20) NOT NULL CHECK (certificate_type IN ('insurance', 'emission', 'hpg_clearance')),
+    certificate_type VARCHAR(20) NOT NULL CHECK (certificate_type IN ('insurance', 'emission', 'hpg_clearance', 'csr')),
     certificate_number VARCHAR(100) UNIQUE NOT NULL,
     vehicle_vin VARCHAR(17) NOT NULL,
     owner_name VARCHAR(255),
@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_issued_certificates_revoked ON issued_certificate
 CREATE TABLE IF NOT EXISTS certificate_submissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-    certificate_type VARCHAR(20) NOT NULL CHECK (certificate_type IN ('insurance', 'emission', 'hpg_clearance')),
+    certificate_type VARCHAR(20) NOT NULL CHECK (certificate_type IN ('insurance', 'emission', 'hpg_clearance', 'csr')),
     uploaded_file_path VARCHAR(500) NOT NULL,
     uploaded_file_hash VARCHAR(64) NOT NULL,
     verification_status VARCHAR(20) DEFAULT 'PENDING' CHECK (verification_status IN ('VERIFIED', 'REJECTED', 'PENDING', 'EXPIRED')),

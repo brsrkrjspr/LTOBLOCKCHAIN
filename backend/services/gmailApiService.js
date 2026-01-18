@@ -88,8 +88,23 @@ function buildMimeMessage({ from, to, subject, text, html, attachments }) {
         lines.push(`Content-Disposition: attachment; filename="${attachment.filename}"`);
         lines.push('');
         
+        // Ensure content is a Buffer
+        let buffer;
+        if (Buffer.isBuffer(attachment.content)) {
+            buffer = attachment.content;
+        } else if (typeof attachment.content === 'string') {
+            buffer = Buffer.from(attachment.content, 'base64');
+        } else {
+            buffer = Buffer.from(attachment.content);
+        }
+
+        // Validate buffer is not empty
+        if (!buffer || buffer.length === 0) {
+            throw new Error(`Attachment ${attachment.filename} has empty content`);
+        }
+
         // Convert buffer to base64 and split into 76-char lines (RFC 2045)
-        const base64Data = attachment.content.toString('base64');
+        const base64Data = buffer.toString('base64');
         const lines76 = base64Data.match(/.{1,76}/g) || [];
         lines.push(lines76.join('\r\n'));
     }

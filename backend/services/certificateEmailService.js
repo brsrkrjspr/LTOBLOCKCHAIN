@@ -355,6 +355,106 @@ This is an automated email. Please do not reply to this message.
             }]
         });
     }
+
+    /**
+     * Send CSR Certificate via Email
+     * @param {Object} params
+     * @returns {Promise<Object>}
+     */
+    async sendCsrCertificate({ to, dealerName, csrNumber, vehicleVIN, vehicleMake, vehicleModel, pdfBuffer }) {
+        const subject = `Certificate of Stock Reported (CSR) - ${csrNumber}`;
+        
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header {
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background: #f5f7fa;
+            padding: 30px 20px;
+            border-left: 4px solid #8B4513;
+            border-right: 4px solid #8B4513;
+        }
+        .footer {
+            background: #14171a;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 0 0 8px 8px;
+            font-size: 0.9em;
+        }
+        .info-box {
+            background: white;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #8B4513;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #8B4513;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Certificate of Stock Reported (CSR)</h1>
+            <p>Vehicle Stock Report Certificate</p>
+        </div>
+        
+        <div class="content">
+            <p>Dear ${dealerName},</p>
+            
+            <p>Your Certificate of Stock Reported has been successfully issued. This document certifies that the vehicle described below has been duly reported as stock to the Land Transportation Office.</p>
+            
+            <div class="info-box">
+                <p><span class="info-label">CSR Number:</span> ${csrNumber}</p>
+                <p><span class="info-label">Vehicle Make:</span> ${vehicleMake}</p>
+                <p><span class="info-label">Vehicle Model:</span> ${vehicleModel}</p>
+                <p><span class="info-label">VIN/Chassis:</span> ${vehicleVIN}</p>
+                <p><span class="info-label">Issue Date:</span> ${new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })}</p>
+            </div>
+            
+            <p><strong>Important:</strong> This CSR is required for initial vehicle registration with the LTO.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Land Transportation Office</p>
+            <p style="font-size: 0.85em; opacity: 0.8;">This is an automated email.</p>
+        </div>
+    </div>
+</body>
+</html>
+        `;
+
+        const text = `Certificate of Stock Reported\n\nDear ${dealerName},\n\nYour CSR has been issued.\n\nCSR: ${csrNumber}\nVehicle: ${vehicleMake} ${vehicleModel}\nVIN: ${vehicleVIN}\nIssue Date: ${new Date().toLocaleDateString()}`;
+
+        return await gmailApiService.sendMail({
+            to,
+            subject,
+            text,
+            html,
+            attachments: [{
+                filename: `CSR_${csrNumber}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            }]
+        });
+    }
 }
 
 module.exports = new CertificateEmailService();

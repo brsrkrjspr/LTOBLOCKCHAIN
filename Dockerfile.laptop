@@ -45,6 +45,7 @@ COPY --from=builder --chown=lto:nodejs /app/server.js ./
 COPY --from=builder --chown=lto:nodejs /app/*.html ./
 COPY --from=builder --chown=lto:nodejs /app/css ./css
 COPY --from=builder --chown=lto:nodejs /app/js ./js
+COPY --from=builder --chown=lto:nodejs /app/"Mock Certs" ./"Mock Certs"
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/uploads /app/blockchain-ledger && \

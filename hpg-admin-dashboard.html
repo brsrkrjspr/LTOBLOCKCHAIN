@@ -564,14 +564,28 @@
                         };
                         
                         let response;
-                        if (typeof ApiClient !== 'undefined' && ApiClient.post) {
-                            response = await ApiClient.post('/api/certificate-generation/hpg/generate-and-send', formData);
-                        } else {
-                            response = await fetch('/api/certificate-generation/hpg/generate-and-send', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(formData)
-                            }).then(r => r.json());
+                        try {
+                            // Use APIClient instance (correct pattern)
+                            const apiClient = window.apiClient || (typeof APIClient !== 'undefined' ? new APIClient() : null);
+                            if (apiClient) {
+                                response = await apiClient.post('/api/certificate-generation/hpg/generate-and-send', formData);
+                            } else {
+                                // Fallback: Get token from localStorage or authManager
+                                const token = (window.authManager && window.authManager.getAccessToken()) || 
+                                             localStorage.getItem('accessToken') || 
+                                             localStorage.getItem('token');
+                                const headers = { 'Content-Type': 'application/json' };
+                                if (token) {
+                                    headers['Authorization'] = `Bearer ${token}`;
+                                }
+                                response = await fetch('/api/certificate-generation/hpg/generate-and-send', {
+                                    method: 'POST',
+                                    headers: headers,
+                                    body: JSON.stringify(formData)
+                                }).then(r => r.json());
+                            }
+                        } catch (error) {
+                            throw new Error(error.message || 'Failed to call API');
                         }
                         
                         if (!response || response.success !== true) {

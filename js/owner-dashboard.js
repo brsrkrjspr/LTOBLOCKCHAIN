@@ -12,6 +12,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Verify vehicle_owner role
             if (!AuthUtils.hasRole('vehicle_owner')) {
+                // Check if user has hpg_admin role and redirect to HPG dashboard
+                if (AuthUtils.hasRole('hpg_admin')) {
+                    console.log('🔄 Redirecting HPG admin to HPG dashboard...');
+                    showNotification('Redirecting to HPG Admin Dashboard...', 'info');
+                    setTimeout(() => {
+                        window.location.href = 'hpg-admin-dashboard.html';
+                    }, 1000);
+                    return;
+                }
+                
                 console.warn('❌ Access denied: Vehicle owner role required');
                 showNotification('Access denied. Vehicle owner role required. Redirecting to login...', 'error');
                 setTimeout(() => {

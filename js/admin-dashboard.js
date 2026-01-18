@@ -1782,12 +1782,21 @@ async function viewApplication(applicationId) {
                 
                 if (response && response.success && response.vehicle) {
                     const vehicle = response.vehicle;
+                    
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1784',message:'Vehicle loaded from API',data:{vehicleId:vehicle.id,documentsCount:vehicle.documents?.length||0,documentTypes:vehicle.documents?.map(d=>d.document_type||d.documentType)||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    // #endregion
+                    
                     const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
                     
                     if (mapper) {
                         // Start with canonical mapping
                         const baseApp = mapper(vehicle);
                         const verificationStatus = baseApp.verificationStatus || {};
+                        
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1792',message:'After mapper - documents check',data:{documentsCount:baseApp.documents?.length||0,documentTypes:baseApp.documents?.map(d=>d.document_type||d.documentType)||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                        // #endregion
                         
                         // Extend with admin-specific fields (using Object.assign for compatibility)
                         application = Object.assign({}, baseApp, {
@@ -1845,6 +1854,11 @@ async function viewApplication(applicationId) {
                             verificationStatus: vehicle.verificationStatus || {}
                         };
                     }
+                    
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1848',message:'Final application documents',data:{documentsCount:application.documents?.length||0,documentTypes:application.documents?.map(d=>d.document_type||d.documentType||'unknown')||[],isArray:Array.isArray(application.documents)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    // #endregion
+                    
                     console.log('✅ Application loaded from API:', application);
                 }
             } catch (apiError) {
@@ -1891,6 +1905,10 @@ window.viewApplication = viewApplication;
 
 function showApplicationModal(application) {
     console.log('📋 showApplicationModal called with:', application);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/4834ddd0-680e-48e9-886f-cc09b84f1bac',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard.js:1893',message:'showApplicationModal - documents check',data:{documentsCount:application.documents?.length||0,documentTypes:application.documents?.map(d=>d.document_type||d.documentType||'unknown')||[],isArray:Array.isArray(application.documents),documents:application.documents},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     
     // Normalize status to lowercase for consistent comparison
     const normalizedStatus = (application.status || '').toLowerCase();
@@ -2044,10 +2062,17 @@ function showApplicationModal(application) {
                                 application.documents.map((doc, index) => {
                                     const docType = doc.documentType || doc.document_type || 'document';
                                     const typeNames = {
-                                        'registration_cert': '📄 Registration Certificate',
+                                        'registration_cert': '📄 Registration Certificate (OR/CR)',
+                                        'or_cr': '📄 Registration Certificate (OR/CR)',
                                         'insurance_cert': '🛡️ Insurance Certificate',
                                         'emission_cert': '🌱 Emission Certificate',
-                                        'owner_id': '🆔 Owner ID'
+                                        'owner_id': '🆔 Owner Valid ID',
+                                        'csr': '📋 Certificate of Stock Report (CSR)',
+                                        'hpg_clearance': '🚔 PNP-HPG Motor Vehicle Clearance',
+                                        'sales_invoice': '🧾 Sales Invoice',
+                                        'deed_of_sale': '📜 Deed of Sale',
+                                        'seller_id': '🆔 Seller Valid ID',
+                                        'buyer_id': '🆔 Buyer Valid ID'
                                     };
                                     const docName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
                                     return `<div class="document-item" data-doc-index="${index}" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;">
@@ -2244,10 +2269,17 @@ function showApplicationModal(application) {
             const docsForModal = application.documents.map(doc => {
                 const docType = doc.documentType || doc.document_type || 'document';
                 const typeNames = {
-                    'registration_cert': '📄 Registration Certificate',
+                    'registration_cert': '📄 Registration Certificate (OR/CR)',
+                    'or_cr': '📄 Registration Certificate (OR/CR)',
                     'insurance_cert': '🛡️ Insurance Certificate',
                     'emission_cert': '🌱 Emission Certificate',
-                    'owner_id': '🆔 Owner ID'
+                    'owner_id': '🆔 Owner Valid ID',
+                    'csr': '📋 Certificate of Stock Report (CSR)',
+                    'hpg_clearance': '🚔 PNP-HPG Motor Vehicle Clearance',
+                    'sales_invoice': '🧾 Sales Invoice',
+                    'deed_of_sale': '📜 Deed of Sale',
+                    'seller_id': '🆔 Seller Valid ID',
+                    'buyer_id': '🆔 Buyer Valid ID'
                 };
                 const displayName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
 

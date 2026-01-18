@@ -280,6 +280,9 @@
                     setTimeout(() => {
                         const userRole = result.user?.role;
                         switch(userRole) {
+                            case 'hpg_admin':
+                                window.location.href = 'hpg-admin-dashboard.html';
+                                break;
                             case 'admin':
                                 // Check organization to determine if HPG admin
                                 const org = result.user?.organization || '';

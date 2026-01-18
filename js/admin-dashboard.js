@@ -387,7 +387,7 @@ async function loadOrgVerificationStatus() {
         // Fallback: open in new window
         window.open(`/api/documents/${documentId}/view`, '_blank');
     }
-}
+
 
 function renderVerificationResponsesTable(requests) {
     const tbody = document.getElementById('verification-responses-tbody');

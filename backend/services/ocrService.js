@@ -935,24 +935,18 @@ class OCRService {
             const vinMatches = text.match(vinPattern);
             if (vinMatches) extracted.vin = vinMatches[0].trim();
             
-            // Plate Number - Cascading patterns (similar to body type extraction)
-            // Pattern 1: Table format with label
-            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
+            // Plate Number - Strict line-bound patterns (require digits)
+            // Pattern 1: Table format with label (single-line, plate-shaped)
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)*\s*\|\s*([A-Z]{3}\s?-?\s?\d{3,4})/i;
             let plateMatches = text.match(platePattern);
-            
-            // Pattern 2: Colon format with label
+
+            // Pattern 2: Colon/equals format with label (single-line, plate-shaped)
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)*\s*[:=]\s*([A-Z]{3}\s?-?\s?\d{3,4})/i;
                 plateMatches = text.match(platePattern);
             }
-            
-            // Pattern 3: Context-based (look near keywords)
-            if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
-                plateMatches = text.match(platePattern);
-            }
-            
-            // Pattern 4: Philippine formats standalone (fallback)
+
+            // Pattern 3: Philippine formats standalone (fallback)
             if (!plateMatches) {
                 platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
                 plateMatches = text.match(platePattern);
@@ -975,8 +969,8 @@ class OCRService {
                 extracted.plateNumber = plateValue;
             }
             
-            // Engine Number
-            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
+            // Engine Number (single-line, must include digits)
+            const enginePattern = /(?:Engine|Motor)\s*(?:No\.?|Number)?[\s:.]*([A-Z0-9\-]*\d[A-Z0-9\-]*)/i;
             const engineMatches = text.match(enginePattern);
             if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
             
@@ -1697,62 +1691,23 @@ class OCRService {
                 extracted.vin = chassisVinValue;  // Same value in both fields
             }
             
-            // Engine Number - Handle all variations
-            let enginePattern = /Engine\s*Number\s*\|\s*([A-Z0-9\-]+)/i;  // Table format with pipe
+            // Engine Number - Handle all variations (must include digits)
+            let enginePattern = /Engine\s*Number\s*\|\s*([A-Z0-9\-]*\d[A-Z0-9\-]*)/i;  // Table format with pipe
             let engineMatches = text.match(enginePattern);
             if (!engineMatches) {
-                enginePattern = /Engine\s*Number\s*[:]\s*([A-Z0-9\-]+)/i;  // Colon format
+                enginePattern = /Engine\s*Number\s*[:]\s*([A-Z0-9\-]*\d[A-Z0-9\-]*)/i;  // Colon format
                 engineMatches = text.match(enginePattern);
             }
             if (!engineMatches) {
-                enginePattern = /Engine\s*No\.\s*[:]\s*([A-Z0-9\-]+)/i;  // "Engine No." with colon
+                enginePattern = /Engine\s*No\.\s*[:]\s*([A-Z0-9\-]*\d[A-Z0-9\-]*)/i;  // "Engine No." with colon
                 engineMatches = text.match(enginePattern);
             }
             if (!engineMatches) {
-                enginePattern = /(?:Engine|Motor)\s*(?:No\.?|Number)?\s*[:.\s]*([A-Z0-9\-]+)/i;  // Generic text format
+                enginePattern = /(?:Engine|Motor)\s*(?:No\.?|Number)?\s*[:.\s]*([A-Z0-9\-]*\d[A-Z0-9\-]*)/i;  // Generic text format
                 engineMatches = text.match(enginePattern);
             }
             if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
             
-            // Plate Number - Cascading patterns (similar to body type extraction)
-            // Pattern 1: Table format with label
-            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
-            let plateMatches = text.match(platePattern);
-            
-            // Pattern 2: Colon format with label
-            if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
-                plateMatches = text.match(platePattern);
-            }
-            
-            // Pattern 3: Context-based (look near keywords)
-            if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
-                plateMatches = text.match(platePattern);
-            }
-            
-            // Pattern 4: Philippine formats standalone (fallback)
-            if (!plateMatches) {
-                platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
-                plateMatches = text.match(platePattern);
-            }
-            
-            if (plateMatches) {
-                let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
-                // Normalize to ABC-1234 format (3 letters, hyphen, 4 numbers)
-                if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
-                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
-                } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
-                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
-                } else if (plateValue.includes('-')) {
-                    // Already has hyphen, just normalize
-                    plateValue = plateValue.replace(/-/g, '');
-                    if (plateValue.length >= 6 && /^[A-Z]{3}/.test(plateValue)) {
-                        plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
-                    }
-                }
-                extracted.plateNumber = plateValue;
-            }
             
             // MV File Number
             const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;
@@ -1830,20 +1785,14 @@ class OCRService {
             const vinMatches = text.match(vinPattern);
             if (vinMatches) extracted.vin = vinMatches[0].trim();
             
-            // Plate Number - Flexible extraction (match first, normalize after)
+            // Plate Number - Line-bound extraction (plate-shaped, requires digits)
             // Pattern 1: Table format with label
-            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)*?\s*\|\s*([A-Z]{3}\s?-?\s?\d{3,4})/i;
             let plateMatches = text.match(platePattern);
 
             // Pattern 2: Colon format with label
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
-                plateMatches = text.match(platePattern);
-            }
-            
-            // Pattern 3: Context-based (look near keywords)
-            if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)*?\s*[:=]\s*([A-Z]{3}\s?-?\s?\d{3,4})/i;
                 plateMatches = text.match(platePattern);
             }
             

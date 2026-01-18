@@ -910,8 +910,8 @@ function updateUploadedDocumentsList() {
         return;
     }
     
-    // Find all file inputs with data-document-type attribute
-    const documentInputs = document.querySelectorAll('#document-upload-container input[type="file"]');
+    // Find all file inputs with data-document-type attribute (works even when Step 1 is hidden)
+    const documentInputs = document.querySelectorAll('input[type="file"][data-document-type]');
     let html = '';
     
     if (documentInputs.length === 0) {
@@ -921,7 +921,7 @@ function updateUploadedDocumentsList() {
     
     // Loop through each input and check if file is present
     documentInputs.forEach(input => {
-        const docType = input.getAttribute('data-document-type');
+        const docType = input.getAttribute('data-document-type') || input.id || 'Unknown';
         const hasFile = input.files && input.files.length > 0;
         const icon = hasFile ? '✅' : '❌';
         
@@ -1719,7 +1719,7 @@ function renderStaticDocumentFields(container) {
                 <p>Upload your current vehicle registration certificate (PDF, JPEG)</p>
             </div>
             <div class="upload-area">
-                <input type="file" id="registrationCert" accept=".pdf,.jpg,.jpeg" required>
+                <input type="file" id="registrationCert" accept=".pdf,.jpg,.jpeg" data-document-type="registrationCert" required>
                 <label for="registrationCert" class="upload-label">
                     <span class="upload-icon">📄</span>
                     <span>Choose File</span>
@@ -1732,7 +1732,7 @@ function renderStaticDocumentFields(container) {
                 <p>Upload your vehicle insurance certificate (PDF, JPEG)</p>
             </div>
             <div class="upload-area">
-                <input type="file" id="insuranceCert" accept=".pdf,.jpg,.jpeg" required>
+                <input type="file" id="insuranceCert" accept=".pdf,.jpg,.jpeg" data-document-type="insuranceCert" required>
                 <label for="insuranceCert" class="upload-label">
                     <span class="upload-icon">🛡️</span>
                     <span>Choose File</span>
@@ -1745,7 +1745,7 @@ function renderStaticDocumentFields(container) {
                 <p>Upload your emission test certificate (PDF, JPEG)</p>
             </div>
             <div class="upload-area">
-                <input type="file" id="emissionCert" accept=".pdf,.jpg,.jpeg" required>
+                <input type="file" id="emissionCert" accept=".pdf,.jpg,.jpeg" data-document-type="emissionCert" required>
                 <label for="emissionCert" class="upload-label">
                     <span class="upload-icon">🌱</span>
                     <span>Choose File</span>
@@ -1758,7 +1758,7 @@ function renderStaticDocumentFields(container) {
                 <p>Upload a copy of your valid ID (PDF, JPEG)</p>
             </div>
             <div class="upload-area">
-                <input type="file" id="ownerId" accept=".pdf,.jpg,.jpeg" required>
+                <input type="file" id="ownerId" accept=".pdf,.jpg,.jpeg" data-document-type="ownerValidId" required>
                 <label for="ownerId" class="upload-label">
                     <span class="upload-icon">🆔</span>
                     <span>Choose File</span>

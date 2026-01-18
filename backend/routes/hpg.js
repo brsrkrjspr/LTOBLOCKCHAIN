@@ -9,7 +9,7 @@ const { authorizeRole } = require('../middleware/authorize');
 const storageService = require('../services/storageService');
 
 // Get HPG dashboard statistics
-router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         // Get all HPG requests
         const requests = await db.getClearanceRequestsByType('hpg');
@@ -38,7 +38,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
 
 // Get all HPG clearance requests
 // Note: 'hpg_admin' role doesn't exist in enum, so we allow 'admin' role and check email pattern
-router.get('/requests', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.get('/requests', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { status } = req.query;
         
@@ -706,7 +706,7 @@ router.post('/certificate/release', authenticateToken, authorizeRole(['admin', '
 });
 
 // Create test HPG request (for testing purposes)
-router.post('/test-request', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.post('/test-request', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { 
             ownerName, 

@@ -1059,28 +1059,6 @@ async function submitApplication() {
             ToastNotification.show(error.message || 'Registration failed. Please try again.', 'error', 8000);
         }
         
-        // Don't save locally if it's a duplicate VIN error - user needs to fix the VIN
-        if (isDuplicateError) {
-            // Highlight the VIN field to help user identify the issue
-            const vinInput = document.querySelector('input[name="vin"], #vin');
-            if (vinInput) {
-                vinInput.classList.add('error');
-                vinInput.focus();
-                // Show field-specific error
-                const errorMsg = document.createElement('div');
-                errorMsg.className = 'field-error';
-                errorMsg.textContent = 'This VIN is already registered. Please check your VIN number.';
-                errorMsg.style.color = '#e74c3c';
-                errorMsg.style.fontSize = '0.875rem';
-                errorMsg.style.marginTop = '0.25rem';
-                // Remove existing error message if any
-                const existingError = vinInput.parentElement.querySelector('.field-error');
-                if (existingError) existingError.remove();
-                vinInput.parentElement.appendChild(errorMsg);
-            }
-            return; // Don't proceed with local storage
-        }
-        
         // STRICT: No localStorage fallback - real services only
         // If API fails, user must retry with working backend connection
         
@@ -1372,31 +1350,16 @@ function getAuthToken() {
     return token;
 }
 
-function generateVIN() {
-    // Generate a mock VIN for the vehicle
-    const chars = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
-    let vin = '';
-    for (let i = 0; i < 17; i++) {
-        vin += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return vin;
-}
-
 // Enhanced collectApplicationData function
 function collectApplicationData() {
     // Generate unique application ID
     const applicationId = 'APP-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
-    
-    // Get VIN from form or generate if not provided
-    const vinInput = document.getElementById('vin');
-    const vin = vinInput ? vinInput.value.trim().toUpperCase() : generateVIN();
     
     // Get car type from Step 1
     const carType = document.getElementById('carType')?.value || '';
     
     // Collect vehicle information
     const vehicleInfo = {
-        vin: vin || generateVIN(),
         make: document.getElementById('make')?.value || '',
         model: document.getElementById('model')?.value || '',
         year: parseInt(document.getElementById('year')?.value || new Date().getFullYear()),
@@ -1428,7 +1391,6 @@ function collectApplicationData() {
     
     return {
         id: applicationId,
-        vin: vin || generateVIN(),
         vehicle: vehicleInfo,
         owner: ownerInfo,
         status: 'SUBMITTED',

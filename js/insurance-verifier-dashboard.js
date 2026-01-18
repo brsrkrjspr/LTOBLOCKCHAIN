@@ -29,7 +29,6 @@ function initializeInsuranceVerifierDashboard() {
     // Initialize dashboard functionality
     updateInsuranceStats();
     loadInsuranceVerificationTasks();
-    initializeSummaryUpdates();
     
     // Set up auto-refresh
     setInterval(updateInsuranceStats, 60000); // Update every minute
@@ -108,7 +107,6 @@ async function loadInsuranceVerificationTasks() {
             if (response && response.success && response.requests) {
                 allInsuranceRequests = response.requests;
                 renderFilteredInsuranceRequests();
-                updateInsuranceSummary(allInsuranceRequests);
             } else {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;">Failed to load requests. Please try again.</td></tr>';
             }
@@ -117,7 +115,6 @@ async function loadInsuranceVerificationTasks() {
             const applicationsWithInsurance = applications.filter(app => app.documents && app.documents.insuranceCert);
             allInsuranceRequests = applicationsWithInsurance;
             renderFilteredInsuranceRequests();
-            updateInsuranceSummary(applicationsWithInsurance);
         }
     } catch (error) {
         console.error('Error loading insurance verification tasks:', error);
@@ -208,6 +205,9 @@ function createInsuranceVerificationRowFromRequest(request) {
         <td><span class="status-badge status-${status.toLowerCase()}">${status}</span></td>
         <td>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <button class="btn-secondary btn-sm" onclick="viewInsuranceRequestDetails('${request.id}')" title="View Request Details">
+                    <i class="fas fa-info-circle"></i> Details
+                </button>
                 ${docCount > 0 ? `
                     <button class="btn-info btn-sm" onclick="viewInsuranceDocuments('${request.id}')" title="View ${docCount} document(s)">
                         <i class="fas fa-file-shield"></i> Cert
@@ -255,221 +255,131 @@ async function viewInsuranceDocuments(requestId) {
 
 window.viewInsuranceDocuments = viewInsuranceDocuments;
 
-function createInsuranceVerificationRow(application) {
-    const row = document.createElement('tr');
-    
-    // Get insurance status
-    const insuranceStatus = application.insuranceStatus || 'pending';
-    const statusText = getInsuranceStatusText(insuranceStatus);
-    const statusClass = getInsuranceStatusClass(insuranceStatus);
-    
-    row.innerHTML = `
-        <td class="app-id-cell">${application.id}</td>
-        <td class="user-info-cell">
-            <div class="user-info">
-                <strong>${application.owner.firstName} ${application.owner.lastName}</strong>
-                <small>${application.owner.email}</small>
-                <small>${application.owner.phone}</small>
-            </div>
-        </td>
-        <td class="vehicle-info-cell">
-            <div class="vehicle-info">
-                <strong>${application.vehicle.make} ${application.vehicle.model}</strong>
-                <small>${application.vehicle.year} • ${application.vehicle.plateNumber}</small>
-                <small>Engine: ${application.vehicle.engineNumber}</small>
-            </div>
-        </td>
-        <td class="document-info-cell">
-            <div class="document-info">
-                <div class="document-item">
-                    <span class="document-icon">🛡️</span>
-                    <span class="document-name">${application.documents.insuranceCert}</span>
-                </div>
-                <button class="btn-primary btn-sm" onclick="viewInsuranceDocument('${application.id}')">View Document</button>
-            </div>
-        </td>
-        <td class="date-cell">${new Date(application.submittedDate).toLocaleDateString()}</td>
-        <td class="status-cell"><span class="status-badge ${statusClass}">${statusText}</span></td>
-        <td class="actions-cell">
-            <button class="btn-secondary btn-sm" onclick="viewInsuranceDetails('${application.id}')">Review</button>
-            <button class="btn-success btn-sm" onclick="approveInsurance('${application.id}')" ${insuranceStatus === 'approved' ? 'disabled' : ''}>Approve</button>
-            <button class="btn-danger btn-sm" onclick="rejectInsurance('${application.id}')" ${insuranceStatus === 'rejected' ? 'disabled' : ''}>Reject</button>
-        </td>
-    `;
-    
-    return row;
-}
-
-function getInsuranceStatusText(status) {
-    const statusMap = {
-        'pending': 'Pending Review',
-        'approved': 'Approved',
-        'rejected': 'Rejected',
-        'under_review': 'Under Review'
-    };
-    return statusMap[status] || 'Pending Review';
-}
-
-function getInsuranceStatusClass(status) {
-    const classMap = {
-        'pending': 'status-pending',
-        'approved': 'status-approved',
-        'rejected': 'status-rejected',
-        'under_review': 'status-processing'
-    };
-    return classMap[status] || 'status-pending';
-}
-
-function updateInsuranceSummary(applications) {
-    const pending = applications.filter(app => !app.insuranceStatus || app.insuranceStatus === 'pending').length;
-    const approved = applications.filter(app => app.insuranceStatus === 'approved').length;
-    const rejected = applications.filter(app => app.insuranceStatus === 'rejected').length;
-    
-    // Update summary items
-    const summaryItems = document.querySelectorAll('.summary-item .summary-number');
-    if (summaryItems.length >= 4) {
-        summaryItems[0].textContent = approved;
-        summaryItems[1].textContent = pending;
-        summaryItems[2].textContent = rejected;
-        summaryItems[3].textContent = '₱' + (applications.length * 300000).toLocaleString();
+async function viewInsuranceRequestDetails(requestId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/insurance/requests/${requestId}`);
+        if (response.success && response.request) {
+            showInsuranceRequestDetailsModal(response.request);
+        } else {
+            throw new Error(response.error || 'Failed to load request');
+        }
+    } catch (error) {
+        console.error('Error viewing insurance request:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Failed to load request: ' + error.message, 'error');
+        } else {
+            alert('Failed to load request: ' + error.message);
+        }
     }
 }
 
-// Insurance verification functions
-function viewInsuranceDetails(applicationId) {
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    const application = applications.find(app => app.id === applicationId);
-    
-    if (!application) {
-        showNotification('Application not found', 'error');
-        return;
-    }
-    
-    showInsuranceVerificationModal(application);
-}
+function showInsuranceRequestDetailsModal(request) {
+    const vehicle = request.vehicle || {};
+    const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+    const status = (request.status || 'PENDING').toUpperCase();
 
-function showInsuranceVerificationModal(application) {
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;';
+
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3>Insurance Certificate Verification - ${application.id}</h3>
-                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); border-radius: 16px 16px 0 0;">
+                <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-file-shield"></i> Insurance Request Details
+                </h3>
+                <button onclick="this.closest('.modal').remove()" style="background: rgba(255,255,255,0.2); border: none; font-size: 1.25rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%;">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="verification-details">
-                    <div class="detail-section">
-                        <h4>User Information</h4>
-                        <div class="detail-grid">
-                            <div class="detail-item">
-                                <span class="detail-label">Name:</span>
-                                <span class="detail-value">${application.owner.firstName} ${application.owner.lastName}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Email:</span>
-                                <span class="detail-value">${application.owner.email}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Phone:</span>
-                                <span class="detail-value">${application.owner.phone}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">ID Type:</span>
-                                <span class="detail-value">${application.owner.idType}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">ID Number:</span>
-                                <span class="detail-value">${application.owner.idNumber}</span>
-                            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="display: grid; gap: 1.25rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Request ID</label>
+                            <div style="font-weight: 600; font-family: monospace; font-size: 0.9rem;">${request.id.substring(0, 12)}...</div>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Status</label>
+                            <div><span class="status-badge status-${status.toLowerCase()}">${status}</span></div>
                         </div>
                     </div>
-                    
-                    <div class="detail-section">
-                        <h4>Vehicle Information</h4>
-                        <div class="detail-grid">
-                            <div class="detail-item">
-                                <span class="detail-label">Make/Model:</span>
-                                <span class="detail-value">${application.vehicle.make} ${application.vehicle.model}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Year:</span>
-                                <span class="detail-value">${application.vehicle.year}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Plate Number:</span>
-                                <span class="detail-value">${application.vehicle.plateNumber}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Engine Number:</span>
-                                <span class="detail-value">${application.vehicle.engineNumber}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Chassis Number:</span>
-                                <span class="detail-value">${application.vehicle.chassisNumber}</span>
-                            </div>
-                        </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Vehicle</label>
+                        <div style="font-weight: 600; font-size: 1.1rem;">${vehicle.plate_number || metadata.vehiclePlate || 'N/A'}</div>
+                        <div style="color: #7f8c8d;">${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</div>
                     </div>
-                    
-                    <div class="detail-section">
-                        <h4>Insurance Certificate</h4>
-                        <div class="document-verification">
-                            <div class="document-item">
-                                <span class="document-icon">🛡️</span>
-                                <span class="document-name">${application.documents.insuranceCert}</span>
-                                <button class="btn-secondary btn-sm" onclick="viewInsuranceDocument('${application.id}')">View Document</button>
-                            </div>
-                            <div class="verification-notes">
-                                <label for="verificationNotes">Verification Notes:</label>
-                                <textarea id="verificationNotes" placeholder="Add notes about the insurance certificate verification..." rows="3"></textarea>
-                            </div>
-                        </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Owner</label>
+                        <div>${metadata.ownerName || 'N/A'}</div>
                     </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Created</label>
+                        <div>${request.created_at ? new Date(request.created_at).toLocaleString() : 'N/A'}</div>
+                    </div>
+                    ${metadata.autoVerificationResult || metadata.autoVerified ? `
+                    <div style="padding: 1rem; background: ${(metadata.autoVerificationResult?.status === 'APPROVED' || metadata.autoVerified) ? '#e8f5e9' : '#fff3e0'}; border-left: 4px solid ${(metadata.autoVerificationResult?.status === 'APPROVED' || metadata.autoVerified) ? '#4caf50' : '#ff9800'}; border-radius: 4px;">
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                            <i class="fas fa-robot"></i> Auto-Verification Status
+                        </label>
+                        ${metadata.autoVerificationResult ? `
+                            <div style="display: grid; gap: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="status-badge status-${metadata.autoVerificationResult.status === 'APPROVED' ? 'approved' : metadata.autoVerificationResult.status === 'REJECTED' ? 'rejected' : 'pending'}" style="font-size: 0.875rem;">
+                                        ${metadata.autoVerificationResult.status === 'APPROVED' ? '<i class="fas fa-check-circle"></i> Verified' : metadata.autoVerificationResult.status === 'REJECTED' ? '<i class="fas fa-times-circle"></i> Rejected' : '<i class="fas fa-clock"></i> Pending Review'}
+                                    </span>
+                                    ${metadata.autoVerificationResult.score !== undefined ? `
+                                        <span style="font-weight: 600; color: ${metadata.autoVerificationResult.score >= 80 ? '#4caf50' : metadata.autoVerificationResult.score >= 60 ? '#ff9800' : '#f44336'};">
+                                            Score: ${metadata.autoVerificationResult.score}%
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                ${metadata.autoVerificationResult.reason ? `
+                                    <div style="font-size: 0.875rem; color: #666;">
+                                        <strong>Reason:</strong> ${metadata.autoVerificationResult.reason}
+                                    </div>
+                                ` : ''}
+                                ${metadata.autoVerificationResult.compositeHash ? `
+                                    <div style="font-size: 0.75rem; color: #999; font-family: monospace; word-break: break-all;">
+                                        Hash: ${metadata.autoVerificationResult.compositeHash.substring(0, 32)}...
+                                    </div>
+                                ` : ''}
+                                ${metadata.autoVerificationResult.blockchainTxId ? `
+                                    <div style="font-size: 0.75rem; color: #2196f3;">
+                                        <i class="fas fa-link"></i> Blockchain TX: ${metadata.autoVerificationResult.blockchainTxId.substring(0, 16)}...
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : metadata.autoVerified ? `
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="status-badge status-approved">
+                                    <i class="fas fa-check-circle"></i> Auto-Verified & Approved
+                                </span>
+                                ${metadata.notes ? `
+                                    <span style="font-size: 0.875rem; color: #666;">${metadata.notes}</span>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn-primary" onclick="approveInsurance('${application.id}')">Approve Insurance</button>
-                <button class="btn-danger" onclick="rejectInsurance('${application.id}')">Reject Insurance</button>
-                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 2px solid #e9ecef; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                ${(request.documents?.length > 0 || metadata.documents?.length > 0) ? `
+                    <button onclick="viewInsuranceDocuments('${request.id}'); this.closest('.modal').remove();" class="btn-primary">
+                        <i class="fas fa-file-image"></i> View Certificate
+                    </button>
+                ` : ''}
+                <button onclick="this.closest('.modal').remove()" class="btn-secondary">Close</button>
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
-    // Close modal when clicking outside
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
 
-function viewInsuranceDocument(applicationId) {
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    const application = applications.find(app => app.id === applicationId);
-    
-    if (!application || !application.documents || !application.documents.insuranceCert) {
-        showNotification('Insurance certificate not found', 'error');
-        return;
-    }
-    
-    // Use DocumentModal if available (preferred method)
-    if (typeof DocumentModal !== 'undefined') {
-        const docUrl = application.documents.insuranceCert;
-        DocumentModal.view({ 
-            url: docUrl, 
-            filename: 'Insurance Certificate',
-            type: 'insurance'
-        });
-    } else {
-        // Strict: never open new tabs for viewing documents
-        showNotification('Document viewer modal is not available. Please refresh the page.', 'error');
-        return;
-    }
-    
-    showNotification('Opening insurance certificate document...', 'info');
-}
+window.viewInsuranceRequestDetails = viewInsuranceRequestDetails;
+
 
 async function approveInsurance(requestId) {
     if (!confirm('Are you sure you want to approve this insurance certificate?')) {
@@ -548,69 +458,6 @@ async function rejectInsurance(requestId) {
     }
 }
 
-function updateInsuranceStatus(applicationId, status, notes) {
-    let applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    let application = applications.find(app => app.id === applicationId);
-    
-    if (!application) return;
-    
-    // Update insurance status
-    application.insuranceStatus = status;
-    application.insuranceVerificationDate = new Date().toISOString();
-    application.insuranceVerificationNotes = notes;
-    application.lastUpdated = new Date().toISOString();
-    
-    // Save back to localStorage
-    localStorage.setItem('submittedApplications', JSON.stringify(applications));
-    
-    // Add notification for user
-    addUserNotification(applicationId, 'insurance_' + status, 
-        status === 'approved' ? 'Your insurance certificate has been approved' : 
-        'Your insurance certificate has been rejected. Please check the reason and resubmit.');
-    
-    // Refresh the table
-    loadInsuranceVerificationTasks();
-    
-    // Close modal if open
-    const modal = document.querySelector('.modal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-function addUserNotification(applicationId, type, message) {
-    let applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    let application = applications.find(app => app.id === applicationId);
-
-    if (!application) return;
-
-    const notification = {
-        id: 'notif-' + Date.now(),
-        applicationId: applicationId,
-        type: type,
-        title: type.includes('approved') ? 'Insurance Approved' : 'Insurance Rejected',
-        message: message,
-        vehicleInfo: `${application.vehicle.make} ${application.vehicle.model} (${application.vehicle.plateNumber})`,
-        timestamp: new Date().toISOString(),
-        read: false
-    };
-
-    let notifications = JSON.parse(localStorage.getItem('userNotifications') || '[]');
-    notifications.unshift(notification);
-    if (notifications.length > 20) {
-        notifications = notifications.slice(0, 20);
-    }
-    localStorage.setItem('userNotifications', JSON.stringify(notifications));
-}
-
-function initializeSummaryUpdates() {
-    // Initialize summary with current data
-    const applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-    const applicationsWithInsurance = applications.filter(app => 
-        app.documents && app.documents.insuranceCert
-    );
-    updateInsuranceSummary(applicationsWithInsurance);
-}
 
 // Insurance Workflow Functions
 let insuranceWorkflowState = {

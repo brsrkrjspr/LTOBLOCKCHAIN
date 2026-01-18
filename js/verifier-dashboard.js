@@ -37,7 +37,6 @@ function initializeVerifierDashboard() {
     // Initialize dashboard functionality
     updateVerifierStats();
     initializeTaskManagement();
-    initializeEmissionReports();
     
     // Set up auto-refresh
     setInterval(updateVerifierStats, 60000); // Update every minute
@@ -100,20 +99,6 @@ async function updateVerifierStats() {
 function initializeTaskManagement() {
     // Load emission verification requests
     loadEmissionVerificationTasks();
-    
-    // Add event listeners for emission task actions
-    const taskTable = document.querySelector('.table tbody');
-    if (taskTable) {
-        taskTable.addEventListener('click', function(e) {
-            if (e.target.classList.contains('btn-primary')) {
-                handleEmissionApprove(e);
-            } else if (e.target.classList.contains('btn-danger')) {
-                handleEmissionReject(e);
-            } else if (e.target.classList.contains('btn-secondary')) {
-                handleEmissionReview(e);
-            }
-        });
-    }
 }
 
 let allEmissionRequests = [];
@@ -354,6 +339,51 @@ function showEmissionDetailsModal(request) {
                         <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Created</label>
                         <div>${request.created_at ? new Date(request.created_at).toLocaleString() : 'N/A'}</div>
                     </div>
+                    ${metadata.autoVerificationResult || metadata.autoVerified ? `
+                    <div style="padding: 1rem; background: ${(metadata.autoVerificationResult?.status === 'APPROVED' || metadata.autoVerified) ? '#e8f5e9' : '#fff3e0'}; border-left: 4px solid ${(metadata.autoVerificationResult?.status === 'APPROVED' || metadata.autoVerified) ? '#4caf50' : '#ff9800'}; border-radius: 4px;">
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                            <i class="fas fa-robot"></i> Auto-Verification Status
+                        </label>
+                        ${metadata.autoVerificationResult ? `
+                            <div style="display: grid; gap: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="status-badge status-${metadata.autoVerificationResult.status === 'APPROVED' ? 'approved' : metadata.autoVerificationResult.status === 'REJECTED' ? 'rejected' : 'pending'}" style="font-size: 0.875rem;">
+                                        ${metadata.autoVerificationResult.status === 'APPROVED' ? '<i class="fas fa-check-circle"></i> Verified' : metadata.autoVerificationResult.status === 'REJECTED' ? '<i class="fas fa-times-circle"></i> Rejected' : '<i class="fas fa-clock"></i> Pending Review'}
+                                    </span>
+                                    ${metadata.autoVerificationResult.score !== undefined ? `
+                                        <span style="font-weight: 600; color: ${metadata.autoVerificationResult.score >= 80 ? '#4caf50' : metadata.autoVerificationResult.score >= 60 ? '#ff9800' : '#f44336'};">
+                                            Score: ${metadata.autoVerificationResult.score}%
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                ${metadata.autoVerificationResult.reason ? `
+                                    <div style="font-size: 0.875rem; color: #666;">
+                                        <strong>Reason:</strong> ${metadata.autoVerificationResult.reason}
+                                    </div>
+                                ` : ''}
+                                ${metadata.autoVerificationResult.compositeHash ? `
+                                    <div style="font-size: 0.75rem; color: #999; font-family: monospace; word-break: break-all;">
+                                        Hash: ${metadata.autoVerificationResult.compositeHash.substring(0, 32)}...
+                                    </div>
+                                ` : ''}
+                                ${metadata.autoVerificationResult.blockchainTxId ? `
+                                    <div style="font-size: 0.75rem; color: #2196f3;">
+                                        <i class="fas fa-link"></i> Blockchain TX: ${metadata.autoVerificationResult.blockchainTxId.substring(0, 16)}...
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : metadata.autoVerified ? `
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="status-badge status-approved">
+                                    <i class="fas fa-check-circle"></i> Auto-Verified & Approved
+                                </span>
+                                ${metadata.notes ? `
+                                    <span style="font-size: 0.875rem; color: #666;">${metadata.notes}</span>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
                 </div>
             </div>
             <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 2px solid #e9ecef; display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -457,8 +487,9 @@ async function handleEmissionReviewFromRequest(requestId) {
     }
 }
 
-async function handleEmissionApprove(e) {
-    const row = e.target.closest('tr');
+function showNotification(message, type = 'info') {
+    ToastNotification.show(message, type);
+}
     const appId = row.querySelector('td:first-child').textContent;
     const vehicleInfo = row.querySelector('.vehicle-info strong')?.textContent || 'Vehicle';
     const emissionTest = row.querySelector('td:nth-child(3)')?.textContent || 'N/A';
@@ -850,11 +881,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // Export functions for potential external use
 window.VerifierDashboard = {
     updateVerifierStats,
-    handleEmissionApprove,
-    handleEmissionReject,
-    handleEmissionReview,
-    handleGenerateReport,
-    updateTaskStats,
     showNotification,
     receiveLTORequest,
     uploadEmissionResult,

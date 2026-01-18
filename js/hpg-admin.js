@@ -477,85 +477,143 @@ const HPGRequests = {
         }
     },
 
-    loadRequestDetails: async function(requestId) {
-        try {
-            const request = this.requests.find(r => r.id === requestId);
-            if (!request) {
-                alert('Request not found');
-                return;
-            }
+    }
+};
 
-            const content = document.getElementById('requestDetailsContent');
-            if (content) {
-                content.innerHTML = `
-                    <div class="request-details">
-                        <div class="detail-row">
-                            <label>Request ID:</label>
-                            <span>${request.id}</span>
+// Global viewDetails function for HPG requests
+async function viewDetails(requestId) {
+    try {
+        const apiClient = window.apiClient || (typeof APIClient !== 'undefined' ? new APIClient() : null);
+        if (!apiClient) {
+            alert('API client not available');
+            return;
+        }
+        
+        const response = await apiClient.get(`/api/hpg/requests/${requestId}`);
+        if (response.success && response.request) {
+            showHpgRequestDetailsModal(response.request);
+        } else {
+            throw new Error(response.error || 'Failed to load request');
+        }
+    } catch (error) {
+        console.error('Error viewing HPG request:', error);
+        alert('Failed to load request: ' + error.message);
+    }
+}
+
+function showHpgRequestDetailsModal(request) {
+    const vehicle = request.vehicle || {};
+    const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+    const status = (request.status || 'PENDING').toUpperCase();
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;';
+
+    modal.innerHTML = `
+        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); border-radius: 16px 16px 0 0;">
+                <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-shield-alt"></i> HPG Request Details
+                </h3>
+                <button onclick="this.closest('.modal').remove()" style="background: rgba(255,255,255,0.2); border: none; font-size: 1.25rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="display: grid; gap: 1.25rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Request ID</label>
+                            <div style="font-weight: 600; font-family: monospace; font-size: 0.9rem;">${request.id.substring(0, 12)}...</div>
                         </div>
-                        <div class="detail-row">
-                            <label>Owner Name:</label>
-                            <span>${request.ownerName}</span>
+                        <div>
+                            <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Status</label>
+                            <div><span class="status-badge status-${status.toLowerCase()}">${status}</span></div>
                         </div>
-                        <div class="detail-row">
-                            <label>Owner Email:</label>
-                            <span>${request.ownerEmail || 'N/A'}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>Plate Number:</label>
-                            <span>${request.plateNumber}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>VIN:</label>
-                            <span>${request.vin || 'N/A'}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>Vehicle:</label>
-                            <span>${request.vehicleMake || ''} ${request.vehicleModel || ''} ${request.vehicleYear || ''}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>Engine Number:</label>
-                            <span>${request.engineNumber || 'N/A'}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>Chassis Number:</label>
-                            <span>${request.chassisNumber || 'N/A'}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>Purpose:</label>
-                            <span>${request.purpose}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>Request Date:</label>
-                            <span>${request.requestDate}</span>
-                        </div>
-                        <div class="detail-row">
-                            <label>Status:</label>
-                            <span class="status-badge status-${request.status}">${request.status.charAt(0).toUpperCase() + request.status.slice(1)}</span>
-                        </div>
-                        ${request.documents && request.documents.length > 0 ? `
-                            <div class="detail-row" style="margin-top: 1rem;">
-                                <label>HPG Documents:</label>
-                                <button class="btn-info btn-sm" onclick="HPGRequests.viewDocument('${request.id}')" style="margin-left: 10px;">
-                                    <i class="fas fa-file-image"></i> View ${request.documents.length} Document(s) (OR/CR & ID)
-                                </button>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Vehicle</label>
+                        <div style="font-weight: 600; font-size: 1.1rem;">${vehicle.plate_number || metadata.vehiclePlate || 'N/A'}</div>
+                        <div style="color: #7f8c8d;">${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Owner</label>
+                        <div>${metadata.ownerName || (request.owner?.first_name ? request.owner.first_name + ' ' + (request.owner.last_name || '') : 'N/A')}</div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Created</label>
+                        <div>${request.created_at ? new Date(request.created_at).toLocaleString() : 'N/A'}</div>
+                    </div>
+                    ${metadata.autoVerificationResult || metadata.autoVerified || metadata.autoVerify ? `
+                    <div style="padding: 1rem; background: ${(metadata.autoVerificationResult?.status === 'APPROVED' || metadata.autoVerified || metadata.autoVerify?.recommendation === 'APPROVE') ? '#e8f5e9' : '#fff3e0'}; border-left: 4px solid ${(metadata.autoVerificationResult?.status === 'APPROVED' || metadata.autoVerified || metadata.autoVerify?.recommendation === 'APPROVE') ? '#4caf50' : '#ff9800'}; border-radius: 4px;">
+                        <label style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                            <i class="fas fa-robot"></i> Auto-Verification Status
+                        </label>
+                        ${metadata.autoVerificationResult ? `
+                            <div style="display: grid; gap: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="status-badge status-${metadata.autoVerificationResult.status === 'APPROVED' ? 'approved' : metadata.autoVerificationResult.status === 'REJECTED' ? 'rejected' : 'pending'}" style="font-size: 0.875rem;">
+                                        ${metadata.autoVerificationResult.status === 'APPROVED' ? '<i class="fas fa-check-circle"></i> Verified' : metadata.autoVerificationResult.status === 'REJECTED' ? '<i class="fas fa-times-circle"></i> Rejected' : '<i class="fas fa-clock"></i> Pending Review'}
+                                    </span>
+                                    ${metadata.autoVerificationResult.score !== undefined ? `
+                                        <span style="font-weight: 600; color: ${metadata.autoVerificationResult.score >= 80 ? '#4caf50' : metadata.autoVerificationResult.score >= 60 ? '#ff9800' : '#f44336'};">
+                                            Score: ${metadata.autoVerificationResult.score}%
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                ${metadata.autoVerificationResult.reason ? `
+                                    <div style="font-size: 0.875rem; color: #666;">
+                                        <strong>Reason:</strong> ${metadata.autoVerificationResult.reason}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : metadata.autoVerify ? `
+                            <div style="display: grid; gap: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="status-badge status-${metadata.autoVerify.recommendation === 'APPROVE' ? 'approved' : metadata.autoVerify.recommendation === 'REJECT' ? 'rejected' : 'pending'}" style="font-size: 0.875rem;">
+                                        ${metadata.autoVerify.recommendation === 'APPROVE' ? '<i class="fas fa-check-circle"></i> Recommended: Approve' : metadata.autoVerify.recommendation === 'REJECT' ? '<i class="fas fa-times-circle"></i> Recommended: Reject' : '<i class="fas fa-clock"></i> Review Required'}
+                                    </span>
+                                    ${metadata.autoVerify.confidenceScore !== undefined ? `
+                                        <span style="font-weight: 600; color: ${metadata.autoVerify.confidenceScore >= 80 ? '#4caf50' : metadata.autoVerify.confidenceScore >= 60 ? '#ff9800' : '#f44336'};">
+                                            Confidence: ${metadata.autoVerify.confidenceScore}%
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                ${metadata.autoVerify.recommendationReason ? `
+                                    <div style="font-size: 0.875rem; color: #666;">
+                                        <strong>Reason:</strong> ${metadata.autoVerify.recommendationReason}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : metadata.autoVerified ? `
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="status-badge status-approved">
+                                    <i class="fas fa-check-circle"></i> Auto-Verified & Approved
+                                </span>
+                                ${metadata.notes ? `
+                                    <span style="font-size: 0.875rem; color: #666;">${metadata.notes}</span>
+                                ` : ''}
                             </div>
                         ` : ''}
                     </div>
-                    ${request.status === 'pending' ? `
-                        <div style="margin-top: 1.5rem; display: flex; gap: 10px;">
-                            <button class="btn-primary" onclick="startVerification('${request.id}'); closeModal('requestDetailsModal');">
-                                <i class="fas fa-check"></i> Start Verification
-                            </button>
-                        </div>
                     ` : ''}
-                `;
-            }
-        } catch (error) {
-            console.error('Error loading request details:', error);
-        }
-    }
-};
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 2px solid #e9ecef; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                ${(request.documents?.length > 0 || metadata.documents?.length > 0) ? `
+                    <button onclick="HPGRequests.viewDocument('${request.id}'); this.closest('.modal').remove();" class="btn-primary">
+                        <i class="fas fa-file-image"></i> View Documents
+                    </button>
+                ` : ''}
+                <button onclick="this.closest('.modal').remove()" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+window.viewDetails = viewDetails;
 
 // HPG Verification Module
 const HPGVerification = {
@@ -1002,154 +1060,6 @@ const HPGVerification = {
     }
 };
 
-// HPG Certificate Module
-const HPGCertificate = {
-    verifiedRequests: [],
-    currentRequest: null,
-
-    loadVerifiedRequests: async function() {
-        try {
-            // Placeholder: Replace with actual API call
-            // Example: const response = await APIClient.get('/api/hpg/requests?status=verified');
-            // const data = await response.json();
-            this.verifiedRequests = [];
-
-            const select = document.getElementById('requestSelect');
-            if (select) {
-                if (this.verifiedRequests.length === 0) {
-                    select.innerHTML = '<option value="">-- No verified requests available --</option>';
-                } else {
-                    select.innerHTML = '<option value="">-- Select a verified request --</option>' +
-                        this.verifiedRequests.map(req => 
-                            `<option value="${req.id}">${req.id} - ${req.plateNumber} (${req.ownerName})</option>`
-                        ).join('');
-                }
-            }
-        } catch (error) {
-            console.error('Error loading verified requests:', error);
-        }
-    },
-
-    loadRequestData: async function(requestId) {
-        try {
-            this.currentRequest = this.verifiedRequests.find(r => r.id === requestId);
-            if (!this.currentRequest) {
-                // Placeholder: Load from API if not in list
-                // Example: const response = await APIClient.get(`/api/hpg/requests/${requestId}`);
-                // this.currentRequest = await response.json();
-                this.currentRequest = null;
-            }
-
-            if (!this.currentRequest) {
-                // Clear certificate fields if no data
-                const certRequestIdEl = document.getElementById('certRequestId');
-                const certOwnerNameEl = document.getElementById('certOwnerName');
-                const certPlateNumberEl = document.getElementById('certPlateNumber');
-                const certVehicleTypeEl = document.getElementById('certVehicleType');
-                const certEngineNumberEl = document.getElementById('certEngineNumber');
-                const certChassisNumberEl = document.getElementById('certChassisNumber');
-                const certVerificationDateEl = document.getElementById('certVerificationDate');
-                const certVerifiedByEl = document.getElementById('certVerifiedBy');
-                const certMacroEtchingEl = document.getElementById('certMacroEtching');
-                
-                if (certRequestIdEl) certRequestIdEl.textContent = '-';
-                if (certOwnerNameEl) certOwnerNameEl.textContent = '-';
-                if (certPlateNumberEl) certPlateNumberEl.textContent = '-';
-                if (certVehicleTypeEl) certVehicleTypeEl.textContent = '-';
-                if (certEngineNumberEl) certEngineNumberEl.textContent = '-';
-                if (certChassisNumberEl) certChassisNumberEl.textContent = '-';
-                if (certVerificationDateEl) certVerificationDateEl.textContent = '-';
-                if (certVerifiedByEl) certVerifiedByEl.textContent = '-';
-                if (certMacroEtchingEl) certMacroEtchingEl.textContent = '-';
-                return;
-            }
-
-            // Populate certificate fields
-            const certRequestIdEl = document.getElementById('certRequestId');
-            const certOwnerNameEl = document.getElementById('certOwnerName');
-            const certPlateNumberEl = document.getElementById('certPlateNumber');
-            const certVehicleTypeEl = document.getElementById('certVehicleType');
-            const certEngineNumberEl = document.getElementById('certEngineNumber');
-            const certChassisNumberEl = document.getElementById('certChassisNumber');
-            const certVerificationDateEl = document.getElementById('certVerificationDate');
-            const certVerifiedByEl = document.getElementById('certVerifiedBy');
-            const certMacroEtchingEl = document.getElementById('certMacroEtching');
-            
-            if (certRequestIdEl) certRequestIdEl.textContent = this.currentRequest.id || '-';
-            if (certOwnerNameEl) certOwnerNameEl.textContent = this.currentRequest.ownerName || '-';
-            if (certPlateNumberEl) certPlateNumberEl.textContent = this.currentRequest.plateNumber || '-';
-            if (certVehicleTypeEl) certVehicleTypeEl.textContent = this.currentRequest.vehicleType || '-';
-            if (certEngineNumberEl) certEngineNumberEl.textContent = this.currentRequest.engineNumber || '-';
-            if (certChassisNumberEl) certChassisNumberEl.textContent = this.currentRequest.chassisNumber || '-';
-            if (certVerificationDateEl) certVerificationDateEl.textContent = this.currentRequest.verificationDate || '-';
-            if (certVerifiedByEl) certVerifiedByEl.textContent = this.currentRequest.verifiedBy || '-';
-            if (certMacroEtchingEl) certMacroEtchingEl.textContent = this.currentRequest.macroEtching || '-';
-
-            this.generatePreview();
-        } catch (error) {
-            console.error('Error loading request data:', error);
-        }
-    },
-
-    generatePreview: function() {
-        if (!this.currentRequest) return;
-
-        // Generate certificate number
-        const certNumber = `HPG-CERT-${String(this.currentRequest.id.split('-')[2]).padStart(3, '0')}`;
-
-        // Update preview fields
-        document.getElementById('previewCertNumber').textContent = certNumber;
-        document.getElementById('previewRequestId').textContent = this.currentRequest.id;
-        document.getElementById('previewOwnerName').textContent = this.currentRequest.ownerName;
-        document.getElementById('previewPlateNumber').textContent = this.currentRequest.plateNumber;
-        document.getElementById('previewVehicleType').textContent = this.currentRequest.vehicleType || '-';
-        document.getElementById('previewEngineNumber').textContent = this.currentRequest.engineNumber || '-';
-        document.getElementById('previewChassisNumber').textContent = this.currentRequest.chassisNumber || '-';
-        document.getElementById('previewVerificationDate').textContent = this.currentRequest.verificationDate || '-';
-        document.getElementById('previewVerifiedBy').textContent = this.currentRequest.verifiedBy || '-';
-
-        // Update confirmation modal
-        document.getElementById('confirmRequestId').textContent = this.currentRequest.id;
-        document.getElementById('confirmCertNumber').textContent = certNumber;
-    },
-
-    releaseCertificate: async function() {
-        try {
-            if (!this.currentRequest) {
-                alert('Please select a request first');
-                return;
-            }
-
-            const certificateData = {
-                requestId: this.currentRequest.id,
-                certificateNumber: `HPG-CERT-${String(this.currentRequest.id.split('-')[2]).padStart(3, '0')}`,
-                // Include certificate file if uploaded
-            };
-
-            // Placeholder: Replace with actual API call
-            // Example: await APIClient.post('/api/hpg/certificate/release', certificateData);
-
-            alert('Certificate released successfully and sent to LTO Admin!');
-            
-            // Log activity
-            this.logActivity('released', `Certificate ${certificateData.certificateNumber} released`);
-
-            // Close modal and redirect
-            document.getElementById('releaseModal').classList.remove('active');
-            window.location.href = 'hpg-admin-dashboard.html';
-        } catch (error) {
-            console.error('Error releasing certificate:', error);
-            if (typeof ErrorHandler !== 'undefined') {
-                ErrorHandler.handleAPIError(error);
-            }
-        }
-    },
-
-    logActivity: function(action, details) {
-        // Placeholder: Log activity to backend
-        console.log('Activity logged:', { action, details, requestId: this.currentRequest?.id });
-    }
-};
 
 // HPG Workflow Functions
 let hpgWorkflowState = {
@@ -1323,113 +1233,6 @@ document.addEventListener('DOMContentLoaded', function() {
     checkHPGWorkflowState();
 });
 
-// HPG Activity Logs Module
-const HPGLogs = {
-    logs: [],
-    filteredLogs: [],
-    currentPage: 1,
-    itemsPerPage: 10,
-
-    loadLogs: async function() {
-        try {
-            // Placeholder: Replace with actual API call
-            // Example: const response = await APIClient.get('/api/hpg/logs');
-            // const data = await response.json();
-            this.logs = [];
-
-            this.filteredLogs = [...this.logs];
-            this.renderTable();
-        } catch (error) {
-            console.error('Error loading logs:', error);
-        }
-    },
-
-    filterLogs: function() {
-        const actionFilter = document.getElementById('actionFilter')?.value || '';
-        const dateFrom = document.getElementById('dateFrom')?.value || '';
-        const dateTo = document.getElementById('dateTo')?.value || '';
-        const searchInput = document.getElementById('searchInput')?.value.toLowerCase() || '';
-
-        this.filteredLogs = this.logs.filter(log => {
-            const matchesAction = !actionFilter || log.action === actionFilter;
-            const matchesDate = (!dateFrom || log.date >= dateFrom) && (!dateTo || log.date <= dateTo);
-            const matchesSearch = !searchInput ||
-                log.requestId.toLowerCase().includes(searchInput) ||
-                log.adminName.toLowerCase().includes(searchInput) ||
-                log.details.toLowerCase().includes(searchInput);
-
-            return matchesAction && matchesDate && matchesSearch;
-        });
-
-        this.currentPage = 1;
-        this.renderTable();
-    },
-
-    renderTable: function() {
-        const tbody = document.getElementById('activityLogsTableBody');
-        if (!tbody) return;
-
-        const start = (this.currentPage - 1) * this.itemsPerPage;
-        const end = start + this.itemsPerPage;
-        const pageLogs = this.filteredLogs.slice(start, end);
-
-        if (pageLogs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">No logs found</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = pageLogs.map(log => {
-            const actionClass = `action-${log.action}`;
-            const actionIcons = {
-                verified: 'fa-check-circle',
-                rejected: 'fa-times-circle',
-                released: 'fa-certificate',
-                received: 'fa-inbox'
-            };
-            const actionLabels = {
-                verified: 'Verified',
-                rejected: 'Rejected',
-                released: 'Released Certificate',
-                received: 'Received Request'
-            };
-
-            return `
-                <tr>
-                    <td>${log.date}</td>
-                    <td>
-                        <span class="action-badge ${actionClass}">
-                            <i class="fas ${actionIcons[log.action]}"></i> ${actionLabels[log.action]}
-                        </span>
-                    </td>
-                    <td><strong>${log.requestId}</strong></td>
-                    <td>${log.adminName}</td>
-                    <td>${log.details}</td>
-                    <td><span class="status-badge status-${log.status}">${log.status.charAt(0).toUpperCase() + log.status.slice(1)}</span></td>
-                </tr>
-            `;
-        }).join('');
-
-        // Update pagination
-        const totalPages = Math.ceil(this.filteredLogs.length / this.itemsPerPage);
-        document.getElementById('currentPage').textContent = this.currentPage;
-        document.getElementById('totalPages').textContent = totalPages || 1;
-    },
-
-    previousPage: function() {
-        if (this.currentPage > 1) {
-            this.currentPage--;
-            this.renderTable();
-        }
-    },
-
-    nextPage: function() {
-        const totalPages = Math.ceil(this.filteredLogs.length / this.itemsPerPage);
-        if (this.currentPage < totalPages) {
-            this.currentPage++;
-            this.renderTable();
-        }
-    }
-};
 
 // Status tab filter (All/Pending/Approved/Rejected)
 HPGRequests.filterByStatus = function(status, btn) {

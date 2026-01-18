@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Generator - LTO Blockchain</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .form-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .form-tab {
+            padding: 1rem 2rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        .form-tab:hover {
+            color: #2196F3;
+        }
+        .form-tab.active {
+            color: #2196F3;
+            border-bottom-color: #2196F3;
+        }
+        .form-container {
+            display: none;
+        }
+        .form-container.active {
+            display: block;
+        }
+        .form-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .form-section h4 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .info-badge {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 12px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #1976d2;
+            margin-bottom: 20px;
+        }
+        .info-badge.success {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+            color: #2e7d32;
+        }
+        .info-badge.warning {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+            color: #e65100;
+        }
+        .info-badge.error {
+            background: #ffebee;
+            border-left-color: #f44336;
+            color: #c62828;
+        }
+        .certificate-status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+        }
+        .certificate-status.show {
+            display: block;
+        }
+        .certificate-item {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            border-left: 4px solid #2196F3;
+        }
+        .certificate-item.success {
+            border-left-color: #4caf50;
+        }
+        .certificate-item.error {
+            border-left-color: #f44336;
+        }
+        .certificate-item h5 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        .certificate-item p {
+            margin: 0.25rem 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .loading-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2196F3;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon" onclick="window.location.href='admin-dashboard.html'">
+                    <i class="fas fa-car"></i>
+                </div>
+                <div class="logo-text">
+                    <h2>LTO</h2>
+                    <p>Blockchain</p>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="certificate-generator.html" class="nav-item active">
+                    <i class="fas fa-certificate"></i>
+                    <span>Certificate Generator</span>
+                </a>
+                <a href="admin-settings.html" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <h1>Certificate Generator</h1>
+                    <p>Generate all certificates (Insurance, Emission, HPG, CSR) at once</p>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="container">
+                    <div class="dashboard-card">
+                        <div class="section-header">
+                            <h3><span class="card-icon">📋</span> Batch Certificate Generation</h3>
+                            <p class="subtitle">Generate all 4 certificates with consistent vehicle data</p>
+                        </div>
+
+                        <!-- Form Tabs -->
+                        <div class="form-tabs">
+                            <button class="form-tab active" onclick="switchForm('auto')">
+                                <i class="fas fa-magic"></i> Auto Generator
+                            </button>
+                            <button class="form-tab" onclick="switchForm('manual')">
+                                <i class="fas fa-edit"></i> Manual Entry
+                            </button>
+                        </div>
+
+                        <!-- Auto Generator Form -->
+                        <form id="autoGeneratorForm" class="form-container active">
+                            <div class="info-badge success">
+                                <strong><i class="fas fa-info-circle"></i> Auto Generator Mode:</strong> 
+                                Only name and email required. All vehicle data will be auto-generated with consistent values across all certificates.
+                            </div>
+
+                            <div class="form-section">
+                                <h4><i class="fas fa-user"></i> Owner Information</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="autoOwnerEmail">Owner Email *</label>
+                                        <input type="email" id="autoOwnerEmail" name="ownerEmail" required 
+                                               class="form-control" placeholder="owner@example.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="autoOwnerName">Owner Full Name *</label>
+                                        <input type="text" id="autoOwnerName" name="ownerName" required 
+                                               class="form-control" placeholder="Juan Dela Cruz">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="button-group" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                <button type="reset" class="btn btn-secondary">
+                                    <i class="fas fa-undo"></i> Clear
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Generate All Certificates
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Manual Entry Form -->
+                        <form id="manualGeneratorForm" class="form-container">
+                            <div class="info-badge warning">
+                                <strong><i class="fas fa-info-circle"></i> Manual Entry Mode:</strong> 
+                                Provide vehicle details for testing. All certificates will use the same vehicle data.
+                            </div>
+
+                            <div class="form-section">
+                                <h4><i class="fas fa-user"></i> Owner Information</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="manualOwnerEmail">Owner Email *</label>
+                                        <input type="email" id="manualOwnerEmail" name="ownerEmail" required 
+                                               class="form-control" placeholder="owner@example.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="manualOwnerName">Owner Full Name *</label>
+                                        <input type="text" id="manualOwnerName" name="ownerName" required 
+                                               class="form-control" placeholder="Juan Dela Cruz">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h4><i class="fas fa-car"></i> Vehicle Information</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="vehicleVIN">Vehicle VIN (17 characters)</label>
+                                        <input type="text" id="vehicleVIN" name="vehicleVIN" maxlength="17" 
+                                               class="form-control" placeholder="MHRVJ06P447611608">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="vehiclePlate">Plate Number</label>
+                                        <input type="text" id="vehiclePlate" name="vehiclePlate" 
+                                               class="form-control" placeholder="ABC-1234">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="vehicleMake">Make / Brand</label>
+                                        <input type="text" id="vehicleMake" name="vehicleMake" 
+                                               class="form-control" placeholder="Toyota">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="vehicleModel">Model</label>
+                                        <input type="text" id="vehicleModel" name="vehicleModel" 
+                                               class="form-control" placeholder="Vios">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="vehicleYear">Year</label>
+                                        <input type="number" id="vehicleYear" name="vehicleYear" 
+                                               class="form-control" placeholder="2026" min="1900" max="2100">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="engineNumber">Engine Number</label>
+                                        <input type="text" id="engineNumber" name="engineNumber" 
+                                               class="form-control" placeholder="2NR-FE123456">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="chassisNumber">Chassis Number</label>
+                                        <input type="text" id="chassisNumber" name="chassisNumber" 
+                                               class="form-control" placeholder="ABC1234567890">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="button-group" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                <button type="reset" class="btn btn-secondary">
+                                    <i class="fas fa-undo"></i> Clear
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Generate All Certificates
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Certificate Generation Status -->
+                        <div id="certificateStatus" class="certificate-status"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h3>Generating Certificates...</h3>
+            <p>Please wait while we generate all 4 certificates</p>
+        </div>
+    </div>
+
+    <script src="js/auth-manager.js"></script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script>
+        // Initialize AuthManager on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.authManager !== 'undefined') {
+                window.authManager.init().catch(error => {
+                    console.error('AuthManager init error:', error);
+                });
+            }
+
+            // Authentication check
+            if (typeof AuthUtils !== 'undefined') {
+                const user = AuthUtils.getCurrentUser();
+                if (!user) {
+                    console.log('❌ Not authenticated, redirecting to login...');
+                    window.location.href = 'login-signup.html';
+                    return;
+                }
+            }
+
+            // Initialize form handlers
+            initializeForms();
+        });
+
+        function switchForm(formType) {
+            // Update tabs
+            document.querySelectorAll('.form-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update forms
+            document.querySelectorAll('.form-container').forEach(form => form.classList.remove('active'));
+            if (formType === 'auto') {
+                document.getElementById('autoGeneratorForm').classList.add('active');
+            } else {
+                document.getElementById('manualGeneratorForm').classList.add('active');
+            }
+        }
+
+        function initializeForms() {
+            // Auto Generator Form
+            document.getElementById('autoGeneratorForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await generateCertificates('auto');
+            });
+
+            // Manual Generator Form
+            document.getElementById('manualGeneratorForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await generateCertificates('manual');
+            });
+        }
+
+        async function generateCertificates(formType) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const statusDiv = document.getElementById('certificateStatus');
+            
+            try {
+                // Show loading
+                loadingOverlay.classList.add('show');
+                statusDiv.classList.remove('show');
+                statusDiv.innerHTML = '';
+
+                // Get form data
+                let formData = {};
+                if (formType === 'auto') {
+                    const form = document.getElementById('autoGeneratorForm');
+                    formData = {
+                        ownerEmail: form.ownerEmail.value.trim(),
+                        ownerName: form.ownerName.value.trim()
+                    };
+                } else {
+                    const form = document.getElementById('manualGeneratorForm');
+                    formData = {
+                        ownerEmail: form.ownerEmail.value.trim(),
+                        ownerName: form.ownerName.value.trim(),
+                        vehicleVIN: form.vehicleVIN.value.trim() || undefined,
+                        vehiclePlate: form.vehiclePlate.value.trim() || undefined,
+                        vehicleMake: form.vehicleMake.value.trim() || undefined,
+                        vehicleModel: form.vehicleModel.value.trim() || undefined,
+                        vehicleYear: form.vehicleYear.value ? parseInt(form.vehicleYear.value) : undefined,
+                        engineNumber: form.engineNumber.value.trim() || undefined,
+                        chassisNumber: form.chassisNumber.value.trim() || undefined
+                    };
+                }
+
+                // Validate
+                if (!formData.ownerEmail || !formData.ownerName) {
+                    throw new Error('Owner email and name are required');
+                }
+
+                // Call API
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.post('/api/certificate-generation/batch/generate-all', formData);
+
+                // Hide loading
+                loadingOverlay.classList.remove('show');
+
+                // Display results
+                displayResults(response, formData);
+
+            } catch (error) {
+                console.error('Certificate generation error:', error);
+                loadingOverlay.classList.remove('show');
+                
+                statusDiv.classList.add('show');
+                statusDiv.className = 'certificate-status show';
+                statusDiv.innerHTML = `
+                    <div class="info-badge error">
+                        <strong><i class="fas fa-exclamation-circle"></i> Error:</strong> 
+                        ${error.message || 'Failed to generate certificates'}
+                    </div>
+                `;
+            }
+        }
+
+        function displayResults(response, formData) {
+            const statusDiv = document.getElementById('certificateStatus');
+            statusDiv.classList.add('show');
+
+            if (!response.success) {
+                statusDiv.innerHTML = `
+                    <div class="info-badge error">
+                        <strong><i class="fas fa-exclamation-circle"></i> Generation Failed:</strong> 
+                        ${response.error || 'Unknown error'}
+                    </div>
+                `;
+                return;
+            }
+
+            const { vehicleData, certificates, errors } = response;
+            const successCount = Object.keys(certificates || {}).length;
+            const hasErrors = errors && errors.length > 0;
+
+            let html = `
+                <div class="info-badge ${successCount === 4 ? 'success' : 'warning'}">
+                    <strong><i class="fas fa-${successCount === 4 ? 'check-circle' : 'exclamation-triangle'}"></i> 
+                    Generation ${successCount === 4 ? 'Complete' : 'Partial'}:</strong> 
+                    ${successCount} of 4 certificates generated successfully
+                </div>
+            `;
+
+            // Vehicle Data Summary
+            html += `
+                <div class="form-section">
+                    <h4><i class="fas fa-car"></i> Generated Vehicle Data</h4>
+                    <div class="form-row">
+                        <div><strong>VIN:</strong> ${vehicleData.vin}</div>
+                        <div><strong>Plate:</strong> ${vehicleData.plate}</div>
+                        <div><strong>Owner:</strong> ${vehicleData.ownerName}</div>
+                    </div>
+                </div>
+            `;
+
+            // Certificate Results
+            html += '<div class="form-section"><h4><i class="fas fa-certificate"></i> Certificate Results</h4>';
+
+            // Insurance
+            if (certificates.insurance) {
+                html += `
+                    <div class="certificate-item success">
+                        <h5><i class="fas fa-shield-alt"></i> Insurance Certificate</h5>
+                        <p><strong>Certificate Number:</strong> ${certificates.insurance.certificateNumber}</p>
+                        <p><strong>Status:</strong> <span style="color: #4caf50;">✓ Generated & Sent</span></p>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="certificate-item error">
+                        <h5><i class="fas fa-shield-alt"></i> Insurance Certificate</h5>
+                        <p><strong>Status:</strong> <span style="color: #f44336;">✗ Failed</span></p>
+                    </div>
+                `;
+            }
+
+            // Emission
+            if (certificates.emission) {
+                html += `
+                    <div class="certificate-item success">
+                        <h5><i class="fas fa-leaf"></i> Emission Certificate</h5>
+                        <p><strong>Certificate Number:</strong> ${certificates.emission.certificateNumber}</p>
+                        <p><strong>Status:</strong> <span style="color: #4caf50;">✓ Generated & Sent</span></p>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="certificate-item error">
+                        <h5><i class="fas fa-leaf"></i> Emission Certificate</h5>
+                        <p><strong>Status:</strong> <span style="color: #f44336;">✗ Failed</span></p>
+                    </div>
+                `;
+            }
+
+            // HPG
+            if (certificates.hpg) {
+                html += `
+                    <div class="certificate-item success">
+                        <h5><i class="fas fa-id-badge"></i> HPG Clearance</h5>
+                        <p><strong>Clearance Number:</strong> ${certificates.hpg.clearanceNumber}</p>
+                        <p><strong>Status:</strong> <span style="color: #4caf50;">✓ Generated & Sent</span></p>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="certificate-item error">
+                        <h5><i class="fas fa-id-badge"></i> HPG Clearance</h5>
+                        <p><strong>Status:</strong> <span style="color: #f44336;">✗ Failed</span></p>
+                    </div>
+                `;
+            }
+
+            // CSR
+            if (certificates.csr) {
+                html += `
+                    <div class="certificate-item success">
+                        <h5><i class="fas fa-file-alt"></i> CSR Certificate</h5>
+                        <p><strong>CSR Number:</strong> ${certificates.csr.csrNumber}</p>
+                        <p><strong>Status:</strong> <span style="color: #4caf50;">✓ Generated & Sent</span></p>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="certificate-item error">
+                        <h5><i class="fas fa-file-alt"></i> CSR Certificate</h5>
+                        <p><strong>Status:</strong> <span style="color: #f44336;">✗ Failed</span></p>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+
+            // Errors
+            if (hasErrors) {
+                html += `
+                    <div class="form-section">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Errors</h4>
+                        ${errors.map(err => `
+                            <div class="certificate-item error">
+                                <p><strong>${err.type}:</strong> ${err.error}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            statusDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

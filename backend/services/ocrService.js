@@ -1587,18 +1587,33 @@ class OCRService {
             }
             if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
             
-            // Plate Number - Handle all variations
+            // Plate Number - Handle all variations with improved patterns
             let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;  // Table format
             let plateMatches = text.match(platePattern);
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:]\s*([A-Z0-9\s\-]+)/i;  // Colon format
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;  // Colon/equals format
                 plateMatches = text.match(platePattern);
             }
             if (!plateMatches) {
-                platePattern = /\b([A-Z]{3}\s?\d{3,4}|[A-Z]\s?\d{3}\s?[A-Z]{2})\b/i;  // Standard format
+                // Philippine plate formats: ABC1234, ABC-1234, A123BC, A-123-BC, 1234ABC
+                platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
                 plateMatches = text.match(platePattern);
             }
-            if (plateMatches) extracted.plateNumber = plateMatches[1].replace(/\s/g, '-').toUpperCase().trim();
+            if (!plateMatches) {
+                // Fallback: Look for isolated alphanumeric near "Plate" keyword
+                const plateContext = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
+                plateMatches = text.match(plateContext);
+            }
+            if (plateMatches) {
+                let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
+                // Normalize to ABC-1234 or similar format
+                if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
+                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                }
+                extracted.plateNumber = plateValue;
+            }
             
             // MV File Number
             const mvFilePattern = /\b(\d{4}-\d{7,8})\b/;

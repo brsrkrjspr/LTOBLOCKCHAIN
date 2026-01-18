@@ -881,7 +881,8 @@ function updateReviewData() {
             'postal-id': 'Postal ID',
             'voters-id': "Voter’s ID",
             'sss-id': 'SSS ID',
-            'tin': 'TIN'
+            'tin': 'TIN',
+            'philhealth-id': 'PhilHealth ID'
         };
         displayIdType = idTypeMap[idType] || idType || '-';
     }
@@ -2094,18 +2095,20 @@ function autoFillFromOCRData(extractedData, documentType) {
         // Set the value
         let formattedValue = value.trim();
         
-        // Format plate number to ABC-1234 with hyphen (3 letters, hyphen, 3-4 numbers)
+        // STRICT plate number validation: ONLY accept ABC-1234 format (3 letters, 4 numbers)
         if (htmlInputId === 'plateNumber') {
             formattedValue = formattedValue.replace(/\s/g, '').toUpperCase();
-            // Remove existing hyphens first, then reformat
+            // Remove existing hyphens, then validate strict format
             formattedValue = formattedValue.replace(/-/g, '');
-            // Add hyphen for ABC-1234 format (3 letters, hyphen, 3-4 numbers)
+            
+            // STRICT validation: exactly 7 chars, 3 letters + 4 numbers
             if (formattedValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(formattedValue)) {
-                // ABC1234 -> ABC-1234
+                // Valid: ABC1234 -> ABC-1234
                 formattedValue = formattedValue.substring(0, 3) + '-' + formattedValue.substring(3);
-            } else if (formattedValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(formattedValue)) {
-                // ABC123 -> ABC-123
-                formattedValue = formattedValue.substring(0, 3) + '-' + formattedValue.substring(3);
+            } else {
+                // INVALID FORMAT - REJECT auto-fill completely
+                console.log(`[OCR AutoFill] REJECTED plate number - invalid format: "${formattedValue}" - must be ABC-1234 (3 letters, 4 numbers)`);
+                return; // Skip this field - do NOT auto-fill
             }
         }
         
@@ -2136,6 +2139,19 @@ function autoFillFromOCRData(extractedData, documentType) {
             inputElement.value = formattedValue;
         }
         inputElement.classList.add('ocr-auto-filled');
+        
+        // CRITICAL: For plate number, validate immediately after auto-fill
+        if (htmlInputId === 'plateNumber') {
+            // Trigger validation to catch any remaining issues
+            const isValid = validateField(inputElement);
+            if (isValid === false) {
+                console.warn(`[OCR AutoFill] Plate number auto-fill failed validation, clearing field`);
+                inputElement.value = '';
+                inputElement.classList.remove('ocr-auto-filled');
+                inputElement.classList.add('invalid');
+                return; // Skip event dispatch for invalid field
+            }
+        }
         
         // Trigger change and input events for any listeners (validation)
         inputElement.dispatchEvent(new Event('change', { bubbles: true }));

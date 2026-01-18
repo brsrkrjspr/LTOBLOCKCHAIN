@@ -1019,191 +1019,79 @@ class OCRService {
             });
             // #endregion
             
-            // Extract ID Type (from document headers or common patterns)
-            // Strategy 1: Check document title/header (first 200 chars) - most reliable
-            // Strategy 2: Check entire text with patterns
-            
-            const idTypeMap = {
-                'driver': 'drivers-license',
-                'license': 'drivers-license',
-                'dl': 'drivers-license',
-                'passport': 'passport',
-                'pp': 'passport',
-                'national': 'national-id',
-                'nid': 'national-id',
-                'philippine': 'national-id',
-                'philid': 'national-id',
-                'postal': 'postal-id',
-                'voter': 'voters-id',
-                'sss': 'sss-id',
-                'social': 'sss-id',
-                'security': 'sss-id'
-            };
-            
-            // Strategy 1: Scan document title/header (first 200 chars) - most reliable location
-            const documentHeader = (text && text.length > 0) ? text.substring(0, Math.min(200, text.length)).toUpperCase() : '';
-            const headerPatterns = [
-                // Driver's License patterns (most common)
-                /DRIVER['\s]*S?\s*LICENSE/i,
-                /DRIVER\s*LICENSE/i,
-                /\bDL\b/i,
-                /\bLICENSE\b/i,
-                // Passport
-                /PASSPORT/i,
-                /\bPP\b/i,
-                // National ID
-                /NATIONAL\s*ID/i,
-                /\bNID\b/i,
-                /PHILIPPINE\s*IDENTIFICATION/i,
-                /PHILID/i,
-                // Postal ID
-                /POSTAL\s*ID/i,
-                // Voter's ID
-                /VOTER['\s]*S?\s*ID/i,
-                /VOTER['\s]*S?\s*REGISTRATION/i,
-                // SSS ID
-                /SSS\s*ID/i,
-                /SOCIAL\s*SECURITY/i
+            // Extract ID Type using PATTERN-FIRST detection ordered by uniqueness/specificity
+            // This prevents false positives by checking most specific patterns first
+            const idNumberPatterns = [
+                // 1. National ID: 4-4-4-4 format (16 digits) - MOST SPECIFIC
+                { pattern: /^(\d{4})\s*[-]?\s*(\d{4})\s*[-]?\s*(\d{4})\s*[-]?\s*(\d{4})$/, type: 'national-id', description: 'National ID (4-4-4-4)' },
+                // 2. PhilHealth: 2-7-2 format (11 digits) - HIGHLY SPECIFIC
+                { pattern: /(\d{2})\s*[-]?\s*(\d{7})\s*[-]?\s*(\d{2})/, type: 'philhealth-id', description: 'PhilHealth ID (2-7-2)' },
+                // 3. SSS: 2-7-1 format (10 digits) - HIGHLY SPECIFIC
+                { pattern: /(\d{2})\s*[-]?\s*(\d{7})\s*[-]?\s*(\d{1})/, type: 'sss-id', description: 'SSS ID (2-7-1)' },
+                // 4. Driver's License: [A-Z]2-2-6+ format - SPECIFIC (letter prefix required)
+                { pattern: /([A-Z])\s*[-]?\s*(\d{2})\s*[-]?\s*(\d{2})\s*[-]?\s*(\d{6,})/, type: 'drivers-license', description: "Driver's License ([A-Z]2-2-6+)" },
+                // 5. TIN: 3-3-3-3 format (12 digits) - SPECIFIC
+                { pattern: /(\d{3})\s*[-]?\s*(\d{3})\s*[-]?\s*(\d{3})\s*[-]?\s*(\d{3})/, type: 'tin', description: 'TIN (3-3-3-3)' },
+                // 6. Voter's ID: 4-4-4 format (12 digits) - MEDIUM SPECIFICITY
+                { pattern: /(\d{4})\s*[-]?\s*(\d{4})\s*[-]?\s*(\d{4})/, type: 'voters-id', description: "Voter's ID (4-4-4)" },
+                // 7. Postal ID: Postal code format - LOW SPECIFICITY, checked before generic Passport
+                { pattern: /\b([A-Z]{1,2}\d{6})\b/, type: 'postal-id', description: 'Postal ID' },
+                // 8. Passport: 2 letters + 7 digits - MOST GENERIC (check last)
+                { pattern: /^([A-Z]{2})(\d{7})$/, type: 'passport', description: 'Passport (AA1234567)' }
             ];
             
-            // #region agent log
-            console.log('[OCR Debug] Strategy 1: Scanning document header (first 200 chars) for ID Type');
-            console.log('[OCR Debug] Document header preview:', documentHeader.substring(0, 100));
-            // #endregion
-            
-            let foundInHeader = false;
-            try {
-                for (let i = 0; i < headerPatterns.length && !foundInHeader; i++) {
-                    const pattern = headerPatterns[i];
-                    if (!documentHeader || typeof documentHeader !== 'string') break;
-                    const match = documentHeader.match(pattern);
-                    if (match && match[0]) {
-                        const matchedText = match[0].toLowerCase();
-                        // #region agent log
-                        console.log('[OCR Debug] ID Type found in document header:', {
-                            patternIndex: i,
-                            pattern: pattern.toString(),
-                            matchedText,
-                            matchContext: documentHeader.substring(Math.max(0, match.index - 20), Math.min(documentHeader.length, match.index + match[0].length + 20))
-                        });
-                        // #endregion
-                        for (const [key, value] of Object.entries(idTypeMap)) {
-                            if (matchedText.includes(key)) {
-                                extracted.idType = value;
-                                foundInHeader = true;
-                                // #region agent log
-                                console.log('[OCR Debug] ID Type extracted from header successfully:', {
-                                    matchedText,
-                                    key,
-                                    value,
-                                    idType: extracted.idType
-                                });
-                                // #endregion
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (headerError) {
-                console.error('[OCR Debug] ERROR in header ID type extraction:', {
-                    error: headerError.message,
-                    errorName: headerError.name
-                });
-                // Continue - header extraction failure is not critical
-            }
-            
-            // Strategy 2: If not found in header, scan entire text
-            if (!extracted.idType) {
-                // #region agent log
-                console.log('[OCR Debug] Strategy 2: ID Type not found in header, scanning entire text');
-                // #endregion
-                
-                const idTypePatterns = [
-                    // Driver's License patterns (most common)
-                    /DRIVER['\s]*S?\s*LICENSE/i,
-                    /DRIVER\s*LICENSE/i,
-                    /\bDL\b/i,
-                    /\bLICENSE\b/i,
-                    // Passport
-                    /PASSPORT/i,
-                    /\bPP\b/i,
-                    // National ID
-                    /NATIONAL\s*ID/i,
-                    /\bNID\b/i,
-                    /PHILIPPINE\s*IDENTIFICATION/i,
-                    /PHILID/i,
-                    // Postal ID
-                    /POSTAL\s*ID/i,
-                    // Voter's ID
-                    /VOTER['\s]*S?\s*ID/i,
-                    /VOTER['\s]*S?\s*REGISTRATION/i,
-                    // SSS ID
-                    /SSS\s*ID/i,
-                    /SOCIAL\s*SECURITY/i
+            // Try to extract ID number and determine type from format
+            const extractedNumbers = [];
+            if (text && typeof text === 'string') {
+                // Extract all potential ID numbers from text
+                const numberPatterns = [
+                    /(\d{4})[-\s](\d{4})[-\s](\d{4})[-\s](\d{4})/g,  // 4-4-4-4
+                    /(\d{2})[-\s](\d{7})[-\s](\d{2})/g,                 // 2-7-2
+                    /(\d{2})[-\s](\d{7})[-\s](\d{1})/g,                 // 2-7-1
+                    /([A-Z])[-\s](\d{2})[-\s](\d{2})[-\s](\d{6,})/g,   // [A-Z]2-2-6+
+                    /(\d{3})[-\s](\d{3})[-\s](\d{3})[-\s](\d{3})/g,     // 3-3-3-3
+                    /(\d{4})[-\s](\d{4})[-\s](\d{4})/g,                 // 4-4-4
+                    /([A-Z]{1,2}\d{6})/g,                               // Postal
+                    /([A-Z]{2})(\d{7})/g                                // Passport
                 ];
                 
-                // #region agent log
-                console.log('[OCR Debug] Attempting ID Type extraction with', idTypePatterns.length, 'patterns on full text');
-                // #endregion
-                
-                try {
-                    for (let i = 0; i < idTypePatterns.length; i++) {
-                        const pattern = idTypePatterns[i];
-                        if (!text || typeof text !== 'string') break;
-                        const match = text.match(pattern);
-                        
-                        // #region agent log
-                        if (!match && i === 0) {
-                            // Log first pattern attempt for debugging
-                            console.log('[OCR Debug] ID Type pattern attempt', i + 1, ':', {
-                                pattern: pattern.toString(),
-                                matched: false
-                            });
-                        }
-                        // #endregion
-                        
-                        if (match && match[0]) {
-                            const matchedText = match[0].toLowerCase();
-                            // #region agent log
-                            console.log('[OCR Debug] ID Type pattern matched in full text:', {
-                                patternIndex: i,
-                                pattern: pattern.toString(),
-                                matchedText,
-                                matchContext: text.substring(Math.max(0, match.index - 20), Math.min(text.length, match.index + match[0].length + 20))
-                            });
-                            // #endregion
-                            for (const [key, value] of Object.entries(idTypeMap)) {
-                                if (matchedText.includes(key)) {
-                                    extracted.idType = value;
-                                    // #region agent log
-                                    console.log('[OCR Debug] ID Type extracted from full text successfully:', {
-                                        matchedText,
-                                        key,
-                                        value,
-                                        idType: extracted.idType
-                                    });
-                                    // #endregion
-                                    break;
-                                }
-                            }
-                            if (extracted.idType) break;
-                        }
+                for (const pattern of numberPatterns) {
+                    let match;
+                    while ((match = pattern.exec(text)) !== null) {
+                        extractedNumbers.push(match[0]);
                     }
-                } catch (idTypeError) {
-                    console.error('[OCR Debug] ERROR in ID type extraction:', {
-                        error: idTypeError.message,
-                        errorName: idTypeError.name
-                    });
-                    // Continue - ID type extraction failure is not critical
                 }
             }
             
-            // #region agent log
-            if (!extracted.idType) {
-                console.log('[OCR Debug] ID Type not found after trying all strategies. Text sample:', text ? text.substring(0, 500) : 'NO TEXT');
-                console.log('[OCR Debug] Normalized text sample (for pattern debugging):', text ? text.toUpperCase().replace(/\s+/g, ' ').substring(0, 500) : 'NO TEXT');
+            // Determine ID type from extracted number using ordered pattern matching
+            if (extractedNumbers.length > 0) {
+                for (const numberStr of extractedNumbers) {
+                    for (const patternObj of idNumberPatterns) {
+                        if (patternObj.pattern.test(numberStr)) {
+                            extracted.idType = patternObj.type;
+                            // #region agent log
+                            console.log('[OCR Debug] ID Type detected by pattern matching:', {
+                                numberStr,
+                                pattern: patternObj.description,
+                                idType: extracted.idType
+                            });
+                            // #endregion
+                            break;
+                        }
+                    }
+                    if (extracted.idType) break; // Stop after first match
+                }
             }
-            // #endregion
+            
+            // Fallback: If no ID type detected from patterns, log for debugging
+            if (!extracted.idType) {
+                // #region agent log
+                console.log('[OCR Debug] ID Type not determined from pattern matching. No recognized ID format found in:', {
+                    textPreview: text ? text.substring(0, 300) : 'NO TEXT',
+                    extractedNumbers: extractedNumbers
+                });
+                // #endregion
+            }
             
             // Extract ID Number with format validation
             // #region agent log
@@ -1748,49 +1636,44 @@ class OCRService {
             const vinMatches = text.match(vinPattern);
             if (vinMatches) extracted.vin = vinMatches[0].trim();
             
-            // Engine Number
-            const enginePattern = /(?:Engine|Motor)\s*No\.?[\s:.]*([A-Z0-9\-]+)/i;
-            const engineMatches = text.match(enginePattern);
-            if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
-            
-            // Plate Number - Cascading patterns (similar to body type extraction)
-            // Pattern 1: Table format with label
-            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9\s\-]+)/i;
+            // Plate Number - STRICT VALIDATION: Only ABC-1234 format (3 letters, 4 numbers)
+            // Pattern 1: Table format with label - extract and validate
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*\|\s*([A-Z]{3}[\s-]?\d{4})/i;
             let plateMatches = text.match(platePattern);
             
             // Pattern 2: Colon format with label
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9\s\-]+)/i;
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z]{3}[\s-]?\d{4})/i;
                 plateMatches = text.match(platePattern);
             }
             
             // Pattern 3: Context-based (look near keywords)
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z0-9]{6,8})/i;
+                platePattern = /(?:Plate|Registration|License)[\s\S]{0,30}([A-Z]{3}[\s-]?\d{4})/i;
                 plateMatches = text.match(platePattern);
             }
             
-            // Pattern 4: Philippine formats standalone (fallback)
+            // Pattern 4: Standalone ABC-1234 format ONLY (strict)
             if (!plateMatches) {
-                platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
+                platePattern = /\b([A-Z]{3}[\s-]?\d{4})\b/;
                 plateMatches = text.match(platePattern);
             }
             
             if (plateMatches) {
                 let plateValue = plateMatches[1].replace(/\s/g, '').toUpperCase().trim();
-                // Normalize to ABC-1234 format (3 letters, hyphen, 4 numbers)
+                // Validate STRICT format: ABC1234 (3 letters + 4 numbers = 7 chars)
                 if (plateValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(plateValue)) {
-                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
-                } else if (plateValue.length === 6 && /^[A-Z]{3}\d{3}$/.test(plateValue)) {
-                    plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
-                } else if (plateValue.includes('-')) {
-                    // Already has hyphen, just normalize
-                    plateValue = plateValue.replace(/-/g, '');
-                    if (plateValue.length >= 6 && /^[A-Z]{3}/.test(plateValue)) {
-                        plateValue = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
-                    }
+                    // Valid: normalize to ABC-1234 format
+                    extracted.plateNumber = plateValue.substring(0, 3) + '-' + plateValue.substring(3);
+                    // #region agent log
+                    console.log('[OCR] Plate number extracted (valid format):', extracted.plateNumber);
+                    // #endregion
+                } else {
+                    // Invalid format - REJECT, do NOT extract
+                    // #region agent log
+                    console.log('[OCR] Plate number REJECTED (invalid format):', plateValue, '- expected ABC-1234 format');
+                    // #endregion
                 }
-                extracted.plateNumber = plateValue;
             }
             
             // Chassis Number

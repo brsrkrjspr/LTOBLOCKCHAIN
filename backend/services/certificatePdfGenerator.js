@@ -271,7 +271,7 @@ class CertificatePdfGenerator {
             });
 
             // Wait a bit more to ensure all fonts and resources are loaded
-            await page.waitForTimeout(500);
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
@@ -420,7 +420,7 @@ class CertificatePdfGenerator {
             });
 
             // Wait a bit more to ensure all fonts and resources are loaded
-            await page.waitForTimeout(500);
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
@@ -541,7 +541,7 @@ class CertificatePdfGenerator {
             });
 
             // Wait a bit more to ensure all fonts and resources are loaded
-            await page.waitForTimeout(500);
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
@@ -716,7 +716,7 @@ class CertificatePdfGenerator {
             });
 
             // Wait a bit more to ensure all fonts and resources are loaded
-            await page.waitForTimeout(500);
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const pdfBuffer = await page.pdf({
                 format: 'Letter',

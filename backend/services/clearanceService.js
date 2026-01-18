@@ -724,6 +724,18 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy) {
             
             console.log(`[Auto-Verify→Insurance] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
             
+            // Update clearance request status if auto-approved
+            if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
+                await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
+                    verifiedBy: 'system',
+                    verifiedAt: new Date().toISOString(),
+                    notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
+                    autoVerified: true,
+                    autoVerificationResult
+                });
+                console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+            }
+            
             // Add auto-verification result to history
             if (autoVerificationResult.automated) {
                 await db.addVehicleHistory({
@@ -860,6 +872,18 @@ async function sendToEmission(vehicleId, vehicle, allDocuments, requestedBy) {
             );
             
             console.log(`[Auto-Verify→Emission] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+            
+            // Update clearance request status if auto-approved
+            if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
+                await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
+                    verifiedBy: 'system',
+                    verifiedAt: new Date().toISOString(),
+                    notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
+                    autoVerified: true,
+                    autoVerificationResult
+                });
+                console.log(`[Auto-Verify→Emission] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+            }
             
             // Add auto-verification result to history
             if (autoVerificationResult.automated !== false) {

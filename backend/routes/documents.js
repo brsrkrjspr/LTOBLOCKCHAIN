@@ -796,7 +796,7 @@ router.get('/:documentId', authenticateToken, async (req, res) => {
         // Check permission - Allow: admins, vehicle owners, and verifiers (for verification purposes)
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
         
         // Debug logging (temporary)
         if (process.env.NODE_ENV === 'development') {
@@ -893,7 +893,7 @@ router.get('/:documentId/download', authenticateToken, async (req, res) => {
         // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
@@ -982,7 +982,7 @@ router.get('/:documentId/view', authenticateToken, async (req, res) => {
         // Check permission - Allow: admins, vehicle owners, and verifiers
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({

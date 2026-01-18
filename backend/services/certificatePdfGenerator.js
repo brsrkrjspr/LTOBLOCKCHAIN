@@ -198,6 +198,11 @@ class CertificatePdfGenerator {
         const {
             ownerName,
             vehicleVIN,
+            vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            engineNumber,
+            chassisNumber,
             policyNumber,
             coverageType,
             coverageAmount,
@@ -267,11 +272,39 @@ class CertificatePdfGenerator {
             `$1${ownerName}$2`
         );
         
+        // Make / Brand - match the full line
+        const finalMake = vehicleMake || 'Toyota';
+        htmlTemplate = htmlTemplate.replace(
+            /(Make \/ Brand: <input value=")[^"]*(")/,
+            `$1${finalMake}$2`
+        );
+        
+        // Model - match the full line
+        const finalModel = vehicleModel || 'Vios';
+        htmlTemplate = htmlTemplate.replace(
+            /(Model: <input value=")[^"]*(")/,
+            `$1${finalModel}$2`
+        );
+        
+        // Engine No. - match the full line
+        const finalEngineNumber = engineNumber || this.generateRandomEngineNumber();
+        htmlTemplate = htmlTemplate.replace(
+            /(Engine No\.: <input class="wide" value=")[^"]*(")/,
+            `$1${finalEngineNumber}$2`
+        );
+        
         // Chassis No. (VIN) - match the full line (use provided or generate random)
-        const finalVIN = vehicleVIN || this.generateRandomVIN();
+        const finalVIN = vehicleVIN || chassisNumber || this.generateRandomVIN();
         htmlTemplate = htmlTemplate.replace(
             /(Chassis No\.: <input class="wide" value=")[^"]*(")/,
             `$1${finalVIN}$2`
+        );
+        
+        // Plate No. - match the full line
+        const finalPlate = vehiclePlate || 'To be issued';
+        htmlTemplate = htmlTemplate.replace(
+            /(Plate No\.: <input value=")[^"]*(")/,
+            `$1${finalPlate}$2`
         );
 
         // Inline CSS for Insurance certificate
@@ -341,6 +374,13 @@ class CertificatePdfGenerator {
             ownerName,
             vehicleVIN,
             vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            bodyType,
+            color,
+            engineNumber,
+            fuelType,
             certificateNumber,
             testDate,
             expiryDate,
@@ -374,6 +414,43 @@ class CertificatePdfGenerator {
             `id="owner-name" class="editable-field" value="${ownerName}" data-field="owner-name"`
         );
         
+        // Make / Model
+        const finalMake = vehicleMake || 'Toyota';
+        const finalModel = vehicleModel || 'Vios';
+        const makeModel = `${finalMake} ${finalModel}`;
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-make"[^>]*value="[^"]*"/,
+            `id="vehicle-make" class="editable-field" value="${makeModel}" data-field="vehicle-make"`
+        );
+        
+        // Year Model
+        const finalYear = vehicleYear || new Date().getFullYear();
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-year"[^>]*value="[^"]*"/,
+            `id="vehicle-year" class="editable-field" value="${finalYear}" data-field="vehicle-year"`
+        );
+        
+        // Body Type
+        const finalBodyType = bodyType || 'Sedan';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-body"[^>]*value="[^"]*"/,
+            `id="vehicle-body" class="editable-field" value="${finalBodyType}" data-field="vehicle-body"`
+        );
+        
+        // Color
+        const finalColor = color || 'White';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-color"[^>]*value="[^"]*"/,
+            `id="vehicle-color" class="editable-field" value="${finalColor}" data-field="vehicle-color"`
+        );
+        
+        // Engine No.
+        const finalEngineNumber = engineNumber || this.generateRandomEngineNumber();
+        htmlTemplate = htmlTemplate.replace(
+            /id="engine-no"[^>]*value="[^"]*"/,
+            `id="engine-no" class="editable-field" value="${finalEngineNumber}" data-field="engine-no"`
+        );
+        
         // Chassis / VIN (use provided or generate random)
         const finalVIN = vehicleVIN || this.generateRandomVIN();
         htmlTemplate = htmlTemplate.replace(
@@ -386,6 +463,13 @@ class CertificatePdfGenerator {
         htmlTemplate = htmlTemplate.replace(
             /id="plate-no"[^>]*value="[^"]*"/,
             `id="plate-no" class="editable-field" value="${finalPlate}" data-field="plate-no"`
+        );
+        
+        // Fuel Type
+        const finalFuelType = fuelType || 'Gasoline';
+        htmlTemplate = htmlTemplate.replace(
+            /id="fuel-type"[^>]*value="[^"]*"/,
+            `id="fuel-type" class="editable-field" value="${finalFuelType}" data-field="fuel-type"`
         );
         
         // Test Results - CO Level
@@ -492,6 +576,12 @@ class CertificatePdfGenerator {
             ownerName,
             vehicleVIN,
             vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            bodyType,
+            color,
+            engineNumber,
             clearanceNumber,
             issueDate,
             verificationDetails
@@ -528,6 +618,43 @@ class CertificatePdfGenerator {
         htmlTemplate = htmlTemplate.replace(
             /id="owner-name"[^>]*value="[^"]*"/,
             `id="owner-name" class="editable-field" value="${ownerName}"`
+        );
+        
+        // Make / Model
+        const finalMake = vehicleMake || 'Toyota';
+        const finalModel = vehicleModel || 'Vios';
+        const makeModel = `${finalMake} ${finalModel}`;
+        htmlTemplate = htmlTemplate.replace(
+            /id="make-model"[^>]*value="[^"]*"/,
+            `id="make-model" class="editable-field" value="${makeModel}"`
+        );
+        
+        // Year Model
+        const finalYear = vehicleYear || new Date().getFullYear();
+        htmlTemplate = htmlTemplate.replace(
+            /id="year-model"[^>]*value="[^"]*"/,
+            `id="year-model" class="editable-field" value="${finalYear}"`
+        );
+        
+        // Body Type
+        const finalBodyType = bodyType || 'Sedan';
+        htmlTemplate = htmlTemplate.replace(
+            /id="body-type"[^>]*value="[^"]*"/,
+            `id="body-type" class="editable-field" value="${finalBodyType}"`
+        );
+        
+        // Color
+        const finalColor = color || 'White';
+        htmlTemplate = htmlTemplate.replace(
+            /id="color"[^>]*value="[^"]*"/,
+            `id="color" class="editable-field" value="${finalColor}"`
+        );
+        
+        // Engine Number
+        const finalEngineNumber = engineNumber || this.generateRandomEngineNumber();
+        htmlTemplate = htmlTemplate.replace(
+            /id="engine-number"[^>]*value="[^"]*"/,
+            `id="engine-number" class="editable-field" value="${finalEngineNumber}"`
         );
         
         // Chassis / VIN (use provided or generate random)
@@ -672,16 +799,18 @@ class CertificatePdfGenerator {
             `Date Issued: <input type="date" id="dateIssued" value="${issuanceDate || new Date().toISOString().split('T')[0]}">`
         );
         
-        // Make / Brand
+        // Make / Brand (use provided or default)
+        const finalMake = vehicleMake || 'Toyota';
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Make \/ Brand<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Make / Brand</td><td><input type="text" value="${vehicleMake || 'Toyota'}"`
+            `<tr><td>Make / Brand</td><td><input type="text" value="${finalMake}"`
         );
         
-        // Model / Series
+        // Model / Series (use provided or default)
+        const finalModel = vehicleModel || 'Corolla Altis';
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Model \/ Series<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Model / Series</td><td><input type="text" value="${vehicleModel || 'Corolla Altis'}"`
+            `<tr><td>Model / Series</td><td><input type="text" value="${finalModel}"`
         );
         
         // Variant / Type
@@ -690,28 +819,32 @@ class CertificatePdfGenerator {
             `<tr><td>Variant / Type</td><td><input type="text" value="${vehicleVariant || '1.8 G CVT'}"`
         );
         
-        // Year Model
+        // Year Model (use provided or default)
+        const finalYear = vehicleYear || new Date().getFullYear();
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Year Model<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Year Model</td><td><input type="text" value="${vehicleYear || '2025'}"`
+            `<tr><td>Year Model</td><td><input type="text" value="${finalYear}"`
         );
         
-        // Body Type
+        // Body Type (use provided or default)
+        const finalBodyType = bodyType || 'Sedan';
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Body Type<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Body Type</td><td><input type="text" value="${bodyType || 'Sedan'}"`
+            `<tr><td>Body Type</td><td><input type="text" value="${finalBodyType}"`
         );
         
-        // Color
+        // Color (use provided or default)
+        const finalColor = color || 'White';
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Color<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Color</td><td><input type="text" value="${color || 'White'}"`
+            `<tr><td>Color</td><td><input type="text" value="${finalColor}"`
         );
         
-        // Fuel Type
+        // Fuel Type (use provided or default)
+        const finalFuelType = fuelType || 'Gasoline';
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Fuel Type<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Fuel Type</td><td><input type="text" value="${fuelType || 'Gasoline'}"`
+            `<tr><td>Fuel Type</td><td><input type="text" value="${finalFuelType}"`
         );
         
         // Engine Number (use provided or generate random)

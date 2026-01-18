@@ -706,6 +706,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             vehicleYear,
             engineNumber,
             chassisNumber,
+            bodyType,
+            color,
+            fuelType,
             // Optional certificate-specific overrides
             insurance,
             emission,
@@ -741,15 +744,87 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
         console.log(`[Batch Certificate Generation] Starting for owner: ${ownerName} (${ownerEmail})`);
 
         // Generate shared vehicle data (same for all certificates)
+        // If VIN/plate not provided, generate random ones and ensure they don't exist
+        let finalVIN = vehicleVIN;
+        let finalPlate = vehiclePlate;
+
+        // Check for duplicate VIN if provided, or generate unique one
+        if (!finalVIN) {
+            // Generate random VIN and check for duplicates (max 10 attempts)
+            let attempts = 0;
+            let existingVehicle = null;
+            do {
+                finalVIN = certificatePdfGenerator.generateRandomVIN();
+                existingVehicle = await db.getVehicleByVin(finalVIN);
+                attempts++;
+                if (attempts >= 10) {
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Failed to generate unique VIN after multiple attempts. Please provide a VIN manually.'
+                    });
+                }
+            } while (existingVehicle);
+            console.log(`[Batch] Generated unique VIN: ${finalVIN} (attempts: ${attempts})`);
+        } else {
+            // Check if provided VIN already exists
+            const existingVehicle = await db.getVehicleByVin(finalVIN);
+            if (existingVehicle) {
+                return res.status(409).json({
+                    success: false,
+                    error: `Vehicle with VIN ${finalVIN} already exists in the system`
+                });
+            }
+            console.log(`[Batch] Using provided VIN: ${finalVIN}`);
+        }
+
+        // Check for duplicate plate if provided, or generate unique one
+        if (!finalPlate) {
+            // Generate random plate and check for duplicates (max 10 attempts)
+            let attempts = 0;
+            let existingVehicle = null;
+            do {
+                finalPlate = certificatePdfGenerator.generateRandomPlateNumber();
+                const plateCheck = await db.query(
+                    'SELECT id FROM vehicles WHERE plate_number = $1',
+                    [finalPlate]
+                );
+                existingVehicle = plateCheck.rows && plateCheck.rows.length > 0 ? plateCheck.rows[0] : null;
+                attempts++;
+                if (attempts >= 10) {
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Failed to generate unique plate number after multiple attempts. Please provide a plate number manually.'
+                    });
+                }
+            } while (existingVehicle);
+            console.log(`[Batch] Generated unique plate: ${finalPlate} (attempts: ${attempts})`);
+        } else {
+            // Check if provided plate already exists
+            const plateCheck = await db.query(
+                'SELECT id FROM vehicles WHERE plate_number = $1',
+                [finalPlate]
+            );
+            if (plateCheck.rows && plateCheck.rows.length > 0) {
+                return res.status(409).json({
+                    success: false,
+                    error: `Vehicle with plate number ${finalPlate} already exists in the system`
+                });
+            }
+            console.log(`[Batch] Using provided plate: ${finalPlate}`);
+        }
+
         const sharedVehicleData = {
-            vin: vehicleVIN || certificatePdfGenerator.generateRandomVIN(),
-            plate: vehiclePlate || certificatePdfGenerator.generateRandomPlateNumber(),
+            vin: finalVIN,
+            plate: finalPlate,
             ownerName: ownerName,
             make: vehicleMake || 'Toyota',
             model: vehicleModel || 'Vios',
             year: vehicleYear || new Date().getFullYear(),
             engineNumber: engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
-            chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber()
+            chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber(),
+            bodyType: bodyType || 'Sedan',
+            color: color || 'White',
+            fuelType: fuelType || 'Gasoline'
         };
 
         // Common issuance date (same for all certificates)
@@ -799,6 +874,11 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             const insuranceData = {
                 ownerName: sharedVehicleData.ownerName,
                 vehicleVIN: sharedVehicleData.vin,
+                vehiclePlate: sharedVehicleData.plate,
+                vehicleMake: sharedVehicleData.make,
+                vehicleModel: sharedVehicleData.model,
+                engineNumber: sharedVehicleData.engineNumber,
+                chassisNumber: sharedVehicleData.chassisNumber,
                 policyNumber: certificateNumbers.insurance,
                 coverageType: insurance?.coverageType || 'CTPL',
                 coverageAmount: insurance?.coverageAmount || 'PHP 200,000 / PHP 50,000',
@@ -873,6 +953,13 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                 ownerName: sharedVehicleData.ownerName,
                 vehicleVIN: sharedVehicleData.vin,
                 vehiclePlate: sharedVehicleData.plate,
+                vehicleMake: sharedVehicleData.make,
+                vehicleModel: sharedVehicleData.model,
+                vehicleYear: sharedVehicleData.year,
+                bodyType: sharedVehicleData.bodyType,
+                color: sharedVehicleData.color,
+                engineNumber: sharedVehicleData.engineNumber,
+                fuelType: sharedVehicleData.fuelType,
                 certificateNumber: certificateNumbers.emission,
                 testDate: emission?.testDate || issuanceDate,
                 expiryDate: emissionExpiryDate,
@@ -950,6 +1037,12 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                 ownerName: sharedVehicleData.ownerName,
                 vehicleVIN: sharedVehicleData.vin,
                 vehiclePlate: sharedVehicleData.plate,
+                vehicleMake: sharedVehicleData.make,
+                vehicleModel: sharedVehicleData.model,
+                vehicleYear: sharedVehicleData.year,
+                bodyType: sharedVehicleData.bodyType,
+                color: sharedVehicleData.color,
+                engineNumber: sharedVehicleData.engineNumber,
                 clearanceNumber: certificateNumbers.hpg,
                 issueDate: hpgIssueDate,
                 verificationDetails: hpg?.verificationDetails || {
@@ -1025,9 +1118,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                 vehicleModel: sharedVehicleData.model,
                 vehicleVariant: csr?.vehicleVariant,
                 vehicleYear: sharedVehicleData.year,
-                bodyType: csr?.bodyType,
-                color: csr?.color,
-                fuelType: csr?.fuelType,
+                bodyType: sharedVehicleData.bodyType,
+                color: sharedVehicleData.color,
+                fuelType: sharedVehicleData.fuelType,
                 engineNumber: sharedVehicleData.engineNumber,
                 vehicleVIN: sharedVehicleData.vin,
                 issuanceDate: csrIssuanceDate

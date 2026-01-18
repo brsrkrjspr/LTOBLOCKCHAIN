@@ -1023,17 +1023,49 @@ router.post('/register', optionalAuth, async (req, res) => {
         
         // Validate new LTO required fields
         if (!vehicle.vehicleCategory || !vehicle.passengerCapacity || !vehicle.grossVehicleWeight || !vehicle.netWeight) {
+            const missing = [];
+            if (!vehicle.vehicleCategory) missing.push('Vehicle Category (PNS Code)');
+            if (!vehicle.passengerCapacity) missing.push('Passenger Capacity');
+            if (!vehicle.grossVehicleWeight) missing.push('Gross Vehicle Weight');
+            if (!vehicle.netWeight) missing.push('Net Weight');
+            
             return res.status(400).json({
                 success: false,
-                error: 'Missing required LTO fields: vehicleCategory, passengerCapacity, grossVehicleWeight, netWeight'
+                error: `Missing required vehicle information: ${missing.join(', ')}. Please complete all fields in Step 2 (Vehicle Information).`
+            });
+        }
+        
+        // Validate numeric fields are valid numbers and positive
+        const passengerCapacity = parseInt(vehicle.passengerCapacity);
+        const grossWeight = parseFloat(vehicle.grossVehicleWeight);
+        const netWeight = parseFloat(vehicle.netWeight);
+        
+        if (isNaN(passengerCapacity) || passengerCapacity < 1) {
+            return res.status(400).json({
+                success: false,
+                error: 'Passenger Capacity must be a positive number'
+            });
+        }
+        
+        if (isNaN(grossWeight) || grossWeight <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Gross Vehicle Weight must be a positive number'
+            });
+        }
+        
+        if (isNaN(netWeight) || netWeight <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Net Weight must be a positive number'
             });
         }
         
         // Validate net weight is less than GVW
-        if (parseFloat(vehicle.netWeight) >= parseFloat(vehicle.grossVehicleWeight)) {
+        if (netWeight >= grossWeight) {
             return res.status(400).json({
                 success: false,
-                error: 'Net weight must be less than Gross Vehicle Weight'
+                error: 'Net Weight must be less than Gross Vehicle Weight'
             });
         }
         

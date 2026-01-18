@@ -21,6 +21,7 @@ function initializeRegistrationWizard() {
     initializeFileUploads();
     initializeProgressTracking();
     initializeIDNumberValidation();
+    initializeIDTypeOverrideHandling();
     
     // Ensure only step 1 is visible initially
     // Other steps should be hidden until their previous step is completed
@@ -765,6 +766,7 @@ function updateReviewData() {
     const email = document.getElementById('email')?.value || '';
     const phone = document.getElementById('phone')?.value || '';
     const idType = document.getElementById('idType')?.value || '';
+    const idNumber = document.getElementById('idNumber')?.value || '';
 
     // Debug logging
     console.log('updateReviewData - vehicleType:', {
@@ -809,6 +811,12 @@ function updateReviewData() {
     const reviewEmail = document.getElementById('review-email');
     const reviewPhone = document.getElementById('review-phone');
     const reviewIdType = document.getElementById('review-id-type');
+    const reviewIdNumber = document.getElementById('review-id-number');
+    const reviewVehicleCategory = document.getElementById('review-vehicle-category');
+    const reviewPassengerCapacity = document.getElementById('review-passenger-capacity');
+    const reviewGVW = document.getElementById('review-gvw');
+    const reviewNetWeight = document.getElementById('review-net-weight');
+    const reviewClassification = document.getElementById('review-classification');
 
     if (reviewMakeModel) reviewMakeModel.textContent = (make && model) ? `${make} ${model}` : '-';
     if (reviewYear) reviewYear.textContent = year || '-';
@@ -863,7 +871,32 @@ function updateReviewData() {
     if (reviewName) reviewName.textContent = (firstName && lastName) ? `${firstName} ${lastName}` : '-';
     if (reviewEmail) reviewEmail.textContent = email || '-';
     if (reviewPhone) reviewPhone.textContent = phone || '-';
-    if (reviewIdType) reviewIdType.textContent = idType || '-';
+    // Display ID type using the dropdown's option text for user-friendly labels
+    let displayIdType = '-';
+    const idTypeElement = document.getElementById('idType');
+    if (idTypeElement) {
+        const selectedIndex = idTypeElement.selectedIndex;
+        const selectedOption = idTypeElement.options[selectedIndex];
+        displayIdType = (selectedOption && selectedOption.text) ? selectedOption.text : (idTypeElement.value || '-');
+    } else {
+        const idTypeMap = {
+            'drivers-license': "Driver’s License",
+            'passport': 'Passport',
+            'national-id': 'National ID (PhilID)',
+            'postal-id': 'Postal ID',
+            'voters-id': "Voter’s ID",
+            'sss-id': 'SSS ID',
+            'tin': 'TIN'
+        };
+        displayIdType = idTypeMap[idType] || idType || '-';
+    }
+    if (reviewIdType) reviewIdType.textContent = displayIdType;
+    if (reviewIdNumber) reviewIdNumber.textContent = idNumber || '-';
+    if (reviewVehicleCategory) reviewVehicleCategory.textContent = vehicleCategory || '-';
+    if (reviewPassengerCapacity) reviewPassengerCapacity.textContent = passengerCapacity || '-';
+    if (reviewGVW) reviewGVW.textContent = grossVehicleWeight || '-';
+    if (reviewNetWeight) reviewNetWeight.textContent = netWeight || '-';
+    if (reviewClassification) reviewClassification.textContent = classification || '-';
 }
 
 async function submitApplication() {
@@ -1999,6 +2032,19 @@ function autoFillFromOCRData(extractedData, documentType) {
         mappedFields: Object.keys(strictFieldMapping)
     });
     
+    // Heuristic: Detect ID type from ID number if missing and owner ID document
+    let idTypeDetection = null;
+    if ((documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') &&
+        (!extractedData.idType || extractedData.idType === '') && extractedData.idNumber) {
+        idTypeDetection = detectIDTypeFromNumber(extractedData.idNumber);
+        if (idTypeDetection && idTypeDetection.idType) {
+            extractedData.idType = idTypeDetection.idType;
+            console.log('[OCR AutoFill] Heuristic ID type detected from number:', idTypeDetection);
+        } else {
+            console.log('[OCR AutoFill] No ID type detected from number');
+        }
+    }
+    
     // **ITERATE THROUGH EXTRACTED DATA AND APPLY STRICT MAPPING**
     let fieldsFilled = 0;
     
@@ -2096,12 +2142,68 @@ function autoFillFromOCRData(extractedData, documentType) {
         console.log(`[OCR AutoFill] Field filled: ${ocrField} → ${htmlInputId} = "${formattedValue}"`);
     });
     
+    // If we detected ID type heuristically, add a subtle confidence indicator next to the dropdown
+    if (idTypeDetection && idTypeDetection.idType) {
+        const idTypeSelect = document.getElementById('idType');
+        if (idTypeSelect) {
+            // Attach confidence to element for possible future use
+            idTypeSelect.dataset.ocrConfidence = (idTypeDetection.confidence || 0).toString();
+            idTypeSelect.title = `Detected: ${idTypeDetection.idType.replace(/-/g, ' ')} (confidence ${(Math.round((idTypeDetection.confidence || 0) * 100))}%)`;
+            // Render a small inline badge
+            renderIDTypeDetectionBadge(idTypeSelect, idTypeDetection.idType, idTypeDetection.confidence || 0);
+        }
+    }
+    
     // Show success notification
     if (fieldsFilled > 0) {
         console.log(`[OCR AutoFill] Successfully auto-filled ${fieldsFilled} field(s) from document type: ${documentType}`);
     } else {
         console.warn(`[OCR AutoFill] No fields were auto-filled from document type: ${documentType}`);
     }
+}
+
+/**
+ * Detect Philippine ID type from ID number using known patterns
+ * Returns { idType, confidence } where idType matches dropdown values
+ */
+function detectIDTypeFromNumber(idNumber) {
+    if (!idNumber) return null;
+    const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
+    const candidates = [
+        { idType: 'drivers-license', pattern: /^D\d{2}-\d{2}-\d{6,}$/ },
+        { idType: 'passport', pattern: /^[A-Z]{2}\d{7}$/ },
+        { idType: 'national-id', pattern: /^\d{4}-\d{4}-\d{4}-\d{1,3}$/ },
+        { idType: 'postal-id', pattern: /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/ },
+        { idType: 'voters-id', pattern: /^\d{4}-\d{4}-\d{4}$/ },
+        { idType: 'sss-id', pattern: /^\d{2}-\d{7}-\d{1}$/ },
+        { idType: 'tin', pattern: /^\d{3}-\d{3}-\d{3}-\d{3}$/ }
+    ];
+    for (const c of candidates) {
+        if (c.pattern.test(cleaned)) {
+            // High confidence when number format matches exactly
+            return { idType: c.idType, confidence: 0.9 };
+        }
+    }
+    // No match
+    return null;
+}
+
+/**
+ * Render a small inline detection badge next to the select element
+ */
+function renderIDTypeDetectionBadge(selectEl, idType, confidence) {
+    // Remove previous badge if any
+    const prev = selectEl.parentElement.querySelector('.ocr-detection-indicator');
+    if (prev) prev.remove();
+    const span = document.createElement('span');
+    span.className = 'ocr-detection-indicator';
+    span.style.marginLeft = '8px';
+    span.style.fontSize = '12px';
+    span.style.color = '#555';
+    const pct = Math.round((confidence || 0) * 100);
+    span.textContent = `Auto-selected (${idType.replace(/-/g, ' ')}, ${pct}%)`;
+    // Insert after select
+    selectEl.parentElement.insertBefore(span, selectEl.nextSibling);
 }
 
 /**
@@ -2194,6 +2296,23 @@ function initializeIDNumberValidation() {
             }
         });
     }
+}
+
+/**
+ * Ensure manual overrides to ID type are respected: remove detection badge and confidence
+ */
+function initializeIDTypeOverrideHandling() {
+    const idTypeField = document.getElementById('idType');
+    if (!idTypeField) return;
+    idTypeField.addEventListener('change', function() {
+        // Remove detection badge if present
+        const badge = idTypeField.parentElement && idTypeField.parentElement.querySelector('.ocr-detection-indicator');
+        if (badge) badge.remove();
+        // Clear confidence metadata
+        delete idTypeField.dataset.ocrConfidence;
+        // Update title to reflect manual selection
+        idTypeField.title = 'ID type selected manually';
+    });
 }
 
 /**

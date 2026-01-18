@@ -322,7 +322,7 @@ services:
       - ./wallet:/app/wallet
       - ./logs:/app/logs
       - ./fabric-network/crypto-config:/app/fabric-network/crypto-config:ro
-      - ./Mock Certs:/app/Mock Certs:ro
+      - ./mock_certs:/app/mock_certs:ro
       - app-uploads:/app/uploads
     user: "1001:1001"
     depends_on:

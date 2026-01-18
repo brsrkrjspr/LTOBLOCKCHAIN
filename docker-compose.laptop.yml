@@ -31,7 +31,7 @@ services:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
       - ./blockchain-ledger:/app/blockchain-ledger
-      - ./Mock Certs:/app/Mock Certs:ro
+      - ./mock_certs:/app/mock_certs:ro
     depends_on:
       - postgres
     restart: unless-stopped

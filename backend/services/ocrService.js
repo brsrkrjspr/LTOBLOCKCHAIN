@@ -1786,20 +1786,29 @@ class OCRService {
             if (vinMatches) extracted.vin = vinMatches[0].trim();
             
             // Plate Number - Line-bound extraction (plate-shaped, requires digits)
-            // Pattern 1: Table format with label
-            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)*?\s*\|\s*([A-Z]{3}\s?-?\s?\d{3,4})/i;
+            // Pattern 1: Table format with label (flexible whitespace around pipe)
+            let platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[|\s]*([A-Z]{3}\s?-?\s?\d{3,4})/i;
             let plateMatches = text.match(platePattern);
 
             // Pattern 2: Colon format with label
             if (!plateMatches) {
-                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)*?\s*[:=]\s*([A-Z]{3}\s?-?\s?\d{3,4})/i;
+                platePattern = /(?:Plate|Registration|License)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z]{3}\s?-?\s?\d{3,4})/i;
                 plateMatches = text.match(platePattern);
             }
             
-            // Pattern 4: Philippine formats standalone (fallback)
+            // Pattern 3: Philippine formats standalone (exclude certificate/clearance numbers)
             if (!plateMatches) {
-                platePattern = /\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i;
-                plateMatches = text.match(platePattern);
+                const lines = text.split('\n');
+                for (const line of lines) {
+                    // Skip lines containing certificate/clearance context
+                    if (!/Certificate|HPG|Clearance/i.test(line)) {
+                        const match = line.match(/\b([A-Z]{2,3}\s?-?\s?\d{3,4}|[A-Z]\s?-?\s?\d{3}\s?-?\s?[A-Z]{2}|\d{4}\s?-?\s?[A-Z]{2,3})\b/i);
+                        if (match) {
+                            plateMatches = match;
+                            break;
+                        }
+                    }
+                }
             }
             
             if (plateMatches) {

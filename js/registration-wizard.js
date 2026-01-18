@@ -123,6 +123,7 @@ function nextStep() {
             if (currentStep === 4) {
                 // Use setTimeout to ensure DOM is fully rendered before updating
                 setTimeout(() => {
+                    updateUploadedDocumentsList();
                     updateReviewData();
                 }, 100);
             }
@@ -738,39 +739,49 @@ function updateProgressBar() {
 }
 
 function updateReviewData() {
-    // Update review section with form data (with null safety)
-    const make = document.getElementById('make')?.value || '';
-    const model = document.getElementById('model')?.value || '';
-    const year = document.getElementById('year')?.value || '';
-    const color = document.getElementById('color')?.value || '';
-    // Fix: Handle empty string case - if empty, use default
-    // Try to get value from element first, then from stored value
+    // Helper: Get value from form input, fallback to stored OCR data
+    const getFieldValue = (formElementId, ocrDataKey) => {
+        const formValue = document.getElementById(formElementId)?.value || '';
+        if (formValue) return formValue;
+        // Fallback to OCR stored data if form is empty
+        return storedOCRExtractedData[ocrDataKey] || '';
+    };
+    
+    // Update review section with form data, with OCR fallback
+    const make = getFieldValue('make', 'make');
+    const model = getFieldValue('model', 'model');
+    const year = getFieldValue('year', 'year');
+    const color = getFieldValue('color', 'color');
+    const plate = getFieldValue('plateNumber', 'plateNumber');
+    const vehicleCategory = getFieldValue('vehicleCategory', 'vehicleCategory');
+    const passengerCapacity = getFieldValue('passengerCapacity', 'passengerCapacity');
+    const grossVehicleWeight = getFieldValue('grossVehicleWeight', 'grossVehicleWeight');
+    const netWeight = getFieldValue('netWeight', 'netWeight');
+    const classification = getFieldValue('classification', 'classification');
+    const firstName = getFieldValue('firstName', 'firstName');
+    const lastName = getFieldValue('lastName', 'lastName');
+    const email = getFieldValue('email', 'email');
+    const phone = getFieldValue('phone', 'phone');
+    const idType = getFieldValue('idType', 'idType');
+    const idNumber = getFieldValue('idNumber', 'idNumber');
+    
+    // Handle vehicle type with OCR fallback
     const vehicleTypeElement = document.getElementById('vehicleType');
     let vehicleTypeRaw = vehicleTypeElement?.value || '';
     
-    // If element value is empty, try stored value
+    // If element value is empty, try stored OCR value
+    if (!vehicleTypeRaw && storedOCRExtractedData.vehicleType) {
+        vehicleTypeRaw = storedOCRExtractedData.vehicleType;
+        console.log('Using stored vehicle type from OCR:', storedOCRExtractedData.vehicleType);
+    }
+    
+    // Fallback to session stored type if available
     if (!vehicleTypeRaw && storedVehicleType) {
         vehicleTypeRaw = storedVehicleType;
-        console.log('Using stored vehicle type:', storedVehicleType);
+        console.log('Using stored vehicle type from session:', storedVehicleType);
     }
     
     const vehicleType = vehicleTypeRaw.trim() || 'PASSENGER_CAR';
-    const plate = document.getElementById('plateNumber')?.value || '';
-    const firstName = document.getElementById('firstName')?.value || '';
-    const lastName = document.getElementById('lastName')?.value || '';
-    const email = document.getElementById('email')?.value || '';
-    const phone = document.getElementById('phone')?.value || '';
-    const idType = document.getElementById('idType')?.value || '';
-    const idNumber = document.getElementById('idNumber')?.value || '';
-
-    // Debug logging
-    console.log('updateReviewData - vehicleType:', {
-        element: vehicleTypeElement,
-        rawValue: vehicleTypeRaw,
-        trimmedValue: vehicleType,
-        selectedIndex: vehicleTypeElement?.selectedIndex,
-        selectedOption: vehicleTypeElement?.options[vehicleTypeElement?.selectedIndex]?.text
-    });
 
     // Map vehicle type value to display name (handle both old and new formats)
     const vehicleTypeMap = {
@@ -788,13 +799,6 @@ function updateReviewData() {
         'Bus': 'Bus',
         'Trailer': 'Trailer'
     };
-    
-    // Get new LTO fields
-    const vehicleCategory = document.getElementById('vehicleCategory')?.value || '';
-    const passengerCapacity = document.getElementById('passengerCapacity')?.value || '';
-    const grossVehicleWeight = document.getElementById('grossVehicleWeight')?.value || '';
-    const netWeight = document.getElementById('netWeight')?.value || '';
-    const classification = document.getElementById('classification')?.value || '';
 
     // Safely update review elements with null checks
     const reviewMakeModel = document.getElementById('review-make-model');
@@ -893,6 +897,45 @@ function updateReviewData() {
     if (reviewGVW) reviewGVW.textContent = grossVehicleWeight || '-';
     if (reviewNetWeight) reviewNetWeight.textContent = netWeight || '-';
     if (reviewClassification) reviewClassification.textContent = classification || '-';
+}
+
+/**
+ * Update the uploaded documents list dynamically
+ * Checks actual file inputs and renders checkmarks based on whether files are present
+ */
+function updateUploadedDocumentsList() {
+    const container = document.getElementById('review-documents-list');
+    if (!container) {
+        console.warn('review-documents-list container not found');
+        return;
+    }
+    
+    // Find all file inputs with data-document-type attribute
+    const documentInputs = document.querySelectorAll('#document-upload-container input[type="file"]');
+    let html = '';
+    
+    if (documentInputs.length === 0) {
+        container.innerHTML = '<p>No documents to upload</p>';
+        return;
+    }
+    
+    // Loop through each input and check if file is present
+    documentInputs.forEach(input => {
+        const docType = input.getAttribute('data-document-type');
+        const hasFile = input.files && input.files.length > 0;
+        const icon = hasFile ? '✅' : '❌';
+        
+        // Convert docType from camelCase to readable label
+        const docLabel = docType
+            .replace(/([A-Z])/g, ' $1')  // Add space before capitals
+            .replace(/^./, str => str.toUpperCase())  // Capitalize first letter
+            .trim();
+        
+        html += `<p>${icon} ${docLabel}</p>`;
+    });
+    
+    container.innerHTML = html;
+    console.log('[Review] Updated documents list with', documentInputs.length, 'document slots');
 }
 
 async function submitApplication() {

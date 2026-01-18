@@ -1075,6 +1075,15 @@ function restoreFormData() {
     const form = document.querySelector('.wizard-form');
     if (form && FormPersistence.restore('registration-wizard', form)) {
         ToastNotification.show('Previous form data restored', 'info', 3000);
+        
+        // FIX: After restoring form data, trigger car type change handler
+        // This ensures the document upload section becomes visible if a car type was previously selected
+        // Without this, the carType value is restored but the documents section stays hidden
+        const carTypeSelect = document.getElementById('carType');
+        if (carTypeSelect && carTypeSelect.value) {
+            console.log('[Registration Wizard] Restoring document visibility for car type:', carTypeSelect.value);
+            handleCarTypeChange(carTypeSelect.value);
+        }
     }
 }
 

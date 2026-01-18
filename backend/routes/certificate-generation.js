@@ -391,4 +391,145 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
     }
 });
 
+/**
+ * POST /api/certificate-generation/csr/generate-and-send
+ * Generate CSR certificate and send via email
+ */
+router.post('/csr/generate-and-send', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const {
+            dealerEmail,
+            dealerName,
+            dealerLtoNumber,
+            vehicleVIN,
+            vehicleMake,
+            vehicleModel,
+            vehicleVariant,
+            vehicleYear,
+            bodyType,
+            color,
+            fuelType,
+            engineNumber,
+            issuanceDate
+        } = req.body;
+
+        // Validate required fields
+        if (!dealerEmail || !dealerName || !dealerLtoNumber || !vehicleVIN || !vehicleMake || !vehicleModel || !vehicleYear) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields'
+            });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(dealerEmail)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email format'
+            });
+        }
+
+        // Validate VIN format (17 characters)
+        if (vehicleVIN.length !== 17) {
+            return res.status(400).json({
+                success: false,
+                error: 'VIN must be exactly 17 characters'
+            });
+        }
+
+        console.log(`[CSR Certificate] Generating for VIN: ${vehicleVIN}, Make: ${vehicleMake}`);
+
+        // Generate PDF certificate
+        const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
+            dealerName,
+            dealerLtoNumber,
+            vehicleMake,
+            vehicleModel,
+            vehicleVariant,
+            vehicleYear,
+            bodyType,
+            color,
+            fuelType,
+            engineNumber,
+            vehicleVIN,
+            issuanceDate
+        });
+
+        console.log(`[CSR Certificate] PDF generated, hash: ${fileHash}`);
+
+        // Generate composite hash for blockchain
+        const compositeHash = certificatePdfGenerator.generateCompositeHash(
+            certificateNumber,
+            vehicleVIN,
+            issuanceDate || new Date().toISOString().split('T')[0],
+            fileHash
+        );
+
+        // Store in database
+        try {
+            const issuerQuery = await db.query(
+                `SELECT id FROM external_issuers WHERE issuer_type = 'csr' AND is_active = true LIMIT 1`
+            );
+
+            if (issuerQuery.rows.length > 0) {
+                await db.query(
+                    `INSERT INTO issued_certificates 
+                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                     file_hash, composite_hash, certificate_data, effective_date)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                    [
+                        issuerQuery.rows[0].id,
+                        'csr',
+                        certificateNumber,
+                        vehicleVIN,
+                        dealerName,
+                        fileHash,
+                        compositeHash,
+                        JSON.stringify({ vehicleMake, vehicleModel, vehicleVariant, vehicleYear, bodyType, color, fuelType, engineNumber }),
+                        issuanceDate || new Date().toISOString().split('T')[0]
+                    ]
+                );
+            }
+        } catch (dbError) {
+            console.error(`[CSR Certificate] Database error:`, dbError);
+        }
+
+        // Send email
+        const emailResult = await certificateEmailService.sendCsrCertificate({
+            to: dealerEmail,
+            dealerName,
+            csrNumber: certificateNumber,
+            vehicleVIN,
+            vehicleMake,
+            vehicleModel,
+            pdfBuffer
+        });
+
+        console.log(`[CSR Certificate] Email sent, messageId: ${emailResult.id}`);
+
+        res.json({
+            success: true,
+            message: 'CSR certificate generated and sent successfully',
+            certificate: {
+                csrNumber: certificateNumber,
+                vehicleVIN,
+                vehicleMake,
+                vehicleModel,
+                fileHash,
+                compositeHash,
+                emailSent: true
+            }
+        });
+
+    } catch (error) {
+        console.error('[CSR Certificate] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate or send CSR certificate',
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;

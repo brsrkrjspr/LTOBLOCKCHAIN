@@ -91,6 +91,31 @@ class CertificatePdfGenerator {
     }
 
     /**
+     * Convert PDF result from page.pdf() to Buffer
+     * @param {any} pdfResult - Result from page.pdf()
+     * @param {string} certificateType - Type of certificate for logging
+     * @returns {Buffer} Valid PDF buffer
+     */
+    ensurePdfBuffer(pdfResult, certificateType = 'Certificate') {
+        if (Buffer.isBuffer(pdfResult)) {
+            return pdfResult;
+        }
+
+        console.log(`[${certificateType}] PDF result type: ${typeof pdfResult}, constructor: ${pdfResult?.constructor?.name}`);
+
+        if (pdfResult instanceof Uint8Array) {
+            return Buffer.from(pdfResult);
+        } else if (typeof pdfResult === 'string') {
+            return Buffer.from(pdfResult, 'base64');
+        } else if (pdfResult && typeof pdfResult === 'object') {
+            // Try to convert array-like objects
+            return Buffer.from(pdfResult);
+        } else {
+            throw new Error(`Invalid PDF result type: ${typeof pdfResult}, value: ${String(pdfResult).substring(0, 100)}`);
+        }
+    }
+
+    /**
      * Calculate SHA-256 hash of a buffer
      * @param {Buffer} buffer - PDF buffer
      * @returns {string} - Hex hash
@@ -273,7 +298,7 @@ class CertificatePdfGenerator {
             // Wait a bit more to ensure all fonts and resources are loaded
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const pdfBuffer = await page.pdf({
+            const pdfResult = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
                 margin: {
@@ -285,6 +310,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Ensure pdfResult is converted to a Buffer
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'Insurance Certificate');
 
             // Validate PDF buffer
             this.validatePdfBuffer(pdfBuffer, 'Insurance Certificate');
@@ -422,7 +450,7 @@ class CertificatePdfGenerator {
             // Wait a bit more to ensure all fonts and resources are loaded
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const pdfBuffer = await page.pdf({
+            const pdfResult = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
                 margin: {
@@ -434,6 +462,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Ensure pdfResult is converted to a Buffer
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'Emission Certificate');
 
             // Validate PDF buffer
             this.validatePdfBuffer(pdfBuffer, 'Emission Certificate');
@@ -543,7 +574,7 @@ class CertificatePdfGenerator {
             // Wait a bit more to ensure all fonts and resources are loaded
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const pdfBuffer = await page.pdf({
+            const pdfResult = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
                 margin: {
@@ -555,6 +586,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Ensure pdfResult is converted to a Buffer
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'HPG Clearance');
 
             // Validate PDF buffer
             this.validatePdfBuffer(pdfBuffer, 'HPG Clearance');
@@ -718,7 +752,7 @@ class CertificatePdfGenerator {
             // Wait a bit more to ensure all fonts and resources are loaded
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const pdfBuffer = await page.pdf({
+            const pdfResult = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
                 margin: {
@@ -730,6 +764,9 @@ class CertificatePdfGenerator {
             });
 
             await browser.close();
+
+            // Ensure pdfResult is converted to a Buffer
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'CSR Certificate');
 
             // Validate PDF buffer
             this.validatePdfBuffer(pdfBuffer, 'CSR Certificate');

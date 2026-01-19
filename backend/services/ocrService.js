@@ -1315,90 +1315,16 @@ class OCRService {
                 console.warn('[OCR Debug] ID Type not detected, attempting generic ID number extraction');
                 // #endregion
                 
-                // Blacklist of common non-ID words that should never be extracted as ID numbers
-                const idNumberBlacklist = [
-                    'EXPIRATION', 'EXPIRY', 'EXPIRES', 'VALID', 'VALIDITY', 'VALID UNTIL',
-                    'ISSUE', 'ISSUED', 'ISSUE DATE', 'DATE OF ISSUE',
-                    'BIRTH', 'BIRTHDATE', 'DATE OF BIRTH', 'BIRTH DATE',
-                    'ADDRESS', 'RESIDENCE', 'RESIDENTIAL',
-                    'NAME', 'FULL NAME', 'GIVEN NAME', 'SURNAME', 'LAST NAME', 'FIRST NAME',
-                    'SEX', 'GENDER', 'MALE', 'FEMALE',
-                    'NATIONALITY', 'CITIZENSHIP',
-                    'SIGNATURE', 'SIGN',
-                    'PHOTO', 'PICTURE', 'IMAGE',
-                    'REPUBLIC', 'PHILIPPINES', 'PHILIPPINE',
-                    'LICENSE', 'DRIVER', 'PASSPORT', 'IDENTIFICATION',
-                    'NUMBER', 'NO', 'NUM', 'ID', 'ID NO', 'ID NUMBER',
-                    'CLASS', 'RESTRICTIONS', 'CONDITIONS',
-                    'ENDORSEMENT', 'ENDORSEMENTS'
-                ];
-                
-                /**
-                 * Check if a candidate string is blacklisted (common non-ID words)
-                 * @param {string} candidate - Candidate ID number to check
-                 * @returns {boolean} True if blacklisted
-                 */
-                const isBlacklisted = (candidate) => {
-                    const upperCandidate = candidate.toUpperCase();
-                    return idNumberBlacklist.some(blacklisted => {
-                        // Check exact match or if blacklisted word appears in candidate
-                        return upperCandidate === blacklisted || upperCandidate.includes(blacklisted);
-                    });
-                };
-                
-                /**
-                 * Validate if a candidate is a valid ID format
-                 * @param {string} candidate - Candidate ID number to validate
-                 * @returns {boolean} True if valid ID format
-                 */
-                const isValidIDFormat = (candidate) => {
-                    // Must contain at least 2 digits (ID numbers always have digits)
-                    const digitCount = (candidate.match(/\d/g) || []).length;
-                    if (digitCount < 2) {
-                        return false;
-                    }
-                    
-                    // Must not be all letters (ID numbers always have digits)
-                    if (/^[A-Z]+$/.test(candidate)) {
-                        return false;
-                    }
-                    
-                    // Must not be a date format (MM-DD-YYYY, DD-MM-YYYY, etc.)
-                    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(candidate)) {
-                        return false;
-                    }
-                    
-                    // Must have reasonable digit ratio (at least 20% digits for alphanumeric IDs)
-                    const digitRatio = digitCount / candidate.length;
-                    if (digitRatio < 0.2 && candidate.length > 10) {
-                        return false;
-                    }
-                    
-                    return true;
-                };
-                
-                // Reordered patterns: specific formats first, then generic patterns
-                // This ensures we prioritize format-specific matches before falling back to generic patterns
+                // Use generic patterns but still validate against common formats
                 const genericPatterns = [
-                    // Specific format patterns (highest priority)
-                    /\b([A-Z]\d{2}-\d{2}-\d{6,})\b/g, // Driver's License format: D12-34-567890
-                    /\b([A-Z]{2}\d{7})\b/g, // Passport format: AA1234567
-                    /\b(\d{4}-\d{4}-\d{4}-\d{4})\b/g, // National ID format: 1234-5678-9101-1213
-                    /\b(\d{2}-\d{7}-\d{1})\b/g, // SSS ID format: 12-3456789-0
-                    /\b(\d{2}-\d{7}-\d{2})\b/g, // PhilHealth ID format: 12-345678901-2
-                    /\b(\d{3}-\d{3}-\d{3}-\d{3})\b/g, // TIN format: 123-456-789-000
-                    /\b(\d{4}-\d{4}-\d{4})\b/g, // Voter's ID format: 1234-5678-9012
-                    // Generic patterns with context (lower priority, but still validated)
-                    /(?:LICENSE\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    /(?:PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    /(?:NATIONAL\s*ID|CRN|PHILID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    /(?:SSS)\s*(?:ID|NO|NUMBER|#)\.?\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    /(?:PHILHEALTH|PHIC|PIN)\s*(?:ID|NO|NUMBER|#)\.?\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    /(?:TIN|TAX\s*(?:ID|IDENTIFICATION\s*NUMBER))\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    /(?:VOTER['\s]*S?\s*ID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    /(?:POSTAL\s*ID)\s*(?:NO|NUMBER|#)\.?\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
-                    // Most generic pattern (lowest priority, requires strictest validation)
-                    /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i
+                    /(?:ID\s*(?:NO|NUMBER|#)\.?|IDENTIFICATION\s*(?:NO|NUMBER|#)\.?|LICENSE\s*(?:NO|NUMBER|#)\.?|PASSPORT\s*(?:NO|NUMBER|#)\.?)\s*[:.]?\s*([A-Z0-9\-]{8,20})/i,
+                    /\b([A-Z]\d{2}-\d{2}-\d{6,})\b/g, // Driver's License format
+                    /\b([A-Z]{2}\d{7})\b/g, // Passport format
+                    /\b(\d{4}-\d{4}-\d{4}-\d{4})\b/g, // National ID format (16 digits)
+                    /\b(\d{4}-\d{4}-\d{4})\b/g, // Voter's ID format
+                    /\b(\d{2}-\d{7}-\d{1})\b/g, // SSS ID format
+                    /\b(\d{2}-\d{7}-\d{2})\b/g, // PhilHealth ID format
+                    /\b(\d{3}-\d{3}-\d{3}-\d{3})\b/g // TIN format
                 ];
                 
                 let foundValidID = false;
@@ -1413,108 +1339,33 @@ class OCRService {
                             while ((match = pattern.exec(text)) !== null && !foundValidID) {
                                 if (match[1]) {
                                     const candidate = match[1].trim().replace(/\s+/g, '').toUpperCase();
-                                    
-                                    // Stricter validation for generic patterns
-                                    // 1. Check blacklist
-                                    if (isBlacklisted(candidate)) {
+                                    // Basic validation: length and format
+                                    if (candidate.length >= 8 && candidate.length <= 20 && /^[A-Z0-9\-]+$/.test(candidate)) {
+                                        extracted.idNumber = candidate;
+                                        foundValidID = true;
                                         // #region agent log
-                                        console.log('[OCR Debug] Candidate rejected (blacklisted):', {
-                                            candidate: candidate,
-                                            patternIndex: i,
-                                            reason: 'Matches blacklist'
+                                        console.log('[OCR Debug] Generic ID Number extracted:', {
+                                            idNumber: extracted.idNumber,
+                                            patternIndex: i
                                         });
                                         // #endregion
-                                        continue;
                                     }
-                                    
-                                    // 2. Basic format checks
-                                    if (candidate.length < 8 || candidate.length > 20) {
-                                        continue;
-                                    }
-                                    
-                                    if (!/^[A-Z0-9\-]+$/.test(candidate)) {
-                                        continue;
-                                    }
-                                    
-                                    // 3. For generic patterns (index >= 7), apply stricter validation
-                                    if (i >= 7) {
-                                        if (!isValidIDFormat(candidate)) {
-                                            // #region agent log
-                                            console.log('[OCR Debug] Candidate rejected (invalid format):', {
-                                                candidate: candidate,
-                                                patternIndex: i,
-                                                reason: 'Failed format validation'
-                                            });
-                                            // #endregion
-                                            continue;
-                                        }
-                                    }
-                                    
-                                    // Candidate passed all checks
-                                    extracted.idNumber = candidate;
-                                    foundValidID = true;
-                                    // #region agent log
-                                    console.log('[OCR Debug] Generic ID Number extracted:', {
-                                        idNumber: extracted.idNumber,
-                                        patternIndex: i,
-                                        patternType: i < 7 ? 'specific-format' : 'generic-with-context',
-                                        validation: 'passed'
-                                    });
-                                    // #endregion
                                 }
                             }
                         } else {
                             const matches = text.match(pattern);
                             if (matches && matches[1]) {
                                 const candidate = matches[1].trim().replace(/\s+/g, '').toUpperCase();
-                                
-                                // Stricter validation for generic patterns
-                                // 1. Check blacklist
-                                if (isBlacklisted(candidate)) {
+                                if (candidate.length >= 8 && candidate.length <= 20 && /^[A-Z0-9\-]+$/.test(candidate)) {
+                                    extracted.idNumber = candidate;
+                                    foundValidID = true;
                                     // #region agent log
-                                    console.log('[OCR Debug] Candidate rejected (blacklisted):', {
-                                        candidate: candidate,
-                                        patternIndex: i,
-                                        reason: 'Matches blacklist'
+                                    console.log('[OCR Debug] Generic ID Number extracted:', {
+                                        idNumber: extracted.idNumber,
+                                        patternIndex: i
                                     });
                                     // #endregion
-                                    continue;
                                 }
-                                
-                                // 2. Basic format checks
-                                if (candidate.length < 8 || candidate.length > 20) {
-                                    continue;
-                                }
-                                
-                                if (!/^[A-Z0-9\-]+$/.test(candidate)) {
-                                    continue;
-                                }
-                                
-                                // 3. For generic patterns (index >= 7), apply stricter validation
-                                if (i >= 7) {
-                                    if (!isValidIDFormat(candidate)) {
-                                        // #region agent log
-                                        console.log('[OCR Debug] Candidate rejected (invalid format):', {
-                                            candidate: candidate,
-                                            patternIndex: i,
-                                            reason: 'Failed format validation'
-                                        });
-                                        // #endregion
-                                        continue;
-                                    }
-                                }
-                                
-                                // Candidate passed all checks
-                                extracted.idNumber = candidate;
-                                foundValidID = true;
-                                // #region agent log
-                                console.log('[OCR Debug] Generic ID Number extracted:', {
-                                    idNumber: extracted.idNumber,
-                                    patternIndex: i,
-                                    patternType: i < 7 ? 'specific-format' : 'generic-with-context',
-                                    validation: 'passed'
-                                });
-                                // #endregion
                             }
                         }
                     } catch (error) {

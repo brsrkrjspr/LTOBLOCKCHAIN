@@ -22,7 +22,6 @@ function initializeRegistrationWizard() {
     initializeProgressTracking();
     initializeIDNumberValidation();
     initializeIDTypeOverrideHandling();
-    initializeVINAutoFill();
     
     // Ensure only step 1 is visible initially
     // Other steps should be hidden until their previous step is completed
@@ -1367,7 +1366,6 @@ function collectApplicationData() {
         color: document.getElementById('color')?.value || '',
         engineNumber: document.getElementById('engineNumber')?.value || '',
         chassisNumber: document.getElementById('chassisNumber')?.value || '',
-        vin: document.getElementById('vin')?.value || document.getElementById('chassisNumber')?.value || '', // VIN (auto-filled from chassis if not manually entered)
         plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
         vehicleType: document.getElementById('vehicleType')?.value || 'Car',
         carType: carType, // Add car type from Step 1
@@ -1897,16 +1895,6 @@ async function processDocumentForOCRAutoFill(fileInput) {
             // #endregion
             
             if (data.success && data.extractedData) {
-                console.log('[OCR Response Debug] Full OCR response received:', {
-                    documentType,
-                    extractedDataKeys: Object.keys(data.extractedData),
-                    extractedData: data.extractedData,
-                    hasIdType: !!data.extractedData.idType,
-                    hasIdNumber: !!data.extractedData.idNumber,
-                    idType: data.extractedData.idType,
-                    idNumber: data.extractedData.idNumber
-                });
-                
                 // For owner ID documents, ONLY extract ID type and number
                 // Personal information (name, address, phone) should come from account, not documents
                 if (documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') {
@@ -1915,26 +1903,12 @@ async function processDocumentForOCRAutoFill(fileInput) {
                         idType: data.extractedData.idType,
                         idNumber: data.extractedData.idNumber
                     };
-                    
-                    console.log('[ID AutoFill Debug] Extracting ID data from OCR response:', {
-                        rawIdType: data.extractedData.idType,
-                        rawIdNumber: data.extractedData.idNumber,
-                        idTypeType: typeof data.extractedData.idType,
-                        idNumberType: typeof data.extractedData.idNumber,
-                        idTypeEmpty: !data.extractedData.idType || data.extractedData.idType === '',
-                        idNumberEmpty: !data.extractedData.idNumber || data.extractedData.idNumber === ''
-                    });
-                    
                     // Merge ID data into stored data (don't overwrite with empty if extraction failed)
                     Object.keys(ownerIdData).forEach(key => {
                         if (ownerIdData[key] !== undefined && ownerIdData[key] !== null && ownerIdData[key] !== '') {
                             storedOCRExtractedData[key] = ownerIdData[key];
-                            console.log(`[ID AutoFill Debug] Stored ${key}:`, ownerIdData[key]);
-                        } else {
-                            console.warn(`[ID AutoFill Debug] ${key} is empty or undefined, not storing`);
                         }
                     });
-                    
                     console.log('[ID AutoFill Debug] Stored owner ID OCR data (ID info only):', {
                         documentType,
                         extractedIdData: ownerIdData,
@@ -1945,15 +1919,6 @@ async function processDocumentForOCRAutoFill(fileInput) {
                         idNumber: storedOCRExtractedData.idNumber,
                         note: 'Personal info (name, address, phone) will be loaded from user account'
                     });
-                    
-                    // Immediately apply ID data if Step 3 (Owner Information) is visible
-                    const step3Element = document.getElementById('step-3');
-                    if (step3Element && step3Element.classList.contains('active')) {
-                        console.log('[ID AutoFill Debug] Step 3 is visible, applying ID data immediately');
-                        autoFillFromOCRData(ownerIdData, 'ownerValidId');
-                    } else {
-                        console.log('[ID AutoFill Debug] Step 3 not visible yet, ID data will be applied when Step 3 becomes visible');
-                    }
                 } else {
                     // For vehicle documents, store vehicle data (don't mix with owner data)
                     const vehicleData = {
@@ -2160,7 +2125,7 @@ function autoFillFromOCRData(extractedData, documentType) {
         }
         // [FIX END]
         
-        // Handle dropdown/select elements (e.g., fuelType, idType)
+        // Handle dropdown/select elements (e.g., fuelType)
         if (inputElement.tagName === 'SELECT') {
             // For dropdown: try to match by value, then by option text (case-insensitive)
             const optionExists = Array.from(inputElement.options).find(opt => 
@@ -2174,60 +2139,12 @@ function autoFillFromOCRData(extractedData, documentType) {
                 console.log(`[OCR AutoFill] Dropdown matched: ${formattedValue} -> ${optionExists.value}`);
             } else {
                 console.log(`[OCR AutoFill] Dropdown value not found in options: ${formattedValue}`);
-                // For idType, try multiple matching strategies
-                if (htmlInputId === 'idType') {
-                    const normalizedValue = formattedValue.toLowerCase().replace(/_/g, '-').trim();
-                    // Try exact match with normalized value
-                    let normalizedOption = Array.from(inputElement.options).find(opt => 
-                        opt.value.toLowerCase() === normalizedValue ||
-                        opt.value.toLowerCase().replace(/_/g, '-') === normalizedValue
-                    );
-                    // If still not found, try partial matching (e.g., "drivers" matches "drivers-license")
-                    if (!normalizedOption) {
-                        normalizedOption = Array.from(inputElement.options).find(opt => {
-                            const optValue = opt.value.toLowerCase();
-                            return optValue.includes(normalizedValue) || normalizedValue.includes(optValue.split('-')[0]);
-                        });
-                    }
-                    if (normalizedOption) {
-                        inputElement.value = normalizedOption.value;
-                        console.log(`[OCR AutoFill] ID Type matched with normalization: ${formattedValue} -> ${normalizedOption.value}`);
-                    } else {
-                        console.warn(`[OCR AutoFill] ID Type "${formattedValue}" not found in dropdown options. Available options:`, 
-                            Array.from(inputElement.options).map(opt => opt.value).join(', '));
-                        // Don't set invalid value - leave it empty for user to select
-                    }
-                } else {
-                    inputElement.value = formattedValue;
-                }
+                inputElement.value = formattedValue;
             }
         } else {
             inputElement.value = formattedValue;
         }
         inputElement.classList.add('ocr-auto-filled');
-        
-        // SPECIAL HANDLING: Auto-fill VIN when chassisNumber is filled (they are the same)
-        if (htmlInputId === 'chassisNumber') {
-            const vinField = document.getElementById('vin');
-            if (vinField) {
-                // Always sync VIN with chassisNumber (they are the same)
-                vinField.value = formattedValue;
-                vinField.classList.add('ocr-auto-filled');
-                vinField.dispatchEvent(new Event('input', { bubbles: true }));
-                console.log(`[OCR AutoFill] VIN auto-filled from chassisNumber: ${formattedValue}`);
-            }
-        }
-        
-        // SPECIAL HANDLING: Also fill VIN if OCR extracted 'vin' field directly
-        if (ocrField.toLowerCase() === 'vin' && htmlInputId === 'chassisNumber') {
-            const vinField = document.getElementById('vin');
-            if (vinField) {
-                vinField.value = formattedValue;
-                vinField.classList.add('ocr-auto-filled');
-                vinField.dispatchEvent(new Event('input', { bubbles: true }));
-                console.log(`[OCR AutoFill] VIN auto-filled from OCR vin field: ${formattedValue}`);
-            }
-        }
         
         // CRITICAL: For plate number, validate immediately after auto-fill
         if (htmlInputId === 'plateNumber') {
@@ -2425,43 +2342,6 @@ function initializeIDTypeOverrideHandling() {
         // Update title to reflect manual selection
         idTypeField.title = 'ID type selected manually';
     });
-}
-
-/**
- * Initialize VIN auto-fill from chassis number
- * Since chassis and VIN are the same, VIN should auto-fill when chassis changes
- */
-function initializeVINAutoFill() {
-    const chassisNumberField = document.getElementById('chassisNumber');
-    const vinField = document.getElementById('vin');
-    
-    if (!chassisNumberField || !vinField) {
-        console.warn('[VIN AutoFill] Chassis or VIN field not found');
-        return;
-    }
-    
-    // Auto-fill VIN when chassis number changes
-    chassisNumberField.addEventListener('input', function() {
-        const chassisValue = this.value.trim();
-        if (chassisValue) {
-            // Auto-fill VIN with chassis value (they are the same)
-            vinField.value = chassisValue;
-            // Trigger validation
-            vinField.dispatchEvent(new Event('input', { bubbles: true }));
-            console.log('[VIN AutoFill] VIN auto-filled from chassis:', chassisValue);
-        }
-    });
-    
-    // Also auto-fill on change event (for programmatic changes)
-    chassisNumberField.addEventListener('change', function() {
-        const chassisValue = this.value.trim();
-        if (chassisValue && !vinField.value.trim()) {
-            vinField.value = chassisValue;
-            vinField.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    });
-    
-    console.log('[VIN AutoFill] VIN auto-fill initialized');
 }
 
 /**

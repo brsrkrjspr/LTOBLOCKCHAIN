@@ -417,16 +417,17 @@ const HPGRequests = {
                     url: doc.url
                 });
                 // #endregion
-                // Fix: Don't set url property - let DocumentModal construct it properly
-                // DocumentModal will prioritize doc.id over doc.cid over doc.url
+                // Construct the API URL for reliable backend access (works on all devices)
+                const url = `/api/documents/${doc.id}/view`;
+                
                 return {
                     id: doc.id,
                     filename: docTypeLabels[doc.type] || doc.type || doc.filename || 'Document',
                     type: doc.type,
                     document_type: doc.type,
-                    cid: doc.cid,
+                    url: url,  // ✅ Add this - provides universal fallback to backend API
+                    cid: doc.cid,  // Keep for IPFS-capable environments
                     path: doc.path
-                    // Don't set url - let DocumentModal construct it from id/cid
                 };
             });
             // #region agent log
@@ -475,6 +476,16 @@ const HPGRequests = {
         } else {
             alert('No documents attached to this request');
         }
+    },
+
+    loadRequestDetails: function(requestId) {
+        const request = this.requests.find(r => r.id === requestId);
+        if (!request) {
+            alert('Request not found');
+            return;
+        }
+        // Call the existing viewDetails global function to show request details modal
+        viewDetails(requestId);
     },
 
     }

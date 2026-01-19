@@ -190,13 +190,26 @@ function createEmissionVerificationRow(request) {
     const isProcessed = ['APPROVED', 'COMPLETED', 'REJECTED'].includes(status);
     const docs = metadata.documents || request.documents || [];
     const docCount = docs.length;
+    
+    // Check if auto-verified
+    const autoVerified = metadata.autoVerified === true || 
+                        (metadata.autoVerificationResult && metadata.autoVerificationResult.automated === true);
+    const autoVerificationStatus = metadata.autoVerificationResult?.status || null;
+    const autoVerificationScore = metadata.autoVerificationResult?.score || null;
 
     let actionButtons = '';
     if (isProcessed) {
+        // Already processed - show status badge only
         if (status === 'APPROVED' || status === 'COMPLETED') {
+            const badgeText = autoVerified && status === 'APPROVED' 
+                ? `<i class="fas fa-robot"></i> Auto-Verified` 
+                : `<i class="fas fa-check-circle"></i> Verified`;
+            const badgeTitle = autoVerified && status === 'APPROVED' && autoVerificationScore
+                ? `Auto-verified with score: ${autoVerificationScore}%`
+                : 'Verified';
             actionButtons = `
-                <span class="status-badge status-approved" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;">
-                    <i class="fas fa-check-circle"></i> Verified
+                <span class="status-badge status-approved" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;" title="${badgeTitle}">
+                    ${badgeText}
                 </span>
             `;
         } else if (status === 'REJECTED') {
@@ -207,14 +220,38 @@ function createEmissionVerificationRow(request) {
             `;
         }
     } else {
-        actionButtons = `
-            <button class="btn-success btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">
-                <i class="fas fa-check"></i> Approve
-            </button>
-            <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">
-                <i class="fas fa-times"></i> Reject
-            </button>
-        `;
+        // PENDING status - check if auto-verified
+        if (autoVerified && autoVerificationStatus === 'APPROVED') {
+            // Auto-approved but status might not be updated yet - show auto-verified badge
+            actionButtons = `
+                <span class="status-badge status-approved" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;" title="Auto-verified and approved">
+                    <i class="fas fa-robot"></i> Auto-Verified
+                </span>
+            `;
+        } else if (autoVerified && autoVerificationStatus === 'PENDING') {
+            // Auto-verified but flagged for manual review - show buttons with info
+            actionButtons = `
+                <span class="status-badge status-warning" style="margin-right: 0.5rem; font-size: 0.75rem;" title="Auto-verification flagged for review. Score: ${autoVerificationScore || 'N/A'}%">
+                    <i class="fas fa-exclamation-triangle"></i> Review Needed
+                </span>
+                <button class="btn-success btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">
+                    <i class="fas fa-times"></i> Reject
+                </button>
+            `;
+        } else {
+            // Not auto-verified - show normal buttons
+            actionButtons = `
+                <button class="btn-success btn-sm" onclick="handleEmissionApproveFromRequest('${request.id}')">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn-danger btn-sm" onclick="handleEmissionRejectFromRequest('${request.id}')">
+                    <i class="fas fa-times"></i> Reject
+                </button>
+            `;
+        }
     }
 
     row.innerHTML = `

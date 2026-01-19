@@ -12,14 +12,68 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 
 /**
+ * Helper function to lookup and validate owner from database
+ * @param {string} ownerId - Owner UUID (optional)
+ * @param {string} ownerEmail - Owner email (optional)
+ * @returns {Promise<Object>} Owner object with validated data
+ * @throws {Error} If owner not found or inactive
+ */
+async function lookupAndValidateOwner(ownerId, ownerEmail) {
+    // Validate that at least one identifier is provided
+    if (!ownerId && !ownerEmail) {
+        throw new Error('Missing required field: ownerId or ownerEmail is required');
+    }
+
+    // Lookup owner from database
+    let owner = null;
+    if (ownerId) {
+        owner = await db.getUserById(ownerId);
+    } else {
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(ownerEmail)) {
+            throw new Error('Invalid email format');
+        }
+        owner = await db.getUserByEmail(ownerEmail, true); // checkActive = true
+    }
+
+    // Verify owner exists
+    if (!owner) {
+        throw new Error('Owner not found. User must be registered in the system.');
+    }
+
+    // Verify owner is active
+    if (!owner.is_active) {
+        throw new Error('Owner account is inactive. Cannot generate certificates.');
+    }
+
+    // Construct owner data from database
+    const ownerName = `${owner.first_name || ''} ${owner.last_name || ''}`.trim();
+    if (!ownerName) {
+        throw new Error('Owner name is missing in database. Please update user profile.');
+    }
+
+    return {
+        id: owner.id,
+        email: owner.email,
+        firstName: owner.first_name,
+        lastName: owner.last_name,
+        name: ownerName,
+        address: owner.address || '',
+        phone: owner.phone || '',
+        organization: owner.organization || ''
+    };
+}
+
+/**
  * POST /api/certificate-generation/insurance/generate-and-send
  * Generate insurance certificate and send via email
  */
 router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['insurance_verifier', 'admin']), async (req, res) => {
     try {
         const {
+            ownerId,
             ownerEmail,
-            ownerName,
             vehicleVIN,
             policyNumber,
             coverageType,
@@ -29,21 +83,37 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             additionalCoverage
         } = req.body;
 
-        // Validate required fields (ownerEmail and ownerName are required, others can be auto-generated)
-        if (!ownerEmail || !ownerName) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: ownerEmail and ownerName are required'
-            });
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(ownerEmail)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid email format'
-            });
+        // Lookup and validate owner from database
+        let owner;
+        try {
+            owner = await lookupAndValidateOwner(ownerId, ownerEmail);
+        } catch (error) {
+            if (error.message.includes('Missing required field')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('Invalid email format')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('inactive')) {
+                return res.status(403).json({
+                    success: false,
+                    error: error.message
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
         }
 
         // Auto-generate certificate number if not provided
@@ -95,11 +165,11 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             });
         }
 
-        console.log(`[Insurance Certificate] Generating for VIN: ${finalVIN}, Policy: ${finalPolicyNumber}`);
+        console.log(`[Insurance Certificate] Generating for owner: ${owner.name} (${owner.email}), VIN: ${finalVIN}, Policy: ${finalPolicyNumber}`);
 
         // Generate PDF certificate
         const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateInsuranceCertificate({
-            ownerName,
+            ownerName: owner.name,
             vehicleVIN: finalVIN,
             policyNumber: finalPolicyNumber,
             coverageType: finalCoverageType,
@@ -138,7 +208,7 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
                         'insurance',
                         certificateNumber,
                         vehicleVIN,
-                        ownerName,
+                        owner.name,
                         fileHash,
                         compositeHash,
                         JSON.stringify({
@@ -162,15 +232,15 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
 
         // Send email with PDF attachment
         const emailResult = await certificateEmailService.sendInsuranceCertificate({
-            to: ownerEmail,
-            ownerName,
+            to: owner.email,
+            ownerName: owner.name,
             policyNumber: certificateNumber,
             vehicleVIN: finalVIN,
             pdfBuffer,
             expiryDate: finalExpiryDate
         });
 
-        console.log(`[Insurance Certificate] Email sent to ${ownerEmail}, messageId: ${emailResult.id}`);
+        console.log(`[Insurance Certificate] Email sent to ${owner.email}, messageId: ${emailResult.id}`);
 
         res.json({
             success: true,
@@ -178,7 +248,8 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             certificate: {
                 certificateNumber,
                 vehicleVIN: finalVIN,
-                ownerName,
+                ownerName: owner.name,
+                ownerEmail: owner.email,
                 fileHash,
                 compositeHash,
                 expiryDate: finalExpiryDate,
@@ -204,8 +275,8 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
 router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['emission_verifier', 'admin']), async (req, res) => {
     try {
         const {
+            ownerId,
             ownerEmail,
-            ownerName,
             vehicleVIN,
             vehiclePlate,
             certificateNumber,
@@ -214,21 +285,37 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
             testResults
         } = req.body;
 
-        // Validate required fields (ownerEmail and ownerName are required, others can be auto-generated)
-        if (!ownerEmail || !ownerName) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: ownerEmail and ownerName are required'
-            });
-        }
-
-        // Validate email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(ownerEmail)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid email format'
-            });
+        // Lookup and validate owner from database
+        let owner;
+        try {
+            owner = await lookupAndValidateOwner(ownerId, ownerEmail);
+        } catch (error) {
+            if (error.message.includes('Missing required field')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('Invalid email format')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('inactive')) {
+                return res.status(403).json({
+                    success: false,
+                    error: error.message
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
         }
 
         // Auto-generate certificate number if not provided
@@ -258,11 +345,11 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
             return date.toISOString();
         })();
 
-        console.log(`[Emission Certificate] Generating for VIN: ${finalVIN}, Cert: ${finalCertificateNumber}`);
+        console.log(`[Emission Certificate] Generating for owner: ${owner.name} (${owner.email}), VIN: ${finalVIN}, Cert: ${finalCertificateNumber}`);
 
         // Generate PDF
         const { pdfBuffer, fileHash } = await certificatePdfGenerator.generateEmissionCertificate({
-            ownerName,
+            ownerName: owner.name,
             vehicleVIN: finalVIN,
             vehiclePlate,
             certificateNumber: finalCertificateNumber,
@@ -328,15 +415,15 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
 
         // Send email
         const emailResult = await certificateEmailService.sendEmissionCertificate({
-            to: ownerEmail,
-            ownerName,
+            to: owner.email,
+            ownerName: owner.name,
             certificateNumber: finalCertificateNumber,
             vehicleVIN: finalVIN,
             pdfBuffer,
             expiryDate: finalExpiryDate
         });
 
-        console.log(`[Emission Certificate] Email sent, messageId: ${emailResult.id}`);
+        console.log(`[Emission Certificate] Email sent to ${owner.email}, messageId: ${emailResult.id}`);
 
         res.json({
             success: true,
@@ -344,6 +431,8 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
             certificate: {
                 certificateNumber: finalCertificateNumber,
                 vehicleVIN: finalVIN,
+                ownerName: owner.name,
+                ownerEmail: owner.email,
                 fileHash,
                 compositeHash,
                 emailSent: true
@@ -367,8 +456,8 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
 router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const {
+            ownerId,
             ownerEmail,
-            ownerName,
             vehicleVIN,
             vehiclePlate,
             clearanceNumber,
@@ -376,12 +465,37 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
             verificationDetails
         } = req.body;
 
-        // Validate required fields (ownerEmail and ownerName are required, others can be auto-generated)
-        if (!ownerEmail || !ownerName) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: ownerEmail and ownerName are required'
-            });
+        // Lookup and validate owner from database
+        let owner;
+        try {
+            owner = await lookupAndValidateOwner(ownerId, ownerEmail);
+        } catch (error) {
+            if (error.message.includes('Missing required field')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('Invalid email format')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('inactive')) {
+                return res.status(403).json({
+                    success: false,
+                    error: error.message
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
         }
 
         // Auto-generate certificate number if not provided
@@ -406,11 +520,11 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
         const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
         const finalIssueDate = issueDate || new Date().toISOString();
 
-        console.log(`[HPG Clearance] Generating for VIN: ${finalVIN}, Clearance: ${finalClearanceNumber}`);
+        console.log(`[HPG Clearance] Generating for owner: ${owner.name} (${owner.email}), VIN: ${finalVIN}, Clearance: ${finalClearanceNumber}`);
 
         // Generate PDF
         const { pdfBuffer, fileHash } = await certificatePdfGenerator.generateHpgClearance({
-            ownerName,
+            ownerName: owner.name,
             vehicleVIN: finalVIN,
             vehiclePlate,
             clearanceNumber: finalClearanceNumber,
@@ -442,7 +556,7 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
                         'hpg_clearance',
                         finalClearanceNumber,
                         finalVIN,
-                        ownerName,
+                        owner.name,
                         fileHash,
                         compositeHash,
                         JSON.stringify({ verificationDetails, vehiclePlate }),
@@ -456,14 +570,14 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
 
         // Send email
         const emailResult = await certificateEmailService.sendHpgClearance({
-            to: ownerEmail,
-            ownerName,
+            to: owner.email,
+            ownerName: owner.name,
             clearanceNumber: finalClearanceNumber,
             vehicleVIN: finalVIN,
             pdfBuffer
         });
 
-        console.log(`[HPG Clearance] Email sent, messageId: ${emailResult.id}`);
+        console.log(`[HPG Clearance] Email sent to ${owner.email}, messageId: ${emailResult.id}`);
 
         res.json({
             success: true,
@@ -471,6 +585,8 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
             certificate: {
                 clearanceNumber: finalClearanceNumber,
                 vehicleVIN: finalVIN,
+                ownerName: owner.name,
+                ownerEmail: owner.email,
                 fileHash,
                 compositeHash,
                 emailSent: true
@@ -530,8 +646,10 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
     
     try {
         const {
-            dealerEmail,
-            dealerName,
+            ownerId,
+            ownerEmail,
+            dealerId, // Backward compatibility - maps to ownerId
+            dealerEmail, // Backward compatibility - maps to ownerEmail
             dealerLtoNumber,
             vehicleVIN,
             vehicleMake,
@@ -545,21 +663,41 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             issuanceDate
         } = req.body;
 
-        // Validate required fields (dealerEmail and dealerName are required, others can be auto-generated)
-        if (!dealerEmail || !dealerName) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: dealerEmail and dealerName are required'
-            });
-        }
+        // Use ownerId/ownerEmail (preferred) or fallback to dealerId/dealerEmail for backward compatibility
+        const finalOwnerId = ownerId || dealerId;
+        const finalOwnerEmail = ownerEmail || dealerEmail;
 
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(dealerEmail)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid email format'
-            });
+        // Lookup and validate owner/dealer from database (dealer is also a user account)
+        let owner;
+        try {
+            owner = await lookupAndValidateOwner(finalOwnerId, finalOwnerEmail);
+        } catch (error) {
+            if (error.message.includes('Missing required field')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('Invalid email format')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('inactive')) {
+                return res.status(403).json({
+                    success: false,
+                    error: error.message
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
         }
 
         // Auto-generate values if not provided
@@ -585,11 +723,11 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             });
         }
 
-        console.log(`[CSR Certificate] Generating for VIN: ${finalVIN}, Make: ${finalVehicleMake}`);
+        console.log(`[CSR Certificate] Generating for owner: ${owner.name} (${owner.email}), VIN: ${finalVIN}, Make: ${finalVehicleMake}`);
 
-        // Generate PDF certificate
+        // Generate PDF certificate (use owner name from database)
         const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
-            dealerName,
+            dealerName: owner.name, // Use owner name from database
             dealerLtoNumber: finalDealerLtoNumber,
             vehicleMake: finalVehicleMake,
             vehicleModel: finalVehicleModel || vehicleModel,
@@ -630,7 +768,7 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
                         'csr',
                         certificateNumber,
                         finalVIN,
-                        dealerName,
+                        owner.name,
                         fileHash,
                         compositeHash,
                         JSON.stringify({ 
@@ -653,8 +791,8 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
 
         // Send email
         const emailResult = await certificateEmailService.sendCsrCertificate({
-            to: dealerEmail,
-            dealerName,
+            to: owner.email,
+            dealerName: owner.name,
             csrNumber: certificateNumber,
             vehicleVIN: finalVIN,
             vehicleMake: finalVehicleMake,
@@ -662,7 +800,7 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             pdfBuffer
         });
 
-        console.log(`[CSR Certificate] Email sent, messageId: ${emailResult.id}`);
+        console.log(`[CSR Certificate] Email sent to ${dealer.email}, messageId: ${emailResult.id}`);
 
         res.json({
             success: true,
@@ -670,6 +808,8 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             certificate: {
                 csrNumber: certificateNumber,
                 vehicleVIN: finalVIN,
+                dealerName: dealer.name,
+                dealerEmail: dealer.email,
                 vehicleMake: finalVehicleMake,
                 vehicleModel: finalVehicleModel || vehicleModel,
                 fileHash,
@@ -689,6 +829,189 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
 });
 
 /**
+ * POST /api/certificate-generation/sales-invoice/generate-and-send
+ * Generate sales invoice and send via email
+ */
+router.post('/sales-invoice/generate-and-send', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const {
+            ownerId,
+            ownerEmail,
+            vehicleVIN,
+            vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            bodyType,
+            color,
+            fuelType,
+            engineNumber,
+            invoiceNumber,
+            dateOfSale,
+            purchasePrice,
+            sellerName,
+            sellerPosition,
+            dealerName,
+            dealerTin,
+            dealerAccreditationNo
+        } = req.body;
+
+        // Lookup and validate owner from database
+        let owner;
+        try {
+            owner = await lookupAndValidateOwner(ownerId, ownerEmail);
+        } catch (error) {
+            if (error.message.includes('Missing required field')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('Invalid email format')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('inactive')) {
+                return res.status(403).json({
+                    success: false,
+                    error: error.message
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+        }
+
+        // Validate VIN format if provided (must be 17 characters)
+        if (vehicleVIN && vehicleVIN.length !== 17) {
+            return res.status(400).json({
+                success: false,
+                error: 'VIN must be exactly 17 characters'
+            });
+        }
+
+        const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
+        const finalDateOfSale = dateOfSale || new Date().toISOString();
+
+        console.log(`[Sales Invoice] Generating for owner: ${owner.name} (${owner.email}), VIN: ${finalVIN}`);
+
+        // Generate PDF certificate
+        const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateSalesInvoice({
+            ownerName: owner.name,
+            vehicleVIN: finalVIN,
+            vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            bodyType,
+            color,
+            fuelType,
+            engineNumber,
+            invoiceNumber,
+            dateOfSale: finalDateOfSale,
+            purchasePrice,
+            sellerName,
+            sellerPosition,
+            dealerName,
+            dealerTin,
+            dealerAccreditationNo
+        });
+
+        console.log(`[Sales Invoice] PDF generated, hash: ${fileHash}`);
+
+        // Generate composite hash for blockchain
+        const compositeHash = certificatePdfGenerator.generateCompositeHash(
+            certificateNumber,
+            finalVIN,
+            finalDateOfSale.split('T')[0],
+            fileHash
+        );
+
+        // Store in issued_certificates table (if table exists)
+        try {
+            const issuerQuery = await db.query(
+                `SELECT id FROM external_issuers WHERE issuer_type = 'sales_invoice' AND is_active = true LIMIT 1`
+            );
+
+            if (issuerQuery.rows.length > 0) {
+                await db.query(
+                    `INSERT INTO issued_certificates 
+                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                     file_hash, composite_hash, certificate_data, effective_date)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                    [
+                        issuerQuery.rows[0].id,
+                        'sales_invoice',
+                        certificateNumber,
+                        finalVIN,
+                        owner.name,
+                        fileHash,
+                        compositeHash,
+                        JSON.stringify({
+                            purchasePrice,
+                            dealerName,
+                            dealerTin,
+                            dealerAccreditationNo,
+                            sellerName,
+                            sellerPosition
+                        }),
+                        finalDateOfSale.split('T')[0]
+                    ]
+                );
+
+                console.log(`[Sales Invoice] Stored in database`);
+            } else {
+                console.warn(`[Sales Invoice] No active issuer found, skipping database storage`);
+            }
+        } catch (dbError) {
+            console.error(`[Sales Invoice] Database error:`, dbError);
+        }
+
+        // Send email
+        const emailResult = await certificateEmailService.sendSalesInvoice({
+            to: owner.email,
+            ownerName: owner.name,
+            invoiceNumber: certificateNumber,
+            vehicleVIN: finalVIN,
+            vehicleMake: vehicleMake || 'Toyota',
+            vehicleModel: vehicleModel || 'Vios',
+            pdfBuffer
+        });
+
+        console.log(`[Sales Invoice] Email sent to ${owner.email}, messageId: ${emailResult.id}`);
+
+        res.json({
+            success: true,
+            message: 'Sales invoice generated and sent successfully',
+            certificate: {
+                invoiceNumber: certificateNumber,
+                vehicleVIN: finalVIN,
+                ownerName: owner.name,
+                ownerEmail: owner.email,
+                fileHash,
+                compositeHash,
+                emailSent: true
+            }
+        });
+
+    } catch (error) {
+        console.error('[Sales Invoice] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate or send sales invoice',
+            details: error.message
+        });
+    }
+});
+
+/**
  * POST /api/certificate-generation/batch/generate-all
  * Generate all 5 certificates (Insurance, Emission, HPG, CSR, Sales Invoice) at once with shared vehicle data
  * Authorization: Admin only
@@ -696,8 +1019,8 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
 router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const {
+            ownerId,
             ownerEmail,
-            ownerName,
             // Optional vehicle details (for manual form)
             vehicleVIN,
             vehiclePlate,
@@ -717,21 +1040,37 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             salesInvoice
         } = req.body;
 
-        // Validate required fields
-        if (!ownerEmail || !ownerName) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: ownerEmail and ownerName are required'
-            });
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(ownerEmail)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid email format'
-            });
+        // Lookup and validate owner from database
+        let owner;
+        try {
+            owner = await lookupAndValidateOwner(ownerId, ownerEmail);
+        } catch (error) {
+            if (error.message.includes('Missing required field')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('Invalid email format')) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            } else if (error.message.includes('inactive')) {
+                return res.status(403).json({
+                    success: false,
+                    error: error.message
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
         }
 
         // Validate VIN format if provided
@@ -742,7 +1081,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             });
         }
 
-        console.log(`[Batch Certificate Generation] Starting for owner: ${ownerName} (${ownerEmail})`);
+        console.log(`[Batch Certificate Generation] Starting for owner: ${owner.name} (${owner.email})`);
 
         // Generate shared vehicle data (same for all certificates)
         // If VIN/plate not provided, generate random ones and ensure they don't exist
@@ -810,7 +1149,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
         const sharedVehicleData = {
             vin: finalVIN,
             plate: finalPlate,
-            ownerName: ownerName,
+            ownerName: owner.name,
+            ownerEmail: owner.email,
+            ownerAddress: owner.address,
             make: vehicleMake || 'Toyota',
             model: vehicleModel || 'Vios',
             year: vehicleYear || new Date().getFullYear(),
@@ -921,7 +1262,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Send email
             await certificateEmailService.sendInsuranceCertificate({
-                to: ownerEmail,
+                to: sharedVehicleData.ownerEmail,
                 ownerName: sharedVehicleData.ownerName,
                 policyNumber: certificateNumbers.insurance,
                 vehicleVIN: sharedVehicleData.vin,
@@ -1005,7 +1346,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Send email
             await certificateEmailService.sendEmissionCertificate({
-                to: ownerEmail,
+                to: sharedVehicleData.ownerEmail,
                 ownerName: sharedVehicleData.ownerName,
                 certificateNumber: certificateNumbers.emission,
                 vehicleVIN: sharedVehicleData.vin,
@@ -1084,7 +1425,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Send email
             await certificateEmailService.sendHpgClearance({
-                to: ownerEmail,
+                to: sharedVehicleData.ownerEmail,
                 ownerName: sharedVehicleData.ownerName,
                 clearanceNumber: certificateNumbers.hpg,
                 vehicleVIN: sharedVehicleData.vin,
@@ -1167,8 +1508,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             }
 
             // Send email
+            // For CSR, use owner as dealer (or allow separate dealer lookup if needed)
             await certificateEmailService.sendCsrCertificate({
-                to: ownerEmail,
+                to: sharedVehicleData.ownerEmail,
                 dealerName: csrData.dealerName,
                 csrNumber: certificateNumbers.csr,
                 vehicleVIN: sharedVehicleData.vin,
@@ -1258,7 +1600,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Send email
             await certificateEmailService.sendSalesInvoice({
-                to: ownerEmail,
+                to: sharedVehicleData.ownerEmail,
                 ownerName: sharedVehicleData.ownerName,
                 invoiceNumber: certificateNumbers.salesInvoice,
                 vehicleVIN: sharedVehicleData.vin,
@@ -1299,6 +1641,15 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
     } catch (error) {
         console.error('[Batch Certificate Generation] Error:', error);
         res.status(500).json({
+            success: false,
+            error: 'Failed to generate certificates',
+            details: error.message
+        });
+    }
+});
+
+module.exports = router;
+s(500).json({
             success: false,
             error: 'Failed to generate certificates',
             details: error.message

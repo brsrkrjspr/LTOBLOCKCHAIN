@@ -174,10 +174,29 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
 
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        const transferRequests = await dbModule.query(
-            `SELECT id FROM transfer_requests WHERE insurance_clearance_request_id = $1`,
-            [requestId]
-        );
+        
+        // Check if insurance_clearance_request_id column exists before querying
+        let transferRequests = { rows: [] };
+        try {
+            const colCheck = await dbModule.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'transfer_requests' 
+                AND column_name = 'insurance_clearance_request_id'
+            `);
+            
+            if (colCheck.rows.length > 0) {
+                // Column exists, safe to query
+                transferRequests = await dbModule.query(
+                    `SELECT id FROM transfer_requests WHERE insurance_clearance_request_id = $1`,
+                    [requestId]
+                );
+            } else {
+                console.warn('[Insurance Approve] insurance_clearance_request_id column does not exist. Skipping transfer request update. Run migration: database/add-insurance-clearance-column.sql');
+            }
+        } catch (colError) {
+            console.error('[Insurance Approve] Error checking for insurance_clearance_request_id column:', colError);
+            // Continue without transfer request update
+        }
 
         if (transferRequests.rows.length > 0) {
             for (const tr of transferRequests.rows) {
@@ -282,10 +301,29 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
         
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        const transferRequests = await dbModule.query(
-            `SELECT id FROM transfer_requests WHERE insurance_clearance_request_id = $1`,
-            [requestId]
-        );
+        
+        // Check if insurance_clearance_request_id column exists before querying
+        let transferRequests = { rows: [] };
+        try {
+            const colCheck = await dbModule.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'transfer_requests' 
+                AND column_name = 'insurance_clearance_request_id'
+            `);
+            
+            if (colCheck.rows.length > 0) {
+                // Column exists, safe to query
+                transferRequests = await dbModule.query(
+                    `SELECT id FROM transfer_requests WHERE insurance_clearance_request_id = $1`,
+                    [requestId]
+                );
+            } else {
+                console.warn('[Insurance Reject] insurance_clearance_request_id column does not exist. Skipping transfer request update. Run migration: database/add-insurance-clearance-column.sql');
+            }
+        } catch (colError) {
+            console.error('[Insurance Reject] Error checking for insurance_clearance_request_id column:', colError);
+            // Continue without transfer request update
+        }
 
         if (transferRequests.rows.length > 0) {
             for (const tr of transferRequests.rows) {

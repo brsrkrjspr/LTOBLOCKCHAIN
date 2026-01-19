@@ -529,20 +529,55 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
 
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        const transferRequests = await dbModule.query(
-            `SELECT id FROM transfer_requests WHERE hpg_clearance_request_id = $1`,
-            [requestId]
-        );
+        
+        // Check if hpg_clearance_request_id column exists before querying
+        let transferRequests = { rows: [] };
+        try {
+            const colCheck = await dbModule.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'transfer_requests' 
+                AND column_name = 'hpg_clearance_request_id'
+            `);
+            
+            if (colCheck.rows.length > 0) {
+                // Column exists, safe to query
+                transferRequests = await dbModule.query(
+                    `SELECT id FROM transfer_requests WHERE hpg_clearance_request_id = $1`,
+                    [requestId]
+                );
+            } else {
+                console.warn('[HPG Reject] hpg_clearance_request_id column does not exist. Skipping transfer request update.');
+            }
+        } catch (colError) {
+            console.error('[HPG Reject] Error checking for hpg_clearance_request_id column:', colError);
+            // Continue without transfer request update
+        }
 
         if (transferRequests.rows.length > 0) {
             for (const tr of transferRequests.rows) {
-                await dbModule.query(
-                    `UPDATE transfer_requests 
-                     SET hpg_approval_status = 'REJECTED',
-                         updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $1`,
-                    [tr.id]
-                );
+                try {
+                    // Check if approval status columns exist before updating
+                    const colCheck = await dbModule.query(`
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'transfer_requests' 
+                        AND column_name = 'hpg_approval_status'
+                    `);
+                    
+                    if (colCheck.rows.length > 0) {
+                        await dbModule.query(
+                            `UPDATE transfer_requests 
+                             SET hpg_approval_status = 'REJECTED',
+                                 updated_at = CURRENT_TIMESTAMP
+                             WHERE id = $1`,
+                            [tr.id]
+                        );
+                        console.log(`✅ Updated transfer request ${tr.id} with HPG rejection`);
+                    } else {
+                        console.warn(`⚠️ Transfer request approval columns missing. Skipping transfer request ${tr.id} update. Run migration: database/verify-verification-columns.sql`);
+                    }
+                } catch (updateError) {
+                    console.error(`[HPG Reject] Error updating transfer request ${tr.id}:`, updateError);
+                }
                 
                 // Add to vehicle history for the transfer request
                 const transferRequest = await db.getTransferRequestById(tr.id);

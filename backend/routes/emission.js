@@ -175,10 +175,29 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'emiss
 
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        const transferRequests = await dbModule.query(
-            `SELECT id FROM transfer_requests WHERE emission_clearance_request_id = $1`,
-            [requestId]
-        );
+        
+        // Check if emission_clearance_request_id column exists before querying
+        let transferRequests = { rows: [] };
+        try {
+            const colCheck = await dbModule.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'transfer_requests' 
+                AND column_name = 'emission_clearance_request_id'
+            `);
+            
+            if (colCheck.rows.length > 0) {
+                // Column exists, safe to query
+                transferRequests = await dbModule.query(
+                    `SELECT id FROM transfer_requests WHERE emission_clearance_request_id = $1`,
+                    [requestId]
+                );
+            } else {
+                console.warn('[Emission Approve] emission_clearance_request_id column does not exist. Skipping transfer request update. Run migration: database/verify-verification-columns.sql');
+            }
+        } catch (colError) {
+            console.error('[Emission Approve] Error checking for emission_clearance_request_id column:', colError);
+            // Continue without transfer request update
+        }
 
         if (transferRequests.rows.length > 0) {
             for (const tr of transferRequests.rows) {
@@ -283,20 +302,55 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'emissi
         
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        const transferRequests = await dbModule.query(
-            `SELECT id FROM transfer_requests WHERE emission_clearance_request_id = $1`,
-            [requestId]
-        );
+        
+        // Check if emission_clearance_request_id column exists before querying
+        let transferRequests = { rows: [] };
+        try {
+            const colCheck = await dbModule.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'transfer_requests' 
+                AND column_name = 'emission_clearance_request_id'
+            `);
+            
+            if (colCheck.rows.length > 0) {
+                // Column exists, safe to query
+                transferRequests = await dbModule.query(
+                    `SELECT id FROM transfer_requests WHERE emission_clearance_request_id = $1`,
+                    [requestId]
+                );
+            } else {
+                console.warn('[Emission Reject] emission_clearance_request_id column does not exist. Skipping transfer request update. Run migration: database/verify-verification-columns.sql');
+            }
+        } catch (colError) {
+            console.error('[Emission Reject] Error checking for emission_clearance_request_id column:', colError);
+            // Continue without transfer request update
+        }
 
         if (transferRequests.rows.length > 0) {
             for (const tr of transferRequests.rows) {
-                await dbModule.query(
-                    `UPDATE transfer_requests 
-                     SET emission_approval_status = 'REJECTED',
-                         updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $1`,
-                    [tr.id]
-                );
+                try {
+                    // Check if approval status columns exist before updating
+                    const colCheck = await dbModule.query(`
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'transfer_requests' 
+                        AND column_name = 'emission_approval_status'
+                    `);
+                    
+                    if (colCheck.rows.length > 0) {
+                        await dbModule.query(
+                            `UPDATE transfer_requests 
+                             SET emission_approval_status = 'REJECTED',
+                                 updated_at = CURRENT_TIMESTAMP
+                             WHERE id = $1`,
+                            [tr.id]
+                        );
+                        console.log(`✅ Updated transfer request ${tr.id} with Emission rejection`);
+                    } else {
+                        console.warn(`⚠️ Transfer request approval columns missing. Skipping transfer request ${tr.id} update. Run migration: database/verify-verification-columns.sql`);
+                    }
+                } catch (updateError) {
+                    console.error(`[Emission Reject] Error updating transfer request ${tr.id}:`, updateError);
+                }
                 
                 // Add to vehicle history for the transfer request
                 const transferRequest = await db.getTransferRequestById(tr.id);

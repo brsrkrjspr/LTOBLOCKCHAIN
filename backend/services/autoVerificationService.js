@@ -122,6 +122,22 @@ class AutoVerificationService {
             // Calculate file hash
             const fileHash = insuranceDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
             
+            // ============================================
+            // CERTIFICATE AUTHENTICITY CHECK (Blockchain Source of Truth)
+            // Verify that the certificate was issued by the certificate generator
+            // ============================================
+            const authenticityCheck = await certificateBlockchain.checkCertificateAuthenticity(
+                fileHash,
+                vehicleId,
+                'insurance'
+            );
+            console.log(`[Auto-Verify] Certificate authenticity check:`, {
+                authentic: authenticityCheck.authentic,
+                reason: authenticityCheck.reason,
+                originalFound: authenticityCheck.originalCertificateFound,
+                score: authenticityCheck.authenticityScore
+            });
+            
             // Generate composite hash
             const expiryDateISO = expiryCheck.expiryDate || new Date().toISOString();
             const compositeHash = certificateBlockchain.generateCompositeHash(
@@ -155,9 +171,10 @@ class AutoVerificationService {
             );
             console.log(`[Auto-Verify] Verification score: ${verificationScore.percentage}%`);
 
-            // Decision logic: Pattern valid + Hash unique + Not expired
+            // Decision logic: Pattern valid + Certificate authentic + Hash unique + Not expired
             const shouldApprove = verificationScore.percentage >= 80 &&
                                   patternCheck.valid &&
+                                  authenticityCheck.authentic &&
                                   !hashCheck.exists &&
                                   expiryCheck.isValid;
 
@@ -192,7 +209,7 @@ class AutoVerificationService {
                     'insurance',
                     'APPROVED',
                     systemUserId,
-                    `Auto-verified: Pattern valid, Hash unique, Score ${verificationScore.percentage}%, Policy: ${policyNumber}`,
+                    `Auto-verified: Pattern valid, Certificate authentic, Hash unique, Score ${verificationScore.percentage}%, Policy: ${policyNumber}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
@@ -201,6 +218,7 @@ class AutoVerificationService {
                             patternCheck,
                             hashCheck,
                             expiryCheck,
+                            authenticityCheck,
                             compositeHash,
                             blockchainTxId,
                             verificationScore,
@@ -218,6 +236,7 @@ class AutoVerificationService {
                     ocrData,
                     patternCheck,
                     hashCheck,
+                    authenticityCheck,
                     compositeHash,
                     blockchainTxId
                 };
@@ -225,6 +244,7 @@ class AutoVerificationService {
                 // Clearly invalid / low-confidence → auto-reject
                 const reasons = [];
                 if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
+                if (!authenticityCheck.authentic) reasons.push(`Certificate authenticity failed: ${authenticityCheck.reason}`);
                 if (hashCheck.exists) reasons.push('Document already used (duplicate)');
                 if (!expiryCheck.isValid) reasons.push('Document expired');
                 if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
@@ -247,6 +267,7 @@ class AutoVerificationService {
                             patternCheck,
                             hashCheck,
                             expiryCheck,
+                            authenticityCheck,
                             verificationScore,
                             rejectedAt: new Date().toISOString(),
                             flagReasons: reasons
@@ -263,7 +284,8 @@ class AutoVerificationService {
                     basis: verificationScore.checks,
                     ocrData,
                     patternCheck,
-                    hashCheck
+                    hashCheck,
+                    authenticityCheck
                 };
             }
         } catch (error) {
@@ -392,6 +414,22 @@ class AutoVerificationService {
             // Calculate file hash
             const fileHash = emissionDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
             
+            // ============================================
+            // CERTIFICATE AUTHENTICITY CHECK (Blockchain Source of Truth)
+            // Verify that the certificate was issued by the certificate generator
+            // ============================================
+            const authenticityCheck = await certificateBlockchain.checkCertificateAuthenticity(
+                fileHash,
+                vehicleId,
+                'emission'
+            );
+            console.log(`[Auto-Verify] Certificate authenticity check:`, {
+                authentic: authenticityCheck.authentic,
+                reason: authenticityCheck.reason,
+                originalFound: authenticityCheck.originalCertificateFound,
+                score: authenticityCheck.authenticityScore
+            });
+            
             // Generate composite hash
             const expiryDateISO = expiryCheck.expiryDate || new Date().toISOString();
             const compositeHash = certificateBlockchain.generateCompositeHash(
@@ -425,9 +463,10 @@ class AutoVerificationService {
             );
             console.log(`[Auto-Verify] Verification score: ${verificationScore.percentage}%`);
 
-            // Decision logic: Pattern valid + Hash unique + Not expired + Compliant
+            // Decision logic: Pattern valid + Certificate authentic + Hash unique + Not expired + Compliant
             const shouldApprove = verificationScore.percentage >= 80 &&
                                   patternCheck.valid &&
+                                  authenticityCheck.authentic &&
                                   !hashCheck.exists &&
                                   expiryCheck.isValid &&
                                   complianceCheck.allCompliant;
@@ -463,7 +502,7 @@ class AutoVerificationService {
                     'emission',
                     'APPROVED',
                     systemUserId,
-                    `Auto-verified: Pattern valid, Hash unique, Score ${verificationScore.percentage}%, Certificate: ${certificateNumber}`,
+                    `Auto-verified: Pattern valid, Certificate authentic, Hash unique, Score ${verificationScore.percentage}%, Certificate: ${certificateNumber}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
@@ -473,6 +512,7 @@ class AutoVerificationService {
                             hashCheck,
                             expiryCheck,
                             complianceCheck,
+                            authenticityCheck,
                             compositeHash,
                             blockchainTxId,
                             verificationScore,
@@ -490,6 +530,7 @@ class AutoVerificationService {
                     ocrData,
                     patternCheck,
                     hashCheck,
+                    authenticityCheck,
                     compositeHash,
                     blockchainTxId
                 };
@@ -497,6 +538,7 @@ class AutoVerificationService {
                 // Clearly invalid / low-confidence → auto-reject
                 const reasons = [];
                 if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
+                if (!authenticityCheck.authentic) reasons.push(`Certificate authenticity failed: ${authenticityCheck.reason}`);
                 if (hashCheck.exists) reasons.push('Document already used (duplicate)');
                 if (!expiryCheck.isValid) reasons.push('Certificate expired');
                 if (!complianceCheck.allCompliant) reasons.push('Test results non-compliant');
@@ -521,6 +563,7 @@ class AutoVerificationService {
                             hashCheck,
                             expiryCheck,
                             complianceCheck,
+                            authenticityCheck,
                             verificationScore,
                             rejectedAt: new Date().toISOString(),
                             flagReasons: reasons
@@ -537,7 +580,8 @@ class AutoVerificationService {
                     basis: verificationScore.checks,
                     ocrData,
                     patternCheck,
-                    hashCheck
+                    hashCheck,
+                    authenticityCheck
                 };
             }
         } catch (error) {

@@ -474,7 +474,7 @@ docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT table_name, t
 
 ```bash
 # View schema for a specific table (replace TABLE_NAME)
-docker exec postgres psql -U lto_user -d lto_blockchain -c "\d TABLE_NAME"
+docker exec postgres psql -U lto_user -d lto_blockchain -c "\d documents"
 
 # View all columns for all tables
 docker exec postgres psql -U lto_user -d lto_blockchain -c "SELECT table_name, column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' ORDER BY table_name, ordinal_position;"
@@ -741,6 +741,97 @@ SELECT 'Documents: ' || COUNT(*)::text FROM documents;
 SELECT 'Active Sessions: ' || COUNT(*)::text FROM sessions WHERE expires_at > CURRENT_TIMESTAMP;
 EOF
 ```
+
+---
+
+## Auto-Verification Tables Quick Check
+
+### Quick Health Check for Auto-Verification
+
+```bash
+docker exec postgres psql -U lto_user -d lto_blockchain << 'EOF'
+\echo '=== Auto-Verification Tables Health Check ==='
+
+\echo '1. Issued Certificates Count:'
+SELECT certificate_type, COUNT(*) FROM issued_certificates GROUP BY certificate_type;
+
+\echo '2. Clearance Requests with Auto-Verification:'
+SELECT request_type, COUNT(*) FROM clearance_requests 
+WHERE metadata ? 'autoVerificationResult' OR metadata ? 'autoVerify'
+GROUP BY request_type;
+
+\echo '3. Auto-Verification Status Distribution:'
+SELECT 
+    request_type,
+    COALESCE(metadata->'autoVerificationResult'->>'status', metadata->'autoVerify'->>'recommendation', 'N/A') AS status,
+    COUNT(*) 
+FROM clearance_requests 
+WHERE metadata ? 'autoVerificationResult' OR metadata ? 'autoVerify'
+GROUP BY request_type, status;
+
+\echo '4. Vehicle Verifications with Auto-Verification:'
+SELECT verification_type, COUNT(*) FROM vehicle_verifications 
+WHERE automated = true GROUP BY verification_type;
+
+\echo '5. Auto-Verification Columns Check:'
+SELECT 
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicle_verifications' AND column_name = 'automated'
+    ) THEN '✅ automated' ELSE '❌ automated MISSING' END AS automated_col,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicle_verifications' AND column_name = 'verification_score'
+    ) THEN '✅ verification_score' ELSE '❌ verification_score MISSING' END AS score_col,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'vehicle_verifications' AND column_name = 'verification_metadata'
+    ) THEN '✅ verification_metadata' ELSE '❌ verification_metadata MISSING' END AS metadata_col;
+EOF
+```
+
+### View Recent Auto-Verification Results
+
+```bash
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT 
+    cr.request_type,
+    cr.status,
+    v.vin,
+    cr.metadata->'autoVerificationResult'->>'status' AS auto_status,
+    cr.metadata->'autoVerificationResult'->>'score' AS score,
+    cr.metadata->'autoVerificationResult'->>'reason' AS reason,
+    cr.created_at
+FROM clearance_requests cr
+LEFT JOIN vehicles v ON cr.vehicle_id = v.id
+WHERE cr.metadata ? 'autoVerificationResult' OR cr.metadata ? 'autoVerify'
+ORDER BY cr.created_at DESC
+LIMIT 10;
+"
+```
+
+### Check Certificate Authenticity Matching
+
+```bash
+docker exec postgres psql -U lto_user -d lto_blockchain -c "
+SELECT 
+    ic.certificate_type,
+    ic.certificate_number,
+    ic.file_hash AS original_hash,
+    vv.verification_metadata->>'compositeHash' AS verification_hash,
+    CASE 
+        WHEN ic.file_hash = (vv.verification_metadata->>'fileHash') THEN '✅ MATCH'
+        ELSE '❌ MISMATCH'
+    END AS hash_status
+FROM issued_certificates ic
+LEFT JOIN vehicle_verifications vv ON ic.vehicle_vin = (SELECT vin FROM vehicles WHERE id = vv.vehicle_id LIMIT 1)
+WHERE ic.certificate_type IN ('insurance', 'emission', 'hpg_clearance')
+ORDER BY ic.created_at DESC
+LIMIT 10;
+"
+```
+
+**See `AUTO-VERIFICATION-TABLES-CHECK.md` for comprehensive queries.**
 
 ---
 

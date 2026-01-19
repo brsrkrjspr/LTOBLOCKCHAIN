@@ -1183,6 +1183,12 @@ router.get('/:documentId/view', authenticateTokenOrTemp, async (req, res) => {
         res.setHeader('Content-Type', mimeType);
         res.setHeader('Content-Disposition', `inline; filename="${document.original_name}"`);
         
+        // Chrome-specific headers for PDF embedding in iframes
+        // These headers are REQUIRED for Chrome to render PDFs inline instead of showing "Open" button
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+        res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        
         // Send file
         res.sendFile(path.resolve(filePath), (err) => {
             if (err) {

@@ -201,6 +201,13 @@ async function getVehicleVerifications(vehicleId) {
 }
 
 async function updateVerificationStatus(vehicleId, verificationType, status, verifiedBy, notes, metadata = null) {
+    // Some auto-verification paths pass a sentinel string (e.g. "system").
+    // The DB column `verified_by` is UUID, so coerce non-UUID values to null to avoid 22P02 errors.
+    const isUuid = (value) =>
+        typeof value === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const verifiedByUuid = isUuid(verifiedBy) ? verifiedBy : null;
+
     // Check if verification exists
     const existing = await db.query(
         'SELECT id FROM vehicle_verifications WHERE vehicle_id = $1 AND verification_type = $2',
@@ -212,7 +219,7 @@ async function updateVerificationStatus(vehicleId, verificationType, status, ver
         // Check if auto-verification columns exist before using them
         let updateQuery = `UPDATE vehicle_verifications
              SET status = $1, verified_by = $2, verified_at = CURRENT_TIMESTAMP, notes = $3, updated_at = CURRENT_TIMESTAMP`;
-        const params = [status, verifiedBy, notes];
+        const params = [status, verifiedByUuid, notes];
         let paramIndex = 4;
         
         if (metadata) {
@@ -259,7 +266,7 @@ async function updateVerificationStatus(vehicleId, verificationType, status, ver
         // Check if auto-verification columns exist before using them
         let insertQuery = `INSERT INTO vehicle_verifications (vehicle_id, verification_type, status, verified_by, notes`;
         let valuesQuery = `VALUES ($1, $2, $3, $4, $5`;
-        const params = [vehicleId, verificationType, status, verifiedBy, notes];
+        const params = [vehicleId, verificationType, status, verifiedByUuid, notes];
         let paramIndex = 6;
         
         if (metadata) {

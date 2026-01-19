@@ -217,12 +217,14 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             results.emission = { sent: false, reason: 'Not required for NEW registration' };
         }
 
-        // Update vehicle status to PENDING_VERIFICATION if at least one request was sent
+        // Update vehicle status if at least one request was sent
         // For NEW registrations, emission is not included
         const anySent = results.hpg.sent || results.insurance.sent || 
                        (!isNewRegistration && results.emission.sent);
         if (anySent) {
-            await db.updateVehicle(vehicleId, { status: 'PENDING_VERIFICATION' });
+            // NOTE: vehicle_status is an enum; "PENDING_VERIFICATION" is not a valid value in this schema.
+            // Use an existing enum value to avoid enum errors.
+            await db.updateVehicle(vehicleId, { status: 'PENDING' });
             
             // Log to history with auto-verification results
             const autoVerifySummary = [];

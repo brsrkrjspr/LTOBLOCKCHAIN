@@ -23,6 +23,7 @@ function initializeRegistrationWizard() {
     initializeIDNumberValidation();
     initializeIDTypeOverrideHandling();
     initializeVINAutoFill();
+    initializeOcrUserEditTracking();
     
     // Ensure only step 1 is visible initially
     // Other steps should be hidden until their previous step is completed
@@ -89,6 +90,122 @@ function initializeRegistrationWizard() {
     
     // Setup OCR auto-fill when documents are uploaded
     setupOCRAutoFill();
+}
+
+/**
+ * Normalize a string for loose comparison (ignore case/spacing/punctuation).
+ */
+function normalizeForComparison(value) {
+    if (value === undefined || value === null) return '';
+    return value
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '')
+        .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Detect conflicts between final form values and OCR-extracted data.
+ * Only compares fields where OCR has a non-empty value.
+ */
+function detectOcrConflicts() {
+    const conflicts = [];
+
+    // Map: OCR key -> HTML input id
+    const fieldMap = [
+        { ocrKey: 'make', htmlId: 'make', label: 'Make' },
+        { ocrKey: 'model', htmlId: 'model', label: 'Model / Series' },
+        { ocrKey: 'year', htmlId: 'year', label: 'Year' },
+        { ocrKey: 'color', htmlId: 'color', label: 'Color' },
+        { ocrKey: 'plateNumber', htmlId: 'plateNumber', label: 'Plate Number' },
+        { ocrKey: 'engineNumber', htmlId: 'engineNumber', label: 'Engine Number' },
+        { ocrKey: 'chassisNumber', htmlId: 'chassisNumber', label: 'Chassis / VIN' },
+        { ocrKey: 'grossVehicleWeight', htmlId: 'grossVehicleWeight', label: 'Gross Vehicle Weight' },
+        { ocrKey: 'netWeight', htmlId: 'netWeight', label: 'Net Weight' },
+        { ocrKey: 'fuelType', htmlId: 'fuelType', label: 'Fuel Type', isSelect: true }
+    ];
+
+    fieldMap.forEach(({ ocrKey, htmlId, label, isSelect }) => {
+        const ocrValue = storedOCRExtractedData[ocrKey];
+        if (!ocrValue) return; // nothing to compare
+
+        const el = document.getElementById(htmlId);
+        if (!el) return;
+
+        let formValue = el.value || '';
+
+        // For selects, compare by normalized token but show the user-facing text
+        if (isSelect && el.tagName === 'SELECT') {
+            const selectedIndex = el.selectedIndex;
+            const opt = selectedIndex >= 0 ? el.options[selectedIndex] : null;
+            if (opt && opt.text) {
+                formValue = opt.text;
+            }
+        }
+
+        const normForm = normalizeForComparison(formValue);
+        const normOcr = normalizeForComparison(ocrValue);
+
+        // If normalized values differ, treat as conflict
+        if (normForm && normOcr && normForm !== normOcr) {
+            conflicts.push({
+                field: label,
+                formValue: formValue || '(blank)',
+                ocrValue: ocrValue || '(blank)'
+            });
+        }
+    });
+
+    return conflicts;
+}
+
+/**
+ * Before final submit, warn user if there are conflicts between OCR data and entered values.
+ * Returns true if user explicitly confirms, false if they cancel.
+ */
+async function checkOcrConflictsBeforeSubmit() {
+    try {
+        // Only ask once per page load
+        if (window._ocrConflictConfirmed === true) {
+            return true;
+        }
+
+        const conflicts = detectOcrConflicts();
+        if (!conflicts || conflicts.length === 0) {
+            return true;
+        }
+
+        const conflictLines = conflicts.map(c =>
+            `• ${c.field}: Form = "${c.formValue}", Document = "${c.ocrValue}"`
+        ).join('\n');
+
+        const message =
+            'We detected differences between the values you entered and the values extracted from the uploaded documents:\n\n' +
+            conflictLines +
+            '\n\nIf you continue, the information in the form will be used for registration. Make sure this is intentional.';
+
+        const confirmed = await ConfirmationDialog.show({
+            title: 'Confirm Data Differences',
+            message: message,
+            confirmText: 'Yes, use my entered values',
+            cancelText: 'Go back and review',
+            confirmColor: '#e67e22',
+            type: 'warning',
+            html: false
+        });
+
+        if (!confirmed) {
+            return false;
+        }
+
+        window._ocrConflictConfirmed = true;
+        return true;
+    } catch (e) {
+        console.warn('[OCR Conflict Check] Error while checking conflicts:', e);
+        // Fail-open: do not block submission if checker fails
+        return true;
+    }
 }
 
 let currentStep = 1;
@@ -945,8 +1062,15 @@ async function submitApplication() {
         ToastNotification.show('Please agree to the terms and conditions before submitting', 'error');
         return;
     }
+
+    // First: check for conflicts between OCR-extracted data and entered values
+    const conflictsOk = await checkOcrConflictsBeforeSubmit();
+    if (!conflictsOk) {
+        // User chose to review data instead of submitting
+        return;
+    }
     
-    // Show confirmation dialog
+    // Show final confirmation dialog
     const confirmed = await ConfirmationDialog.show({
         title: 'Submit Application',
         message: 'Are you sure you want to submit this vehicle registration application? Please review all information before proceeding.',
@@ -2014,6 +2138,26 @@ async function processDocumentForOCRAutoFill(fileInput) {
 }
 
 /**
+ * Track when a user manually edits a field so OCR auto-fill won't overwrite it later.
+ * Uses `dataset.userEdited = 'true'` and `dataset.ocrFilling = 'true'`.
+ */
+function initializeOcrUserEditTracking() {
+    const selector = 'input, select, textarea';
+    document.querySelectorAll(selector).forEach((el) => {
+        if (el.dataset.ocrUserEditTrackingBound === 'true') return;
+        el.dataset.ocrUserEditTrackingBound = 'true';
+
+        const markUserEdited = () => {
+            if (el.dataset.ocrFilling === 'true') return;
+            el.dataset.userEdited = 'true';
+        };
+
+        el.addEventListener('input', markUserEdited);
+        el.addEventListener('change', markUserEdited);
+    });
+}
+
+/**
  * Auto-fill form fields from OCR extracted data
  * Maps API response STRICTLY to HTML input IDs
  */
@@ -2121,16 +2265,38 @@ function autoFillFromOCRData(extractedData, documentType) {
             console.log(`[OCR AutoFill] HTML element not found: ${htmlInputId}`);
             return;
         }
-        
-        // ALLOW OVERWRITE: Updated to allow new documents to update existing fields
-        // This enables correcting mistakes or updating with better document scans
-        // Commented out to enable field updates
-        /*
-        if (inputElement.value) {
-            console.log(`[OCR AutoFill] Field already has value, skipping: ${htmlInputId}`);
+
+        // -------- Overwrite control (prevents bad docs overwriting good/user edits) --------
+        // 1) Never overwrite if user manually edited the field
+        if (inputElement.dataset.userEdited === 'true') {
+            console.log(`[OCR AutoFill] Skipping user-edited field: ${htmlInputId}`);
             return;
         }
-        */
+
+        // 2) Only overwrite OCR-filled fields if incoming doc has >= priority (CSR wins)
+        const getDocPriority = (dt) => {
+            const normalized = (dt || '').toString().trim().toLowerCase();
+            if (normalized === 'csr') return 3;
+            if (normalized === 'sales_invoice' || normalized === 'salesinvoice') return 2;
+            return 1;
+        };
+        const incomingPriority = getDocPriority(documentType);
+        const existingPriority = parseInt(inputElement.dataset.ocrPriority || '0', 10) || 0;
+
+        const hasExistingValue = !!(inputElement.value && inputElement.value.toString().trim() !== '');
+        const existingWasOcr = inputElement.classList.contains('ocr-auto-filled');
+
+        // If there is already a value and it wasn't OCR-filled, do not overwrite.
+        if (hasExistingValue && !existingWasOcr) {
+            console.log(`[OCR AutoFill] Field already has non-OCR value, skipping: ${htmlInputId}`);
+            return;
+        }
+
+        // If there is an OCR value with higher priority, do not overwrite.
+        if (hasExistingValue && existingWasOcr && existingPriority > incomingPriority) {
+            console.log(`[OCR AutoFill] Existing OCR value has higher priority (${existingPriority}) than incoming (${incomingPriority}), skipping: ${htmlInputId}`);
+            return;
+        }
         
         // Set the value
         let formattedValue = value.trim();
@@ -2152,33 +2318,74 @@ function autoFillFromOCRData(extractedData, documentType) {
             }
         }
         
-        // [FIX START] Normalize fuelType to match dropdown options (Gasoline, Diesel, etc.)
-        if (htmlInputId === 'fuelType') {
-            // Convert to title case (first letter uppercase, rest lowercase)
-            formattedValue = formattedValue.charAt(0).toUpperCase() + formattedValue.slice(1).toLowerCase();
-        }
-        // [FIX END]
+        // Normalize dropdown-like values (fuelType etc.) to match options safely
+        const normalizeDropdownToken = (raw) => {
+            if (!raw) return '';
+            const s = raw.toString().trim();
+            const lower = s.toLowerCase().replace(/\s+/g, '');
+            const stripped = lower
+                .replace(/^fueltype/, '')
+                .replace(/^fuel/, '')
+                .replace(/^type/, '')
+                .replace(/^kind/, '');
+            return stripped.replace(/[^a-z0-9]/g, '');
+        };
+
+        const matchSelectOption = (selectEl, rawVal) => {
+            const token = normalizeDropdownToken(rawVal);
+            if (!token) return null;
+
+            const options = Array.from(selectEl.options || []);
+            const byValue = options.find((opt) => normalizeDropdownToken(opt.value) === token);
+            if (byValue) return byValue;
+            const byText = options.find((opt) => normalizeDropdownToken(opt.textContent || '') === token);
+            if (byText) return byText;
+
+            // Fuel-specific synonyms
+            if (token === 'gas' || token === 'gasoline' || token === 'petrol') {
+                return options.find((opt) =>
+                    normalizeDropdownToken(opt.value) === 'gasoline' ||
+                    normalizeDropdownToken(opt.textContent || '') === 'gasoline'
+                ) || null;
+            }
+            if (token === 'diesel') {
+                return options.find((opt) =>
+                    normalizeDropdownToken(opt.value) === 'diesel' ||
+                    normalizeDropdownToken(opt.textContent || '') === 'diesel'
+                ) || null;
+            }
+            return null;
+        };
         
         // Handle dropdown/select elements (e.g., fuelType)
         if (inputElement.tagName === 'SELECT') {
-            // For dropdown: try to match by value, then by option text (case-insensitive)
-            const optionExists = Array.from(inputElement.options).find(opt => 
-                opt.value === formattedValue || 
-                opt.textContent.trim() === formattedValue ||
-                opt.value.toLowerCase() === formattedValue.toLowerCase() ||
-                opt.textContent.trim().toLowerCase() === formattedValue.toLowerCase()
-            );
+            // For dropdown: match safely to existing options
+            const optionExists =
+                matchSelectOption(inputElement, formattedValue) ||
+                Array.from(inputElement.options).find(opt => 
+                    opt.value === formattedValue || 
+                    opt.textContent.trim() === formattedValue ||
+                    opt.value.toLowerCase() === formattedValue.toLowerCase() ||
+                    opt.textContent.trim().toLowerCase() === formattedValue.toLowerCase()
+                );
             if (optionExists) {
+                inputElement.dataset.ocrFilling = 'true';
                 inputElement.value = optionExists.value;
+                inputElement.dataset.ocrFilling = 'false';
                 console.log(`[OCR AutoFill] Dropdown matched: ${formattedValue} -> ${optionExists.value}`);
             } else {
                 console.log(`[OCR AutoFill] Dropdown value not found in options: ${formattedValue}`);
-                inputElement.value = formattedValue;
+                // Do NOT set an invalid value on a <select>. Keep existing selection.
+                return;
             }
         } else {
+            inputElement.dataset.ocrFilling = 'true';
             inputElement.value = formattedValue;
+            inputElement.dataset.ocrFilling = 'false';
         }
         inputElement.classList.add('ocr-auto-filled');
+        inputElement.dataset.ocrSource = (documentType || '').toString();
+        inputElement.dataset.ocrPriority = String(incomingPriority);
         
         // CRITICAL: For plate number, validate immediately after auto-fill
         if (htmlInputId === 'plateNumber') {

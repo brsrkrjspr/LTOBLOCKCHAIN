@@ -1186,7 +1186,18 @@ class AutoVerificationService {
             }
 
             const now = new Date();
-            const isValid = expiry > now;
+
+            // Treat "date-only" expiries as valid until end-of-day (local time).
+            // This avoids false "expired" results on the expiry date due to time-of-day / timezone.
+            const isDateOnly =
+                typeof expiryDate === 'string' &&
+                (/^\d{4}-\d{2}-\d{2}$/.test(expiryDate.trim()) || /^[0-3]?\d-[A-Za-z]{3}-\d{4}$/.test(expiryDate.trim()));
+
+            if (isDateOnly) {
+                expiry.setHours(23, 59, 59, 999);
+            }
+
+            const isValid = expiry >= now;
             
             return {
                 isValid,

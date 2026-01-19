@@ -1047,11 +1047,8 @@
                                         <img id="orcrDocImage" src="" alt="OR/CR Document" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="openOrcrInViewer()">
                                     </div>
                                     <div class="orcr-actions">
-                                        <button type="button" class="btn-secondary btn-sm" onclick="openOrcrInViewer()">
-                                            <i class="fas fa-expand"></i> View Full Size
-                                        </button>
-                                        <button type="button" class="btn-secondary btn-sm" onclick="openOrcrInViewer()">
-                                            <i class="fas fa-external-link-alt"></i> Open in New Tab
+                                        <button type="button" class="btn-primary btn-sm" onclick="openOrcrInViewer()">
+                                            <i class="fas fa-eye"></i> View Document
                                         </button>
                                     </div>
                                 </div>
@@ -1517,113 +1514,6 @@
             background: white;
             font-size: 1.1rem;
             font-weight: 600;
-            color: #2c3e50;
-        }
-        
-        /* Database Check Section */
-        .database-check-section {
-            text-align: center;
-        }
-        
-        #checkDatabaseBtn {
-            padding: 1rem 3rem;
-            font-size: 1.1rem;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-        }
-        
-        #checkDatabaseBtn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
-        }
-        
-        /* Database Result */
-        .database-result {
-            margin-top: 2rem;
-            border-radius: 12px;
-            overflow: hidden;
-            animation: slideDown 0.3s ease-out;
-        }
-        
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .result-header {
-            padding: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .result-header.clean {
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-            color: white;
-        }
-        
-        .result-header.flagged {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-            color: white;
-        }
-        
-        .result-header.not-found {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-            color: white;
-        }
-        
-        .result-header i {
-            font-size: 2.5rem;
-        }
-        
-        .result-header .result-title {
-            flex: 1;
-        }
-        
-        .result-header h4 {
-            margin: 0;
-            font-size: 1.25rem;
-        }
-        
-        .result-header p {
-            margin: 0.25rem 0 0 0;
-            opacity: 0.9;
-            font-size: 0.95rem;
-        }
-        
-        .result-details {
-            padding: 1.5rem;
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-top: none;
-        }
-        
-        .result-details.flagged-details {
-            background: #fdf2f2;
-            border-color: #f8d7da;
-        }
-        
-        .result-details h5 {
-            color: #e74c3c;
-            margin: 0 0 1rem 0;
-            font-size: 1rem;
-        }
-        
-        .flagged-info {
-            display: grid;
-            gap: 0.75rem;
-        }
-        
-        .flagged-info-item {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .flagged-info-item strong {
-            min-width: 120px;
-            color: #7f8c8d;
-        }
-        
-        .flagged-info-item span {
             color: #2c3e50;
         }
         
@@ -2292,7 +2182,17 @@
                 return;
             }
 
-            currentOrcrDoc = doc;
+            // Set current OR/CR document for modal viewing
+            currentOrcrDoc = {
+                id: doc.id,
+                cid: doc.cid || doc.ipfs_cid,
+                url: doc.id ? `/api/documents/${doc.id}/view` : 
+                     (doc.cid || doc.ipfs_cid) ? `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}` : 
+                     doc.path || doc.file_path,
+                filename: doc.filename || doc.original_name || 'OR/CR Document',
+                type: doc.type || doc.document_type,
+                document_type: doc.type || doc.document_type
+            };
 
             let docUrl = null;
             if (doc.url && doc.url.startsWith('data:')) {
@@ -2459,9 +2359,11 @@
             }
             DocumentModal.view({
                 id: currentOrcrDoc.id,
-                cid: currentOrcrDoc.cid || currentOrcrDoc.ipfs_cid,
+                cid: currentOrcrDoc.cid,
                 url: currentOrcrDoc.url,
-                filename: currentOrcrDoc.filename || currentOrcrDoc.original_name || 'OR/CR'
+                filename: currentOrcrDoc.filename || 'OR/CR',
+                type: currentOrcrDoc.type || currentOrcrDoc.document_type,
+                document_type: currentOrcrDoc.document_type || currentOrcrDoc.type
             });
         }
 

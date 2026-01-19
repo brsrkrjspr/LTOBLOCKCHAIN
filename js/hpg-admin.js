@@ -793,22 +793,8 @@ const HPGVerification = {
                         chassisNumberEditableEl.value = chassisNumber;
                     }
                     
-                    // Display database check results if available
-                    if (databaseCheck) {
-                        this.displayDatabaseCheckResult(databaseCheck);
-                        
-                        // Show auto-verify card if database check was already done
-                        const autoVerifyCard = document.getElementById('autoVerifyCard');
-                        if (autoVerifyCard) {
-                            autoVerifyCard.style.display = 'block';
-                            autoVerifyCard.dataset.shown = 'true';
-                        }
-                    }
-                    
-                    // Display data match results if OCR was used
-                    if (ocrExtracted && Object.keys(dataMatch).length > 0) {
-                        this.displayDataMatchResults(dataMatch);
-                    }
+                    // Note: databaseCheck and dataMatch are available in metadata for reference
+                    // but are no longer displayed in UI as we use the new verification method selection interface
                     
                     // Load OR/CR document (if loadORCRDocument function exists)
                     if (typeof loadORCRDocument === 'function' && this.requestData.documents.length > 0) {
@@ -831,127 +817,6 @@ const HPGVerification = {
         }
     },
     
-    displayDatabaseCheckResult: function(databaseCheck) {
-        // Remove existing database check display if any
-        const existing = document.getElementById('hpgDatabaseCheckResult');
-        if (existing) existing.remove();
-        
-        // Find Step 3 card (Database Check section)
-        const step3Card = document.getElementById('step3Card');
-        if (!step3Card) return;
-        
-        const databaseResultDiv = document.getElementById('databaseResult');
-        if (!databaseResultDiv) return;
-        
-        // Create result display
-        const resultHeader = document.getElementById('resultHeader');
-        const resultDetails = document.getElementById('resultDetails');
-        
-        if (!resultHeader || !resultDetails) return;
-        
-        // Determine status and styling
-        let statusIcon, statusText, statusClass, statusColor;
-        if (databaseCheck.status === 'FLAGGED') {
-            statusIcon = 'fas fa-exclamation-triangle';
-            statusText = '⚠️ FLAGGED';
-            statusClass = 'result-flagged';
-            statusColor = '#ef4444';
-        } else if (databaseCheck.status === 'CLEAN') {
-            statusIcon = 'fas fa-check-circle';
-            statusText = '✓ CLEAN';
-            statusClass = 'result-clean';
-            statusColor = '#10b981';
-        } else {
-            statusIcon = 'fas fa-question-circle';
-            statusText = '? UNKNOWN';
-            statusClass = 'result-unknown';
-            statusColor = '#6b7280';
-        }
-        
-        resultHeader.innerHTML = `
-            <i class="${statusIcon}" style="color: ${statusColor}; font-size: 2rem;"></i>
-            <h4 style="color: ${statusColor}; margin: 0.5rem 0;">${statusText}</h4>
-        `;
-        
-        resultDetails.innerHTML = `
-            <p><strong>Status:</strong> ${databaseCheck.status}</p>
-            <p><strong>Details:</strong> ${databaseCheck.details || 'N/A'}</p>
-            ${databaseCheck.matchedRecords && databaseCheck.matchedRecords.length > 0 ? `
-                <div style="margin-top: 1rem;">
-                    <strong>Matched Records:</strong>
-                    <ul style="margin-top: 0.5rem;">
-                        ${databaseCheck.matchedRecords.map(record => `
-                            <li>
-                                <strong>Reason:</strong> ${record.reason || 'N/A'}<br>
-                                <strong>Reported:</strong> ${record.reportedDate || 'N/A'} by ${record.reportedBy || 'N/A'}
-                            </li>
-                        `).join('')}
-                    </ul>
-                </div>
-            ` : ''}
-            <p style="margin-top: 1rem; font-size: 0.9em; color: #6b7280;">
-                <i class="fas fa-info-circle"></i> Checked at: ${new Date(databaseCheck.checkedAt).toLocaleString()}
-            </p>
-        `;
-        
-        databaseResultDiv.style.display = 'block';
-        databaseResultDiv.className = `database-result ${statusClass}`;
-        
-        // Auto-click the database check button if it exists (to show the result)
-        const checkBtn = document.getElementById('checkDatabaseBtn');
-        if (checkBtn && databaseCheck.status === 'FLAGGED') {
-            // Highlight the button for flagged vehicles
-            checkBtn.style.backgroundColor = '#ef4444';
-            checkBtn.style.color = 'white';
-        }
-    },
-    
-    displayDataMatchResults: function(dataMatch) {
-        // Display data matching results (OCR vs vehicle record)
-        const step2Card = document.getElementById('step2Card');
-        if (!step2Card) return;
-        
-        // Create match indicator
-        let matchIndicator = document.getElementById('dataMatchIndicator');
-        if (!matchIndicator) {
-            matchIndicator = document.createElement('div');
-            matchIndicator.id = 'dataMatchIndicator';
-            matchIndicator.style.cssText = 'margin-top: 1rem; padding: 1rem; border-radius: 4px; background-color: #f3f4f6;';
-            step2Card.querySelector('.card-body').appendChild(matchIndicator);
-        }
-        
-        const allMatch = dataMatch.engineNumber === true && dataMatch.chassisNumber === true;
-        const anyMismatch = dataMatch.engineNumber === false || dataMatch.chassisNumber === false;
-        
-        let matchStatus, matchColor, matchIcon;
-        if (allMatch) {
-            matchStatus = 'All data matches';
-            matchColor = '#10b981';
-            matchIcon = 'fas fa-check-circle';
-        } else if (anyMismatch) {
-            matchStatus = '⚠️ Data mismatch detected';
-            matchColor = '#f59e0b';
-            matchIcon = 'fas fa-exclamation-triangle';
-        } else {
-            matchStatus = 'Data match status unknown';
-            matchColor = '#6b7280';
-            matchIcon = 'fas fa-question-circle';
-        }
-        
-        matchIndicator.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                <i class="${matchIcon}" style="color: ${matchColor};"></i>
-                <strong style="color: ${matchColor};">${matchStatus}</strong>
-            </div>
-            <div style="font-size: 0.9em;">
-                <p><strong>Engine Number:</strong> ${dataMatch.engineNumber === true ? '✓ Match' : dataMatch.engineNumber === false ? '✗ Mismatch' : '? Not checked'}</p>
-                <p><strong>Chassis Number:</strong> ${dataMatch.chassisNumber === true ? '✓ Match' : dataMatch.chassisNumber === false ? '✗ Mismatch' : '? Not checked'}</p>
-            </div>
-            <p style="font-size: 0.85em; color: #6b7280; margin-top: 0.5rem;">
-                <i class="fas fa-info-circle"></i> Data extracted from OR/CR document via OCR
-            </p>
-        `;
-    },
     
     showAutoFillNotification: function() {
         // Remove existing notification if any

@@ -174,7 +174,7 @@ class CertificateBlockchainService {
             // ============================================
             const issuedCertQuery = await db.query(
                 `SELECT id, file_hash, composite_hash, certificate_number, 
-                        vehicle_vin, certificate_data, effective_date, expiry_date,
+                        vehicle_vin, metadata, issued_at, expires_at,
                         blockchain_tx_id, is_revoked, created_at
                  FROM issued_certificates 
                  WHERE vehicle_vin = $1 
@@ -200,7 +200,7 @@ class CertificateBlockchainService {
                         originalCompositeHash: original.composite_hash,
                         originalFileHash: original.file_hash,
                         blockchainTxId: original.blockchain_tx_id,
-                        certificateData: original.certificate_data,
+                        certificateData: original.metadata,
                         authenticityScore: 100,
                         matchType: 'file_hash'
                     };
@@ -314,7 +314,7 @@ class CertificateBlockchainService {
 
             // Priority 1: Check issued_certificates table (from certificate-generator.html)
             const issuedCertResult = await db.query(
-                `SELECT certificate_number, file_hash, composite_hash, created_at as issued_at, expiry_date as expires_at
+                `SELECT certificate_number, file_hash, composite_hash, issued_at, expires_at
                  FROM issued_certificates 
                  WHERE vehicle_vin = $1 
                    AND certificate_type = $2 

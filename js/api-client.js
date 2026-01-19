@@ -17,7 +17,8 @@ function isAuthDisabled() {
 class APIClient {
     constructor() {
         this.baseURL = window.location.origin;
-        this.timeout = 30000; // 30 seconds
+        // Extend default timeout to accommodate long-running batch cert generation
+        this.timeout = 120000; // 120 seconds
     }
 
     // Get authentication token

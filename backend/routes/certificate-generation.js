@@ -1649,12 +1649,3 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 });
 
 module.exports = router;
-s(500).json({
-            success: false,
-            error: 'Failed to generate certificates',
-            details: error.message
-        });
-    }
-});
-
-module.exports = router;

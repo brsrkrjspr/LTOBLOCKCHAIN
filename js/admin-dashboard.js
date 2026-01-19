@@ -381,14 +381,6 @@ async function loadOrgVerificationStatus() {
 }
 
 // Render verification responses table
-    if (typeof openDocumentModal === 'function') {
-        openDocumentModal(documentId);
-    } else {
-        // Fallback: open in new window
-        window.open(`/api/documents/${documentId}/view`, '_blank');
-    }
-
-
 function renderVerificationResponsesTable(requests) {
     const tbody = document.getElementById('verification-responses-tbody');
     if (!tbody) return;

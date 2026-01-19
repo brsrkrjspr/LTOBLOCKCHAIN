@@ -4,6 +4,7 @@
 const crypto = require('crypto');
 const fabricService = require('./optimizedFabricService');
 const db = require('../database/services');
+const dbRaw = require('../database/db');
 
 class CertificateBlockchainService {
     /**
@@ -87,7 +88,7 @@ class CertificateBlockchainService {
             // This prevents certificate reuse across different vehicles
 
             // Check 1: issued_certificates table (from certificate-generator.html)
-            const issuedCertCheck = await db.query(
+            const issuedCertCheck = await dbRaw.query(
                 `SELECT id, vehicle_vin, certificate_type, is_revoked, created_at
                  FROM issued_certificates 
                  WHERE composite_hash = $1`,
@@ -110,7 +111,7 @@ class CertificateBlockchainService {
             }
 
             // Check 2: certificates table (from clearance workflow)
-            const certCheck = await db.query(
+            const certCheck = await dbRaw.query(
                 `SELECT id, vehicle_id, certificate_type, application_status, status 
                  FROM certificates 
                  WHERE composite_hash = $1`,
@@ -180,7 +181,7 @@ class CertificateBlockchainService {
             console.log('🔐 [Certificate Authenticity] CHECK 1: Looking up issued_certificates by file_hash');
             console.log('🔐 [Certificate Authenticity] Query:', `SELECT ... FROM issued_certificates WHERE file_hash = '${fileHash.substring(0, 16)}...' AND certificate_type = '${certificateType}'`);
             
-            const issuedCertQuery = await db.query(
+            const issuedCertQuery = await dbRaw.query(
                 `SELECT id, file_hash, composite_hash, certificate_number, 
                         vehicle_vin, metadata, issued_at, expires_at,
                         blockchain_tx_id, is_revoked, created_at, certificate_type
@@ -242,7 +243,7 @@ class CertificateBlockchainService {
             // CHECK 2: certificates table (from clearance workflow)
             // Also lookup by file_hash for certificates from clearance workflow
             console.log('🔐 [Certificate Authenticity] CHECK 2: Looking up certificates table by file_hash');
-            const certQuery = await db.query(
+            const certQuery = await dbRaw.query(
                 `SELECT id, file_hash, composite_hash, certificate_number, 
                         status, application_status, issued_at, expires_at,
                         blockchain_tx_id, vehicle_id, certificate_type
@@ -305,7 +306,7 @@ class CertificateBlockchainService {
                     const vehicleVin = vehicle.vin;
 
                     // Fallback: Check issued_certificates by vehicle_vin
-                    const fallbackIssuedQuery = await db.query(
+                    const fallbackIssuedQuery = await dbRaw.query(
                         `SELECT id, file_hash, composite_hash, certificate_number, 
                                 vehicle_vin, metadata, issued_at, expires_at,
                                 blockchain_tx_id, is_revoked, created_at
@@ -336,7 +337,7 @@ class CertificateBlockchainService {
                     }
 
                     // Fallback: Check certificates table by vehicle_id
-                    const fallbackCertQuery = await db.query(
+                    const fallbackCertQuery = await dbRaw.query(
                         `SELECT id, file_hash, composite_hash, certificate_number, 
                                 status, application_status, issued_at, expires_at,
                                 blockchain_tx_id
@@ -375,7 +376,7 @@ class CertificateBlockchainService {
             console.log('🔐 [Certificate Authenticity] Checking all issued_certificates for debugging...');
             
             // Debug: Check all certificates of this type
-            const allCertsDebug = await db.query(
+            const allCertsDebug = await dbRaw.query(
                 `SELECT id, certificate_number, vehicle_vin, file_hash, certificate_type, created_at
                  FROM issued_certificates 
                  WHERE certificate_type = $1 
@@ -440,7 +441,7 @@ class CertificateBlockchainService {
             const vehicleVin = vehicle.vin;
 
             // Priority 1: Check issued_certificates table (from certificate-generator.html)
-            const issuedCertResult = await db.query(
+            const issuedCertResult = await dbRaw.query(
                 `SELECT certificate_number, file_hash, composite_hash, issued_at, expires_at
                  FROM issued_certificates 
                  WHERE vehicle_vin = $1 
@@ -455,7 +456,7 @@ class CertificateBlockchainService {
             }
 
             // Priority 2: Check certificates table (from clearance workflow)
-            const certResult = await db.query(
+            const certResult = await dbRaw.query(
                 `SELECT certificate_number, file_hash, composite_hash, issued_at, expires_at
                  FROM certificates 
                  WHERE vehicle_id = $1 
@@ -481,7 +482,7 @@ class CertificateBlockchainService {
     async verifyCertificate(compositeHash, vehicleVIN) {
         try {
             // Check database first
-            const cert = await db.query(
+            const cert = await dbRaw.query(
                 `SELECT c.*, v.status as vehicle_status, v.vin 
                  FROM certificates c
                  JOIN vehicles v ON c.vehicle_id = v.id
@@ -566,7 +567,7 @@ class CertificateBlockchainService {
     async revokeCertificateOnBlockchain(certificateId, reason) {
         try {
             // Update database
-            await db.query(
+            await dbRaw.query(
                 `UPDATE certificates 
                  SET status = 'REVOKED', 
                      application_status = 'REJECTED',

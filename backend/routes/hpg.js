@@ -7,6 +7,10 @@ const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const storageService = require('../services/storageService');
+const autoVerificationService = require('../services/autoVerificationService');
+const certificateBlockchain = require('../services/certificateBlockchainService');
+const crypto = require('crypto');
+const fs = require('fs').promises;
 
 // Get HPG dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
@@ -157,7 +161,7 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admi
     }
 });
 
-// Auto-verify HPG clearance (Phase 2/3 Hybrid - One-click with human oversight)
+// Auto-verify HPG clearance with hashing and duplicate detection
 router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { requestId } = req.body;
@@ -185,108 +189,31 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
             });
         }
 
+        // Get documents from clearance request
         const metadata = typeof clearanceRequest.metadata === 'string' 
             ? JSON.parse(clearanceRequest.metadata) 
             : (clearanceRequest.metadata || {});
 
-        // Get Phase 1 automation data
-        const extractedData = metadata.extractedData || {};
-        const databaseCheck = metadata.hpgDatabaseCheck || null;
-        const dataMatch = extractedData.dataMatch || {};
-        const isTransfer = metadata.transferRequestId || clearanceRequest.purpose?.toLowerCase().includes('transfer');
-
-        // Calculate confidence score (0-100)
-        let confidenceScore = 0;
-        const scoreBreakdown = {
-            databaseCheck: 0,
-            dataMatch: 0,
-            documentCompleteness: 0,
-            vehicleType: 0,
-            total: 0
-        };
-
-        // 1. Database Check (30 points max)
-        if (databaseCheck) {
-            if (databaseCheck.status === 'CLEAN') {
-                scoreBreakdown.databaseCheck = 30;
-            } else if (databaseCheck.status === 'FLAGGED') {
-                scoreBreakdown.databaseCheck = -100; // Auto-reject if flagged
-            } else {
-                scoreBreakdown.databaseCheck = 0;
-            }
+        // Get documents from metadata or fetch from database
+        let documents = metadata.documents || [];
+        if (documents.length === 0) {
+            // Try to fetch documents from database
+            const dbModule = require('../database/db');
+            const docResult = await dbModule.query(
+                `SELECT d.* FROM documents d
+                 JOIN clearance_request_documents crd ON d.id = crd.document_id
+                 WHERE crd.clearance_request_id = $1`,
+                [requestId]
+            );
+            documents = docResult.rows || [];
         }
 
-        // 2. Data Match (20 points max)
-        if (extractedData.ocrExtracted && dataMatch) {
-            const matchCount = (dataMatch.engineNumber === true ? 1 : 0) + 
-                              (dataMatch.chassisNumber === true ? 1 : 0) + 
-                              (dataMatch.plateNumber === true ? 1 : 0);
-            scoreBreakdown.dataMatch = (matchCount / 3) * 20;
-        } else if (!isTransfer) {
-            // For new registrations, data is from metadata (assumed correct)
-            scoreBreakdown.dataMatch = 20;
-        }
-
-        // 3. Document Completeness (20 points max)
-        const documents = metadata.documents || [];
-        const requiredDocs = ['or_cr', 'registration_cert', 'owner_id', 'csr', 'sales_invoice'];
-        const hasDocs = requiredDocs.filter(docType => 
-            documents.some(d => d.type === docType || d.type === docType.replace('_', ''))
+        // Use autoVerificationService to perform auto-verification with hashing
+        const autoVerifyResult = await autoVerificationService.autoVerifyHPG(
+            clearanceRequest.vehicle_id,
+            documents,
+            vehicle
         );
-        scoreBreakdown.documentCompleteness = (hasDocs.length / requiredDocs.length) * 20;
-
-        // 4. Vehicle Type Bonus (10 points max)
-        // New vehicles are lower risk than transfers
-        if (!isTransfer) {
-            scoreBreakdown.vehicleType = 10;
-        }
-
-        // 5. OCR Extraction Quality (20 points max)
-        if (extractedData.ocrExtracted && extractedData.engineNumber && extractedData.chassisNumber) {
-            scoreBreakdown.ocrQuality = 20;
-        } else if (!isTransfer && vehicle.engine_number && vehicle.chassis_number) {
-            // New registration has metadata
-            scoreBreakdown.ocrQuality = 20;
-        }
-
-        // Calculate total confidence score
-        confidenceScore = Math.max(0, Math.min(100, 
-            scoreBreakdown.databaseCheck + 
-            scoreBreakdown.dataMatch + 
-            scoreBreakdown.documentCompleteness + 
-            scoreBreakdown.vehicleType + 
-            (scoreBreakdown.ocrQuality || 0)
-        ));
-
-        scoreBreakdown.total = confidenceScore;
-
-        // Determine recommendation
-        let recommendation = 'MANUAL_REVIEW';
-        let recommendationReason = '';
-
-        if (scoreBreakdown.databaseCheck < 0) {
-            recommendation = 'AUTO_REJECT';
-            recommendationReason = 'Vehicle found in HPG hot list database';
-        } else if (confidenceScore >= 80) {
-            recommendation = 'AUTO_APPROVE';
-            recommendationReason = 'High confidence score. All checks passed.';
-        } else if (confidenceScore >= 60) {
-            recommendation = 'REVIEW';
-            recommendationReason = 'Moderate confidence. Review recommended before approval.';
-        } else {
-            recommendation = 'MANUAL_REVIEW';
-            recommendationReason = 'Low confidence score. Manual verification required.';
-        }
-
-        // Pre-fill verification data
-        const preFilledData = {
-            engineNumber: extractedData.engineNumber || vehicle.engine_number || '',
-            chassisNumber: extractedData.chassisNumber || vehicle.chassis_number || '',
-            macroEtching: false, // Always requires manual physical inspection
-            remarks: `Auto-verified. Confidence: ${confidenceScore}%. ${recommendationReason}`,
-            recommendation: recommendation,
-            confidenceScore: confidenceScore
-        };
 
         // Store auto-verify result in metadata
         const updatedMetadata = {
@@ -295,11 +222,13 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                 completed: true,
                 completedAt: new Date().toISOString(),
                 completedBy: req.user.userId,
-                confidenceScore: confidenceScore,
-                scoreBreakdown: scoreBreakdown,
-                recommendation: recommendation,
-                recommendationReason: recommendationReason,
-                preFilledData: preFilledData
+                confidenceScore: autoVerifyResult.score || autoVerifyResult.confidence * 100,
+                scoreBreakdown: autoVerifyResult.scoreBreakdown || {},
+                recommendation: autoVerifyResult.recommendation || 'MANUAL_REVIEW',
+                recommendationReason: autoVerifyResult.recommendationReason || '',
+                preFilledData: autoVerifyResult.preFilledData || {},
+                hashCheck: autoVerifyResult.hashCheck || {},
+                compositeHash: autoVerifyResult.compositeHash || null
             }
         };
 
@@ -313,14 +242,16 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
         await db.addVehicleHistory({
             vehicleId: clearanceRequest.vehicle_id,
             action: 'HPG_AUTO_VERIFY',
-            description: `HPG auto-verification completed. Confidence: ${confidenceScore}%. Recommendation: ${recommendation}`,
+            description: `HPG auto-verification completed. Confidence: ${autoVerifyResult.score || 0}%. Recommendation: ${autoVerifyResult.recommendation || 'MANUAL_REVIEW'}`,
             performedBy: req.user.userId,
             transactionId: null,
             metadata: {
                 clearanceRequestId: requestId,
-                confidenceScore: confidenceScore,
-                recommendation: recommendation,
-                scoreBreakdown: scoreBreakdown
+                confidenceScore: autoVerifyResult.score || 0,
+                recommendation: autoVerifyResult.recommendation || 'MANUAL_REVIEW',
+                scoreBreakdown: autoVerifyResult.scoreBreakdown || {},
+                hashCheck: autoVerifyResult.hashCheck || {},
+                compositeHash: autoVerifyResult.compositeHash || null
             }
         });
 
@@ -328,14 +259,14 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
             success: true,
             message: 'Auto-verification completed',
             autoVerify: {
-                confidenceScore: confidenceScore,
-                recommendation: recommendation,
-                recommendationReason: recommendationReason,
-                scoreBreakdown: scoreBreakdown,
-                preFilledData: preFilledData,
-                databaseCheck: databaseCheck,
-                dataMatch: dataMatch,
-                isTransfer: isTransfer
+                confidenceScore: autoVerifyResult.score || autoVerifyResult.confidence * 100,
+                recommendation: autoVerifyResult.recommendation || 'MANUAL_REVIEW',
+                recommendationReason: autoVerifyResult.recommendationReason || '',
+                scoreBreakdown: autoVerifyResult.scoreBreakdown || {},
+                preFilledData: autoVerifyResult.preFilledData || {},
+                hashCheck: autoVerifyResult.hashCheck || {},
+                compositeHash: autoVerifyResult.compositeHash || null,
+                ocrData: autoVerifyResult.ocrData || {}
             }
         });
 
@@ -446,13 +377,109 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             }
         }
 
+        // Get vehicle for hash calculation
+        const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Perform document hashing and duplicate detection (for both auto and manual verification)
+        const metadata = typeof clearanceRequest.metadata === 'string' 
+            ? JSON.parse(clearanceRequest.metadata) 
+            : (clearanceRequest.metadata || {});
+        
+        const documents = metadata.documents || [];
+        const registrationCert = documents.find(d => 
+            d.document_type === 'registration_cert' || 
+            d.document_type === 'registrationCert' ||
+            d.type === 'registration_cert' ||
+            d.type === 'registrationCert' ||
+            d.type === 'or_cr'
+        );
+
+        let hashCheckResult = null;
+        let compositeHash = null;
+        
+        if (registrationCert) {
+            try {
+                const filePath = registrationCert.file_path || registrationCert.filePath;
+                if (filePath) {
+                    try {
+                        await fs.access(filePath);
+                        
+                        // Calculate file hash
+                        const fileHash = registrationCert.file_hash || 
+                            crypto.createHash('sha256')
+                                .update(await fs.readFile(filePath))
+                                .digest('hex');
+                        
+                        // Generate composite hash
+                        const issueDateISO = new Date().toISOString();
+                        compositeHash = certificateBlockchain.generateCompositeHash(
+                            `HPG-${vehicle.vin}-${Date.now()}`,
+                            vehicle.vin,
+                            issueDateISO,
+                            fileHash
+                        );
+                        
+                        // Check for duplicate hash
+                        hashCheckResult = await certificateBlockchain.checkHashDuplicate(compositeHash);
+                        
+                        if (hashCheckResult.exists) {
+                            return res.status(409).json({
+                                success: false,
+                                error: 'Document duplicate detected',
+                                message: `This certificate has already been used for vehicle ${hashCheckResult.vehicleId}. Certificate reuse is not allowed.`,
+                                hashCheck: hashCheckResult
+                            });
+                        }
+                        
+                        // Store hash on blockchain
+                        try {
+                            await certificateBlockchain.storeCertificateHashOnBlockchain(
+                                compositeHash,
+                                {
+                                    certificateType: 'hpg',
+                                    vehicleVIN: vehicle.vin,
+                                    vehicleId: clearanceRequest.vehicle_id,
+                                    certificateNumber: `HPG-${vehicle.vin}-${Date.now()}`,
+                                    applicationStatus: 'APPROVED',
+                                    issuedAt: new Date().toISOString(),
+                                    issuedBy: req.user.userId,
+                                    fileHash: fileHash
+                                }
+                            );
+                        } catch (blockchainError) {
+                            console.error('[HPG Approve] Blockchain storage failed:', blockchainError);
+                            // Continue - blockchain storage is optional but logged
+                        }
+                    } catch (fileError) {
+                        console.warn('[HPG Approve] Document file not accessible:', fileError.message);
+                        // Continue without hash check if file not accessible
+                    }
+                }
+            } catch (hashError) {
+                console.error('[HPG Approve] Hash verification error:', hashError);
+                // Continue with approval but log the error
+            }
+        }
+
         // Update vehicle verification status
         await db.updateVerificationStatus(
             clearanceRequest.vehicle_id,
             'hpg',
             'APPROVED',
             req.user.userId,
-            remarks || null
+            remarks || null,
+            {
+                hashCheck: hashCheckResult,
+                compositeHash: compositeHash,
+                verificationMethod: metadata.autoVerify ? 'auto' : 'manual',
+                verifiedAt: new Date().toISOString()
+            }
         );
 
         // Add to vehicle history
@@ -471,7 +498,6 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
         });
 
         // Create notification for LTO admin
-        const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
         // dbModule already declared at line 120, reuse it
         const ltoAdmins = await dbModule.query(
             "SELECT id FROM users WHERE role = 'admin' LIMIT 1"

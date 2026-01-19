@@ -1087,11 +1087,11 @@
                                 </div>
                                 <div class="detail-item highlight">
                                     <label><i class="fas fa-cog"></i> Engine Number</label>
-                                    <input type="text" id="engineNumber" readonly class="readonly-field highlight-field">
+                                    <input type="text" id="engineNumberDisplay" readonly class="readonly-field highlight-field">
                                 </div>
                                 <div class="detail-item highlight">
                                     <label><i class="fas fa-barcode"></i> Chassis Number</label>
-                                    <input type="text" id="chassisNumber" readonly class="readonly-field highlight-field">
+                                    <input type="text" id="chassisNumberDisplay" readonly class="readonly-field highlight-field">
                                 </div>
                                 <div class="detail-item">
                                     <label>Vehicle Make/Model</label>
@@ -1113,63 +1113,77 @@
                         </div>
                     </div>
 
-                    <!-- STEP 3: HPG Database Check -->
+                    <!-- STEP 3: Verification Method Selection -->
                     <div class="dashboard-card verification-step" id="step3Card">
                         <div class="card-header">
-                            <h3><i class="fas fa-database"></i> Step 3: HPG Database Check (Manual)</h3>
-                            <span class="step-badge step-badge-important">Critical</span>
+                            <h3><i class="fas fa-tasks"></i> Step 3: Choose Verification Method</h3>
+                            <span class="step-badge step-badge-important">Required</span>
                         </div>
                         <div class="card-body">
                             <p class="step-description">
-                                <strong>Manual Database Check:</strong> Click the button below to manually check the vehicle against HPG's Hot List database for any carnapped, stolen, or flagged records.
-                                <br><br>
-                                <small style="color: #6b7280;">
-                                    <i class="fas fa-info-circle"></i> <strong>Difference from Auto-Verify:</strong> This is a simple manual check that only queries the database. The "Quick Auto-Verify" option below performs comprehensive automated checks (database + data matching + document completeness + confidence scoring) and provides recommendations.
-                                </small>
+                                Choose how you want to verify this vehicle clearance request. Both methods include document hashing and duplicate detection to prevent fraud.
                             </p>
                             
-                            <div class="database-check-section">
-                                <button type="button" class="btn-primary btn-lg" id="checkDatabaseBtn" onclick="runHPGDatabaseCheck()">
-                                    <i class="fas fa-search"></i> Check HPG Database
-                                </button>
-                                
-                                <!-- Database Result -->
-                                <div class="database-result" id="databaseResult" style="display: none;">
-                                    <div class="result-header" id="resultHeader">
-                                        <!-- Result icon and title will be inserted here -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+                                <!-- Auto-Verify Option -->
+                                <div class="verification-method-card" id="autoVerifyMethodCard" style="border: 2px solid #3498db; border-radius: 8px; padding: 1.5rem; cursor: pointer; transition: all 0.3s;" onclick="selectVerificationMethod('auto')">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 3rem; color: #3498db; margin-bottom: 1rem;">
+                                            <i class="fas fa-robot"></i>
+                                        </div>
+                                        <h3 style="color: #3498db; margin: 0.5rem 0;">Auto-Verification</h3>
+                                        <p style="color: #6b7280; margin: 0.5rem 0;">
+                                            Automated verification with hashing, duplicate detection, and confidence scoring.
+                                        </p>
+                                        <ul style="text-align: left; margin: 1rem 0; padding-left: 1.5rem; color: #4b5563;">
+                                            <li>Document hash verification</li>
+                                            <li>Duplicate detection</li>
+                                            <li>OCR data extraction</li>
+                                            <li>Confidence scoring</li>
+                                            <li>Pre-filled verification data</li>
+                                        </ul>
+                                        <button type="button" class="btn-primary" id="selectAutoBtn" onclick="event.stopPropagation(); selectVerificationMethod('auto')" style="width: 100%; margin-top: 1rem;">
+                                            <i class="fas fa-bolt"></i> Use Auto-Verification
+                                        </button>
                                     </div>
-                                    <div class="result-details" id="resultDetails">
-                                        <!-- Result details will be inserted here -->
+                                </div>
+
+                                <!-- Manual Verification Option -->
+                                <div class="verification-method-card" id="manualVerifyMethodCard" style="border: 2px solid #6b7280; border-radius: 8px; padding: 1.5rem; cursor: pointer; transition: all 0.3s;" onclick="selectVerificationMethod('manual')">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 3rem; color: #6b7280; margin-bottom: 1rem;">
+                                            <i class="fas fa-user-check"></i>
+                                        </div>
+                                        <h3 style="color: #6b7280; margin: 0.5rem 0;">Manual Verification</h3>
+                                        <p style="color: #6b7280; margin: 0.5rem 0;">
+                                            Manual verification with physical inspection. You enter all details manually.
+                                        </p>
+                                        <ul style="text-align: left; margin: 1rem 0; padding-left: 1.5rem; color: #4b5563;">
+                                            <li>Physical inspection required</li>
+                                            <li>Manual data entry</li>
+                                            <li>Full control over process</li>
+                                            <li>Document hash verification</li>
+                                            <li>Duplicate detection</li>
+                                        </ul>
+                                        <button type="button" class="btn-secondary" id="selectManualBtn" onclick="event.stopPropagation(); selectVerificationMethod('manual')" style="width: 100%; margin-top: 1rem;">
+                                            <i class="fas fa-hand-pointer"></i> Use Manual Verification
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- STEP 3.5: Auto-Verify Option (Hybrid Phase 2/3) -->
+                    <!-- Auto-Verify Results Panel (Hidden until auto-verify runs) -->
                     <div class="dashboard-card verification-step" id="autoVerifyCard" style="display: none; margin-top: 1.5rem; border: 2px dashed #3498db;">
                         <div class="card-header">
-                            <h3><i class="fas fa-magic"></i> Quick Auto-Verify (Optional)</h3>
-                            <span class="step-badge" style="background-color: #3498db;">One-Click</span>
+                            <h3><i class="fas fa-chart-line"></i> Auto-Verification Results</h3>
+                            <span class="step-badge" style="background-color: #3498db;">Results</span>
                         </div>
                         <div class="card-body">
-                            <p class="step-description">Use automated verification to speed up the process. All results require human review and approval.</p>
-                            
-                            <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
-                                <button type="button" class="btn-primary btn-lg" id="autoVerifyBtn" onclick="runAutoVerify()" style="flex: 1;">
-                                    <i class="fas fa-bolt"></i> Run Auto-Verify
-                                </button>
-                                <button type="button" class="btn-secondary" onclick="skipAutoVerify()" style="flex: 0 0 auto;">
-                                    <i class="fas fa-forward"></i> Skip to Manual
-                                </button>
-                            </div>
                             
                             <!-- Auto-Verify Results Panel -->
                             <div id="autoVerifyResults" style="display: none; margin-top: 1.5rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #3498db;">
-                                <h4 style="margin-top: 0; color: #3498db;">
-                                    <i class="fas fa-chart-line"></i> Auto-Verification Results
-                                </h4>
-                                
                                 <!-- Confidence Score -->
                                 <div id="confidenceScoreDisplay" style="margin: 1rem 0;">
                                     <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
@@ -1178,6 +1192,14 @@
                                         <div id="confidenceScoreBar" style="flex: 1; height: 20px; background-color: #e5e7eb; border-radius: 10px; overflow: hidden;">
                                             <div id="confidenceScoreFill" style="height: 100%; background-color: #10b981; width: 0%; transition: width 0.3s;"></div>
                                         </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hash Verification Status -->
+                                <div id="hashVerificationDisplay" style="margin: 1rem 0; padding: 1rem; background-color: white; border-radius: 4px; border-left: 4px solid #10b981;">
+                                    <strong><i class="fas fa-shield-alt"></i> Document Hash Verification:</strong>
+                                    <div id="hashVerificationStatus" style="margin-top: 0.5rem; font-size: 0.9em;">
+                                        <!-- Will be populated by JavaScript -->
                                     </div>
                                 </div>
                                 
@@ -1206,8 +1228,8 @@
                                 
                                 <!-- Action Buttons -->
                                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                                    <button type="button" class="btn-secondary" onclick="useAutoVerifyData()" id="useAutoVerifyBtn">
-                                        <i class="fas fa-check"></i> Use Auto-Verify Data
+                                    <button type="button" class="btn-primary" onclick="useAutoVerifyData()" id="useAutoVerifyBtn">
+                                        <i class="fas fa-check"></i> Use Auto-Verify Data & Continue
                                     </button>
                                     <button type="button" class="btn-secondary" onclick="ignoreAutoVerify()">
                                         <i class="fas fa-times"></i> Ignore & Continue Manually
@@ -1221,14 +1243,80 @@
                         </div>
                     </div>
 
-                    <!-- STEP 4: Issue Clearance -->
+                    <!-- Manual Verification Form (Hidden until manual method selected) -->
+                    <div class="dashboard-card verification-step" id="manualVerifyCard" style="display: none; margin-top: 1.5rem; border: 2px solid #6b7280;">
+                        <div class="card-header">
+                            <h3><i class="fas fa-user-check"></i> Manual Verification Form</h3>
+                            <span class="step-badge" style="background-color: #6b7280;">Manual</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="step-description">
+                                Enter verification details manually. Document hashing and duplicate detection will be performed automatically when you submit.
+                            </p>
+                            
+                            <div class="form-group">
+                                <label for="manualEngineNumber">Engine Number <span class="required">*</span></label>
+                                <input type="text" id="manualEngineNumber" name="engineNumber" placeholder="Enter engine number from physical inspection" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manualChassisNumber">Chassis Number <span class="required">*</span></label>
+                                <input type="text" id="manualChassisNumber" name="chassisNumber" placeholder="Enter chassis number from physical inspection" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manualMacroEtching">Macro-Etching / Stencil Result</label>
+                                <select id="manualMacroEtching" name="macroEtching">
+                                    <option value="false">Not Performed</option>
+                                    <option value="true">Passed</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manualRemarks">Verification Remarks</label>
+                                <textarea id="manualRemarks" name="remarks" rows="3" placeholder="Add any remarks or notes about this verification..."></textarea>
+                            </div>
+                            
+                            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                                <button type="button" class="btn-secondary" onclick="goBackToMethodSelection()">
+                                    <i class="fas fa-arrow-left"></i> Back to Method Selection
+                                </button>
+                                <button type="button" class="btn-primary" onclick="proceedToFinalStep()" style="flex: 1;">
+                                    <i class="fas fa-arrow-right"></i> Continue to Final Step
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 4: Final Verification & Issue Clearance -->
                     <div class="dashboard-card verification-step" id="step4Card" style="display: none;">
                         <div class="card-header">
-                            <h3><i class="fas fa-certificate"></i> Step 4: Issue Clearance</h3>
+                            <h3><i class="fas fa-certificate"></i> Step 4: Final Verification & Issue Clearance</h3>
                             <span class="step-badge step-badge-success">Final Step</span>
                         </div>
                         <div class="card-body">
-                            <p class="step-description">Based on the database check, you can now issue or deny the MV Clearance.</p>
+                            <p class="step-description">
+                                Review and confirm verification details. Document hashing and duplicate detection are performed automatically when you submit.
+                                <br><small style="color: #6b7280;"><i class="fas fa-shield-alt"></i> All documents are verified against blockchain hashes to prevent duplicates and fraud.</small>
+                            </p>
+                            
+                            <div class="vehicle-details-grid" style="margin-bottom: 1.5rem;">
+                                <div class="detail-item">
+                                    <label><i class="fas fa-cog"></i> Engine Number <span class="required">*</span></label>
+                                    <input type="text" id="engineNumber" name="engineNumber" placeholder="Enter engine number" required>
+                                </div>
+                                <div class="detail-item">
+                                    <label><i class="fas fa-barcode"></i> Chassis Number <span class="required">*</span></label>
+                                    <input type="text" id="chassisNumber" name="chassisNumber" placeholder="Enter chassis number" required>
+                                </div>
+                                <div class="detail-item">
+                                    <label><i class="fas fa-stamp"></i> Macro-Etching / Stencil</label>
+                                    <select id="macroEtching" name="macroEtching">
+                                        <option value="false">Not Performed</option>
+                                        <option value="true">Passed</option>
+                                    </select>
+                                </div>
+                            </div>
                             
                             <div class="form-group">
                                 <label for="remarks">Verification Remarks (Optional)</label>
@@ -1236,8 +1324,8 @@
                             </div>
                             
                             <div class="clearance-actions">
-                                <button type="button" class="btn-secondary" onclick="cancelVerification()">
-                                    <i class="fas fa-times"></i> Cancel
+                                <button type="button" class="btn-secondary" onclick="goBackToMethodSelection()">
+                                    <i class="fas fa-arrow-left"></i> Back
                                 </button>
                                 <button type="button" class="btn-danger" id="rejectClearanceBtn" onclick="rejectVerification()">
                                     <i class="fas fa-ban"></i> Deny Clearance
@@ -1281,7 +1369,6 @@
         </div>
     </div>
 
-    <script src="js/hpg-database.js"></script>
     <script src="js/hpg-admin.js"></script>
     <style>
         /* Verification Steps */
@@ -1394,6 +1481,20 @@
         
         .detail-item label i {
             color: #3498db;
+        }
+        
+        .verification-method-card {
+            transition: all 0.3s ease;
+        }
+        
+        .verification-method-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .verification-method-card.selected {
+            border-width: 3px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
         }
         
         .detail-item.highlight {
@@ -1729,178 +1830,84 @@
 
         // Global state for verification
         let currentVerificationData = null;
-        let databaseCheckCompleted = false;
-        let canIssueClearance = false;
+        let selectedVerificationMethod = null; // 'auto' or 'manual'
+        let autoVerifyResults = null;
 
-        // Run HPG Database Check
-        function runHPGDatabaseCheck() {
-            const plateNumber = document.getElementById('plateNumber').value;
-            const engineNumber = document.getElementById('engineNumber').value;
-            const chassisNumber = document.getElementById('chassisNumber').value;
-
-            if (!plateNumber && !engineNumber && !chassisNumber) {
-                alert('No vehicle data available for lookup. Please wait for data to load.');
-                return;
+        // Select verification method
+        function selectVerificationMethod(method) {
+            selectedVerificationMethod = method;
+            
+            // Update UI
+            const autoCard = document.getElementById('autoVerifyMethodCard');
+            const manualCard = document.getElementById('manualVerifyMethodCard');
+            const autoBtn = document.getElementById('selectAutoBtn');
+            const manualBtn = document.getElementById('selectManualBtn');
+            
+            if (method === 'auto') {
+                // Highlight auto card
+                autoCard.style.borderColor = '#3498db';
+                autoCard.style.backgroundColor = '#e3f2fd';
+                manualCard.style.borderColor = '#6b7280';
+                manualCard.style.backgroundColor = 'transparent';
+                
+                // Hide method selection, show auto-verify card
+                document.getElementById('step3Card').style.display = 'none';
+                document.getElementById('autoVerifyCard').style.display = 'block';
+                
+                // Run auto-verify immediately
+                runAutoVerify();
+            } else {
+                // Highlight manual card
+                manualCard.style.borderColor = '#6b7280';
+                manualCard.style.backgroundColor = '#f3f4f6';
+                autoCard.style.borderColor = '#3498db';
+                autoCard.style.backgroundColor = 'transparent';
+                
+                // Hide method selection, show manual form
+                document.getElementById('step3Card').style.display = 'none';
+                document.getElementById('manualVerifyCard').style.display = 'block';
             }
-
-            // Show loading
-            const btn = document.getElementById('checkDatabaseBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking Database...';
-            btn.disabled = true;
-
-            // Simulate database lookup delay
-            setTimeout(() => {
-                // Perform the lookup
-                const result = HPGDatabase.lookupVehicle({
-                    plateNumber,
-                    engineNumber,
-                    chassisNumber
-                });
-
-                // Display result
-                displayDatabaseResult(result);
-
-                // Reset button
-                btn.innerHTML = '<i class="fas fa-search"></i> Re-check Database';
-                btn.disabled = false;
-
-                // Show auto-verify card (if not already shown) and step 4
-                const autoVerifyCard = document.getElementById('autoVerifyCard');
-                if (autoVerifyCard && !autoVerifyCard.dataset.shown) {
-                    autoVerifyCard.style.display = 'block';
-                    autoVerifyCard.dataset.shown = 'true';
-                }
-                
-                // Show step 4 (but user can use auto-verify first)
-                // document.getElementById('step4Card').style.display = 'block';
-                
-                // Enable/disable clearance button based on result
-                canIssueClearance = result.canIssueClearance;
-                const issueBtn = document.getElementById('issueClearanceBtn');
-                if (issueBtn) {
-                    issueBtn.disabled = !canIssueClearance;
-                    if (!canIssueClearance) {
-                        issueBtn.innerHTML = '<i class="fas fa-ban"></i> Cannot Issue - Vehicle Flagged';
-                        issueBtn.classList.remove('btn-success');
-                        issueBtn.classList.add('btn-secondary');
-                    }
-                }
-
-                databaseCheckCompleted = true;
-                
-                // Store result
-                document.getElementById('databaseCheckResult').value = JSON.stringify(result);
-                
-                // Scroll to result
-                document.getElementById('databaseResult').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 1500);
         }
 
-        // Display database result
-        function displayDatabaseResult(result) {
-            const resultDiv = document.getElementById('databaseResult');
-            const headerDiv = document.getElementById('resultHeader');
-            const detailsDiv = document.getElementById('resultDetails');
+        // Go back to method selection
+        function goBackToMethodSelection() {
+            selectedVerificationMethod = null;
+            document.getElementById('step3Card').style.display = 'block';
+            document.getElementById('autoVerifyCard').style.display = 'none';
+            document.getElementById('manualVerifyCard').style.display = 'none';
+            document.getElementById('step4Card').style.display = 'none';
+        }
 
-            resultDiv.style.display = 'block';
-
-            if (result.status === 'FLAGGED') {
-                // Vehicle is in hot list
-                headerDiv.className = 'result-header flagged';
-                headerDiv.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <div class="result-title">
-                        <h4>⚠️ ALERT: Vehicle Flagged - ${result.statusType}</h4>
-                        <p>${result.message}</p>
-                    </div>
-                `;
-
-                detailsDiv.className = 'result-details flagged-details';
-                detailsDiv.innerHTML = `
-                    <h5><i class="fas fa-file-alt"></i> Hot List Record Details</h5>
-                    <div class="flagged-info">
-                        <div class="flagged-info-item">
-                            <strong>Case Number:</strong>
-                            <span>${result.details.caseNumber || 'N/A'}</span>
-                        </div>
-                        <div class="flagged-info-item">
-                            <strong>Report Date:</strong>
-                            <span>${result.details.reportDate || 'N/A'}</span>
-                        </div>
-                        <div class="flagged-info-item">
-                            <strong>Reported By:</strong>
-                            <span>${result.details.reportedBy || 'N/A'}</span>
-                        </div>
-                        <div class="flagged-info-item">
-                            <strong>Description:</strong>
-                            <span>${result.details.description || 'N/A'}</span>
-                        </div>
-                    </div>
-                    <div style="margin-top: 1rem; padding: 1rem; background: #fff; border-radius: 6px; border-left: 4px solid #e74c3c;">
-                        <p style="margin: 0; color: #e74c3c; font-weight: 600;">
-                            <i class="fas fa-ban"></i> MV Clearance CANNOT be issued. Please deny this request.
-                        </p>
-                    </div>
-                `;
-            } else if (result.status === 'CLEAN') {
-                // Vehicle is verified clean
-                headerDiv.className = 'result-header clean';
-                headerDiv.innerHTML = `
-                    <i class="fas fa-check-circle"></i>
-                    <div class="result-title">
-                        <h4>✅ Vehicle Verified CLEAN</h4>
-                        <p>${result.message}</p>
-                    </div>
-                `;
-
-                detailsDiv.className = 'result-details';
-                detailsDiv.innerHTML = `
-                    <div style="text-align: center; padding: 1rem;">
-                        <i class="fas fa-shield-alt" style="font-size: 3rem; color: #27ae60; margin-bottom: 1rem;"></i>
-                        <h4 style="color: #27ae60; margin: 0;">No Records Found in HPG Hot List</h4>
-                        <p style="color: #7f8c8d; margin-top: 0.5rem;">Vehicle is clear for MV Clearance issuance.</p>
-                        ${result.details.lastVerified ? `<small>Last verified: ${result.details.lastVerified} by ${result.details.verifiedBy}</small>` : ''}
-                    </div>
-                `;
-            } else {
-                // Vehicle not found in database
-                headerDiv.className = 'result-header not-found';
-                headerDiv.innerHTML = `
-                    <i class="fas fa-question-circle"></i>
-                    <div class="result-title">
-                        <h4>📋 No Prior Records</h4>
-                        <p>${result.message}</p>
-                    </div>
-                `;
-
-                detailsDiv.className = 'result-details';
-                detailsDiv.innerHTML = `
-                    <div style="text-align: center; padding: 1rem;">
-                        <i class="fas fa-file-alt" style="font-size: 3rem; color: #f39c12; margin-bottom: 1rem;"></i>
-                        <h4 style="color: #2c3e50; margin: 0;">Vehicle Not in HPG Database</h4>
-                        <p style="color: #7f8c8d; margin-top: 0.5rem;">${result.details.note}</p>
-                        <p style="color: #27ae60; margin-top: 1rem; font-weight: 600;">
-                            <i class="fas fa-check"></i> You may proceed to issue MV Clearance if manual verification is satisfactory.
-                        </p>
-                    </div>
-                `;
+        // Proceed to final step from manual verification
+        function proceedToFinalStep() {
+            const engineNumber = document.getElementById('manualEngineNumber').value.trim();
+            const chassisNumber = document.getElementById('manualChassisNumber').value.trim();
+            
+            if (!engineNumber || !chassisNumber) {
+                alert('Engine number and chassis number are required for manual verification.');
+                return;
             }
+            
+            // Copy values to Step 4 editable form fields
+            const engineEl = document.getElementById('engineNumber');
+            const chassisEl = document.getElementById('chassisNumber');
+            const remarksEl = document.getElementById('remarks');
+            const macroEtchingEl = document.getElementById('macroEtching');
+            
+            if (engineEl) engineEl.value = engineNumber;
+            if (chassisEl) chassisEl.value = chassisNumber;
+            if (remarksEl) remarksEl.value = document.getElementById('manualRemarks').value;
+            if (macroEtchingEl) macroEtchingEl.value = document.getElementById('manualMacroEtching').value;
+            
+            // Show final step
+            document.getElementById('manualVerifyCard').style.display = 'none';
+            document.getElementById('step4Card').style.display = 'block';
+            document.getElementById('step4Card').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // Issue Clearance
         function issueClearance() {
-            if (!databaseCheckCompleted) {
-                alert('Please complete the HPG Database check first.');
-                return;
-            }
-
-            if (!canIssueClearance) {
-                alert('Cannot issue clearance. Vehicle is flagged in the HPG Hot List.');
-                return;
-            }
-
-            if (confirm('Are you sure you want to issue MV Clearance for this vehicle?')) {
+            if (confirm('Are you sure you want to issue MV Clearance for this vehicle? Document hashing and duplicate detection will be performed automatically.')) {
                 const remarks = document.getElementById('remarks').value;
                 
                 // Call approval
@@ -1914,7 +1921,7 @@
         }
 
         // Reject/Deny Clearance
-        // Auto-Verify Functions (Hybrid Phase 2/3)
+        // Auto-Verify Functions
         async function runAutoVerify() {
             const requestId = document.getElementById('requestId')?.value || HPGVerification?.currentRequestId;
             if (!requestId) {
@@ -1922,10 +1929,11 @@
                 return;
             }
 
-            const autoVerifyBtn = document.getElementById('autoVerifyBtn');
-            if (autoVerifyBtn) {
-                autoVerifyBtn.disabled = true;
-                autoVerifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Auto-Verify...';
+            // Show loading state
+            const resultsPanel = document.getElementById('autoVerifyResults');
+            if (resultsPanel) {
+                resultsPanel.style.display = 'block';
+                resultsPanel.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3498db;"></i><p style="margin-top: 1rem;">Running auto-verification with hashing and duplicate detection...</p></div>';
             }
 
             try {
@@ -1952,11 +1960,18 @@
                 }
             } catch (error) {
                 console.error('Auto-verify error:', error);
-                alert('Failed to run auto-verification: ' + error.message);
-            } finally {
-                if (autoVerifyBtn) {
-                    autoVerifyBtn.disabled = false;
-                    autoVerifyBtn.innerHTML = '<i class="fas fa-bolt"></i> Run Auto-Verify';
+                if (resultsPanel) {
+                    resultsPanel.innerHTML = `
+                        <div style="padding: 1rem; background-color: #fee; border-left: 4px solid #f44336; border-radius: 4px;">
+                            <strong style="color: #f44336;"><i class="fas fa-exclamation-triangle"></i> Auto-verification failed:</strong>
+                            <p style="color: #666; margin-top: 0.5rem;">${error.message}</p>
+                            <button type="button" class="btn-secondary" onclick="selectVerificationMethod('manual')" style="margin-top: 1rem;">
+                                <i class="fas fa-hand-pointer"></i> Switch to Manual Verification
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    alert('Failed to run auto-verification: ' + error.message);
                 }
             }
         }
@@ -1984,6 +1999,25 @@
                 scoreValue.style.color = scoreColor;
                 scoreFill.style.backgroundColor = scoreColor;
                 scoreFill.style.width = score + '%';
+            }
+
+            // Display hash verification status
+            const hashStatusDiv = document.getElementById('hashVerificationStatus');
+            if (hashStatusDiv && autoVerify.hashCheck) {
+                if (autoVerify.hashCheck.exists) {
+                    hashStatusDiv.innerHTML = `
+                        <div style="color: #ef4444;">
+                            <i class="fas fa-times-circle"></i> <strong>Duplicate Detected:</strong> This document has already been used for vehicle ${autoVerify.hashCheck.vehicleId || 'another vehicle'}. Certificate reuse detected.
+                        </div>
+                    `;
+                    document.getElementById('hashVerificationDisplay').style.borderLeftColor = '#ef4444';
+                } else {
+                    hashStatusDiv.innerHTML = `
+                        <div style="color: #10b981;">
+                            <i class="fas fa-check-circle"></i> <strong>Hash Verified:</strong> Document is unique. No duplicates found. Composite hash: ${(autoVerify.compositeHash || '').substring(0, 16)}...
+                        </div>
+                    `;
+                }
             }
 
             // Display recommendation
@@ -2025,18 +2059,14 @@
                 const breakdown = autoVerify.scoreBreakdown;
                 scoreBreakdownDetails.innerHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
-                        <div>Database Check:</div>
-                        <div style="text-align: right; font-weight: bold;">${breakdown.databaseCheck || 0} pts</div>
-                        <div>Data Match:</div>
-                        <div style="text-align: right; font-weight: bold;">${breakdown.dataMatch || 0} pts</div>
+                        <div>Data Extraction:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.dataExtraction || 0} pts</div>
+                        <div>Hash Uniqueness:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.hashUniqueness || 0} pts</div>
                         <div>Document Completeness:</div>
                         <div style="text-align: right; font-weight: bold;">${breakdown.documentCompleteness || 0} pts</div>
-                        <div>Vehicle Type:</div>
-                        <div style="text-align: right; font-weight: bold;">${breakdown.vehicleType || 0} pts</div>
-                        ${breakdown.ocrQuality ? `
-                        <div>OCR Quality:</div>
-                        <div style="text-align: right; font-weight: bold;">${breakdown.ocrQuality} pts</div>
-                        ` : ''}
+                        <div>Data Match:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.dataMatch || 0} pts</div>
                         <div style="border-top: 1px solid #e5e7eb; padding-top: 0.5rem; font-weight: bold;">Total:</div>
                         <div style="border-top: 1px solid #e5e7eb; padding-top: 0.5rem; text-align: right; font-weight: bold; font-size: 1.1em;">${breakdown.total || 0} pts</div>
                     </div>
@@ -2084,24 +2114,33 @@
                 return;
             }
 
+            // Check if duplicate was detected
+            if (autoVerifyResults.hashCheck && autoVerifyResults.hashCheck.exists) {
+                alert('Cannot proceed. Document duplicate detected. This certificate has already been used for vehicle ' + (autoVerifyResults.hashCheck.vehicleId || 'another vehicle') + '. Certificate reuse detected.');
+                return;
+            }
+
             if (confirm('Use auto-verify data to pre-fill the verification form? You can still edit the fields before final approval.')) {
                 const preFilled = autoVerifyResults.preFilledData;
                 
-                // Pre-fill engine and chassis numbers
+                // Pre-fill engine and chassis numbers (these are now in Step 4)
                 const engineNumberEl = document.getElementById('engineNumber');
                 const chassisNumberEl = document.getElementById('chassisNumber');
                 const remarksEl = document.getElementById('remarks');
+                const macroEtchingEl = document.getElementById('macroEtching');
 
                 if (engineNumberEl && preFilled.engineNumber) {
                     engineNumberEl.value = preFilled.engineNumber;
                     engineNumberEl.style.backgroundColor = '#e8f5e9';
                     engineNumberEl.title = 'Auto-filled from auto-verify';
+                    engineNumberEl.readOnly = false; // Make editable
                 }
 
                 if (chassisNumberEl && preFilled.chassisNumber) {
                     chassisNumberEl.value = preFilled.chassisNumber;
                     chassisNumberEl.style.backgroundColor = '#e8f5e9';
                     chassisNumberEl.title = 'Auto-filled from auto-verify';
+                    chassisNumberEl.readOnly = false; // Make editable
                 }
 
                 // Pre-fill remarks
@@ -2109,19 +2148,24 @@
                     remarksEl.value = preFilled.remarks;
                 }
 
-                // Show Step 4
+                if (macroEtchingEl && preFilled.macroEtching !== undefined) {
+                    macroEtchingEl.value = preFilled.macroEtching ? 'true' : 'false';
+                }
+
+                // Hide auto-verify card, show Step 4
+                document.getElementById('autoVerifyCard').style.display = 'none';
                 const step4Card = document.getElementById('step4Card');
                 if (step4Card) {
                     step4Card.style.display = 'block';
+                    step4Card.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
                 // Show success notification
                 if (typeof ToastNotification !== 'undefined') {
                     ToastNotification.show('Auto-verify data applied. Please review and approve.', 'success');
+                } else {
+                    alert('Auto-verify data applied. Please review and approve.');
                 }
-
-                // Scroll to Step 4
-                step4Card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 

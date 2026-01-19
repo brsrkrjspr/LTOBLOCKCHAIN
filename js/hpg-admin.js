@@ -538,10 +538,8 @@ const HPGRequests = {
         }
         
         console.log('[HPG Debug] Request details loaded:', requestId);
-    },
-
     }
-
+};
 
 // Global viewDetails function for HPG requests
 async function viewDetails(requestId) {
@@ -758,8 +756,10 @@ const HPGVerification = {
                     const vehicleYearEl = document.getElementById('vehicleYear');
                     const purposeEl = document.getElementById('purpose');
                     const vinEl = document.getElementById('vin');
-                    const engineNumberEl = document.getElementById('engineNumber');
-                    const chassisNumberEl = document.getElementById('chassisNumber');
+                    const engineNumberDisplayEl = document.getElementById('engineNumberDisplay');
+                    const chassisNumberDisplayEl = document.getElementById('chassisNumberDisplay');
+                    const engineNumberEditableEl = document.getElementById('engineNumber'); // Step 4 editable
+                    const chassisNumberEditableEl = document.getElementById('chassisNumber'); // Step 4 editable
                     
                     if (ownerNameEl) ownerNameEl.value = this.requestData.ownerName;
                     if (plateNumberEl) plateNumberEl.value = this.requestData.plateNumber;
@@ -769,22 +769,28 @@ const HPGVerification = {
                     if (purposeEl) purposeEl.value = this.requestData.purpose;
                     if (vinEl) vinEl.value = this.requestData.vin;
                     
-                    // Auto-fill engine and chassis numbers (prioritize OCR-extracted data)
-                    if (engineNumberEl) {
-                        engineNumberEl.value = engineNumber;
-                        // Add visual indicator if OCR-extracted
+                    // Populate display fields (Step 2)
+                    if (engineNumberDisplayEl) {
+                        engineNumberDisplayEl.value = engineNumber;
                         if (ocrExtracted) {
-                            engineNumberEl.style.backgroundColor = '#e8f5e9';
-                            engineNumberEl.title = 'Auto-filled from OCR extraction';
+                            engineNumberDisplayEl.style.backgroundColor = '#e8f5e9';
+                            engineNumberDisplayEl.title = 'Auto-filled from OCR extraction';
                         }
                     }
-                    if (chassisNumberEl) {
-                        chassisNumberEl.value = chassisNumber;
-                        // Add visual indicator if OCR-extracted
+                    if (chassisNumberDisplayEl) {
+                        chassisNumberDisplayEl.value = chassisNumber;
                         if (ocrExtracted) {
-                            chassisNumberEl.style.backgroundColor = '#e8f5e9';
-                            chassisNumberEl.title = 'Auto-filled from OCR extraction';
+                            chassisNumberDisplayEl.style.backgroundColor = '#e8f5e9';
+                            chassisNumberDisplayEl.title = 'Auto-filled from OCR extraction';
                         }
+                    }
+                    
+                    // Pre-populate editable fields (Step 4) with same values
+                    if (engineNumberEditableEl) {
+                        engineNumberEditableEl.value = engineNumber;
+                    }
+                    if (chassisNumberEditableEl) {
+                        chassisNumberEditableEl.value = chassisNumber;
                     }
                     
                     // Display database check results if available

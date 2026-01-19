@@ -456,6 +456,222 @@ class AutoVerificationService {
     }
 
     /**
+     * Auto-verify HPG documents with hashing and duplicate detection
+     * Similar to Insurance/Emission but always requires manual final approval
+     * @param {string} vehicleId - Vehicle ID
+     * @param {Array} documents - Array of document records
+     * @param {Object} vehicle - Vehicle data
+     * @returns {Promise<Object>} Auto-verification result with confidence score
+     */
+    async autoVerifyHPG(vehicleId, documents, vehicle) {
+        if (!this.enabled) {
+            return { status: 'PENDING', automated: false, reason: 'Auto-verification disabled' };
+        }
+
+        try {
+            console.log(`[Auto-Verify] Starting HPG auto-verification for vehicle ${vehicleId}`);
+
+            // Find registration cert (OR/CR) document
+            const registrationCert = documents.find(d => 
+                d.document_type === 'registration_cert' || 
+                d.document_type === 'registrationCert' ||
+                d.type === 'registration_cert' ||
+                d.type === 'registrationCert' ||
+                d.type === 'or_cr'
+            );
+
+            if (!registrationCert) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: 'OR/CR document not found',
+                    confidence: 0
+                };
+            }
+
+            const filePath = registrationCert.file_path || registrationCert.filePath;
+            if (!filePath || !await this.fileExists(filePath)) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: 'OR/CR document file not found',
+                    confidence: 0
+                };
+            }
+
+            // Extract data via OCR
+            const regMimeType = registrationCert.mime_type || registrationCert.mimeType || 'application/pdf';
+            const ocrData = await ocrService.extractHPGInfo(filePath, null, regMimeType, null);
+            console.log(`[Auto-Verify] OCR extracted:`, ocrData);
+
+            const engineNumber = ocrData.engineNumber || vehicle.engine_number;
+            const chassisNumber = ocrData.chassisNumber || vehicle.chassis_number;
+
+            if (!engineNumber || !chassisNumber) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: 'Engine number or chassis number not found in document',
+                    confidence: 0
+                };
+            }
+
+            // Calculate file hash
+            const fileHash = registrationCert.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+            
+            // Generate composite hash (HPG clearance doesn't have expiry, use issue date)
+            const issueDateISO = new Date().toISOString();
+            const compositeHash = certificateBlockchain.generateCompositeHash(
+                `HPG-${vehicle.vin}-${Date.now()}`, // HPG clearance number format
+                vehicle.vin,
+                issueDateISO,
+                fileHash
+            );
+            console.log(`[Auto-Verify] Composite hash: ${compositeHash.substring(0, 16)}...`);
+
+            // Check for duplicate hash (document reuse)
+            const hashCheck = await certificateBlockchain.checkHashDuplicate(compositeHash);
+            console.log(`[Auto-Verify] Hash duplicate check:`, hashCheck);
+
+            if (hashCheck.exists) {
+                return {
+                    status: 'REJECTED',
+                    automated: false,
+                    reason: `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`,
+                    confidence: 0,
+                    hashCheck,
+                    compositeHash
+                };
+            }
+
+            // Calculate confidence score based on:
+            // - Data extraction quality (40 points)
+            // - Hash uniqueness (30 points)
+            // - Document completeness (20 points)
+            // - Data match with vehicle record (10 points)
+            let confidenceScore = 0;
+            const scoreBreakdown = {
+                dataExtraction: 0,
+                hashUniqueness: 0,
+                documentCompleteness: 0,
+                dataMatch: 0,
+                total: 0
+            };
+
+            // Data extraction quality (40 points)
+            if (engineNumber && chassisNumber) {
+                scoreBreakdown.dataExtraction = 40;
+            } else if (engineNumber || chassisNumber) {
+                scoreBreakdown.dataExtraction = 20;
+            }
+
+            // Hash uniqueness (30 points)
+            if (!hashCheck.exists) {
+                scoreBreakdown.hashUniqueness = 30;
+            }
+
+            // Document completeness (20 points)
+            const hasORCR = !!registrationCert;
+            const hasOwnerID = documents.some(d => 
+                d.document_type === 'owner_id' || 
+                d.document_type === 'ownerId' ||
+                d.type === 'owner_id' ||
+                d.type === 'ownerId'
+            );
+            if (hasORCR && hasOwnerID) {
+                scoreBreakdown.documentCompleteness = 20;
+            } else if (hasORCR) {
+                scoreBreakdown.documentCompleteness = 10;
+            }
+
+            // Data match with vehicle record (10 points)
+            const engineMatch = engineNumber && vehicle.engine_number && 
+                               engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim();
+            const chassisMatch = chassisNumber && vehicle.chassis_number && 
+                                chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim();
+            if (engineMatch && chassisMatch) {
+                scoreBreakdown.dataMatch = 10;
+            } else if (engineMatch || chassisMatch) {
+                scoreBreakdown.dataMatch = 5;
+            }
+
+            confidenceScore = Math.min(100, 
+                scoreBreakdown.dataExtraction + 
+                scoreBreakdown.hashUniqueness + 
+                scoreBreakdown.documentCompleteness + 
+                scoreBreakdown.dataMatch
+            );
+            scoreBreakdown.total = confidenceScore;
+
+            // Determine recommendation
+            let recommendation = 'MANUAL_REVIEW';
+            let recommendationReason = '';
+
+            if (hashCheck.exists) {
+                recommendation = 'AUTO_REJECT';
+                recommendationReason = 'Document duplicate detected. Certificate already used.';
+            } else if (confidenceScore >= 80) {
+                recommendation = 'AUTO_APPROVE';
+                recommendationReason = 'High confidence score. All checks passed. Manual physical inspection still required.';
+            } else if (confidenceScore >= 60) {
+                recommendation = 'REVIEW';
+                recommendationReason = 'Moderate confidence. Review recommended before approval.';
+            } else {
+                recommendation = 'MANUAL_REVIEW';
+                recommendationReason = 'Low confidence score. Manual verification required.';
+            }
+
+            // Store verification metadata (but don't auto-approve - HPG always requires manual approval)
+            await db.updateVerificationStatus(
+                vehicleId,
+                'hpg',
+                'PENDING',
+                null,
+                `HPG auto-verified. Confidence: ${confidenceScore}%. ${recommendationReason}`,
+                {
+                    automated: true,
+                    verificationScore: confidenceScore,
+                    verificationMetadata: {
+                        ocrData,
+                        hashCheck,
+                        compositeHash,
+                        scoreBreakdown,
+                        recommendation,
+                        recommendationReason,
+                        autoVerifiedAt: new Date().toISOString(),
+                        note: 'HPG always requires manual physical inspection and final approval'
+                    }
+                }
+            );
+
+            return {
+                status: 'PENDING', // Always PENDING - HPG requires manual approval
+                automated: true,
+                confidence: confidenceScore / 100,
+                score: confidenceScore,
+                recommendation,
+                recommendationReason,
+                scoreBreakdown,
+                hashCheck,
+                compositeHash,
+                ocrData,
+                preFilledData: {
+                    engineNumber,
+                    chassisNumber
+                }
+            };
+        } catch (error) {
+            console.error('[Auto-Verify] HPG auto-verification error:', error);
+            return {
+                status: 'PENDING',
+                automated: false,
+                reason: `Auto-verification error: ${error.message}`,
+                confidence: 0
+            };
+        }
+    }
+
+    /**
      * Pre-verify HPG documents (extract data, but always requires manual physical inspection)
      * @param {string} vehicleId - Vehicle ID
      * @param {Array} documents - Array of document records

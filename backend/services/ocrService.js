@@ -1005,10 +1005,17 @@ class OCRService {
             const colorMatches = text.match(colorPattern);
             if (colorMatches) extracted.color = colorMatches[1].trim();
             
-            // Fuel Type - FIXED: Use [^\n]+ and proper lookahead
-            const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
+            // Fuel Type - Improved: Exclude "Type" label and normalize value
+            const fuelTypePattern = /(?:Fuel|Propulsion)\s*(?:Type)?\s*[:.\s]*([^\n]+?)(?=\n|Engine|$)/i;
             const fuelTypeMatches = text.match(fuelTypePattern);
-            if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+            if (fuelTypeMatches) {
+                let fuelValue = fuelTypeMatches[1].trim();
+                // Remove common prefixes that might be captured: "Type", "Fuel", "Kind"
+                fuelValue = fuelValue.replace(/^(Type|Fuel|Kind)[\s:\/]*/i, '').trim();
+                // Remove trailing colons/slashes
+                fuelValue = fuelValue.replace(/^[:.\s\/]+|[:.\s\/]+$/g, '').trim();
+                extracted.fuelType = fuelValue;
+            }
 
             // **WEIGHTS (Numeric)**
             // Gross Weight
@@ -1570,9 +1577,23 @@ class OCRService {
             }
 
             // Extract Expiry Date
-            const expiryPattern = /(?:EXPIR|VALID\s*UNTIL|EFFECTIVE\s*TO|EXPIRY)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i;
-            const expiryMatch = text.match(expiryPattern);
-            if (expiryMatch) extracted.insuranceExpiry = expiryMatch[1].trim();
+            // Support both numeric and month-name formats, e.g.:
+            // - 19/01/2026, 19-01-2026
+            // - 19-Jan-2026
+            // - 19 Jan 2026
+            const expiryPatterns = [
+                /(?:EXPIR|VALID\s*UNTIL|EFFECTIVE\s*TO|EXPIRY(?:\s*DATE)?)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+                /(?:EXPIR|VALID\s*UNTIL|EFFECTIVE\s*TO|EXPIRY(?:\s*DATE)?)\s*[:.]?\s*(\d{1,2}\s*[\-\/]?\s*[A-Za-z]{3,9}\s*[\-\/]?\s*\d{4})/i,
+                // Sometimes rendered like: "Effective Date: 19-Jan-2026    Expiry Date: 19-Jan-2027"
+                /EXPIRY\s*DATE\s*[:.]?\s*(\d{1,2}\s*[\-\/]?\s*[A-Za-z]{3,9}\s*[\-\/]?\s*\d{4})/i
+            ];
+            for (const expiryPattern of expiryPatterns) {
+                const expiryMatch = text.match(expiryPattern);
+                if (expiryMatch && expiryMatch[1]) {
+                    extracted.insuranceExpiry = expiryMatch[1].trim();
+                    break;
+                }
+            }
         }
 
         if (documentType === 'sales_invoice' || documentType === 'salesInvoice') {
@@ -1636,10 +1657,17 @@ class OCRService {
                 const colorMatches = text.match(colorPattern);
                 if (colorMatches) extracted.color = colorMatches[1].trim();
                 
-                // Fuel Type
-                const fuelTypePattern = /(?:Fuel|Propulsion)[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
+                // Fuel Type - Improved: Exclude "Type" label and normalize value
+                const fuelTypePattern = /(?:Fuel|Propulsion)\s*(?:Type)?\s*[:.\s]*([^\n]+?)(?=\n|Engine|$)/i;
                 const fuelTypeMatches = text.match(fuelTypePattern);
-                if (fuelTypeMatches) extracted.fuelType = fuelTypeMatches[1].trim();
+                if (fuelTypeMatches) {
+                    let fuelValue = fuelTypeMatches[1].trim();
+                    // Remove common prefixes that might be captured: "Type", "Fuel", "Kind"
+                    fuelValue = fuelValue.replace(/^(Type|Fuel|Kind)[\s:\/]*/i, '').trim();
+                    // Remove trailing colons/slashes
+                    fuelValue = fuelValue.replace(/^[:.\s\/]+|[:.\s\/]+$/g, '').trim();
+                    extracted.fuelType = fuelValue;
+                }
 
                 // **WEIGHTS (Numeric)**
                 // Gross Weight
@@ -1903,14 +1931,16 @@ class OCRService {
                 const colorMatches = text.match(colorPattern);
                 if (colorMatches) extracted.color = colorMatches[1].trim();
                 
-                // Fuel Type - Handle table format with pipe delimiters
+                // Fuel Type - Handle table format with pipe delimiters and colon format
                 const fuelTypePattern = /Fuel\s+Type\s*\|\s*(\w+)|(?:Fuel|Propulsion)\s*(?:Type)?\s*[:.\s]*([A-Za-z]+)/i;
                 const fuelTypeMatches = text.match(fuelTypePattern);
                 if (fuelTypeMatches) {
                     let fuelValue = fuelTypeMatches[1] || fuelTypeMatches[2]; // Use whichever group matched
                     fuelValue = fuelValue.trim();
-                    // Remove "Type" prefix if captured as part of the value
-                    fuelValue = fuelValue.replace(/^Type[\s:\/]*/, '').trim();
+                    // Remove common prefixes: "Type", "Fuel", "Kind"
+                    fuelValue = fuelValue.replace(/^(Type|Fuel|Kind)[\s:\/]*/i, '').trim();
+                    // Remove trailing colons/slashes
+                    fuelValue = fuelValue.replace(/^[:.\s\/]+|[:.\s\/]+$/g, '').trim();
                     extracted.fuelType = fuelValue;
                 }
             if (extracted.series) extracted.model = extracted.series;
@@ -2017,13 +2047,15 @@ class OCRService {
             const colorMatches = text.match(colorPattern);
             if (colorMatches) extracted.color = colorMatches[1].trim();
             
-            // Fuel Type - Remove "Type" prefix if present
-            const fuelTypePattern = /(?:Fuel|Propulsion)\s*(?:Type)?[\s:.]*([^\n]+?)(?=\n|Engine|$)/i;
+            // Fuel Type - Improved: Exclude "Type" label and normalize value
+            const fuelTypePattern = /(?:Fuel|Propulsion)\s*(?:Type)?\s*[:.\s]*([^\n]+?)(?=\n|Engine|$)/i;
             const fuelTypeMatches = text.match(fuelTypePattern);
             if (fuelTypeMatches) {
                 let fuelValue = fuelTypeMatches[1].trim();
-                // Remove "Type" prefix if captured as part of the value
-                fuelValue = fuelValue.replace(/^Type[\s:\/]*/, '').trim();
+                // Remove common prefixes that might be captured: "Type", "Fuel", "Kind"
+                fuelValue = fuelValue.replace(/^(Type|Fuel|Kind)[\s:\/]*/i, '').trim();
+                // Remove trailing colons/slashes
+                fuelValue = fuelValue.replace(/^[:.\s\/]+|[:.\s\/]+$/g, '').trim();
                 extracted.fuelType = fuelValue;
             }
 

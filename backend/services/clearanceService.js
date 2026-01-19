@@ -222,9 +222,9 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         const anySent = results.hpg.sent || results.insurance.sent || 
                        (!isNewRegistration && results.emission.sent);
         if (anySent) {
-            // NOTE: vehicle_status is an enum; "PENDING_VERIFICATION" is not a valid value in this schema.
-            // Use an existing enum value to avoid enum errors.
-            await db.updateVehicle(vehicleId, { status: 'PENDING' });
+            // NOTE: vehicle_status is an enum. Valid values: SUBMITTED, PENDING_BLOCKCHAIN, REGISTERED, APPROVED, REJECTED, SUSPENDED
+            // Use SUBMITTED for vehicles awaiting clearance verification
+            await db.updateVehicle(vehicleId, { status: 'SUBMITTED' });
             
             // Log to history with auto-verification results
             const autoVerifySummary = [];

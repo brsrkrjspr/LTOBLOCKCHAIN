@@ -22,6 +22,7 @@ function initializeRegistrationWizard() {
     initializeProgressTracking();
     initializeIDNumberValidation();
     initializeIDTypeOverrideHandling();
+    initializeVINAutoFill();
     
     // Ensure only step 1 is visible initially
     // Other steps should be hidden until their previous step is completed
@@ -1366,6 +1367,7 @@ function collectApplicationData() {
         color: document.getElementById('color')?.value || '',
         engineNumber: document.getElementById('engineNumber')?.value || '',
         chassisNumber: document.getElementById('chassisNumber')?.value || '',
+        vin: document.getElementById('vin')?.value || document.getElementById('chassisNumber')?.value || '',
         plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
         vehicleType: document.getElementById('vehicleType')?.value || 'Car',
         carType: carType, // Add car type from Step 1
@@ -1408,6 +1410,38 @@ function collectApplicationData() {
             emission: ''
         }
     };
+}
+
+/**
+ * Initialize VIN auto-fill from chassis number
+ * VIN should mirror chassis number (as used in this wizard) to keep both fields consistent.
+ */
+function initializeVINAutoFill() {
+    const chassisNumberField = document.getElementById('chassisNumber');
+    const vinField = document.getElementById('vin');
+
+    if (!chassisNumberField || !vinField) {
+        // VIN field may not exist until Step 2 is rendered; warn but don't break initialization
+        console.warn('[VIN AutoFill] Chassis or VIN field not found');
+        return;
+    }
+
+    const syncVinFromChassis = () => {
+        const chassisValue = (chassisNumberField.value || '').trim();
+        if (chassisValue) {
+            vinField.value = chassisValue;
+            vinField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
+
+    // Keep VIN synced as user types/edits chassis number
+    chassisNumberField.addEventListener('input', syncVinFromChassis);
+    chassisNumberField.addEventListener('change', syncVinFromChassis);
+
+    // If chassis was restored from persistence before init, sync once
+    syncVinFromChassis();
+
+    console.log('[VIN AutoFill] VIN auto-fill initialized');
 }
 
 /**

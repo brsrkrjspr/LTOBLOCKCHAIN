@@ -375,7 +375,7 @@ router.post('/test-request', authenticateToken, authorizeRole(['admin', 'emissio
         const vin = 'EMTEST' + Date.now().toString(36).toUpperCase();
         
         await dbModule.query(`
-            INSERT INTO vehicles (id, vin, plate_number, engine_number, make, model, year, vehicle_type, status, current_owner_id)
+            INSERT INTO vehicles (id, vin, plate_number, engine_number, make, model, year, vehicle_type, status, owner_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, 'Sedan', 'pending', $8)
             ON CONFLICT (vin) DO UPDATE SET 
                 plate_number = EXCLUDED.plate_number,

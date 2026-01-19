@@ -1121,14 +1121,23 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             console.log(`[Batch] Using provided VIN: ${finalVIN}`);
         }
 
-        // Check for duplicate plate if provided, or generate unique one
+        // Check for duplicate plate if provided, or generate unique one (only check active vehicles)
         if (!finalPlate) {
             // Generate random plate and check for duplicates (max 10 attempts)
+            // Only consider plates from active vehicles as duplicates
             let attempts = 0;
             let existingVehicle = null;
             do {
                 finalPlate = certificatePdfGenerator.generateRandomPlateNumber();
                 existingVehicle = await db.getVehicleByPlate(finalPlate);
+                // Only treat as duplicate if vehicle is in active state
+                if (existingVehicle) {
+                    const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+                    if (!blockingStatuses.includes(existingVehicle.status)) {
+                        // Vehicle exists but is inactive - allow reuse
+                        existingVehicle = null;
+                    }
+                }
                 attempts++;
                 if (attempts >= 10) {
                     return res.status(500).json({
@@ -1139,13 +1148,20 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             } while (existingVehicle);
             console.log(`[Batch] Generated unique plate: ${finalPlate} (attempts: ${attempts})`);
         } else {
-            // Check if provided plate already exists
+            // Check if provided plate already exists (only block active vehicles)
             const existingVehicle = await db.getVehicleByPlate(finalPlate);
             if (existingVehicle) {
-                return res.status(409).json({
-                    success: false,
-                    error: `Vehicle with plate number ${finalPlate} already exists in the system`
-                });
+                const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+                if (blockingStatuses.includes(existingVehicle.status)) {
+                    return res.status(409).json({
+                        success: false,
+                        error: `Vehicle with plate number ${finalPlate} already exists and is currently registered or pending`,
+                        existingStatus: existingVehicle.status
+                    });
+                } else {
+                    // Plate exists but vehicle is inactive - allow reuse
+                    console.log(`⚠️ Plate ${finalPlate} exists with status ${existingVehicle.status} - allowing reuse for certificate generation`);
+                }
             }
             console.log(`[Batch] Using provided plate: ${finalPlate}`);
         }

@@ -69,7 +69,17 @@ async function getVehicleByVin(vin) {
 
 async function getVehicleByPlate(plateNumber) {
     const result = await db.query(
-        'SELECT id FROM vehicles WHERE plate_number = $1',
+        `SELECT v.*, 
+                u.id as owner_id,
+                u.first_name as owner_first_name,
+                u.last_name as owner_last_name,
+                u.first_name || ' ' || u.last_name as owner_name, 
+                u.email as owner_email,
+                u.phone as owner_phone,
+                u.organization as owner_organization
+         FROM vehicles v
+         LEFT JOIN users u ON v.owner_id = u.id
+         WHERE v.plate_number = $1`,
         [plateNumber]
     );
     return result.rows[0] || null;

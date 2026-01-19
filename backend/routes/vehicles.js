@@ -938,13 +938,45 @@ router.post('/register', optionalAuth, async (req, res) => {
             });
         }
         
-        // Check if vehicle already exists by VIN
+        // Check if vehicle already exists by VIN (only block active vehicles)
         const existingVehicle = await db.getVehicleByVin(vehicle.vin);
         if (existingVehicle) {
-            return res.status(409).json({
-                success: false,
-                error: 'Vehicle with this VIN already exists'
-            });
+            // Only block if vehicle is in an active state
+            const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+            
+            if (blockingStatuses.includes(existingVehicle.status)) {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Vehicle with this VIN already exists and is currently registered or pending',
+                    duplicateField: 'vin',
+                    existingStatus: existingVehicle.status,
+                    canResubmit: false
+                });
+            } else {
+                // Vehicle exists but is REJECTED/SUSPENDED/SCRAPPED/FOR_TRANSFER - allow re-registration
+                console.log(`⚠️ VIN ${vehicle.vin} exists with status ${existingVehicle.status} - allowing re-registration`);
+            }
+        }
+
+        // Check if vehicle already exists by plate number (only block active vehicles)
+        if (vehicle.plateNumber) {
+            const existingByPlate = await db.getVehicleByPlate(vehicle.plateNumber);
+            if (existingByPlate) {
+                const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+                
+                if (blockingStatuses.includes(existingByPlate.status)) {
+                    return res.status(409).json({
+                        success: false,
+                        error: 'Vehicle with this plate number already exists and is currently registered or pending',
+                        duplicateField: 'plateNumber',
+                        existingStatus: existingByPlate.status,
+                        canResubmit: false
+                    });
+                } else {
+                    // Plate exists but vehicle is REJECTED/SUSPENDED/SCRAPPED/FOR_TRANSFER - allow re-registration
+                    console.log(`⚠️ Plate ${vehicle.plateNumber} exists with status ${existingByPlate.status} - allowing re-registration`);
+                }
+            }
         }
 
         // Determine owner user - prioritize logged-in user
@@ -1681,17 +1713,28 @@ LTO Lipa City Team
             let fieldName = 'record';
             let fieldValue = '';
             
-            if (error.constraint === 'vehicles_plate_number_key') {
+            // Handle both old constraint names and new partial unique index names
+            const constraintName = error.constraint || '';
+            
+            if (constraintName === 'vehicles_plate_number_key' || constraintName === 'vehicles_plate_active_unique') {
                 fieldName = 'plate number';
                 fieldValue = error.detail?.match(/\(plate_number\)=\(([^)]+)\)/)?.[1] || '';
-            } else if (error.constraint === 'vehicles_vin_key') {
+            } else if (constraintName === 'vehicles_vin_key' || constraintName === 'vehicles_vin_active_unique') {
+                fieldName = 'VIN';
+                fieldValue = error.detail?.match(/\(vin\)=\(([^)]+)\)/)?.[1] || '';
+            } else if (error.detail?.includes('plate_number')) {
+                // Fallback: check error detail for plate_number
+                fieldName = 'plate number';
+                fieldValue = error.detail?.match(/\(plate_number\)=\(([^)]+)\)/)?.[1] || '';
+            } else if (error.detail?.includes('vin')) {
+                // Fallback: check error detail for vin
                 fieldName = 'VIN';
                 fieldValue = error.detail?.match(/\(vin\)=\(([^)]+)\)/)?.[1] || '';
             }
             
             return res.status(409).json({
                 success: false,
-                error: `Vehicle with this ${fieldName}${fieldValue ? ` (${fieldValue})` : ''} already exists`,
+                error: `Vehicle with this ${fieldName}${fieldValue ? ` (${fieldValue})` : ''} already exists and is currently registered or pending`,
                 duplicateField: fieldName,
                 duplicateValue: fieldValue
             });

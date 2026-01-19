@@ -126,12 +126,21 @@ function detectOcrConflicts() {
         { ocrKey: 'fuelType', htmlId: 'fuelType', label: 'Fuel Type', isSelect: true }
     ];
 
+    console.log('[OCR Conflict Detection] Starting conflict detection...');
+    console.log('[OCR Conflict Detection] Available OCR data keys:', Object.keys(storedOCRExtractedData));
+
     fieldMap.forEach(({ ocrKey, htmlId, label, isSelect }) => {
         const ocrValue = storedOCRExtractedData[ocrKey];
-        if (!ocrValue) return; // nothing to compare
+        if (!ocrValue) {
+            console.log(`[OCR Conflict Detection] Skipping ${label} - no OCR value found`);
+            return; // nothing to compare
+        }
 
         const el = document.getElementById(htmlId);
-        if (!el) return;
+        if (!el) {
+            console.log(`[OCR Conflict Detection] Skipping ${label} - HTML element not found: ${htmlId}`);
+            return;
+        }
 
         let formValue = el.value || '';
 
@@ -147,6 +156,14 @@ function detectOcrConflicts() {
         const normForm = normalizeForComparison(formValue);
         const normOcr = normalizeForComparison(ocrValue);
 
+        console.log(`[OCR Conflict Detection] ${label}:`, {
+            ocrValue: ocrValue,
+            formValue: formValue,
+            normOcr: normOcr,
+            normForm: normForm,
+            match: normForm === normOcr
+        });
+
         // If normalized values differ, treat as conflict
         if (normForm && normOcr && normForm !== normOcr) {
             conflicts.push({
@@ -154,9 +171,11 @@ function detectOcrConflicts() {
                 formValue: formValue || '(blank)',
                 ocrValue: ocrValue || '(blank)'
             });
+            console.log(`[OCR Conflict Detection] ⚠️ CONFLICT DETECTED: ${label} - Form: "${formValue}", OCR: "${ocrValue}"`);
         }
     });
 
+    console.log(`[OCR Conflict Detection] Total conflicts found: ${conflicts.length}`);
     return conflicts;
 }
 
@@ -171,8 +190,16 @@ async function checkOcrConflictsBeforeSubmit() {
             return true;
         }
 
+        // Debug: Log what OCR data we have
+        console.log('[OCR Conflict Check] Checking for conflicts...');
+        console.log('[OCR Conflict Check] Stored OCR data:', storedOCRExtractedData);
+        console.log('[OCR Conflict Check] Stored OCR keys:', Object.keys(storedOCRExtractedData));
+
         const conflicts = detectOcrConflicts();
+        console.log('[OCR Conflict Check] Detected conflicts:', conflicts);
+        
         if (!conflicts || conflicts.length === 0) {
+            console.log('[OCR Conflict Check] No conflicts detected - proceeding with submission');
             return true;
         }
 
@@ -2078,25 +2105,39 @@ async function processDocumentForOCRAutoFill(fileInput) {
                         note: 'Personal info (name, address, phone) will be loaded from user account'
                     });
                 } else {
-                    // For vehicle documents, store vehicle data (don't mix with owner data)
-                    const vehicleData = {
-                        engineNumber: data.extractedData.engineNumber,
-                        chassisNumber: data.extractedData.chassisNumber,
-                        plateNumber: data.extractedData.plateNumber,
-                        make: data.extractedData.make,
-                        model: data.extractedData.model,
-                        year: data.extractedData.year,
-                        color: data.extractedData.color
-                    };
-                    // Merge vehicle data into stored data
-                    Object.keys(vehicleData).forEach(key => {
-                        if (vehicleData[key] !== undefined && vehicleData[key] !== null && vehicleData[key] !== '') {
-                            storedOCRExtractedData[key] = vehicleData[key];
+                    // For vehicle documents, store ALL vehicle-related data for conflict detection
+                    // Store all fields that might be extracted from vehicle documents
+                    const vehicleDataFields = [
+                        'engineNumber', 'chassisNumber', 'plateNumber', 'vin',
+                        'make', 'model', 'series', 'year', 'yearModel', 'color',
+                        'fuelType', 'vehicleType', 'bodyType',
+                        'grossVehicleWeight', 'grossWeight', 'netWeight', 'netCapacity',
+                        'mvFileNumber', 'csrNumber'
+                    ];
+                    
+                    // Merge ALL vehicle-related fields into stored data
+                    vehicleDataFields.forEach(key => {
+                        const value = data.extractedData[key];
+                        if (value !== undefined && value !== null && value !== '') {
+                            // Map series -> model, yearModel -> year for consistency
+                            if (key === 'series' && !storedOCRExtractedData.model) {
+                                storedOCRExtractedData.model = value;
+                            } else if (key === 'yearModel' && !storedOCRExtractedData.year) {
+                                storedOCRExtractedData.year = value;
+                            } else if (key === 'grossWeight' && !storedOCRExtractedData.grossVehicleWeight) {
+                                storedOCRExtractedData.grossVehicleWeight = value;
+                            } else if (key === 'netCapacity' && !storedOCRExtractedData.netWeight) {
+                                storedOCRExtractedData.netWeight = value;
+                            } else {
+                                storedOCRExtractedData[key] = value;
+                            }
                         }
                     });
+                    
                     console.log('[ID AutoFill Debug] Stored vehicle OCR data:', {
                         documentType,
-                        extractedVehicleData: vehicleData
+                        extractedVehicleData: data.extractedData,
+                        storedKeys: Object.keys(storedOCRExtractedData).filter(k => vehicleDataFields.includes(k) || k === 'model' || k === 'year' || k === 'grossVehicleWeight' || k === 'netWeight')
                     });
                 }
                 

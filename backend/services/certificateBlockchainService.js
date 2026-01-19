@@ -215,9 +215,6 @@ class CertificateBlockchainService {
                     originalHash: original.file_hash.substring(0, 32) + '...',
                     match: original.file_hash === fileHash
                 });
-
-            if (issuedCertQuery.rows && issuedCertQuery.rows.length > 0) {
-                const original = issuedCertQuery.rows[0];
                 
                 // File hash matches - certificate is authentic!
                 const result = {

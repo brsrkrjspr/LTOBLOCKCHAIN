@@ -12,6 +12,92 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const docTypes = require('../config/documentTypes');
 
+// ============================================
+// Temporary Token Store for Document Viewing
+// ============================================
+const tempViewTokens = new Map();
+const TOKEN_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+let lastCleanup = Date.now();
+
+/**
+ * Generate secure random token for temporary document viewing
+ */
+function generateViewToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Cleanup expired tokens (run periodically)
+ * Rate-limited to max once per minute
+ */
+function cleanupExpiredTokens() {
+    const now = Date.now();
+    if (now - lastCleanup < 60000) return; // Skip if cleanup ran less than 1 min ago
+    
+    let removed = 0;
+    for (const [token, data] of tempViewTokens.entries()) {
+        if (now - data.createdAt > TOKEN_EXPIRY_MS) {
+            tempViewTokens.delete(token);
+            removed++;
+        }
+    }
+    
+    if (removed > 0) {
+        console.log(`[ViewTokens] Cleanup: removed ${removed} expired tokens`);
+    }
+    lastCleanup = now;
+}
+
+/**
+ * Middleware: Authenticate via JWT token OR temporary view token
+ * Supports both Authorization header and ?token= query parameter
+ */
+async function authenticateTokenOrTemp(req, res, next) {
+    const tempToken = req.query.token;
+    
+    // If temporary token provided, validate it
+    if (tempToken) {
+        cleanupExpiredTokens();
+        
+        const tokenData = tempViewTokens.get(tempToken);
+        if (!tokenData) {
+            return res.status(401).json({
+                success: false,
+                error: 'View token invalid or expired'
+            });
+        }
+        
+        const isExpired = Date.now() - tokenData.createdAt > TOKEN_EXPIRY_MS;
+        if (isExpired) {
+            tempViewTokens.delete(tempToken);
+            return res.status(401).json({
+                success: false,
+                error: 'View token expired'
+            });
+        }
+        
+        // Verify document ID matches
+        if (req.params.documentId !== tokenData.documentId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Token not valid for this document'
+            });
+        }
+        
+        // Set user context from token data
+        req.user = {
+            userId: tokenData.userId,
+            role: tokenData.role,
+            email: tokenData.email
+        };
+        req.tokenType = 'temp-view';
+        next();
+    } else {
+        // Fall back to JWT authentication
+        authenticateToken(req, res, next);
+    }
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -957,8 +1043,70 @@ router.get('/:documentId/download', authenticateToken, async (req, res) => {
     }
 });
 
+// Generate temporary view token for document viewing
+// Allows iframe to load document without custom Authorization header
+router.post('/:documentId/temp-view-token', authenticateToken, async (req, res) => {
+    try {
+        const { documentId } = req.params;
+
+        // Validate document exists
+        const document = await db.getDocumentById(documentId);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document not found'
+            });
+        }
+
+        // Check permissions (reuse existing logic from view endpoint)
+        const vehicle = await db.getVehicleById(document.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
+        
+        if (!isAdmin && !isOwner && !isVerifier) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+
+        // Generate temporary token
+        const token = generateViewToken();
+        tempViewTokens.set(token, {
+            documentId: documentId,
+            userId: req.user.userId,
+            role: req.user.role,
+            email: req.user.email,
+            createdAt: Date.now()
+        });
+
+        console.log(`[ViewTokens] Generated token for document ${documentId}, user ${req.user.userId}`);
+
+        res.json({
+            success: true,
+            token: token,
+            expiresIn: TOKEN_EXPIRY_MS / 1000 // in seconds
+        });
+
+    } catch (error) {
+        console.error('Temp token generation error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate view token'
+        });
+    }
+});
+
 // View document (inline, for iframe display)
-router.get('/:documentId/view', authenticateToken, async (req, res) => {
+router.get('/:documentId/view', authenticateTokenOrTemp, async (req, res) => {
     try {
         const { documentId } = req.params;
 

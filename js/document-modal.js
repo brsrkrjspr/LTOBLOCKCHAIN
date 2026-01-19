@@ -1275,7 +1275,83 @@
                     }
                 }
             }
-            // Handle API/server endpoints
+            // Handle API/server endpoints (document view)
+            else if (url.startsWith('/api/documents/') && url.includes('/view')) {
+                try {
+                    // Extract document ID from URL
+                    const docIdMatch = url.match(/\/api\/documents\/([^/]+)\/view/);
+                    const docId = docIdMatch ? docIdMatch[1] : null;
+                    
+                    if (!docId) {
+                        throw new Error('Could not extract document ID');
+                    }
+                    
+                    // Generate temporary view token
+                    const tokenResponse = await fetch(`/api/documents/${docId}/temp-view-token`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!tokenResponse.ok) {
+                        throw new Error(`Failed to generate view token: ${tokenResponse.status} ${tokenResponse.statusText}`);
+                    }
+                    
+                    const tokenData = await tokenResponse.json();
+                    const viewToken = tokenData.token;
+                    
+                    // Construct iframe URL with token parameter
+                    const iframeUrl = `/api/documents/${docId}/view?token=${viewToken}`;
+                    
+                    // Calculate container size
+                    const container = document.getElementById('docFrameContainer');
+                    let containerWidth = 1200;
+                    let containerHeight = 800;
+                    
+                    if (container) {
+                        containerWidth = Math.max(container.clientWidth - 40, 1000);
+                        containerHeight = Math.max(container.clientHeight - 40, 700);
+                    }
+                    
+                    if (wrapper) {
+                        // Set wrapper to match container size
+                        wrapper.style.width = containerWidth + 'px';
+                        wrapper.style.height = containerHeight + 'px';
+                        wrapper.style.maxWidth = 'none';
+                        wrapper.style.maxHeight = 'none';
+                        
+                        // Load directly via iframe URL with token - no blob URL needed!
+                        wrapper.innerHTML = `
+                            <iframe src="${iframeUrl}" 
+                                    type="application/pdf" 
+                                    title="${escapeHtml(docName)}"
+                                    style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                        `;
+                        
+                        // Ensure iframe fills wrapper completely
+                        setTimeout(() => {
+                            const iframe = wrapper.querySelector('iframe');
+                            if (iframe && container) {
+                                const newWidth = Math.max(container.clientWidth - 40, 1000);
+                                const newHeight = Math.max(container.clientHeight - 40, 700);
+                                wrapper.style.width = newWidth + 'px';
+                                wrapper.style.height = newHeight + 'px';
+                                iframe.style.width = '100%';
+                                iframe.style.height = '100%';
+                            }
+                        }, 100);
+                    }
+                    
+                    // Show PDF controls
+                    if (pdfControls) pdfControls.style.display = 'flex';
+                    if (footer) footer.style.display = 'flex';
+                } catch (error) {
+                    throw new Error(`Failed to load document: ${error.message}`);
+                }
+            }
+            // Handle other API/server endpoints (IPFS, uploads, etc)
             else if (url.startsWith('/api/') || url.startsWith('/uploads/')) {
                 try {
                     const response = await fetch(url, {

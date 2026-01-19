@@ -414,21 +414,34 @@ const HPGRequests = {
                     hasUrl: !!doc.url,
                     id: doc.id,
                     cid: doc.cid,
-                    url: doc.url
+                    url: doc.url,
+                    full_doc: JSON.stringify(doc)
                 });
                 // #endregion
                 // Construct the API URL for reliable backend access (works on all devices)
                 const url = `/api/documents/${doc.id}/view`;
                 
-                return {
+                const mappedDoc = {
                     id: doc.id,
                     filename: docTypeLabels[doc.type] || doc.type || doc.filename || 'Document',
                     type: doc.type,
                     document_type: doc.type,
                     url: url,  // ✅ Add this - provides universal fallback to backend API
                     cid: doc.cid,  // Keep for IPFS-capable environments
-                    path: doc.path
+                    ipfs_cid: doc.cid,  // Also set as ipfs_cid for compatibility
+                    path: doc.path,
+                    mime_type: doc.mime_type || 'application/octet-stream'
                 };
+                
+                console.log('[HPG Debug] document mapping - after single doc:', {
+                    id: mappedDoc.id,
+                    url: mappedDoc.url,
+                    cid: mappedDoc.cid,
+                    mime_type: mappedDoc.mime_type,
+                    full: JSON.stringify(mappedDoc)
+                });
+                
+                return mappedDoc;
             });
             // #region agent log
             console.log('[HPG Debug] document mapping - after:', {
@@ -479,13 +492,52 @@ const HPGRequests = {
     },
 
     loadRequestDetails: function(requestId) {
+        // Find and display the request details
         const request = this.requests.find(r => r.id === requestId);
         if (!request) {
+            console.error('[HPG Debug] Request not found:', requestId);
             alert('Request not found');
             return;
         }
-        // Call the existing viewDetails global function to show request details modal
-        viewDetails(requestId);
+        
+        // Store current request ID for other functions
+        sessionStorage.setItem('currentRequestId', requestId);
+        
+        // Display request details in the modal
+        const detailsSection = document.getElementById('requestDetailsSection');
+        if (detailsSection) {
+            // Display owner info
+            const ownerDisplay = document.getElementById('ownerDisplay');
+            if (ownerDisplay) {
+                ownerDisplay.textContent = request.owner_name || 'Unknown';
+            }
+            
+            // Display vehicle info
+            const vehicleDisplay = document.getElementById('vehicleDisplay');
+            if (vehicleDisplay) {
+                vehicleDisplay.textContent = `${request.vehicle_year || ''} ${request.vehicle_make || ''} ${request.vehicle_model || ''}`.trim() || 'Unknown';
+            }
+            
+            // Display plate
+            const plateDisplay = document.getElementById('plateDisplay');
+            if (plateDisplay) {
+                plateDisplay.textContent = request.plate_number || 'Unknown';
+            }
+            
+            // Display purpose
+            const purposeDisplay = document.getElementById('purposeDisplay');
+            if (purposeDisplay) {
+                purposeDisplay.textContent = request.purpose || 'Unknown';
+            }
+            
+            // Display status
+            const statusDisplay = document.getElementById('statusDisplay');
+            if (statusDisplay) {
+                statusDisplay.textContent = request.status || 'Unknown';
+            }
+        }
+        
+        console.log('[HPG Debug] Request details loaded:', requestId);
     },
 
     }

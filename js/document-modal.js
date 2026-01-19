@@ -1184,52 +1184,36 @@
             let url = null;
             const token = getAuthToken();
             
-            console.log('[DocumentModal] loadDocument input:', {
-                doc_id: doc.id,
-                doc_url: doc.url,
-                doc_cid: doc.cid,
-                doc_ipfs_cid: doc.ipfs_cid,
-                doc_mime_type: doc.mime_type,
-                token_exists: !!token
-            });
-            
             // Priority 1: Document ID (UUID)
             if (doc.id && typeof doc.id === 'string') {
                 const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id);
                 if (isUUID) {
                     url = `/api/documents/${doc.id}/view`;
-                    console.log('[DocumentModal] Using Priority 1 (UUID):', url);
                 }
             }
             
             // Priority 2: Data URL
             if (!url && doc.url && typeof doc.url === 'string' && doc.url.startsWith('data:')) {
                 url = doc.url;
-                console.log('[DocumentModal] Using Priority 2 (Data URL)');
             }
             // Priority 3: IPFS CID
             else if (!url && (doc.cid || doc.ipfs_cid)) {
                 const cid = doc.cid || doc.ipfs_cid;
                 url = `/api/documents/ipfs/${cid}`;
-                console.log('[DocumentModal] Using Priority 3 (IPFS):', url);
             }
             // Priority 4: Direct URL
             else if (!url && doc.url && typeof doc.url === 'string' && 
                      (doc.url.startsWith('http') || doc.url.startsWith('/api/') || doc.url.startsWith('/uploads/'))) {
                 url = doc.url;
-                console.log('[DocumentModal] Using Priority 4 (Direct URL):', url);
             }
             // Fallback
             else if (!url && doc.url) {
                 url = doc.url;
-                console.log('[DocumentModal] Using Fallback URL:', url);
             }
             
             if (!url) {
-                throw new Error('No document URL available. doc=' + JSON.stringify(doc));
+                throw new Error('No document URL available');
             }
-            
-            console.log('[DocumentModal] Final URL selected:', url);
             
             // Determine file type
             const urlStr = url || '';
@@ -1293,47 +1277,31 @@
             }
             // Handle API/server endpoints
             else if (url.startsWith('/api/') || url.startsWith('/uploads/')) {
-                console.log('[DocumentModal] Fetching from API/server:', { url, token_exists: !!token });
-                
-                try {
-                    const response = await fetch(url, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Accept': 'image/*,application/pdf,*/*'
-                        }
-                    });
-                    
-                    console.log('[DocumentModal] Fetch response:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        contentType: response.headers.get('content-type'),
-                        contentLength: response.headers.get('content-length')
-                    });
-                    
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('[DocumentModal] Server error response:', errorText);
-                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'image/*,application/pdf,*/*'
                     }
-                    
-                    const blob = await response.blob();
-                    console.log('[DocumentModal] Blob received:', {
-                        size: blob.size,
-                        type: blob.type
-                    });
-                    
-                    if (isImage || blob.type.startsWith('image/')) {
-                        // Convert blob to data URL for images
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            if (wrapper) {
-                                // Reset wrapper styles for images
-                                wrapper.style.width = 'auto';
-                                wrapper.style.height = 'auto';
-                                wrapper.style.maxWidth = 'calc(100% - 2rem)';
-                                wrapper.style.maxHeight = 'calc(100% - 2rem)';
-                                
-                                wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;" />`;
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const blob = await response.blob();
+                
+                if (isImage || blob.type.startsWith('image/')) {
+                    // Convert blob to data URL for images
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (wrapper) {
+                            // Reset wrapper styles for images
+                            wrapper.style.width = 'auto';
+                            wrapper.style.height = 'auto';
+                            wrapper.style.maxWidth = 'calc(100% - 2rem)';
+                            wrapper.style.maxHeight = 'calc(100% - 2rem)';
+                            
+                            wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;" />`;
                             // Auto-fit after image loads
                             setTimeout(() => {
                                 const img = wrapper.querySelector('img');

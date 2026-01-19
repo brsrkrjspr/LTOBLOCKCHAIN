@@ -1542,10 +1542,32 @@ class OCRService {
         }
 
         if (documentType === 'insurance_cert' || documentType === 'insuranceCert') {
-            // Extract Policy Number
-            const policyPattern = /(?:POLICY\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i;
-            const policyMatch = text.match(policyPattern);
-            if (policyMatch) extracted.insurancePolicyNumber = policyMatch[1].trim();
+            // Extract Policy / Certificate Number
+            let policyNumber = null;
+
+            // 1) Template-aware: look for \"Policy / Certificate No.\" label in normalized text
+            try {
+                const labelPattern = /POLICY\s*\/\s*CERTIFICATE\s*NO\.?\s*[:.]?\s*([A-Z0-9\-]+)/;
+                const labelMatch = normalizedText.match(labelPattern);
+                if (labelMatch && labelMatch[1]) {
+                    policyNumber = labelMatch[1].trim();
+                }
+            } catch (patternError) {
+                console.warn('[OCR Debug] Error in insurance labelPattern match:', patternError);
+            }
+
+            // 2) Fallback: generic \"POLICY NO\" style patterns on raw text
+            if (!policyNumber) {
+                const policyPattern = /(?:POLICY\s*(?:NO|NUMBER)?\.?)\s*[:.]?\s*([A-Z0-9\-]+)/i;
+                const policyMatch = text.match(policyPattern);
+                if (policyMatch && policyMatch[1]) {
+                    policyNumber = policyMatch[1].trim();
+                }
+            }
+
+            if (policyNumber) {
+                extracted.insurancePolicyNumber = policyNumber;
+            }
 
             // Extract Expiry Date
             const expiryPattern = /(?:EXPIR|VALID\s*UNTIL|EFFECTIVE\s*TO|EXPIRY)\s*[:.]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i;

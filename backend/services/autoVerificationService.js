@@ -49,11 +49,33 @@ class AutoVerificationService {
 
             const policyNumber = ocrData.insurancePolicyNumber || ocrData.policyNumber;
             if (!policyNumber) {
+                const reason = 'Policy number not found in document';
+                console.warn('[Auto-Verify] Insurance auto-reject: ', reason);
+
+                const systemUserId = 'system';
+                await db.updateVerificationStatus(
+                    vehicleId,
+                    'insurance',
+                    'REJECTED',
+                    systemUserId,
+                    `Auto-rejected: ${reason}`,
+                    {
+                        automated: true,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            ocrData,
+                            reason,
+                            rejectedAt: new Date().toISOString()
+                        }
+                    }
+                );
+
                 return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: 'Policy number not found in document',
-                    confidence: 0
+                    status: 'REJECTED',
+                    automated: true,
+                    reason,
+                    confidence: 0,
+                    ocrData
                 };
             }
 
@@ -62,11 +84,34 @@ class AutoVerificationService {
             console.log(`[Auto-Verify] Pattern check:`, patternCheck);
 
             if (!patternCheck.valid) {
+                const reason = `Invalid policy number format: ${patternCheck.reason}`;
+                console.warn('[Auto-Verify] Insurance auto-reject (pattern): ', reason);
+
+                const systemUserId = 'system';
+                await db.updateVerificationStatus(
+                    vehicleId,
+                    'insurance',
+                    'REJECTED',
+                    systemUserId,
+                    `Auto-rejected: ${reason}`,
+                    {
+                        automated: true,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            ocrData,
+                            patternCheck,
+                            reason,
+                            rejectedAt: new Date().toISOString()
+                        }
+                    }
+                );
+
                 return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: `Invalid policy number format: ${patternCheck.reason}`,
+                    status: 'REJECTED',
+                    automated: true,
+                    reason,
                     confidence: 0,
+                    ocrData,
                     patternCheck
                 };
             }
@@ -94,7 +139,7 @@ class AutoVerificationService {
             if (hashCheck.exists) {
                 return {
                     status: 'REJECTED',
-                    automated: false,
+                    automated: true,
                     reason: `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`,
                     confidence: 0,
                     hashCheck
@@ -177,20 +222,23 @@ class AutoVerificationService {
                     blockchainTxId
                 };
             } else {
-                // Flag for manual review
+                // Clearly invalid / low-confidence → auto-reject
                 const reasons = [];
                 if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
                 if (hashCheck.exists) reasons.push('Document already used (duplicate)');
                 if (!expiryCheck.isValid) reasons.push('Document expired');
                 if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
 
-                // Update verification status with metadata
+                const reason = reasons.join(', ') || 'Auto-verification failed checks';
+                console.warn('[Auto-Verify] Insurance auto-reject (score/other): ', reason);
+
+                const systemUserId = 'system';
                 await db.updateVerificationStatus(
                     vehicleId,
                     'insurance',
-                    'PENDING',
-                    null,
-                    `Auto-verification flagged: ${reasons.join(', ')}`,
+                    'REJECTED',
+                    systemUserId,
+                    `Auto-rejected: ${reason}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
@@ -200,16 +248,16 @@ class AutoVerificationService {
                             hashCheck,
                             expiryCheck,
                             verificationScore,
-                            flaggedAt: new Date().toISOString(),
+                            rejectedAt: new Date().toISOString(),
                             flagReasons: reasons
                         }
                     }
                 );
 
                 return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: reasons.join(', '),
+                    status: 'REJECTED',
+                    automated: true,
+                    reason,
                     confidence: verificationScore.percentage / 100,
                     score: verificationScore.percentage,
                     basis: verificationScore.checks,
@@ -261,11 +309,33 @@ class AutoVerificationService {
 
             const certificateNumber = ocrData.certificateNumber || ocrData.certificateRefNumber || ocrData.certRefNumber;
             if (!certificateNumber) {
+                const reason = 'Certificate number not found in document';
+                console.warn('[Auto-Verify] Emission auto-reject: ', reason);
+
+                const systemUserId = 'system';
+                await db.updateVerificationStatus(
+                    vehicleId,
+                    'emission',
+                    'REJECTED',
+                    systemUserId,
+                    `Auto-rejected: ${reason}`,
+                    {
+                        automated: true,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            ocrData,
+                            reason,
+                            rejectedAt: new Date().toISOString()
+                        }
+                    }
+                );
+
                 return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: 'Certificate number not found in document',
-                    confidence: 0
+                    status: 'REJECTED',
+                    automated: true,
+                    reason,
+                    confidence: 0,
+                    ocrData
                 };
             }
 
@@ -274,11 +344,34 @@ class AutoVerificationService {
             console.log(`[Auto-Verify] Pattern check:`, patternCheck);
 
             if (!patternCheck.valid) {
+                const reason = `Invalid certificate number format: ${patternCheck.reason}`;
+                console.warn('[Auto-Verify] Emission auto-reject (pattern): ', reason);
+
+                const systemUserId = 'system';
+                await db.updateVerificationStatus(
+                    vehicleId,
+                    'emission',
+                    'REJECTED',
+                    systemUserId,
+                    `Auto-rejected: ${reason}`,
+                    {
+                        automated: true,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            ocrData,
+                            patternCheck,
+                            reason,
+                            rejectedAt: new Date().toISOString()
+                        }
+                    }
+                );
+
                 return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: `Invalid certificate number format: ${patternCheck.reason}`,
+                    status: 'REJECTED',
+                    automated: true,
+                    reason,
                     confidence: 0,
+                    ocrData,
                     patternCheck
                 };
             }
@@ -316,7 +409,7 @@ class AutoVerificationService {
             if (hashCheck.exists) {
                 return {
                     status: 'REJECTED',
-                    automated: false,
+                    automated: true,
                     reason: `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`,
                     confidence: 0,
                     hashCheck
@@ -401,7 +494,7 @@ class AutoVerificationService {
                     blockchainTxId
                 };
             } else {
-                // Flag for manual review
+                // Clearly invalid / low-confidence → auto-reject
                 const reasons = [];
                 if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
                 if (hashCheck.exists) reasons.push('Document already used (duplicate)');
@@ -409,13 +502,16 @@ class AutoVerificationService {
                 if (!complianceCheck.allCompliant) reasons.push('Test results non-compliant');
                 if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
 
-                // Update verification status with metadata
+                const reason = reasons.join(', ') || 'Auto-verification failed checks';
+                console.warn('[Auto-Verify] Emission auto-reject (score/other): ', reason);
+
+                const systemUserId = 'system';
                 await db.updateVerificationStatus(
                     vehicleId,
                     'emission',
-                    'PENDING',
-                    null,
-                    `Auto-verification flagged: ${reasons.join(', ')}`,
+                    'REJECTED',
+                    systemUserId,
+                    `Auto-rejected: ${reason}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
@@ -426,16 +522,16 @@ class AutoVerificationService {
                             expiryCheck,
                             complianceCheck,
                             verificationScore,
-                            flaggedAt: new Date().toISOString(),
+                            rejectedAt: new Date().toISOString(),
                             flagReasons: reasons
                         }
                     }
                 );
 
                 return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: reasons.join(', '),
+                    status: 'REJECTED',
+                    automated: true,
+                    reason,
                     confidence: verificationScore.percentage / 100,
                     score: verificationScore.percentage,
                     basis: verificationScore.checks,
@@ -1075,19 +1171,22 @@ class AutoVerificationService {
     getDocumentNumberPatterns(documentType) {
         const patterns = {
             insurance: {
-                regex: /^CTPL-\d{4}-\d{6}$/,
-                description: 'CTPL-YYYY-NNNNNN (e.g., CTPL-2026-000123)',
-                example: 'CTPL-2026-000123'
+                // Matches generator format: CTPL-YYYY-XXXXXX (6 alphanumeric chars)
+                regex: /^CTPL-\d{4}-[A-Z0-9]{6}$/,
+                description: 'CTPL-YYYY-XXXXXX (e.g., CTPL-2026-C9P5EX)',
+                example: 'CTPL-2026-C9P5EX'
             },
             emission: {
-                regex: /^ETC-\d{8}-\d{3}$/,
-                description: 'ETC-YYYYMMDD-NNN (e.g., ETC-20260113-001)',
-                example: 'ETC-20260113-001'
+                // Matches generator format: ETC-YYYYMMDD-XXXXXX (6 alphanumeric chars)
+                regex: /^ETC-\d{8}-[A-Z0-9]{6}$/,
+                description: 'ETC-YYYYMMDD-XXXXXX (e.g., ETC-20260119-FRL3KR)',
+                example: 'ETC-20260119-FRL3KR'
             },
             hpg: {
-                regex: /^HPG-\d{4}-\d{6}$/,
-                description: 'HPG-YYYY-NNNNNN (e.g., HPG-2026-000123)',
-                example: 'HPG-2026-000123'
+                // Matches generator format: HPG-YYYY-XXXXXX (6 alphanumeric chars)
+                regex: /^HPG-\d{4}-[A-Z0-9]{6}$/,
+                description: 'HPG-YYYY-XXXXXX (e.g., HPG-2026-I240CT)',
+                example: 'HPG-2026-I240CT'
             }
         };
 

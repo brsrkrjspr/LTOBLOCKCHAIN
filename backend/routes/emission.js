@@ -115,7 +115,10 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'emission
         
         // Extract documents from metadata (filtered by LTO)
         // Emission should ONLY see documents that were explicitly included in metadata.documents
-        const metadata = request.metadata || {};
+        // Parse metadata if it's a string
+        const metadata = typeof request.metadata === 'string' 
+            ? JSON.parse(request.metadata) 
+            : (request.metadata || {});
         const documents = metadata.documents || [];
         
         console.log(`[Emission] Returning ${documents.length} document(s) from metadata (filtered by LTO)`);
@@ -125,6 +128,7 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'emission
             success: true,
             request: {
                 ...request,
+                metadata: metadata, // Ensure metadata is properly parsed and returned
                 vehicle,
                 owner: owner ? {
                     id: owner.id,
@@ -178,33 +182,56 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'emiss
 
         if (transferRequests.rows.length > 0) {
             for (const tr of transferRequests.rows) {
-                await dbModule.query(
-                    `UPDATE transfer_requests 
-                     SET emission_approval_status = 'APPROVED',
-                         emission_approved_at = CURRENT_TIMESTAMP,
-                         emission_approved_by = $1,
-                         updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $2`,
-                    [req.user.userId, tr.id]
-                );
+                try {
+                    // Check if approval status columns exist before updating
+                    const colCheck = await dbModule.query(`
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'transfer_requests' 
+                        AND column_name IN ('emission_approval_status', 'emission_approved_at', 'emission_approved_by', 'emission_clearance_request_id')
+                    `);
+                    const hasApprovalStatus = colCheck.rows.some(r => r.column_name === 'emission_approval_status');
+                    const hasApprovedAt = colCheck.rows.some(r => r.column_name === 'emission_approved_at');
+                    const hasApprovedBy = colCheck.rows.some(r => r.column_name === 'emission_approved_by');
+                    
+                    if (hasApprovalStatus && hasApprovedAt && hasApprovedBy) {
+                        await dbModule.query(
+                            `UPDATE transfer_requests 
+                             SET emission_approval_status = 'APPROVED',
+                                 emission_approved_at = CURRENT_TIMESTAMP,
+                                 emission_approved_by = $1,
+                                 updated_at = CURRENT_TIMESTAMP
+                             WHERE id = $2`,
+                            [req.user.userId, tr.id]
+                        );
+                        console.log(`✅ Updated transfer request ${tr.id} with Emission approval`);
+                    } else {
+                        console.warn(`⚠️ Transfer request approval columns missing. Skipping transfer request ${tr.id} update. Run migration: database/verify-verification-columns.sql`);
+                    }
+                } catch (transferError) {
+                    console.error(`[Emission Approve] Error updating transfer request ${tr.id}:`, transferError);
+                    // Continue with other operations even if transfer update fails
+                }
                 
-                // Add to vehicle history for the transfer request
-                const transferRequest = await db.getTransferRequestById(tr.id);
-                if (transferRequest) {
-                    await db.addVehicleHistory({
-                        vehicleId: transferRequest.vehicle_id,
-                        action: 'TRANSFER_EMISSION_APPROVED',
-                        description: `Emission approved transfer request ${tr.id} via clearance request ${requestId}`,
-                        performedBy: req.user.userId,
-                        metadata: { 
-                            transferRequestId: tr.id, 
-                            clearanceRequestId: requestId,
-                            notes: notes || null 
-                        }
-                    });
+                // Add to vehicle history for the transfer request (always try this)
+                try {
+                    const transferRequest = await db.getTransferRequestById(tr.id);
+                    if (transferRequest) {
+                        await db.addVehicleHistory({
+                            vehicleId: transferRequest.vehicle_id,
+                            action: 'TRANSFER_EMISSION_APPROVED',
+                            description: `Emission approved transfer request ${tr.id} via clearance request ${requestId}`,
+                            performedBy: req.user.userId,
+                            metadata: { 
+                                transferRequestId: tr.id, 
+                                clearanceRequestId: requestId,
+                                notes: notes || null 
+                            }
+                        });
+                    }
+                } catch (historyError) {
+                    console.error(`[Emission Approve] Error adding vehicle history for transfer ${tr.id}:`, historyError);
                 }
             }
-            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with Emission approval`);
         }
 
         await db.updateVerificationStatus(request.vehicle_id, 'emission', 'APPROVED', req.user.userId, notes);

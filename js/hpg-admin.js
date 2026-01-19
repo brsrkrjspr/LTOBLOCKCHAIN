@@ -1093,24 +1093,50 @@ const HPGVerification = {
                 return;
             }
 
+            if (!this.currentRequestId) {
+                alert('No request selected. Please select a request first.');
+                return;
+            }
+
             const rejectionData = {
                 requestId: this.currentRequestId,
                 reason: reason
             };
 
-            // Placeholder: Replace with actual API call
-            // Example: await APIClient.post('/api/hpg/verify/reject', rejectionData);
+            // Call API to reject verification
+            const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
+            if (!apiClient) {
+                throw new Error('API client not available');
+            }
 
-            alert('Verification rejected successfully!');
-            
-            // Log activity
-            this.logActivity('rejected', `Verification rejected: ${reason}`);
+            const response = await apiClient.post('/api/hpg/verify/reject', rejectionData);
 
-            // Close modal and redirect
-            document.getElementById('rejectModal').classList.remove('active');
-            window.location.href = 'hpg-requests-list.html';
+            if (response && response.success) {
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Verification rejected successfully!', 'success');
+                } else {
+                    alert('Verification rejected successfully!');
+                }
+                
+                // Log activity
+                this.logActivity('rejected', `Verification rejected: ${reason}`);
+
+                // Close modal and redirect
+                const rejectModal = document.getElementById('rejectModal');
+                if (rejectModal) {
+                    rejectModal.classList.remove('active');
+                }
+                window.location.href = 'hpg-requests-list.html';
+            } else {
+                throw new Error(response?.error || 'Failed to reject verification');
+            }
         } catch (error) {
             console.error('Error rejecting verification:', error);
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Failed to reject verification: ' + error.message, 'error');
+            } else {
+                alert('Failed to reject verification: ' + error.message);
+            }
             if (typeof ErrorHandler !== 'undefined') {
                 ErrorHandler.handleAPIError(error);
             }

@@ -209,26 +209,43 @@ async function updateVerificationStatus(vehicleId, verificationType, status, ver
 
     if (existing.rows.length > 0) {
         // Update existing - handle optional metadata fields
+        // Check if auto-verification columns exist before using them
         let updateQuery = `UPDATE vehicle_verifications
              SET status = $1, verified_by = $2, verified_at = CURRENT_TIMESTAMP, notes = $3, updated_at = CURRENT_TIMESTAMP`;
         const params = [status, verifiedBy, notes];
         let paramIndex = 4;
         
         if (metadata) {
-            if (metadata.automated !== undefined) {
-                updateQuery += `, automated = $${paramIndex++}`;
-                params.push(metadata.automated);
-            }
-            if (metadata.verificationScore !== undefined) {
-                updateQuery += `, verification_score = $${paramIndex++}`;
-                params.push(metadata.verificationScore);
-            }
-            if (metadata.verificationMetadata !== undefined) {
-                updateQuery += `, verification_metadata = $${paramIndex++}`;
-                params.push(JSON.stringify(metadata.verificationMetadata));
-            }
-            if (metadata.automated === true && metadata.verificationScore !== undefined) {
-                updateQuery += `, auto_verified_at = CURRENT_TIMESTAMP`;
+            // Check if automated column exists before using it
+            try {
+                const colCheck = await db.query(`
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'vehicle_verifications' 
+                    AND column_name IN ('automated', 'verification_score', 'verification_metadata', 'auto_verified_at')
+                `);
+                const hasAutomated = colCheck.rows.some(r => r.column_name === 'automated');
+                const hasVerificationScore = colCheck.rows.some(r => r.column_name === 'verification_score');
+                const hasVerificationMetadata = colCheck.rows.some(r => r.column_name === 'verification_metadata');
+                const hasAutoVerifiedAt = colCheck.rows.some(r => r.column_name === 'auto_verified_at');
+                
+                if (metadata.automated !== undefined && hasAutomated) {
+                    updateQuery += `, automated = $${paramIndex++}`;
+                    params.push(metadata.automated);
+                }
+                if (metadata.verificationScore !== undefined && hasVerificationScore) {
+                    updateQuery += `, verification_score = $${paramIndex++}`;
+                    params.push(metadata.verificationScore);
+                }
+                if (metadata.verificationMetadata !== undefined && hasVerificationMetadata) {
+                    updateQuery += `, verification_metadata = $${paramIndex++}`;
+                    params.push(JSON.stringify(metadata.verificationMetadata));
+                }
+                if (metadata.automated === true && metadata.verificationScore !== undefined && hasAutoVerifiedAt) {
+                    updateQuery += `, auto_verified_at = CURRENT_TIMESTAMP`;
+                }
+            } catch (colError) {
+                // If column check fails, skip auto-verification columns
+                console.warn('[updateVerificationStatus] Could not check for auto-verification columns, skipping:', colError.message);
             }
         }
         
@@ -239,30 +256,47 @@ async function updateVerificationStatus(vehicleId, verificationType, status, ver
         return result.rows[0];
     } else {
         // Create new - handle optional metadata fields
+        // Check if auto-verification columns exist before using them
         let insertQuery = `INSERT INTO vehicle_verifications (vehicle_id, verification_type, status, verified_by, notes`;
         let valuesQuery = `VALUES ($1, $2, $3, $4, $5`;
         const params = [vehicleId, verificationType, status, verifiedBy, notes];
         let paramIndex = 6;
         
         if (metadata) {
-            if (metadata.automated !== undefined) {
-                insertQuery += `, automated`;
-                valuesQuery += `, $${paramIndex++}`;
-                params.push(metadata.automated);
-            }
-            if (metadata.verificationScore !== undefined) {
-                insertQuery += `, verification_score`;
-                valuesQuery += `, $${paramIndex++}`;
-                params.push(metadata.verificationScore);
-            }
-            if (metadata.verificationMetadata !== undefined) {
-                insertQuery += `, verification_metadata`;
-                valuesQuery += `, $${paramIndex++}`;
-                params.push(JSON.stringify(metadata.verificationMetadata));
-            }
-            if (metadata.automated === true && metadata.verificationScore !== undefined) {
-                insertQuery += `, auto_verified_at`;
-                valuesQuery += `, CURRENT_TIMESTAMP`;
+            // Check if auto-verification columns exist before using them
+            try {
+                const colCheck = await db.query(`
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'vehicle_verifications' 
+                    AND column_name IN ('automated', 'verification_score', 'verification_metadata', 'auto_verified_at')
+                `);
+                const hasAutomated = colCheck.rows.some(r => r.column_name === 'automated');
+                const hasVerificationScore = colCheck.rows.some(r => r.column_name === 'verification_score');
+                const hasVerificationMetadata = colCheck.rows.some(r => r.column_name === 'verification_metadata');
+                const hasAutoVerifiedAt = colCheck.rows.some(r => r.column_name === 'auto_verified_at');
+                
+                if (metadata.automated !== undefined && hasAutomated) {
+                    insertQuery += `, automated`;
+                    valuesQuery += `, $${paramIndex++}`;
+                    params.push(metadata.automated);
+                }
+                if (metadata.verificationScore !== undefined && hasVerificationScore) {
+                    insertQuery += `, verification_score`;
+                    valuesQuery += `, $${paramIndex++}`;
+                    params.push(metadata.verificationScore);
+                }
+                if (metadata.verificationMetadata !== undefined && hasVerificationMetadata) {
+                    insertQuery += `, verification_metadata`;
+                    valuesQuery += `, $${paramIndex++}`;
+                    params.push(JSON.stringify(metadata.verificationMetadata));
+                }
+                if (metadata.automated === true && metadata.verificationScore !== undefined && hasAutoVerifiedAt) {
+                    insertQuery += `, auto_verified_at`;
+                    valuesQuery += `, CURRENT_TIMESTAMP`;
+                }
+            } catch (colError) {
+                // If column check fails, skip auto-verification columns
+                console.warn('[updateVerificationStatus] Could not check for auto-verification columns, skipping:', colError.message);
             }
         }
         

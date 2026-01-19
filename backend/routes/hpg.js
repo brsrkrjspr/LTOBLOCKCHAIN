@@ -394,33 +394,56 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
 
         if (transferRequests.rows.length > 0) {
             for (const tr of transferRequests.rows) {
-                await dbModule.query(
-                    `UPDATE transfer_requests 
-                     SET hpg_approval_status = 'APPROVED',
-                         hpg_approved_at = CURRENT_TIMESTAMP,
-                         hpg_approved_by = $1,
-                         updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $2`,
-                    [req.user.userId, tr.id]
-                );
+                try {
+                    // Check if approval status columns exist before updating
+                    const colCheck = await dbModule.query(`
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'transfer_requests' 
+                        AND column_name IN ('hpg_approval_status', 'hpg_approved_at', 'hpg_approved_by')
+                    `);
+                    const hasApprovalStatus = colCheck.rows.some(r => r.column_name === 'hpg_approval_status');
+                    const hasApprovedAt = colCheck.rows.some(r => r.column_name === 'hpg_approved_at');
+                    const hasApprovedBy = colCheck.rows.some(r => r.column_name === 'hpg_approved_by');
+                    
+                    if (hasApprovalStatus && hasApprovedAt && hasApprovedBy) {
+                        await dbModule.query(
+                            `UPDATE transfer_requests 
+                             SET hpg_approval_status = 'APPROVED',
+                                 hpg_approved_at = CURRENT_TIMESTAMP,
+                                 hpg_approved_by = $1,
+                                 updated_at = CURRENT_TIMESTAMP
+                             WHERE id = $2`,
+                            [req.user.userId, tr.id]
+                        );
+                        console.log(`✅ Updated transfer request ${tr.id} with HPG approval`);
+                    } else {
+                        console.warn(`⚠️ Transfer request approval columns missing. Skipping transfer request ${tr.id} update. Run migration: database/verify-verification-columns.sql`);
+                    }
+                } catch (transferError) {
+                    console.error(`[HPG Approve] Error updating transfer request ${tr.id}:`, transferError);
+                    // Continue with other operations even if transfer update fails
+                }
                 
-                // Add to vehicle history for the transfer request
-                const transferRequest = await db.getTransferRequestById(tr.id);
-                if (transferRequest) {
-                    await db.addVehicleHistory({
-                        vehicleId: transferRequest.vehicle_id,
-                        action: 'TRANSFER_HPG_APPROVED',
-                        description: `HPG approved transfer request ${tr.id} via clearance request ${requestId}`,
-                        performedBy: req.user.userId,
-                        metadata: { 
-                            transferRequestId: tr.id, 
-                            clearanceRequestId: requestId,
-                            notes: remarks || null 
-                        }
-                    });
+                // Add to vehicle history for the transfer request (always try this)
+                try {
+                    const transferRequest = await db.getTransferRequestById(tr.id);
+                    if (transferRequest) {
+                        await db.addVehicleHistory({
+                            vehicleId: transferRequest.vehicle_id,
+                            action: 'TRANSFER_HPG_APPROVED',
+                            description: `HPG approved transfer request ${tr.id} via clearance request ${requestId}`,
+                            performedBy: req.user.userId,
+                            metadata: { 
+                                transferRequestId: tr.id, 
+                                clearanceRequestId: requestId,
+                                notes: remarks || null 
+                            }
+                        });
+                    }
+                } catch (historyError) {
+                    console.error(`[HPG Approve] Error adding vehicle history for transfer ${tr.id}:`, historyError);
                 }
             }
-            console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with HPG approval`);
         }
 
         // Update vehicle verification status

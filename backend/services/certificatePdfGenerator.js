@@ -922,6 +922,254 @@ class CertificatePdfGenerator {
             throw error;
         }
     }
+
+    /**
+     * Generate Sales Invoice PDF
+     * @param {Object} data - Invoice data
+     * @returns {Promise<{pdfBuffer: Buffer, fileHash: string, certificateNumber: string}>}
+     */
+    async generateSalesInvoice(data) {
+        const {
+            ownerName,
+            vehicleVIN,
+            vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            bodyType,
+            color,
+            fuelType,
+            engineNumber,
+            invoiceNumber,
+            dateOfSale,
+            purchasePrice,
+            sellerName,
+            sellerPosition,
+            dealerName,
+            dealerTin,
+            dealerAccreditationNo
+        } = data;
+
+        // Generate invoice number if not provided: INV-YYYYMMDD-XXXXXX
+        let finalInvoiceNumber = invoiceNumber;
+        if (!finalInvoiceNumber) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            finalInvoiceNumber = `INV-${year}${month}${day}-${random}`;
+        }
+
+        // Load Sales Invoice template
+        const templatePath = path.join(this.templatesPath, 'Sales Invoice', 'sales-invoice.html');
+        let htmlTemplate = await fs.readFile(templatePath, 'utf-8');
+
+        // Format date for display (MM/DD/YYYY)
+        const formatDate = (dateStr) => {
+            if (!dateStr) {
+                const today = new Date();
+                return today.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            }
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        };
+
+        // Remove JavaScript and download buttons (not needed for server-side PDF generation)
+        htmlTemplate = htmlTemplate.replace(/<script[\s\S]*?<\/script>/gi, '');
+        htmlTemplate = htmlTemplate.replace(/<div class="download-container">[\s\S]*?<\/div>/gi, '');
+
+        // Replace header company info
+        const finalDealerName = dealerName || 'ABC MOTORS CORPORATION';
+        htmlTemplate = htmlTemplate.replace(
+            /<h1>.*?<\/h1>/,
+            `<h1>${finalDealerName}</h1>`
+        );
+
+        // Replace TIN
+        const finalDealerTin = dealerTin || '123-456-789';
+        htmlTemplate = htmlTemplate.replace(
+            /<p>TIN:.*?<\/p>/,
+            `<p>TIN: ${finalDealerTin}</p>`
+        );
+
+        // Replace Dealer Accreditation No
+        const finalDealerAccreditationNo = dealerAccreditationNo || 'DA-2023-001';
+        htmlTemplate = htmlTemplate.replace(
+            /<p>Dealer Accreditation No\.:.*?<\/p>/,
+            `<p>Dealer Accreditation No.: ${finalDealerAccreditationNo}</p>`
+        );
+
+        // Replace Invoice Number
+        htmlTemplate = htmlTemplate.replace(
+            /<strong>Invoice No:<\/strong>.*?<\/div>/,
+            `<strong>Invoice No:</strong> ${finalInvoiceNumber}</div>`
+        );
+
+        // Replace Date of Sale
+        const finalDateOfSale = dateOfSale || new Date().toISOString();
+        htmlTemplate = htmlTemplate.replace(
+            /<span id="date-sale"><\/span>/,
+            formatDate(finalDateOfSale)
+        );
+
+        // Replace Buyer Name
+        const finalOwnerName = ownerName || 'Juan Dela Cruz';
+        htmlTemplate = htmlTemplate.replace(
+            /id="buyer-name"[^>]*value="[^"]*"/,
+            `id="buyer-name" value="${finalOwnerName}"`
+        );
+
+        // Replace Vehicle Details
+        const finalMake = vehicleMake || 'Toyota';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-make"[^>]*value="[^"]*"/,
+            `id="vehicle-make" value="${finalMake}"`
+        );
+
+        const finalModel = vehicleModel || 'Corolla Altis';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-model"[^>]*value="[^"]*"/,
+            `id="vehicle-model" value="${finalModel}"`
+        );
+
+        const finalYear = vehicleYear || new Date().getFullYear();
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-year"[^>]*value="[^"]*"/,
+            `id="vehicle-year" value="${finalYear}"`
+        );
+
+        const finalBodyType = bodyType || 'Sedan';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-body"[^>]*value="[^"]*"/,
+            `id="vehicle-body" value="${finalBodyType}"`
+        );
+
+        const finalColor = color || 'White';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-color"[^>]*value="[^"]*"/,
+            `id="vehicle-color" value="${finalColor}"`
+        );
+
+        const finalFuelType = fuelType || 'Gasoline';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-fuel"[^>]*value="[^"]*"/,
+            `id="vehicle-fuel" value="${finalFuelType}"`
+        );
+
+        const finalEngineNumber = engineNumber || this.generateRandomEngineNumber();
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-engine"[^>]*value="[^"]*"/,
+            `id="vehicle-engine" value="${finalEngineNumber}"`
+        );
+
+        const finalVIN = vehicleVIN || this.generateRandomVIN();
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-chassis"[^>]*value="[^"]*"/,
+            `id="vehicle-chassis" value="${finalVIN}"`
+        );
+
+        const finalPlate = vehiclePlate || 'To be issued';
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-plate"[^>]*value="[^"]*"/,
+            `id="vehicle-plate" value="${finalPlate}"`
+        );
+
+        // Replace Purchase Price
+        const finalPurchasePrice = purchasePrice || '₱1,120,000.00';
+        htmlTemplate = htmlTemplate.replace(
+            /<td>₱[\d,]+\.\d{2}<\/td>/,
+            `<td>${finalPurchasePrice}</td>`
+        );
+
+        // Replace Seller Information
+        const finalSellerName = sellerName || 'John M. Santos';
+        htmlTemplate = htmlTemplate.replace(
+            /<p><strong>Name:<\/strong>.*?<\/p>/,
+            `<p><strong>Name:</strong> ${finalSellerName}</p>`
+        );
+
+        const finalSellerPosition = sellerPosition || 'Sales Manager';
+        htmlTemplate = htmlTemplate.replace(
+            /<p><strong>Position:<\/strong>.*?<\/p>/,
+            `<p><strong>Position:</strong> ${finalSellerPosition}</p>`
+        );
+
+        // Replace dates in signature and authentication sections
+        htmlTemplate = htmlTemplate.replace(
+            /<span id="seller-date"><\/span>/g,
+            formatDate(finalDateOfSale)
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /<span id="date-auth"><\/span>/g,
+            formatDate(finalDateOfSale)
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /<div class="stamp-date" id="stamp-date"><\/div>/,
+            `<div class="stamp-date" id="stamp-date">${formatDate(finalDateOfSale)}</div>`
+        );
+
+        // Replace stamp company name
+        htmlTemplate = htmlTemplate.replace(
+            /<div class="stamp-text-center">ABC MOTORS<\/div>/,
+            `<div class="stamp-text-center">${finalDealerName.split(' ').slice(0, 2).join(' ')}</div>`
+        );
+
+        // Inline CSS for Sales Invoice
+        const cssPath = path.join(this.templatesPath, 'Sales Invoice', 'sales-invoice.css');
+        try {
+            const cssContent = await fs.readFile(cssPath, 'utf-8');
+            htmlTemplate = htmlTemplate.replace(
+                /<link rel="stylesheet" href="sales-invoice\.css">/,
+                `<style>${cssContent}</style>`
+            );
+        } catch (cssError) {
+            console.warn('[Sales Invoice] Could not load CSS file:', cssError.message);
+        }
+
+        // Generate PDF
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
+
+        try {
+            const page = await browser.newPage();
+            await page.setContent(htmlTemplate, {
+                waitUntil: 'networkidle0'
+            });
+
+            // Wait a bit more to ensure all fonts and resources are loaded
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const pdfResult = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: {
+                    top: '0.5in',
+                    right: '0.5in',
+                    bottom: '0.5in',
+                    left: '0.5in'
+                }
+            });
+
+            await browser.close();
+
+            // Ensure pdfResult is converted to a Buffer
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'Sales Invoice');
+
+            // Validate PDF buffer
+            this.validatePdfBuffer(pdfBuffer, 'Sales Invoice');
+
+            const fileHash = this.calculateFileHash(pdfBuffer);
+
+            return {
+                pdfBuffer,
+                fileHash,
+                certificateNumber: finalInvoiceNumber
+            };
+        } catch (error) {
+            await browser.close();
+            throw error;
+        }
+    }
 }
 
 module.exports = new CertificatePdfGenerator();

@@ -690,7 +690,7 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/certificate-generation/batch/generate-all
- * Generate all 4 certificates (Insurance, Emission, HPG, CSR) at once with shared vehicle data
+ * Generate all 5 certificates (Insurance, Emission, HPG, CSR, Sales Invoice) at once with shared vehicle data
  * Authorization: Admin only
  */
 router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -713,7 +713,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             insurance,
             emission,
             hpg,
-            csr
+            csr,
+            salesInvoice
         } = req.body;
 
         // Validate required fields
@@ -852,7 +853,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             insurance: insurance?.policyNumber || `CTPL-${year}-${randomSuffix()}`,
             emission: emission?.certificateNumber || `ETC-${year}${month}${day}-${randomSuffix()}`,
             hpg: hpg?.clearanceNumber || `HPG-${year}-${randomSuffix()}`,
-            csr: csr?.csrNumber || `CSR-${year}-${randomSuffix()}`
+            csr: csr?.csrNumber || `CSR-${year}-${randomSuffix()}`,
+            salesInvoice: salesInvoice?.invoiceNumber || `INV-${year}${month}${day}-${randomSuffix()}`
         };
 
         const results = {
@@ -1187,12 +1189,102 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             results.errors.push({ type: 'csr', error: error.message });
         }
 
+        // Generate Sales Invoice
+        try {
+            console.log(`[Batch] Generating Sales Invoice: ${certificateNumbers.salesInvoice}`);
+            const salesInvoiceData = {
+                ownerName: sharedVehicleData.ownerName,
+                vehicleVIN: sharedVehicleData.vin,
+                vehiclePlate: sharedVehicleData.plate,
+                vehicleMake: sharedVehicleData.make,
+                vehicleModel: sharedVehicleData.model,
+                vehicleYear: sharedVehicleData.year,
+                bodyType: sharedVehicleData.bodyType,
+                color: sharedVehicleData.color,
+                fuelType: sharedVehicleData.fuelType,
+                engineNumber: sharedVehicleData.engineNumber,
+                invoiceNumber: certificateNumbers.salesInvoice,
+                dateOfSale: salesInvoice?.dateOfSale || issuanceDate,
+                purchasePrice: salesInvoice?.purchasePrice,
+                sellerName: salesInvoice?.sellerName,
+                sellerPosition: salesInvoice?.sellerPosition,
+                dealerName: salesInvoice?.dealerName,
+                dealerTin: salesInvoice?.dealerTin,
+                dealerAccreditationNo: salesInvoice?.dealerAccreditationNo
+            };
+
+            const salesInvoiceResult = await certificatePdfGenerator.generateSalesInvoice(salesInvoiceData);
+            const salesInvoiceCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                certificateNumbers.salesInvoice,
+                sharedVehicleData.vin,
+                salesInvoiceData.dateOfSale.split('T')[0],
+                salesInvoiceResult.fileHash
+            );
+
+            // Store in database
+            try {
+                const issuerQuery = await db.query(
+                    `SELECT id FROM external_issuers WHERE issuer_type = 'sales_invoice' AND is_active = true LIMIT 1`
+                );
+                if (issuerQuery.rows.length > 0) {
+                    await db.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, certificate_data, effective_date)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                        [
+                            issuerQuery.rows[0].id,
+                            'sales_invoice',
+                            certificateNumbers.salesInvoice,
+                            sharedVehicleData.vin,
+                            sharedVehicleData.ownerName,
+                            salesInvoiceResult.fileHash,
+                            salesInvoiceCompositeHash,
+                            JSON.stringify({
+                                purchasePrice: salesInvoiceData.purchasePrice,
+                                dealerName: salesInvoiceData.dealerName,
+                                dealerTin: salesInvoiceData.dealerTin,
+                                dealerAccreditationNo: salesInvoiceData.dealerAccreditationNo,
+                                sellerName: salesInvoiceData.sellerName,
+                                sellerPosition: salesInvoiceData.sellerPosition
+                            }),
+                            salesInvoiceData.dateOfSale.split('T')[0]
+                        ]
+                    );
+                }
+            } catch (dbError) {
+                console.error(`[Batch] Sales Invoice database error:`, dbError);
+            }
+
+            // Send email
+            await certificateEmailService.sendSalesInvoice({
+                to: ownerEmail,
+                ownerName: sharedVehicleData.ownerName,
+                invoiceNumber: certificateNumbers.salesInvoice,
+                vehicleVIN: sharedVehicleData.vin,
+                vehicleMake: sharedVehicleData.make,
+                vehicleModel: sharedVehicleData.model,
+                pdfBuffer: salesInvoiceResult.pdfBuffer
+            });
+
+            results.certificates.salesInvoice = {
+                invoiceNumber: certificateNumbers.salesInvoice,
+                fileHash: salesInvoiceResult.fileHash,
+                compositeHash: salesInvoiceCompositeHash,
+                emailSent: true
+            };
+            console.log(`[Batch] Sales Invoice generated and sent`);
+        } catch (error) {
+            console.error('[Batch] Sales Invoice error:', error);
+            results.errors.push({ type: 'salesInvoice', error: error.message });
+        }
+
         // Determine response status
         const successCount = Object.keys(results.certificates).length;
         const hasErrors = results.errors.length > 0;
-        const allSuccess = successCount === 4 && !hasErrors;
+        const allSuccess = successCount === 5 && !hasErrors;
 
-        console.log(`[Batch Certificate Generation] Completed: ${successCount}/4 certificates generated`);
+        console.log(`[Batch Certificate Generation] Completed: ${successCount}/5 certificates generated`);
 
         res.status(allSuccess ? 200 : 207).json({
             success: allSuccess,

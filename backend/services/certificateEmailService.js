@@ -455,6 +455,106 @@ This is an automated email. Please do not reply to this message.
             }]
         });
     }
+
+    /**
+     * Send Sales Invoice via Email
+     * @param {Object} params
+     * @param {string} params.to - Recipient email
+     * @param {string} params.ownerName - Owner/Buyer name
+     * @param {string} params.invoiceNumber - Invoice number
+     * @param {string} params.vehicleVIN - Vehicle VIN
+     * @param {string} params.vehicleMake - Vehicle make
+     * @param {string} params.vehicleModel - Vehicle model
+     * @param {Buffer} params.pdfBuffer - PDF invoice buffer
+     * @returns {Promise<Object>} - Gmail API response
+     */
+    async sendSalesInvoice({ to, ownerName, invoiceNumber, vehicleVIN, vehicleMake, vehicleModel, pdfBuffer }) {
+        const subject = `Sales Invoice - Invoice ${invoiceNumber}`;
+        
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header {
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background: #f5f7fa;
+            padding: 30px 20px;
+            border-left: 4px solid #1e40af;
+            border-right: 4px solid #1e40af;
+        }
+        .footer {
+            background: #14171a;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 0 0 8px 8px;
+            font-size: 0.9em;
+        }
+        .info-box {
+            background: white;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #1e40af;
+        }
+        .info-label { font-weight: bold; color: #1e3a8a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Sales Invoice Issued</h1>
+            <p>Your vehicle sales invoice is ready</p>
+        </div>
+        
+        <div class="content">
+            <p>Dear ${ownerName},</p>
+            
+            <p>Your sales invoice has been successfully issued. Please find the invoice attached to this email.</p>
+            
+            <div class="info-box">
+                <p><span class="info-label">Invoice Number:</span> ${invoiceNumber}</p>
+                <p><span class="info-label">Vehicle:</span> ${vehicleMake} ${vehicleModel}</p>
+                <p><span class="info-label">VIN:</span> ${vehicleVIN}</p>
+            </div>
+            
+            <p><strong>Important:</strong> This sales invoice is required for vehicle registration with LTO.</p>
+            
+            <p>Please keep this document safe as it serves as proof of purchase and ownership transfer.</p>
+        </div>
+        
+        <div class="footer">
+            <p>LTO Certificate Generation System</p>
+            <p style="font-size: 0.85em; opacity: 0.8;">This is an automated email.</p>
+        </div>
+    </div>
+</body>
+</html>
+        `;
+
+        const text = `Sales Invoice\n\nDear ${ownerName},\n\nYour sales invoice has been issued.\n\nInvoice: ${invoiceNumber}\nVehicle: ${vehicleMake} ${vehicleModel}\nVIN: ${vehicleVIN}`;
+
+        return await gmailApiService.sendMail({
+            to,
+            subject,
+            text,
+            html,
+            attachments: [{
+                filename: `Sales_Invoice_${invoiceNumber}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            }]
+        });
+    }
 }
 
 module.exports = new CertificateEmailService();

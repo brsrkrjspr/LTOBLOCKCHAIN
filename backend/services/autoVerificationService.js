@@ -671,22 +671,48 @@ class AutoVerificationService {
             }
 
             // Calculate file hash
+            console.log('🔐 [Auto-Verify HPG] Calculating file hash...');
+            console.log('🔐 [Auto-Verify HPG] File path:', filePath);
+            console.log('🔐 [Auto-Verify HPG] Existing file_hash in doc:', clearanceDoc.file_hash ? clearanceDoc.file_hash.substring(0, 16) + '...' : 'NOT SET');
+            
             const fileHash = clearanceDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+            console.log('🔐 [Auto-Verify HPG] Calculated file_hash:', fileHash.substring(0, 32) + '...');
+            console.log('🔐 [Auto-Verify HPG] File hash length:', fileHash.length);
             
             // ============================================
             // CERTIFICATE AUTHENTICITY CHECK (Blockchain Source of Truth)
             // ============================================
+            console.log('🔍 [Auto-Verify HPG] ==========================================');
+            console.log('🔍 [Auto-Verify HPG] Starting certificate authenticity check');
+            console.log('🔍 [Auto-Verify HPG] Input parameters:', {
+                fileHash: fileHash.substring(0, 32) + '...',
+                vehicleId: vehicleId,
+                vehicleVIN: vehicle.vin,
+                certificateType: 'hpg_clearance'
+            });
+            
             const authenticityCheck = await certificateBlockchain.checkCertificateAuthenticity(
                 fileHash,
                 vehicleId,
                 'hpg_clearance'
             );
-            console.log(`[Auto-Verify] Certificate authenticity check:`, {
+            
+            console.log('🔍 [Auto-Verify HPG] ==========================================');
+            console.log('🔍 [Auto-Verify HPG] Certificate authenticity check RESULT:');
+            console.log('🔍 [Auto-Verify HPG]', JSON.stringify({
                 authentic: authenticityCheck.authentic,
                 reason: authenticityCheck.reason,
                 originalFound: authenticityCheck.originalCertificateFound,
-                score: authenticityCheck.authenticityScore
-            });
+                score: authenticityCheck.authenticityScore,
+                source: authenticityCheck.source,
+                matchType: authenticityCheck.matchType,
+                originalFileHash: authenticityCheck.originalFileHash ? authenticityCheck.originalFileHash.substring(0, 32) + '...' : null,
+                submittedFileHash: authenticityCheck.submittedFileHash ? authenticityCheck.submittedFileHash.substring(0, 32) + '...' : null,
+                originalCertificateId: authenticityCheck.originalCertificateId,
+                originalCertificateNumber: authenticityCheck.originalCertificateNumber,
+                originalVehicleVin: authenticityCheck.originalVehicleVin
+            }, null, 2));
+            console.log('🔍 [Auto-Verify HPG] ==========================================');
 
             // Get original certificate for composite hash generation
             const originalCert = await certificateBlockchain.getOriginalCertificate(
@@ -915,7 +941,7 @@ class AutoVerificationService {
                 }
             );
 
-            return {
+            const result = {
                 status: 'PENDING', // Always PENDING - HPG requires manual approval
                 automated: true,
                 confidence: confidenceScore / 100,
@@ -943,8 +969,40 @@ class AutoVerificationService {
                     chassisNumber
                 }
             };
+            
+            console.log('✅ [Auto-Verify HPG] ==========================================');
+            console.log('✅ [Auto-Verify HPG] AUTO-VERIFICATION COMPLETE - SUMMARY');
+            console.log('✅ [Auto-Verify HPG] Vehicle:', {
+                id: vehicleId,
+                vin: vehicle.vin,
+                engine_number: vehicle.engine_number,
+                chassis_number: vehicle.chassis_number
+            });
+            console.log('✅ [Auto-Verify HPG] Extracted Data:', {
+                engineNumber: engineNumber,
+                chassisNumber: chassisNumber
+            });
+            console.log('✅ [Auto-Verify HPG] File Hash:', fileHash.substring(0, 32) + '...');
+            console.log('✅ [Auto-Verify HPG] Composite Hash:', compositeHash ? compositeHash.substring(0, 32) + '...' : 'NULL');
+            console.log('✅ [Auto-Verify HPG] Authenticity Check:', {
+                authentic: authenticityCheck.authentic,
+                originalFound: authenticityCheck.originalCertificateFound,
+                source: authenticityCheck.source,
+                originalCertificateId: authenticityCheck.originalCertificateId,
+                originalCertificateNumber: authenticityCheck.originalCertificateNumber,
+                originalVehicleVin: authenticityCheck.originalVehicleVin,
+                reason: authenticityCheck.reason
+            });
+            console.log('✅ [Auto-Verify HPG] Score Breakdown:', scoreBreakdown);
+            console.log('✅ [Auto-Verify HPG] Final Score:', confidenceScore);
+            console.log('✅ [Auto-Verify HPG] Recommendation:', recommendation);
+            console.log('✅ [Auto-Verify HPG] Recommendation Reason:', recommendationReason);
+            console.log('✅ [Auto-Verify HPG] ==========================================');
+            
+            return result;
         } catch (error) {
-            console.error('[Auto-Verify] HPG auto-verification error:', error);
+            console.error('❌ [Auto-Verify HPG] ERROR:', error);
+            console.error('❌ [Auto-Verify HPG] Error stack:', error.stack);
             return {
                 status: 'PENDING',
                 automated: false,

@@ -166,6 +166,11 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
     try {
         const { requestId } = req.body;
         
+        console.log('🔍 [HPG Auto-Verify API] ==========================================');
+        console.log('🔍 [HPG Auto-Verify API] Starting auto-verification request');
+        console.log('🔍 [HPG Auto-Verify API] Request ID:', requestId);
+        console.log('🔍 [HPG Auto-Verify API] User:', req.user?.userId, req.user?.email);
+        
         if (!requestId) {
             return res.status(400).json({
                 success: false,
@@ -175,28 +180,51 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
 
         const clearanceRequest = await db.getClearanceRequestById(requestId);
         if (!clearanceRequest || clearanceRequest.request_type !== 'hpg') {
+            console.error('❌ [HPG Auto-Verify API] Clearance request not found or not HPG type');
             return res.status(404).json({
                 success: false,
                 error: 'HPG clearance request not found'
             });
         }
 
+        console.log('✅ [HPG Auto-Verify API] Clearance request found:', {
+            id: clearanceRequest.id,
+            vehicle_id: clearanceRequest.vehicle_id,
+            status: clearanceRequest.status,
+            request_type: clearanceRequest.request_type
+        });
+
         const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
         if (!vehicle) {
+            console.error('❌ [HPG Auto-Verify API] Vehicle not found for ID:', clearanceRequest.vehicle_id);
             return res.status(404).json({
                 success: false,
                 error: 'Vehicle not found'
             });
         }
 
+        console.log('✅ [HPG Auto-Verify API] Vehicle data:', {
+            id: vehicle.id,
+            vin: vehicle.vin,
+            engine_number: vehicle.engine_number,
+            chassis_number: vehicle.chassis_number,
+            plate_number: vehicle.plate_number,
+            make: vehicle.make,
+            model: vehicle.model
+        });
+
         // Get documents from clearance request
         const metadata = typeof clearanceRequest.metadata === 'string' 
             ? JSON.parse(clearanceRequest.metadata) 
             : (clearanceRequest.metadata || {});
 
+        console.log('📄 [HPG Auto-Verify API] Metadata keys:', Object.keys(metadata));
+        console.log('📄 [HPG Auto-Verify API] Documents in metadata:', metadata.documents?.length || 0);
+
         // Get documents from metadata or fetch from database
         let documents = metadata.documents || [];
         if (documents.length === 0) {
+            console.log('📄 [HPG Auto-Verify API] No documents in metadata, fetching from database...');
             // Try to fetch documents from database
             const dbModule = require('../database/db');
             const docResult = await dbModule.query(
@@ -206,14 +234,62 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                 [requestId]
             );
             documents = docResult.rows || [];
+            console.log('📄 [HPG Auto-Verify API] Fetched', documents.length, 'documents from database');
         }
 
+        console.log('📄 [HPG Auto-Verify API] Documents to verify:', documents.map(d => ({
+            id: d.id,
+            document_type: d.document_type || d.type,
+            file_path: d.file_path || d.filePath,
+            file_hash: d.file_hash || d.fileHash ? (d.file_hash || d.fileHash).substring(0, 16) + '...' : 'NOT SET',
+            mime_type: d.mime_type || d.mimeType
+        })));
+
+        // Check issued_certificates table for certificate generator data
+        const dbModule = require('../database/db');
+        const issuedCertCheck = await dbModule.query(
+            `SELECT id, certificate_type, certificate_number, vehicle_vin, 
+                    file_hash, composite_hash, issued_at, expires_at, 
+                    metadata, created_at
+             FROM issued_certificates 
+             WHERE certificate_type = 'hpg_clearance' 
+             ORDER BY created_at DESC 
+             LIMIT 5`,
+            []
+        );
+        console.log('📋 [HPG Auto-Verify API] Certificate Generator Data (issued_certificates):');
+        console.log('📋 [HPG Auto-Verify API] Found', issuedCertCheck.rows.length, 'HPG certificates in issued_certificates');
+        issuedCertCheck.rows.forEach((cert, idx) => {
+            console.log(`📋 [HPG Auto-Verify API] Certificate ${idx + 1}:`, {
+                id: cert.id,
+                certificate_number: cert.certificate_number,
+                vehicle_vin: cert.vehicle_vin,
+                file_hash: cert.file_hash ? cert.file_hash.substring(0, 16) + '...' : 'NULL',
+                composite_hash: cert.composite_hash ? cert.composite_hash.substring(0, 16) + '...' : 'NULL',
+                issued_at: cert.issued_at,
+                created_at: cert.created_at
+            });
+        });
+
         // Use autoVerificationService to perform auto-verification with hashing
+        console.log('🚀 [HPG Auto-Verify API] Calling autoVerificationService.autoVerifyHPG...');
         const autoVerifyResult = await autoVerificationService.autoVerifyHPG(
             clearanceRequest.vehicle_id,
             documents,
             vehicle
         );
+        
+        console.log('✅ [HPG Auto-Verify API] Auto-verification completed:', {
+            status: autoVerifyResult.status,
+            score: autoVerifyResult.score,
+            confidence: autoVerifyResult.confidence,
+            recommendation: autoVerifyResult.recommendation,
+            authenticityCheck: autoVerifyResult.authenticityCheck ? {
+                authentic: autoVerifyResult.authenticityCheck.authentic,
+                originalFound: autoVerifyResult.authenticityCheck.originalCertificateFound,
+                reason: autoVerifyResult.authenticityCheck.reason
+            } : 'NOT SET'
+        });
 
         // Store auto-verify result in metadata
         const updatedMetadata = {

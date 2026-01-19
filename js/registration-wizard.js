@@ -14,6 +14,7 @@ let storedVehicleType = null;
 
 // Store OCR extracted data for later auto-fill (when Step 3 becomes visible)
 let storedOCRExtractedData = {};
+let ocrDataSource = {}; // Track which document type provided each field (for conflict messages)
 
 function initializeRegistrationWizard() {
     // Initialize wizard functionality
@@ -107,32 +108,52 @@ function normalizeForComparison(value) {
 
 /**
  * Detect conflicts between final form values and OCR-extracted data.
+ * Properly handles CSR and HPG certificate fields with correct field mappings.
  * Only compares fields where OCR has a non-empty value.
  */
 function detectOcrConflicts() {
     const conflicts = [];
 
-    // Map: OCR key -> HTML input id
+    // Map: OCR key(s) -> HTML input id
+    // CSR/HPG extract: series->model, yearModel->year, bodyType->vehicleType, grossWeight->grossVehicleWeight, netCapacity->netWeight
     const fieldMap = [
-        { ocrKey: 'make', htmlId: 'make', label: 'Make' },
-        { ocrKey: 'model', htmlId: 'model', label: 'Model / Series' },
-        { ocrKey: 'year', htmlId: 'year', label: 'Year' },
-        { ocrKey: 'color', htmlId: 'color', label: 'Color' },
-        { ocrKey: 'plateNumber', htmlId: 'plateNumber', label: 'Plate Number' },
-        { ocrKey: 'engineNumber', htmlId: 'engineNumber', label: 'Engine Number' },
-        { ocrKey: 'chassisNumber', htmlId: 'chassisNumber', label: 'Chassis / VIN' },
-        { ocrKey: 'grossVehicleWeight', htmlId: 'grossVehicleWeight', label: 'Gross Vehicle Weight' },
-        { ocrKey: 'netWeight', htmlId: 'netWeight', label: 'Net Weight' },
-        { ocrKey: 'fuelType', htmlId: 'fuelType', label: 'Fuel Type', isSelect: true }
+        // Identifiers
+        { ocrKeys: ['vin'], htmlId: 'vin', label: 'VIN', priority: 'high' },
+        { ocrKeys: ['chassisNumber', 'vin'], htmlId: 'chassisNumber', label: 'Chassis / VIN', priority: 'high' },
+        { ocrKeys: ['plateNumber'], htmlId: 'plateNumber', label: 'Plate Number', priority: 'high' },
+        { ocrKeys: ['engineNumber'], htmlId: 'engineNumber', label: 'Engine Number', priority: 'high' },
+        
+        // Descriptors
+        { ocrKeys: ['make'], htmlId: 'make', label: 'Make', priority: 'high' },
+        { ocrKeys: ['model', 'series'], htmlId: 'model', label: 'Model / Series', priority: 'high' }, // CSR extracts 'series' which maps to 'model'
+        { ocrKeys: ['year', 'yearModel'], htmlId: 'year', label: 'Year', priority: 'high' }, // CSR extracts 'yearModel' which maps to 'year'
+        { ocrKeys: ['vehicleType', 'bodyType'], htmlId: 'vehicleType', label: 'Vehicle Type', priority: 'medium' }, // CSR extracts 'bodyType' which maps to 'vehicleType'
+        { ocrKeys: ['color'], htmlId: 'color', label: 'Color', priority: 'medium' },
+        { ocrKeys: ['fuelType'], htmlId: 'fuelType', label: 'Fuel Type', isSelect: true, priority: 'medium' },
+        
+        // Weights
+        { ocrKeys: ['grossVehicleWeight', 'grossWeight'], htmlId: 'grossVehicleWeight', label: 'Gross Vehicle Weight', priority: 'medium' }, // CSR extracts 'grossWeight'
+        { ocrKeys: ['netWeight', 'netCapacity'], htmlId: 'netWeight', label: 'Net Weight', priority: 'medium' } // CSR extracts 'netCapacity'
     ];
 
     console.log('[OCR Conflict Detection] Starting conflict detection...');
     console.log('[OCR Conflict Detection] Available OCR data keys:', Object.keys(storedOCRExtractedData));
+    console.log('[OCR Conflict Detection] OCR data sources:', ocrDataSource);
 
-    fieldMap.forEach(({ ocrKey, htmlId, label, isSelect }) => {
-        const ocrValue = storedOCRExtractedData[ocrKey];
+    fieldMap.forEach(({ ocrKeys, htmlId, label, isSelect, priority }) => {
+        // Find the first OCR key that has a value
+        let ocrValue = null;
+        let ocrKeyUsed = null;
+        for (const ocrKey of ocrKeys) {
+            if (storedOCRExtractedData[ocrKey]) {
+                ocrValue = storedOCRExtractedData[ocrKey];
+                ocrKeyUsed = ocrKey;
+                break;
+            }
+        }
+
         if (!ocrValue) {
-            console.log(`[OCR Conflict Detection] Skipping ${label} - no OCR value found`);
+            console.log(`[OCR Conflict Detection] Skipping ${label} - no OCR value found in keys: ${ocrKeys.join(', ')}`);
             return; // nothing to compare
         }
 
@@ -143,6 +164,18 @@ function detectOcrConflicts() {
         }
 
         let formValue = el.value || '';
+
+        // Special handling: If VIN and chassisNumber are the same value (from CSR), 
+        // and both fields exist, check if they match each other first
+        if (htmlId === 'chassisNumber' && storedOCRExtractedData.vin && storedOCRExtractedData.chassisNumber) {
+            const vinNorm = normalizeForComparison(storedOCRExtractedData.vin);
+            const chassisNorm = normalizeForComparison(storedOCRExtractedData.chassisNumber);
+            // If VIN and chassisNumber from OCR are the same, use VIN value for comparison
+            if (vinNorm === chassisNorm) {
+                ocrValue = storedOCRExtractedData.vin;
+                ocrKeyUsed = 'vin';
+            }
+        }
 
         // For selects, compare by normalized token but show the user-facing text
         if (isSelect && el.tagName === 'SELECT') {
@@ -156,27 +189,74 @@ function detectOcrConflicts() {
         const normForm = normalizeForComparison(formValue);
         const normOcr = normalizeForComparison(ocrValue);
 
+        // Get document source for this field
+        const documentSource = ocrDataSource[ocrKeyUsed] || 'uploaded document';
+        const documentTypeName = getDocumentTypeName(documentSource);
+
         console.log(`[OCR Conflict Detection] ${label}:`, {
+            ocrKey: ocrKeyUsed,
             ocrValue: ocrValue,
             formValue: formValue,
             normOcr: normOcr,
             normForm: normForm,
-            match: normForm === normOcr
+            match: normForm === normOcr,
+            source: documentSource
         });
 
         // If normalized values differ, treat as conflict
+        // Skip if this is a duplicate (VIN and chassisNumber with same values)
         if (normForm && normOcr && normForm !== normOcr) {
-            conflicts.push({
-                field: label,
-                formValue: formValue || '(blank)',
-                ocrValue: ocrValue || '(blank)'
-            });
-            console.log(`[OCR Conflict Detection] ⚠️ CONFLICT DETECTED: ${label} - Form: "${formValue}", OCR: "${ocrValue}"`);
+            // Check for duplicate conflicts (VIN and chassisNumber with same OCR values)
+            const isDuplicate = htmlId === 'chassisNumber' && conflicts.some(c => 
+                c.field === 'VIN' && 
+                normalizeForComparison(c.ocrValue) === normOcr &&
+                normalizeForComparison(c.formValue) === normForm
+            );
+            
+            if (!isDuplicate) {
+                conflicts.push({
+                    field: label,
+                    formValue: formValue || '(blank)',
+                    ocrValue: ocrValue || '(blank)',
+                    documentSource: documentTypeName,
+                    priority: priority
+                });
+                console.log(`[OCR Conflict Detection] ⚠️ CONFLICT DETECTED: ${label} - Form: "${formValue}", ${documentTypeName}: "${ocrValue}"`);
+            } else {
+                console.log(`[OCR Conflict Detection] Skipping duplicate conflict for ${label} (same as VIN)`);
+            }
         }
+    });
+
+    // Sort conflicts by priority (high priority first)
+    conflicts.sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
     });
 
     console.log(`[OCR Conflict Detection] Total conflicts found: ${conflicts.length}`);
     return conflicts;
+}
+
+/**
+ * Get user-friendly document type name
+ */
+function getDocumentTypeName(documentType) {
+    const typeMap = {
+        'csr': 'CSR Certificate',
+        'certificateOfStockReport': 'CSR Certificate',
+        'certificate_of_stock_report': 'CSR Certificate',
+        'hpg_clearance': 'HPG Certificate',
+        'hpgClearance': 'HPG Certificate',
+        'pnpHpgClearance': 'HPG Certificate',
+        'registration_cert': 'Registration Certificate',
+        'registrationCert': 'Registration Certificate',
+        'or_cr': 'Registration Certificate',
+        'orCr': 'Registration Certificate',
+        'sales_invoice': 'Sales Invoice',
+        'salesInvoice': 'Sales Invoice'
+    };
+    return typeMap[documentType] || 'uploaded document';
 }
 
 /**
@@ -203,14 +283,16 @@ async function checkOcrConflictsBeforeSubmit() {
             return true;
         }
 
-        const conflictLines = conflicts.map(c =>
-            `• ${c.field}: Form = "${c.formValue}", Document = "${c.ocrValue}"`
-        ).join('\n');
+        const conflictLines = conflicts.map(c => {
+            const sourceInfo = c.documentSource ? ` (from ${c.documentSource})` : '';
+            return `• ${c.field}: Form = "${c.formValue}", Document = "${c.ocrValue}"${sourceInfo}`;
+        }).join('\n');
 
         const message =
-            'We detected differences between the values you entered and the values extracted from the uploaded documents:\n\n' +
+            'We detected differences between the values you entered and the values extracted from your uploaded documents:\n\n' +
             conflictLines +
-            '\n\nIf you continue, the information in the form will be used for registration. Make sure this is intentional.';
+            '\n\n⚠️ Important: If you continue, the information in the form will be used for registration. Please verify that your entered values are correct, especially for critical fields like VIN, Plate Number, Make, and Model.\n\n' +
+            'If the document values are correct, consider reviewing and updating your form fields before submitting.';
 
         const confirmed = await ConfirmationDialog.show({
             title: 'Confirm Data Differences',
@@ -1133,6 +1215,32 @@ async function submitApplication() {
         // Collect all form data
         const applicationData = collectApplicationData();
         
+        // Validate required fields before proceeding
+        const missingFields = [];
+        if (!applicationData.vehicle.vin || !applicationData.vehicle.vin.trim()) {
+            missingFields.push('VIN');
+        }
+        if (!applicationData.vehicle.plateNumber || !applicationData.vehicle.plateNumber.trim()) {
+            missingFields.push('Plate Number');
+        }
+        if (!applicationData.vehicle.make || !applicationData.vehicle.make.trim()) {
+            missingFields.push('Make');
+        }
+        if (!applicationData.vehicle.model || !applicationData.vehicle.model.trim()) {
+            missingFields.push('Model');
+        }
+        
+        if (missingFields.length > 0) {
+            ToastNotification.show(
+                `Please fill in all required fields: ${missingFields.join(', ')}`,
+                'error',
+                8000
+            );
+            console.error('[submitApplication] Missing required fields:', missingFields);
+            console.error('[submitApplication] Vehicle data:', applicationData.vehicle);
+            return;
+        }
+        
         // Upload documents first with abort signal
         let documentUploads = {};
         try {
@@ -1511,23 +1619,47 @@ function collectApplicationData() {
     const carType = document.getElementById('carType')?.value || '';
     
     // Collect vehicle information
-    const vehicleInfo = {
-        make: document.getElementById('make')?.value || '',
-        model: document.getElementById('model')?.value || '',
-        year: parseInt(document.getElementById('year')?.value || new Date().getFullYear()),
-        color: document.getElementById('color')?.value || '',
-        engineNumber: document.getElementById('engineNumber')?.value || '',
-        chassisNumber: document.getElementById('chassisNumber')?.value || '',
-        vin: document.getElementById('vin')?.value || document.getElementById('chassisNumber')?.value || '',
-        plateNumber: document.getElementById('plateNumber')?.value.toUpperCase() || '',
-        vehicleType: document.getElementById('vehicleType')?.value || 'Car',
-        carType: carType, // Add car type from Step 1
-        vehicleCategory: document.getElementById('vehicleCategory')?.value || '',
-        passengerCapacity: parseInt(document.getElementById('passengerCapacity')?.value || 0),
-        grossVehicleWeight: parseFloat(document.getElementById('grossVehicleWeight')?.value || 0),
-        netWeight: parseFloat(document.getElementById('netWeight')?.value || 0),
-        classification: document.getElementById('classification')?.value || 'Private'
+    // Helper function to safely get and trim field values
+    const getFieldValue = (fieldId, defaultValue = '') => {
+        const field = document.getElementById(fieldId);
+        if (!field) {
+            console.warn(`[collectApplicationData] Field not found: ${fieldId}`);
+            return defaultValue;
+        }
+        const value = (field.value || '').trim();
+        return value || defaultValue;
     };
+    
+    const plateNumberValue = getFieldValue('plateNumber');
+    const vehicleInfo = {
+        make: getFieldValue('make'),
+        model: getFieldValue('model'),
+        year: parseInt(getFieldValue('year') || new Date().getFullYear()),
+        color: getFieldValue('color'),
+        engineNumber: getFieldValue('engineNumber'),
+        chassisNumber: getFieldValue('chassisNumber'),
+        vin: getFieldValue('vin') || getFieldValue('chassisNumber'),
+        plateNumber: plateNumberValue ? plateNumberValue.toUpperCase() : '',
+        vehicleType: getFieldValue('vehicleType', 'Car'),
+        carType: carType, // Add car type from Step 1
+        vehicleCategory: getFieldValue('vehicleCategory'),
+        passengerCapacity: parseInt(getFieldValue('passengerCapacity') || 0),
+        grossVehicleWeight: parseFloat(getFieldValue('grossVehicleWeight') || 0),
+        netWeight: parseFloat(getFieldValue('netWeight') || 0),
+        classification: getFieldValue('classification', 'Private')
+    };
+    
+    // Debug: Log collected vehicle data to help diagnose issues
+    console.log('[collectApplicationData] Collected vehicle data:', {
+        vin: vehicleInfo.vin,
+        plateNumber: vehicleInfo.plateNumber,
+        make: vehicleInfo.make,
+        model: vehicleInfo.model,
+        hasVin: !!vehicleInfo.vin,
+        hasPlateNumber: !!vehicleInfo.plateNumber,
+        hasMake: !!vehicleInfo.make,
+        hasModel: !!vehicleInfo.model
+    });
     
     // Collect owner information
     const ownerInfo = {

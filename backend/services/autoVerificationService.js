@@ -648,16 +648,68 @@ class AutoVerificationService {
                 scoreBreakdown.documentCompleteness = 8;
             }
 
-            // Data match with vehicle record (5 points) - Reduced from 10
-            const engineMatch = engineNumber && vehicle.engine_number && 
-                               engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim();
-            const chassisMatch = chassisNumber && vehicle.chassis_number && 
-                                chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim();
-            if (engineMatch && chassisMatch) {
-                scoreBreakdown.dataMatch = 5;
-            } else if (engineMatch || chassisMatch) {
-                scoreBreakdown.dataMatch = 2;
+            // Data match with vehicle record AND original certificate (5 points)
+            // Compare extracted data with:
+            // 1. Vehicle record in database
+            // 2. Original certificate's stored data (if available)
+            let engineMatch = false;
+            let chassisMatch = false;
+            let engineMatchOriginal = false;
+            let chassisMatchOriginal = false;
+
+            // Match 1: Compare with vehicle record
+            engineMatch = engineNumber && vehicle.engine_number && 
+                         engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim();
+            chassisMatch = chassisNumber && vehicle.chassis_number && 
+                          chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim();
+
+            // Match 2: Compare with original certificate's stored data (if certificate is authentic)
+            if (authenticityCheck.authentic && authenticityCheck.certificateData) {
+                try {
+                    const certData = typeof authenticityCheck.certificateData === 'string' 
+                        ? JSON.parse(authenticityCheck.certificateData) 
+                        : authenticityCheck.certificateData;
+                    
+                    // HPG certificates may store engine/chassis in certificate_data
+                    const originalEngine = certData.engineNumber || certData.engine_number;
+                    const originalChassis = certData.chassisNumber || certData.chassis_number;
+                    
+                    if (originalEngine && engineNumber) {
+                        engineMatchOriginal = engineNumber.toUpperCase().trim() === originalEngine.toUpperCase().trim();
+                    }
+                    if (originalChassis && chassisNumber) {
+                        chassisMatchOriginal = chassisNumber.toUpperCase().trim() === originalChassis.toUpperCase().trim();
+                    }
+                } catch (parseError) {
+                    console.warn('[Auto-Verify] Error parsing certificate_data:', parseError);
+                }
             }
+
+            // Score based on matches (prioritize original certificate match if available)
+            if (authenticityCheck.authentic && (engineMatchOriginal || chassisMatchOriginal)) {
+                // Certificate is authentic - compare with original certificate data
+                if (engineMatchOriginal && chassisMatchOriginal) {
+                    scoreBreakdown.dataMatch = 5; // Perfect match with original certificate
+                } else if (engineMatchOriginal || chassisMatchOriginal) {
+                    scoreBreakdown.dataMatch = 3; // Partial match with original certificate
+                }
+            } else {
+                // Compare with vehicle record (fallback or when original cert data not available)
+                if (engineMatch && chassisMatch) {
+                    scoreBreakdown.dataMatch = 5;
+                } else if (engineMatch || chassisMatch) {
+                    scoreBreakdown.dataMatch = 2;
+                }
+            }
+
+            // Log data comparison results
+            console.log(`[Auto-Verify] Data match results:`, {
+                engineMatchVehicle: engineMatch,
+                chassisMatchVehicle: chassisMatch,
+                engineMatchOriginal: engineMatchOriginal,
+                chassisMatchOriginal: chassisMatchOriginal,
+                authenticityCheck: authenticityCheck.authentic
+            });
 
             confidenceScore = Math.min(100, 
                 scoreBreakdown.certificateAuthenticity +
@@ -734,6 +786,17 @@ class AutoVerificationService {
                 hashCheck,
                 compositeHash,
                 authenticityCheck,  // NEW: Blockchain authenticity verification
+                dataComparison: {  // NEW: Data comparison results
+                    engineMatchVehicle: engineMatch,
+                    chassisMatchVehicle: chassisMatch,
+                    engineMatchOriginal: engineMatchOriginal,
+                    chassisMatchOriginal: chassisMatchOriginal,
+                    originalCertificateData: authenticityCheck.authentic && authenticityCheck.certificateData 
+                        ? (typeof authenticityCheck.certificateData === 'string' 
+                            ? JSON.parse(authenticityCheck.certificateData) 
+                            : authenticityCheck.certificateData)
+                        : null
+                },
                 ocrData,
                 preFilledData: {
                     engineNumber,

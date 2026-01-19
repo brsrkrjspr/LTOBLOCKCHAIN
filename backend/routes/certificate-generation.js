@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/services');
+const dbRaw = require('../database/db'); // Raw DB module for direct SQL queries
 const certificatePdfGenerator = require('../services/certificatePdfGenerator');
 const certificateEmailService = require('../services/certificateEmailService');
 const { authenticateToken } = require('../middleware/auth');
@@ -191,14 +192,14 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
 
         // Store in issued_certificates table (if table exists)
         try {
-            const issuerQuery = await db.query(
+            const issuerQuery = await dbRaw.query(
                 `SELECT id FROM external_issuers WHERE issuer_type = 'insurance' AND is_active = true LIMIT 1`
             );
 
             if (issuerQuery.rows.length > 0) {
                 const issuerId = issuerQuery.rows[0].id;
 
-                await db.query(
+                await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                      file_hash, composite_hash, certificate_data, effective_date, expiry_date)
@@ -385,12 +386,12 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
 
         // Store in database
         try {
-            const issuerQuery = await db.query(
+            const issuerQuery = await dbRaw.query(
                 `SELECT id FROM external_issuers WHERE issuer_type = 'emission' AND is_active = true LIMIT 1`
             );
 
             if (issuerQuery.rows.length > 0) {
-                await db.query(
+                await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                      file_hash, composite_hash, certificate_data, effective_date, expiry_date)
@@ -541,12 +542,12 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
 
         // Store in database
         try {
-            const issuerQuery = await db.query(
+            const issuerQuery = await dbRaw.query(
                 `SELECT id FROM external_issuers WHERE issuer_type = 'hpg' AND is_active = true LIMIT 1`
             );
 
             if (issuerQuery.rows.length > 0) {
-                await db.query(
+                await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                      file_hash, composite_hash, certificate_data, effective_date)
@@ -753,12 +754,12 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
 
         // Store in database
         try {
-            const issuerQuery = await db.query(
+            const issuerQuery = await dbRaw.query(
                 `SELECT id FROM external_issuers WHERE issuer_type = 'csr' AND is_active = true LIMIT 1`
             );
 
             if (issuerQuery.rows.length > 0) {
-                await db.query(
+                await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                      file_hash, composite_hash, certificate_data, effective_date)
@@ -936,12 +937,12 @@ router.post('/sales-invoice/generate-and-send', authenticateToken, authorizeRole
 
         // Store in issued_certificates table (if table exists)
         try {
-            const issuerQuery = await db.query(
+            const issuerQuery = await dbRaw.query(
                 `SELECT id FROM external_issuers WHERE issuer_type = 'sales_invoice' AND is_active = true LIMIT 1`
             );
 
             if (issuerQuery.rows.length > 0) {
-                await db.query(
+                await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                      file_hash, composite_hash, certificate_data, effective_date)
@@ -1233,11 +1234,11 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Store in database
             try {
-                const issuerQuery = await db.query(
+                const issuerQuery = await dbRaw.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = 'insurance' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await db.query(
+                    await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                          file_hash, composite_hash, certificate_data, effective_date, expiry_date)
@@ -1317,11 +1318,11 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Store in database
             try {
-                const issuerQuery = await db.query(
+                const issuerQuery = await dbRaw.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = 'emission' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await db.query(
+                    await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                          file_hash, composite_hash, certificate_data, effective_date, expiry_date)
@@ -1397,11 +1398,11 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Store in database
             try {
-                const issuerQuery = await db.query(
+                const issuerQuery = await dbRaw.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = 'hpg' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await db.query(
+                    await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                          file_hash, composite_hash, certificate_data, effective_date)
@@ -1472,11 +1473,11 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Store in database
             try {
-                const issuerQuery = await db.query(
+                const issuerQuery = await dbRaw.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = 'csr' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await db.query(
+                    await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                          file_hash, composite_hash, certificate_data, effective_date)
@@ -1565,11 +1566,11 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
             // Store in database
             try {
-                const issuerQuery = await db.query(
+                const issuerQuery = await dbRaw.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = 'sales_invoice' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await db.query(
+                    await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
                          file_hash, composite_hash, certificate_data, effective_date)

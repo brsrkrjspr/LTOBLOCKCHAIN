@@ -269,6 +269,7 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                 hashCheck: autoVerifyResult.hashCheck || {},
                 compositeHash: autoVerifyResult.compositeHash || null,
                 authenticityCheck: autoVerifyResult.authenticityCheck || {},  // NEW: Blockchain authenticity verification
+                dataComparison: autoVerifyResult.dataComparison || {},  // NEW: Data comparison results
                 ocrData: autoVerifyResult.ocrData || {}
             }
         });

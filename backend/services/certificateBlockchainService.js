@@ -83,14 +83,42 @@ class CertificateBlockchainService {
      */
     async checkHashDuplicate(compositeHash) {
         try {
-            // First check database for existing hash
-            const existingCert = await db.query(
-                'SELECT id, vehicle_id, certificate_type, application_status, status FROM certificates WHERE composite_hash = $1',
+            // Check BOTH tables for duplicate composite hash
+            // This prevents certificate reuse across different vehicles
+
+            // Check 1: issued_certificates table (from certificate-generator.html)
+            const issuedCertCheck = await db.query(
+                `SELECT id, vehicle_vin, certificate_type, is_revoked, created_at
+                 FROM issued_certificates 
+                 WHERE composite_hash = $1`,
                 [compositeHash]
             );
 
-            if (existingCert.rows && existingCert.rows.length > 0) {
-                const cert = existingCert.rows[0];
+            if (issuedCertCheck.rows && issuedCertCheck.rows.length > 0) {
+                const cert = issuedCertCheck.rows[0];
+                // Get vehicle_id from VIN for consistency
+                const vehicle = await db.getVehicleByVin(cert.vehicle_vin);
+                return {
+                    exists: true,
+                    certificateId: cert.id,
+                    vehicleId: vehicle ? vehicle.id : null,
+                    vehicleVin: cert.vehicle_vin,
+                    certificateType: cert.certificate_type,
+                    isRevoked: cert.is_revoked,
+                    source: 'issued_certificates'
+                };
+            }
+
+            // Check 2: certificates table (from clearance workflow)
+            const certCheck = await db.query(
+                `SELECT id, vehicle_id, certificate_type, application_status, status 
+                 FROM certificates 
+                 WHERE composite_hash = $1`,
+                [compositeHash]
+            );
+
+            if (certCheck.rows && certCheck.rows.length > 0) {
+                const cert = certCheck.rows[0];
                 return {
                     exists: true,
                     certificateId: cert.id,
@@ -98,13 +126,11 @@ class CertificateBlockchainService {
                     certificateType: cert.certificate_type,
                     applicationStatus: cert.application_status,
                     status: cert.status,
-                    source: 'database'
+                    source: 'certificates'
                 };
             }
 
-            // TODO: Query blockchain if needed (requires chaincode function)
-            // For now, database check is sufficient since we store all hashes in DB
-
+            // No duplicate found in either table
             return {
                 exists: false,
                 source: 'database'
@@ -122,15 +148,84 @@ class CertificateBlockchainService {
     /**
      * Check certificate authenticity by comparing file hash with original certificate
      * Uses blockchain/database as source of truth
+     * Checks BOTH issued_certificates (from certificate-generator.html) AND certificates (from clearance workflow)
      * @param {string} fileHash - File hash of submitted certificate
-     * @param {string} vehicleId - Vehicle ID
+     * @param {string} vehicleId - Vehicle ID (UUID)
      * @param {string} certificateType - Certificate type (hpg_clearance, insurance, emission)
      * @returns {Promise<Object>} Authenticity check result
      */
     async checkCertificateAuthenticity(fileHash, vehicleId, certificateType) {
         try {
-            // Query database for original certificate (blockchain source of truth)
-            const originalCert = await db.query(
+            // Get vehicle VIN (needed for issued_certificates lookup)
+            const vehicle = await db.getVehicleById(vehicleId);
+            if (!vehicle || !vehicle.vin) {
+                return {
+                    authentic: false,
+                    reason: 'Vehicle not found or VIN missing',
+                    originalCertificateFound: false,
+                    authenticityScore: 0
+                };
+            }
+            const vehicleVin = vehicle.vin;
+
+            // ============================================
+            // CHECK 1: issued_certificates table (from certificate-generator.html)
+            // This is where certificates from certificate-generator.html are stored
+            // ============================================
+            const issuedCertQuery = await db.query(
+                `SELECT id, file_hash, composite_hash, certificate_number, 
+                        vehicle_vin, certificate_data, effective_date, expiry_date,
+                        blockchain_tx_id, is_revoked, created_at
+                 FROM issued_certificates 
+                 WHERE vehicle_vin = $1 
+                   AND certificate_type = $2 
+                   AND is_revoked = false
+                 ORDER BY created_at DESC LIMIT 1`,
+                [vehicleVin, certificateType]
+            );
+
+            if (issuedCertQuery.rows && issuedCertQuery.rows.length > 0) {
+                const original = issuedCertQuery.rows[0];
+                
+                // Compare file hashes - this is the authenticity check
+                if (original.file_hash === fileHash) {
+                    // File hash matches - certificate is authentic!
+                    return {
+                        authentic: true,
+                        reason: 'Certificate file hash matches original certificate from certificate-generator',
+                        originalCertificateFound: true,
+                        source: 'issued_certificates',
+                        originalCertificateId: original.id,
+                        originalCertificateNumber: original.certificate_number,
+                        originalCompositeHash: original.composite_hash,
+                        originalFileHash: original.file_hash,
+                        blockchainTxId: original.blockchain_tx_id,
+                        certificateData: original.certificate_data,
+                        authenticityScore: 100,
+                        matchType: 'file_hash'
+                    };
+                } else {
+                    // File hash doesn't match - certificate might be fake or modified
+                    return {
+                        authentic: false,
+                        reason: 'Certificate file hash does not match original certificate from certificate-generator',
+                        originalCertificateFound: true,
+                        source: 'issued_certificates',
+                        originalCertificateId: original.id,
+                        originalCertificateNumber: original.certificate_number,
+                        originalFileHash: original.file_hash,
+                        submittedFileHash: fileHash,
+                        authenticityScore: 0,
+                        matchType: 'none'
+                    };
+                }
+            }
+
+            // ============================================
+            // CHECK 2: certificates table (from clearance workflow)
+            // This is where certificates from clearance workflow are stored
+            // ============================================
+            const certQuery = await db.query(
                 `SELECT id, file_hash, composite_hash, certificate_number, 
                         status, application_status, issued_at, expires_at,
                         blockchain_tx_id
@@ -142,50 +237,54 @@ class CertificateBlockchainService {
                 [vehicleId, certificateType]
             );
 
-            if (!originalCert.rows || originalCert.rows.length === 0) {
-                // No original certificate found - this might be first submission
-                return {
-                    authentic: false,
-                    reason: 'No original certificate found for this vehicle',
-                    originalCertificateFound: false,
-                    authenticityScore: 0
-                };
+            if (certQuery.rows && certQuery.rows.length > 0) {
+                const original = certQuery.rows[0];
+                
+                // Compare file hashes - this is the authenticity check
+                if (original.file_hash === fileHash) {
+                    // File hash matches - certificate is authentic!
+                    return {
+                        authentic: true,
+                        reason: 'Certificate file hash matches original certificate from clearance workflow',
+                        originalCertificateFound: true,
+                        source: 'certificates',
+                        originalCertificateId: original.id,
+                        originalCertificateNumber: original.certificate_number,
+                        originalCompositeHash: original.composite_hash,
+                        originalFileHash: original.file_hash,
+                        originalStatus: original.status,
+                        originalApplicationStatus: original.application_status,
+                        blockchainTxId: original.blockchain_tx_id,
+                        authenticityScore: 100,
+                        matchType: 'file_hash'
+                    };
+                } else {
+                    // File hash doesn't match - certificate might be fake or modified
+                    return {
+                        authentic: false,
+                        reason: 'Certificate file hash does not match original certificate from clearance workflow',
+                        originalCertificateFound: true,
+                        source: 'certificates',
+                        originalCertificateId: original.id,
+                        originalCertificateNumber: original.certificate_number,
+                        originalFileHash: original.file_hash,
+                        submittedFileHash: fileHash,
+                        originalStatus: original.status,
+                        originalApplicationStatus: original.application_status,
+                        authenticityScore: 0,
+                        matchType: 'none'
+                    };
+                }
             }
 
-            const original = originalCert.rows[0];
-
-            // Compare file hashes - this is the authenticity check
-            if (original.file_hash === fileHash) {
-                // File hash matches - certificate is authentic!
-                return {
-                    authentic: true,
-                    reason: 'Certificate file hash matches original certificate',
-                    originalCertificateFound: true,
-                    originalCertificateId: original.id,
-                    originalCertificateNumber: original.certificate_number,
-                    originalCompositeHash: original.composite_hash,
-                    originalStatus: original.status,
-                    originalApplicationStatus: original.application_status,
-                    blockchainTxId: original.blockchain_tx_id,
-                    authenticityScore: 100,
-                    matchType: 'file_hash'
-                };
-            } else {
-                // File hash doesn't match - certificate might be fake or modified
-                return {
-                    authentic: false,
-                    reason: 'Certificate file hash does not match original certificate',
-                    originalCertificateFound: true,
-                    originalCertificateId: original.id,
-                    originalCertificateNumber: original.certificate_number,
-                    originalFileHash: original.file_hash,
-                    submittedFileHash: fileHash,
-                    originalStatus: original.status,
-                    originalApplicationStatus: original.application_status,
-                    authenticityScore: 0,
-                    matchType: 'none'
-                };
-            }
+            // No original certificate found in either table
+            return {
+                authentic: false,
+                reason: 'No original certificate found for this vehicle in issued_certificates or certificates tables',
+                originalCertificateFound: false,
+                source: 'none',
+                authenticityScore: 0
+            };
         } catch (error) {
             console.error('Error checking certificate authenticity:', error);
             return {
@@ -199,13 +298,37 @@ class CertificateBlockchainService {
 
     /**
      * Get original certificate for vehicle (for composite hash generation)
-     * @param {string} vehicleId - Vehicle ID
+     * Checks BOTH issued_certificates (from certificate-generator.html) AND certificates (from clearance workflow)
+     * @param {string} vehicleId - Vehicle ID (UUID)
      * @param {string} certificateType - Certificate type
      * @returns {Promise<Object|null>} Original certificate or null
      */
     async getOriginalCertificate(vehicleId, certificateType) {
         try {
-            const result = await db.query(
+            // Get vehicle VIN (needed for issued_certificates lookup)
+            const vehicle = await db.getVehicleById(vehicleId);
+            if (!vehicle || !vehicle.vin) {
+                return null;
+            }
+            const vehicleVin = vehicle.vin;
+
+            // Priority 1: Check issued_certificates table (from certificate-generator.html)
+            const issuedCertResult = await db.query(
+                `SELECT certificate_number, file_hash, composite_hash, created_at as issued_at, expiry_date as expires_at
+                 FROM issued_certificates 
+                 WHERE vehicle_vin = $1 
+                   AND certificate_type = $2 
+                   AND is_revoked = false
+                 ORDER BY created_at DESC LIMIT 1`,
+                [vehicleVin, certificateType]
+            );
+
+            if (issuedCertResult.rows && issuedCertResult.rows.length > 0) {
+                return issuedCertResult.rows[0];
+            }
+
+            // Priority 2: Check certificates table (from clearance workflow)
+            const certResult = await db.query(
                 `SELECT certificate_number, file_hash, composite_hash, issued_at, expires_at
                  FROM certificates 
                  WHERE vehicle_id = $1 
@@ -215,7 +338,7 @@ class CertificateBlockchainService {
                 [vehicleId, certificateType]
             );
 
-            return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+            return certResult.rows && certResult.rows.length > 0 ? certResult.rows[0] : null;
         } catch (error) {
             console.error('Error getting original certificate:', error);
             return null;

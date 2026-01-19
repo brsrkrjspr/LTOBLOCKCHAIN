@@ -202,7 +202,7 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
                 await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, certificate_data, effective_date, expiry_date)
+                     file_hash, composite_hash, issued_at, expires_at, metadata)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                     [
                         issuerId,
@@ -212,13 +212,13 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
                         owner.name,
                         fileHash,
                         compositeHash,
+                        effectiveDate,
+                        expiryDate,
                         JSON.stringify({
                             coverageType,
                             coverageAmount,
                             additionalCoverage
-                        }),
-                        effectiveDate,
-                        expiryDate
+                        })
                     ]
                 );
 
@@ -394,7 +394,7 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
                 await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, certificate_data, effective_date, expiry_date)
+                     file_hash, composite_hash, issued_at, expires_at, metadata)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                     [
                         issuerQuery.rows[0].id,
@@ -404,9 +404,9 @@ router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['em
                         ownerName,
                         fileHash,
                         compositeHash,
-                        JSON.stringify({ testResults, vehiclePlate }),
                         finalTestDate,
-                        finalExpiryDate
+                        finalExpiryDate,
+                        JSON.stringify({ testResults, vehiclePlate })
                     ]
                 );
             }
@@ -550,8 +550,8 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
                 await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, certificate_data, effective_date)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                     file_hash, composite_hash, issued_at, expires_at, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                     [
                         issuerQuery.rows[0].id,
                         'hpg_clearance',
@@ -560,8 +560,9 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
                         owner.name,
                         fileHash,
                         compositeHash,
-                        JSON.stringify({ verificationDetails, vehiclePlate }),
-                        finalIssueDate
+                        finalIssueDate,
+                        null,
+                        JSON.stringify({ verificationDetails, vehiclePlate })
                     ]
                 );
             }
@@ -762,8 +763,8 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
                 await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, certificate_data, effective_date)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                     file_hash, composite_hash, issued_at, expires_at, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                     [
                         issuerQuery.rows[0].id,
                         'csr',
@@ -772,6 +773,8 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
                         owner.name,
                         fileHash,
                         compositeHash,
+                        finalIssuanceDate.split('T')[0],
+                        null,
                         JSON.stringify({ 
                             vehicleMake: finalVehicleMake, 
                             vehicleModel: finalVehicleModel || vehicleModel, 
@@ -781,8 +784,7 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
                             color, 
                             fuelType, 
                             engineNumber: finalEngineNumber 
-                        }),
-                        finalIssuanceDate.split('T')[0]
+                        })
                     ]
                 );
             }
@@ -945,8 +947,8 @@ router.post('/sales-invoice/generate-and-send', authenticateToken, authorizeRole
                 await dbRaw.query(
                     `INSERT INTO issued_certificates 
                     (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, certificate_data, effective_date)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                     file_hash, composite_hash, issued_at, expires_at, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                     [
                         issuerQuery.rows[0].id,
                         'sales_invoice',
@@ -955,6 +957,8 @@ router.post('/sales-invoice/generate-and-send', authenticateToken, authorizeRole
                         owner.name,
                         fileHash,
                         compositeHash,
+                        finalDateOfSale.split('T')[0],
+                        null,
                         JSON.stringify({
                             purchasePrice,
                             dealerName,
@@ -962,8 +966,7 @@ router.post('/sales-invoice/generate-and-send', authenticateToken, authorizeRole
                             dealerAccreditationNo,
                             sellerName,
                             sellerPosition
-                        }),
-                        finalDateOfSale.split('T')[0]
+                        })
                     ]
                 );
 
@@ -1241,7 +1244,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, certificate_data, effective_date, expiry_date)
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                         [
                             issuerQuery.rows[0].id,
@@ -1251,9 +1254,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                             sharedVehicleData.ownerName,
                             insuranceResult.fileHash,
                             insuranceCompositeHash,
-                            JSON.stringify({ coverageType: insuranceData.coverageType, coverageAmount: insuranceData.coverageAmount }),
                             insuranceData.effectiveDate.split('T')[0],
-                            insuranceExpiryDate.split('T')[0]
+                            insuranceExpiryDate.split('T')[0],
+                            JSON.stringify({ coverageType: insuranceData.coverageType, coverageAmount: insuranceData.coverageAmount, additionalCoverage: insuranceData.additionalCoverage })
                         ]
                     );
                 }
@@ -1325,7 +1328,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, certificate_data, effective_date, expiry_date)
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                         [
                             issuerQuery.rows[0].id,
@@ -1335,9 +1338,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                             sharedVehicleData.ownerName,
                             emissionResult.fileHash,
                             emissionCompositeHash,
-                            JSON.stringify({ testResults: emissionData.testResults, vehiclePlate: sharedVehicleData.plate }),
                             emissionData.testDate.split('T')[0],
-                            emissionExpiryDate.split('T')[0]
+                            emissionExpiryDate.split('T')[0],
+                            JSON.stringify({ testResults: emissionData.testResults, vehiclePlate: sharedVehicleData.plate })
                         ]
                     );
                 }
@@ -1405,8 +1408,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, certificate_data, effective_date)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                         [
                             issuerQuery.rows[0].id,
                             'hpg_clearance',
@@ -1415,8 +1418,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                             sharedVehicleData.ownerName,
                             hpgResult.fileHash,
                             hpgCompositeHash,
-                            JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate }),
-                            hpgIssueDate.split('T')[0]
+                            hpgIssueDate.split('T')[0],
+                            null,
+                            JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
                         ]
                     );
                 }
@@ -1480,8 +1484,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, certificate_data, effective_date)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                         [
                             issuerQuery.rows[0].id,
                             'csr',
@@ -1490,6 +1494,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                             csrData.dealerName,
                             csrResult.fileHash,
                             csrCompositeHash,
+                            csrIssuanceDate.split('T')[0],
+                            null,
                             JSON.stringify({
                                 vehicleMake: sharedVehicleData.make,
                                 vehicleModel: sharedVehicleData.model,
@@ -1499,8 +1505,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                                 color: csrData.color,
                                 fuelType: csrData.fuelType,
                                 engineNumber: sharedVehicleData.engineNumber
-                            }),
-                            csrIssuanceDate.split('T')[0]
+                            })
                         ]
                     );
                 }
@@ -1573,8 +1578,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     await dbRaw.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, certificate_data, effective_date)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                         [
                             issuerQuery.rows[0].id,
                             'sales_invoice',
@@ -1583,6 +1588,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                             sharedVehicleData.ownerName,
                             salesInvoiceResult.fileHash,
                             salesInvoiceCompositeHash,
+                            salesInvoiceData.dateOfSale.split('T')[0],
+                            null,
                             JSON.stringify({
                                 purchasePrice: salesInvoiceData.purchasePrice,
                                 dealerName: salesInvoiceData.dealerName,
@@ -1590,8 +1597,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                                 dealerAccreditationNo: salesInvoiceData.dealerAccreditationNo,
                                 sellerName: salesInvoiceData.sellerName,
                                 sellerPosition: salesInvoiceData.sellerPosition
-                            }),
-                            salesInvoiceData.dateOfSale.split('T')[0]
+                            })
                         ]
                     );
                 }

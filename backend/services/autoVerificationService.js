@@ -533,17 +533,50 @@ class AutoVerificationService {
             // Calculate file hash
             const fileHash = clearanceDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
             
-            // Generate composite hash (HPG clearance doesn't have expiry, use issue date)
-            const issueDateISO = new Date().toISOString();
+            // ============================================
+            // CERTIFICATE AUTHENTICITY CHECK (Blockchain Source of Truth)
+            // ============================================
+            const authenticityCheck = await certificateBlockchain.checkCertificateAuthenticity(
+                fileHash,
+                vehicleId,
+                'hpg_clearance'
+            );
+            console.log(`[Auto-Verify] Certificate authenticity check:`, {
+                authentic: authenticityCheck.authentic,
+                reason: authenticityCheck.reason,
+                originalFound: authenticityCheck.originalCertificateFound,
+                score: authenticityCheck.authenticityScore
+            });
+
+            // Get original certificate for composite hash generation
+            const originalCert = await certificateBlockchain.getOriginalCertificate(
+                vehicleId,
+                'hpg_clearance'
+            );
+
+            // Use original certificate number if available, otherwise generate new one
+            let certificateNumber;
+            let issueDateISO;
+            if (originalCert && originalCert.certificate_number) {
+                certificateNumber = originalCert.certificate_number;
+                issueDateISO = originalCert.issued_at || new Date().toISOString();
+                console.log(`[Auto-Verify] Using original certificate number: ${certificateNumber}`);
+            } else {
+                certificateNumber = `HPG-${vehicle.vin}-${Date.now()}`;
+                issueDateISO = new Date().toISOString();
+                console.log(`[Auto-Verify] No original certificate found, generating new number: ${certificateNumber}`);
+            }
+
+            // Generate composite hash using original certificate number (if available)
             const compositeHash = certificateBlockchain.generateCompositeHash(
-                `HPG-${vehicle.vin}-${Date.now()}`, // HPG clearance number format
+                certificateNumber,
                 vehicle.vin,
                 issueDateISO,
                 fileHash
             );
             console.log(`[Auto-Verify] Composite hash: ${compositeHash.substring(0, 16)}...`);
 
-            // Check for duplicate hash (document reuse)
+            // Check for duplicate hash (document reuse) - now uses correct certificate number
             const hashCheck = await certificateBlockchain.checkHashDuplicate(compositeHash);
             console.log(`[Auto-Verify] Hash duplicate check:`, hashCheck);
 
@@ -559,12 +592,14 @@ class AutoVerificationService {
             }
 
             // Calculate confidence score based on:
-            // - Data extraction quality (40 points)
-            // - Hash uniqueness (30 points)
-            // - Document completeness (20 points)
-            // - Data match with vehicle record (10 points)
+            // - Certificate authenticity (30 points) - NEW: Uses blockchain as source of truth
+            // - Data extraction quality (30 points) - Reduced from 40
+            // - Hash uniqueness (20 points) - Reduced from 30
+            // - Document completeness (15 points) - Reduced from 20
+            // - Data match with vehicle record (5 points) - Reduced from 10
             let confidenceScore = 0;
             const scoreBreakdown = {
+                certificateAuthenticity: 0,  // NEW: Blockchain-based authenticity check
                 dataExtraction: 0,
                 hashUniqueness: 0,
                 documentCompleteness: 0,
@@ -572,19 +607,34 @@ class AutoVerificationService {
                 total: 0
             };
 
-            // Data extraction quality (40 points)
+            // Certificate authenticity (30 points) - Uses blockchain/database as source of truth
+            if (authenticityCheck.authentic) {
+                scoreBreakdown.certificateAuthenticity = 30;
+                console.log(`[Auto-Verify] ✅ Certificate is AUTHENTIC - matches original on blockchain`);
+            } else if (authenticityCheck.originalCertificateFound) {
+                // Original certificate exists but hash doesn't match - might be fake or modified
+                scoreBreakdown.certificateAuthenticity = 0;
+                console.log(`[Auto-Verify] ⚠️ Certificate authenticity FAILED - hash mismatch with original`);
+            } else {
+                // No original certificate found - might be first submission or new certificate
+                // Award partial points as we can't verify against original
+                scoreBreakdown.certificateAuthenticity = 15;
+                console.log(`[Auto-Verify] ⚠️ No original certificate found - cannot verify authenticity`);
+            }
+
+            // Data extraction quality (30 points) - Reduced from 40
             if (engineNumber && chassisNumber) {
-                scoreBreakdown.dataExtraction = 40;
+                scoreBreakdown.dataExtraction = 30;
             } else if (engineNumber || chassisNumber) {
-                scoreBreakdown.dataExtraction = 20;
+                scoreBreakdown.dataExtraction = 15;
             }
 
-            // Hash uniqueness (30 points)
+            // Hash uniqueness (20 points) - Reduced from 30
             if (!hashCheck.exists) {
-                scoreBreakdown.hashUniqueness = 30;
+                scoreBreakdown.hashUniqueness = 20;
             }
 
-            // Document completeness (20 points)
+            // Document completeness (15 points) - Reduced from 20
             const hasHPGClearance = !!clearanceDoc;
             const hasOwnerID = documents.some(d => 
                 d.document_type === 'owner_id' || 
@@ -593,23 +643,24 @@ class AutoVerificationService {
                 d.type === 'ownerId'
             );
             if (hasHPGClearance && hasOwnerID) {
-                scoreBreakdown.documentCompleteness = 20;
+                scoreBreakdown.documentCompleteness = 15;
             } else if (hasHPGClearance) {
-                scoreBreakdown.documentCompleteness = 10;
+                scoreBreakdown.documentCompleteness = 8;
             }
 
-            // Data match with vehicle record (10 points)
+            // Data match with vehicle record (5 points) - Reduced from 10
             const engineMatch = engineNumber && vehicle.engine_number && 
                                engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim();
             const chassisMatch = chassisNumber && vehicle.chassis_number && 
                                 chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim();
             if (engineMatch && chassisMatch) {
-                scoreBreakdown.dataMatch = 10;
-            } else if (engineMatch || chassisMatch) {
                 scoreBreakdown.dataMatch = 5;
+            } else if (engineMatch || chassisMatch) {
+                scoreBreakdown.dataMatch = 2;
             }
 
             confidenceScore = Math.min(100, 
+                scoreBreakdown.certificateAuthenticity +
                 scoreBreakdown.dataExtraction + 
                 scoreBreakdown.hashUniqueness + 
                 scoreBreakdown.documentCompleteness + 
@@ -624,12 +675,20 @@ class AutoVerificationService {
             if (hashCheck.exists) {
                 recommendation = 'AUTO_REJECT';
                 recommendationReason = 'Document duplicate detected. Certificate already used.';
+            } else if (!authenticityCheck.authentic && authenticityCheck.originalCertificateFound) {
+                // Certificate hash doesn't match original - likely fake or modified
+                recommendation = 'AUTO_REJECT';
+                recommendationReason = 'Certificate authenticity check failed. File hash does not match original certificate on blockchain.';
             } else if (confidenceScore >= 80) {
                 recommendation = 'AUTO_APPROVE';
-                recommendationReason = 'High confidence score. All checks passed. Manual physical inspection still required.';
+                recommendationReason = authenticityCheck.authentic 
+                    ? 'High confidence score. Certificate authenticated via blockchain. All checks passed. Manual physical inspection still required.'
+                    : 'High confidence score. All checks passed. Manual physical inspection still required.';
             } else if (confidenceScore >= 60) {
                 recommendation = 'REVIEW';
-                recommendationReason = 'Moderate confidence. Review recommended before approval.';
+                recommendationReason = authenticityCheck.authentic
+                    ? 'Moderate confidence. Certificate authenticated via blockchain. Review recommended before approval.'
+                    : 'Moderate confidence. Review recommended before approval.';
             } else {
                 recommendation = 'MANUAL_REVIEW';
                 recommendationReason = 'Low confidence score. Manual verification required.';
@@ -649,6 +708,12 @@ class AutoVerificationService {
                         ocrData,
                         hashCheck,
                         compositeHash,
+                        authenticityCheck,  // NEW: Blockchain authenticity verification
+                        originalCertificate: originalCert ? {
+                            certificateNumber: originalCert.certificate_number,
+                            compositeHash: originalCert.composite_hash,
+                            issuedAt: originalCert.issued_at
+                        } : null,
                         scoreBreakdown,
                         recommendation,
                         recommendationReason,
@@ -668,6 +733,7 @@ class AutoVerificationService {
                 scoreBreakdown,
                 hashCheck,
                 compositeHash,
+                authenticityCheck,  // NEW: Blockchain authenticity verification
                 ocrData,
                 preFilledData: {
                     engineNumber,

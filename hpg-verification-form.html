@@ -1192,6 +1192,11 @@
                                     </div>
                                 </div>
                                 
+                                <!-- Certificate Authenticity (Blockchain Verification) -->
+                                <div id="authenticityDisplay" style="margin: 1rem 0;">
+                                    <!-- Will be populated by JavaScript -->
+                                </div>
+
                                 <!-- Hash Verification Status -->
                                 <div id="hashVerificationDisplay" style="margin: 1rem 0; padding: 1rem; background-color: white; border-radius: 4px; border-left: 4px solid #10b981;">
                                     <strong><i class="fas fa-shield-alt"></i> Document Hash Verification:</strong>
@@ -1887,6 +1892,11 @@
                         </div>
                     </div>
 
+                    <!-- Certificate Authenticity (Blockchain Verification) -->
+                    <div id="authenticityDisplay" style="margin: 1rem 0;">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+
                     <!-- Hash Verification Status -->
                     <div id="hashVerificationDisplay" style="margin: 1rem 0; padding: 1rem; background-color: white; border-radius: 4px; border-left: 4px solid #3498db;">
                         <strong>Hash Verification:</strong>
@@ -2006,12 +2016,60 @@
                 recommendationDisplay.style.borderLeft = `4px solid ${recColor}`;
             }
 
+            // Display certificate authenticity status
+            const authenticityDisplay = document.getElementById('authenticityDisplay');
+            if (authenticityDisplay && autoVerify.authenticityCheck) {
+                const auth = autoVerify.authenticityCheck;
+                if (auth.authentic) {
+                    authenticityDisplay.innerHTML = `
+                        <div style="padding: 1rem; background-color: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px; margin-top: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #059669;">
+                                <i class="fas fa-check-circle" style="font-size: 1.2rem;"></i>
+                                <strong>Certificate Authenticated via Blockchain</strong>
+                            </div>
+                            <p style="margin: 0.5rem 0 0 0; color: #047857; font-size: 0.9em;">
+                                File hash matches original certificate stored on blockchain. Certificate is authentic.
+                            </p>
+                            ${auth.originalCertificateNumber ? `<p style="margin: 0.25rem 0 0 0; color: #065f46; font-size: 0.85em;">
+                                Original Certificate: ${auth.originalCertificateNumber}
+                            </p>` : ''}
+                        </div>
+                    `;
+                } else if (auth.originalCertificateFound) {
+                    authenticityDisplay.innerHTML = `
+                        <div style="padding: 1rem; background-color: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-top: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #dc2626;">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 1.2rem;"></i>
+                                <strong>Certificate Authenticity Check Failed</strong>
+                            </div>
+                            <p style="margin: 0.5rem 0 0 0; color: #991b1b; font-size: 0.9em;">
+                                File hash does not match original certificate on blockchain. Certificate may be fake or modified.
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    authenticityDisplay.innerHTML = `
+                        <div style="padding: 1rem; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-top: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #d97706;">
+                                <i class="fas fa-info-circle" style="font-size: 1.2rem;"></i>
+                                <strong>No Original Certificate Found</strong>
+                            </div>
+                            <p style="margin: 0.5rem 0 0 0; color: #92400e; font-size: 0.9em;">
+                                Cannot verify authenticity - no original certificate found for this vehicle. This may be a first submission.
+                            </p>
+                        </div>
+                    `;
+                }
+            }
+
             // Display score breakdown
             const scoreBreakdownDetails = document.getElementById('scoreBreakdownDetails');
             if (scoreBreakdownDetails && autoVerify.scoreBreakdown) {
                 const breakdown = autoVerify.scoreBreakdown;
                 scoreBreakdownDetails.innerHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div>Certificate Authenticity:</div>
+                        <div style="text-align: right; font-weight: bold;">${breakdown.certificateAuthenticity || 0} pts</div>
                         <div>Data Extraction:</div>
                         <div style="text-align: right; font-weight: bold;">${breakdown.dataExtraction || 0} pts</div>
                         <div>Hash Uniqueness:</div>

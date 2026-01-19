@@ -228,7 +228,8 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                 recommendationReason: autoVerifyResult.recommendationReason || '',
                 preFilledData: autoVerifyResult.preFilledData || {},
                 hashCheck: autoVerifyResult.hashCheck || {},
-                compositeHash: autoVerifyResult.compositeHash || null
+                compositeHash: autoVerifyResult.compositeHash || null,
+                authenticityCheck: autoVerifyResult.authenticityCheck || {}  // NEW: Blockchain authenticity verification
             }
         };
 
@@ -251,7 +252,8 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                 recommendation: autoVerifyResult.recommendation || 'MANUAL_REVIEW',
                 scoreBreakdown: autoVerifyResult.scoreBreakdown || {},
                 hashCheck: autoVerifyResult.hashCheck || {},
-                compositeHash: autoVerifyResult.compositeHash || null
+                compositeHash: autoVerifyResult.compositeHash || null,
+                authenticityCheck: autoVerifyResult.authenticityCheck || {}  // NEW: Blockchain authenticity verification
             }
         });
 
@@ -266,6 +268,7 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                 preFilledData: autoVerifyResult.preFilledData || {},
                 hashCheck: autoVerifyResult.hashCheck || {},
                 compositeHash: autoVerifyResult.compositeHash || null,
+                authenticityCheck: autoVerifyResult.authenticityCheck || {},  // NEW: Blockchain authenticity verification
                 ocrData: autoVerifyResult.ocrData || {}
             }
         });

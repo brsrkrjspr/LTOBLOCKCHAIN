@@ -471,8 +471,18 @@ class AutoVerificationService {
         try {
             console.log(`[Auto-Verify] Starting HPG auto-verification for vehicle ${vehicleId}`);
 
-            // Find registration cert (OR/CR) document
-            const registrationCert = documents.find(d => 
+            // Find HPG Clearance document (HPG receives hpg_clearance, not OR/CR)
+            const hpgClearanceDoc = documents.find(d => 
+                d.document_type === 'hpg_clearance' || 
+                d.document_type === 'hpgClearance' ||
+                d.document_type === 'pnp_hpg_clearance' ||
+                d.type === 'hpg_clearance' ||
+                d.type === 'hpgClearance' ||
+                d.type === 'pnp_hpg_clearance'
+            );
+
+            // Fallback: Also check for OR/CR (for transfer cases where OR/CR is submitted)
+            const clearanceDoc = hpgClearanceDoc || documents.find(d => 
                 d.document_type === 'registration_cert' || 
                 d.document_type === 'registrationCert' ||
                 d.type === 'registration_cert' ||
@@ -480,32 +490,36 @@ class AutoVerificationService {
                 d.type === 'or_cr'
             );
 
-            if (!registrationCert) {
+            if (!clearanceDoc) {
                 return {
                     status: 'PENDING',
                     automated: false,
-                    reason: 'OR/CR document not found',
+                    reason: 'HPG Clearance document not found',
                     confidence: 0
                 };
             }
 
-            const filePath = registrationCert.file_path || registrationCert.filePath;
+            const filePath = clearanceDoc.file_path || clearanceDoc.filePath;
             if (!filePath || !await this.fileExists(filePath)) {
                 return {
                     status: 'PENDING',
                     automated: false,
-                    reason: 'OR/CR document file not found',
+                    reason: 'HPG Clearance document file not found',
                     confidence: 0
                 };
             }
 
-            // Extract data via OCR
-            const regMimeType = registrationCert.mime_type || registrationCert.mimeType || 'application/pdf';
-            const ocrData = await ocrService.extractHPGInfo(filePath, null, regMimeType, null);
-            console.log(`[Auto-Verify] OCR extracted:`, ocrData);
+            // Extract data via OCR - use correct document type for parsing
+            const docMimeType = clearanceDoc.mime_type || clearanceDoc.mimeType || 'application/pdf';
+            const docType = hpgClearanceDoc ? 'hpg_clearance' : 'registration_cert';
+            
+            // Extract text and parse with correct document type
+            const extractedText = await ocrService.extractText(filePath, docMimeType);
+            const ocrData = ocrService.parseVehicleInfo(extractedText, docType);
+            console.log(`[Auto-Verify] OCR extracted from ${docType}:`, ocrData);
 
             const engineNumber = ocrData.engineNumber || vehicle.engine_number;
-            const chassisNumber = ocrData.chassisNumber || vehicle.chassis_number;
+            const chassisNumber = ocrData.chassisNumber || ocrData.vin || vehicle.chassis_number;
 
             if (!engineNumber || !chassisNumber) {
                 return {
@@ -517,7 +531,7 @@ class AutoVerificationService {
             }
 
             // Calculate file hash
-            const fileHash = registrationCert.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+            const fileHash = clearanceDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
             
             // Generate composite hash (HPG clearance doesn't have expiry, use issue date)
             const issueDateISO = new Date().toISOString();
@@ -571,16 +585,16 @@ class AutoVerificationService {
             }
 
             // Document completeness (20 points)
-            const hasORCR = !!registrationCert;
+            const hasHPGClearance = !!clearanceDoc;
             const hasOwnerID = documents.some(d => 
                 d.document_type === 'owner_id' || 
                 d.document_type === 'ownerId' ||
                 d.type === 'owner_id' ||
                 d.type === 'ownerId'
             );
-            if (hasORCR && hasOwnerID) {
+            if (hasHPGClearance && hasOwnerID) {
                 scoreBreakdown.documentCompleteness = 20;
-            } else if (hasORCR) {
+            } else if (hasHPGClearance) {
                 scoreBreakdown.documentCompleteness = 10;
             }
 

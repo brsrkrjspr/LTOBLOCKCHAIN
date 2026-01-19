@@ -1870,8 +1870,71 @@
             const resultsPanel = document.getElementById('autoVerifyResults');
             if (!resultsPanel) return;
 
-            // Show results panel
+            // Show results panel and restore HTML structure (loading spinner replaced it)
             resultsPanel.style.display = 'block';
+            
+            // Restore the HTML structure if it was replaced by loading spinner
+            if (!document.getElementById('confidenceScoreValue')) {
+                resultsPanel.innerHTML = `
+                    <!-- Confidence Score -->
+                    <div id="confidenceScoreDisplay" style="margin: 1rem 0;">
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                            <strong>Confidence Score:</strong>
+                            <div id="confidenceScoreValue" style="font-size: 1.5rem; font-weight: bold; color: #10b981;">-</div>
+                            <div id="confidenceScoreBar" style="flex: 1; height: 20px; background-color: #e5e7eb; border-radius: 10px; overflow: hidden;">
+                                <div id="confidenceScoreFill" style="height: 100%; background-color: #10b981; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hash Verification Status -->
+                    <div id="hashVerificationDisplay" style="margin: 1rem 0; padding: 1rem; background-color: white; border-radius: 4px; border-left: 4px solid #3498db;">
+                        <strong>Hash Verification:</strong>
+                        <div id="hashVerificationStatus" style="margin-top: 0.5rem;">
+                            <!-- Will be populated -->
+                        </div>
+                    </div>
+
+                    <!-- Recommendation -->
+                    <div id="recommendationDisplay" style="margin: 1rem 0; padding: 1rem; background-color: white; border-radius: 4px; border-left: 4px solid #6b7280;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <strong>Recommendation:</strong>
+                            <div id="recommendationValue" style="font-weight: bold;">-</div>
+                        </div>
+                        <div id="recommendationReason" style="color: #666; font-size: 0.9em;"></div>
+                    </div>
+
+                    <!-- Score Breakdown -->
+                    <div id="scoreBreakdown" style="margin: 1rem 0;">
+                        <strong>Score Breakdown:</strong>
+                        <div id="scoreBreakdownDetails" style="margin-top: 0.5rem; font-size: 0.9em;">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Pre-filled Data -->
+                    <div id="preFilledDataDisplay" style="margin: 1rem 0;">
+                        <strong>Pre-filled Verification Data:</strong>
+                        <div id="preFilledDataDetails" style="margin-top: 0.5rem; padding: 1rem; background-color: white; border-radius: 4px;">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                        <button type="button" class="btn-primary" onclick="useAutoVerifyData()" id="useAutoVerifyBtn">
+                            <i class="fas fa-check"></i> Use Auto-Verify Data & Continue
+                        </button>
+                        <button type="button" class="btn-secondary" onclick="ignoreAutoVerify()">
+                            <i class="fas fa-times"></i> Ignore & Continue Manually
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 1rem; padding: 0.75rem; background-color: #e3f2fd; border-radius: 4px; font-size: 0.9em;">
+                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Auto-verify results require human review. Final approval is still required.
+                    </div>
+                `;
+            }
 
             // Display confidence score
             const scoreValue = document.getElementById('confidenceScoreValue');

@@ -639,44 +639,62 @@ class AutoVerificationService {
                 };
             }
 
-            const filePath = clearanceDoc.file_path || clearanceDoc.filePath;
-            if (!filePath || !await this.fileExists(filePath)) {
-                return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: 'HPG Clearance document file not found',
-                    confidence: 0
-                };
-            }
+            // --------------------------------------------
+            // 1) HASH-FIRST AUTHENTICITY (no hard path dependency)
+            // --------------------------------------------
+            const existingFileHash = clearanceDoc.file_hash || clearanceDoc.fileHash || null;
+            const filePath = clearanceDoc.file_path || clearanceDoc.filePath || null;
+            const hasLocalFile = filePath ? await this.fileExists(filePath) : false;
 
-            // Extract data via OCR - use correct document type for parsing
-            const docMimeType = clearanceDoc.mime_type || clearanceDoc.mimeType || 'application/pdf';
-            const docType = hpgClearanceDoc ? 'hpg_clearance' : 'registration_cert';
-            
-            // Extract text and parse with correct document type
-            const extractedText = await ocrService.extractText(filePath, docMimeType);
-            const ocrData = ocrService.parseVehicleInfo(extractedText, docType);
-            console.log(`[Auto-Verify] OCR extracted from ${docType}:`, ocrData);
+            let ocrData = {};
+
+            // Run OCR only if we actually have a local file; OCR is OPTIONAL for authenticity
+            if (hasLocalFile) {
+                const docMimeType = clearanceDoc.mime_type || clearanceDoc.mimeType || 'application/pdf';
+                const docType = hpgClearanceDoc ? 'hpg_clearance' : 'registration_cert';
+                
+                try {
+                    const extractedText = await ocrService.extractText(filePath, docMimeType);
+                    ocrData = ocrService.parseVehicleInfo(extractedText, docType) || {};
+                    console.log(`[Auto-Verify] OCR extracted from ${docType}:`, ocrData);
+                } catch (ocrError) {
+                    console.warn('[Auto-Verify] HPG OCR failed, continuing with hash-only authenticity:', ocrError.message);
+                }
+            } else {
+                console.warn('[Auto-Verify] HPG document file not available locally. Skipping OCR and relying on hash-only authenticity.');
+            }
 
             const engineNumber = ocrData.engineNumber || vehicle.engine_number;
             const chassisNumber = ocrData.chassisNumber || ocrData.vin || vehicle.chassis_number;
 
-            if (!engineNumber || !chassisNumber) {
+            // Calculate / obtain file hash
+            console.log('🔐 [Auto-Verify HPG] Preparing file hash for authenticity check...');
+            console.log('🔐 [Auto-Verify HPG] Existing file_hash in doc:', existingFileHash ? existingFileHash.substring(0, 16) + '...' : 'NOT SET');
+            console.log('🔐 [Auto-Verify HPG] File path:', filePath || 'NONE');
+
+            let fileHash = existingFileHash;
+
+            // Best-effort: if hash missing but file exists, compute it; otherwise stay hash-first and fail open to manual review
+            if (!fileHash && hasLocalFile) {
+                try {
+                    fileHash = crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+                    console.log('🔐 [Auto-Verify HPG] Computed file_hash from local file:', fileHash.substring(0, 32) + '...');
+                } catch (hashError) {
+                    console.error('🔐 [Auto-Verify HPG] Error computing file hash from local file:', hashError.message);
+                }
+            }
+
+            if (!fileHash) {
+                console.warn('🔐 [Auto-Verify HPG] No file hash available for HPG document. Falling back to manual review.');
                 return {
                     status: 'PENDING',
                     automated: false,
-                    reason: 'Engine number or chassis number not found in document',
+                    reason: 'File hash missing for HPG document. Cannot verify issuer authenticity automatically.',
                     confidence: 0
                 };
             }
 
-            // Calculate file hash
-            console.log('🔐 [Auto-Verify HPG] Calculating file hash...');
-            console.log('🔐 [Auto-Verify HPG] File path:', filePath);
-            console.log('🔐 [Auto-Verify HPG] Existing file_hash in doc:', clearanceDoc.file_hash ? clearanceDoc.file_hash.substring(0, 16) + '...' : 'NOT SET');
-            
-            const fileHash = clearanceDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
-            console.log('🔐 [Auto-Verify HPG] Calculated file_hash:', fileHash.substring(0, 32) + '...');
+            console.log('🔐 [Auto-Verify HPG] Final file_hash to use:', fileHash.substring(0, 32) + '...');
             console.log('🔐 [Auto-Verify HPG] File hash length:', fileHash.length);
             
             // ============================================

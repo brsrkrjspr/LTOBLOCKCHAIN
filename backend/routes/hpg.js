@@ -224,19 +224,52 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
         // Get database module (declare once at function level)
         const dbModule = require('../database/db');
 
-        // Get documents from metadata or fetch from database
-        let documents = metadata.documents || [];
-        if (documents.length === 0) {
-            console.log('📄 [HPG Auto-Verify API] No documents in metadata, fetching from database...');
-            // Try to fetch documents from database
-            const docResult = await dbModule.query(
-                `SELECT d.* FROM documents d
-                 JOIN clearance_request_documents crd ON d.id = crd.document_id
-                 WHERE crd.clearance_request_id = $1`,
-                [requestId]
-            );
-            documents = docResult.rows || [];
-            console.log('📄 [HPG Auto-Verify API] Fetched', documents.length, 'documents from database');
+        // Build documents array with REAL hashes/paths from DB
+        // Priority: use explicit IDs from metadata (hpgClearanceDocId, ownerIdDocId),
+        // then fall back to clearance_request_documents join if needed.
+        let documents = [];
+
+        try {
+            // 1) Explicit HPG clearance document
+            if (metadata.hpgClearanceDocId) {
+                const hpgDocResult = await dbModule.query(
+                    `SELECT * FROM documents WHERE id = $1`,
+                    [metadata.hpgClearanceDocId]
+                );
+                if (hpgDocResult.rows.length > 0) {
+                    documents.push(hpgDocResult.rows[0]);
+                } else {
+                    console.warn('[HPG Auto-Verify API] hpgClearanceDocId set but document not found in documents table:', metadata.hpgClearanceDocId);
+                }
+            }
+
+            // 2) Owner ID document (optional, for completeness)
+            if (metadata.ownerIdDocId) {
+                const ownerDocResult = await dbModule.query(
+                    `SELECT * FROM documents WHERE id = $1`,
+                    [metadata.ownerIdDocId]
+                );
+                if (ownerDocResult.rows.length > 0) {
+                    documents.push(ownerDocResult.rows[0]);
+                } else {
+                    console.warn('[HPG Auto-Verify API] ownerIdDocId set but document not found in documents table:', metadata.ownerIdDocId);
+                }
+            }
+
+            // 3) Fallback: if still empty, use clearance_request_documents join
+            if (documents.length === 0) {
+                console.log('📄 [HPG Auto-Verify API] No explicit document IDs, fetching documents from clearance_request_documents join...');
+                const docResult = await dbModule.query(
+                    `SELECT d.* FROM documents d
+                     JOIN clearance_request_documents crd ON d.id = crd.document_id
+                     WHERE crd.clearance_request_id = $1`,
+                    [requestId]
+                );
+                documents = docResult.rows || [];
+            }
+        } catch (docError) {
+            console.error('[HPG Auto-Verify API] Error loading documents for auto-verify:', docError);
+            documents = metadata.documents || [];
         }
 
         console.log('📄 [HPG Auto-Verify API] Documents to verify:', documents.map(d => ({

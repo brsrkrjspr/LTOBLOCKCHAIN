@@ -478,7 +478,7 @@ const HPGRequests = {
     },
 
     }
-};
+
 
 // Global viewDetails function for HPG requests
 async function viewDetails(requestId) {

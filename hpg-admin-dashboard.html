@@ -698,6 +698,19 @@
                                     <i class="fas fa-chevron-right"></i>
                                 </div>
                             </a>
+
+                            <a href="#" class="action-button" id="reportHotListBtn">
+                                <div class="action-icon" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: #fff;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h3>Report Vehicle to Hot List</h3>
+                                    <p>Report stolen or carnapped vehicles to the national database</p>
+                                </div>
+                                <div class="action-arrow">
+                                    <i class="fas fa-chevron-right"></i>
+                                </div>
+                            </a>
                         </div>
                     </div>
 
@@ -769,6 +782,85 @@
                 <div class="notifications-list-full" id="notificationsListFull">
                     <!-- Full notifications list -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hot List Report Modal -->
+    <div class="modal" id="hotListReportModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--hpg-gray);">
+                <h2 style="display: flex; align-items: center; gap: 0.5rem; color: var(--hpg-danger);">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Report Vehicle to Hot List
+                </h2>
+                <button class="modal-close" onclick="closeModal('hotListReportModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="hotListReportForm">
+                    <div class="form-section">
+                        <h3 style="margin-bottom: 0.75rem; color: var(--hpg-navy);">Vehicle Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="hotListPlateNumber">Plate Number <span class="required">*</span></label>
+                                <input type="text" id="hotListPlateNumber" placeholder="ABC-1234" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="hotListVIN">VIN</label>
+                                <input type="text" id="hotListVIN" placeholder="Vehicle Identification Number">
+                            </div>
+                            <div class="form-group">
+                                <label for="hotListEngineNumber">Engine Number <span class="required">*</span></label>
+                                <input type="text" id="hotListEngineNumber" placeholder="Engine serial" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="hotListChassisNumber">Chassis Number <span class="required">*</span></label>
+                                <input type="text" id="hotListChassisNumber" placeholder="Chassis serial" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section" style="margin-top: 1rem;">
+                        <h3 style="margin-bottom: 0.75rem; color: var(--hpg-navy);">Report Details</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="hotListReportNumber">Official Report Number <span class="required">*</span></label>
+                                <input type="text" id="hotListReportNumber" placeholder="HPG-2026-00123" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="hotListOfficerID">Officer ID <span class="required">*</span></label>
+                                <input type="text" id="hotListOfficerID" placeholder="Reporting officer ID" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="hotListLocation">Location <span class="required">*</span></label>
+                                <input type="text" id="hotListLocation" placeholder="Where the incident was reported" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="hotListReportType">Report Type <span class="required">*</span></label>
+                                <select id="hotListReportType" required>
+                                    <option value="">Select type...</option>
+                                    <option value="STOLEN">Stolen Vehicle</option>
+                                    <option value="CARNAPPED">Carnapped Vehicle</option>
+                                    <option value="WANTED">Wanted in Connection with Crime</option>
+                                    <option value="FRAUDULENT">Fraudulent Registration</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label for="hotListDescription">Description / Circumstances <span class="required">*</span></label>
+                            <textarea id="hotListDescription" rows="4" placeholder="Describe circumstances, dates, complainant, and any supporting details" required></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem;">
+                        <button type="button" class="btn-secondary" onclick="closeModal('hotListReportModal')">Cancel</button>
+                        <button type="submit" class="btn-danger" id="hotListSubmitBtn">
+                            <i class="fas fa-exclamation-triangle"></i> Submit Hot List Report
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -880,6 +972,65 @@
                             window.location.href = 'index.html';
                         }
                     }
+                });
+            }
+
+            // Hot list report modal open
+            const reportHotListBtn = document.getElementById('reportHotListBtn');
+            if (reportHotListBtn) {
+                reportHotListBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.getElementById('hotListReportModal').classList.add('active');
+                });
+            }
+
+            // Hot list report form submit (UI-only, backend to be wired later)
+            const hotListReportForm = document.getElementById('hotListReportForm');
+            if (hotListReportForm) {
+                hotListReportForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+
+                    const requiredFields = [
+                        'hotListPlateNumber',
+                        'hotListEngineNumber',
+                        'hotListChassisNumber',
+                        'hotListReportNumber',
+                        'hotListOfficerID',
+                        'hotListLocation',
+                        'hotListReportType',
+                        'hotListDescription'
+                    ];
+
+                    const missing = requiredFields.filter(id => {
+                        const el = document.getElementById(id);
+                        return !el || !el.value.trim();
+                    });
+
+                    if (missing.length > 0) {
+                        alert('Please fill in all required fields.');
+                        return;
+                    }
+
+                    const submitBtn = document.getElementById('hotListSubmitBtn');
+                    const original = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+                    // UI-only feedback for now
+                    setTimeout(() => {
+                        alert(
+                            '✅ Hot List Report captured (UI only)\n\n' +
+                            'Report Number: ' + document.getElementById('hotListReportNumber').value + '\n' +
+                            'Plate Number: ' + document.getElementById('hotListPlateNumber').value + '\n' +
+                            'Type: ' + document.getElementById('hotListReportType').value + '\n\n' +
+                            'Backend submission will be wired next.'
+                        );
+
+                        hotListReportForm.reset();
+                        closeModal('hotListReportModal');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = original;
+                    }, 900);
                 });
             }
         });

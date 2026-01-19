@@ -1027,24 +1027,24 @@
                         </div>
                     </div>
 
-                    <!-- STEP 1: OR/CR Document Review -->
+                    <!-- STEP 1: HPG Clearance Document Review -->
                     <div class="dashboard-card verification-step" id="step1Card">
                         <div class="card-header">
-                            <h3><i class="fas fa-file-alt"></i> Step 1: Review OR/CR Document</h3>
+                            <h3><i class="fas fa-file-alt"></i> Step 1: Review HPG Clearance Document</h3>
                             <span class="step-badge">From LTO Request</span>
                         </div>
                         <div class="card-body">
-                            <p class="step-description">Review the Official Receipt/Certificate of Registration (OR/CR) submitted by the vehicle owner through LTO.</p>
+                            <p class="step-description">Review the HPG Clearance Certificate submitted by the vehicle owner through LTO.</p>
                             
                             <div class="document-preview-section" id="orcrPreviewSection">
                                 <div class="no-document-message" id="noOrcrMessage">
                                     <i class="fas fa-file-alt"></i>
-                                    <p>OR/CR document will appear here</p>
+                                    <p>HPG Clearance document will appear here</p>
                                     <small>Loading from LTO request...</small>
                                 </div>
                                 <div class="orcr-document-container" id="orcrDocContainer" style="display: none;">
                                     <div class="orcr-preview">
-                                        <img id="orcrDocImage" src="" alt="OR/CR Document" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="openOrcrInViewer()">
+                                        <img id="orcrDocImage" src="" alt="HPG Clearance Document" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="openOrcrInViewer()">
                                     </div>
                                     <div class="orcr-actions">
                                         <button type="button" class="btn-primary btn-sm" onclick="openOrcrInViewer()">
@@ -1064,14 +1064,14 @@
                         </div>
                     </div>
 
-                    <!-- STEP 2: Vehicle Details from OR/CR -->
+                    <!-- STEP 2: Vehicle Details -->
                     <div class="dashboard-card verification-step" id="step2Card">
                         <div class="card-header">
-                            <h3><i class="fas fa-car"></i> Step 2: Vehicle Details from OR/CR</h3>
+                            <h3><i class="fas fa-car"></i> Step 2: Vehicle Details</h3>
                             <span class="step-badge">Auto-loaded</span>
                         </div>
                         <div class="card-body">
-                            <p class="step-description">These details are extracted from the LTO request. Verify they match the OR/CR document above.</p>
+                            <p class="step-description">These details are extracted from the LTO request. Verify they match the submitted documents.</p>
                             
                             <div class="vehicle-details-grid">
                                 <div class="detail-item">
@@ -1995,8 +1995,7 @@
             }
         }
 
-        // Store auto-verify results globally
-        let autoVerifyResults = null;
+        // Note: autoVerifyResults is declared globally at line 1724
 
         function useAutoVerifyData() {
             if (!autoVerifyResults || !autoVerifyResults.preFilledData) {
@@ -2141,28 +2140,27 @@
                 return;
             }
 
-            console.log('[HPG] Searching for OR/CR document in', docs.length, 'documents');
+            console.log('[HPG] Searching for HPG Clearance document in', docs.length, 'documents');
             console.log('[HPG] Document types:', docs.map(d => d.type || d.document_type || 'unknown'));
 
-            const orcrDoc = docs.find(d => {
+            // HPG receives: hpg_clearance and owner_id documents
+            // Priority: Find HPG Clearance first, then Owner ID, then any document
+            const hpgClearanceDoc = docs.find(d => {
                 const docType = (d.type || d.document_type || '').toLowerCase();
                 const filename = (d.filename || d.original_name || '').toLowerCase();
                 
-                return docType === 'registration_cert' || 
-                       docType === 'registrationcert' ||
-                       docType === 'registration' ||
-                       docType === 'or_cr' ||
-                       docType === 'orcr' ||
-                       filename.includes('orcr') ||
-                       filename.includes('or_cr') ||
-                       filename.includes('registration');
+                return docType === 'hpg_clearance' ||
+                       docType === 'hpgclearance' ||
+                       docType === 'pnp_hpg_clearance' ||
+                       filename.includes('hpg') ||
+                       filename.includes('clearance');
             });
 
-            if (orcrDoc) {
-                console.log('[HPG] Found OR/CR document:', orcrDoc);
-                loadDocumentWithAuth(orcrDoc);
+            if (hpgClearanceDoc) {
+                console.log('[HPG] Found HPG Clearance document:', hpgClearanceDoc);
+                loadDocumentWithAuth(hpgClearanceDoc);
             } else {
-                console.log('[HPG] No OR/CR document found, showing first document');
+                console.log('[HPG] No HPG Clearance document found, showing first available document');
                 if (docs.length > 0) {
                     loadDocumentWithAuth(docs[0]);
                 }
@@ -2182,14 +2180,14 @@
                 return;
             }
 
-            // Set current OR/CR document for modal viewing
+            // Set current HPG Clearance document for modal viewing
             currentOrcrDoc = {
                 id: doc.id,
                 cid: doc.cid || doc.ipfs_cid,
                 url: doc.id ? `/api/documents/${doc.id}/view` : 
                      (doc.cid || doc.ipfs_cid) ? `/api/documents/ipfs/${doc.cid || doc.ipfs_cid}` : 
                      doc.path || doc.file_path,
-                filename: doc.filename || doc.original_name || 'OR/CR Document',
+                filename: doc.filename || doc.original_name || 'HPG Clearance Document',
                 type: doc.type || doc.document_type,
                 document_type: doc.type || doc.document_type
             };
@@ -2345,10 +2343,10 @@
             }
         }
 
-        // Open the currently selected OR/CR document in the authenticated viewer page
+        // Open the currently selected HPG Clearance document in the authenticated viewer page
         function openOrcrInViewer() {
             if (!currentOrcrDoc) {
-                alert('No OR/CR document available yet.');
+                alert('No HPG Clearance document available yet.');
                 return;
             }
 
@@ -2361,7 +2359,7 @@
                 id: currentOrcrDoc.id,
                 cid: currentOrcrDoc.cid,
                 url: currentOrcrDoc.url,
-                filename: currentOrcrDoc.filename || 'OR/CR',
+                filename: currentOrcrDoc.filename || 'HPG Clearance',
                 type: currentOrcrDoc.type || currentOrcrDoc.document_type,
                 document_type: currentOrcrDoc.document_type || currentOrcrDoc.type
             });

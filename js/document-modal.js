@@ -1277,109 +1277,122 @@
             }
             // Handle API/server endpoints
             else if (url.startsWith('/api/') || url.startsWith('/uploads/')) {
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'image/*,application/pdf,*/*'
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'image/*,application/pdf,*/*'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                     }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                }
-                
-                const blob = await response.blob();
-                
-                if (isImage || blob.type.startsWith('image/')) {
-                    // Convert blob to data URL for images
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        if (wrapper) {
-                            // Reset wrapper styles for images
-                            wrapper.style.width = 'auto';
-                            wrapper.style.height = 'auto';
-                            wrapper.style.maxWidth = 'calc(100% - 2rem)';
-                            wrapper.style.maxHeight = 'calc(100% - 2rem)';
-                            
-                            wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;" />`;
-                            // Auto-fit after image loads
-                            setTimeout(() => {
-                                const img = wrapper.querySelector('img');
-                                if (img) {
-                                    img.onload = function() {
-                                        autoFitDocument();
-                                    };
-                                    if (img.complete) {
-                                        autoFitDocument();
+                    
+                    const blob = await response.blob();
+                    
+                    if (isImage || blob.type.startsWith('image/')) {
+                        // Convert blob to data URL for images
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            if (wrapper) {
+                                // Reset wrapper styles for images
+                                wrapper.style.width = 'auto';
+                                wrapper.style.height = 'auto';
+                                wrapper.style.maxWidth = 'calc(100% - 2rem)';
+                                wrapper.style.maxHeight = 'calc(100% - 2rem)';
+                                
+                                wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;" />`;
+                                // Auto-fit after image loads
+                                setTimeout(() => {
+                                    const img = wrapper.querySelector('img');
+                                    if (img) {
+                                        img.onload = function() {
+                                            autoFitDocument();
+                                        };
+                                        if (img.complete) {
+                                            autoFitDocument();
+                                        }
                                     }
+                                }, 100);
+                            }
+                        };
+                        reader.onerror = function() {
+                            throw new Error('Failed to read image file');
+                        };
+                        reader.readAsDataURL(blob);
+                    } else if (isPdf || blob.type === 'application/pdf') {
+                        // Use blob URL for PDFs
+                        const blobUrl = URL.createObjectURL(blob);
+                        activeBlobUrls.push(blobUrl);
+                        
+                        // Calculate container size for PDF - use full available space
+                        const container = document.getElementById('docFrameContainer');
+                        let containerWidth = 1200; // Default fallback
+                        let containerHeight = 800; // Default fallback
+                        
+                        if (container) {
+                            containerWidth = Math.max(container.clientWidth - 40, 1000);
+                            containerHeight = Math.max(container.clientHeight - 40, 700);
+                        }
+                        
+                        if (wrapper) {
+                            // Set wrapper to match container size
+                            wrapper.style.width = containerWidth + 'px';
+                            wrapper.style.height = containerHeight + 'px';
+                            wrapper.style.maxWidth = 'none';
+                            wrapper.style.maxHeight = 'none';
+                            
+                            wrapper.innerHTML = `
+                                <iframe src="${blobUrl}" 
+                                        type="application/pdf" 
+                                        title="${escapeHtml(docName)}"
+                                        style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                            `;
+                            
+                            // Ensure iframe fills wrapper completely
+                            setTimeout(() => {
+                                const iframe = wrapper.querySelector('iframe');
+                                if (iframe && container) {
+                                    const newWidth = Math.max(container.clientWidth - 40, 1000);
+                                    const newHeight = Math.max(container.clientHeight - 40, 700);
+                                    wrapper.style.width = newWidth + 'px';
+                                    wrapper.style.height = newHeight + 'px';
+                                    iframe.style.width = '100%';
+                                    iframe.style.height = '100%';
                                 }
                             }, 100);
                         }
-                    };
-                    reader.onerror = function() {
-                        throw new Error('Failed to read image file');
-                    };
-                    reader.readAsDataURL(blob);
-                } else if (isPdf || blob.type === 'application/pdf') {
-                    // Use blob URL for PDFs
-                    const blobUrl = URL.createObjectURL(blob);
-                    activeBlobUrls.push(blobUrl);
-                    
-                    // Calculate container size for PDF - use full available space
-                    const container = document.getElementById('docFrameContainer');
-                    let containerWidth = 1200; // Default fallback
-                    let containerHeight = 800; // Default fallback
-                    
-                    if (container) {
-                        containerWidth = Math.max(container.clientWidth - 40, 1000);
-                        containerHeight = Math.max(container.clientHeight - 40, 700);
-                    }
-                    
-                    if (wrapper) {
-                        // Set wrapper to match container size
-                        wrapper.style.width = containerWidth + 'px';
-                        wrapper.style.height = containerHeight + 'px';
-                        wrapper.style.maxWidth = 'none';
-                        wrapper.style.maxHeight = 'none';
                         
-                        wrapper.innerHTML = `
-                            <iframe src="${blobUrl}" 
-                                    type="application/pdf" 
-                                    title="${escapeHtml(docName)}"
-                                    style="width: 100%; height: 100%; border: none; display: block;"></iframe>
-                        `;
-                        
-                        // Ensure iframe fills wrapper completely
-                        setTimeout(() => {
-                            const iframe = wrapper.querySelector('iframe');
-                            if (iframe && container) {
-                                const newWidth = Math.max(container.clientWidth - 40, 1000);
-                                const newHeight = Math.max(container.clientHeight - 40, 700);
-                                wrapper.style.width = newWidth + 'px';
-                                wrapper.style.height = newHeight + 'px';
-                                iframe.style.width = '100%';
-                                iframe.style.height = '100%';
-                            }
-                        }, 100);
+                        // Show PDF controls
+                        if (pdfControls) pdfControls.style.display = 'flex';
+                        if (footer) footer.style.display = 'flex';
+                    } else {
+                        // Other file types - show download option
+                        if (wrapper) {
+                            wrapper.innerHTML = `
+                                <div style="text-align: center; padding: 3rem; color: #ffffff;">
+                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: #60a5fa; margin-bottom: 1rem;"></i>
+                                    <h3 style="margin: 0 0 0.5rem 0; color: #ffffff;">Preview Not Available</h3>
+                                    <p style="color: #9ca3af; margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
+                                    <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">
+                                        <i class="fas fa-download"></i> Download Document
+                                    </button>
+                                </div>
+                            `;
+                        }
                     }
-                    
-                    // Show PDF controls
-                    if (pdfControls) pdfControls.style.display = 'flex';
-                    if (footer) footer.style.display = 'flex';
-                } else {
-                    // Other file types - show download option
-                    if (wrapper) {
-                        wrapper.innerHTML = `
-                            <div style="text-align: center; padding: 3rem; color: #ffffff;">
-                                <i class="fas fa-file-alt" style="font-size: 4rem; color: #60a5fa; margin-bottom: 1rem;"></i>
-                                <h3 style="margin: 0 0 0.5rem 0; color: #ffffff;">Preview Not Available</h3>
-                                <p style="color: #9ca3af; margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
-                                <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">
-                                    <i class="fas fa-download"></i> Download Document
-                                </button>
-                            </div>
-                        `;
+                } catch (fetchError) {
+                    console.error('[DocumentModal] Error fetching document:', fetchError);
+                    if (loading) loading.style.display = 'none';
+                    if (frame) frame.style.display = 'none';
+                    if (error) {
+                        error.style.display = 'block';
+                        if (errorMsg) {
+                            errorMsg.textContent = fetchError.message || 'Failed to load document';
+                        }
                     }
+                    return; // Exit early on fetch error
                 }
             } else {
                 // Direct external URL

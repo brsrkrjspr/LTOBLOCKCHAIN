@@ -387,11 +387,14 @@ const HPGRequests = {
         }
         
         if (request.documents && request.documents.length > 0) {
-            // Document type labels (HPG only receives OR/CR and Owner ID)
+            // Document type labels (HPG receives: hpg_clearance and owner_id)
             const docTypeLabels = {
                 'owner_id': 'Owner ID',
                 'ownerId': 'Owner ID',
-                'registration_cert': 'OR/CR',
+                'hpg_clearance': 'HPG Clearance',
+                'hpgClearance': 'HPG Clearance',
+                'pnp_hpg_clearance': 'HPG Clearance',
+                'registration_cert': 'OR/CR', // For transfer cases
                 'registrationCert': 'OR/CR',
                 'registration': 'OR/CR',
                 'or_cr': 'OR/CR'
@@ -469,7 +472,7 @@ const HPGRequests = {
                             <h4>Attached Documents:</h4>
                             <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
                                 ${docs.map((doc, index) => `
-                                    <button class="btn-secondary" onclick="if(typeof DocumentModal !== 'undefined') { DocumentModal.viewMultiple(${JSON.stringify(docs)}, ${index}); } else { alert('Document viewer modal is not available. Please refresh the page.'); }" style="text-align: left; display: flex; align-items: center; gap: 0.5rem;">
+                                    <button class="btn-secondary" onclick="HPGRequests.viewDocumentFromModal('${requestId}', ${index})" style="text-align: left; display: flex; align-items: center; gap: 0.5rem;">
                                         <i class="fas fa-file-image" style="color: #3498db;"></i>
                                         <span>${doc.filename}</span>
                                     </button>
@@ -488,6 +491,44 @@ const HPGRequests = {
             }
         } else {
             alert('No documents attached to this request');
+        }
+    },
+    
+    viewDocumentFromModal: function(requestId, docIndex) {
+        // Helper function to view documents from the fallback modal
+        const request = this.requests.find(r => r.id === requestId);
+        if (!request || !request.documents || request.documents.length === 0) {
+            alert('No documents available');
+            return;
+        }
+        
+        const docTypeLabels = {
+            'owner_id': 'Owner ID',
+            'ownerId': 'Owner ID',
+            'registration_cert': 'OR/CR',
+            'registrationCert': 'OR/CR',
+            'registration': 'OR/CR',
+            'or_cr': 'OR/CR',
+            'hpg_clearance': 'HPG Clearance',
+            'hpgClearance': 'HPG Clearance'
+        };
+        
+        const docs = request.documents.map(doc => ({
+            id: doc.id,
+            filename: docTypeLabels[doc.type] || doc.type || doc.filename || 'Document',
+            type: doc.type,
+            document_type: doc.type,
+            url: `/api/documents/${doc.id}/view`,
+            cid: doc.cid,
+            ipfs_cid: doc.cid,
+            path: doc.path,
+            mime_type: doc.mime_type || 'application/octet-stream'
+        }));
+        
+        if (typeof DocumentModal !== 'undefined') {
+            DocumentModal.viewMultiple(docs, docIndex || 0);
+        } else {
+            alert('Document viewer modal is not available. Please refresh the page.');
         }
     },
 

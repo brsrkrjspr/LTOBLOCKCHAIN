@@ -221,12 +221,14 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
         console.log('📄 [HPG Auto-Verify API] Metadata keys:', Object.keys(metadata));
         console.log('📄 [HPG Auto-Verify API] Documents in metadata:', metadata.documents?.length || 0);
 
+        // Get database module (declare once at function level)
+        const dbModule = require('../database/db');
+
         // Get documents from metadata or fetch from database
         let documents = metadata.documents || [];
         if (documents.length === 0) {
             console.log('📄 [HPG Auto-Verify API] No documents in metadata, fetching from database...');
             // Try to fetch documents from database
-            const dbModule = require('../database/db');
             const docResult = await dbModule.query(
                 `SELECT d.* FROM documents d
                  JOIN clearance_request_documents crd ON d.id = crd.document_id
@@ -246,7 +248,6 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
         })));
 
         // Check issued_certificates table for certificate generator data
-        const dbModule = require('../database/db');
         const issuedCertCheck = await dbModule.query(
             `SELECT id, certificate_type, certificate_number, vehicle_vin, 
                     file_hash, composite_hash, issued_at, expires_at, 
@@ -309,7 +310,6 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
             }
         };
 
-        const dbModule = require('../database/db');
         await dbModule.query(
             `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
             [JSON.stringify(updatedMetadata), requestId]

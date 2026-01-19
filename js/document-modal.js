@@ -1322,12 +1322,6 @@
                         type: blob.type
                     });
                     
-                    // Debug: Check if blob contains text (might be error HTML)
-                    if (blob.size < 5000) {
-                        const text = await blob.text();
-                        console.log('[DocumentModal] Blob text content:', text.substring(0, 500));
-                    }
-                    
                     if (isImage || blob.type.startsWith('image/')) {
                         // Convert blob to data URL for images
                         const reader = new FileReader();

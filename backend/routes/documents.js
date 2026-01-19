@@ -961,29 +961,14 @@ router.get('/:documentId/download', authenticateToken, async (req, res) => {
 router.get('/:documentId/view', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
-        
-        console.log('[Documents API] View request:', {
-            documentId,
-            userRole: req.user.role,
-            userId: req.user.userId
-        });
 
         const document = await db.getDocumentById(documentId);
         if (!document) {
-            console.log('[Documents API] Document not found:', documentId);
             return res.status(404).json({
                 success: false,
                 error: 'Document not found'
             });
         }
-        
-        console.log('[Documents API] Document found:', {
-            id: document.id,
-            original_name: document.original_name,
-            mime_type: document.mime_type,
-            ipfs_cid: document.ipfs_cid,
-            file_path: document.file_path
-        });
 
         // Get vehicle to check permissions
         const vehicle = await db.getVehicleById(document.vehicle_id);
@@ -998,13 +983,6 @@ router.get('/:documentId/view', authenticateToken, async (req, res) => {
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
         const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
-        
-        console.log('[Documents API] Permission check:', {
-            isAdmin,
-            isOwner,
-            isVerifier,
-            allowed: isAdmin || isOwner || isVerifier
-        });
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
@@ -1057,29 +1035,14 @@ router.get('/:documentId/view', authenticateToken, async (req, res) => {
         res.setHeader('Content-Type', mimeType);
         res.setHeader('Content-Disposition', `inline; filename="${document.original_name}"`);
         
-        console.log('[Documents API] Serving document:', {
-            documentId: document.id,
-            filePath: filePath,
-            mimeType: mimeType,
-            fileExists: fs.existsSync(filePath)
-        });
-        
         // Send file
         res.sendFile(path.resolve(filePath), (err) => {
             if (err) {
-                console.error('[Documents API] sendFile error:', {
-                    error: err.message,
-                    code: err.code,
-                    documentId: document.id,
-                    filePath: filePath
+                console.error('View error:', err);
+                res.status(500).json({
+                    success: false,
+                    error: 'Failed to view document'
                 });
-                if (!res.headersSent) {
-                    res.status(500).json({
-                        success: false,
-                        error: 'Failed to view document',
-                        details: err.message
-                    });
-                }
             }
         });
 

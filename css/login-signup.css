@@ -240,7 +240,7 @@ body {
 
 .auth-container {
     width: 100%;
-    max-width: 980px;
+    max-width: 640px;
     margin: 0 auto;
 }
 
@@ -338,7 +338,7 @@ body {
 }
 
 .auth-card {
-    /* Premium SaaS auth card (form left, illustration right) */
+    /* Premium SaaS auth card */
     background: rgba(243, 248, 255, 0.86); /* soft-blue interior */
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
@@ -346,13 +346,10 @@ body {
     box-shadow:
         0 30px 80px rgba(15, 23, 42, 0.12),
         0 10px 30px rgba(59, 130, 246, 0.10);
-    padding: 0; /* spacing moved to .auth-panel */
+    padding: 2.25rem 2.25rem 1.75rem;
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(59, 130, 246, 0.18);
-    display: grid;
-    grid-template-columns: minmax(360px, 1fr) 0.95fr;
-    min-height: 560px;
 }
 
 .auth-card::before {
@@ -367,67 +364,6 @@ body {
     z-index: 0;
 }
 
-.auth-panel {
-    position: relative;
-    z-index: 1;
-    padding: 2.25rem 2.25rem 1.75rem;
-    background: rgba(255, 255, 255, 0.55);
-    border-right: 1px solid rgba(59, 130, 246, 0.10);
-}
-
-.auth-illustration {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-}
-
-.illustration-surface {
-    width: 100%;
-    height: 100%;
-    max-width: 520px;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-    justify-content: center;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.40);
-    border: 1px solid rgba(59, 130, 246, 0.14);
-    border-radius: 18px;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.7),
-        0 18px 40px rgba(15, 23, 42, 0.06);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    padding: 1.5rem 1.5rem 1.25rem;
-}
-
-.illustration-surface svg {
-    width: 100%;
-    height: auto;
-    max-height: 340px;
-    display: block;
-}
-
-.illustration-caption {
-    text-align: center;
-    max-width: 420px;
-}
-
-.illustration-caption .cap-title {
-    font-weight: 700;
-    color: rgba(15, 23, 42, 0.88);
-    letter-spacing: -0.2px;
-    margin-bottom: 0.25rem;
-}
-
-.illustration-caption .cap-sub {
-    font-size: 0.95rem;
-    color: rgba(51, 65, 85, 0.78);
-    line-height: 1.45;
-}
 
 /* ============================================
    AUTH TABS
@@ -1029,14 +965,6 @@ body {
         min-height: auto;
     }
 
-    .auth-panel {
-        border-right: none;
-    }
-
-    .auth-illustration {
-        padding: 1rem 1.5rem 1.75rem;
-    }
-    
     /* Slightly increased grid spacing for tablet */
     .blockchain-pattern {
         background-image: 
@@ -1079,18 +1007,8 @@ body {
     }
 
     .auth-card {
-        grid-template-columns: 1fr;
-        min-height: auto;
-        border-radius: 16px;
-    }
-
-    .auth-panel {
         padding: 1.5rem 1.25rem 1.25rem;
-        border-right: none;
-    }
-
-    .auth-illustration {
-        padding: 0.75rem 1.25rem 1.5rem;
+        border-radius: 16px;
     }
     
     /* Reduced grid density for mobile to avoid clutter */

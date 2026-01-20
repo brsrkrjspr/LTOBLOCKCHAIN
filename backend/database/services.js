@@ -768,20 +768,30 @@ async function updateCertificateStatus(id, status) {
 // ============================================
 
 async function createTransferRequest(transferData) {
-    const { vehicleId, sellerId, buyerId, buyerInfo, metadata } = transferData;
+    const {
+        vehicleId,
+        sellerId,
+        buyerId,
+        buyerInfo,
+        metadata,
+        expiresAt = null,
+        remarks = null
+    } = transferData;
     
     try {
         const result = await db.query(
             `INSERT INTO transfer_requests 
-             (vehicle_id, seller_id, buyer_id, buyer_info, metadata)
-             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)
+             (vehicle_id, seller_id, buyer_id, buyer_info, metadata, expires_at, remarks)
+             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7)
              RETURNING *`,
             [
                 vehicleId,
                 sellerId,
                 buyerId || null,
                 buyerInfo ? JSON.stringify(buyerInfo) : null,
-                JSON.stringify(metadata || {})
+                JSON.stringify(metadata || {}),
+                expiresAt,
+                remarks
             ]
         );
         return result.rows[0];
@@ -996,12 +1006,20 @@ async function getTransferRequests(filters = {}) {
     });
 }
 
-async function updateTransferRequestStatus(id, status, reviewedBy = null, rejectionReason = null, metadata = null) {
+async function updateTransferRequestStatus(
+    id,
+    status,
+    reviewedBy = null,
+    rejectionReason = null,
+    metadata = null,
+    buyerSubmittedAt = null,
+    remarks = null
+) {
     let query = `UPDATE transfer_requests SET status = $1`;
     const params = [status];
     let paramCount = 1;
     
-    if (status === 'REVIEWING' || status === 'APPROVED' || status === 'REJECTED' || status === 'COMPLETED') {
+    if (status === 'UNDER_REVIEW' || status === 'APPROVED' || status === 'REJECTED' || status === 'COMPLETED') {
         query += `, reviewed_at = CURRENT_TIMESTAMP`;
         if (reviewedBy) {
             paramCount++;
@@ -1021,6 +1039,18 @@ async function updateTransferRequestStatus(id, status, reviewedBy = null, reject
         // Use COALESCE to ensure metadata exists before merging, and explicitly cast to help PostgreSQL determine the type
         query += `, metadata = COALESCE(metadata, '{}'::jsonb) || $${paramCount}::jsonb`;
         params.push(JSON.stringify(metadata));
+    }
+
+    if (buyerSubmittedAt) {
+        paramCount++;
+        query += `, buyer_submitted_at = $${paramCount}`;
+        params.push(buyerSubmittedAt);
+    }
+
+    if (remarks !== undefined && remarks !== null) {
+        paramCount++;
+        query += `, remarks = $${paramCount}`;
+        params.push(remarks);
     }
     
     paramCount++;

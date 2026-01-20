@@ -9,6 +9,9 @@ const LOGICAL_TYPES = {
     REGISTRATION_CERT: 'registrationCert',
     INSURANCE_CERT: 'insuranceCert',
     EMISSION_CERT: 'emissionCert',
+    CTPL: 'ctpl',
+    MVIR: 'mvir',
+    TIN_ID: 'tinId',
     OWNER_ID: 'ownerId',
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',
@@ -16,6 +19,8 @@ const LOGICAL_TYPES = {
     CSR: 'csr',
     HPG_CLEARANCE: 'hpgClearance',
     SALES_INVOICE: 'salesInvoice',
+    TRANSFER_PACKAGE: 'transferPackage',
+    TRANSFER_CERTIFICATE: 'transferCertificate',
     OTHER: 'other'
 };
 
@@ -27,6 +32,9 @@ const DB_TYPES = {
     REGISTRATION_CERT: 'registration_cert',
     INSURANCE_CERT: 'insurance_cert',
     EMISSION_CERT: 'emission_cert',
+    CTPL: 'ctpl_cert',
+    MVIR: 'mvir_cert',
+    TIN_ID: 'tin_id',
     OWNER_ID: 'owner_id',
     DEED_OF_SALE: 'deed_of_sale',
     SELLER_ID: 'seller_id',
@@ -34,6 +42,8 @@ const DB_TYPES = {
     CSR: 'csr',
     HPG_CLEARANCE: 'hpg_clearance',
     SALES_INVOICE: 'sales_invoice',
+    TRANSFER_PACKAGE: 'transfer_package_pdf',
+    TRANSFER_CERTIFICATE: 'transfer_certificate',
     OTHER: 'other'
 };
 
@@ -45,7 +55,13 @@ const TRANSFER_ROLES = {
     DEED_OF_SALE: 'deed_of_sale',
     SELLER_ID: 'seller_id',
     BUYER_ID: 'buyer_id',
-    OR_CR: 'or_cr' // Original Registration Certificate / Certificate of Registration
+    OR_CR: 'or_cr', // Original Registration Certificate / Certificate of Registration
+    BUYER_TIN: 'buyer_tin',
+    BUYER_CTPL: 'buyer_ctpl',
+    BUYER_MVIR: 'buyer_mvir',
+    BUYER_HPG_CLEARANCE: 'buyer_hpg_clearance',
+    TRANSFER_PACKAGE: 'transfer_package_pdf',
+    TRANSFER_CERTIFICATE: 'transfer_certificate'
 };
 
 /**
@@ -58,6 +74,9 @@ function mapToDbType(logicalType) {
         [LOGICAL_TYPES.REGISTRATION_CERT]: DB_TYPES.REGISTRATION_CERT,
         [LOGICAL_TYPES.INSURANCE_CERT]: DB_TYPES.INSURANCE_CERT,
         [LOGICAL_TYPES.EMISSION_CERT]: DB_TYPES.EMISSION_CERT,
+        [LOGICAL_TYPES.CTPL]: DB_TYPES.CTPL,
+        [LOGICAL_TYPES.MVIR]: DB_TYPES.MVIR,
+        [LOGICAL_TYPES.TIN_ID]: DB_TYPES.TIN_ID,
         [LOGICAL_TYPES.OWNER_ID]: DB_TYPES.OWNER_ID,
         [LOGICAL_TYPES.DEED_OF_SALE]: DB_TYPES.DEED_OF_SALE,
         [LOGICAL_TYPES.SELLER_ID]: DB_TYPES.SELLER_ID,
@@ -65,6 +84,8 @@ function mapToDbType(logicalType) {
         [LOGICAL_TYPES.CSR]: DB_TYPES.CSR,
         [LOGICAL_TYPES.HPG_CLEARANCE]: DB_TYPES.HPG_CLEARANCE,
         [LOGICAL_TYPES.SALES_INVOICE]: DB_TYPES.SALES_INVOICE,
+        [LOGICAL_TYPES.TRANSFER_PACKAGE]: DB_TYPES.TRANSFER_PACKAGE,
+        [LOGICAL_TYPES.TRANSFER_CERTIFICATE]: DB_TYPES.TRANSFER_CERTIFICATE,
         [LOGICAL_TYPES.OTHER]: DB_TYPES.OTHER
     };
     
@@ -81,6 +102,9 @@ function mapToLogicalType(dbType) {
         [DB_TYPES.REGISTRATION_CERT]: LOGICAL_TYPES.REGISTRATION_CERT,
         [DB_TYPES.INSURANCE_CERT]: LOGICAL_TYPES.INSURANCE_CERT,
         [DB_TYPES.EMISSION_CERT]: LOGICAL_TYPES.EMISSION_CERT,
+        [DB_TYPES.CTPL]: LOGICAL_TYPES.CTPL,
+        [DB_TYPES.MVIR]: LOGICAL_TYPES.MVIR,
+        [DB_TYPES.TIN_ID]: LOGICAL_TYPES.TIN_ID,
         [DB_TYPES.OWNER_ID]: LOGICAL_TYPES.OWNER_ID,
         [DB_TYPES.DEED_OF_SALE]: LOGICAL_TYPES.DEED_OF_SALE,
         [DB_TYPES.SELLER_ID]: LOGICAL_TYPES.SELLER_ID,
@@ -88,6 +112,8 @@ function mapToLogicalType(dbType) {
         [DB_TYPES.CSR]: LOGICAL_TYPES.CSR,
         [DB_TYPES.HPG_CLEARANCE]: LOGICAL_TYPES.HPG_CLEARANCE,
         [DB_TYPES.SALES_INVOICE]: LOGICAL_TYPES.SALES_INVOICE,
+        [DB_TYPES.TRANSFER_PACKAGE]: LOGICAL_TYPES.TRANSFER_PACKAGE,
+        [DB_TYPES.TRANSFER_CERTIFICATE]: LOGICAL_TYPES.TRANSFER_CERTIFICATE,
         [DB_TYPES.OTHER]: LOGICAL_TYPES.OTHER
     };
     

@@ -861,6 +861,7 @@
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
+    <script src="js/toast-notification.js"></script>
     <script src="js/settings.js"></script>
     <script>
         // Initialize user data on page load
@@ -964,14 +965,17 @@
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
+                    const doLogout = () => {
                         if (typeof AuthUtils !== 'undefined') {
                             AuthUtils.logout();
                         } else {
                             localStorage.clear();
                             window.location.href = 'index.html';
                         }
-                    }
+                    };
+                    ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
+                        if (ok) doLogout();
+                    });
                 });
             }
         });

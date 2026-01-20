@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HPG Admin Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
@@ -536,6 +537,8 @@
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/toast-notification.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -883,7 +886,7 @@
                     const user = AuthUtils.getCurrentUser();
                     if (!user || (!AuthUtils.hasRole('admin') && !AuthUtils.hasRole('hpg_admin'))) {
                         console.warn('❌ Access denied: HPG admin role required');
-                        alert('Access denied. HPG admin role required. Redirecting to login...');
+                        ToastNotification.show('Access denied. HPG admin role required. Redirecting to login...', 'error');
                         setTimeout(() => {
                             window.location.href = 'login-signup.html?message=HPG admin access required';
                         }, 2000);
@@ -964,14 +967,17 @@
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
+                    const doLogout = () => {
                         if (typeof AuthUtils !== 'undefined') {
                             AuthUtils.logout();
                         } else {
                             localStorage.clear();
                             window.location.href = 'index.html';
                         }
-                    }
+                    };
+                    ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
+                        if (ok) doLogout();
+                    });
                 });
             }
 
@@ -1007,7 +1013,7 @@
                     });
 
                     if (missing.length > 0) {
-                        alert('Please fill in all required fields.');
+                        ToastNotification.show('Please fill in all required fields.', 'warning');
                         return;
                     }
 
@@ -1018,13 +1024,13 @@
 
                     // UI-only feedback for now
                     setTimeout(() => {
-                        alert(
-                            '✅ Hot List Report captured (UI only)\n\n' +
+                        const msg =
+                            'Hot List Report captured (UI only)\n\n' +
                             'Report Number: ' + document.getElementById('hotListReportNumber').value + '\n' +
                             'Plate Number: ' + document.getElementById('hotListPlateNumber').value + '\n' +
                             'Type: ' + document.getElementById('hotListReportType').value + '\n\n' +
-                            'Backend submission will be wired next.'
-                        );
+                            'Backend submission will be wired next.';
+                        ToastNotification.show(msg.replace(/\n/g, ' • '), 'success', 8000);
 
                         hotListReportForm.reset();
                         closeModal('hotListReportModal');

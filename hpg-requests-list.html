@@ -621,6 +621,7 @@
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
     <script src="js/mobile-nav.js"></script>
+    <script src="js/toast-notification.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -1170,14 +1171,17 @@
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
+                    const doLogout = () => {
                         if (typeof AuthUtils !== 'undefined') {
                             AuthUtils.logout();
                         } else {
                             localStorage.clear();
                             window.location.href = 'index.html';
                         }
-                    }
+                    };
+                    ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
+                        if (ok) doLogout();
+                    });
                 });
             }
         });
@@ -1218,7 +1222,7 @@
 
         function exportRequests() {
             // Export functionality
-            alert('Export functionality will be implemented');
+            ToastNotification.show('Export functionality will be implemented', 'info');
         }
 
         // Auto-Fill Verification - Fetch vehicle details from LTO request
@@ -1272,11 +1276,11 @@
                     // Show success notification
                     showAutoFillNotification('Vehicle details loaded successfully! Ready for verification.');
                 } else {
-                    alert('Unable to fetch vehicle details. Please try receiving the request first.');
+                    ToastNotification.show('Unable to fetch vehicle details. Please try receiving the request first.', 'warning');
                 }
             } catch (error) {
                 console.error('Error in auto-fill:', error);
-                alert('Error loading vehicle details. Please try again.');
+                ToastNotification.show('Error loading vehicle details. Please try again.', 'error');
             }
         }
 

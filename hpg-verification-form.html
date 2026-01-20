@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Verification - HPG Admin</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
@@ -937,6 +938,8 @@
     <script src="js/error-handler.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/toast-notification.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -1428,6 +1431,8 @@
             padding: 1.5rem;
             text-align: center;
             border: 2px dashed #dee2e6;
+            max-width: 100%;
+            overflow: hidden;
         }
         
         .no-document-message {
@@ -1442,14 +1447,27 @@
         
         .orcr-document-container {
             text-align: center;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
         }
         
         .orcr-preview {
             margin-bottom: 1rem;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .orcr-preview img {
-            max-height: 400px;
+            max-width: 100%;
+            height: auto;
+            width: auto;
+            max-height: 500px;
+            object-fit: contain;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
         
@@ -1457,6 +1475,16 @@
             display: flex;
             gap: 0.5rem;
             justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .document-preview-section {
+                padding: 1rem;
+            }
+            .orcr-preview img {
+                max-height: 320px;
+            }
         }
         
         /* Vehicle Details Grid */
@@ -1710,14 +1738,17 @@
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
+                    const doLogout = () => {
                         if (typeof AuthUtils !== 'undefined') {
                             AuthUtils.logout();
                         } else {
                             localStorage.clear();
                             window.location.href = 'index.html';
                         }
-                    }
+                    };
+                    ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
+                        if (ok) doLogout();
+                    });
                 });
             }
         });
@@ -1779,7 +1810,7 @@
             const chassisNumber = document.getElementById('manualChassisNumber').value.trim();
             
             if (!engineNumber || !chassisNumber) {
-                alert('Engine number and chassis number are required for manual verification.');
+                ToastNotification.show('Engine number and chassis number are required for manual verification.', 'warning');
                 return;
             }
             
@@ -1801,15 +1832,16 @@
         }
 
         // Issue Clearance
-        function issueClearance() {
-            if (confirm('Are you sure you want to issue MV Clearance for this vehicle? Document hashing and duplicate detection will be performed automatically.')) {
+        async function issueClearance() {
+            const ok = await ToastNotification.confirm('Are you sure you want to issue MV Clearance for this vehicle? Document hashing and duplicate detection will be performed automatically.');
+            if (ok) {
                 const remarks = document.getElementById('remarks').value;
                 
                 // Call approval
                 if (typeof HPGVerification !== 'undefined') {
                     HPGVerification.approveVerification();
                 } else {
-                    alert('MV Clearance issued successfully!');
+                    ToastNotification.show('MV Clearance issued successfully!', 'success', 8000);
                     window.location.href = 'hpg-requests-list.html';
                 }
             }
@@ -1820,7 +1852,7 @@
         async function runAutoVerify() {
             const requestId = document.getElementById('requestId')?.value || HPGVerification?.currentRequestId;
             if (!requestId) {
-                alert('No request selected. Please select a request first.');
+                ToastNotification.show('No request selected. Please select a request first.', 'warning');
                 return;
             }
 
@@ -1866,7 +1898,7 @@
                         </div>
                     `;
                 } else {
-                    alert('Failed to run auto-verification: ' + error.message);
+                    ToastNotification.show('Failed to run auto-verification: ' + error.message, 'error', 8000);
                 }
             }
         }
@@ -2120,17 +2152,18 @@
 
         function useAutoVerifyData() {
             if (!autoVerifyResults || !autoVerifyResults.preFilledData) {
-                alert('Auto-verify data not available. Please run auto-verify first.');
+                ToastNotification.show('Auto-verify data not available. Please run auto-verify first.', 'warning');
                 return;
             }
 
             // Check if duplicate was detected
             if (autoVerifyResults.hashCheck && autoVerifyResults.hashCheck.exists) {
-                alert('Cannot proceed. Document duplicate detected. This certificate has already been used for vehicle ' + (autoVerifyResults.hashCheck.vehicleId || 'another vehicle') + '. Certificate reuse detected.');
+                ToastNotification.show('Cannot proceed. Document duplicate detected. Certificate reuse detected.', 'error', 10000);
                 return;
             }
 
-            if (confirm('Use auto-verify data to pre-fill the verification form? You can still edit the fields before final approval.')) {
+            ToastNotification.confirm('Use auto-verify data to pre-fill the verification form? You can still edit the fields before final approval.').then((ok) => {
+                if (!ok) return;
                 const preFilled = autoVerifyResults.preFilledData;
                 
                 // Pre-fill engine and chassis numbers (these are now in Step 4)
@@ -2171,12 +2204,8 @@
                 }
 
                 // Show success notification
-                if (typeof ToastNotification !== 'undefined') {
-                    ToastNotification.show('Auto-verify data applied. Please review and approve.', 'success');
-                } else {
-                    alert('Auto-verify data applied. Please review and approve.');
-                }
-            }
+                ToastNotification.show('Auto-verify data applied. Please review and approve.', 'success');
+            });
         }
 
         function ignoreAutoVerify() {
@@ -2212,7 +2241,7 @@
         function confirmReject() {
             const reason = document.getElementById('rejectReason').value;
             if (!reason.trim()) {
-                alert('Please provide a reason for denial');
+                ToastNotification.show('Please provide a reason for denial', 'warning');
                 return;
             }
 
@@ -2224,9 +2253,10 @@
         }
 
         function cancelVerification() {
-            if (confirm('Are you sure you want to cancel? Changes will be lost.')) {
-                window.location.href = 'hpg-requests-list.html';
-            }
+            const doCancel = () => window.location.href = 'hpg-requests-list.html';
+            ToastNotification.confirm('Are you sure you want to cancel? Changes will be lost.').then((ok) => {
+                if (ok) doCancel();
+            });
         }
 
         function closeModal(modalId) {
@@ -2336,7 +2366,27 @@
                 return;
             }
 
+            // Prefer to show PDFs as a PDF card (image tag can't render PDFs reliably)
+            const filenameGuess = (doc.filename || doc.original_name || '').toLowerCase();
+            const mimeGuess = (doc.mime_type || doc.mimeType || '').toLowerCase();
+            const isPDFByMeta = filenameGuess.endsWith('.pdf') || mimeGuess.includes('pdf');
+
             if (docUrl.startsWith('data:')) {
+                // If it's a PDF data URL, show as PDF card instead of image
+                if (docUrl.startsWith('data:application/pdf') || isPDFByMeta) {
+                    if (noOrcrMessage) {
+                        noOrcrMessage.innerHTML = `
+                            <i class="fas fa-file-pdf" style="color: #e74c3c; font-size: 3rem;"></i>
+                            <p>PDF Document</p>
+                            <button class="btn-primary btn-sm" onclick="openOrcrInViewer()" style="margin-top: 1rem;">
+                                <i class="fas fa-eye"></i> View Document
+                            </button>
+                        `;
+                        noOrcrMessage.style.display = 'block';
+                    }
+                    if (orcrDocContainer) orcrDocContainer.style.display = 'none';
+                    return;
+                }
                 if (orcrImage) {
                     orcrImage.src = docUrl;
                     orcrImage.onload = () => {
@@ -2360,8 +2410,26 @@
                     throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                 }
 
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
                 const blob = await response.blob();
                 const blobUrl = URL.createObjectURL(blob);
+
+                // If server returns a PDF, render a PDF card instead of the image preview
+                if (contentType.includes('pdf') || isPDFByMeta) {
+                    if (noOrcrMessage) {
+                        noOrcrMessage.innerHTML = `
+                            <i class="fas fa-file-pdf" style="color: #e74c3c; font-size: 3rem;"></i>
+                            <p>PDF Document</p>
+                            <small>${(doc.filename || doc.original_name || 'HPG Clearance Document')}</small>
+                            <button class="btn-primary btn-sm" onclick="openOrcrInViewer()" style="margin-top: 1rem;">
+                                <i class="fas fa-eye"></i> View Document
+                            </button>
+                        `;
+                        noOrcrMessage.style.display = 'block';
+                    }
+                    if (orcrDocContainer) orcrDocContainer.style.display = 'none';
+                    return;
+                }
 
                 if (orcrImage) {
                     orcrImage.src = blobUrl;
@@ -2441,7 +2509,7 @@
         function viewDocumentAtIndex(index) {
             const docs = HPGVerification.requestData?.documents || [];
             if (docs.length === 0) {
-                alert('No documents available');
+                ToastNotification.show('No documents available', 'warning');
                 return;
             }
             
@@ -2460,20 +2528,20 @@
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.viewMultiple(preparedDocs, index);
             } else {
-                alert('Document viewer modal is not available. Please refresh the page.');
+                ToastNotification.show('Document viewer modal is not available. Please refresh the page.', 'error');
             }
         }
 
         // Open the currently selected HPG Clearance document in the authenticated viewer page
         function openOrcrInViewer() {
             if (!currentOrcrDoc) {
-                alert('No HPG Clearance document available yet.');
+                ToastNotification.show('No HPG Clearance document available yet.', 'warning');
                 return;
             }
 
             // Strict: use DocumentModal (no new tabs / no full-page viewer)
             if (typeof DocumentModal === 'undefined') {
-                alert('Document viewer modal is not available. Please refresh the page.');
+                ToastNotification.show('Document viewer modal is not available. Please refresh the page.', 'error');
                 return;
             }
             DocumentModal.view({
@@ -2506,6 +2574,11 @@
             
             if (requestId && typeof HPGVerification !== 'undefined') {
                 HPGVerification.loadRequestData(requestId);
+            }
+
+            // Mobile nav
+            if (typeof window.MobileNav !== 'undefined') {
+                window.MobileNav.init();
             }
         });
     </script>

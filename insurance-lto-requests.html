@@ -1181,6 +1181,82 @@
         </div>
     </div>
 
+    <!-- Reject Reason Modal -->
+    <div class="modal" id="rejectReasonModal">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-times-circle"></i> Reject Insurance Verification</h2>
+                <button class="modal-close" onclick="closeModal('rejectReasonModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="rejectReasonInput">Reason for Rejection <span style="color:#e74c3c;">*</span></label>
+                    <textarea id="rejectReasonInput" rows="4" placeholder="Explain what is missing or invalid (e.g., expired policy, mismatch, unreadable document)..." style="width:100%;"></textarea>
+                    <small class="hint">This reason will be recorded and shown to the requester.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('rejectReasonModal')">Cancel</button>
+                <button class="btn-danger" id="rejectReasonSubmitBtn">
+                    <i class="fas fa-times"></i> Reject
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Insurance Record Modal -->
+    <div class="modal" id="addInsuranceRecordModal">
+        <div class="modal-content" style="max-width: 720px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-plus"></i> Add Insurance Record</h2>
+                <button class="modal-close" onclick="closeModal('addInsuranceRecordModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                    <div class="form-group" style="margin:0;">
+                        <label for="recordPlateNumber">Plate Number <span style="color:#e74c3c;">*</span></label>
+                        <input type="text" id="recordPlateNumber" placeholder="e.g., ABC 1234">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label for="recordPolicyNumber">Policy Number</label>
+                        <input type="text" id="recordPolicyNumber" placeholder="e.g., POL-2026-001">
+                    </div>
+                </div>
+
+                <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+                    <div class="form-group" style="margin:0;">
+                        <label for="recordStatus">Status <span style="color:#e74c3c;">*</span></label>
+                        <select id="recordStatus">
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="EXPIRED">EXPIRED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                            <option value="FRAUDULENT">FRAUDULENT</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label for="recordCompany">Insurance Company</label>
+                        <input type="text" id="recordCompany" placeholder="e.g., Test Insurance Co.">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:1rem;">
+                    <label for="recordReason">Flag Reason (required for EXPIRED/CANCELLED/FRAUDULENT)</label>
+                    <input type="text" id="recordReason" placeholder="e.g., expired 2025-11-01 / cancelled by insurer / suspected fraud">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('addInsuranceRecordModal')">Cancel</button>
+                <button class="btn-primary" id="addInsuranceRecordSubmitBtn">
+                    <i class="fas fa-save"></i> Save Record
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/auth-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/error-handler.js"></script>
@@ -1188,8 +1264,134 @@
     <script src="js/document-modal.js"></script>
     <script src="js/insurance-database.js"></script>
     <script src="js/mobile-nav.js"></script>
+    <script src="js/toast-notification.js"></script>
     <script src="js/insurance-verifier-dashboard.js"></script>
     <script>
+        // ===== Modal helpers (non-blocking replacement for prompt()) =====
+        (function() {
+            let pendingRejectResolve = null;
+            let pendingAddRecordResolve = null;
+
+            window.openRejectReasonModal = function() {
+                const modal = document.getElementById('rejectReasonModal');
+                const input = document.getElementById('rejectReasonInput');
+                const btn = document.getElementById('rejectReasonSubmitBtn');
+
+                if (!modal || !input || !btn) return Promise.resolve('');
+
+                input.value = '';
+                modal.classList.add('active');
+
+                return new Promise((resolve) => {
+                    pendingRejectResolve = resolve;
+                });
+            };
+
+            window.openAddInsuranceRecordModal = function() {
+                const modal = document.getElementById('addInsuranceRecordModal');
+                if (!modal) return Promise.resolve(null);
+
+                // reset fields
+                const plate = document.getElementById('recordPlateNumber');
+                const policy = document.getElementById('recordPolicyNumber');
+                const status = document.getElementById('recordStatus');
+                const company = document.getElementById('recordCompany');
+                const reason = document.getElementById('recordReason');
+
+                if (plate) plate.value = '';
+                if (policy) policy.value = '';
+                if (status) status.value = 'ACTIVE';
+                if (company) company.value = '';
+                if (reason) reason.value = '';
+
+                modal.classList.add('active');
+
+                return new Promise((resolve) => {
+                    pendingAddRecordResolve = resolve;
+                });
+            };
+
+            // Hook buttons once DOM is ready
+            document.addEventListener('DOMContentLoaded', () => {
+                const rejectBtn = document.getElementById('rejectReasonSubmitBtn');
+                const rejectInput = document.getElementById('rejectReasonInput');
+                if (rejectBtn && rejectInput) {
+                    rejectBtn.addEventListener('click', () => {
+                        const value = (rejectInput.value || '').trim();
+                        if (!value) {
+                            if (typeof ToastNotification !== 'undefined') {
+                                ToastNotification.show('Please enter a rejection reason.', 'warning');
+                            }
+                            return;
+                        }
+                        closeModal('rejectReasonModal');
+                        if (pendingRejectResolve) pendingRejectResolve(value);
+                        pendingRejectResolve = null;
+                    });
+                }
+
+                const addBtn = document.getElementById('addInsuranceRecordSubmitBtn');
+                if (addBtn) {
+                    addBtn.addEventListener('click', () => {
+                        const plate = (document.getElementById('recordPlateNumber')?.value || '').trim();
+                        const policy = (document.getElementById('recordPolicyNumber')?.value || '').trim();
+                        const status = (document.getElementById('recordStatus')?.value || 'ACTIVE').trim().toUpperCase();
+                        const company = (document.getElementById('recordCompany')?.value || '').trim() || 'Test Insurance Co.';
+                        const reason = (document.getElementById('recordReason')?.value || '').trim();
+
+                        if (!plate) {
+                            if (typeof ToastNotification !== 'undefined') {
+                                ToastNotification.show('Plate Number is required.', 'warning');
+                            }
+                            return;
+                        }
+
+                        if (['EXPIRED', 'CANCELLED', 'FRAUDULENT'].includes(status) && !reason) {
+                            if (typeof ToastNotification !== 'undefined') {
+                                ToastNotification.show('Flag Reason is required for the selected status.', 'warning');
+                            }
+                            return;
+                        }
+
+                        const payload = {
+                            plateNumber: plate.toUpperCase(),
+                            policyNumber: (policy || ('POL-' + Date.now())).toUpperCase(),
+                            status,
+                            insuranceCompany: company,
+                            flagReason: reason,
+                            issueDate: new Date().toISOString().split('T')[0],
+                            expiryDate: status === 'ACTIVE'
+                                ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                                : new Date().toISOString().split('T')[0]
+                        };
+
+                        closeModal('addInsuranceRecordModal');
+                        if (pendingAddRecordResolve) pendingAddRecordResolve(payload);
+                        pendingAddRecordResolve = null;
+                    });
+                }
+
+                // If user closes modal, resolve pending promises safely
+                ['rejectReasonModal', 'addInsuranceRecordModal'].forEach((id) => {
+                    const modal = document.getElementById(id);
+                    if (!modal) return;
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            closeModal(id);
+                            if (id === 'rejectReasonModal' && pendingRejectResolve) {
+                                pendingRejectResolve('');
+                                pendingRejectResolve = null;
+                            }
+                            if (id === 'addInsuranceRecordModal' && pendingAddRecordResolve) {
+                                pendingAddRecordResolve(null);
+                                pendingAddRecordResolve = null;
+                            }
+                        }
+                    });
+                });
+            });
+        })();
+
         // Initialize user data
         document.addEventListener('DOMContentLoaded', function() {
             // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
@@ -1274,14 +1476,17 @@
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
+                    const doLogout = () => {
                         if (typeof AuthUtils !== 'undefined') {
                             AuthUtils.logout();
                         } else {
                             localStorage.clear();
                             window.location.href = 'index.html';
                         }
-                    }
+                    };
+                    ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
+                        if (ok) doLogout();
+                    });
                 });
             }
         });
@@ -1396,12 +1601,13 @@
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.view(doc);
             } else {
-                alert('Document viewer modal is not available. Please refresh the page.');
+                ToastNotification.show('Document viewer modal is not available. Please refresh the page.', 'error');
             }
         }
         
         async function approveInsurance(requestId) {
-            if (!confirm('Are you sure you want to approve this insurance verification?')) return;
+            const ok = await ToastNotification.confirm('Are you sure you want to approve this insurance verification?');
+            if (!ok) return;
             
             try {
                 const response = await window.apiClient.post('/api/insurance/verify/approve', {
@@ -1410,20 +1616,22 @@
                 });
                 
                 if (response.success) {
-                    alert('Insurance verification approved successfully!');
+                    ToastNotification.show('Insurance verification approved successfully!', 'success');
                     loadInsuranceRequests();
                 } else {
-                    alert('Error: ' + (response.error || 'Failed to approve'));
+                    const msg = 'Error: ' + (response.error || 'Failed to approve');
+                    ToastNotification.show(msg, 'error');
                 }
             } catch (error) {
                 console.error('Error approving insurance:', error);
-                alert('Error approving insurance: ' + error.message);
+                const msg = 'Error approving insurance: ' + error.message;
+                ToastNotification.show(msg, 'error');
             }
         }
         
         async function rejectInsurance(requestId) {
-            const reason = prompt('Please provide a reason for rejection:');
-            if (!reason) return;
+            let reason = await window.openRejectReasonModal();
+            if (!reason.trim()) return;
             
             try {
                 const response = await window.apiClient.post('/api/insurance/verify/reject', {
@@ -1432,14 +1640,16 @@
                 });
                 
                 if (response.success) {
-                    alert('Insurance verification rejected.');
+                    ToastNotification.show('Insurance verification rejected.', 'warning');
                     loadInsuranceRequests();
                 } else {
-                    alert('Error: ' + (response.error || 'Failed to reject'));
+                    const msg = 'Error: ' + (response.error || 'Failed to reject');
+                    ToastNotification.show(msg, 'error');
                 }
             } catch (error) {
                 console.error('Error rejecting insurance:', error);
-                alert('Error rejecting insurance: ' + error.message);
+                const msg = 'Error rejecting insurance: ' + error.message;
+                ToastNotification.show(msg, 'error');
             }
         }
 
@@ -1543,7 +1753,7 @@
         }
 
         function receiveRequest(requestId) {
-            alert('Request received. You can now verify the insurance document.');
+            ToastNotification.show('Request received. You can now verify the insurance document.', 'success');
             loadInsuranceRequests();
             closeModal('requestDetailsModal');
         }
@@ -1558,7 +1768,7 @@
         }
 
         function exportRequests() {
-            alert('Export functionality will be implemented');
+            ToastNotification.show('Export functionality will be implemented', 'info');
         }
 
         // Auto-Fill Verification - Fetch vehicle details from LTO request
@@ -1609,11 +1819,11 @@
                     // Show success notification
                     showAutoFillNotification('Vehicle details loaded successfully! Ready for verification.');
                 } else {
-                    alert('Unable to fetch vehicle details. Please try receiving the request first.');
+                    ToastNotification.show('Unable to fetch vehicle details. Please try receiving the request first.', 'warning');
                 }
             } catch (error) {
                 console.error('Error in auto-fill:', error);
-                alert('Error loading vehicle details. Please try again.');
+                ToastNotification.show('Error loading vehicle details. Please try again.', 'error');
             }
         }
 
@@ -1714,7 +1924,7 @@
             const vehicleModel = document.getElementById('testVehicleModel').value.trim();
 
             if (!ownerName || !plateNumber) {
-                alert('Please fill in Owner Name and Plate Number');
+                ToastNotification.show('Please fill in Owner Name and Plate Number', 'warning');
                 return;
             }
 
@@ -1729,7 +1939,8 @@
                 });
 
                 if (response.success) {
-                    alert('✅ Test insurance request created!\n\nRequest ID: ' + response.requestId);
+                    const msg = 'Test insurance request created! Request ID: ' + response.requestId;
+                    ToastNotification.show(msg, 'success', 8000);
                     toggleTestRequestForm();
                     loadInsuranceRequests();
                     
@@ -1741,11 +1952,13 @@
                     document.getElementById('testVehicleMake').value = '';
                     document.getElementById('testVehicleModel').value = '';
                 } else {
-                    alert('Error: ' + (response.error || 'Failed to create test request'));
+                    const msg = 'Error: ' + (response.error || 'Failed to create test request');
+                    ToastNotification.show(msg, 'error');
                 }
             } catch (error) {
                 console.error('Error creating test request:', error);
-                alert('Error: ' + error.message);
+                const msg = 'Error: ' + error.message;
+                ToastNotification.show(msg, 'error');
             }
         }
 
@@ -1806,7 +2019,7 @@
         function checkInsuranceDatabase() {
             const input = document.getElementById('checkPlateNumber').value.trim();
             if (!input) {
-                alert('Please enter a plate number or policy number');
+                ToastNotification.show('Please enter a plate number or policy number', 'warning');
                 return;
             }
 
@@ -1846,40 +2059,27 @@
         }
 
         function addInsuranceRecord() {
-            const plateNumber = prompt('Enter Plate Number:');
-            if (!plateNumber) return;
-            
-            const policyNumber = prompt('Enter Policy Number:') || 'POL-' + Date.now();
-            const status = prompt('Enter Status (ACTIVE, EXPIRED, CANCELLED, FRAUDULENT):') || 'ACTIVE';
-            const company = prompt('Enter Insurance Company:') || 'Test Insurance Co.';
-            const reason = ['EXPIRED', 'CANCELLED', 'FRAUDULENT'].includes(status.toUpperCase()) 
-                ? prompt('Enter reason:') : '';
-            
-            const record = InsuranceDatabase.addRecord({
-                plateNumber: plateNumber.toUpperCase(),
-                policyNumber: policyNumber.toUpperCase(),
-                status: status.toUpperCase(),
-                insuranceCompany: company,
-                flagReason: reason,
-                issueDate: new Date().toISOString().split('T')[0],
-                expiryDate: status.toUpperCase() === 'ACTIVE' 
-                    ? new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0] 
-                    : new Date().toISOString().split('T')[0]
+            window.openAddInsuranceRecordModal().then((payload) => {
+                if (!payload) return;
+                const record = InsuranceDatabase.addRecord(payload);
+                ToastNotification.show(`Record added: ${record.plateNumber} - ${record.status}`, 'success');
+                loadDatabaseRecords();
             });
-            
-            alert(`Record added: ${record.plateNumber} - ${record.status}`);
-            loadDatabaseRecords();
         }
 
         function removeInsuranceRecord(plateNumber) {
-            if (!confirm(`Remove record for ${plateNumber}?`)) return;
-            
-            if (InsuranceDatabase.removeRecord(plateNumber)) {
-                alert('Record removed');
-                loadDatabaseRecords();
-            } else {
-                alert('Record not found');
-            }
+            const doRemove = () => {
+                if (InsuranceDatabase.removeRecord(plateNumber)) {
+                    ToastNotification.show('Record removed', 'success');
+                    loadDatabaseRecords();
+                } else {
+                    ToastNotification.show('Record not found', 'error');
+                }
+            };
+
+            ToastNotification.confirm(`Remove record for ${plateNumber}?`).then((ok) => {
+                if (ok) doRemove();
+            });
         }
     </script>
 </body>

@@ -2040,18 +2040,30 @@ function createApplicationRow(application) {
     const vehicleId = application.id;
     const vin = application.vehicle?.vin || '';
     const vehicle = application.vehicle || {};
+    const originType = vehicle.origin_type || vehicle.originType || application.origin_type || application.originType || 'NEW_REG';
+    const isTransferWorkflow = originType === 'TRANSFER';
     
-    // Check inspection status - check both application.vehicle and application itself
-    const hasInspection = vehicle.mvir_number || application.mvir_number || vehicle.mvirNumber || application.mvirNumber;
-    const mvirNumber = vehicle.mvir_number || application.mvir_number || vehicle.mvirNumber || application.mvirNumber;
+    // Check inspection status - for TRANSFER workflows only.
+    // MVIR / inspection MUST NOT be part of the new registration approval workflow.
+    const hasInspection = isTransferWorkflow && (
+        vehicle.mvir_number ||
+        application.mvir_number ||
+        vehicle.mvirNumber ||
+        application.mvirNumber
+    );
+    const mvirNumber = hasInspection
+        ? (vehicle.mvir_number || application.mvir_number || vehicle.mvirNumber || application.mvirNumber)
+        : null;
     
-    const inspectionStatus = hasInspection 
-        ? `<span class="badge badge-success" title="MVIR: ${mvirNumber}" style="margin-top: 0.25rem; display: inline-block;">
-            <i class="fas fa-check-circle"></i> Inspected
-           </span>`
-        : `<span class="badge badge-warning" title="Inspection required before approval" style="margin-top: 0.25rem; display: inline-block;">
-            <i class="fas fa-exclamation-triangle"></i> Not Inspected
-           </span>`;
+    const inspectionStatus = isTransferWorkflow
+        ? (hasInspection 
+            ? `<span class="badge badge-success" title="MVIR: ${mvirNumber}" style="margin-top: 0.25rem; display: inline-block;">
+                    <i class="fas fa-check-circle"></i> Inspected
+               </span>`
+            : `<span class="badge badge-warning" title="Inspection recommended before transfer approval" style="margin-top: 0.25rem; display: inline-block;">
+                    <i class="fas fa-exclamation-triangle"></i> Not Inspected
+               </span>`)
+        : ''; // For pure registration workflows, do not surface MVIR/inspection UI at all.
     
     // Get verification status and auto-verification info
     const verifications = application.verifications || [];
@@ -2090,7 +2102,7 @@ function createApplicationRow(application) {
     }
     
     // Determine if approval should be disabled (allow admin override for now)
-    const canApprove = true; // Set to false to enforce strict requirement
+    const canApprove = true; // Approval is not blocked by MVIR for registration; transfer checks are enforced on backend.
     const approveButtonClass = canApprove ? 'btn-primary' : 'btn-secondary';
     const approveButtonDisabled = canApprove ? '' : 'disabled';
     const approveButtonTitle = canApprove ? 'Approve application' : 'Inspection required before approval';
@@ -2118,9 +2130,11 @@ function createApplicationRow(application) {
                     <button class="btn-secondary btn-sm" onclick="viewApplication('${application.id}')">
                         <i class="fas fa-eye"></i> View
                     </button>
-                    <button class="btn-info btn-sm" onclick="inspectVehicle('${vehicleId}')" title="${hasInspection ? 'View inspection details' : 'Perform vehicle inspection'}">
-                        <i class="fas fa-clipboard-check"></i> ${hasInspection ? 'View Inspection' : 'Inspect'}
-                    </button>
+                    ${isTransferWorkflow ? `
+                        <button class="btn-info btn-sm" onclick="inspectVehicle('${vehicleId}')" title="${hasInspection ? 'View inspection details' : 'Perform vehicle inspection'}">
+                            <i class="fas fa-clipboard-check"></i> ${hasInspection ? 'View Inspection' : 'Inspect'}
+                        </button>
+                    ` : ''}
                     ${vin ? `<button class="btn-info btn-sm" onclick="checkDataIntegrity('${vehicleId}', '${vin}')" title="Check Data Integrity">
                         <i class="fas fa-shield-alt"></i> Integrity
                     </button>` : ''}

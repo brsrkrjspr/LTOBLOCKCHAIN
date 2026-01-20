@@ -72,7 +72,8 @@ class ConfirmationDialog {
                 confirmText = 'Confirm',
                 cancelText = 'Cancel',
                 confirmColor = '#e74c3c',
-                type = 'warning'
+                type = 'warning',
+                html = false
             } = options;
             
             const modal = document.createElement('div');
@@ -94,19 +95,23 @@ class ConfirmationDialog {
             const icon = this.getDialogIcon(type);
             const iconColor = this.getIconColor(type);
             
+            // Use div for HTML messages, p for plain text
+            const messageTag = html ? 'div' : 'p';
+            const messageStyle = html ? 'margin: 0 0 2rem 0; text-align: left;' : 'margin: 0 0 2rem 0; color: #555; line-height: 1.6;';
+            
             modal.innerHTML = `
                 <div style="
                     background: white;
                     border-radius: 12px;
                     box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-                    max-width: 500px;
+                    max-width: ${html ? '600px' : '500px'};
                     width: 90%;
                     animation: slideUp 0.3s ease-out;
                 ">
-                    <div style="padding: 2rem; text-align: center;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem; color: ${iconColor};">${icon}</div>
-                        <h3 style="margin: 0 0 1rem 0; color: #2c3e50; font-size: 1.5rem;">${title}</h3>
-                        <p style="margin: 0 0 2rem 0; color: #555; line-height: 1.6;">${message}</p>
+                    <div style="padding: 2rem; ${html ? '' : 'text-align: center;'}">
+                        <div style="font-size: 3rem; margin-bottom: 1rem; color: ${iconColor}; ${html ? 'text-align: center;' : ''}">${icon}</div>
+                        <h3 style="margin: 0 0 1rem 0; color: #2c3e50; font-size: 1.5rem; ${html ? 'text-align: center;' : ''}">${title}</h3>
+                        <${messageTag} style="${messageStyle}">${message}</${messageTag}>
                         <div style="display: flex; gap: 1rem; justify-content: center;">
                             <button class="confirm-btn" style="
                                 padding: 0.75rem 2rem;

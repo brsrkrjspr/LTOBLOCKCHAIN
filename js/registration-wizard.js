@@ -108,7 +108,8 @@ function normalizeForComparison(value) {
 
 /**
  * Detect conflicts between final form values and OCR-extracted data.
- * Properly handles CSR and HPG certificate fields with correct field mappings.
+ * Properly handles CSR, HPG, and Owner ID certificate fields with correct field mappings.
+ * Compares the summarized review data (what will be submitted) with OCR data.
  * Only compares fields where OCR has a non-empty value.
  */
 function detectOcrConflicts() {
@@ -117,30 +118,34 @@ function detectOcrConflicts() {
     // Map: OCR key(s) -> HTML input id
     // CSR/HPG extract: series->model, yearModel->year, bodyType->vehicleType, grossWeight->grossVehicleWeight, netCapacity->netWeight
     const fieldMap = [
-        // Identifiers
-        { ocrKeys: ['vin'], htmlId: 'vin', label: 'VIN', priority: 'high' },
-        { ocrKeys: ['chassisNumber', 'vin'], htmlId: 'chassisNumber', label: 'Chassis / VIN', priority: 'high' },
-        { ocrKeys: ['plateNumber'], htmlId: 'plateNumber', label: 'Plate Number', priority: 'high' },
-        { ocrKeys: ['engineNumber'], htmlId: 'engineNumber', label: 'Engine Number', priority: 'high' },
+        // Vehicle Identifiers (from CSR, HPG)
+        { ocrKeys: ['vin'], htmlId: 'vin', label: 'VIN', priority: 'high', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] },
+        { ocrKeys: ['chassisNumber', 'vin'], htmlId: 'chassisNumber', label: 'Chassis / VIN', priority: 'high', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] },
+        { ocrKeys: ['plateNumber'], htmlId: 'plateNumber', label: 'Plate Number', priority: 'high', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] },
+        { ocrKeys: ['engineNumber'], htmlId: 'engineNumber', label: 'Engine Number', priority: 'high', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] },
         
-        // Descriptors
-        { ocrKeys: ['make'], htmlId: 'make', label: 'Make', priority: 'high' },
-        { ocrKeys: ['model', 'series'], htmlId: 'model', label: 'Model / Series', priority: 'high' }, // CSR extracts 'series' which maps to 'model'
-        { ocrKeys: ['year', 'yearModel'], htmlId: 'year', label: 'Year', priority: 'high' }, // CSR extracts 'yearModel' which maps to 'year'
-        { ocrKeys: ['vehicleType', 'bodyType'], htmlId: 'vehicleType', label: 'Vehicle Type', priority: 'medium' }, // CSR extracts 'bodyType' which maps to 'vehicleType'
-        { ocrKeys: ['color'], htmlId: 'color', label: 'Color', priority: 'medium' },
-        { ocrKeys: ['fuelType'], htmlId: 'fuelType', label: 'Fuel Type', isSelect: true, priority: 'medium' },
+        // Vehicle Descriptors (from CSR, HPG)
+        { ocrKeys: ['make'], htmlId: 'make', label: 'Make', priority: 'high', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] },
+        { ocrKeys: ['model', 'series'], htmlId: 'model', label: 'Model / Series', priority: 'high', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] }, // CSR extracts 'series' which maps to 'model'
+        { ocrKeys: ['year', 'yearModel'], htmlId: 'year', label: 'Year', priority: 'high', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] }, // CSR extracts 'yearModel' which maps to 'year'
+        { ocrKeys: ['vehicleType', 'bodyType'], htmlId: 'vehicleType', label: 'Vehicle Type', priority: 'medium', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] }, // CSR extracts 'bodyType' which maps to 'vehicleType'
+        { ocrKeys: ['color'], htmlId: 'color', label: 'Color', priority: 'medium', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] },
+        { ocrKeys: ['fuelType'], htmlId: 'fuelType', label: 'Fuel Type', isSelect: true, priority: 'medium', documentTypes: ['csr', 'hpg_clearance', 'certificateOfStockReport', 'hpgClearance', 'pnpHpgClearance'] },
         
-        // Weights
-        { ocrKeys: ['grossVehicleWeight', 'grossWeight'], htmlId: 'grossVehicleWeight', label: 'Gross Vehicle Weight', priority: 'medium' }, // CSR extracts 'grossWeight'
-        { ocrKeys: ['netWeight', 'netCapacity'], htmlId: 'netWeight', label: 'Net Weight', priority: 'medium' } // CSR extracts 'netCapacity'
+        // Vehicle Weights (from CSR, HPG)
+        { ocrKeys: ['grossVehicleWeight', 'grossWeight'], htmlId: 'grossVehicleWeight', label: 'Gross Vehicle Weight', priority: 'medium', documentTypes: ['csr', 'certificateOfStockReport'] }, // CSR extracts 'grossWeight'
+        { ocrKeys: ['netWeight', 'netCapacity'], htmlId: 'netWeight', label: 'Net Weight', priority: 'medium', documentTypes: ['csr', 'certificateOfStockReport'] }, // CSR extracts 'netCapacity'
+        
+        // Owner ID Fields (from Owner ID document)
+        { ocrKeys: ['idType'], htmlId: 'idType', label: 'ID Type', isSelect: true, priority: 'high', documentTypes: ['ownerValidId', 'owner_id', 'ownerId'] },
+        { ocrKeys: ['idNumber'], htmlId: 'idNumber', label: 'ID Number', priority: 'high', documentTypes: ['ownerValidId', 'owner_id', 'ownerId'] }
     ];
 
     console.log('[OCR Conflict Detection] Starting conflict detection...');
     console.log('[OCR Conflict Detection] Available OCR data keys:', Object.keys(storedOCRExtractedData));
     console.log('[OCR Conflict Detection] OCR data sources:', ocrDataSource);
 
-    fieldMap.forEach(({ ocrKeys, htmlId, label, isSelect, priority }) => {
+    fieldMap.forEach(({ ocrKeys, htmlId, label, isSelect, priority, documentTypes }) => {
         // Find the first OCR key that has a value
         let ocrValue = null;
         let ocrKeyUsed = null;
@@ -190,7 +195,23 @@ function detectOcrConflicts() {
         const normOcr = normalizeForComparison(ocrValue);
 
         // Get document source for this field
-        const documentSource = ocrDataSource[ocrKeyUsed] || 'uploaded document';
+        const documentSource = ocrDataSource[ocrKeyUsed] || null;
+        
+        // Only check conflicts if the field came from one of the expected document types
+        // This ensures we only compare against CSR, HPG, and Owner ID documents
+        if (documentTypes && documentSource) {
+            const sourceMatches = documentTypes.some(docType => {
+                const normalizedDocType = documentSource.toLowerCase().replace(/[_-]/g, '');
+                const normalizedExpected = docType.toLowerCase().replace(/[_-]/g, '');
+                return normalizedDocType.includes(normalizedExpected) || normalizedExpected.includes(normalizedDocType);
+            });
+            
+            if (!sourceMatches) {
+                console.log(`[OCR Conflict Detection] Skipping ${label} - source "${documentSource}" not in expected types: ${documentTypes.join(', ')}`);
+                return; // Skip fields from other document types
+            }
+        }
+        
         const documentTypeName = getDocumentTypeName(documentSource);
 
         console.log(`[OCR Conflict Detection] ${label}:`, {
@@ -200,7 +221,8 @@ function detectOcrConflicts() {
             normOcr: normOcr,
             normForm: normForm,
             match: normForm === normOcr,
-            source: documentSource
+            source: documentSource,
+            documentTypeName: documentTypeName
         });
 
         // If normalized values differ, treat as conflict
@@ -219,7 +241,8 @@ function detectOcrConflicts() {
                     formValue: formValue || '(blank)',
                     ocrValue: ocrValue || '(blank)',
                     documentSource: documentTypeName,
-                    priority: priority
+                    priority: priority,
+                    documentType: documentSource // Store original document type for grouping
                 });
                 console.log(`[OCR Conflict Detection] ⚠️ CONFLICT DETECTED: ${label} - Form: "${formValue}", ${documentTypeName}: "${ocrValue}"`);
             } else {
@@ -242,21 +265,40 @@ function detectOcrConflicts() {
  * Get user-friendly document type name
  */
 function getDocumentTypeName(documentType) {
+    if (!documentType) return 'uploaded document';
+    
+    const normalizedType = documentType.toLowerCase().replace(/[_-]/g, '');
     const typeMap = {
         'csr': 'CSR Certificate',
-        'certificateOfStockReport': 'CSR Certificate',
-        'certificate_of_stock_report': 'CSR Certificate',
-        'hpg_clearance': 'HPG Certificate',
-        'hpgClearance': 'HPG Certificate',
-        'pnpHpgClearance': 'HPG Certificate',
-        'registration_cert': 'Registration Certificate',
-        'registrationCert': 'Registration Certificate',
-        'or_cr': 'Registration Certificate',
-        'orCr': 'Registration Certificate',
-        'sales_invoice': 'Sales Invoice',
-        'salesInvoice': 'Sales Invoice'
+        'certificateofstockreport': 'CSR Certificate',
+        'hpgclearance': 'HPG Certificate',
+        'pnphpgclearance': 'HPG Certificate',
+        'hpg': 'HPG Certificate',
+        'ownerid': 'Owner ID',
+        'ownervalidid': 'Owner ID',
+        'owner_id': 'Owner ID',
+        'registrationcert': 'Registration Certificate',
+        'orcr': 'Registration Certificate',
+        'salesinvoice': 'Sales Invoice'
     };
-    return typeMap[documentType] || 'uploaded document';
+    
+    // Check exact match first
+    if (typeMap[normalizedType]) {
+        return typeMap[normalizedType];
+    }
+    
+    // Check partial matches
+    if (normalizedType.includes('csr') || normalizedType.includes('stock')) {
+        return 'CSR Certificate';
+    }
+    if (normalizedType.includes('hpg') || normalizedType.includes('clearance')) {
+        return 'HPG Certificate';
+    }
+    if (normalizedType.includes('owner') || normalizedType.includes('id')) {
+        return 'Owner ID';
+    }
+    
+    return 'uploaded document';
 }
 
 /**
@@ -283,25 +325,73 @@ async function checkOcrConflictsBeforeSubmit() {
             return true;
         }
 
-        const conflictLines = conflicts.map(c => {
-            const sourceInfo = c.documentSource ? ` (from ${c.documentSource})` : '';
-            return `• ${c.field}: Form = "${c.formValue}", Document = "${c.ocrValue}"${sourceInfo}`;
-        }).join('\n');
+        // Group conflicts by document type for clearer presentation
+        const conflictsByDocument = {};
+        conflicts.forEach(c => {
+            const docType = c.documentSource || 'Other Documents';
+            if (!conflictsByDocument[docType]) {
+                conflictsByDocument[docType] = [];
+            }
+            conflictsByDocument[docType].push(c);
+        });
 
-        const message =
-            'We detected differences between the values you entered and the values extracted from your uploaded documents:\n\n' +
-            conflictLines +
-            '\n\n⚠️ Important: If you continue, the information in the form will be used for registration. Please verify that your entered values are correct, especially for critical fields like VIN, Plate Number, Make, and Model.\n\n' +
-            'If the document values are correct, consider reviewing and updating your form fields before submitting.';
+        // Build conflict message grouped by document type (HTML format)
+        let conflictLinesHTML = '';
+        const documentOrder = ['CSR Certificate', 'HPG Certificate', 'Owner ID', 'Other Documents'];
+        
+        documentOrder.forEach(docType => {
+            if (conflictsByDocument[docType] && conflictsByDocument[docType].length > 0) {
+                conflictLinesHTML += `<div style="margin-bottom: 1rem;"><strong style="color: #2c3e50;">📄 ${docType}:</strong><ul style="margin-top: 0.5rem; margin-left: 1.5rem;">`;
+                conflictsByDocument[docType].forEach(c => {
+                    conflictLinesHTML += `<li style="margin-bottom: 0.5rem;"><strong>${c.field}:</strong> Your entry = "<span style="color: #e74c3c;">${c.formValue}</span>", Document = "<span style="color: #27ae60;">${c.ocrValue}</span>"</li>`;
+                });
+                conflictLinesHTML += '</ul></div>';
+            }
+        });
+
+        // If there are conflicts from other document types
+        Object.keys(conflictsByDocument).forEach(docType => {
+            if (!documentOrder.includes(docType) && conflictsByDocument[docType].length > 0) {
+                conflictLinesHTML += `<div style="margin-bottom: 1rem;"><strong style="color: #2c3e50;">📄 ${docType}:</strong><ul style="margin-top: 0.5rem; margin-left: 1.5rem;">`;
+                conflictsByDocument[docType].forEach(c => {
+                    conflictLinesHTML += `<li style="margin-bottom: 0.5rem;"><strong>${c.field}:</strong> Your entry = "<span style="color: #e74c3c;">${c.formValue}</span>", Document = "<span style="color: #27ae60;">${c.ocrValue}</span>"</li>`;
+                });
+                conflictLinesHTML += '</ul></div>';
+            }
+        });
+
+        // Format message with HTML for better readability
+        const message = `
+            <div style="text-align: left; line-height: 1.6; max-height: 60vh; overflow-y: auto;">
+                <p style="font-weight: bold; color: #e67e22; margin-bottom: 1rem; font-size: 1.1rem;">⚠️ DATA MISMATCH DETECTED</p>
+                <p style="margin-bottom: 1rem;">We found differences between the information you entered and the data extracted from your uploaded documents:</p>
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; border-left: 4px solid #e67e22;">
+                    ${conflictLinesHTML}
+                </div>
+                <p style="font-weight: bold; color: #e67e22; margin-top: 1rem; margin-bottom: 0.5rem;">⚠️ IMPORTANT:</p>
+                <ul style="margin-left: 1.5rem; margin-bottom: 1rem;">
+                    <li style="margin-bottom: 0.5rem;">The form values you entered will be used for registration if you proceed.</li>
+                    <li style="margin-bottom: 0.5rem;">Please verify that your entered values are correct, especially for:
+                        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li><strong>VIN / Chassis Number</strong></li>
+                            <li><strong>Plate Number</strong></li>
+                            <li><strong>Make and Model</strong></li>
+                            <li><strong>ID Type and ID Number</strong></li>
+                        </ul>
+                    </li>
+                </ul>
+                <p style="color: #555; font-size: 0.9rem; margin-top: 1rem;">If the document values are correct, please review and update your form fields before submitting.</p>
+            </div>
+        `;
 
         const confirmed = await ConfirmationDialog.show({
-            title: 'Confirm Data Differences',
+            title: '⚠️ Data Mismatch Warning',
             message: message,
             confirmText: 'Yes, use my entered values',
             cancelText: 'Go back and review',
             confirmColor: '#e67e22',
             type: 'warning',
-            html: false
+            html: true // Enable HTML formatting for better display
         });
 
         if (!confirmed) {

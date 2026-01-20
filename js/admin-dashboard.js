@@ -458,11 +458,8 @@ function getVerificationStatusIcon(status) {
     return iconMap[status] || 'fa-question-circle';
 }
 
-// View verification details - Shows modal with verification info (LTO cannot access org interfaces)
-function viewVerificationDetails(requestId, orgType) {
-    // LTO admin should NOT access org interfaces directly
-    // Instead, show a modal with the verification details
-    
+// View verification details - Shows modal with verification info including auto-verification results
+async function viewVerificationDetails(requestId, orgType) {
     const orgLabels = {
         'hpg': 'HPG Clearance',
         'insurance': 'Insurance Verification',
@@ -481,7 +478,7 @@ function viewVerificationDetails(requestId, orgType) {
         'emission': '#16a085'
     };
     
-    // Create and show modal
+    // Create and show modal with loading state
     const existingModal = document.getElementById('verificationDetailsModal');
     if (existingModal) existingModal.remove();
     
@@ -491,7 +488,7 @@ function viewVerificationDetails(requestId, orgType) {
     modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;';
     
     modal.innerHTML = `
-        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
             <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; gap: 1rem;">
                 <div style="background: ${orgColors[orgType]}; color: white; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                     <i class="fas ${orgIcons[orgType]}" style="font-size: 1.25rem;"></i>
@@ -503,38 +500,11 @@ function viewVerificationDetails(requestId, orgType) {
                 <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; color: #7f8c8d; cursor: pointer; padding: 0.25rem;">&times;</button>
             </div>
             <div class="modal-body" style="padding: 1.5rem;">
-                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                    <p style="margin: 0; color: #7f8c8d; font-size: 0.875rem;">
-                        <i class="fas fa-info-circle"></i> 
-                        This verification request was sent to <strong>${orgLabels[orgType]}</strong> for processing. 
-                        LTO can only view the status - the organization handles the verification process independently.
-                    </p>
+                <div id="verification-loading" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #667eea;"></i>
+                    <p style="margin-top: 1rem; color: #7f8c8d;">Loading verification details...</p>
                 </div>
-                
-                <div style="display: grid; gap: 1rem;">
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Request ID</label>
-                        <span style="font-weight: 600; color: #2c3e50;">${requestId}</span>
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Organization</label>
-                        <span style="font-weight: 600; color: ${orgColors[orgType]};">
-                            <i class="fas ${orgIcons[orgType]}"></i> ${orgLabels[orgType]}
-                        </span>
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Status</label>
-                        <span class="status-badge status-pending" style="font-weight: 600;">Awaiting Response</span>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e9ecef;">
-                    <p style="margin: 0; color: #7f8c8d; font-size: 0.875rem;">
-                        <i class="fas fa-lock"></i> 
-                        <strong>Note:</strong> LTO does not have access to organization interfaces. 
-                        Verification decisions are made independently by each organization.
-                    </p>
-                </div>
+                <div id="verification-content" style="display: none;"></div>
             </div>
             <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 2px solid #e9ecef; display: flex; justify-content: flex-end;">
                 <button onclick="this.closest('.modal').remove()" class="btn-secondary" style="padding: 0.75rem 1.5rem;">Close</button>
@@ -548,6 +518,660 @@ function viewVerificationDetails(requestId, orgType) {
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.remove();
+        }
+    });
+    
+    // Fetch verification details
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Get clearance request to find vehicle_id
+        let requestEndpoint = '';
+        if (orgType === 'insurance') {
+            requestEndpoint = `/api/insurance/requests/${requestId}`;
+        } else if (orgType === 'emission') {
+            requestEndpoint = `/api/emission/requests/${requestId}`;
+        } else {
+            requestEndpoint = `/api/hpg/requests/${requestId}`;
+        }
+        
+        const requestResponse = await apiClient.get(requestEndpoint);
+        if (!requestResponse.success || !requestResponse.request) {
+            throw new Error('Failed to fetch request details');
+        }
+        
+        const request = requestResponse.request;
+        const vehicleId = request.vehicle_id;
+        
+        // Get vehicle verifications to find auto-verification results
+        const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
+        if (!vehicleResponse.success || !vehicleResponse.vehicle) {
+            throw new Error('Failed to fetch vehicle details');
+        }
+        
+        const vehicle = vehicleResponse.vehicle;
+        const verifications = vehicle.verifications || [];
+        
+        // Find the relevant verification (insurance or emission)
+        const verificationType = orgType === 'hpg' ? 'hpg' : orgType;
+        const verification = verifications.find(v => v.verification_type === verificationType);
+        
+        // Build content HTML
+        let contentHTML = '';
+        
+        // Basic request info
+        contentHTML += `
+            <div style="display: grid; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Request ID</label>
+                    <span style="font-weight: 600; color: #2c3e50;">${requestId}</span>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Organization</label>
+                    <span style="font-weight: 600; color: ${orgColors[orgType]};">
+                        <i class="fas ${orgIcons[orgType]}"></i> ${orgLabels[orgType]}
+                    </span>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; margin-bottom: 0.25rem;">Status</label>
+                    <span class="status-badge status-${(request.status || 'PENDING').toLowerCase()}" style="font-weight: 600;">${request.status || 'PENDING'}</span>
+                </div>
+            </div>
+        `;
+        
+        // Display auto-verification results if available
+        // Handle both verification_metadata (from DB) and metadata.verificationMetadata structures
+        let verificationMetadata = null;
+        if (verification) {
+            // Try verification_metadata column (direct from DB - may be JSON string)
+            if (verification.verification_metadata) {
+                try {
+                    verificationMetadata = typeof verification.verification_metadata === 'string' 
+                        ? JSON.parse(verification.verification_metadata) 
+                        : verification.verification_metadata;
+                } catch (e) {
+                    console.warn('Failed to parse verification_metadata:', e);
+                }
+            }
+            // Try metadata.verificationMetadata (nested structure)
+            if (!verificationMetadata && verification.metadata) {
+                const metadata = typeof verification.metadata === 'string' 
+                    ? JSON.parse(verification.metadata) 
+                    : verification.metadata;
+                if (metadata && metadata.verificationMetadata) {
+                    verificationMetadata = metadata.verificationMetadata;
+                }
+            }
+        }
+        
+        if (verificationMetadata) {
+            const metadata = verificationMetadata;
+            const isAutoVerified = metadata.autoVerified === true;
+            const verificationResult = metadata.verificationResult || (verification.status === 'APPROVED' ? 'PASSED' : 'FAILED');
+            const verificationScore = metadata.verificationScore?.percentage || metadata.verificationScore || verification.verification_score || 0;
+            const flagReasons = metadata.flagReasons || [];
+            
+            if (isAutoVerified) {
+                contentHTML += `
+                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${verificationResult === 'PASSED' ? '#27ae60' : '#e67e22'};">
+                        <h4 style="margin: 0 0 0.75rem 0; color: #2c3e50; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-robot" style="color: ${orgColors[orgType]};"></i>
+                            Auto-Verification Results
+                        </h4>
+                        <div style="display: grid; gap: 0.75rem;">
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.25rem;">Result</label>
+                                <span style="font-weight: 600; color: ${verificationResult === 'PASSED' ? '#27ae60' : '#e67e22'};">
+                                    ${verificationResult === 'PASSED' ? '✓ PASSED' : '⚠ FAILED'}
+                                </span>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.25rem;">Verification Score</label>
+                                <span style="font-weight: 600; color: #2c3e50;">${verificationScore}%</span>
+                            </div>
+                `;
+                
+                // Show flag reasons if verification failed
+                if (flagReasons.length > 0) {
+                    contentHTML += `
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.25rem;">Issues Detected</label>
+                                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; color: #e67e22;">
+                                    ${flagReasons.map(reason => `<li style="margin-bottom: 0.25rem;">${reason}</li>`).join('')}
+                                </ul>
+                            </div>
+                    `;
+                }
+                
+                // Show detailed checks if available
+                if (metadata.patternCheck || metadata.authenticityCheck || metadata.hashCheck || metadata.expiryCheck) {
+                    contentHTML += `
+                            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e9ecef;">
+                                <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.5rem; font-weight: 600;">Verification Checks</label>
+                                <div style="display: grid; gap: 0.5rem; font-size: 0.875rem;">
+                    `;
+                    
+                    if (metadata.patternCheck) {
+                        const isValid = metadata.patternCheck.valid !== false;
+                        contentHTML += `
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span>Pattern Validation</span>
+                                        <span style="color: ${isValid ? '#27ae60' : '#e74c3c'};">
+                                            ${isValid ? '✓ Valid' : '✗ Invalid'} 
+                                            ${!isValid && metadata.patternCheck.reason ? `(${metadata.patternCheck.reason})` : ''}
+                                        </span>
+                                    </div>
+                        `;
+                    }
+                    
+                    if (metadata.authenticityCheck) {
+                        const isAuthentic = metadata.authenticityCheck.authentic !== false;
+                        contentHTML += `
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span>Certificate Authenticity</span>
+                                        <span style="color: ${isAuthentic ? '#27ae60' : '#e74c3c'};">
+                                            ${isAuthentic ? '✓ Authentic' : '✗ Failed'}
+                                        </span>
+                                    </div>
+                        `;
+                    }
+                    
+                    if (metadata.hashCheck) {
+                        const isUnique = !metadata.hashCheck.exists;
+                        contentHTML += `
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span>Document Uniqueness</span>
+                                        <span style="color: ${isUnique ? '#27ae60' : '#e74c3c'};">
+                                            ${isUnique ? '✓ Unique' : '✗ Duplicate'}
+                                        </span>
+                                    </div>
+                        `;
+                    }
+                    
+                    if (metadata.expiryCheck) {
+                        const isValid = metadata.expiryCheck.isValid !== false;
+                        contentHTML += `
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span>Expiry Date</span>
+                                        <span style="color: ${isValid ? '#27ae60' : '#e74c3c'};">
+                                            ${isValid ? '✓ Valid' : '✗ Expired'}
+                                        </span>
+                                    </div>
+                        `;
+                    }
+                    
+                    // Emission-specific: compliance check
+                    if (metadata.complianceCheck && orgType === 'emission') {
+                        const isCompliant = metadata.complianceCheck.allCompliant !== false;
+                        contentHTML += `
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span>Test Compliance</span>
+                                        <span style="color: ${isCompliant ? '#27ae60' : '#e74c3c'};">
+                                            ${isCompliant ? '✓ Compliant' : '✗ Non-Compliant'}
+                                        </span>
+                                    </div>
+                        `;
+                    }
+                    
+                    contentHTML += `
+                                </div>
+                            </div>
+                    `;
+                }
+                
+                contentHTML += `
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Add View Remarks button for HPG if remarks are available
+        let hasHpgRemarks = false;
+        let hpgRemarksData = null;
+        if (orgType === 'hpg' && verification && verification.notes) {
+            const hpgNotes = verification.notes.trim();
+            if (hpgNotes) {
+                hasHpgRemarks = true;
+                hpgRemarksData = {
+                    notes: hpgNotes,
+                    verifiedAt: verification.verified_at,
+                    verifierName: verification.verifier_name
+                };
+            }
+        }
+        
+        // Check if Manual Verify button should be shown (for insurance/emission only)
+        let showManualVerify = false;
+        let manualVerifyData = null;
+        if ((orgType === 'insurance' || orgType === 'emission') && verification) {
+            const isPending = verification.status === 'PENDING';
+            const isAutoVerified = verificationMetadata && verificationMetadata.autoVerified === true;
+            const hasFailed = verificationMetadata && (
+                verificationMetadata.verificationResult === 'FAILED' || 
+                (verificationMetadata.flagReasons && verificationMetadata.flagReasons.length > 0)
+            );
+            
+            if (isPending && isAutoVerified && hasFailed) {
+                showManualVerify = true;
+                manualVerifyData = {
+                    vehicleId: vehicleId,
+                    requestId: requestId,
+                    verificationType: orgType,
+                    verification: verification,
+                    verificationMetadata: verificationMetadata,
+                    vehicle: vehicle,
+                    request: request
+                };
+            }
+        }
+        
+        // Add action buttons section
+        if (hasHpgRemarks || showManualVerify || verification) {
+            contentHTML += `
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e9ecef;">
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            `;
+            
+            if (hasHpgRemarks) {
+                contentHTML += `
+                        <button id="viewHpgRemarksBtn" class="btn-secondary" style="padding: 0.75rem 1.5rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-comment-alt"></i> View Remarks
+                        </button>
+                `;
+            }
+            
+            if (showManualVerify) {
+                contentHTML += `
+                        <button id="manualVerifyBtn" class="btn-primary" style="padding: 0.75rem 1.5rem; display: inline-flex; align-items: center; gap: 0.5rem; background: #ff9800; border-color: #ff9800;">
+                            <i class="fas fa-user-check"></i> Manual Verify
+                        </button>
+                `;
+            }
+            
+            contentHTML += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show note if no auto-verification results and no HPG remarks
+        if (!verificationMetadata && !hasHpgRemarks) {
+            contentHTML += `
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <p style="margin: 0; color: #7f8c8d; font-size: 0.875rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        This verification request was sent to <strong>${orgLabels[orgType]}</strong> for processing. 
+                        ${orgType === 'hpg' ? 'LTO can only view the status - the organization handles the verification process independently.' : 'Auto-verification results will be displayed here once available.'}
+                    </p>
+                </div>
+            `;
+        }
+        
+        // Update modal content
+        document.getElementById('verification-loading').style.display = 'none';
+        document.getElementById('verification-content').style.display = 'block';
+        document.getElementById('verification-content').innerHTML = contentHTML;
+        
+        // Add click handler for View Remarks button
+        if (hasHpgRemarks && hpgRemarksData) {
+            const viewRemarksBtn = document.getElementById('viewHpgRemarksBtn');
+            if (viewRemarksBtn) {
+                viewRemarksBtn.addEventListener('click', function() {
+                    showHpgRemarksModal(hpgRemarksData, orgLabels[orgType], orgColors[orgType], orgIcons[orgType]);
+                });
+            }
+        }
+        
+        // Add click handler for Manual Verify button
+        if (showManualVerify && manualVerifyData) {
+            const manualVerifyBtn = document.getElementById('manualVerifyBtn');
+            if (manualVerifyBtn) {
+                manualVerifyBtn.addEventListener('click', function() {
+                    showManualVerificationModal(manualVerifyData, orgLabels[orgType], orgColors[orgType], orgIcons[orgType]);
+                });
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading verification details:', error);
+        document.getElementById('verification-loading').innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #e74c3c;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
+                <p style="margin-top: 1rem;">Failed to load verification details: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Show Manual Verification Modal
+function showManualVerificationModal(verifyData, orgLabel, orgColor, orgIcon) {
+    const existingModal = document.getElementById('manualVerificationModal');
+    if (existingModal) existingModal.remove();
+    
+    const { vehicleId, requestId, verificationType, verification, verificationMetadata, vehicle, request } = verifyData;
+    const metadata = verificationMetadata || {};
+    const flagReasons = metadata.flagReasons || [];
+    const verificationScore = metadata.verificationScore?.percentage || metadata.verificationScore || verification.verification_score || 0;
+    const verificationResult = metadata.verificationResult || 'FAILED';
+    
+    // Get document for viewing
+    const documents = vehicle.documents || [];
+    const docType = verificationType === 'insurance' ? 'insurance' : 'emission';
+    const document = documents.find(d => d.document_type === docType);
+    
+    const modal = document.createElement('div');
+    modal.id = 'manualVerificationModal';
+    modal.className = 'modal';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10002; align-items: center; justify-content: center;';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 1200px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; gap: 1rem;">
+                <div style="background: ${orgColor}; color: white; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas ${orgIcon}" style="font-size: 1.25rem;"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="margin: 0; font-size: 1.25rem; color: #2c3e50;">Manual Verification - ${orgLabel}</h3>
+                    <small style="color: #7f8c8d;">Review auto-verification results and make manual decision</small>
+                </div>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; color: #7f8c8d; cursor: pointer; padding: 0.25rem;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <!-- Left Panel: Auto-Verification Results -->
+                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22;">
+                        <h4 style="margin: 0 0 1rem 0; color: #2c3e50; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-robot" style="color: ${orgColor};"></i>
+                            Auto-Verification Results
+                        </h4>
+                        <div style="display: grid; gap: 0.75rem; font-size: 0.875rem;">
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.25rem;">Result</label>
+                                <span style="font-weight: 600; color: #e67e22;">⚠ FAILED</span>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.25rem;">Verification Score</label>
+                                <span style="font-weight: 600; color: #2c3e50;">${verificationScore}%</span>
+                            </div>
+                            ${flagReasons.length > 0 ? `
+                                <div>
+                                    <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.25rem;">Issues Detected</label>
+                                    <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; color: #e67e22; font-size: 0.875rem;">
+                                        ${flagReasons.map(reason => `<li style="margin-bottom: 0.25rem;">${reason}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            ${metadata.patternCheck || metadata.authenticityCheck || metadata.hashCheck || metadata.expiryCheck ? `
+                                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e9ecef;">
+                                    <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.5rem; font-weight: 600;">Verification Checks</label>
+                                    <div style="display: grid; gap: 0.5rem; font-size: 0.875rem;">
+                                        ${metadata.patternCheck ? `
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span>Pattern Validation</span>
+                                                <span style="color: ${metadata.patternCheck.valid !== false ? '#27ae60' : '#e74c3c'};">
+                                                    ${metadata.patternCheck.valid !== false ? '✓ Valid' : '✗ Invalid'}
+                                                </span>
+                                            </div>
+                                        ` : ''}
+                                        ${metadata.authenticityCheck ? `
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span>Certificate Authenticity</span>
+                                                <span style="color: ${metadata.authenticityCheck.authentic !== false ? '#27ae60' : '#e74c3c'};">
+                                                    ${metadata.authenticityCheck.authentic !== false ? '✓ Authentic' : '✗ Failed'}
+                                                </span>
+                                            </div>
+                                        ` : ''}
+                                        ${metadata.hashCheck ? `
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span>Document Uniqueness</span>
+                                                <span style="color: ${!metadata.hashCheck.exists ? '#27ae60' : '#e74c3c'};">
+                                                    ${!metadata.hashCheck.exists ? '✓ Unique' : '✗ Duplicate'}
+                                                </span>
+                                            </div>
+                                        ` : ''}
+                                        ${metadata.expiryCheck ? `
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span>Expiry Date</span>
+                                                <span style="color: ${metadata.expiryCheck.isValid !== false ? '#27ae60' : '#e74c3c'};">
+                                                    ${metadata.expiryCheck.isValid !== false ? '✓ Valid' : '✗ Expired'}
+                                                </span>
+                                            </div>
+                                        ` : ''}
+                                        ${metadata.complianceCheck && verificationType === 'emission' ? `
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span>Test Compliance</span>
+                                                <span style="color: ${metadata.complianceCheck.allCompliant !== false ? '#27ae60' : '#e74c3c'};">
+                                                    ${metadata.complianceCheck.allCompliant !== false ? '✓ Compliant' : '✗ Non-Compliant'}
+                                                </span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Right Panel: Manual Review -->
+                    <div>
+                        <h4 style="margin: 0 0 1rem 0; color: #2c3e50;">Manual Review</h4>
+                        
+                        <!-- Document Viewer -->
+                        ${document ? `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                                <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.5rem;">Document</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <i class="fas fa-file-pdf" style="color: #e74c3c;"></i>
+                                    <span style="flex: 1;">${document.file_name || document.fileName || 'Document'}</span>
+                                    ${document.file_path || document.filePath ? `
+                                        <a href="/api/documents/${document.id}/download" target="_blank" class="btn-secondary btn-sm" style="padding: 0.5rem 1rem;">
+                                            <i class="fas fa-download"></i> View
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #ffc107;">
+                                <p style="margin: 0; color: #856404; font-size: 0.875rem;">
+                                    <i class="fas fa-exclamation-triangle"></i> Document not found or not available.
+                                </p>
+                            </div>
+                        `}
+                        
+                        <!-- Manual Decision Form -->
+                        <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid #e9ecef;">
+                            <form id="manualVerificationForm">
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #2c3e50; margin-bottom: 0.75rem;">Decision</label>
+                                    <div style="display: flex; gap: 1rem;">
+                                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                            <input type="radio" name="decision" value="APPROVED" style="cursor: pointer;">
+                                            <span style="color: #27ae60; font-weight: 600;">
+                                                <i class="fas fa-check-circle"></i> Approve
+                                            </span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                            <input type="radio" name="decision" value="REJECTED" style="cursor: pointer;" checked>
+                                            <span style="color: #e74c3c; font-weight: 600;">
+                                                <i class="fas fa-times-circle"></i> Reject
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label for="manualNotes" style="display: block; font-size: 0.875rem; font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">
+                                        Notes / Reason <span id="notesRequired" style="color: #e74c3c;">*</span>
+                                    </label>
+                                    <textarea id="manualNotes" name="notes" rows="4" style="width: 100%; padding: 0.75rem; border: 1px solid #ced4da; border-radius: 4px; font-family: inherit; font-size: 0.875rem;" placeholder="Enter your review notes or reason for rejection..."></textarea>
+                                    <small style="color: #7f8c8d; font-size: 0.75rem;">Required for rejection, optional for approval</small>
+                                </div>
+                                
+                                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                    <button type="button" onclick="this.closest('.modal').remove()" class="btn-secondary" style="padding: 0.75rem 1.5rem;">Cancel</button>
+                                    <button type="submit" class="btn-primary" style="padding: 0.75rem 1.5rem; background: ${orgColor}; border-color: ${orgColor};">
+                                        <i class="fas fa-check"></i> Submit Manual Verification
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close on backdrop click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    // Handle form validation and submission
+    const form = document.getElementById('manualVerificationForm');
+    const decisionRadios = form.querySelectorAll('input[name="decision"]');
+    const notesTextarea = document.getElementById('manualNotes');
+    const notesRequired = document.getElementById('notesRequired');
+    
+    // Update required indicator based on decision
+    decisionRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'REJECTED') {
+                notesRequired.style.display = 'inline';
+                notesTextarea.setAttribute('required', 'required');
+            } else {
+                notesRequired.style.display = 'none';
+                notesTextarea.removeAttribute('required');
+            }
+        });
+    });
+    
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const decision = form.querySelector('input[name="decision"]:checked').value;
+        const notes = notesTextarea.value.trim();
+        
+        // Validate notes for rejection
+        if (decision === 'REJECTED' && !notes) {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Notes are required for rejection', 'error');
+            } else {
+                alert('Notes are required for rejection');
+            }
+            return;
+        }
+        
+        // Submit manual verification
+        await submitManualVerification(vehicleId, requestId, verificationType, decision, notes || null);
+    });
+}
+
+// Submit Manual Verification
+async function submitManualVerification(vehicleId, requestId, verificationType, decision, notes) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Call API endpoint
+        const response = await apiClient.post('/api/admin/verifications/manual-verify', {
+            vehicleId: vehicleId,
+            requestId: requestId,
+            verificationType: verificationType,
+            decision: decision,
+            notes: notes
+        });
+        
+        if (response.success) {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show(`${verificationType === 'insurance' ? 'Insurance' : 'Emission'} verification ${decision.toLowerCase()} successfully`, 'success');
+            }
+            
+            // Close modal
+            const modal = document.getElementById('manualVerificationModal');
+            if (modal) modal.remove();
+            
+            // Refresh verification details if modal is still open
+            const detailsModal = document.getElementById('verificationDetailsModal');
+            if (detailsModal) {
+                // Trigger refresh by re-opening the details modal
+                const orgType = verificationType;
+                setTimeout(() => {
+                    viewVerificationDetails(requestId, orgType);
+                }, 500);
+            }
+        } else {
+            throw new Error(response.error || 'Failed to submit manual verification');
+        }
+    } catch (error) {
+        console.error('Error submitting manual verification:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Failed to submit manual verification: ${error.message}`, 'error');
+        } else {
+            alert(`Failed to submit manual verification: ${error.message}`);
+        }
+    }
+}
+
+// Show HPG Remarks Modal
+function showHpgRemarksModal(remarksData, orgLabel, orgColor, orgIcon) {
+    const existingRemarksModal = document.getElementById('hpgRemarksModal');
+    if (existingRemarksModal) existingRemarksModal.remove();
+    
+    const remarksModal = document.createElement('div');
+    remarksModal.id = 'hpgRemarksModal';
+    remarksModal.className = 'modal';
+    remarksModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; align-items: center; justify-content: center;';
+    
+    remarksModal.innerHTML = `
+        <div class="modal-content" style="background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; gap: 1rem;">
+                <div style="background: ${orgColor}; color: white; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas ${orgIcon}" style="font-size: 1.25rem;"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="margin: 0; font-size: 1.25rem; color: #2c3e50;">${orgLabel} Remarks</h3>
+                    <small style="color: #7f8c8d;">Verification comments and findings</small>
+                </div>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; color: #7f8c8d; cursor: pointer; padding: 0.25rem;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 1rem;">
+                    <div style="background: white; padding: 1rem; border-radius: 4px; color: #2c3e50; white-space: pre-wrap; word-wrap: break-word; min-height: 100px; max-height: 400px; overflow-y: auto;">
+                        ${remarksData.notes}
+                    </div>
+                </div>
+                
+                <div style="display: grid; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid #e9ecef;">
+                    ${remarksData.verifiedAt ? `
+                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #7f8c8d; font-size: 0.875rem;">
+                            <i class="fas fa-clock"></i>
+                            <span><strong>Verified:</strong> ${new Date(remarksData.verifiedAt).toLocaleString()}</span>
+                        </div>
+                    ` : ''}
+                    ${remarksData.verifierName ? `
+                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #7f8c8d; font-size: 0.875rem;">
+                            <i class="fas fa-user"></i>
+                            <span><strong>Verified by:</strong> ${remarksData.verifierName}</span>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 2px solid #e9ecef; display: flex; justify-content: flex-end;">
+                <button onclick="this.closest('.modal').remove()" class="btn-secondary" style="padding: 0.75rem 1.5rem;">Close</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(remarksModal);
+    
+    // Close on backdrop click
+    remarksModal.addEventListener('click', function(e) {
+        if (e.target === remarksModal) {
+            remarksModal.remove();
         }
     });
 }

@@ -50,32 +50,42 @@ class AutoVerificationService {
             const policyNumber = ocrData.insurancePolicyNumber || ocrData.policyNumber;
             if (!policyNumber) {
                 const reason = 'Policy number not found in document';
-                console.warn('[Auto-Verify] Insurance auto-reject: ', reason);
+                console.warn('[Auto-Verify] Insurance verification issue: ', reason);
 
                 const systemUserId = 'system';
+                // Set to PENDING instead of REJECTED, store results in metadata
                 await db.updateVerificationStatus(
                     vehicleId,
                     'insurance',
-                    'REJECTED',
+                    'PENDING',
                     systemUserId,
-                    `Auto-rejected: ${reason}`,
+                    `Auto-verification completed with issues: ${reason}`,
                     {
                         automated: true,
                         verificationScore: 0,
                         verificationMetadata: {
                             ocrData,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
                             reason,
-                            rejectedAt: new Date().toISOString()
+                            flagReasons: [reason],
+                            verifiedAt: new Date().toISOString(),
+                            patternCheck: { valid: false, reason },
+                            authenticityCheck: null,
+                            hashCheck: null,
+                            expiryCheck: null
                         }
                     }
                 );
 
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
                     reason,
                     confidence: 0,
-                    ocrData
+                    ocrData,
+                    verificationResult: 'FAILED',
+                    flagReasons: [reason]
                 };
             }
 
@@ -85,34 +95,43 @@ class AutoVerificationService {
 
             if (!patternCheck.valid) {
                 const reason = `Invalid policy number format: ${patternCheck.reason}`;
-                console.warn('[Auto-Verify] Insurance auto-reject (pattern): ', reason);
+                console.warn('[Auto-Verify] Insurance verification issue (pattern): ', reason);
 
                 const systemUserId = 'system';
+                // Set to PENDING instead of REJECTED, store results in metadata
                 await db.updateVerificationStatus(
                     vehicleId,
                     'insurance',
-                    'REJECTED',
+                    'PENDING',
                     systemUserId,
-                    `Auto-rejected: ${reason}`,
+                    `Auto-verification completed with issues: ${reason}`,
                     {
                         automated: true,
                         verificationScore: 0,
                         verificationMetadata: {
                             ocrData,
-                            patternCheck,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
                             reason,
-                            rejectedAt: new Date().toISOString()
+                            flagReasons: [reason],
+                            verifiedAt: new Date().toISOString(),
+                            patternCheck,
+                            authenticityCheck: null,
+                            hashCheck: null,
+                            expiryCheck: null
                         }
                     }
                 );
 
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
                     reason,
                     confidence: 0,
                     ocrData,
-                    patternCheck
+                    patternCheck,
+                    verificationResult: 'FAILED',
+                    flagReasons: [reason]
                 };
             }
 
@@ -153,12 +172,43 @@ class AutoVerificationService {
             console.log(`[Auto-Verify] Hash duplicate check:`, hashCheck);
 
             if (hashCheck.exists) {
+                // Duplicate detected - set to PENDING with results stored
+                const reason = `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`;
+                console.warn('[Auto-Verify] Insurance duplicate detected: ', reason);
+                
+                const systemUserId = 'system';
+                await db.updateVerificationStatus(
+                    vehicleId,
+                    'insurance',
+                    'PENDING',
+                    systemUserId,
+                    `Auto-verification completed with critical issue: ${reason}`,
+                    {
+                        automated: true,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            ocrData,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
+                            reason,
+                            flagReasons: [reason],
+                            verifiedAt: new Date().toISOString(),
+                            patternCheck: patternCheck.valid ? patternCheck : null,
+                            authenticityCheck: null,
+                            hashCheck,
+                            expiryCheck: null
+                        }
+                    }
+                );
+                
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
-                    reason: `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`,
+                    reason,
                     confidence: 0,
-                    hashCheck
+                    hashCheck,
+                    verificationResult: 'FAILED',
+                    flagReasons: [reason]
                 };
             }
 
@@ -241,7 +291,7 @@ class AutoVerificationService {
                     blockchainTxId
                 };
             } else {
-                // Clearly invalid / low-confidence → auto-reject
+                // Clearly invalid / low-confidence → set to PENDING with results stored
                 const reasons = [];
                 if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
                 if (!authenticityCheck.authentic) reasons.push(`Certificate authenticity failed: ${authenticityCheck.reason}`);
@@ -250,33 +300,37 @@ class AutoVerificationService {
                 if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
 
                 const reason = reasons.join(', ') || 'Auto-verification failed checks';
-                console.warn('[Auto-Verify] Insurance auto-reject (score/other): ', reason);
+                console.warn('[Auto-Verify] Insurance verification issues detected: ', reason);
 
                 const systemUserId = 'system';
+                // Set to PENDING instead of REJECTED, store all verification results
                 await db.updateVerificationStatus(
                     vehicleId,
                     'insurance',
-                    'REJECTED',
+                    'PENDING',
                     systemUserId,
-                    `Auto-rejected: ${reason}`,
+                    `Auto-verification completed with issues: ${reason}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
                         verificationMetadata: {
                             ocrData,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
                             patternCheck,
                             hashCheck,
                             expiryCheck,
                             authenticityCheck,
                             verificationScore,
-                            rejectedAt: new Date().toISOString(),
-                            flagReasons: reasons
+                            verifiedAt: new Date().toISOString(),
+                            flagReasons: reasons,
+                            policyNumber: policyNumber
                         }
                     }
                 );
 
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
                     reason,
                     confidence: verificationScore.percentage / 100,
@@ -285,7 +339,9 @@ class AutoVerificationService {
                     ocrData,
                     patternCheck,
                     hashCheck,
-                    authenticityCheck
+                    authenticityCheck,
+                    verificationResult: 'FAILED',
+                    flagReasons: reasons
                 };
             }
         } catch (error) {
@@ -332,32 +388,43 @@ class AutoVerificationService {
             const certificateNumber = ocrData.certificateNumber || ocrData.certificateRefNumber || ocrData.certRefNumber;
             if (!certificateNumber) {
                 const reason = 'Certificate number not found in document';
-                console.warn('[Auto-Verify] Emission auto-reject: ', reason);
+                console.warn('[Auto-Verify] Emission verification issue: ', reason);
 
                 const systemUserId = 'system';
+                // Set to PENDING instead of REJECTED, store results in metadata
                 await db.updateVerificationStatus(
                     vehicleId,
                     'emission',
-                    'REJECTED',
+                    'PENDING',
                     systemUserId,
-                    `Auto-rejected: ${reason}`,
+                    `Auto-verification completed with issues: ${reason}`,
                     {
                         automated: true,
                         verificationScore: 0,
                         verificationMetadata: {
                             ocrData,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
                             reason,
-                            rejectedAt: new Date().toISOString()
+                            flagReasons: [reason],
+                            verifiedAt: new Date().toISOString(),
+                            patternCheck: { valid: false, reason },
+                            authenticityCheck: null,
+                            hashCheck: null,
+                            expiryCheck: null,
+                            complianceCheck: null
                         }
                     }
                 );
 
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
                     reason,
                     confidence: 0,
-                    ocrData
+                    ocrData,
+                    verificationResult: 'FAILED',
+                    flagReasons: [reason]
                 };
             }
 
@@ -367,34 +434,44 @@ class AutoVerificationService {
 
             if (!patternCheck.valid) {
                 const reason = `Invalid certificate number format: ${patternCheck.reason}`;
-                console.warn('[Auto-Verify] Emission auto-reject (pattern): ', reason);
+                console.warn('[Auto-Verify] Emission verification issue (pattern): ', reason);
 
                 const systemUserId = 'system';
+                // Set to PENDING instead of REJECTED, store results in metadata
                 await db.updateVerificationStatus(
                     vehicleId,
                     'emission',
-                    'REJECTED',
+                    'PENDING',
                     systemUserId,
-                    `Auto-rejected: ${reason}`,
+                    `Auto-verification completed with issues: ${reason}`,
                     {
                         automated: true,
                         verificationScore: 0,
                         verificationMetadata: {
                             ocrData,
-                            patternCheck,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
                             reason,
-                            rejectedAt: new Date().toISOString()
+                            flagReasons: [reason],
+                            verifiedAt: new Date().toISOString(),
+                            patternCheck,
+                            authenticityCheck: null,
+                            hashCheck: null,
+                            expiryCheck: null,
+                            complianceCheck: null
                         }
                     }
                 );
 
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
                     reason,
                     confidence: 0,
                     ocrData,
-                    patternCheck
+                    patternCheck,
+                    verificationResult: 'FAILED',
+                    flagReasons: [reason]
                 };
             }
 
@@ -445,12 +522,44 @@ class AutoVerificationService {
             console.log(`[Auto-Verify] Hash duplicate check:`, hashCheck);
 
             if (hashCheck.exists) {
+                // Duplicate detected - set to PENDING with results stored
+                const reason = `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`;
+                console.warn('[Auto-Verify] Emission duplicate detected: ', reason);
+                
+                const systemUserId = 'system';
+                await db.updateVerificationStatus(
+                    vehicleId,
+                    'emission',
+                    'PENDING',
+                    systemUserId,
+                    `Auto-verification completed with critical issue: ${reason}`,
+                    {
+                        automated: true,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            ocrData,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
+                            reason,
+                            flagReasons: [reason],
+                            verifiedAt: new Date().toISOString(),
+                            patternCheck: patternCheck.valid ? patternCheck : null,
+                            authenticityCheck: null,
+                            hashCheck,
+                            expiryCheck: null,
+                            complianceCheck: null
+                        }
+                    }
+                );
+                
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
-                    reason: `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`,
+                    reason,
                     confidence: 0,
-                    hashCheck
+                    hashCheck,
+                    verificationResult: 'FAILED',
+                    flagReasons: [reason]
                 };
             }
 
@@ -535,7 +644,7 @@ class AutoVerificationService {
                     blockchainTxId
                 };
             } else {
-                // Clearly invalid / low-confidence → auto-reject
+                // Clearly invalid / low-confidence → set to PENDING with results stored
                 const reasons = [];
                 if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
                 if (!authenticityCheck.authentic) reasons.push(`Certificate authenticity failed: ${authenticityCheck.reason}`);
@@ -545,34 +654,38 @@ class AutoVerificationService {
                 if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
 
                 const reason = reasons.join(', ') || 'Auto-verification failed checks';
-                console.warn('[Auto-Verify] Emission auto-reject (score/other): ', reason);
+                console.warn('[Auto-Verify] Emission verification issues detected: ', reason);
 
                 const systemUserId = 'system';
+                // Set to PENDING instead of REJECTED, store all verification results
                 await db.updateVerificationStatus(
                     vehicleId,
                     'emission',
-                    'REJECTED',
+                    'PENDING',
                     systemUserId,
-                    `Auto-rejected: ${reason}`,
+                    `Auto-verification completed with issues: ${reason}`,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
                         verificationMetadata: {
                             ocrData,
+                            autoVerified: true,
+                            verificationResult: 'FAILED',
                             patternCheck,
                             hashCheck,
                             expiryCheck,
                             complianceCheck,
                             authenticityCheck,
                             verificationScore,
-                            rejectedAt: new Date().toISOString(),
-                            flagReasons: reasons
+                            verifiedAt: new Date().toISOString(),
+                            flagReasons: reasons,
+                            certificateNumber: certificateNumber
                         }
                     }
                 );
 
                 return {
-                    status: 'REJECTED',
+                    status: 'PENDING',
                     automated: true,
                     reason,
                     confidence: verificationScore.percentage / 100,
@@ -581,7 +694,10 @@ class AutoVerificationService {
                     ocrData,
                     patternCheck,
                     hashCheck,
-                    authenticityCheck
+                    authenticityCheck,
+                    complianceCheck,
+                    verificationResult: 'FAILED',
+                    flagReasons: reasons
                 };
             }
         } catch (error) {

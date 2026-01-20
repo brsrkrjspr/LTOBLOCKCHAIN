@@ -6,6 +6,7 @@ const router = express.Router();
 const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
+const dbModule = require('../database/db');
 
 // Get enhanced admin statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -486,6 +487,189 @@ router.post('/create-user', authenticateToken, authorizeRole(['admin']), async (
         res.status(500).json({
             success: false,
             error: 'Failed to create user account',
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Manual verification for insurance and emission (admin only)
+router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { vehicleId, requestId, verificationType, decision, notes } = req.body;
+        
+        // Validate input
+        if (!vehicleId || !requestId || !verificationType || !decision) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: vehicleId, requestId, verificationType, decision'
+            });
+        }
+        
+        if (!['insurance', 'emission'].includes(verificationType)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid verification type. Must be insurance or emission'
+            });
+        }
+        
+        if (!['APPROVED', 'REJECTED'].includes(decision)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid decision. Must be APPROVED or REJECTED'
+            });
+        }
+        
+        // Get existing verification to preserve auto-verification metadata
+        const verifications = await db.getVehicleVerifications(vehicleId);
+        const existingVerification = verifications.find(v => v.verification_type === verificationType);
+        
+        if (!existingVerification) {
+            return res.status(404).json({
+                success: false,
+                error: 'Verification not found'
+            });
+        }
+        
+        if (existingVerification.status !== 'PENDING') {
+            return res.status(400).json({
+                success: false,
+                error: `Verification is already ${existingVerification.status}. Cannot manually verify.`
+            });
+        }
+        
+        // Parse existing verification metadata
+        let existingMetadata = {};
+        if (existingVerification.verification_metadata) {
+            try {
+                existingMetadata = typeof existingVerification.verification_metadata === 'string'
+                    ? JSON.parse(existingVerification.verification_metadata)
+                    : existingVerification.verification_metadata;
+            } catch (e) {
+                console.warn('Failed to parse existing verification metadata:', e);
+            }
+        }
+        
+        // Merge manual review data into metadata
+        const updatedMetadata = {
+            ...existingMetadata,
+            manualReview: {
+                manualReviewed: true,
+                manualReviewedBy: req.user.userId,
+                manualReviewedAt: new Date().toISOString(),
+                manualDecision: decision,
+                manualNotes: notes || null,
+                autoVerificationResult: existingMetadata.verificationResult || 'FAILED',
+                autoVerificationScore: existingMetadata.verificationScore?.percentage || existingMetadata.verificationScore || existingVerification.verification_score || 0,
+                autoFlagReasons: existingMetadata.flagReasons || []
+            }
+        };
+        
+        // Update vehicle verification status
+        await db.updateVerificationStatus(
+            vehicleId,
+            verificationType,
+            decision,
+            req.user.userId,
+            notes || `Manually ${decision.toLowerCase()} after auto-verification review`,
+            {
+                automated: existingVerification.automated || false, // Keep original automated flag
+                verificationScore: existingVerification.verification_score || 0,
+                verificationMetadata: updatedMetadata
+            }
+        );
+        
+        // Update clearance request status
+        const clearanceRequest = await db.getClearanceRequestById(requestId);
+        if (clearanceRequest) {
+            await db.updateClearanceRequestStatus(requestId, decision, {
+                verifiedBy: req.user.userId,
+                verifiedAt: new Date().toISOString(),
+                notes: notes || `Manually ${decision.toLowerCase()} by admin after auto-verification review`,
+                manualReview: true,
+                autoVerificationMetadata: existingMetadata
+            });
+        }
+        
+        // Add to vehicle history
+        const vehicle = await db.getVehicleById(vehicleId);
+        await db.addVehicleHistory({
+            vehicleId: vehicleId,
+            action: `${verificationType.toUpperCase()}_MANUAL_VERIFICATION`,
+            description: `${verificationType} manually ${decision.toLowerCase()} by admin. Auto-verification score: ${updatedMetadata.manualReview.autoVerificationScore}%. ${notes || ''}`,
+            performedBy: req.user.userId,
+            metadata: {
+                verificationType,
+                decision,
+                notes,
+                autoVerificationScore: updatedMetadata.manualReview.autoVerificationScore,
+                autoFlagReasons: updatedMetadata.manualReview.autoFlagReasons,
+                manualReview: true,
+                clearanceRequestId: requestId
+            }
+        });
+        
+        // Update transfer request if linked
+        if (clearanceRequest) {
+            try {
+                const transferField = verificationType === 'insurance' ? 'insurance_clearance_request_id' : 'emission_clearance_request_id';
+                const transferRequests = await dbModule.query(
+                    `SELECT id FROM transfer_requests WHERE ${transferField} = $1`,
+                    [requestId]
+                );
+                
+                if (transferRequests.rows.length > 0) {
+                    for (const tr of transferRequests.rows) {
+                        const statusField = verificationType === 'insurance' ? 'insurance_approval_status' : 'emission_approval_status';
+                        const approvedAtField = verificationType === 'insurance' ? 'insurance_approved_at' : 'emission_approved_at';
+                        const approvedByField = verificationType === 'insurance' ? 'insurance_approved_by' : 'emission_approved_by';
+                        
+                        // Check if columns exist
+                        const colCheck = await dbModule.query(`
+                            SELECT column_name FROM information_schema.columns 
+                            WHERE table_name = 'transfer_requests' 
+                            AND column_name IN ($1, $2, $3)
+                        `, [statusField, approvedAtField, approvedByField]);
+                        
+                        const hasStatus = colCheck.rows.some(r => r.column_name === statusField);
+                        const hasApprovedAt = colCheck.rows.some(r => r.column_name === approvedAtField);
+                        const hasApprovedBy = colCheck.rows.some(r => r.column_name === approvedByField);
+                        
+                        if (hasStatus && hasApprovedAt && hasApprovedBy) {
+                            await dbModule.query(
+                                `UPDATE transfer_requests 
+                                 SET ${statusField} = $1,
+                                     ${approvedAtField} = CURRENT_TIMESTAMP,
+                                     ${approvedByField} = $2,
+                                     updated_at = CURRENT_TIMESTAMP
+                                 WHERE id = $3`,
+                                [decision, req.user.userId, tr.id]
+                            );
+                        }
+                    }
+                }
+            } catch (transferError) {
+                console.warn('Error updating transfer request:', transferError);
+                // Continue even if transfer update fails
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `${verificationType} verification manually ${decision.toLowerCase()} successfully`,
+            verification: {
+                vehicleId,
+                verificationType,
+                status: decision,
+                notes: notes || null,
+                manualReview: updatedMetadata.manualReview
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in manual verification:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to process manual verification',
             message: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }

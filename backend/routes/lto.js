@@ -488,17 +488,9 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             }
         }
         
-        // Check emission verification - MUST exist and be APPROVED
+        // Emission verification is tracked in the system but is *not* a hard blocker for final LTO approval.
+        // We still fetch it for logging/observability, but it does not contribute to pending/rejected approvals.
         const emissionVerification = verifications.find(v => v.verification_type === 'emission');
-        if (!emissionVerification) {
-            pendingApprovals.push('Emission');
-        } else if (emissionVerification.status !== 'APPROVED') {
-            if (emissionVerification.status === 'REJECTED') {
-                rejectedApprovals.push('Emission');
-            } else {
-                pendingApprovals.push('Emission');
-            }
-        }
         
         // Log validation check for debugging
         console.log(`[LTO Approval] Checking verifications for vehicle ${vehicleId}:`, {

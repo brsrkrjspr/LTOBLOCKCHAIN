@@ -2518,14 +2518,8 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             }
         }
         
-        // Check Emission approval only if it was forwarded to Emission
-        if (request.emission_clearance_request_id) {
-            if (!request.emission_approval_status || request.emission_approval_status === 'PENDING') {
-                pendingApprovals.push('Emission');
-            } else if (request.emission_approval_status === 'REJECTED') {
-                rejectedApprovals.push('Emission');
-            }
-        }
+        // Emission approval is tracked for transfer requests but is not a hard blocker for LTO approval.
+        // We intentionally do NOT add it to pending/rejected approvals to keep HPG and Insurance as the only required orgs.
         
         if (pendingApprovals.length > 0) {
             return res.status(400).json({

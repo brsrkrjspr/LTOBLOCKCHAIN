@@ -717,22 +717,22 @@ function updateActionButtons(request) {
     const hpgApproved = hpgStatus === 'APPROVED';
     const insuranceApproved = insuranceStatus === 'APPROVED';
     const emissionApproved = emissionStatus === 'APPROVED';
-    const allOrgsApproved = hpgApproved && insuranceApproved && emissionApproved;
+    // Only HPG and Insurance are treated as required organizations for final approval.
+    const allOrgsApproved = hpgApproved && insuranceApproved;
     
     // Determine what's pending
     const pendingOrgs = [];
     if (hpgStatus !== 'APPROVED' && hpgStatus !== 'NOT_FORWARDED' && hpgStatus !== 'REJECTED') pendingOrgs.push('HPG');
     if (insuranceStatus !== 'APPROVED' && insuranceStatus !== 'NOT_FORWARDED' && insuranceStatus !== 'REJECTED') pendingOrgs.push('Insurance');
-    if (emissionStatus !== 'APPROVED' && emissionStatus !== 'NOT_FORWARDED' && emissionStatus !== 'REJECTED') pendingOrgs.push('Emission');
     
     // Not forwarded orgs
     const notForwardedOrgs = [];
     if (hpgStatus === 'NOT_FORWARDED' || !hpgStatus || (!request.forwarded_to_hpg && !request.hpg_clearance_request_id)) notForwardedOrgs.push('HPG');
     if (insuranceStatus === 'NOT_FORWARDED' || !insuranceStatus || !request.insurance_clearance_request_id) notForwardedOrgs.push('Insurance');
-    if (emissionStatus === 'NOT_FORWARDED' || !emissionStatus || !request.emission_clearance_request_id) notForwardedOrgs.push('Emission');
     
     // Check for rejections
-    const anyRejected = hpgStatus === 'REJECTED' || insuranceStatus === 'REJECTED' || emissionStatus === 'REJECTED';
+    // Only HPG and Insurance rejections block final approval.
+    const anyRejected = hpgStatus === 'REJECTED' || insuranceStatus === 'REJECTED';
     
     // Clear existing buttons
     actionButtons.innerHTML = '';
@@ -755,7 +755,7 @@ function updateActionButtons(request) {
                 </button>
             `;
         }
-        if (notForwardedOrgs.includes('Emission')) {
+        if (emissionStatus === 'NOT_FORWARDED' || !emissionStatus || !request.emission_clearance_request_id) {
             buttonsHTML += `
                 <button class="btn-info btn-block" onclick="forwardToEmission()">
                     <i class="fas fa-leaf"></i> Forward to Emission
@@ -888,7 +888,6 @@ async function approveTransfer() {
         const pendingApprovals = [];
         if (hpgStatus !== 'APPROVED') pendingApprovals.push('HPG');
         if (insuranceStatus !== 'APPROVED') pendingApprovals.push('Insurance');
-        if (emissionStatus !== 'APPROVED') pendingApprovals.push('Emission');
         
         if (pendingApprovals.length > 0) {
             showError(`Cannot approve. Pending approvals from: ${pendingApprovals.join(', ')}`);

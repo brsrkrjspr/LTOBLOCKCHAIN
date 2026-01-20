@@ -582,8 +582,11 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
                 status: 'pending',
                 date: null
             },
+            // LTO inspection is not part of the NEW_REG registration application workflow.
+            // It is only relevant for transfer-of-ownership scenarios. For registration
+            // progress, we explicitly mark this step as not applicable.
             ltoInspection: {
-                status: 'pending',
+                status: 'not_applicable',
                 date: null
             },
             blockchainRegistration: {
@@ -659,19 +662,9 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
             }
         }
         
-        // Check LTO Inspection (MVIR)
-        const inspectionHistory = history.find(h => h.action === 'INSPECTION_COMPLETED' || h.action === 'MVIR_GENERATED');
-        if (inspectionHistory) {
-            progress.ltoInspection = {
-                status: 'completed',
-                date: inspectionHistory.performed_at
-            };
-        } else if (vehicle.mvir_number && vehicle.mvir_number !== 'PENDING') {
-            progress.ltoInspection = {
-                status: 'completed',
-                date: vehicle.inspection_date || vehicle.last_updated
-            };
-        }
+        // NOTE: LTO inspection (MVIR) is intentionally excluded from the registration
+        // progress timeline. Inspection/MVIR is handled only for transfer-of-ownership
+        // workflows and should not appear as a registration application step.
         
         // Check Blockchain Registration
         const blockchainHistory = history.find(h => 

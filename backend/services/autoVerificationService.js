@@ -11,6 +11,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 
+// Feature flag: Emission auto-verification.
+// Default: disabled unless explicitly enabled via EMISSION_FEATURE_ENABLED=true
+const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true';
+
 class AutoVerificationService {
     constructor() {
         this.enabled = process.env.AUTO_VERIFICATION_ENABLED !== 'false';
@@ -363,8 +367,8 @@ class AutoVerificationService {
      * @returns {Promise<Object>} Verification result
      */
     async autoVerifyEmission(vehicleId, emissionDoc, vehicle) {
-        if (!this.enabled) {
-            return { status: 'PENDING', automated: false, reason: 'Auto-verification disabled' };
+        if (!this.enabled || !EMISSION_FEATURE_ENABLED) {
+            return { status: 'PENDING', automated: false, reason: 'Emission auto-verification disabled' };
         }
 
         try {

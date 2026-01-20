@@ -6,6 +6,10 @@ const dbModule = require('../database/db');
 const docTypes = require('../config/documentTypes');
 const hpgDatabaseService = require('./hpgDatabaseService');
 
+// Feature flag: Emission clearance for registrations.
+// Default: disabled unless explicitly enabled via EMISSION_FEATURE_ENABLED=true
+const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true';
+
 /**
  * Automatically send clearance requests to all required organizations
  * @param {string} vehicleId - The vehicle ID
@@ -167,9 +171,11 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         }
 
         // 3. Send to Emission (requires: emission_cert)
-        // NOTE: Emission is NOT required for NEW registrations (only for renewals/transfers)
-        // Skip emission verification for NEW registration type
-        if (!isNewRegistration) {
+        // If emission feature is disabled, skip entirely.
+        if (!EMISSION_FEATURE_ENABLED) {
+            console.log(`[Auto-Send→Emission] Skipping - emission feature disabled`);
+            results.emission = { sent: false, reason: 'Emission feature disabled' };
+        } else if (!isNewRegistration) {
             // Use document type mapping to properly detect documents
             const hasEmissionDoc = allDocuments.some(d => {
                 const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);

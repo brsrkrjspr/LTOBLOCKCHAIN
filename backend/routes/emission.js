@@ -7,6 +7,21 @@ const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 
+// Feature flag: Emission verification can be fully disabled via environment.
+// Default is disabled unless explicitly enabled.
+const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true';
+
+// Global guard: if emission feature is disabled, all routes return 410 Gone.
+router.use((req, res, next) => {
+    if (!EMISSION_FEATURE_ENABLED) {
+        return res.status(410).json({
+            success: false,
+            error: 'Emission verification feature is disabled'
+        });
+    }
+    next();
+});
+
 // Get emission dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'emission_verifier']), async (req, res) => {
     try {

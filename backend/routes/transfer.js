@@ -34,6 +34,10 @@ const VEHICLE_STATUS = {
 
 const TRANSFER_DEADLINE_DAYS = 3;
 
+// Feature flag: Emission clearance workflow for transfers.
+// Default: disabled unless explicitly enabled via EMISSION_FEATURE_ENABLED=true
+const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true';
+
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
@@ -65,7 +69,7 @@ function getAutoForwardTargets(request) {
     return {
         hpg: AUTO_FORWARD_CONFIG.orgs.hpg && !request.hpg_clearance_request_id,
         insurance: AUTO_FORWARD_CONFIG.orgs.insurance && !request.insurance_clearance_request_id,
-        emission: AUTO_FORWARD_CONFIG.orgs.emission && !request.emission_clearance_request_id
+        emission: EMISSION_FEATURE_ENABLED && AUTO_FORWARD_CONFIG.orgs.emission && !request.emission_clearance_request_id
     };
 }
 
@@ -2630,6 +2634,54 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                 error: 'Buyer information is missing'
             });
         }
+
+        // Enforce required transfer documents before ownership can change.
+        // Seller must have: deed of sale + seller ID.
+        // Buyer must have: valid ID, TIN, CTPL, MVIR, HPG clearance.
+        let transferDocs;
+        try {
+            transferDocs = await db.getTransferRequestDocuments(id);
+        } catch (docError) {
+            console.error('Failed to load transfer documents before approval:', docError);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to load transfer documents for approval',
+                message: process.env.NODE_ENV === 'development' ? docError.message : undefined
+            });
+        }
+
+        const presentRoles = new Set(
+            (transferDocs || [])
+                .map(d => d.document_type)
+                .filter(Boolean)
+        );
+
+        const sellerRequiredRoles = [
+            docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+            docTypes.TRANSFER_ROLES.SELLER_ID
+        ];
+
+        const buyerRequiredRoles = [
+            docTypes.TRANSFER_ROLES.BUYER_ID,
+            docTypes.TRANSFER_ROLES.BUYER_TIN,
+            docTypes.TRANSFER_ROLES.BUYER_CTPL,
+            docTypes.TRANSFER_ROLES.BUYER_MVIR,
+            docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
+        ];
+
+        const missingSellerRoles = sellerRequiredRoles.filter(role => !presentRoles.has(role));
+        const missingBuyerRoles = buyerRequiredRoles.filter(role => !presentRoles.has(role));
+
+        if (missingSellerRoles.length > 0 || missingBuyerRoles.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot approve transfer request. Required transfer documents are missing.',
+                missing: {
+                    seller: missingSellerRoles,
+                    buyer: missingBuyerRoles
+                }
+            });
+        }
         
         // Update vehicle ownership and set origin type to TRANSFER for the new owner
         await db.updateVehicle(request.vehicle_id, { ownerId: buyerId, originType: 'TRANSFER', status: VEHICLE_STATUS.TRANSFER_COMPLETED });
@@ -3229,6 +3281,12 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
 
 // Emission approves transfer request
 router.post('/requests/:id/emission-approve', authenticateToken, authorizeRole(['admin', 'emission_admin']), async (req, res) => {
+    if (!EMISSION_FEATURE_ENABLED) {
+        return res.status(410).json({
+            success: false,
+            error: 'Emission clearance feature is disabled'
+        });
+    }
     try {
         const { id } = req.params;
         const { notes } = req.body;
@@ -3324,6 +3382,12 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
 
 // Forward transfer request to Emission
 router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    if (!EMISSION_FEATURE_ENABLED) {
+        return res.status(410).json({
+            success: false,
+            error: 'Emission clearance feature is disabled'
+        });
+    }
     try {
         const { id } = req.params;
         const { purpose, notes } = req.body;

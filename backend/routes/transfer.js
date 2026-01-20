@@ -10,6 +10,7 @@ const fabricService = require('../services/optimizedFabricService');
 const docTypes = require('../config/documentTypes');
 const jwt = require('jsonwebtoken');
 const { sendMail } = require('../services/gmailApiService');
+const dbModule = require('../database/db');
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -18,6 +19,33 @@ if (!process.env.JWT_SECRET) {
 
 // Transfer invite token secret (uses JWT_SECRET if TRANSFER_INVITE_SECRET not set)
 const INVITE_TOKEN_SECRET = process.env.TRANSFER_INVITE_SECRET || process.env.JWT_SECRET;
+
+// Auto-forward configuration (1: enabled, 2: only new requests, 3: per-organization toggles)
+const AUTO_FORWARD_VERSION = '2026-01';
+const AUTO_FORWARD_CONFIG = {
+    enabled: process.env.TRANSFER_AUTO_FORWARD_ENABLED !== 'false',
+    includeExisting: process.env.TRANSFER_AUTO_FORWARD_INCLUDE_EXISTING === 'true',
+    orgs: {
+        hpg: process.env.TRANSFER_AUTO_FORWARD_HPG !== 'false',
+        insurance: process.env.TRANSFER_AUTO_FORWARD_INSURANCE !== 'false',
+        emission: process.env.TRANSFER_AUTO_FORWARD_EMISSION !== 'false'
+    }
+};
+
+function isAutoForwardEligible(request) {
+    if (!AUTO_FORWARD_CONFIG.enabled) return false;
+    const metadata = request?.metadata || {};
+    if (!AUTO_FORWARD_CONFIG.includeExisting && metadata.autoForwardEligible !== true) return false;
+    return true;
+}
+
+function getAutoForwardTargets(request) {
+    return {
+        hpg: AUTO_FORWARD_CONFIG.orgs.hpg && !request.hpg_clearance_request_id,
+        insurance: AUTO_FORWARD_CONFIG.orgs.insurance && !request.insurance_clearance_request_id,
+        emission: AUTO_FORWARD_CONFIG.orgs.emission && !request.emission_clearance_request_id
+    };
+}
 
 /**
  * Generate a short-lived transfer invite token that can be embedded in an email link.
@@ -743,6 +771,489 @@ TrustChain LTO System
     }
 }
 
+async function forwardTransferToHPG({ request, requestedBy, purpose, notes, autoTriggered = false }) {
+    // Get transfer documents and vehicle documents
+    const transferDocuments = await db.getTransferRequestDocuments(request.id);
+    const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+
+    // Find OR/CR from transfer documents (document_type = 'or_cr') or vehicle documents
+    let orCrDoc = transferDocuments.find(td => td.document_type === 'or_cr' && td.document_id);
+    if (!orCrDoc && vehicleDocuments.length > 0) {
+        orCrDoc = vehicleDocuments.find(d => 
+            d.document_type === 'or_cr' || 
+            d.document_type === 'registration_cert' || 
+            d.document_type === 'registrationCert' ||
+            d.document_type === 'registration' ||
+            (d.original_name && (
+                d.original_name.toLowerCase().includes('or_cr') ||
+                d.original_name.toLowerCase().includes('or-cr') ||
+                d.original_name.toLowerCase().includes('orcr') ||
+                d.original_name.toLowerCase().includes('registration')
+            ))
+        );
+    }
+
+    // Find Owner ID from transfer documents (document_type = 'seller_id') or vehicle documents
+    let ownerIdDoc = transferDocuments.find(td => td.document_type === 'seller_id' && td.document_id);
+    if (!ownerIdDoc && vehicleDocuments.length > 0) {
+        ownerIdDoc = vehicleDocuments.find(d => 
+            d.document_type === 'owner_id' || 
+            d.document_type === 'ownerId' ||
+            (d.original_name && d.original_name.toLowerCase().includes('id'))
+        );
+    }
+
+    // Build HPG documents array (only OR/CR and Owner ID)
+    const hpgDocuments = [];
+
+    // Add OR/CR if found
+    if (orCrDoc) {
+        if (orCrDoc.document_id) {
+            // From transfer documents
+            hpgDocuments.push({
+                id: orCrDoc.document_id,
+                type: orCrDoc.document_type || 'or_cr',
+                cid: orCrDoc.ipfs_cid,
+                path: orCrDoc.file_path,
+                filename: orCrDoc.original_name
+            });
+        } else {
+            // From vehicle documents
+            hpgDocuments.push({
+                id: orCrDoc.id,
+                type: orCrDoc.document_type,
+                cid: orCrDoc.ipfs_cid,
+                path: orCrDoc.file_path,
+                filename: orCrDoc.original_name
+            });
+        }
+    }
+
+    // Add Owner ID if found
+    if (ownerIdDoc) {
+        if (ownerIdDoc.document_id) {
+            // From transfer documents
+            hpgDocuments.push({
+                id: ownerIdDoc.document_id,
+                type: ownerIdDoc.document_type || 'seller_id',
+                cid: ownerIdDoc.ipfs_cid,
+                path: ownerIdDoc.file_path,
+                filename: ownerIdDoc.original_name
+            });
+        } else {
+            // From vehicle documents
+            hpgDocuments.push({
+                id: ownerIdDoc.id,
+                type: ownerIdDoc.document_type,
+                cid: ownerIdDoc.ipfs_cid,
+                path: ownerIdDoc.file_path,
+                filename: ownerIdDoc.original_name
+            });
+        }
+    }
+
+    console.log(`[Transfer→HPG] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${hpgDocuments.length} documents to HPG (filtered from ${transferDocuments.length} transfer docs + ${vehicleDocuments.length} vehicle docs)`);
+    console.log(`[Transfer→HPG] Document types sent: ${hpgDocuments.map(d => d.type).join(', ')}`);
+
+    // Create HPG clearance request with filtered documents
+    const clearanceRequest = await db.createClearanceRequest({
+        vehicleId: request.vehicle_id,
+        requestType: 'hpg',
+        requestedBy,
+        purpose: purpose || 'Vehicle ownership transfer clearance',
+        notes: notes || null,
+        metadata: {
+            transferRequestId: request.id,
+            vehicleVin: request.vehicle.vin,
+            vehiclePlate: request.vehicle.plate_number,
+            vehicleMake: request.vehicle.make,
+            vehicleModel: request.vehicle.model,
+            vehicleYear: request.vehicle.year,
+            vehicleColor: request.vehicle.color,
+            engineNumber: request.vehicle.engine_number,
+            chassisNumber: request.vehicle.chassis_number,
+            // Include individual document references
+            orCrDocId: orCrDoc?.document_id || orCrDoc?.id || null,
+            orCrDocCid: orCrDoc?.ipfs_cid || null,
+            orCrDocPath: orCrDoc?.file_path || null,
+            orCrDocFilename: orCrDoc?.original_name || null,
+            ownerIdDocId: ownerIdDoc?.document_id || ownerIdDoc?.id || null,
+            ownerIdDocCid: ownerIdDoc?.ipfs_cid || null,
+            ownerIdDocPath: ownerIdDoc?.file_path || null,
+            ownerIdDocFilename: ownerIdDoc?.original_name || null,
+            // Include ONLY HPG-relevant documents (OR/CR and Owner ID)
+            documents: hpgDocuments,
+            autoTriggered
+        }
+    });
+
+    // PHASE 1 AUTOMATION: OCR Extraction and Database Check for Transfer
+    try {
+        const hpgDatabaseService = require('../services/hpgDatabaseService');
+        const ocrService = require('../services/ocrService');
+        const fs = require('fs').promises;
+        let extractedData = {};
+        let databaseCheckResult = null;
+
+        // Step 1: OCR Extraction from OR/CR (for transfers)
+        if (orCrDoc) {
+            const orCrPath = orCrDoc.file_path || orCrDoc.filePath;
+            if (orCrPath) {
+                try {
+                    await fs.access(orCrPath);
+                    const orCrMimeType = orCrDoc.mime_type || orCrDoc.mimeType || 'application/pdf';
+                    const ownerIdPath = ownerIdDoc?.file_path || ownerIdDoc?.filePath;
+                    const ownerIdMimeType = ownerIdDoc?.mime_type || ownerIdDoc?.mimeType;
+                    extractedData = await ocrService.extractHPGInfo(
+                        orCrPath,
+                        ownerIdPath || null,
+                        orCrMimeType,
+                        ownerIdMimeType || null
+                    );
+                    console.log(`[Transfer→HPG] OCR extracted data:`, {
+                        engineNumber: extractedData.engineNumber,
+                        chassisNumber: extractedData.chassisNumber
+                    });
+                    const dataMatch = {
+                        engineNumber: extractedData.engineNumber && request.vehicle.engine_number ? 
+                                     extractedData.engineNumber.toUpperCase().trim() === request.vehicle.engine_number.toUpperCase().trim() : null,
+                        chassisNumber: extractedData.chassisNumber && request.vehicle.chassis_number ? 
+                                      extractedData.chassisNumber.toUpperCase().trim() === request.vehicle.chassis_number.toUpperCase().trim() : null
+                    };
+                    extractedData.dataMatch = dataMatch;
+                    extractedData.ocrExtracted = true;
+                    extractedData.ocrExtractedAt = new Date().toISOString();
+                } catch (fileError) {
+                    console.warn(`[Transfer→HPG] OR/CR file not accessible: ${fileError.message}`);
+                }
+            }
+        }
+
+        // Step 2: Automated Database Check
+        databaseCheckResult = await hpgDatabaseService.checkVehicle({
+            plateNumber: request.vehicle.plate_number,
+            engineNumber: request.vehicle.engine_number,
+            chassisNumber: request.vehicle.chassis_number,
+            vin: request.vehicle.vin
+        });
+        await hpgDatabaseService.storeCheckResult(clearanceRequest.id, databaseCheckResult);
+
+        // Update metadata with automation results
+        const updatedMetadata = {
+            ...clearanceRequest.metadata,
+            ...(Object.keys(extractedData).length > 0 && { extractedData }),
+            ...(databaseCheckResult && { hpgDatabaseCheck: databaseCheckResult }),
+            automationPhase1: {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                isTransfer: true,
+                ocrExtracted: Object.keys(extractedData).length > 0,
+                databaseChecked: !!databaseCheckResult
+            }
+        };
+
+        await dbModule.query(
+            `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [JSON.stringify(updatedMetadata), clearanceRequest.id]
+        );
+
+        await db.addVehicleHistory({
+            vehicleId: request.vehicle_id,
+            action: 'HPG_AUTOMATION_PHASE1',
+            description: `HPG Phase 1 automation completed for transfer. OCR: ${Object.keys(extractedData).length > 0 ? 'Yes' : 'No'}, Database: ${databaseCheckResult?.status || 'ERROR'}`,
+            performedBy: requestedBy,
+            transactionId: null,
+            metadata: {
+                transferRequestId: request.id,
+                clearanceRequestId: clearanceRequest.id,
+                extractedData: Object.keys(extractedData).length > 0 ? extractedData : null,
+                databaseCheckResult
+            }
+        });
+
+        if (databaseCheckResult?.status === 'FLAGGED') {
+            const flaggedNote = `⚠️ WARNING: Vehicle found in HPG hot list. ${databaseCheckResult.details}`;
+            await dbModule.query(
+                `UPDATE clearance_requests SET notes = COALESCE(notes || E'\n', '') || $1 WHERE id = $2`,
+                [flaggedNote, clearanceRequest.id]
+            );
+        }
+    } catch (automationError) {
+        console.error('[Transfer→HPG] Automation error:', automationError);
+    }
+
+    await dbModule.query(
+        `UPDATE transfer_requests 
+         SET forwarded_to_hpg = true, 
+             hpg_clearance_request_id = $1,
+             hpg_approval_status = 'PENDING',
+             status = 'FORWARDED_TO_HPG',
+             metadata = metadata || $2::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [
+            clearanceRequest.id,
+            JSON.stringify({ hpgClearanceRequestId: clearanceRequest.id }),
+            request.id
+        ]
+    );
+
+    await db.addVehicleHistory({
+        vehicleId: request.vehicle_id,
+        action: 'TRANSFER_FORWARDED_TO_HPG',
+        description: `Transfer request forwarded to HPG for clearance review`,
+        performedBy: requestedBy,
+        transactionId: null,
+        metadata: { 
+            transferRequestId: request.id, 
+            clearanceRequestId: clearanceRequest.id,
+            documentsSent: hpgDocuments.length,
+            autoTriggered
+        }
+    });
+
+    const updatedRequest = await db.getTransferRequestById(request.id);
+    return { clearanceRequest, updatedRequest };
+}
+
+async function forwardTransferToInsurance({ request, requestedBy, purpose, notes, autoTriggered = false }) {
+    const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+    const insuranceDoc = vehicleDocuments.find(d => 
+        d.document_type === 'insurance_cert' || 
+        d.document_type === 'insuranceCert' ||
+        d.document_type === 'insurance' ||
+        (d.original_name && d.original_name.toLowerCase().includes('insurance'))
+    );
+    const insuranceDocuments = insuranceDoc ? [{
+        id: insuranceDoc.id,
+        type: insuranceDoc.document_type,
+        cid: insuranceDoc.ipfs_cid,
+        path: insuranceDoc.file_path,
+        filename: insuranceDoc.original_name
+    }] : [];
+
+    if (!insuranceDoc) {
+        console.warn(`[Transfer→Insurance] Warning: No insurance certificate found for vehicle ${request.vehicle_id}`);
+    }
+
+    console.log(`[Transfer→Insurance] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${vehicleDocuments.length} total)`);
+    console.log(`[Transfer→Insurance] Document type sent: ${insuranceDoc?.document_type || 'none'}`);
+
+    const clearanceRequest = await db.createClearanceRequest({
+        vehicleId: request.vehicle_id,
+        requestType: 'insurance',
+        requestedBy,
+        purpose: purpose || 'Vehicle ownership transfer clearance',
+        notes: notes || null,
+        metadata: {
+            transferRequestId: request.id,
+            vehicleVin: request.vehicle?.vin,
+            vehiclePlate: request.vehicle?.plate_number,
+            documentId: insuranceDoc?.id || null,
+            documentCid: insuranceDoc?.ipfs_cid || null,
+            documentPath: insuranceDoc?.file_path || null,
+            documentType: insuranceDoc?.document_type || null,
+            documentFilename: insuranceDoc?.original_name || null,
+            documents: insuranceDocuments,
+            autoTriggered
+        }
+    });
+
+    await dbModule.query(
+        `UPDATE transfer_requests 
+         SET insurance_clearance_request_id = $1,
+             insurance_approval_status = 'PENDING',
+             metadata = metadata || $2::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [
+            clearanceRequest.id,
+            JSON.stringify({ insuranceClearanceRequestId: clearanceRequest.id }),
+            request.id
+        ]
+    );
+
+    await db.addVehicleHistory({
+        vehicleId: request.vehicle_id,
+        action: 'TRANSFER_FORWARDED_TO_INSURANCE',
+        description: `Transfer request forwarded to Insurance for clearance review`,
+        performedBy: requestedBy,
+        metadata: { 
+            transferRequestId: request.id, 
+            clearanceRequestId: clearanceRequest.id,
+            documentsSent: insuranceDocuments.length,
+            autoTriggered
+        }
+    });
+
+    const updatedRequest = await db.getTransferRequestById(request.id);
+    return { clearanceRequest, updatedRequest };
+}
+
+async function forwardTransferToEmission({ request, requestedBy, purpose, notes, autoTriggered = false }) {
+    const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+    const emissionDoc = vehicleDocuments.find(d => 
+        d.document_type === 'emission_cert' || 
+        d.document_type === 'emissionCert' ||
+        d.document_type === 'emission' ||
+        (d.original_name && d.original_name.toLowerCase().includes('emission'))
+    );
+    const emissionDocuments = emissionDoc ? [{
+        id: emissionDoc.id,
+        type: emissionDoc.document_type,
+        cid: emissionDoc.ipfs_cid,
+        path: emissionDoc.file_path,
+        filename: emissionDoc.original_name
+    }] : [];
+
+    if (!emissionDoc) {
+        console.warn(`[Transfer→Emission] Warning: No emission certificate found for vehicle ${request.vehicle_id}`);
+    }
+
+    console.log(`[Transfer→Emission] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${emissionDocuments.length} document(s) to Emission (filtered from ${vehicleDocuments.length} total)`);
+    console.log(`[Transfer→Emission] Document type sent: ${emissionDoc?.document_type || 'none'}`);
+
+    const clearanceRequest = await db.createClearanceRequest({
+        vehicleId: request.vehicle_id,
+        requestType: 'emission',
+        requestedBy,
+        purpose: purpose || 'Vehicle ownership transfer clearance',
+        notes: notes || null,
+        metadata: {
+            transferRequestId: request.id,
+            vehicleVin: request.vehicle?.vin,
+            vehiclePlate: request.vehicle?.plate_number,
+            documentId: emissionDoc?.id || null,
+            documentCid: emissionDoc?.ipfs_cid || null,
+            documentPath: emissionDoc?.file_path || null,
+            documentType: emissionDoc?.document_type || null,
+            documentFilename: emissionDoc?.original_name || null,
+            documents: emissionDocuments,
+            autoTriggered
+        }
+    });
+
+    await dbModule.query(
+        `UPDATE transfer_requests 
+         SET emission_clearance_request_id = $1,
+             emission_approval_status = 'PENDING',
+             metadata = metadata || $2::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [
+            clearanceRequest.id,
+            JSON.stringify({ emissionClearanceRequestId: clearanceRequest.id }),
+            request.id
+        ]
+    );
+
+    await db.addVehicleHistory({
+        vehicleId: request.vehicle_id,
+        action: 'TRANSFER_FORWARDED_TO_EMISSION',
+        description: `Transfer request forwarded to Emission for clearance review`,
+        performedBy: requestedBy,
+        metadata: { 
+            transferRequestId: request.id, 
+            clearanceRequestId: clearanceRequest.id,
+            documentsSent: emissionDocuments.length,
+            autoTriggered
+        }
+    });
+
+    const updatedRequest = await db.getTransferRequestById(request.id);
+    return { clearanceRequest, updatedRequest };
+}
+
+async function autoForwardTransferRequest(request, triggeredBy) {
+    if (!isAutoForwardEligible(request)) {
+        return { skipped: true, reason: 'Auto-forward disabled or not eligible for this request', transferRequest: request };
+    }
+
+    const targets = getAutoForwardTargets(request);
+    const anyTarget = targets.hpg || targets.insurance || targets.emission;
+    if (!anyTarget) {
+        return { skipped: true, reason: 'No pending organizations to forward', transferRequest: request };
+    }
+
+    const startedAt = new Date().toISOString();
+    const results = {};
+    let latestRequest = request;
+
+    if (targets.hpg) {
+        try {
+            const { clearanceRequest, updatedRequest } = await forwardTransferToHPG({
+                request: latestRequest,
+                requestedBy: triggeredBy,
+                purpose: 'Vehicle ownership transfer clearance',
+                notes: 'Auto-forwarded on buyer acceptance',
+                autoTriggered: true
+            });
+            latestRequest = updatedRequest;
+            results.hpg = { success: true, clearanceRequestId: clearanceRequest.id };
+        } catch (error) {
+            console.error('[AutoForward→HPG] Error:', error);
+            results.hpg = { success: false, error: error.message };
+        }
+    }
+
+    if (targets.insurance) {
+        try {
+            const { clearanceRequest, updatedRequest } = await forwardTransferToInsurance({
+                request: latestRequest,
+                requestedBy: triggeredBy,
+                purpose: 'Vehicle ownership transfer clearance',
+                notes: 'Auto-forwarded on buyer acceptance',
+                autoTriggered: true
+            });
+            latestRequest = updatedRequest;
+            results.insurance = { success: true, clearanceRequestId: clearanceRequest.id };
+        } catch (error) {
+            console.error('[AutoForward→Insurance] Error:', error);
+            results.insurance = { success: false, error: error.message };
+        }
+    }
+
+    if (targets.emission) {
+        try {
+            const { clearanceRequest, updatedRequest } = await forwardTransferToEmission({
+                request: latestRequest,
+                requestedBy: triggeredBy,
+                purpose: 'Vehicle ownership transfer clearance',
+                notes: 'Auto-forwarded on buyer acceptance',
+                autoTriggered: true
+            });
+            latestRequest = updatedRequest;
+            results.emission = { success: true, clearanceRequestId: clearanceRequest.id };
+        } catch (error) {
+            console.error('[AutoForward→Emission] Error:', error);
+            results.emission = { success: false, error: error.message };
+        }
+    }
+
+    const finishedAt = new Date().toISOString();
+    const patch = {
+        autoForward: {
+            version: AUTO_FORWARD_VERSION,
+            startedAt,
+            finishedAt,
+            triggeredBy: triggeredBy || null,
+            results,
+            autoTriggered: true
+        }
+    };
+
+    await dbModule.query(
+        `UPDATE transfer_requests 
+         SET metadata = metadata || $1::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [JSON.stringify(patch), request.id]
+    );
+
+    const refreshedRequest = await db.getTransferRequestById(request.id);
+    return { transferRequest: refreshedRequest, results };
+}
+
 // Create transfer request (owner submits)
 // NEW: Accepts explicit document roles in documents object and buyerEmail (Option A - email invite)
 // LEGACY: Still supports documentIds array and buyerId/buyerInfo for backward compatibility
@@ -871,12 +1382,15 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         let transferRequest;
         try {
             transferRequest = await db.createTransferRequest({
-            vehicleId,
-            sellerId: req.user.userId,
-            buyerId: resolvedBuyerId || null,
-            buyerInfo: resolvedBuyerInfo || null,
-            metadata: {}
-        });
+                vehicleId,
+                sellerId: req.user.userId,
+                buyerId: resolvedBuyerId || null,
+                buyerInfo: resolvedBuyerInfo || null,
+                metadata: {
+                    autoForwardEligible: true,
+                    autoForwardVersion: AUTO_FORWARD_VERSION
+                }
+            });
             console.log('✅ Transfer request created successfully:', transferRequest.id);
         } catch (createError) {
             console.error('❌ Failed to create transfer request:', createError);
@@ -1336,12 +1850,26 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
             console.warn('⚠️ Failed to create seller notification:', notifError.message);
         }
 
-        const updatedRequest = await db.getTransferRequestById(id);
+        let updatedRequest = await db.getTransferRequestById(id);
+        let autoForward = null;
+
+        if (isAutoForwardEligible(updatedRequest)) {
+            try {
+                autoForward = await autoForwardTransferRequest(updatedRequest, req.user.userId);
+                if (autoForward?.transferRequest) {
+                    updatedRequest = autoForward.transferRequest;
+                }
+            } catch (autoForwardError) {
+                console.error('Auto-forward after buyer acceptance failed:', autoForwardError);
+                autoForward = { success: false, error: autoForwardError.message };
+            }
+        }
 
         res.json({
             success: true,
             message: 'Transfer request accepted. Awaiting LTO review.',
-            transferRequest: updatedRequest
+            transferRequest: updatedRequest,
+            autoForward
         });
     } catch (error) {
         const transferRequestId = req.params?.id || 'unknown';
@@ -2074,7 +2602,7 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
     try {
         const { id } = req.params;
         const { purpose, notes } = req.body;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -2082,54 +2610,32 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
                 error: 'Transfer request not found'
             });
         }
-        
-        // Get transfer documents and vehicle documents
-        const transferDocuments = await db.getTransferRequestDocuments(id);
-        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-        
-        // Find OR/CR from transfer documents (document_type = 'or_cr') or vehicle documents
-        let orCrDoc = transferDocuments.find(td => td.document_type === 'or_cr' && td.document_id);
-        if (!orCrDoc && vehicleDocuments.length > 0) {
-            orCrDoc = vehicleDocuments.find(d => 
-                d.document_type === 'or_cr' || 
-                d.document_type === 'registration_cert' || 
-                d.document_type === 'registrationCert' ||
-                d.document_type === 'registration' ||
-                (d.original_name && (
-                    d.original_name.toLowerCase().includes('or_cr') ||
-                    d.original_name.toLowerCase().includes('or-cr') ||
-                    d.original_name.toLowerCase().includes('orcr') ||
-                    d.original_name.toLowerCase().includes('registration')
-                ))
-            );
-        }
-        
-        // Find Owner ID from transfer documents (document_type = 'seller_id') or vehicle documents
-        let ownerIdDoc = transferDocuments.find(td => td.document_type === 'seller_id' && td.document_id);
-        if (!ownerIdDoc && vehicleDocuments.length > 0) {
-            ownerIdDoc = vehicleDocuments.find(d => 
-                d.document_type === 'owner_id' || 
-                d.document_type === 'ownerId' ||
-                (d.original_name && d.original_name.toLowerCase().includes('id'))
-            );
-        }
-        
-        // Build HPG documents array (only OR/CR and Owner ID)
-        const hpgDocuments = [];
-        
-        // Add OR/CR if found
-        if (orCrDoc) {
-            if (orCrDoc.document_id) {
-                // From transfer documents
-                hpgDocuments.push({
-                    id: orCrDoc.document_id,
-                    type: orCrDoc.document_type || 'or_cr',
-                    cid: orCrDoc.ipfs_cid,
-                    path: orCrDoc.file_path,
-                    filename: orCrDoc.original_name
-                });
-            } else {
-                // From vehicle documents
+
+        const { clearanceRequest, updatedRequest } = await forwardTransferToHPG({
+            request,
+            requestedBy: req.user.userId,
+            purpose,
+            notes,
+            autoTriggered: false
+        });
+
+        res.json({
+            success: true,
+            message: 'Transfer request forwarded to HPG',
+            transferRequest: updatedRequest,
+            clearanceRequest
+        });
+
+    } catch (error) {
+        console.error('Forward to HPG error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Verify document for transfer request
                 hpgDocuments.push({
                     id: orCrDoc.id,
                     type: orCrDoc.document_type,
@@ -2738,7 +3244,7 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
     try {
         const { id } = req.params;
         const { purpose, notes } = req.body;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -2746,56 +3252,32 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
                 error: 'Transfer request not found'
             });
         }
-        
-        // Get vehicle documents - Insurance ONLY receives Insurance Certificate
-        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-        
-        // Find Insurance Certificate document
-        const insuranceDoc = vehicleDocuments.find(d => 
-            d.document_type === 'insurance_cert' || 
-            d.document_type === 'insuranceCert' ||
-            d.document_type === 'insurance' ||
-            (d.original_name && d.original_name.toLowerCase().includes('insurance'))
-        );
-        
-        // Build insurance documents array (only Insurance Certificate, max 1)
-        const insuranceDocuments = insuranceDoc ? [{
-            id: insuranceDoc.id,
-            type: insuranceDoc.document_type,
-            cid: insuranceDoc.ipfs_cid,
-            path: insuranceDoc.file_path,
-            filename: insuranceDoc.original_name
-        }] : [];
-        
-        if (!insuranceDoc) {
-            console.warn(`[Transfer→Insurance] Warning: No insurance certificate found for vehicle ${request.vehicle_id}`);
-        }
-        
-        console.log(`[Transfer→Insurance] Sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${vehicleDocuments.length} total)`);
-        console.log(`[Transfer→Insurance] Document type sent: ${insuranceDoc?.document_type || 'none'}`);
-        
-        // Create Insurance clearance request with filtered documents
-        const clearanceRequest = await db.createClearanceRequest({
-            vehicleId: request.vehicle_id,
-            requestType: 'insurance',
+
+        const { clearanceRequest, updatedRequest } = await forwardTransferToInsurance({
+            request,
             requestedBy: req.user.userId,
-            purpose: purpose || 'Vehicle ownership transfer clearance',
-            notes: notes || null,
-            metadata: {
-                transferRequestId: id,
-                vehicleVin: request.vehicle?.vin,
-                vehiclePlate: request.vehicle?.plate_number,
-                // Include individual document reference
-                documentId: insuranceDoc?.id || null,
-                documentCid: insuranceDoc?.ipfs_cid || null,
-                documentPath: insuranceDoc?.file_path || null,
-                documentType: insuranceDoc?.document_type || null,
-                documentFilename: insuranceDoc?.original_name || null,
-                // Include ONLY Insurance Certificate
-                documents: insuranceDocuments
-            }
+            purpose,
+            notes,
+            autoTriggered: false
         });
-        
+
+        res.json({
+            success: true,
+            message: 'Transfer request forwarded to Insurance',
+            transferRequest: updatedRequest,
+            clearanceRequest
+        });
+
+    } catch (error) {
+        console.error('Forward to Insurance error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Forward transfer request to Emission
         // Update transfer request
         const dbModule = require('../database/db');
         await dbModule.query(
@@ -2848,7 +3330,7 @@ router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole([
     try {
         const { id } = req.params;
         const { purpose, notes } = req.body;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -2856,57 +3338,32 @@ router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole([
                 error: 'Transfer request not found'
             });
         }
-        
-        // Get vehicle documents - Emission ONLY receives Emission Certificate
-        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-        
-        // Find Emission Certificate document
-        const emissionDoc = vehicleDocuments.find(d => 
-            d.document_type === 'emission_cert' || 
-            d.document_type === 'emissionCert' ||
-            d.document_type === 'emission' ||
-            (d.original_name && d.original_name.toLowerCase().includes('emission'))
-        );
-        
-        // Build emission documents array (only Emission Certificate, max 1)
-        const emissionDocuments = emissionDoc ? [{
-            id: emissionDoc.id,
-            type: emissionDoc.document_type,
-            cid: emissionDoc.ipfs_cid,
-            path: emissionDoc.file_path,
-            filename: emissionDoc.original_name
-        }] : [];
-        
-        if (!emissionDoc) {
-            console.warn(`[Transfer→Emission] Warning: No emission certificate found for vehicle ${request.vehicle_id}`);
-        }
-        
-        console.log(`[Transfer→Emission] Sending ${emissionDocuments.length} document(s) to Emission (filtered from ${vehicleDocuments.length} total)`);
-        console.log(`[Transfer→Emission] Document type sent: ${emissionDoc?.document_type || 'none'}`);
-        
-        // Create Emission clearance request with filtered documents
-        const clearanceRequest = await db.createClearanceRequest({
-            vehicleId: request.vehicle_id,
-            requestType: 'emission',
+
+        const { clearanceRequest, updatedRequest } = await forwardTransferToEmission({
+            request,
             requestedBy: req.user.userId,
-            purpose: purpose || 'Vehicle ownership transfer clearance',
-            notes: notes || null,
-            metadata: {
-                transferRequestId: id,
-                vehicleVin: request.vehicle?.vin,
-                vehiclePlate: request.vehicle?.plate_number,
-                // Include individual document reference
-                documentId: emissionDoc?.id || null,
-                documentCid: emissionDoc?.ipfs_cid || null,
-                documentPath: emissionDoc?.file_path || null,
-                documentType: emissionDoc?.document_type || null,
-                documentFilename: emissionDoc?.original_name || null,
-                // Include ONLY Emission Certificate
-                documents: emissionDocuments
-            }
+            purpose,
+            notes,
+            autoTriggered: false
         });
-        
-        // Update transfer request
+
+        res.json({
+            success: true,
+            message: 'Transfer request forwarded to Emission',
+            transferRequest: updatedRequest,
+            clearanceRequest
+        });
+
+    } catch (error) {
+        console.error('Forward to Emission error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+module.exports = router;
         const dbModule = require('../database/db');
         await dbModule.query(
             `UPDATE transfer_requests 

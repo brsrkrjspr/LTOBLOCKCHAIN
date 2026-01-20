@@ -38,65 +38,66 @@
             <div class="auth-container">
                 <div class="auth-grid">
                     <div class="auth-card">
-                        <!-- Toggle Tabs -->
-                        <div class="auth-tabs">
-                            <button class="tab-btn active" onclick="showLogin(); return false;" id="loginTab">
-                                <span>Login</span>
-                            </button>
-                            <button class="tab-btn" onclick="showSignup(); return false;" id="signupTab">
-                                <span>Sign Up</span>
-                            </button>
-                            <div class="tab-indicator"></div>
-                        </div>
-
-                        <!-- Login Form -->
-                        <div id="loginForm" class="auth-form-container">
-                            <div class="auth-header">
-                                <h2>Login to Your Account</h2>
-                                <p>Access your dashboard and manage your vehicle registrations</p>
-                            </div>
-
-                            <form class="auth-form" onsubmit="handleLogin(event)">
-                                <div class="form-group">
-                                    <label for="loginEmail">Email Address</label>
-                                    <div class="input-wrapper">
-                                        <input type="email" id="loginEmail" name="email" placeholder="Enter your email" required>
-                                        <i class="fas fa-envelope input-icon"></i>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="loginPassword">Password</label>
-                                    <div class="input-wrapper password-wrapper">
-                                        <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
-                                        <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('loginPassword', this)">
-                                            <i class="fas fa-eye" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="form-options">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" name="remember">
-                                        <span class="checkmark"></span>
-                                        <span class="checkbox-text">Remember me</span>
-                                    </label>
-                                    <a href="#" class="forgot-password" onclick="showForgotPasswordModal(); return false;">Forgot Password?</a>
-                                </div>
-
-                                <button type="submit" class="btn-primary btn-full">
+                        <div class="auth-panel">
+                            <!-- Toggle Tabs -->
+                            <div class="auth-tabs">
+                                <button class="tab-btn active" onclick="showLogin(); return false;" id="loginTab">
                                     <span>Login</span>
-                                    <i class="fas fa-sign-in-alt"></i>
                                 </button>
-                            </form>
-                        </div>
-
-                        <!-- Signup Form -->
-                        <div id="signupForm" class="auth-form-container" style="display: none;">
-                            <div class="auth-header">
-                                <h2>Create Your Account</h2>
-                                <p>Join thousands of users managing their vehicle registrations securely</p>
+                                <button class="tab-btn" onclick="showSignup(); return false;" id="signupTab">
+                                    <span>Sign Up</span>
+                                </button>
+                                <div class="tab-indicator"></div>
                             </div>
+
+                            <!-- Login Form -->
+                            <div id="loginForm" class="auth-form-container">
+                                <div class="auth-header">
+                                    <h2>Login to Your Account</h2>
+                                    <p>Access your dashboard and manage your vehicle registrations</p>
+                                </div>
+
+                                <form class="auth-form" onsubmit="handleLogin(event)">
+                                    <div class="form-group">
+                                        <label for="loginEmail">Email Address</label>
+                                        <div class="input-wrapper">
+                                            <input type="email" id="loginEmail" name="email" placeholder="Enter your email" required>
+                                            <i class="fas fa-envelope input-icon"></i>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="loginPassword">Password</label>
+                                        <div class="input-wrapper password-wrapper">
+                                            <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
+                                            <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('loginPassword', this)">
+                                                <i class="fas fa-eye" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-options">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" name="remember">
+                                            <span class="checkmark"></span>
+                                            <span class="checkbox-text">Remember me</span>
+                                        </label>
+                                        <a href="#" class="forgot-password" onclick="showForgotPasswordModal(); return false;">Forgot Password?</a>
+                                    </div>
+
+                                    <button type="submit" class="btn-primary btn-full">
+                                        <span>Login</span>
+                                        <i class="fas fa-sign-in-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Signup Form -->
+                            <div id="signupForm" class="auth-form-container" style="display: none;">
+                                <div class="auth-header">
+                                    <h2>Create Your Account</h2>
+                                    <p>Join thousands of users managing their vehicle registrations securely</p>
+                                </div>
 
                             <form class="auth-form" onsubmit="validateSignup(event); return false;">
                                 <div class="form-row">
@@ -179,9 +180,91 @@
                             </form>
                         </div>
 
-                        <div class="auth-footer">
-                            <p id="authFooterText">Don't have an account? <a href="#" onclick="showSignup(); return false;">Sign up here</a></p>
+                            <div class="auth-footer">
+                                <p id="authFooterText">Don't have an account? <a href="#" onclick="showSignup(); return false;">Sign up here</a></p>
+                            </div>
                         </div>
+
+                        <!-- Right-side illustration (decorative only; no functional elements) -->
+                        <aside class="auth-illustration" aria-hidden="true">
+                            <div class="illustration-surface">
+                                <svg viewBox="0 0 520 420" width="520" height="420" role="presentation" focusable="false">
+                                    <defs>
+                                        <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                                            <stop offset="0" stop-color="rgba(59,130,246,0.35)"/>
+                                            <stop offset="0.5" stop-color="rgba(139,92,246,0.28)"/>
+                                            <stop offset="1" stop-color="rgba(6,182,212,0.30)"/>
+                                        </linearGradient>
+                                        <linearGradient id="g2" x1="1" y1="0" x2="0" y2="1">
+                                            <stop offset="0" stop-color="rgba(255,255,255,0.55)"/>
+                                            <stop offset="1" stop-color="rgba(255,255,255,0.10)"/>
+                                        </linearGradient>
+                                        <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                            <feGaussianBlur stdDeviation="6" result="blur"/>
+                                            <feColorMatrix in="blur" type="matrix"
+                                                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.35 0" result="glow"/>
+                                            <feMerge>
+                                                <feMergeNode in="glow"/>
+                                                <feMergeNode in="SourceGraphic"/>
+                                            </feMerge>
+                                        </filter>
+                                    </defs>
+
+                                    <!-- subtle grid -->
+                                    <g opacity="0.22">
+                                        <path d="M40 70H480" stroke="rgba(59,130,246,0.20)" stroke-width="1"/>
+                                        <path d="M40 130H480" stroke="rgba(59,130,246,0.14)" stroke-width="1"/>
+                                        <path d="M40 190H480" stroke="rgba(59,130,246,0.10)" stroke-width="1"/>
+                                        <path d="M40 250H480" stroke="rgba(59,130,246,0.08)" stroke-width="1"/>
+                                        <path d="M40 310H480" stroke="rgba(59,130,246,0.06)" stroke-width="1"/>
+                                        <path d="M120 40V380" stroke="rgba(139,92,246,0.12)" stroke-width="1"/>
+                                        <path d="M220 40V380" stroke="rgba(139,92,246,0.10)" stroke-width="1"/>
+                                        <path d="M320 40V380" stroke="rgba(139,92,246,0.08)" stroke-width="1"/>
+                                        <path d="M420 40V380" stroke="rgba(139,92,246,0.06)" stroke-width="1"/>
+                                    </g>
+
+                                    <!-- connection lines -->
+                                    <g filter="url(#softGlow)">
+                                        <path d="M135 260 C 210 200, 270 220, 330 160" fill="none" stroke="url(#g1)" stroke-width="3" opacity="0.8"/>
+                                        <path d="M190 300 C 250 260, 310 290, 380 230" fill="none" stroke="url(#g1)" stroke-width="3" opacity="0.55"/>
+                                    </g>
+
+                                    <!-- glass blocks -->
+                                    <g filter="url(#softGlow)">
+                                        <g transform="translate(95 230)">
+                                            <path d="M0 40 L60 10 L120 40 L60 70 Z" fill="url(#g1)" opacity="0.55"/>
+                                            <path d="M0 40 L0 95 L60 125 L60 70 Z" fill="rgba(59,130,246,0.20)" opacity="0.7"/>
+                                            <path d="M120 40 L120 95 L60 125 L60 70 Z" fill="rgba(139,92,246,0.18)" opacity="0.7"/>
+                                            <path d="M10 45 L60 20 L110 45 L60 65 Z" fill="url(#g2)" opacity="0.55"/>
+                                        </g>
+                                        <g transform="translate(235 165)">
+                                            <path d="M0 40 L60 10 L120 40 L60 70 Z" fill="url(#g1)" opacity="0.55"/>
+                                            <path d="M0 40 L0 95 L60 125 L60 70 Z" fill="rgba(6,182,212,0.18)" opacity="0.7"/>
+                                            <path d="M120 40 L120 95 L60 125 L60 70 Z" fill="rgba(59,130,246,0.16)" opacity="0.7"/>
+                                            <path d="M10 45 L60 20 L110 45 L60 65 Z" fill="url(#g2)" opacity="0.55"/>
+                                        </g>
+                                        <g transform="translate(300 235)">
+                                            <path d="M0 40 L60 10 L120 40 L60 70 Z" fill="url(#g1)" opacity="0.55"/>
+                                            <path d="M0 40 L0 95 L60 125 L60 70 Z" fill="rgba(139,92,246,0.16)" opacity="0.7"/>
+                                            <path d="M120 40 L120 95 L60 125 L60 70 Z" fill="rgba(6,182,212,0.16)" opacity="0.7"/>
+                                            <path d="M10 45 L60 20 L110 45 L60 65 Z" fill="url(#g2)" opacity="0.55"/>
+                                        </g>
+                                    </g>
+
+                                    <!-- subtle lock badge -->
+                                    <g transform="translate(390 95)" filter="url(#softGlow)">
+                                        <circle cx="40" cy="40" r="34" fill="rgba(255,255,255,0.55)" stroke="rgba(59,130,246,0.22)"/>
+                                        <path d="M40 33c-6 0-11 5-11 11v10c0 2 2 4 4 4h14c2 0 4-2 4-4V44c0-6-5-11-11-11zm-7 11c0-4 3-7 7-7s7 3 7 7v2H33v-2z"
+                                              fill="rgba(30,64,175,0.75)"/>
+                                    </g>
+                                </svg>
+
+                                <div class="illustration-caption">
+                                    <div class="cap-title">Secure identity & access</div>
+                                    <div class="cap-sub">Protected sessions for vehicle registration workflows</div>
+                                </div>
+                            </div>
+                        </aside>
                     </div>
                 </div>
             </div>

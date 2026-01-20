@@ -152,6 +152,77 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
         // Get updated vehicle
         const updatedVehicle = await db.getVehicleById(vehicleId);
 
+        // If there are any active transfer requests waiting for LTO inspection for this vehicle,
+        // move them forward and record inspection metadata.
+        try {
+            const pendingTransfers = await db.getTransferRequests({
+                vehicleId,
+                status: 'AWAITING_LTO_INSPECTION'
+            });
+
+            if (pendingTransfers && pendingTransfers.length > 0) {
+                const nowIso = new Date().toISOString();
+                for (const tr of pendingTransfers) {
+                    // Mark transfer as back under review now that inspection is complete
+                    await db.updateTransferRequestStatus(
+                        tr.id,
+                        'UNDER_REVIEW',
+                        req.user.userId,
+                        null,
+                        {
+                            ltoInspectionCompleted: true,
+                            ltoInspectionCompletedAt: nowIso,
+                            ltoInspection: {
+                                mvirNumber: inspectionResult_data.mvirNumber,
+                                inspectionDate: inspectionResult_data.inspectionDate,
+                                inspectionResult,
+                                roadworthinessStatus,
+                                emissionCompliance,
+                                inspectionOfficer: officerName
+                            }
+                        }
+                    );
+
+                    // Add history entry tying this inspection to the transfer request
+                    await db.addVehicleHistory({
+                        vehicleId,
+                        action: 'LTO_INSPECTION_LINKED_TO_TRANSFER',
+                        description: `LTO inspection completed for active transfer request ${tr.id}. MVIR: ${inspectionResult_data.mvirNumber}`,
+                        performedBy: req.user.userId,
+                        transactionId: null,
+                        metadata: {
+                            transferRequestId: tr.id,
+                            mvirNumber: inspectionResult_data.mvirNumber
+                        }
+                    });
+
+                    // Notify seller and buyer that inspection has been completed
+                    try {
+                        if (tr.seller_id) {
+                            await db.createNotification({
+                                userId: tr.seller_id,
+                                title: 'LTO Inspection Completed',
+                                message: `LTO inspection for your transfer request on vehicle ${updatedVehicle.plate_number || updatedVehicle.vin} has been completed. The request is now under review.`,
+                                type: 'success'
+                            });
+                        }
+                        if (tr.buyer_id) {
+                            await db.createNotification({
+                                userId: tr.buyer_id,
+                                title: 'LTO Inspection Completed',
+                                message: `LTO inspection for the vehicle ${updatedVehicle.plate_number || updatedVehicle.vin} has been completed. The transfer request is now under review.`,
+                                type: 'info'
+                            });
+                        }
+                    } catch (notifError) {
+                        console.warn('⚠️ Failed to create inspection completion notifications:', notifError.message);
+                    }
+                }
+            }
+        } catch (transferLinkError) {
+            console.warn('⚠️ Failed to update transfer requests after inspection:', transferLinkError.message);
+        }
+        
         res.json({
             success: true,
             message: 'Vehicle inspection completed successfully',

@@ -18,6 +18,8 @@ const TRANSFER_STATUS = {
     PENDING: 'PENDING',
     AWAITING_BUYER_DOCS: 'AWAITING_BUYER_DOCS',
     UNDER_REVIEW: 'UNDER_REVIEW',
+    // When LTO has determined that a fresh inspection is required
+    AWAITING_LTO_INSPECTION: 'AWAITING_LTO_INSPECTION',
     APPROVED: 'APPROVED',
     REJECTED: 'REJECTED',
     EXPIRED: 'EXPIRED',
@@ -1431,7 +1433,12 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         try {
             existingRequests = await db.getTransferRequests({
                 vehicleId,
-                status: [TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS, TRANSFER_STATUS.UNDER_REVIEW]
+                status: [
+                    TRANSFER_STATUS.PENDING,
+                    TRANSFER_STATUS.AWAITING_BUYER_DOCS,
+                    TRANSFER_STATUS.UNDER_REVIEW,
+                    TRANSFER_STATUS.AWAITING_LTO_INSPECTION
+                ]
             });
         } catch (checkError) {
             console.warn('⚠️ Error checking existing requests (continuing anyway):', checkError.message);
@@ -1722,7 +1729,7 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
             JOIN users seller ON tr.seller_id = seller.id
             WHERE
                 (tr.buyer_id = $1 OR (tr.buyer_id IS NULL AND ((tr.buyer_info::jsonb)->>'email') = $2))
-                AND tr.status IN ('PENDING', 'AWAITING_BUYER_DOCS', 'UNDER_REVIEW')
+                AND tr.status IN ('PENDING', 'AWAITING_BUYER_DOCS', 'UNDER_REVIEW', 'AWAITING_LTO_INSPECTION')
             ORDER BY tr.created_at DESC
             `,
             [userId, userEmail]
@@ -2481,7 +2488,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             });
         }
         
-        if (![TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS, TRANSFER_STATUS.UNDER_REVIEW].includes(request.status)) {
+        if (![TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS, TRANSFER_STATUS.UNDER_REVIEW, TRANSFER_STATUS.AWAITING_LTO_INSPECTION].includes(request.status)) {
             return res.status(400).json({
                 success: false,
                 error: `Cannot approve request with status: ${request.status}`
@@ -2544,6 +2551,54 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             return res.status(404).json({
                 success: false,
                 error: 'Vehicle not found'
+            });
+        }
+
+        // LTO inspection requirement: vehicle must have a recorded MVIR before ownership can change.
+        // We treat any existing mvir_number as evidence of a completed LTO inspection.
+        const hasInspection = !!vehicle.mvir_number;
+        if (!hasInspection) {
+            // If not already flagged, mark the transfer as awaiting LTO inspection and notify parties.
+            if (request.status !== TRANSFER_STATUS.AWAITING_LTO_INSPECTION) {
+                const nowIso = new Date().toISOString();
+                await db.updateTransferRequestStatus(
+                    id,
+                    TRANSFER_STATUS.AWAITING_LTO_INSPECTION,
+                    req.user.userId,
+                    null,
+                    {
+                        ltoInspectionRequired: true,
+                        ltoInspectionRequiredAt: nowIso
+                    }
+                );
+
+                try {
+                    // Notify seller that an LTO inspection is required.
+                    await db.createNotification({
+                        userId: request.seller_id,
+                        title: 'Transfer Requires LTO Inspection',
+                        message: `Your transfer request for vehicle ${vehicle.plate_number || vehicle.vin} requires an LTO inspection. Please bring the vehicle to your LTO office for inspection.`,
+                        type: 'warning'
+                    });
+
+                    // Notify buyer if buyer_id is already resolved.
+                    if (request.buyer_id) {
+                        await db.createNotification({
+                            userId: request.buyer_id,
+                            title: 'Transfer Pending LTO Inspection',
+                            message: `The vehicle ${vehicle.plate_number || vehicle.vin} must be inspected by LTO before the ownership transfer can be completed.`,
+                            type: 'info'
+                        });
+                    }
+                } catch (notifError) {
+                    console.warn('⚠️ Failed to create LTO inspection notifications:', notifError.message);
+                }
+            }
+
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot approve transfer request. Vehicle requires LTO inspection before approval.',
+                code: 'LTO_INSPECTION_REQUIRED'
             });
         }
         

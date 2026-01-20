@@ -3500,54 +3500,6 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
 });
 
 // Forward transfer request to Emission
-        // Update transfer request
-        const dbModule = require('../database/db');
-        await dbModule.query(
-            `UPDATE transfer_requests 
-             SET insurance_clearance_request_id = $1,
-                 insurance_approval_status = 'PENDING',
-                 metadata = metadata || $2::jsonb,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = $3`,
-            [
-                clearanceRequest.id,
-                JSON.stringify({ insuranceClearanceRequestId: clearanceRequest.id }),
-                id
-            ]
-        );
-        
-        // Add to vehicle history
-        await db.addVehicleHistory({
-            vehicleId: request.vehicle_id,
-            action: 'TRANSFER_FORWARDED_TO_INSURANCE',
-            description: `Transfer request forwarded to Insurance for clearance review`,
-            performedBy: req.user.userId,
-            metadata: { 
-                transferRequestId: id, 
-                clearanceRequestId: clearanceRequest.id,
-                documentsSent: insuranceDocuments.length
-            }
-        });
-        
-        const updatedRequest = await db.getTransferRequestById(id);
-        
-        res.json({
-            success: true,
-            message: 'Transfer request forwarded to Insurance',
-            transferRequest: updatedRequest,
-            clearanceRequest
-        });
-        
-    } catch (error) {
-        console.error('Forward to Insurance error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-});
-
-// Forward transfer request to Emission
 router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { id } = req.params;

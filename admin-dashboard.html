@@ -45,6 +45,7 @@
     <script src="js/utils.js"></script>
     <script src="js/document-modal.js"></script>
     <script src="js/mobile-nav.js"></script>
+    <script src="js/toast-notification.js"></script>
     <style>
         /* ============================================
            LIGHT THEME ADMIN DASHBOARD
@@ -1149,15 +1150,17 @@
                     <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
                         <h3><i class="fas fa-search"></i> Search Transaction</h3>
                         <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details</p>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; position: relative;">
                             <input type="text" 
                                    id="txSearchInput" 
                                    placeholder="Enter Transaction ID" 
-                                   style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
-                            <button onclick="searchTransaction()" class="btn-primary" style="padding: 0.75rem 1.5rem;">
+                                   style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"
+                                   aria-label="Transaction ID search">
+                            <button onclick="searchTransaction()" class="btn-primary" id="txSearchBtn" style="padding: 0.75rem 1.5rem;">
                                 <i class="fas fa-search"></i> Search
                             </button>
                         </div>
+                        <div id="txSearchError" style="display: none; color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem;"></div>
                         <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in blockchain records.</small>
                     </div>
 
@@ -1225,7 +1228,7 @@
                         </div>
                         <p class="card-description">View all documents from applications, verifications, and certificates</p>
                         <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
-                        <a href="#applications" class="btn-card-primary" onclick="event.preventDefault(); if(window.ToastNotification){ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');} else { alert('Use the in-page document modal inside an application to view documents.'); }">
+                        <a href="#applications" class="btn-card-primary" onclick="event.preventDefault(); ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');">
                             <span>View Documents</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>
@@ -1240,7 +1243,7 @@
                         </div>
                         <p class="card-description">Search documents by VIN, application ID, or document type</p>
                         <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
-                        <a href="#applications" class="btn-card-secondary" onclick="event.preventDefault(); if(window.ToastNotification){ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');} else { alert('Use the in-page document modal inside an application to view documents.'); }">
+                        <a href="#applications" class="btn-card-secondary" onclick="event.preventDefault(); ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');">
                             <span>View Documents</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>
@@ -1373,33 +1376,13 @@
                     <h2 class="section-title"><i class="fas fa-car" style="color: #3498db;"></i> Vehicle Registration Applications</h2>
                     <p class="section-subtitle">New vehicle registrations submitted by owners</p>
                 </div>
-                <script>
-                // Define filter functions early to prevent "not defined" errors
-                if (typeof window.filterRegistrations === 'undefined') {
-                    window.filterRegistrations = function(status, btn) {
-                        if (typeof filterRegistrations === 'function' && filterRegistrations !== window.filterRegistrations) {
-                            return filterRegistrations(status, btn);
-                        }
-                        console.log('Filter registrations:', status);
-                        // The real function will be defined in admin-dashboard.js
-                    };
-                }
-                if (typeof window.filterTransfers === 'undefined') {
-                    window.filterTransfers = function(status, btn) {
-                        if (typeof filterTransfers === 'function' && filterTransfers !== window.filterTransfers) {
-                            return filterTransfers(status, btn);
-                        }
-                        console.log('Filter transfers:', status);
-                    };
-                }
-                </script>
                 <div id="submitted-applications" class="dashboard-card-modern table-card">
                     <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <div class="filter-tabs">
-                            <button class="filter-tab active" data-filter="all" onclick="window.filterRegistrations('all', this)">All</button>
-                            <button class="filter-tab" data-filter="SUBMITTED" onclick="window.filterRegistrations('SUBMITTED', this)">Pending</button>
-                            <button class="filter-tab" data-filter="PROCESSING" onclick="window.filterRegistrations('PROCESSING', this)">Processing</button>
-                            <button class="filter-tab" data-filter="APPROVED" onclick="window.filterRegistrations('APPROVED', this)">Approved</button>
+                        <div class="filter-tabs" id="registrationFilterTabs">
+                            <button class="filter-tab active" data-filter="all">All</button>
+                            <button class="filter-tab" data-filter="SUBMITTED">Pending</button>
+                            <button class="filter-tab" data-filter="PROCESSING">Processing</button>
+                            <button class="filter-tab" data-filter="APPROVED">Approved</button>
                         </div>
                         <a href="#submitted-applications" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
                     </div>
@@ -1547,16 +1530,34 @@
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', function(e) {
+                sidebarLogoutBtn.addEventListener('click', async function(e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
-                        if (typeof window.authManager !== 'undefined') {
-                            window.authManager.logout();
-                        } else if (typeof AuthUtils !== 'undefined') {
-                            AuthUtils.logout();
+                    const confirmed = await ToastNotification.confirm(
+                        'Are you sure you want to logout?',
+                        () => {
+                            if (typeof window.authManager !== 'undefined') {
+                                window.authManager.logout();
+                            } else if (typeof AuthUtils !== 'undefined') {
+                                AuthUtils.logout();
+                            } else {
+                                localStorage.clear();
+                                window.location.href = 'index.html';
+                            }
+                        }
+                    );
+                });
+            }
+            
+            // Setup filter tab event delegation for registration filters
+            const registrationFilterTabs = document.getElementById('registrationFilterTabs');
+            if (registrationFilterTabs) {
+                registrationFilterTabs.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('filter-tab')) {
+                        const filter = e.target.dataset.filter;
+                        if (typeof filterRegistrations === 'function') {
+                            filterRegistrations(filter, e.target);
                         } else {
-                            localStorage.clear();
-                            window.location.href = 'index.html';
+                            ToastNotification.show('Filter functionality is loading, please wait...', 'info');
                         }
                     }
                 });
@@ -1649,13 +1650,49 @@
         // Transaction search function
         async function searchTransaction() {
             const txId = document.getElementById('txSearchInput').value.trim();
+            const searchBtn = document.getElementById('txSearchBtn');
+            const errorDiv = document.getElementById('txSearchError');
+            
+            // Clear previous errors
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+                errorDiv.textContent = '';
+            }
+            
             if (!txId) {
-                alert('Please enter a Transaction ID');
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter a Transaction ID';
+                    errorDiv.style.display = 'block';
+                }
+                ToastNotification.show('Please enter a Transaction ID', 'warning');
+                document.getElementById('txSearchInput').focus();
                 return;
             }
             
-            // Redirect to blockchain viewer with transaction ID
-            window.location.href = `admin-blockchain-viewer.html?txId=${encodeURIComponent(txId)}`;
+            // Show loading state
+            if (searchBtn) {
+                const originalHTML = searchBtn.innerHTML;
+                searchBtn.disabled = true;
+                searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+                
+                try {
+                    // Small delay to show loading state
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    // Redirect to blockchain viewer with transaction ID
+                    window.location.href = `admin-blockchain-viewer.html?txId=${encodeURIComponent(txId)}`;
+                } catch (error) {
+                    searchBtn.innerHTML = originalHTML;
+                    searchBtn.disabled = false;
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Search failed: ' + error.message;
+                        errorDiv.style.display = 'block';
+                    }
+                    ToastNotification.show('Search failed: ' + error.message, 'error');
+                }
+            } else {
+                window.location.href = `admin-blockchain-viewer.html?txId=${encodeURIComponent(txId)}`;
+            }
         }
         
         // Allow Enter key to trigger search

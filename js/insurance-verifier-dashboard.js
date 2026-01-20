@@ -231,7 +231,11 @@ async function viewInsuranceDocuments(requestId) {
         if (response.success && response.request) {
             const docs = response.request.documents || [];
             if (!docs.length) {
-                alert('No documents available for this request');
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('No documents available for this request', 'warning');
+                } else {
+                    alert('No documents available for this request');
+                }
                 return;
             }
             const prepared = docs.map(doc => ({
@@ -248,12 +252,20 @@ async function viewInsuranceDocuments(requestId) {
                 DocumentModal.viewMultiple(prepared, 0);
             } else {
                 // Strict: never open new tabs for viewing documents
-                alert('Document viewer modal is not available. Please refresh the page.');
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Document viewer modal is not available. Please refresh the page.', 'error');
+                } else {
+                    alert('Document viewer modal is not available. Please refresh the page.');
+                }
             }
         }
     } catch (error) {
         console.error('Error viewing insurance documents:', error);
-        alert('Failed to load documents: ' + error.message);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Failed to load documents: ' + error.message, 'error');
+        } else {
+            alert('Failed to load documents: ' + error.message);
+        }
     }
 }
 

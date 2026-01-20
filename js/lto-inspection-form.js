@@ -8,15 +8,21 @@ let currentVehicle = null;
 document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication
     if (!AuthUtils.isAuthenticated()) {
-        window.location.href = 'login.html';
+        window.location.href = 'login-signup.html';
         return;
     }
 
     // Check if user is admin
     const currentUser = AuthUtils.getCurrentUser();
     if (currentUser.role !== 'admin') {
-        alert('Access denied. Admin privileges required.');
-        window.location.href = 'index.html';
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Access denied. Admin privileges required.', 'error');
+        } else {
+            alert('Access denied. Admin privileges required.');
+        }
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 2000);
         return;
     }
 
@@ -87,11 +93,19 @@ function setupEventListeners() {
     }
 
     // Logout
-    document.getElementById('logoutBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        AuthUtils.logout();
-        window.location.href = 'login.html';
-    });
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const confirmed = await ToastNotification.confirm(
+                'Are you sure you want to logout?',
+                () => {
+                    AuthUtils.logout();
+                    window.location.href = 'login-signup.html';
+                }
+            );
+        });
+    }
 }
 
 async function loadVehicles() {
@@ -141,9 +155,15 @@ async function loadVehicleDetails(vehicleId) {
             
             // Check if vehicle already has inspection
             if (response.vehicle.mvir_number) {
-                const proceed = confirm(
-                    `This vehicle already has an inspection (MVIR: ${response.vehicle.mvir_number}).\n\n` +
-                    `Do you want to view the existing inspection or create a new one?`
+                const proceed = await ToastNotification.confirm(
+                    `This vehicle already has an inspection (MVIR: ${response.vehicle.mvir_number}).\n\nDo you want to view the existing inspection or create a new one?`,
+                    () => {
+                        // User confirmed - continue
+                    },
+                    () => {
+                        // User cancelled - reset selection
+                        document.getElementById('vehicleSelect').value = '';
+                    }
                 );
                 
                 if (!proceed) {

@@ -81,7 +81,7 @@
                                         <span class="checkmark"></span>
                                         <span class="checkbox-text">Remember me</span>
                                     </label>
-                                    <a href="#" class="forgot-password">Forgot Password?</a>
+                                    <a href="#" class="forgot-password" onclick="showForgotPasswordModal(); return false;">Forgot Password?</a>
                                 </div>
 
                                 <button type="submit" class="btn-primary btn-full">
@@ -137,21 +137,21 @@
                                 <div class="form-group">
                                     <label for="address">Complete Address</label>
                                     <div class="input-wrapper">
-                                        <textarea id="address" name="address" rows="3" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila" required></textarea>
+                                        <textarea id="address" name="address" rows="3" placeholder="e.g., 123 Main Street, Barangay San Antonio, Quezon City, Metro Manila"></textarea>
                                         <i class="fas fa-map-marker-alt textarea-icon"></i>
                                     </div>
-                                    <small class="hint">Include: House/Unit No., Street, Barangay, City/Municipality, Province (Optional)</small>
+                                    <small class="hint">Include: House/Unit No., Street, Barangay, City/Municipality, Province</small>
                                 </div>
 
                                 <div class="form-group">
                                     <label for="signupPassword">Password</label>
                                     <div class="input-wrapper password-wrapper">
-                                        <input type="password" id="signupPassword" name="password" placeholder="Create a password" required>
+                                        <input type="password" id="signupPassword" name="password" placeholder="Create a password" required minlength="12" pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{12,}$">
                                         <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('signupPassword', this)">
                                             <i class="fas fa-eye" aria-hidden="true"></i>
                                         </button>
                                     </div>
-                                    <small class="hint">Minimum 12 characters (letters and numbers recommended)</small>
+                                    <small class="hint">Minimum 12 characters with letters and numbers</small>
                                 </div>
 
                                 <div class="form-group">
@@ -187,6 +187,54 @@
             </div>
         </main>
     </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0; font-size: 1.5rem; color: #111827;">Reset Password</h2>
+                <button class="modal-close" onclick="closeForgotPasswordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280; line-height: 1.6;">Enter your email address and we'll send you a password reset link.</p>
+                <form onsubmit="handleForgotPassword(event); return false;">
+                    <div class="form-group">
+                        <label for="resetEmail">Email Address</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="resetEmail" name="email" placeholder="Enter your email" required>
+                            <i class="fas fa-envelope input-icon"></i>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary btn-full">
+                        <span>Send Reset Link</span>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').style.display = 'flex';
+        }
+
+        function closeForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').style.display = 'none';
+        }
+
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+            // TODO: Wire to backend API
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Password reset functionality will be connected to backend API.', 'info');
+            } else {
+                alert('Password reset functionality will be connected to backend API.');
+            }
+            closeForgotPasswordModal();
+        }
+    </script>
 
     <script>
         // Password visibility toggle (UI only - doesn't affect existing functionality)
@@ -262,6 +310,7 @@
             });
         });
     </script>
+    <script src="js/toast-notification.js"></script>
     <script src="js/login-signup.js"></script>
 </body>
 </html>

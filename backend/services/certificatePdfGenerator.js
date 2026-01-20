@@ -1170,6 +1170,540 @@ class CertificatePdfGenerator {
             throw error;
         }
     }
+
+    /**
+     * Generate Deed of Sale PDF for Transfer of Ownership
+     * @param {Object} data - Deed of Sale data
+     * @returns {Promise<{pdfBuffer: Buffer, fileHash: string, certificateNumber: string}>}
+     */
+    async generateDeedOfSale(data) {
+        const {
+            sellerName,
+            sellerAddress,
+            buyerName,
+            buyerAddress,
+            vehicleVIN,
+            vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            engineNumber,
+            chassisNumber,
+            purchasePrice,
+            saleDate,
+            odometerReading,
+            notaryName,
+            notaryCommission
+        } = data;
+
+        // Use Sales Invoice template as base for Deed of Sale
+        const templatePath = path.join(this.templatesPath, 'Sales Invoice', 'sales-invoice.html');
+        let htmlTemplate = await fs.readFile(templatePath, 'utf-8');
+
+        // Replace header title
+        htmlTemplate = htmlTemplate.replace(
+            /<h2>AUTHENTICATED SALES INVOICE<\/h2>/,
+            '<h2>DEED OF ABSOLUTE SALE</h2>'
+        );
+
+        // Format date
+        const formatDate = (dateStr) => {
+            if (!dateStr) return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        };
+
+        // Replace buyer name
+        htmlTemplate = htmlTemplate.replace(
+            /id="buyer-name"[^>]*value="[^"]*"/,
+            `id="buyer-name" class="editable-field" value="${buyerName || 'N/A'}"`
+        );
+
+        // Replace vehicle details
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-make"[^>]*value="[^"]*"/,
+            `id="vehicle-make" class="editable-field" value="${vehicleMake || 'N/A'}"`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-model"[^>]*value="[^"]*"/,
+            `id="vehicle-model" class="editable-field" value="${vehicleModel || 'N/A'}"`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-year"[^>]*value="[^"]*"/,
+            `id="vehicle-year" class="editable-field" value="${vehicleYear || 'N/A'}"`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-engine"[^>]*value="[^"]*"/,
+            `id="vehicle-engine" class="editable-field" value="${engineNumber || 'N/A'}"`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-chassis"[^>]*value="[^"]*"/,
+            `id="vehicle-chassis" class="editable-field" value="${vehicleVIN || chassisNumber || 'N/A'}"`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="vehicle-plate"[^>]*value="[^"]*"/,
+            `id="vehicle-plate" class="editable-field" value="${vehiclePlate || 'N/A'}"`
+        );
+
+        // Replace purchase price
+        const priceText = purchasePrice || 'PHP 0.00';
+        htmlTemplate = htmlTemplate.replace(
+            /<td>₱1,120,000.00<\/td>/,
+            `<td>${priceText}</td>`
+        );
+
+        // Replace sale date
+        const finalSaleDate = saleDate || new Date().toISOString();
+        htmlTemplate = htmlTemplate.replace(
+            /<span id="date-sale"><\/span>/,
+            formatDate(finalSaleDate)
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /<span id="seller-date"><\/span>/g,
+            formatDate(finalSaleDate)
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /<span id="date-auth"><\/span>/g,
+            formatDate(finalSaleDate)
+        );
+
+        // Add seller information section
+        const sellerSection = `
+  <hr>
+  <section>
+    <h3>Seller Information</h3>
+    <p><strong>Name:</strong> ${sellerName || 'N/A'}</p>
+    <p><strong>Address:</strong> ${sellerAddress || 'N/A'}</p>
+  </section>
+`;
+        htmlTemplate = htmlTemplate.replace(
+            /<hr>\s*<!-- SIGNATURES -->/,
+            sellerSection + '\n  <hr>\n  <!-- SIGNATURES -->'
+        );
+
+        // Add notary information if provided
+        if (notaryName) {
+            htmlTemplate = htmlTemplate.replace(
+                /<p><strong>Position:<\/strong> Sales Manager<\/p>/,
+                `<p><strong>Position:</strong> Notary Public</p><p><strong>Commission No.:</strong> ${notaryCommission || 'N/A'}</p>`
+            );
+            htmlTemplate = htmlTemplate.replace(
+                /<p><strong>Name:<\/strong> John M. Santos<\/p>/,
+                `<p><strong>Name:</strong> ${notaryName}</p>`
+            );
+        }
+
+        // Inline CSS
+        const cssPath = path.join(this.templatesPath, 'Sales Invoice', 'sales-invoice.css');
+        try {
+            const cssContent = await fs.readFile(cssPath, 'utf-8');
+            htmlTemplate = htmlTemplate.replace(
+                /<link rel="stylesheet" href="sales-invoice\.css">/,
+                `<style>${cssContent}</style>`
+            );
+        } catch (cssError) {
+            console.warn('[Deed of Sale] Could not load CSS file:', cssError.message);
+        }
+
+        // Generate PDF
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
+        try {
+            const page = await browser.newPage();
+            await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const pdfResult = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+            });
+
+            await browser.close();
+
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'Deed of Sale');
+            this.validatePdfBuffer(pdfBuffer, 'Deed of Sale');
+            const fileHash = this.calculateFileHash(pdfBuffer);
+
+            return {
+                pdfBuffer,
+                fileHash,
+                certificateNumber: `DEED-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            };
+        } catch (error) {
+            await browser.close();
+            throw error;
+        }
+    }
+
+    /**
+     * Generate Government ID PDF (Driver's License or National ID)
+     * @param {Object} data - ID data
+     * @returns {Promise<{pdfBuffer: Buffer, fileHash: string, certificateNumber: string}>}
+     */
+    async generateGovernmentId(data) {
+        const {
+            holderName,
+            holderAddress,
+            idType,
+            idNumber,
+            dateOfBirth,
+            isSeller
+        } = data;
+
+        // Use Driver's License template
+        const templatePath = path.join(this.templatesPath, 'Mockups ID', 'drivers-license.html');
+        let htmlTemplate = await fs.readFile(templatePath, 'utf-8');
+
+        // Replace name (look for name fields in the template)
+        htmlTemplate = htmlTemplate.replace(
+            /id="full-name"[^>]*value="[^"]*"/g,
+            `id="full-name" value="${holderName || 'N/A'}"`
+        );
+
+        // Replace address
+        htmlTemplate = htmlTemplate.replace(
+            /id="address"[^>]*value="[^"]*"/g,
+            `id="address" value="${holderAddress || 'N/A'}"`
+        );
+
+        // Replace ID number
+        htmlTemplate = htmlTemplate.replace(
+            /id="license-number"[^>]*value="[^"]*"/g,
+            `id="license-number" value="${idNumber || 'N/A'}"`
+        );
+
+        // Replace date of birth if provided
+        if (dateOfBirth) {
+            const dob = new Date(dateOfBirth);
+            const dobStr = dob.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            htmlTemplate = htmlTemplate.replace(
+                /id="birthdate"[^>]*value="[^"]*"/g,
+                `id="birthdate" value="${dobStr}"`
+            );
+        }
+
+        // Generate PDF
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
+        try {
+            const page = await browser.newPage();
+            await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const pdfResult = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+            });
+
+            await browser.close();
+
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'Government ID');
+            this.validatePdfBuffer(pdfBuffer, 'Government ID');
+            const fileHash = this.calculateFileHash(pdfBuffer);
+
+            return {
+                pdfBuffer,
+                fileHash,
+                certificateNumber: idNumber || `ID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            };
+        } catch (error) {
+            await browser.close();
+            throw error;
+        }
+    }
+
+    /**
+     * Generate TIN Document PDF
+     * @param {Object} data - TIN data
+     * @returns {Promise<{pdfBuffer: Buffer, fileHash: string, certificateNumber: string}>}
+     */
+    async generateTinDocument(data) {
+        const {
+            holderName,
+            holderAddress,
+            tinNumber
+        } = data;
+
+        // Create simple TIN document HTML
+        const htmlTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>TIN Certificate</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #1e4b7a;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #1e4b7a;
+            margin: 0;
+        }
+        .content {
+            margin: 30px 0;
+        }
+        .info-row {
+            display: flex;
+            margin: 15px 0;
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 200px;
+            color: #333;
+        }
+        .info-value {
+            flex: 1;
+            color: #666;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .tin-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e4b7a;
+            text-align: center;
+            padding: 20px;
+            background: #f0f7ff;
+            border: 2px solid #1e4b7a;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>BUREAU OF INTERNAL REVENUE</h1>
+        <p>Republic of the Philippines</p>
+        <h2>TAX IDENTIFICATION NUMBER (TIN)</h2>
+    </div>
+    <div class="content">
+        <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value">${holderName || 'N/A'}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Address:</div>
+            <div class="info-value">${holderAddress || 'N/A'}</div>
+        </div>
+        <div class="tin-number">
+            ${tinNumber || 'N/A'}
+        </div>
+        <div class="info-row">
+            <div class="info-label">Date Issued:</div>
+            <div class="info-value">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        </div>
+    </div>
+    <div class="footer">
+        <p>This is a system-generated document for demo/testing purposes.</p>
+        <p>For official TIN, please visit your local BIR office.</p>
+    </div>
+</body>
+</html>
+        `;
+
+        // Generate PDF
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
+        try {
+            const page = await browser.newPage();
+            await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const pdfResult = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+            });
+
+            await browser.close();
+
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'TIN Document');
+            this.validatePdfBuffer(pdfBuffer, 'TIN Document');
+            const fileHash = this.calculateFileHash(pdfBuffer);
+
+            return {
+                pdfBuffer,
+                fileHash,
+                certificateNumber: tinNumber || `TIN-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            };
+        } catch (error) {
+            await browser.close();
+            throw error;
+        }
+    }
+
+    /**
+     * Generate MVIR (Motor Vehicle Inspection Report) PDF
+     * @param {Object} data - MVIR data
+     * @returns {Promise<{pdfBuffer: Buffer, fileHash: string, certificateNumber: string}>}
+     */
+    async generateMvir(data) {
+        const {
+            vehicleVIN,
+            vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            engineNumber,
+            chassisNumber,
+            inspectionDate,
+            mvirNumber,
+            inspectionResult,
+            inspectorName
+        } = data;
+
+        // Create MVIR HTML template
+        const htmlTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MVIR - Motor Vehicle Inspection Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #1e4b7a;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #1e4b7a;
+            margin: 0;
+        }
+        .content {
+            margin: 30px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        table td:first-child {
+            font-weight: bold;
+            background: #f5f5f5;
+            width: 200px;
+        }
+        .result-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .result-pass {
+            background: #4caf50;
+            color: white;
+        }
+        .result-fail {
+            background: #f44336;
+            color: white;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: right;
+        }
+        .signature-line {
+            border-top: 1px solid #333;
+            width: 300px;
+            margin-top: 60px;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>LAND TRANSPORTATION OFFICE</h1>
+        <p>Republic of the Philippines</p>
+        <h2>MOTOR VEHICLE INSPECTION REPORT (MVIR)</h2>
+        <p><strong>MVIR Number:</strong> ${mvirNumber || 'MVIR-' + new Date().getFullYear() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase()}</p>
+    </div>
+    <div class="content">
+        <table>
+            <tr><td>Vehicle VIN</td><td>${vehicleVIN || 'N/A'}</td></tr>
+            <tr><td>Plate Number</td><td>${vehiclePlate || 'N/A'}</td></tr>
+            <tr><td>Make / Brand</td><td>${vehicleMake || 'N/A'}</td></tr>
+            <tr><td>Model</td><td>${vehicleModel || 'N/A'}</td></tr>
+            <tr><td>Year</td><td>${vehicleYear || 'N/A'}</td></tr>
+            <tr><td>Engine Number</td><td>${engineNumber || 'N/A'}</td></tr>
+            <tr><td>Chassis Number</td><td>${chassisNumber || vehicleVIN || 'N/A'}</td></tr>
+            <tr><td>Inspection Date</td><td>${inspectionDate ? new Date(inspectionDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
+        </table>
+        <div>
+            <strong>Inspection Result:</strong>
+            <div class="result-badge ${(inspectionResult || 'PASS').toUpperCase() === 'PASS' ? 'result-pass' : 'result-fail'}">
+                ${(inspectionResult || 'PASS').toUpperCase()}
+            </div>
+        </div>
+        <div>
+            <strong>Roadworthiness Status:</strong> ROADWORTHY
+        </div>
+        <div>
+            <strong>Emission Compliance:</strong> COMPLIANT
+        </div>
+    </div>
+    <div class="footer">
+        <div class="signature-line">
+            <p><strong>${inspectorName || 'LTO Inspector'}</strong></p>
+            <p>Inspector</p>
+        </div>
+    </div>
+</body>
+</html>
+        `;
+
+        // Generate PDF
+        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
+        try {
+            const page = await browser.newPage();
+            await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const pdfResult = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+            });
+
+            await browser.close();
+
+            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'MVIR');
+            this.validatePdfBuffer(pdfBuffer, 'MVIR');
+            const fileHash = this.calculateFileHash(pdfBuffer);
+
+            return {
+                pdfBuffer,
+                fileHash,
+                certificateNumber: mvirNumber || `MVIR-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            };
+        } catch (error) {
+            await browser.close();
+            throw error;
+        }
+    }
 }
 
 module.exports = new CertificatePdfGenerator();

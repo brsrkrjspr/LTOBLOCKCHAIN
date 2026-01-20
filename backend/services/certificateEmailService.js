@@ -555,6 +555,157 @@ This is an automated email. Please do not reply to this message.
             }]
         });
     }
+
+    /**
+     * Send Transfer Compliance Documents via Email
+     * @param {Object} params
+     * @returns {Promise<Object>}
+     */
+    async sendTransferComplianceDocuments({ to, recipientType, documents, transferRequestId, vehicle }) {
+        const subject = `Transfer Compliance Documents - ${recipientType === 'seller' ? 'Deed of Sale & Seller ID' : 'Buyer Requirements'}`;
+        
+        const recipientLabel = recipientType === 'seller' ? 'Seller' : 'Buyer';
+        const documentList = documents.map(doc => {
+            const docTypeMap = {
+                'deed_of_sale': 'Deed of Sale',
+                'seller_id': 'Seller ID',
+                'buyer_id': 'Buyer ID',
+                'buyer_tin': 'TIN Document',
+                'buyer_hpg_clearance': 'HPG Clearance',
+                'buyer_ctpl': 'CTPL Insurance',
+                'buyer_mvir': 'MVIR'
+            };
+            return docTypeMap[doc.type] || doc.type;
+        }).join(', ');
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e4b7a 0%, #2196F3 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .info-box {
+            background: white;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #1e4b7a;
+            display: inline-block;
+            min-width: 150px;
+        }
+        .documents-list {
+            background: white;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .documents-list ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .documents-list li {
+            margin: 8px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 12px;
+        }
+        .button {
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📄 Transfer Compliance Documents</h1>
+        <p>Your documents are ready for download</p>
+    </div>
+    <div class="content">
+        <p>Dear ${recipientLabel},</p>
+        
+        <p>Your transfer compliance documents have been generated. Please download and upload these documents when ${recipientType === 'seller' ? 'submitting your transfer request' : 'accepting the transfer request'}.</p>
+        
+        <div class="info-box">
+            <p><span class="info-label">Transfer Request ID:</span> ${transferRequestId || 'N/A'}</p>
+            ${vehicle ? `<p><span class="info-label">Vehicle:</span> ${vehicle.plate_number || vehicle.vin} - ${vehicle.make} ${vehicle.model} (${vehicle.year})</p>` : ''}
+        </div>
+        
+        <div class="documents-list">
+            <h3>📎 Attached Documents:</h3>
+            <ul>
+                ${documents.map(doc => `<li>${doc.filename || doc.type}</li>`).join('')}
+            </ul>
+        </div>
+        
+        <p><strong>Important:</strong> These documents are required for the transfer of ownership process. Please keep them safe and upload them to the system when prompted.</p>
+        
+        <p>If you have any questions, please contact the LTO support team.</p>
+    </div>
+    
+    <div class="footer">
+        <p>LTO Transfer of Ownership System</p>
+        <p style="font-size: 0.85em; opacity: 0.8;">This is an automated email.</p>
+    </div>
+</body>
+</html>
+        `;
+
+        const text = `Transfer Compliance Documents\n\nDear ${recipientLabel},\n\nYour transfer compliance documents have been generated.\n\nDocuments: ${documentList}\nTransfer Request: ${transferRequestId || 'N/A'}\n\nPlease download and upload these documents when ${recipientType === 'seller' ? 'submitting your transfer request' : 'accepting the transfer request'}.\n\nLTO Transfer of Ownership System`;
+
+        // Prepare attachments
+        const attachments = documents.map(doc => ({
+            filename: doc.filename || `${doc.type}.pdf`,
+            content: doc.pdfBuffer,
+            contentType: 'application/pdf'
+        }));
+
+        return await gmailApiService.sendMail({
+            to,
+            subject,
+            text,
+            html,
+            attachments
+        });
+    }
 }
 
 module.exports = new CertificateEmailService();

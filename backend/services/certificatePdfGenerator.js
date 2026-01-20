@@ -436,7 +436,7 @@ class CertificatePdfGenerator {
             `id="vehicle-year" class="editable-field" value="${finalYear}" data-field="vehicle-year"`
         );
         
-        // Body Type
+        // Vehicle Type
         const finalBodyType = bodyType || 'Sedan';
         htmlTemplate = htmlTemplate.replace(
             /id="vehicle-body"[^>]*value="[^"]*"/,
@@ -642,7 +642,7 @@ class CertificatePdfGenerator {
             `id="year-model" class="editable-field" value="${finalYear}"`
         );
         
-        // Body Type
+        // Vehicle Type
         const finalBodyType = bodyType || 'Sedan';
         htmlTemplate = htmlTemplate.replace(
             /id="body-type"[^>]*value="[^"]*"/,
@@ -832,11 +832,11 @@ class CertificatePdfGenerator {
             `<tr><td>Year Model</td><td><input type="text" value="${finalYear}"`
         );
         
-        // Body Type (use provided or default)
+        // Vehicle Type (use provided or default)
         const finalBodyType = bodyType || 'Sedan';
         htmlTemplate = htmlTemplate.replace(
-            /<tr><td>Body Type<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Body Type</td><td><input type="text" value="${finalBodyType}"`
+            /<tr><td>Vehicle Type<\/td><td>.*?value="[^"]*"/,
+            `<tr><td>Vehicle Type</td><td><input type="text" value="${finalBodyType}"`
         );
         
         // Color (use provided or default)

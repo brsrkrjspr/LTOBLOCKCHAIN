@@ -322,6 +322,7 @@ async function checkOcrConflictsBeforeSubmit() {
     try {
         // Only ask once per page load
         if (window._ocrConflictConfirmed === true) {
+            // Preserve previous decision about whether conflicts existed
             return true;
         }
 
@@ -335,6 +336,8 @@ async function checkOcrConflictsBeforeSubmit() {
         
         if (!conflicts || conflicts.length === 0) {
             console.log('[OCR Conflict Check] No conflicts detected - proceeding with submission');
+            // Mark that we had a clean match between documents and form
+            window._ocrHadConflicts = false;
             return true;
         }
 
@@ -411,7 +414,10 @@ async function checkOcrConflictsBeforeSubmit() {
             return false;
         }
 
+        // User acknowledged conflicts and chose to proceed
         window._ocrConflictConfirmed = true;
+        window._ocrHadConflicts = true;
+        window._ocrConflictSummary = conflicts;
         return true;
     } catch (e) {
         console.warn('[OCR Conflict Check] Error while checking conflicts:', e);
@@ -1380,23 +1386,50 @@ async function submitApplication() {
                 reviewSection.classList.add('success-animation');
             }
             
-            ToastNotification.show('Vehicle registration submitted successfully! You will receive a confirmation email shortly.', 'success', 6000);
+            // Decide which modal to show based on OCR conflict status
+            const hadConflicts = window._ocrHadConflicts === true;
             
-            // Show confirmation modal instead of automatic redirect
-            // This allows users to stay on the page to watch console logs for debugging
-            const goToDashboard = await ConfirmationDialog.show({
-                title: 'Registration Successful',
-                message: 'Your vehicle registration has been submitted successfully. Would you like to go to your dashboard?',
-                confirmText: 'Yes, Go to Dashboard',
-                cancelText: 'Stay Here',
-                confirmColor: '#27ae60',
-                type: 'success'
-            });
-            
-            if (goToDashboard) {
-                window.location.href = 'owner-dashboard.html';
+            if (!hadConflicts) {
+                // Clean case: OCR data from CSR/HPG/ID matches the entered form values
+                ToastNotification.show(
+                    'Vehicle registration submitted successfully! All key fields match your uploaded documents.',
+                    'success',
+                    6000
+                );
+                
+                const goToDashboard = await ConfirmationDialog.show({
+                    title: 'Registration Successful',
+                    message: 'Your vehicle registration has been submitted successfully and matches your CSR/HPG/ID documents. Would you like to go to your dashboard?',
+                    confirmText: 'Yes, Go to Dashboard',
+                    cancelText: 'Stay Here',
+                    confirmColor: '#27ae60',
+                    type: 'success'
+                });
+                
+                if (goToDashboard) {
+                    window.location.href = 'owner-dashboard.html';
+                }
+            } else {
+                // Warning case: mismatches existed, but user chose to proceed
+                ToastNotification.show(
+                    'Vehicle registration submitted with data warning. LTO may require manual review.',
+                    'warning',
+                    8000
+                );
+                
+                const goToDashboard = await ConfirmationDialog.show({
+                    title: 'Registration Submitted (With Data Warning)',
+                    message: 'Your registration has been submitted, but there were differences between your entered data and the CSR/HPG/ID documents. LTO may require additional verification. Do you want to go to your dashboard to monitor the status?',
+                    confirmText: 'Yes, Go to Dashboard',
+                    cancelText: 'Stay Here',
+                    confirmColor: '#e67e22',
+                    type: 'warning'
+                });
+                
+                if (goToDashboard) {
+                    window.location.href = 'owner-dashboard.html';
+                }
             }
-            // If user clicks "Stay Here", they can watch console logs
         } else {
             throw new Error(result.error || 'Registration failed');
         }

@@ -294,7 +294,7 @@ class AuthManager {
     }
 
     /**
-     * Logout - clear tokens and cookies
+     * Logout - clear tokens, cookies, and session data
      */
     async logout() {
         try {
@@ -327,13 +327,23 @@ class AuthManager {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('authToken');
         localStorage.removeItem('token');
+        
+        // Clear session tracking data
+        localStorage.removeItem('activeSessionId');
+        localStorage.removeItem('sessionHeartbeat');
+        sessionStorage.removeItem('tabSessionId');
+        
+        // Also clear AuthUtils session if available
+        if (typeof AuthUtils !== 'undefined' && AuthUtils._sessionId) {
+            AuthUtils._sessionId = null;
+        }
 
         // Redirect to login
         window.location.href = 'login-signup.html';
     }
 
     /**
-     * Logout all sessions
+     * Logout all sessions - clear tokens, cookies, and session data across all tabs
      */
     async logoutAll() {
         try {
@@ -366,6 +376,16 @@ class AuthManager {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('authToken');
         localStorage.removeItem('token');
+        
+        // Clear session tracking data
+        localStorage.removeItem('activeSessionId');
+        localStorage.removeItem('sessionHeartbeat');
+        sessionStorage.removeItem('tabSessionId');
+        
+        // Also clear AuthUtils session if available
+        if (typeof AuthUtils !== 'undefined' && AuthUtils._sessionId) {
+            AuthUtils._sessionId = null;
+        }
 
         // Redirect to login
         window.location.href = 'login-signup.html';

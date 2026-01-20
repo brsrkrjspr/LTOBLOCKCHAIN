@@ -1604,10 +1604,18 @@
             if (sidebarLogoutBtn) {
                 sidebarLogoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (typeof AuthUtils !== 'undefined') {
+                    if (typeof window.authManager !== 'undefined') {
+                        window.authManager.logout();
+                    } else if (typeof AuthUtils !== 'undefined') {
                         AuthUtils.logout();
                     } else {
-                        localStorage.clear();
+                        // Fallback: Clear all auth and session data
+                        localStorage.removeItem('currentUser');
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('activeSessionId');
+                        localStorage.removeItem('sessionHeartbeat');
+                        sessionStorage.removeItem('tabSessionId');
                         window.location.href = 'index.html';
                     }
                 });

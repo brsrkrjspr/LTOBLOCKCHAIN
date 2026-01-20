@@ -415,11 +415,16 @@ body {
     left: 0;
     height: 3px;
     background: linear-gradient(135deg, var(--lto-blue) 0%, var(--lto-blue-light) 100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Smooth sliding animation */
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 3px 3px 0 0;
     width: 50%;
     transform: translateX(0%);
     z-index: 1;
+    /* Ensure smooth rendering */
+    will-change: transform, width;
+    /* Add subtle shadow for depth */
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
 /* ============================================

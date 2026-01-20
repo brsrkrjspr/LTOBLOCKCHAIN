@@ -258,25 +258,45 @@
             }
         }
 
-        // Tab indicator animation (UI only)
+        // Tab indicator animation - smooth sliding effect
         function updateTabIndicator() {
             const tabs = document.querySelectorAll('.tab-btn');
             const indicator = document.querySelector('.tab-indicator');
-            if (!indicator || !tabs.length) return;
+            const tabsContainer = document.querySelector('.auth-tabs');
+            
+            if (!indicator || !tabs.length || !tabsContainer) return;
 
+            // Find the active tab
+            let activeTab = null;
+            let activeIndex = -1;
+            
             tabs.forEach((tab, index) => {
                 if (tab.classList.contains('active')) {
-                    // Calculate position: 0% for Login (index 0), 100% for Sign Up (index 1)
-                    const position = index * 100;
-                    indicator.style.transform = `translateX(${position}%)`;
+                    activeTab = tab;
+                    activeIndex = index;
                 }
             });
+
+            if (activeTab && activeIndex >= 0) {
+                // Get the position and width of the active tab
+                const tabRect = activeTab.getBoundingClientRect();
+                const containerRect = tabsContainer.getBoundingClientRect();
+                
+                // Calculate the left offset relative to the container
+                const leftOffset = tabRect.left - containerRect.left;
+                
+                // Set the indicator position and width to match the active tab
+                indicator.style.width = tabRect.width + 'px';
+                indicator.style.transform = `translateX(${leftOffset}px)`;
+            }
         }
 
         // Update indicator on page load and when tabs change
         document.addEventListener('DOMContentLoaded', function() {
-            // Initial position
-            setTimeout(updateTabIndicator, 100);
+            // Initial position - wait for layout to be ready
+            setTimeout(function() {
+                updateTabIndicator();
+            }, 100);
             
             // Override showLogin and showSignup to update indicator
             const originalShowLogin = window.showLogin;
@@ -285,25 +305,39 @@
             if (originalShowLogin) {
                 window.showLogin = function() {
                     originalShowLogin();
-                    // Update indicator after DOM updates
-                    setTimeout(updateTabIndicator, 50);
+                    // Update indicator after DOM updates and layout recalculation
+                    requestAnimationFrame(function() {
+                        setTimeout(updateTabIndicator, 10);
+                    });
                 };
             }
             
             if (originalShowSignup) {
                 window.showSignup = function() {
                     originalShowSignup();
-                    // Update indicator after DOM updates
-                    setTimeout(updateTabIndicator, 50);
+                    // Update indicator after DOM updates and layout recalculation
+                    requestAnimationFrame(function() {
+                        setTimeout(updateTabIndicator, 10);
+                    });
                 };
             }
             
-            // Also listen for tab button clicks directly
+            // Also listen for tab button clicks directly for immediate feedback
             const tabButtons = document.querySelectorAll('.tab-btn');
             tabButtons.forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    setTimeout(updateTabIndicator, 50);
+                    // Update immediately on click
+                    requestAnimationFrame(function() {
+                        setTimeout(updateTabIndicator, 10);
+                    });
                 });
+            });
+
+            // Update indicator on window resize to maintain correct position
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(updateTabIndicator, 150);
             });
         });
     </script>

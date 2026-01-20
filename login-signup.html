@@ -262,75 +262,55 @@
         function updateTabIndicator() {
             const tabs = document.querySelectorAll('.tab-btn');
             const indicator = document.querySelector('.tab-indicator');
-            const tabsContainer = document.querySelector('.auth-tabs');
             
-            if (!indicator || !tabs.length || !tabsContainer) return;
+            if (!indicator || !tabs.length) return;
 
-            // Find the active tab
-            let activeTab = null;
+            // Find the active tab index
             let activeIndex = -1;
             
             tabs.forEach((tab, index) => {
                 if (tab.classList.contains('active')) {
-                    activeTab = tab;
                     activeIndex = index;
                 }
             });
 
-            if (activeTab && activeIndex >= 0) {
-                // Get the position and width of the active tab
-                const tabRect = activeTab.getBoundingClientRect();
-                const containerRect = tabsContainer.getBoundingClientRect();
-                
-                // Calculate the left offset relative to the container
-                const leftOffset = tabRect.left - containerRect.left;
-                
-                // Set the indicator position and width to match the active tab
-                indicator.style.width = tabRect.width + 'px';
-                indicator.style.transform = `translateX(${leftOffset}px)`;
+            if (activeIndex >= 0) {
+                // Since tabs are equal width (flex: 1), use percentage-based positioning
+                // Login (index 0) = 0%, Sign Up (index 1) = 100%
+                const position = activeIndex * 100;
+                indicator.style.transform = `translateX(${position}%)`;
             }
         }
 
-        // Update indicator on page load and when tabs change
-        document.addEventListener('DOMContentLoaded', function() {
+        // Function to setup indicator updates
+        function setupTabIndicator() {
             // Initial position - wait for layout to be ready
             setTimeout(function() {
                 updateTabIndicator();
-            }, 100);
+            }, 150);
             
-            // Override showLogin and showSignup to update indicator
-            const originalShowLogin = window.showLogin;
-            const originalShowSignup = window.showSignup;
-            
-            if (originalShowLogin) {
-                window.showLogin = function() {
-                    originalShowLogin();
-                    // Update indicator after DOM updates and layout recalculation
-                    requestAnimationFrame(function() {
-                        setTimeout(updateTabIndicator, 10);
-                    });
-                };
-            }
-            
-            if (originalShowSignup) {
-                window.showSignup = function() {
-                    originalShowSignup();
-                    // Update indicator after DOM updates and layout recalculation
-                    requestAnimationFrame(function() {
-                        setTimeout(updateTabIndicator, 10);
-                    });
-                };
-            }
-            
-            // Also listen for tab button clicks directly for immediate feedback
+            // Listen for tab button clicks directly - this is the most reliable method
             const tabButtons = document.querySelectorAll('.tab-btn');
             tabButtons.forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    // Update immediately on click
-                    requestAnimationFrame(function() {
-                        setTimeout(updateTabIndicator, 10);
+                    // Wait for the active class to be updated, then update indicator
+                    setTimeout(function() {
+                        updateTabIndicator();
+                    }, 50);
+                });
+            });
+
+            // Use MutationObserver to watch for class changes on tabs
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(function(tab) {
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                            setTimeout(updateTabIndicator, 50);
+                        }
                     });
                 });
+                observer.observe(tab, { attributes: true, attributeFilter: ['class'] });
             });
 
             // Update indicator on window resize to maintain correct position
@@ -339,6 +319,19 @@
                 clearTimeout(resizeTimeout);
                 resizeTimeout = setTimeout(updateTabIndicator, 150);
             });
+        }
+
+        // Update indicator on page load and when tabs change
+        document.addEventListener('DOMContentLoaded', function() {
+            setupTabIndicator();
+        });
+
+        // Also setup after login-signup.js loads (in case DOMContentLoaded already fired)
+        window.addEventListener('load', function() {
+            // Re-setup to ensure it works even if scripts load in different order
+            if (document.querySelector('.tab-indicator')) {
+                setTimeout(setupTabIndicator, 100);
+            }
         });
     </script>
     <script src="js/toast-notification.js"></script>

@@ -975,9 +975,24 @@
                             window.location.href = 'index.html';
                         }
                     };
-                    ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
-                        if (ok) doLogout();
-                    });
+                    
+                    // Check if ToastNotification is available, otherwise use native confirm
+                    if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.confirm === 'function') {
+                        ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
+                            if (ok) doLogout();
+                        }).catch((error) => {
+                            console.error('ToastNotification.confirm error:', error);
+                            // Fallback to native confirm
+                            if (confirm('Are you sure you want to logout?')) {
+                                doLogout();
+                            }
+                        });
+                    } else {
+                        // Fallback to native confirm if ToastNotification is not available
+                        if (confirm('Are you sure you want to logout?')) {
+                            doLogout();
+                        }
+                    }
                 });
             }
 

@@ -16,6 +16,19 @@ let storedVehicleType = null;
 let storedOCRExtractedData = {};
 let ocrDataSource = {}; // Track which document type provided each field (for conflict messages)
 
+/**
+ * Store a non-empty OCR value and track its document source.
+ * This powers conflict detection at submit time.
+ */
+function storeOcrValue(key, value, documentType) {
+    if (!key) return;
+    if (value === undefined || value === null) return;
+    const v = value.toString().trim();
+    if (!v) return;
+    storedOCRExtractedData[key] = v;
+    ocrDataSource[key] = documentType || ocrDataSource[key] || null;
+}
+
 function initializeRegistrationWizard() {
     // Initialize wizard functionality
     initializeFormValidation();
@@ -2312,9 +2325,7 @@ async function processDocumentForOCRAutoFill(fileInput) {
                     };
                     // Merge ID data into stored data (don't overwrite with empty if extraction failed)
                     Object.keys(ownerIdData).forEach(key => {
-                        if (ownerIdData[key] !== undefined && ownerIdData[key] !== null && ownerIdData[key] !== '') {
-                            storedOCRExtractedData[key] = ownerIdData[key];
-                        }
+                        storeOcrValue(key, ownerIdData[key], documentType);
                     });
                     console.log('[ID AutoFill Debug] Stored owner ID OCR data (ID info only):', {
                         documentType,
@@ -2340,21 +2351,28 @@ async function processDocumentForOCRAutoFill(fileInput) {
                     // Merge ALL vehicle-related fields into stored data
                     vehicleDataFields.forEach(key => {
                         const value = data.extractedData[key];
-                        if (value !== undefined && value !== null && value !== '') {
-                            // Map series -> model, yearModel -> year for consistency
-                            if (key === 'series' && !storedOCRExtractedData.model) {
-                                storedOCRExtractedData.model = value;
-                            } else if (key === 'yearModel' && !storedOCRExtractedData.year) {
-                                storedOCRExtractedData.year = value;
-                            } else if (key === 'grossWeight' && !storedOCRExtractedData.grossVehicleWeight) {
-                                storedOCRExtractedData.grossVehicleWeight = value;
-                            } else if (key === 'netCapacity' && !storedOCRExtractedData.netWeight) {
-                                storedOCRExtractedData.netWeight = value;
-                            } else {
-                                storedOCRExtractedData[key] = value;
-                            }
-                        }
+                        if (value === undefined || value === null || value === '') return;
+                        // Store the raw key too
+                        storeOcrValue(key, value, documentType);
+
+                        // Also store canonical equivalents for conflict detection consistency
+                        if (key === 'series') storeOcrValue('model', value, documentType);
+                        if (key === 'yearModel') storeOcrValue('year', value, documentType);
+                        if (key === 'grossWeight') storeOcrValue('grossVehicleWeight', value, documentType);
+                        if (key === 'netCapacity') storeOcrValue('netWeight', value, documentType);
                     });
+
+                    // Support common snake_case keys returned by some OCR pipelines
+                    storeOcrValue('engineNumber', data.extractedData.engine_number, documentType);
+                    storeOcrValue('chassisNumber', data.extractedData.chassis_number, documentType);
+                    storeOcrValue('plateNumber', data.extractedData.plate_number, documentType);
+                    storeOcrValue('vin', data.extractedData.vin_number || data.extractedData.vin_no, documentType);
+                    storeOcrValue('make', data.extractedData.vehicle_make, documentType);
+                    storeOcrValue('model', data.extractedData.vehicle_model || data.extractedData.vehicle_series, documentType);
+                    storeOcrValue('year', data.extractedData.year_model, documentType);
+                    storeOcrValue('vehicleType', data.extractedData.vehicle_type || data.extractedData.body_type, documentType);
+                    storeOcrValue('fuelType', data.extractedData.fuel_type, documentType);
+                    storeOcrValue('color', data.extractedData.vehicle_color, documentType);
                     
                     console.log('[ID AutoFill Debug] Stored vehicle OCR data:', {
                         documentType,
@@ -2462,6 +2480,20 @@ function autoFillFromOCRData(extractedData, documentType) {
         'idNumber': 'idNumber'
         // Note: firstName, lastName, address, phone mappings removed - these come from user account
     };
+
+    // Build a normalized lookup so we can match snake_case / spaced / dashed keys too
+    const normalizeOcrKey = (k) =>
+        (k || '')
+            .toString()
+            .trim()
+            .toLowerCase()
+            .replace(/[_-]/g, '')
+            .replace(/\s+/g, '');
+
+    const normalizedStrictMapping = {};
+    Object.keys(strictFieldMapping).forEach((k) => {
+        normalizedStrictMapping[normalizeOcrKey(k)] = strictFieldMapping[k];
+    });
     
     // Debug logging
     console.log('[OCR AutoFill] Strict field mapping applied:', {
@@ -2507,15 +2539,13 @@ function autoFillFromOCRData(extractedData, documentType) {
         }
         
         // Normalize field name for case-insensitive and variation matching
-        const normalizedField = ocrField.trim().toLowerCase();
-        
-        // Get mapped HTML input ID from strict mapping (try normalized first)
-        let htmlInputId = strictFieldMapping[normalizedField];
-        
-        // If not found, try the original field name (for exact matches)
-        if (!htmlInputId) {
-            htmlInputId = strictFieldMapping[ocrField];
-        }
+        const normalizedField = normalizeOcrKey(ocrField);
+
+        // Get mapped HTML input ID from strict mapping (supports snake_case / dashed / spaced keys)
+        let htmlInputId = normalizedStrictMapping[normalizedField];
+
+        // If not found, try exact match fallback
+        if (!htmlInputId) htmlInputId = strictFieldMapping[ocrField];
         
         if (!htmlInputId) {
             console.log(`[OCR AutoFill] No mapping found for OCR field: ${ocrField}`);
@@ -2649,6 +2679,33 @@ function autoFillFromOCRData(extractedData, documentType) {
         inputElement.classList.add('ocr-auto-filled');
         inputElement.dataset.ocrSource = (documentType || '').toString();
         inputElement.dataset.ocrPriority = String(incomingPriority);
+
+        // Record the OCR value we just applied so submit-time conflict checks always have data.
+        // Map html input id -> canonical OCR keys used by detectOcrConflicts()
+        const htmlToCanonical = {
+            vin: 'vin',
+            chassisNumber: 'chassisNumber',
+            engineNumber: 'engineNumber',
+            plateNumber: 'plateNumber',
+            make: 'make',
+            model: 'model',
+            year: 'year',
+            vehicleType: 'vehicleType',
+            color: 'color',
+            fuelType: 'fuelType',
+            grossVehicleWeight: 'grossVehicleWeight',
+            netWeight: 'netWeight',
+            idType: 'idType',
+            idNumber: 'idNumber'
+        };
+        const canonicalKey = htmlToCanonical[htmlInputId];
+        if (canonicalKey) {
+            storeOcrValue(canonicalKey, formattedValue, documentType);
+            // Special case: chassisNumber field often represents VIN too
+            if (canonicalKey === 'chassisNumber') {
+                storeOcrValue('vin', formattedValue, documentType);
+            }
+        }
         
         // CRITICAL: For plate number, validate immediately after auto-fill
         if (htmlInputId === 'plateNumber') {

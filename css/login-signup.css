@@ -419,12 +419,7 @@ body {
     border-radius: 3px 3px 0 0;
     width: 50%;
     transform: translateX(0%);
-}
-
-/* Move indicator when signup tab is active */
-.auth-tabs .tab-btn:last-child.active ~ .tab-indicator,
-.auth-tabs:has(.tab-btn:last-child.active) .tab-indicator {
-    transform: translateX(100%);
+    z-index: 1;
 }
 
 /* ============================================

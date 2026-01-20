@@ -262,7 +262,7 @@
         function updateTabIndicator() {
             const tabs = document.querySelectorAll('.tab-btn');
             const indicator = document.querySelector('.tab-indicator');
-            if (!indicator) return;
+            if (!indicator || !tabs.length) return;
 
             tabs.forEach((tab, index) => {
                 if (tab.classList.contains('active')) {
@@ -276,7 +276,7 @@
         // Update indicator on page load and when tabs change
         document.addEventListener('DOMContentLoaded', function() {
             // Initial position
-            updateTabIndicator();
+            setTimeout(updateTabIndicator, 100);
             
             // Override showLogin and showSignup to update indicator
             const originalShowLogin = window.showLogin;
@@ -285,20 +285,16 @@
             if (originalShowLogin) {
                 window.showLogin = function() {
                     originalShowLogin();
-                    // Small delay to ensure DOM is updated
-                    requestAnimationFrame(function() {
-                        updateTabIndicator();
-                    });
+                    // Update indicator after DOM updates
+                    setTimeout(updateTabIndicator, 50);
                 };
             }
             
             if (originalShowSignup) {
                 window.showSignup = function() {
                     originalShowSignup();
-                    // Small delay to ensure DOM is updated
-                    requestAnimationFrame(function() {
-                        updateTabIndicator();
-                    });
+                    // Update indicator after DOM updates
+                    setTimeout(updateTabIndicator, 50);
                 };
             }
             
@@ -306,9 +302,7 @@
             const tabButtons = document.querySelectorAll('.tab-btn');
             tabButtons.forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    requestAnimationFrame(function() {
-                        updateTabIndicator();
-                    });
+                    setTimeout(updateTabIndicator, 50);
                 });
             });
         });

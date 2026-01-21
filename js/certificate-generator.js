@@ -386,7 +386,6 @@ const CertificateGenerator = {
         const mvirNumber = vehicle.mvir_number || vehicle.mvirNumber || 'PENDING';
         const inspectionOfficer = vehicle.inspection_officer || vehicle.inspectionOfficer || 'LTO INSPECTION OFFICER';
         const roadworthinessStatus = vehicle.roadworthiness_status || vehicle.roadworthinessStatus || 'ROADWORTHY';
-        const emissionCompliance = vehicle.emission_compliance || vehicle.emissionCompliance || 'COMPLIANT';
         
         console.log('Certificate data:', {
             orNumber,
@@ -778,10 +777,6 @@ const CertificateGenerator = {
                     <div class="col-full" style="margin-top: 10px;">
                         <span class="label">Roadworthiness Status</span>
                         <span class="value">${this.escapeHtml(roadworthinessStatus)}</span>
-                    </div>
-                    <div class="col-full">
-                        <span class="label">Emission Compliance</span>
-                        <span class="value">${this.escapeHtml(emissionCompliance)}</span>
                     </div>
                 </div>
             </div>

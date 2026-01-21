@@ -13,26 +13,33 @@
         const errorStack = error?.stack || event.filename || '';
         
         // #region agent log
-        fetch(logEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                location: 'error-tracker.js:window.error',
-                message: 'Runtime error detected',
-                data: {
-                    errorMessage,
-                    errorStack: errorStack.substring(0, 500),
-                    filename: event.filename,
-                    lineno: event.lineno,
-                    colno: event.colno,
-                    isUndefinedFunction: /is not a function|is not defined|cannot read property/i.test(errorMessage)
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'B'
-            })
-        }).catch(() => {});
+        // Silently fail if CSP blocks the request
+        try {
+            fetch(logEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    location: 'error-tracker.js:window.error',
+                    message: 'Runtime error detected',
+                    data: {
+                        errorMessage,
+                        errorStack: errorStack.substring(0, 500),
+                        filename: event.filename,
+                        lineno: event.lineno,
+                        colno: event.colno,
+                        isUndefinedFunction: /is not a function|is not defined|cannot read property/i.test(errorMessage)
+                    },
+                    timestamp: Date.now(),
+                    sessionId: 'debug-session',
+                    runId: 'run1',
+                    hypothesisId: 'B'
+                })
+            }).catch(() => {
+                // Silently fail - CSP may block this, which is expected
+            });
+        } catch (e) {
+            // Silently fail - CSP violation is expected
+        }
         // #endregion
     }, true);
     
@@ -42,23 +49,30 @@
         const errorMessage = error?.message || String(error) || 'Unhandled promise rejection';
         
         // #region agent log
-        fetch(logEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                location: 'error-tracker.js:unhandledrejection',
-                message: 'Unhandled promise rejection',
-                data: {
-                    errorMessage,
-                    errorStack: error?.stack?.substring(0, 500) || '',
-                    isAPIError: /fetch|api|network|404|500/i.test(errorMessage)
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'B'
-            })
-        }).catch(() => {});
+        // Silently fail if CSP blocks the request
+        try {
+            fetch(logEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    location: 'error-tracker.js:unhandledrejection',
+                    message: 'Unhandled promise rejection',
+                    data: {
+                        errorMessage,
+                        errorStack: error?.stack?.substring(0, 500) || '',
+                        isAPIError: /fetch|api|network|404|500/i.test(errorMessage)
+                    },
+                    timestamp: Date.now(),
+                    sessionId: 'debug-session',
+                    runId: 'run1',
+                    hypothesisId: 'B'
+                })
+            }).catch(() => {
+                // Silently fail - CSP may block this, which is expected
+            });
+        } catch (e) {
+            // Silently fail - CSP violation is expected
+        }
         // #endregion
     });
     
@@ -70,23 +84,30 @@
         ).join(' ');
         
         // #region agent log
-        fetch(logEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                location: 'error-tracker.js:console.error',
-                message: 'Console error logged',
-                data: {
-                    errorMessage: errorMessage.substring(0, 500),
-                    isUndefinedFunction: /is not a function|is not defined|cannot read property/i.test(errorMessage),
-                    isAPIError: /fetch|api|network|404|500/i.test(errorMessage)
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'B'
-            })
-        }).catch(() => {});
+        // Silently fail if CSP blocks the request
+        try {
+            fetch(logEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    location: 'error-tracker.js:console.error',
+                    message: 'Console error logged',
+                    data: {
+                        errorMessage: errorMessage.substring(0, 500),
+                        isUndefinedFunction: /is not a function|is not defined|cannot read property/i.test(errorMessage),
+                        isAPIError: /fetch|api|network|404|500/i.test(errorMessage)
+                    },
+                    timestamp: Date.now(),
+                    sessionId: 'debug-session',
+                    runId: 'run1',
+                    hypothesisId: 'B'
+                })
+            }).catch(() => {
+                // Silently fail - CSP may block this, which is expected
+            });
+        } catch (e) {
+            // Silently fail - CSP violation is expected
+        }
         // #endregion
         
         originalConsoleError.apply(console, args);

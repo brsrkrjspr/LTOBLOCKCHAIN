@@ -34,7 +34,6 @@ const VEHICLE_STATUS = {
 
 const TRANSFER_DEADLINE_DAYS = 3;
 
-// Emission feature removed (no emission clearance workflow for transfers).
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
@@ -431,7 +430,7 @@ async function sendTransferBuyerAcceptanceEmail({ to, sellerName, buyerName, veh
             
             <div class="info-box">
                 <strong>📋 Next Steps:</strong><br>
-                Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance, Emission Testing, and HPG clearance) before final approval.
+                Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance and HPG clearance) before final approval.
             </div>
             
             <p>You will receive another notification once the LTO has completed their review and made a decision on your transfer request.</p>
@@ -452,7 +451,7 @@ Dear ${safeSellerName},
 
 Good news! ${safeBuyerName} has accepted your transfer request for ${vehicleLabel}.
 
-Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance, Emission Testing, and HPG clearance) before final approval.
+Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance and HPG clearance) before final approval.
 
 You will receive another notification once the LTO has completed their review and made a decision on your transfer request.
 
@@ -1114,7 +1113,7 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
     // Trigger auto-verification if HPG clearance document exists (buyer uploads this)
     let autoVerificationResult = null;
     const buyerHpgTransferDoc = transferDocuments.find(td => 
-        td.document_type === 'buyer_hpg_clearance' && td.document_id
+        td.document_type === docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE && td.document_id
     );
     
     if (buyerHpgTransferDoc && buyerHpgTransferDoc.document_id) {
@@ -1196,7 +1195,7 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     // Find CTPL from transfer documents (buyer uploads this)
     let insuranceDoc = null;
     const buyerCtplTransferDoc = transferDocuments.find(td => 
-        td.document_type === 'buyer_ctpl' && td.document_id
+        td.document_type === docTypes.TRANSFER_ROLES.BUYER_CTPL && td.document_id
     );
     
     if (buyerCtplTransferDoc && buyerCtplTransferDoc.document_id) {
@@ -1225,7 +1224,7 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     }] : [];
 
     if (!insuranceDoc) {
-        console.warn(`[Transfer→Insurance] Warning: No insurance certificate found for vehicle ${request.vehicle_id}`);
+        console.warn(`[Transfer→Insurance] Warning: No insurance/CTPL certificate found for vehicle ${request.vehicle_id}`);
     }
 
     console.log(`[Transfer→Insurance] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${vehicleDocuments.length} total)`);
@@ -2570,8 +2569,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             }
         }
         
-        // Emission approval is tracked for transfer requests but is not a hard blocker for LTO approval.
-        // We intentionally do NOT add it to pending/rejected approvals to keep HPG and Insurance as the only required orgs.
+        // HPG and Insurance are the only required organizations for transfer approval.
         
         if (pendingApprovals.length > 0) {
             return res.status(400).json({

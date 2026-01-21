@@ -908,21 +908,37 @@
             left: 1.5rem;
             top: 0;
             height: 100vh;
-            overflow-y: hidden;
-            overflow-x: hidden;
+            overflow: hidden !important;
+            overflow-y: hidden !important;
+            overflow-x: hidden !important;
             z-index: 100;
+            -ms-overflow-style: none !important;
+            scrollbar-width: none !important;
         }
 
-        /* Hide scrollbar completely */
+        /* Hide scrollbar completely - Webkit browsers */
         .dashboard-sidebar::-webkit-scrollbar {
-            display: none;
-            width: 0;
-            height: 0;
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            background: transparent !important;
         }
 
-        .dashboard-sidebar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        /* Ensure child elements don't scroll */
+        .dashboard-sidebar .sidebar-nav {
+            overflow: hidden !important;
+            overflow-y: hidden !important;
+            overflow-x: hidden !important;
+        }
+
+        .dashboard-sidebar .sidebar-footer {
+            overflow: hidden !important;
+            overflow-y: hidden !important;
+            overflow-x: hidden !important;
+        }
+
+        .dashboard-sidebar .sidebar-header {
+            overflow: hidden !important;
         }
 
         /* Navy Blue Gradient Blurry Lines Background */
@@ -1943,14 +1959,13 @@
                             <div class="logo">
                                 <h1>Vehicle Owner Dashboard</h1>
                             </div>
+                        </div>
+                        <div class="nav-right">
                             <!-- Notification Bell Icon -->
                             <button class="notification-bell" id="notificationBell" aria-label="View notifications">
                                 <i class="fas fa-bell"></i>
                                 <span class="notification-badge" id="notificationBadge">0</span>
                             </button>
-                        </div>
-                        <div class="nav-right">
-                            <!-- Intentionally left blank: header simplified per UI requirements -->
                         </div>
                     </div>
                 </div>
@@ -2099,16 +2114,6 @@
                     </div>
                 </div>
 
-                <!-- Notifications -->
-                <div class="section-header">
-                    <h2 class="section-title">Recent Notifications</h2>
-                    <p class="section-subtitle">Stay updated with your application status</p>
-                </div>
-                <div class="dashboard-card-modern notifications-card" id="notifications">
-                    <div class="notifications-list-modern">
-                        <!-- Notifications will be loaded dynamically -->
-                    </div>
-                </div>
             </div>
         </main>
         </div>
@@ -2197,31 +2202,96 @@
                 // Load from API
                 window.apiClient.get('/api/notifications')
                     .then(response => {
-                        if (response && response.data) {
-                            notifications = response.data;
+                        // API returns { success: true, notifications: [...] }
+                        // Also check for response.data for compatibility
+                        let apiNotifications = null;
+                        if (response && response.success && response.notifications && Array.isArray(response.notifications) && response.notifications.length > 0) {
+                            apiNotifications = response.notifications;
+                        } else if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+                            apiNotifications = response.data;
+                        }
+                        
+                        if (apiNotifications) {
+                            // Transform API notifications to match expected format
+                            notifications = apiNotifications.map(notif => ({
+                                id: notif.id,
+                                title: notif.title || 'Notification',
+                                message: notif.message || '',
+                                time: notif.sentAt ? formatTimeAgo(notif.sentAt) : 'Recently',
+                                read: notif.read || false,
+                                type: notif.type || 'info'
+                            }));
+                            // Save to localStorage for offline access
+                            try {
+                                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                            } catch (e) {
+                                console.error('Error saving notifications to localStorage:', e);
+                            }
                         } else {
                             notifications = getSampleNotifications();
+                            // Save sample notifications to localStorage
+                            try {
+                                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                            } catch (e) {
+                                console.error('Error saving notifications to localStorage:', e);
+                            }
                         }
                         renderNotifications();
                         updateNotificationBadge();
                     })
                     .catch(error => {
-                        console.error('Error loading notifications:', error);
+                        console.error('Error loading notifications from API:', error);
+                        // Try localStorage first, then sample
                         notifications = getSampleNotifications();
                         renderNotifications();
                         updateNotificationBadge();
                     });
             } else {
-                // Use sample notifications
+                // Use sample notifications or localStorage
                 notifications = getSampleNotifications();
                 renderNotifications();
                 updateNotificationBadge();
             }
         }
 
+        function formatTimeAgo(dateString) {
+            if (!dateString) return 'Recently';
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+                return date.toLocaleDateString();
+            } catch (e) {
+                return 'Recently';
+            }
+        }
+
         function getSampleNotifications() {
             // Sample notifications - replace with actual API data
-            return [
+            // Try to load from localStorage first, then use defaults
+            try {
+                const saved = localStorage.getItem('ownerNotifications');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        console.log('Loaded notifications from localStorage:', parsed);
+                        return parsed;
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading notifications from localStorage:', e);
+            }
+            
+            // Default sample notifications with at least 1 unread
+            const defaultNotifications = [
                 {
                     id: 1,
                     title: 'Application Approved',
@@ -2247,13 +2317,29 @@
                     type: 'info'
                 }
             ];
+            
+            console.log('Using default sample notifications:', defaultNotifications);
+            return defaultNotifications;
         }
 
         function renderNotifications() {
             const notificationList = document.getElementById('notificationList');
-            if (!notificationList) return;
+            if (!notificationList) {
+                console.error('Notification list element not found - element ID: notificationList');
+                return;
+            }
 
-            if (notifications.length === 0) {
+            console.log('Rendering notifications. Count:', notifications ? notifications.length : 0);
+            console.log('Notifications data:', notifications);
+
+            // Ensure notifications is an array
+            if (!Array.isArray(notifications)) {
+                console.warn('Notifications is not an array, resetting to sample data');
+                notifications = getSampleNotifications();
+            }
+
+            if (!notifications || notifications.length === 0) {
+                console.log('No notifications to display, showing empty state');
                 notificationList.innerHTML = `
                     <div class="notification-empty">
                         <i class="fas fa-bell-slash"></i>
@@ -2263,25 +2349,43 @@
                 return;
             }
 
-            notificationList.innerHTML = notifications.map(notification => `
-                <div class="notification-item ${notification.read ? '' : 'unread'}" data-id="${notification.id}">
-                    <div class="notification-item-header">
-                        <h3 class="notification-item-title">${escapeHtml(notification.title)}</h3>
-                        <span class="notification-item-time">${escapeHtml(notification.time)}</span>
+            // Render notifications
+            try {
+                notificationList.innerHTML = notifications.map(notification => {
+                    if (!notification || !notification.id) {
+                        console.warn('Invalid notification object:', notification);
+                        return '';
+                    }
+                    return `
+                        <div class="notification-item ${notification.read ? '' : 'unread'}" data-id="${notification.id}">
+                            <div class="notification-item-header">
+                                <h3 class="notification-item-title">${escapeHtml(notification.title || 'Notification')}</h3>
+                                <span class="notification-item-time">${escapeHtml(notification.time || 'Recently')}</span>
+                            </div>
+                            <p class="notification-item-message">${escapeHtml(notification.message || '')}</p>
+                            <div class="notification-item-actions">
+                                ${!notification.read ? `
+                                    <button class="btn-mark-read" onclick="markNotificationAsRead(${notification.id})">
+                                        <i class="fas fa-check"></i> Mark as Read
+                                    </button>
+                                ` : ''}
+                                <button class="btn-delete" onclick="deleteNotification(${notification.id})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).filter(html => html !== '').join('');
+                console.log('Notifications rendered successfully');
+            } catch (error) {
+                console.error('Error rendering notifications:', error);
+                notificationList.innerHTML = `
+                    <div class="notification-empty">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error loading notifications</p>
                     </div>
-                    <p class="notification-item-message">${escapeHtml(notification.message)}</p>
-                    <div class="notification-item-actions">
-                        ${!notification.read ? `
-                            <button class="btn-mark-read" onclick="markNotificationAsRead(${notification.id})">
-                                <i class="fas fa-check"></i> Mark as Read
-                            </button>
-                        ` : ''}
-                        <button class="btn-delete" onclick="deleteNotification(${notification.id})">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }
         }
 
         function updateNotificationBadge() {
@@ -2306,6 +2410,19 @@
         function openNotificationModal() {
             const notificationModal = document.getElementById('notificationModal');
             if (notificationModal) {
+                // Always render notifications when opening modal
+                // If notifications array is empty, load them first
+                if (!notifications || notifications.length === 0) {
+                    // Force load and wait a bit for async operations
+                    loadNotifications();
+                    // Render after a short delay to ensure data is loaded
+                    setTimeout(function() {
+                        renderNotifications();
+                    }, 100);
+                } else {
+                    // Render immediately if we have notifications
+                    renderNotifications();
+                }
                 notificationModal.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
@@ -2324,6 +2441,13 @@
             if (notification) {
                 notification.read = true;
                 
+                // Save to localStorage
+                try {
+                    localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                } catch (e) {
+                    console.error('Error saving notifications to localStorage:', e);
+                }
+                
                 // Update via API if available
                 if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                     window.apiClient.put(`/api/notifications/${id}/read`, { read: true })
@@ -2341,6 +2465,13 @@
             if (confirm('Are you sure you want to delete this notification?')) {
                 // Remove from array
                 notifications = notifications.filter(n => n.id !== id);
+                
+                // Save to localStorage
+                try {
+                    localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                } catch (e) {
+                    console.error('Error saving notifications to localStorage:', e);
+                }
                 
                 // Delete via API if available
                 if (typeof window.apiClient !== 'undefined' && window.apiClient) {

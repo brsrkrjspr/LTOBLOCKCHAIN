@@ -21,12 +21,12 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
             scriptSrcAttr: ["'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:", "http://localhost:8080", "blob:"],
-            connectSrc: ["'self'", "https://ltoblockchain.duckdns.org"],
-            fontSrc: ["'self'", "https:", "data:"],
+            connectSrc: ["'self'", "https://ltoblockchain.duckdns.org", "http://127.0.0.1:7242", "http://localhost:7242"],
+            fontSrc: ["'self'", "https:", "data:", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
             objectSrc: ["'self'", "data:", "blob:"], // Explicitly allow data: and blob: for PDFs in object tags
             mediaSrc: ["'self'"],
             frameSrc: ["'self'", "blob:", "data:"], // Also allow data: for iframes

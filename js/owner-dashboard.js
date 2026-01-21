@@ -380,9 +380,11 @@ function handleNotificationClick(e) {
 }
 
 async function loadUserNotifications() {
-    // Try multiple selectors
+    // Try multiple selectors including the modal notification list
     let notificationsList = null;
     const selectors = [
+        '#notificationList', // Modal notification list
+        '.notification-list', // Modal notification list class
         '.notifications-list-modern',
         '#notifications .notifications-list-modern',
         '.dashboard-card-modern.notifications-card .notifications-list-modern',
@@ -395,7 +397,7 @@ async function loadUserNotifications() {
     }
     
     if (!notificationsList) {
-        console.warn('⚠️ Could not find notifications list');
+        console.warn('⚠️ Could not find notifications list - this is normal if using the modal notification system');
         return;
     }
     
@@ -1340,17 +1342,8 @@ function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
     }
     
     const statuses = [];
-    const emissionStatus = (verificationStatus.emission || '').toLowerCase();
     const insuranceStatus = (verificationStatus.insurance || '').toLowerCase();
     const hpgStatus = (verificationStatus.hpg || '').toLowerCase();
-    
-    if (emissionStatus === 'approved') {
-        statuses.push('<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Emission</span>');
-    } else if (emissionStatus === 'pending') {
-        statuses.push('<span style="color: #ffc107;"><i class="fas fa-clock"></i> Emission</span>');
-    } else if (emissionStatus === 'rejected') {
-        statuses.push('<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> Emission</span>');
-    }
     
     if (insuranceStatus === 'approved') {
         statuses.push('<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Insurance</span>');
@@ -1519,7 +1512,6 @@ function mapDocTypeToKey(docType) {
         'registration_cert': 'registrationCert',
         'or_cr': 'registrationCert',
         'insurance_cert': 'insuranceCert',
-        'emission_cert': 'emissionCert',
         'owner_id': 'ownerId',
         'valid_id': 'validId',
         'deed_of_sale': 'deedOfSale',
@@ -1534,7 +1526,6 @@ function mapDocTypeToKey(docType) {
         'registrationCertificate': 'registrationCert',
         'insuranceCert': 'insuranceCert',
         'insuranceCertificate': 'insuranceCert',
-        'emissionCert': 'emissionCert',
         'ownerId': 'ownerId',
         'ownerValidId': 'ownerId',
         'validId': 'validId',
@@ -1625,7 +1616,6 @@ function showApplicationDetailsModal(application) {
     const documentTypes = [
         { key: 'registrationCert', label: 'Registration Certificate (OR/CR)', icon: 'fa-car', type: 'registration' },
         { key: 'insuranceCert', label: 'Insurance Certificate', icon: 'fa-shield-alt', type: 'insurance' },
-        { key: 'emissionCert', label: 'Emission Certificate', icon: 'fa-leaf', type: 'emission' },
         { key: 'ownerId', label: 'Owner ID', icon: 'fa-id-card', type: 'id' },
         { key: 'validId', label: 'Valid ID', icon: 'fa-id-badge', type: 'id' },
         { key: 'deedOfSale', label: 'Deed of Sale', icon: 'fa-file-contract', type: 'other' },

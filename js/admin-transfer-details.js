@@ -662,7 +662,6 @@ function getDocumentTypeLabel(type) {
         'OR': 'Vehicle Registration',
         'CR': 'Vehicle Registration',
         'OR_CR': 'Vehicle Registration',
-        'EMISSION': 'Test Certificate'
     };
     return labels[type] || 'Document';
 }
@@ -1009,10 +1008,6 @@ async function forwardToInsurance() {
     }
 }
 
-async function forwardToEmission() {
-    showError('Emission clearance workflow has been disabled in this system.');
-}
-
 // Make functions globally available for inline onclick handlers
 window.viewDocument = viewDocument;
 window.downloadDocument = downloadDocument;
@@ -1020,5 +1015,4 @@ window.approveTransfer = approveTransfer;
 window.rejectTransfer = rejectTransfer;
 window.forwardToHPG = forwardToHPG;
 window.forwardToInsurance = forwardToInsurance;
-window.forwardToEmission = forwardToEmission;
 

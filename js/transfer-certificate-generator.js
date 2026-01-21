@@ -23,14 +23,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize form handlers
     initializeForm();
-    loadTransferRequests();
+    loadVehicles();
+    loadTransferRequests(); // Optional - for linking to transfer requests
     
     // Set default sale date to today
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('saleDate').value = today;
+    const saleDateInput = document.getElementById('saleDate');
+    if (saleDateInput) saleDateInput.value = today;
 });
 
-// Load transfer requests for dropdown
+// Load registered vehicles for dropdown
+async function loadVehicles() {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/certificate-generation/transfer/vehicles');
+        
+        if (response.success && response.vehicles) {
+            const select = document.getElementById('vehicleSelect');
+            if (select) {
+                select.innerHTML = '<option value="">-- Select a registered vehicle --</option>';
+                
+                response.vehicles.forEach(vehicle => {
+                    const option = document.createElement('option');
+                    option.value = vehicle.id;
+                    option.textContent = vehicle.display;
+                    select.appendChild(option);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error loading vehicles:', error);
+        showError('Failed to load vehicles: ' + error.message);
+    }
+}
+
+// Load transfer requests for dropdown (optional)
 async function loadTransferRequests() {
     try {
         const apiClient = window.apiClient || new APIClient();
@@ -38,41 +65,167 @@ async function loadTransferRequests() {
         
         if (response.success && response.requests) {
             const select = document.getElementById('transferRequestSelect');
-            select.innerHTML = '<option value="">-- Select a transfer request --</option>';
-            
-            response.requests.forEach(req => {
-                const option = document.createElement('option');
-                option.value = req.id;
-                option.textContent = req.display;
-                select.appendChild(option);
-            });
+            if (select) {
+                select.innerHTML = '<option value="">-- None (standalone certificate generation) --</option>';
+                
+                response.requests.forEach(req => {
+                    const option = document.createElement('option');
+                    option.value = req.id;
+                    option.textContent = req.display;
+                    select.appendChild(option);
+                });
+            }
         }
     } catch (error) {
         console.error('Error loading transfer requests:', error);
-        showError('Failed to load transfer requests: ' + error.message);
+        // Don't show error - transfer requests are optional
     }
 }
 
 // Initialize form handlers
 function initializeForm() {
     const form = document.getElementById('transferCertificateForm');
+    const vehicleSelect = document.getElementById('vehicleSelect');
     const transferSelect = document.getElementById('transferRequestSelect');
     
-    // Handle transfer request selection change
-    transferSelect.addEventListener('change', async function() {
-        const transferRequestId = this.value;
-        if (transferRequestId) {
-            await loadTransferContext(transferRequestId);
-        } else {
-            hideAutofillPreview();
-        }
-    });
+    // Handle vehicle selection change
+    if (vehicleSelect) {
+        vehicleSelect.addEventListener('change', async function() {
+            const vehicleId = this.value;
+            if (vehicleId) {
+                await loadVehicleContext(vehicleId);
+            } else {
+                hideAutofillPreview();
+            }
+        });
+    }
+    
+    // Handle transfer request selection change (optional - for autofill buyer/seller)
+    if (transferSelect) {
+        transferSelect.addEventListener('change', async function() {
+            const transferRequestId = this.value;
+            if (transferRequestId) {
+                await loadTransferContext(transferRequestId);
+                // Hide buyer email section when transfer request is selected (buyer comes from request)
+                const buyerInfoSection = document.getElementById('buyerInfoSection');
+                if (buyerInfoSection) buyerInfoSection.style.display = 'none';
+            } else {
+                // Show buyer email section when no transfer request is selected (standalone mode)
+                const buyerInfoSection = document.getElementById('buyerInfoSection');
+                if (buyerInfoSection) buyerInfoSection.style.display = 'block';
+            }
+        });
+    }
+    
+    // Handle vehicle selection change - show buyer email section if no transfer request
+    if (vehicleSelect) {
+        vehicleSelect.addEventListener('change', function() {
+            const transferRequestId = document.getElementById('transferRequestSelect')?.value;
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            if (buyerInfoSection) {
+                // Show buyer email section only if vehicle is selected AND no transfer request is selected
+                buyerInfoSection.style.display = (this.value && !transferRequestId) ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // Buyer email lookup on blur
+    const buyerEmailInput = document.getElementById('buyerEmail');
+    if (buyerEmailInput) {
+        buyerEmailInput.addEventListener('blur', async function() {
+            await lookupBuyer(this.value.trim());
+        });
+    }
     
     // Handle form submission
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        await generateCertificates();
-    });
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await generateCertificates();
+        });
+    }
+}
+
+// Load vehicle context for autofill
+async function loadVehicleContext(vehicleId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/certificate-generation/transfer/vehicle/${vehicleId}`);
+        
+        if (response.success && response.vehicle) {
+            transferContext = {
+                vehicle: response.vehicle,
+                seller: response.vehicle.owner || null,
+                buyer: null // Buyer info must be provided manually
+            };
+            displayAutofillPreview(transferContext);
+            
+            // Show buyer email section if no transfer request is selected
+            const transferRequestId = document.getElementById('transferRequestSelect')?.value;
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            if (buyerInfoSection && !transferRequestId) {
+                buyerInfoSection.style.display = 'block';
+            }
+        } else {
+            showError('Failed to load vehicle context');
+        }
+    } catch (error) {
+        console.error('Error loading vehicle context:', error);
+        showError('Failed to load vehicle context: ' + error.message);
+    }
+}
+
+// Buyer lookup function (similar to registration certificate generator)
+async function lookupBuyer(email) {
+    if (!email) {
+        // Hide previews if email is empty
+        document.getElementById('buyerPreview').style.display = 'none';
+        document.getElementById('buyerError').style.display = 'none';
+        return;
+    }
+    
+    const previewDiv = document.getElementById('buyerPreview');
+    const detailsDiv = document.getElementById('buyerDetails');
+    const errorDiv = document.getElementById('buyerError');
+    
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/users/lookup?email=${encodeURIComponent(email)}`);
+        
+        if (response.success && response.user) {
+            // Show buyer details
+            const user = response.user;
+            const buyerName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+            detailsDiv.innerHTML = `
+                <div><strong>Name:</strong> ${buyerName}</div>
+                <div><strong>Email:</strong> ${user.email}</div>
+                ${user.address ? `<div><strong>Address:</strong> ${user.address}</div>` : ''}
+                ${user.phone ? `<div><strong>Phone:</strong> ${user.phone}</div>` : ''}
+            `;
+            previewDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            
+            // Update transfer context with buyer info
+            if (!transferContext) transferContext = {};
+            transferContext.buyer = {
+                id: user.id,
+                email: user.email,
+                name: buyerName,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                address: user.address,
+                phone: user.phone
+            };
+            displayAutofillPreview(transferContext);
+        } else {
+            throw new Error(response.error || 'Buyer not found');
+        }
+    } catch (error) {
+        console.error('Buyer lookup error:', error);
+        errorDiv.textContent = error.message || 'Buyer not found. User must be registered in the system.';
+        errorDiv.style.display = 'block';
+        previewDiv.style.display = 'none';
+    }
 }
 
 // Load transfer context for autofill
@@ -82,6 +235,9 @@ async function loadTransferContext(transferRequestId) {
         const response = await apiClient.get(`/api/certificate-generation/transfer/context/${transferRequestId}`);
         
         if (response.success && response.context) {
+            // Hide buyer email section when transfer request is selected
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            if (buyerInfoSection) buyerInfoSection.style.display = 'none';
             transferContext = response.context;
             displayAutofillPreview(response.context);
         } else {
@@ -108,13 +264,13 @@ function displayAutofillPreview(context) {
     const previewContent = document.getElementById('previewContent');
     
     const vehicle = context.vehicle;
-    const seller = context.seller;
+    const seller = context.seller || (context.vehicle && context.vehicle.owner);
     const buyer = context.buyer;
     
-    previewContent.innerHTML = `
+    let previewHtml = `
         <div class="preview-row">
             <span class="preview-label">Vehicle:</span>
-            <span class="preview-value">${vehicle.plateNumber || vehicle.vin} - ${vehicle.make} ${vehicle.model} (${vehicle.year})</span>
+            <span class="preview-value">${vehicle.plateNumber || vehicle.vin || 'N/A'} - ${vehicle.make || ''} ${vehicle.model || ''} (${vehicle.year || ''})</span>
         </div>
         <div class="preview-row">
             <span class="preview-label">VIN:</span>
@@ -129,15 +285,41 @@ function displayAutofillPreview(context) {
             <span class="preview-value">${vehicle.chassisNumber || vehicle.vin || 'N/A'}</span>
         </div>
         <div class="preview-row">
-            <span class="preview-label">Seller:</span>
-            <span class="preview-value">${seller.name} (${seller.email})</span>
+            <span class="preview-label">OR Number:</span>
+            <span class="preview-value">${vehicle.orNumber || 'N/A'}</span>
         </div>
         <div class="preview-row">
-            <span class="preview-label">Buyer:</span>
-            <span class="preview-value">${buyer.name} (${buyer.email})</span>
+            <span class="preview-label">CR Number:</span>
+            <span class="preview-value">${vehicle.crNumber || 'N/A'}</span>
         </div>
     `;
     
+    if (seller) {
+        previewHtml += `
+        <div class="preview-row">
+            <span class="preview-label">Seller:</span>
+            <span class="preview-value">${seller.name || seller.email || 'N/A'} (${seller.email || 'N/A'})</span>
+        </div>
+        `;
+    }
+    
+    if (buyer) {
+        previewHtml += `
+        <div class="preview-row">
+            <span class="preview-label">Buyer:</span>
+            <span class="preview-value">${buyer.name || buyer.email || 'N/A'} (${buyer.email || 'N/A'})</span>
+        </div>
+        `;
+    } else {
+        previewHtml += `
+        <div class="preview-row">
+            <span class="preview-label">Buyer:</span>
+            <span class="preview-value" style="color: #f39c12;">Please provide buyer information in the form below</span>
+        </div>
+        `;
+    }
+    
+    previewContent.innerHTML = previewHtml;
     previewDiv.style.display = 'block';
 }
 
@@ -153,26 +335,49 @@ async function generateCertificates() {
     const statusDiv = document.getElementById('certificateStatus');
     
     try {
-        // Validate transfer request selection
-        const transferRequestId = document.getElementById('transferRequestSelect').value;
-        if (!transferRequestId) {
-            showError('Please select a transfer request');
+        // Validate vehicle selection (required)
+        const vehicleId = document.getElementById('vehicleSelect')?.value;
+        if (!vehicleId) {
+            showError('Please select a registered vehicle');
             return;
         }
         
-        if (!transferContext) {
-            showError('Please wait for transfer context to load');
+        // Transfer request is optional
+        const transferRequestId = document.getElementById('transferRequestSelect')?.value || null;
+        
+        if (!transferContext || !transferContext.vehicle) {
+            showError('Please wait for vehicle context to load');
             return;
         }
         
         // Show loading
-        loadingOverlay.classList.add('show');
-        statusDiv.classList.remove('show');
-        statusDiv.innerHTML = '';
+        if (loadingOverlay) loadingOverlay.classList.add('show');
+        if (statusDiv) {
+            statusDiv.classList.remove('show');
+            statusDiv.innerHTML = '';
+        }
         
         // Collect form data
+        const buyerEmail = document.getElementById('buyerEmail')?.value.trim();
+        
+        // Validate buyer email if no transfer request is selected (standalone mode)
+        if (!transferRequestId && !buyerEmail) {
+            showError('Buyer email is required when no transfer request is selected');
+            return;
+        }
+        
+        // Check if buyer was validated (preview should be visible) when in standalone mode
+        if (!transferRequestId) {
+            const buyerPreview = document.getElementById('buyerPreview');
+            if (!buyerPreview || buyerPreview.style.display === 'none') {
+                showError('Please verify buyer email first. Buyer must be registered in the system.');
+                return;
+            }
+        }
+        
         const formData = {
-            transferRequestId: transferRequestId,
+            vehicleId: vehicleId,  // Required
+            transferRequestId: transferRequestId || null,  // Optional
             sellerDocuments: {
                 deedOfSale: {
                     purchasePrice: document.getElementById('purchasePrice').value,
@@ -188,6 +393,8 @@ async function generateCertificates() {
                 }
             },
             buyerDocuments: {
+                // Include buyer email/ID for standalone generation (when no transfer request)
+                ...(buyerEmail && !transferRequestId ? { email: buyerEmail } : {}),
                 buyerId: {
                     idType: document.getElementById('buyerIdType').value,
                     idNumber: document.getElementById('buyerIdNumber').value,

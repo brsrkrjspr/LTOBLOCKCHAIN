@@ -251,13 +251,15 @@
                                         <label for="manualOwnerEmail">Owner Email *</label>
                                         <input type="email" id="manualOwnerEmail" name="ownerEmail" required 
                                                class="form-control" placeholder="owner@example.com">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="manualOwnerName">Owner Full Name *</label>
-                                        <input type="text" id="manualOwnerName" name="ownerName" required 
-                                               class="form-control" placeholder="Juan Dela Cruz">
+                                        <small class="form-text text-muted">Owner must be registered in the system</small>
                                     </div>
                                 </div>
+                                <!-- Owner Details Preview (read-only, auto-filled) -->
+                                <div id="manualOwnerPreview" style="display: none; margin-top: 1rem; padding: 1rem; background: #e8f5e9; border-radius: 4px; border-left: 4px solid #4caf50;">
+                                    <h5 style="margin: 0 0 0.5rem 0; color: #2e7d32;"><i class="fas fa-check-circle"></i> Owner Found</h5>
+                                    <div id="manualOwnerDetails" style="font-size: 0.9rem; color: #333;"></div>
+                                </div>
+                                <div id="manualOwnerError" style="display: none; margin-top: 1rem; padding: 1rem; background: #ffebee; border-radius: 4px; border-left: 4px solid #f44336; color: #c62828; font-size: 0.9rem;"></div>
                             </div>
 
                             <div class="form-section">

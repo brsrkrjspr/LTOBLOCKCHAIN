@@ -981,18 +981,21 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             console.log(`[Batch] Using provided plate: ${finalPlate}`);
         }
 
+        const randomVehicleProfile = certificatePdfGenerator.getRandomVehicleProfile();
+
         const sharedVehicleData = {
             vin: finalVIN,
             plate: finalPlate,
             ownerName: owner.name,
             ownerEmail: owner.email,
             ownerAddress: owner.address,
-            make: vehicleMake || 'Toyota',
-            model: vehicleModel || 'Vios',
+            make: vehicleMake || randomVehicleProfile.make,
+            model: vehicleModel || randomVehicleProfile.model,
             year: vehicleYear || new Date().getFullYear(),
             engineNumber: engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
             chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber(),
-            bodyType: bodyType || vehicleType || 'Sedan',
+            bodyType: bodyType || vehicleType || randomVehicleProfile.bodyType,
+            vehicleType: vehicleType || randomVehicleProfile.vehicleType,
             color: color || 'White',
             fuelType: fuelType || bodyFuelType || 'Gasoline'
         };

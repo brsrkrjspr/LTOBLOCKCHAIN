@@ -61,7 +61,7 @@ class CertificateBlockchainService {
             const result = await fabricService.updateVerificationStatus(
                 metadata.vehicleVIN,
                 metadata.certificateType,
-                'ISSUED',
+                'APPROVED',
                 notes
             );
 

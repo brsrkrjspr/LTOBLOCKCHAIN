@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* ============================================
            OWNER DASHBOARD SIDEBAR TOGGLE & HEADER IMPROVEMENTS
@@ -130,9 +133,9 @@
         
         /* Ensure View Details button has border and same size as Download Certificate */
         #my-registrations-tbody .btn-secondary.btn-sm {
-            border: 2px solid #3b82f6 !important;
+            border: 2px solid var(--navy-primary) !important;
             background-color: #ffffff !important;
-            color: #3b82f6 !important;
+            color: var(--navy-primary) !important;
             padding: 0.5rem 1rem !important;
             margin: 0 auto !important;
             height: 36px !important;
@@ -142,12 +145,13 @@
             min-width: 180px !important;
             max-width: 180px !important;
             box-sizing: border-box !important;
+            font-family: "Inter", sans-serif !important;
         }
-        
+
         #my-registrations-tbody .btn-secondary.btn-sm:hover {
-            background-color: #eff6ff !important;
-            border-color: #2563eb !important;
-            color: #2563eb !important;
+            background-color: rgba(0, 31, 63, 0.05) !important;
+            border-color: var(--navy-light) !important;
+            color: var(--navy-light) !important;
         }
         
         /* Ensure buttons in actions column have consistent width and spacing */
@@ -319,11 +323,12 @@
             padding: 0.75rem 1.5rem;
             font-size: 0.9375rem;
             font-weight: 600;
+            font-family: "Inter", sans-serif;
             line-height: 1.5;
             border-radius: 8px;
-            border: 2px solid #3b82f6;
+            border: 2px solid var(--navy-primary);
             background-color: #ffffff;
-            color: #3b82f6;
+            color: var(--navy-primary);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
@@ -334,12 +339,12 @@
             text-decoration: none;
             white-space: nowrap;
         }
-        
+
         .btn-secondary:hover,
         a.btn-secondary:hover {
-            background-color: #eff6ff;
-            border-color: #2563eb;
-            color: #2563eb;
+            background-color: rgba(0, 31, 63, 0.05);
+            border-color: var(--navy-light);
+            color: var(--navy-light);
         }
         
         /* Small Buttons */
@@ -388,7 +393,7 @@
         .btn-success:hover,
         .btn-danger:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2);
         }
         
         .btn-primary:active,
@@ -409,8 +414,8 @@
         .dashboard-card {
             padding: 1.5rem;
             margin-bottom: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-radius: 18px;
+            box-shadow: 0 2px 8px rgba(0, 31, 63, 0.08);
         }
         
         .form-group {
@@ -568,15 +573,15 @@
         input:focus,
         textarea:focus,
         select:focus {
-            outline: 2px solid #3b82f6;
+            outline: 2px solid var(--navy-primary);
             outline-offset: 2px;
-            border-color: #3b82f6;
+            border-color: var(--navy-primary);
         }
         
         /* Card Hover States */
         .dashboard-card-modern:hover,
         .card:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 4px 16px rgba(0, 31, 63, 0.12);
             transition: box-shadow 0.2s ease;
         }
         
@@ -619,142 +624,201 @@
         .gap-3 { gap: 1.5rem; }
 
         /* ============================================
-           Modern User Portal Theme Overrides
+           NAVY BLUE & WHITE GRADIENT THEME
            ============================================ */
         :root {
-            --brand-primary: #2d7ff9;
-            --brand-secondary: #17c3b2;
-            --brand-surface: #f6f9fc;
-            --brand-card: #ffffff;
-            --brand-text: #0f172a;
-            --brand-muted: #64748b;
-            --brand-border: #e2e8f0;
-            --brand-gradient: linear-gradient(135deg, #2d7ff9 0%, #17c3b2 100%);
+            --navy-primary: #001f3f;
+            --navy-dark: #001529;
+            --navy-light: #003d7a;
+            --navy-gradient: linear-gradient(135deg, #001f3f 0%, #003d7a 50%, #001529 100%);
+            --navy-gradient-light: linear-gradient(135deg, #003d7a 0%, #0056b3 100%);
+            --white: #ffffff;
+            --white-off: #f8f9fa;
+            --text-primary: #001f3f;
+            --text-secondary: #6c757d;
+            --text-muted: #8d8d8d;
+            --border-color: rgba(0, 31, 63, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
-            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-            background: var(--brand-surface);
-            color: var(--brand-text);
+            font-family: "Inter", "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e8f0f7 100%);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
         }
 
         .dashboard {
-            background: var(--brand-surface);
+            display: flex;
             min-height: 100vh;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e8f0f7 100%);
         }
 
         .dashboard-sidebar {
-            background: #0b1f3a;
-            border-right: 1px solid rgba(255,255,255,0.08);
-            padding: 1.25rem 1rem;
+            width: 280px;
+            min-width: 280px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0, 31, 63, 0.05);
+            transition: width 0.3s ease-in-out;
+            margin: 1.5rem 0 1.5rem 1.5rem;
+            border-radius: 0 24px 24px 0;
+        }
+
+        @media (min-width: 1201px) {
+            .dashboard-sidebar {
+                border-radius: 24px 0 0 24px;
+            }
         }
 
         .dashboard-sidebar .sidebar-header {
             padding: 0;
-            margin-bottom: 1.25rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .dashboard-sidebar .logo-image {
-            width: 72px !important;
+            width: 80px !important;
             height: auto !important;
+            filter: drop-shadow(0 2px 4px rgba(0, 31, 63, 0.1));
         }
 
         .sidebar-nav {
             display: flex;
             flex-direction: column;
-            gap: 0.35rem;
+            gap: 0.5rem;
+            flex: 1;
         }
 
         .sidebar-nav .nav-item {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            padding: 0.85rem 0.9rem;
+            gap: 0.875rem;
+            padding: 0.875rem 1rem;
             border-radius: 12px;
-            color: #cbd5e1;
+            color: var(--text-secondary);
             font-weight: 600;
+            font-size: 0.9375rem;
             letter-spacing: 0.01em;
             transition: all 0.2s ease;
+            text-decoration: none;
         }
 
         .sidebar-nav .nav-item i {
-            width: 32px;
-            height: 32px;
+            width: 20px;
+            height: 20px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.06);
+            font-size: 1rem;
+            color: inherit;
         }
 
         .sidebar-nav .nav-item:hover {
-            background: rgba(255,255,255,0.08);
-            color: #fff;
+            background: linear-gradient(135deg, rgba(0, 31, 63, 0.05) 0%, rgba(0, 61, 122, 0.05) 100%);
+            color: var(--navy-primary);
         }
 
         .sidebar-nav .nav-item.active {
-            background: linear-gradient(135deg, #2d7ff9, #17c3b2);
+            background: var(--navy-gradient);
             color: #fff;
-            box-shadow: 0 10px 25px rgba(45,127,249,0.25);
+            box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2);
         }
 
         .sidebar-nav .nav-item.active i {
-            background: rgba(255,255,255,0.18);
+            color: #fff;
         }
 
         .sidebar-footer {
             margin-top: auto;
-            padding: 1rem;
-            background: rgba(255,255,255,0.04);
-            border-radius: 12px;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, rgba(0, 31, 63, 0.03) 0%, rgba(0, 61, 122, 0.03) 100%);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
         }
 
         .sidebar-user-profile {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            color: #e2e8f0;
+            gap: 0.875rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            margin-bottom: 1rem;
         }
 
         .sidebar-user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            background: var(--brand-gradient);
+            background: var(--navy-gradient);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
+            font-size: 1rem;
             color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 31, 63, 0.15);
+        }
+
+        .sidebar-user-details {
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar-user-details .sidebar-user-name {
             font-weight: 700;
+            font-size: 0.9375rem;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .sidebar-user-details .sidebar-user-role {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            font-weight: 500;
         }
 
         .sidebar-action-item {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            color: #cbd5e1;
-            padding: 0.6rem 0.5rem;
+            gap: 0.625rem;
+            color: var(--text-secondary);
+            padding: 0.75rem 0.875rem;
             border-radius: 10px;
-            transition: background 0.2s ease;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
         }
 
         .sidebar-action-item:hover {
-            background: rgba(255,255,255,0.08);
-            color: #fff;
+            background: linear-gradient(135deg, rgba(0, 31, 63, 0.08) 0%, rgba(0, 61, 122, 0.08) 100%);
+            color: var(--navy-primary);
+        }
+
+        .sidebar-action-item i {
+            font-size: 0.9375rem;
         }
 
         /* Collapsed Sidebar - Improved Spacing */
         .dashboard-sidebar.collapsed {
-            padding: 1.25rem 0.75rem;
+            width: 80px;
+            min-width: 80px;
+            padding: 2rem 0.75rem;
         }
 
         .dashboard-sidebar.collapsed .sidebar-header {
             padding: 0;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -772,15 +836,13 @@
 
         .dashboard-sidebar.collapsed .sidebar-nav .nav-item {
             justify-content: center;
-            padding: 0.85rem 0.5rem;
+            padding: 0.875rem;
             margin: 0;
         }
 
         .dashboard-sidebar.collapsed .sidebar-nav .nav-item i {
-            width: 36px;
-            height: 36px;
             margin: 0;
-            font-size: 1.1rem;
+            font-size: 1.125rem;
         }
 
         .dashboard-sidebar.collapsed .sidebar-nav .nav-item span {
@@ -808,8 +870,8 @@
         }
 
         .dashboard-sidebar.collapsed .sidebar-user-avatar {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             font-size: 0.875rem;
         }
 
@@ -822,7 +884,7 @@
 
         .dashboard-sidebar.collapsed .sidebar-action-item {
             justify-content: center;
-            padding: 0.75rem 0.5rem;
+            padding: 0.75rem;
             width: 100%;
         }
 
@@ -832,7 +894,7 @@
 
         .dashboard-sidebar.collapsed .sidebar-action-item i {
             margin: 0;
-            font-size: 1.1rem;
+            font-size: 1.125rem;
         }
 
         .dashboard-header {
@@ -965,31 +1027,38 @@
         }
 
         .dashboard-content {
-            padding: 2rem 1.5rem;
+            padding: 2rem 2.5rem;
+            flex: 1;
+            overflow-y: auto;
         }
 
         .welcome-section {
-            background: #ffffff;
-            border: 1px solid var(--brand-border);
-            border-radius: 18px;
-            padding: 1.75rem;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem 2.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 1rem;
-            box-shadow: 0 8px 25px rgba(15,23,42,0.06);
+            gap: 2rem;
+            box-shadow: 0 4px 16px rgba(0, 31, 63, 0.08);
+            margin-bottom: 2rem;
         }
 
         .welcome-title {
-            font-size: 1.6rem;
+            font-size: 2rem;
             font-weight: 800;
-            color: #0f172a;
-            margin: 0 0 0.35rem 0;
+            font-family: "Poppins", sans-serif;
+            color: var(--text-primary);
+            margin: 0 0 0.5rem 0;
+            line-height: 1.2;
         }
 
         .welcome-subtitle {
             margin: 0;
-            color: var(--brand-muted);
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            font-weight: 500;
         }
 
         .stats-grid-modern {
@@ -1035,24 +1104,60 @@
 
         .dashboard-grid-modern {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .dashboard-card-modern {
             background: #ffffff;
-            border: 1px solid var(--brand-border);
-            border-radius: 16px;
-            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 1.75rem;
+            box-shadow: 0 2px 8px rgba(0, 31, 63, 0.06);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .dashboard-card-modern:hover {
+            box-shadow: 0 8px 20px rgba(0, 31, 63, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .card-header-modern {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .card-icon-modern {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--navy-gradient);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            box-shadow: 0 4px 10px rgba(0, 31, 63, 0.15);
         }
 
         .card-header-modern h3 {
             margin: 0;
-            color: #0f172a;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: "Poppins", sans-serif;
         }
 
         .card-description {
-            color: var(--brand-muted);
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            margin: 0;
         }
 
         .btn-card-primary,
@@ -1063,19 +1168,73 @@
             width: 100%;
             justify-content: center;
             border-radius: 12px;
+            font-weight: 600;
+            font-family: "Inter", sans-serif;
+            margin-top: auto;
+        }
+
+        .btn-card-primary {
+            background: var(--navy-gradient);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2);
+        }
+
+        .btn-card-primary:hover {
+            background: var(--navy-gradient-light);
+            box-shadow: 0 6px 16px rgba(0, 31, 63, 0.3);
+        }
+
+        .btn-card-secondary {
+            background: #fff;
+            border: 2px solid var(--navy-primary);
+            color: var(--navy-primary);
+        }
+
+        .btn-card-secondary:hover {
+            background: rgba(0, 31, 63, 0.05);
+        }
+
+        .btn-card-success {
+            background: var(--navy-gradient);
+            color: #fff;
+        }
+
+        .btn-card-success:hover {
+            background: var(--navy-gradient-light);
+        }
+
+        .btn-card-transfer {
+            background: var(--navy-gradient);
+            color: #fff;
+        }
+
+        .btn-card-transfer:hover {
+            background: var(--navy-gradient-light);
+        }
+
+        .btn-card-info {
+            background: var(--navy-gradient);
+            color: #fff;
+        }
+
+        .btn-card-info:hover {
+            background: var(--navy-gradient-light);
         }
 
         .btn-primary,
         a.btn-primary {
-            background: var(--brand-gradient);
+            background: var(--navy-gradient);
             border: none;
             color: #fff;
-            box-shadow: 0 8px 20px rgba(45,127,249,0.25);
+            box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2);
+            font-weight: 600;
+            font-family: "Inter", sans-serif;
         }
 
         .btn-primary:hover,
         a.btn-primary:hover {
-            filter: brightness(1.03);
+            background: var(--navy-gradient-light);
+            box-shadow: 0 6px 16px rgba(0, 31, 63, 0.3);
         }
 
         .table-card {
@@ -1083,27 +1242,41 @@
         }
 
         .application-tabs {
-            background: #f8fafc;
-            border: 1px solid var(--brand-border);
-            border-radius: 12px;
-            padding: 0.4rem;
+            background: linear-gradient(135deg, rgba(0, 31, 63, 0.03) 0%, rgba(0, 61, 122, 0.03) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 0.5rem;
             display: inline-flex;
-            gap: 0.35rem;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
         }
 
         .application-tabs .app-tab {
             border-radius: 10px;
             border: none;
             background: transparent;
-            color: #0f172a;
-            padding: 0.75rem 1.1rem;
-            font-weight: 700;
+            color: var(--text-secondary);
+            padding: 0.75rem 1.25rem;
+            font-weight: 600;
+            font-family: "Inter", sans-serif;
+            font-size: 0.9375rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .application-tabs .app-tab:hover {
+            background: rgba(0, 31, 63, 0.05);
+            color: var(--navy-primary);
         }
 
         .application-tabs .app-tab.active {
             background: #ffffff;
-            box-shadow: 0 6px 12px rgba(15,23,42,0.06);
-            color: #0f172a;
+            box-shadow: 0 2px 8px rgba(0, 31, 63, 0.1);
+            color: var(--navy-primary);
+        }
+
+        .application-tabs .app-tab i {
+            margin-right: 0.5rem;
         }
 
         .status-indicator.pending { background: #fbbf24; }
@@ -1117,14 +1290,74 @@
             box-shadow: 0 6px 16px rgba(15,23,42,0.06);
         }
 
-        @media (max-width: 900px) {
+        /* Section Headers */
+        .section-header {
+            margin-bottom: 1.75rem;
+        }
+
+        .section-header h2 {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Notifications Card */
+        .notifications-card {
+            padding: 1.75rem;
+        }
+
+        .notifications-list-modern {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 1200px) {
+            .dashboard-main {
+                margin: 1rem 1rem 1rem 0;
+                border-radius: 20px 0 0 0;
+            }
+
             .dashboard-content {
-                padding: 1.25rem 1rem;
+                padding: 1.75rem 2rem;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .dashboard {
+                flex-direction: column;
+            }
+
+            .dashboard-sidebar {
+                width: 100%;
+                min-width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                padding: 1.5rem;
+            }
+
+            .dashboard-main {
+                margin: 0;
+                border-radius: 0;
+            }
+
+            .dashboard-content {
+                padding: 1.5rem 1.25rem;
             }
 
             .welcome-section {
                 flex-direction: column;
                 align-items: flex-start;
+                padding: 1.5rem;
+            }
+
+            .stats-grid-modern {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .dashboard-grid-modern {
+                grid-template-columns: 1fr;
+                gap: 1rem;
             }
 
             .nav-actions {
@@ -1270,7 +1503,7 @@
                 </a>
                 <div class="sidebar-user-actions">
                     <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
-                        <i class="fas fa-sign-out-alt"></i>
+                        <i class="fas fa-right-from-bracket"></i>
                         <span>Logout</span>
                     </a>
                 </div>
@@ -1307,7 +1540,7 @@
                     </div>
                     <div class="welcome-actions">
                         <a class="btn-primary btn-lg" href="registration-wizard.html">
-                            <i class="fas fa-plus-circle"></i> New Registration
+                            <i class="fas fa-plus"></i> New Registration
                         </a>
                     </div>
                 </div>
@@ -1317,14 +1550,14 @@
                     <div class="stat-card-modern stat-card-primary">
                         <div class="stat-icon-wrapper">
                             <div class="stat-icon">
-                                <i class="fas fa-car"></i>
+                                <i class="fas fa-warehouse"></i>
                             </div>
                         </div>
                         <div class="stat-content-modern">
                             <div class="stat-number-modern" id="statVehicles">0</div>
                             <div class="stat-label-modern">Registered Vehicles</div>
                             <div class="stat-trend">
-                                <i class="fas fa-arrow-up"></i>
+                                <i class="fas fa-arrow-trend-up"></i>
                                 <span>All active</span>
                             </div>
                         </div>
@@ -1333,14 +1566,14 @@
                     <div class="stat-card-modern stat-card-warning">
                         <div class="stat-icon-wrapper">
                             <div class="stat-icon">
-                                <i class="fas fa-clock"></i>
+                                <i class="fas fa-clock-rotate-left"></i>
                             </div>
                         </div>
                         <div class="stat-content-modern">
                             <div class="stat-number-modern" id="statPending">0</div>
                             <div class="stat-label-modern">Pending Applications</div>
                             <div class="stat-trend">
-                                <i class="fas fa-hourglass-half"></i>
+                                <i class="fas fa-spinner"></i>
                                 <span>In review</span>
                             </div>
                         </div>
@@ -1349,14 +1582,14 @@
                     <div class="stat-card-modern stat-card-success">
                         <div class="stat-icon-wrapper">
                             <div class="stat-icon">
-                                <i class="fas fa-check-circle"></i>
+                                <i class="fas fa-circle-check"></i>
                             </div>
                         </div>
                         <div class="stat-content-modern">
                             <div class="stat-number-modern" id="statApproved">0</div>
                             <div class="stat-label-modern">Approved Applications</div>
                             <div class="stat-trend">
-                                <i class="fas fa-check"></i>
+                                <i class="fas fa-check-double"></i>
                                 <span>Completed</span>
                             </div>
                         </div>
@@ -1365,14 +1598,14 @@
                     <div class="stat-card-modern stat-card-info">
                         <div class="stat-icon-wrapper">
                             <div class="stat-icon">
-                                <i class="fas fa-bell"></i>
+                                <i class="fas fa-bell-ring"></i>
                             </div>
                         </div>
                         <div class="stat-content-modern">
                             <div class="stat-number-modern" id="statNotifications">0</div>
                             <div class="stat-label-modern">Notifications</div>
                             <div class="stat-trend">
-                                <i class="fas fa-envelope"></i>
+                                <i class="fas fa-envelope-open"></i>
                                 <span>Unread</span>
                             </div>
                         </div>
@@ -1388,35 +1621,35 @@
                     <div class="dashboard-card-modern action-card-primary">
                         <div class="card-header-modern">
                             <div class="card-icon-modern">
-                                <i class="fas fa-car-side"></i>
+                                <i class="fas fa-file-plus"></i>
                             </div>
                             <h3>Request Registration</h3>
                         </div>
                         <p class="card-description">Start a new vehicle registration or transfer request</p>
                     <a class="btn-card-primary" href="registration-wizard.html">
                         <span>Get Started</span>
-                        <i class="fas fa-arrow-right"></i>
+                        <i class="fas fa-arrow-right-long"></i>
                     </a>
                     </div>
                     
                     <div class="dashboard-card-modern action-card-transfer">
                         <div class="card-header-modern">
                             <div class="card-icon-modern">
-                                <i class="fas fa-exchange-alt"></i>
+                                <i class="fas fa-arrows-rotate"></i>
                             </div>
                             <h3>Transfer of Ownership</h3>
                         </div>
                         <p class="card-description">Begin the ownership transfer process with guided steps</p>
                         <a class="btn-card-transfer" href="transfer-ownership.html">
                             <span>Start Transfer</span>
-                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-arrow-right-long"></i>
                         </a>
                     </div>
                     
                     <div class="dashboard-card-modern action-card-secondary">
                         <div class="card-header-modern">
                             <div class="card-icon-modern">
-                                <i class="fas fa-file-alt"></i>
+                                <i class="fas fa-folder-open"></i>
                             </div>
                             <h3>My Documents</h3>
                         </div>
@@ -1424,35 +1657,35 @@
                         <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
                         <a href="#applications" class="btn-card-secondary" onclick="event.preventDefault(); if(window.ToastNotification){ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');} else { alert('Use the in-page document modal inside an application to view documents.'); }">
                             <span>View Documents</span>
-                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-arrow-right-long"></i>
                         </a>
                     </div>
                     
                     <div class="dashboard-card-modern action-card-info">
                         <div class="card-header-modern">
                             <div class="card-icon-modern">
-                                <i class="fas fa-list-alt"></i>
+                                <i class="fas fa-folder-tree"></i>
                             </div>
                             <h3>My Applications</h3>
                         </div>
                         <p class="card-description">View and track your vehicle registration applications</p>
                         <a href="#applications" class="btn-card-info">
                             <span>View All</span>
-                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-arrow-right-long"></i>
                         </a>
                     </div>
                     
                     <div class="dashboard-card-modern action-card-success">
                         <div class="card-header-modern">
                             <div class="card-icon-modern">
-                                <i class="fas fa-file-download"></i>
+                                <i class="fas fa-file-arrow-down"></i>
                             </div>
                             <h3>Download Certificates</h3>
                         </div>
                         <p class="card-description">Download registration certificates for your approved vehicles</p>
                         <a href="my-vehicle-ownership.html" class="btn-card-success">
                             <span>Go to My Vehicles</span>
-                            <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-arrow-right-long"></i>
                         </a>
                     </div>
                 </div>
@@ -1466,10 +1699,10 @@
                 <!-- Tabs for Registration vs Transfer -->
                 <div class="application-tabs" style="margin-bottom: 1rem;">
                     <button class="app-tab active" onclick="showApplicationTab('registrations', this)">
-                        <i class="fas fa-car"></i> Registrations
+                        <i class="fas fa-file-lines"></i> Registrations
                     </button>
                     <button class="app-tab" onclick="showApplicationTab('transfers', this)">
-                        <i class="fas fa-exchange-alt"></i> Transfers
+                        <i class="fas fa-arrows-rotate"></i> Transfers
                     </button>
                 </div>
 

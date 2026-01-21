@@ -1601,7 +1601,7 @@ LTO Lipa City Team
             // Email is a notification, not critical to the registration process
         }
 
-        // Automatically send clearance requests to organizations (emission removed)
+        // Automatically send clearance requests to organizations
         let autoSendResults = null;
         try {
             const clearanceService = require('../services/clearanceService');

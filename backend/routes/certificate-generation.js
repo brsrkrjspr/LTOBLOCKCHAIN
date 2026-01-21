@@ -1471,8 +1471,110 @@ router.get('/transfer/context/:transferRequestId', authenticateToken, authorizeR
 });
 
 /**
+ * GET /api/certificate-generation/transfer/vehicles
+ * Get list of registered vehicles for dropdown
+ */
+router.get('/transfer/vehicles', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const dbModule = require('../database/db');
+        // Get all APPROVED or REGISTERED vehicles
+        const result = await dbModule.query(
+            `SELECT v.*, u.first_name || ' ' || u.last_name as owner_name, u.email as owner_email
+             FROM vehicles v
+             LEFT JOIN users u ON v.owner_id = u.id
+             WHERE v.status IN ('APPROVED', 'REGISTERED')
+             ORDER BY v.registration_date DESC, v.last_updated DESC
+             LIMIT 1000`,
+            []
+        );
+        
+        res.json({
+            success: true,
+            vehicles: result.rows.map(v => ({
+                id: v.id,
+                display: `${v.plate_number || v.vin || 'N/A'} - ${v.make || ''} ${v.model || ''} (${v.year || ''}) | Owner: ${v.owner_name || v.owner_email || 'N/A'}`,
+                plateNumber: v.plate_number,
+                vin: v.vin,
+                make: v.make,
+                model: v.model,
+                year: v.year,
+                ownerName: v.owner_name,
+                ownerEmail: v.owner_email,
+                ownerId: v.owner_id,
+                status: v.status,
+                orNumber: v.or_number,
+                crNumber: v.cr_number
+            }))
+        });
+    } catch (error) {
+        console.error('[Vehicles List] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to load vehicles',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * GET /api/certificate-generation/transfer/vehicle/:vehicleId
+ * Get vehicle context for autofill
+ */
+router.get('/transfer/vehicle/:vehicleId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+        const vehicle = await db.getVehicleById(vehicleId);
+        
+        if (!vehicle) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Vehicle not found' 
+            });
+        }
+        
+        // Get owner information
+        let owner = null;
+        if (vehicle.owner_id) {
+            owner = await db.getUserById(vehicle.owner_id);
+        }
+        
+        res.json({
+            success: true,
+            vehicle: {
+                id: vehicle.id,
+                vin: vehicle.vin,
+                plateNumber: vehicle.plate_number,
+                engineNumber: vehicle.engine_number,
+                chassisNumber: vehicle.chassis_number,
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year,
+                color: vehicle.color,
+                vehicleType: vehicle.vehicle_type,
+                orNumber: vehicle.or_number,
+                crNumber: vehicle.cr_number,
+                owner: owner ? {
+                    id: owner.id,
+                    name: `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email,
+                    email: owner.email,
+                    address: owner.address || '',
+                    phone: owner.phone || ''
+                } : null
+            }
+        });
+    } catch (error) {
+        console.error('[Vehicle Context] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to load vehicle context',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
  * GET /api/certificate-generation/transfer/requests
- * Get list of transfer requests for dropdown
+ * Get list of transfer requests for dropdown (optional)
  */
 router.get('/transfer/requests', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
@@ -1515,49 +1617,140 @@ router.get('/transfer/requests', authenticateToken, authorizeRole(['admin']), as
 router.post('/transfer/generate-compliance-documents', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const {
-            transferRequestId,
+            vehicleId,           // NEW: Direct vehicle selection
+            transferRequestId,   // Optional: Link to transfer request
             sellerDocuments,
             buyerDocuments
         } = req.body;
 
-        // Load transfer request context
-        const request = await db.getTransferRequestById(transferRequestId);
-        if (!request) {
-            return res.status(404).json({
-                success: false,
-                error: 'Transfer request not found'
-            });
+        let vehicle, seller, buyer, sellerName, buyerName;
+
+        // Option 1: Direct vehicle selection (NEW - allows any registered vehicle)
+        if (vehicleId) {
+            vehicle = await db.getVehicleById(vehicleId);
+            if (!vehicle) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Vehicle not found'
+                });
+            }
+
+            // Get seller from vehicle owner
+            if (vehicle.owner_id) {
+                const owner = await db.getUserById(vehicle.owner_id);
+                if (owner) {
+                    seller = {
+                        id: owner.id,
+                        first_name: owner.first_name,
+                        last_name: owner.last_name,
+                        email: owner.email,
+                        address: owner.address,
+                        phone: owner.phone
+                    };
+                    sellerName = `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email;
+                }
+            }
+
+            // Buyer must be provided in buyerDocuments or form
+            // Use lookupAndValidateOwner for consistent owner lookup (same as registration certificates)
+            if (buyerDocuments && buyerDocuments.buyerId) {
+                try {
+                    const buyerData = await lookupAndValidateOwner(buyerDocuments.buyerId, null);
+                    buyer = {
+                        id: buyerData.id,
+                        first_name: buyerData.firstName,
+                        last_name: buyerData.lastName,
+                        email: buyerData.email,
+                        address: buyerData.address,
+                        phone: buyerData.phone
+                    };
+                    buyerName = buyerData.name;
+                } catch (error) {
+                    return res.status(400).json({
+                        success: false,
+                        error: `Buyer lookup failed: ${error.message}`
+                    });
+                }
+            } else if (buyerDocuments && buyerDocuments.email) {
+                try {
+                    // Use lookupAndValidateOwner to fetch full buyer details from DB
+                    const buyerData = await lookupAndValidateOwner(null, buyerDocuments.email);
+                    buyer = {
+                        id: buyerData.id,
+                        first_name: buyerData.firstName,
+                        last_name: buyerData.lastName,
+                        email: buyerData.email,
+                        address: buyerData.address,
+                        phone: buyerData.phone
+                    };
+                    buyerName = buyerData.name;
+                } catch (error) {
+                    return res.status(400).json({
+                        success: false,
+                        error: `Buyer lookup failed: ${error.message}`
+                    });
+                }
+            }
+
+            if (!seller) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Seller information not found. Vehicle must have an owner.'
+                });
+            }
+
+            if (!buyer) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Buyer information is required. Please provide buyer details in the form.'
+                });
+            }
         }
+        // Option 2: Transfer request selection (existing flow)
+        else if (transferRequestId) {
+            const request = await db.getTransferRequestById(transferRequestId);
+            if (!request) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Transfer request not found'
+                });
+            }
 
-        const vehicle = await db.getVehicleById(request.vehicle_id);
-        if (!vehicle) {
-            return res.status(404).json({
-                success: false,
-                error: 'Vehicle not found for transfer request'
-            });
-        }
+            vehicle = await db.getVehicleById(request.vehicle_id);
+            if (!vehicle) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Vehicle not found for transfer request'
+                });
+            }
 
-        const seller = request.seller;
-        const buyer = request.buyer || request.buyer_info;
+            seller = request.seller;
+            buyer = request.buyer || request.buyer_info;
 
-        if (!seller) {
+            if (!seller) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Seller information not found'
+                });
+            }
+
+            if (!buyer) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Buyer information not found'
+                });
+            }
+
+            sellerName = `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email;
+            buyerName = buyer.first_name && buyer.last_name 
+                ? `${buyer.first_name} ${buyer.last_name}`.trim()
+                : buyer.name || buyer.email || 'N/A';
+        } else {
             return res.status(400).json({
                 success: false,
-                error: 'Seller information not found'
+                error: 'Either vehicleId or transferRequestId is required'
             });
         }
-
-        if (!buyer) {
-            return res.status(400).json({
-                success: false,
-                error: 'Buyer information not found'
-            });
-        }
-
-        const sellerName = `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email;
-        const buyerName = buyer.first_name && buyer.last_name 
-            ? `${buyer.first_name} ${buyer.last_name}`.trim()
-            : buyer.name || buyer.email || 'N/A';
 
         // ============================================
         // 5-DAY SELLER REPORTING RULE ENFORCEMENT
@@ -2231,4 +2424,6 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
     }
 });
 
+// Export lookupAndValidateOwner for use in other routes
 module.exports = router;
+module.exports.lookupAndValidateOwner = lookupAndValidateOwner;

@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const db = require('../database/services');
 const { authenticateToken, verifyCsrf } = require('../middleware/auth');
+const { authorizeRole } = require('../middleware/authorize');
 const { generateAccessToken, generateRefreshToken, decodeToken } = require('../config/jwt');
 const { addToBlacklistByJTI } = require('../config/blacklist');
 const blacklistConfig = require('../config/blacklist');
@@ -1008,6 +1009,67 @@ router.post('/check-verification-status', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Internal server error'
+        });
+    }
+});
+
+/**
+ * GET /api/users/lookup
+ * Lookup user by email (for certificate generator owner lookup)
+ * Authorization: Admin only (to prevent email enumeration)
+ */
+router.get('/users/lookup', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { email } = req.query;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email parameter is required'
+            });
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email format'
+            });
+        }
+        
+        // Lookup user by email
+        const user = await db.getUserByEmail(email, false); // false = check all users (active and inactive)
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found. User must be registered in the system.'
+            });
+        }
+        
+        // Return user data (excluding sensitive information)
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                email: user.email,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                address: user.address,
+                phone: user.phone,
+                organization: user.organization,
+                is_active: user.is_active,
+                role: user.role
+            }
+        });
+        
+    } catch (error) {
+        console.error('User lookup error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to lookup user',
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

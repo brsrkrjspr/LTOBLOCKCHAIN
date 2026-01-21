@@ -172,39 +172,78 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <nav class="sidebar">
+        <!-- Sidebar -->
+        <aside class="dashboard-sidebar">
             <div class="sidebar-header">
-                <h2><i class="fas fa-car"></i> LTO Blockchain</h2>
+                <div class="logo-icon" onclick="window.location.href='admin-dashboard.html'">
+                    <i class="fas fa-car"></i>
+                </div>
+                <div class="logo-text">
+                    <h2>LTO</h2>
+                    <p>Blockchain</p>
+                </div>
             </div>
-            <ul class="sidebar-menu">
-                <li><a href="admin-dashboard.html"><i class="fas fa-home"></i> Dashboard</a></li>
-                <li><a href="certificate-generator.html"><i class="fas fa-certificate"></i> Certificate Generator</a></li>
-                <li><a href="transfer-certificate-generator.html" class="active"><i class="fas fa-exchange-alt"></i> Transfer Certificates</a></li>
-            </ul>
-        </nav>
+            <nav class="sidebar-nav">
+                <a href="admin-dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="certificate-generator.html" class="nav-item">
+                    <i class="fas fa-certificate"></i>
+                    <span>Certificate Generator</span>
+                </a>
+                <a href="transfer-certificate-generator.html" class="nav-item active">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer Certificates</span>
+                </a>
+            </nav>
+        </aside>
 
-        <main class="main-content">
-            <div class="content-header">
-                <h1><i class="fas fa-file-certificate"></i> Transfer Certificate Generator</h1>
-                <p>Generate compliance documents for transfer of ownership</p>
-            </div>
+        <div class="dashboard-main">
+            <header class="dashboard-header">
+                <div class="container">
+                    <div class="dashboard-nav">
+                        <div class="nav-left">
+                            <div class="logo">
+                                <h1>Transfer Certificate Generator</h1>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
 
-            <div class="content-body">
+            <main class="dashboard-content">
+                <div class="container">
                 <div class="info-badge">
                     <strong><i class="fas fa-info-circle"></i> Quick Start:</strong> 
-                    Select a transfer request to autofill vehicle and user data. Then provide minimal document-specific information.
+                    Select a registered vehicle (or transfer request) to autofill vehicle data. Then provide buyer/seller information and document-specific details.
                 </div>
 
                 <form id="transferCertificateForm">
-                    <!-- Transfer Request Selection -->
+                    <!-- Vehicle Selection (Primary) -->
                     <div class="form-section">
-                        <h4><i class="fas fa-list"></i> Select Transfer Request</h4>
+                        <h4><i class="fas fa-car"></i> Select Vehicle</h4>
                         <div class="form-row">
                             <div class="form-group" style="grid-column: 1 / -1;">
-                                <label for="transferRequestSelect">Transfer Request *</label>
-                                <select id="transferRequestSelect" name="transferRequestId" class="form-control" required>
-                                    <option value="">-- Loading transfer requests... --</option>
+                                <label for="vehicleSelect">Registered Vehicle *</label>
+                                <select id="vehicleSelect" name="vehicleId" class="form-control" required>
+                                    <option value="">-- Loading vehicles... --</option>
                                 </select>
+                                <small style="color: #666; margin-top: 0.5rem; display: block;">Select any registered vehicle to generate transfer certificates</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer Request Selection (Optional - for autofill) -->
+                    <div class="form-section" style="margin-top: 1rem;">
+                        <h4><i class="fas fa-list"></i> Optional: Link to Transfer Request</h4>
+                        <div class="form-row">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="transferRequestSelect">Transfer Request (Optional)</label>
+                                <select id="transferRequestSelect" name="transferRequestId" class="form-control">
+                                    <option value="">-- None (standalone certificate generation) --</option>
+                                </select>
+                                <small style="color: #666; margin-top: 0.5rem; display: block;">If you have an existing transfer request, select it to autofill buyer/seller info</small>
                             </div>
                         </div>
                     </div>
@@ -213,6 +252,29 @@
                     <div id="autofillPreview" class="autofill-preview" style="display: none;">
                         <h5><i class="fas fa-check-circle"></i> Auto-filled Information</h5>
                         <div id="previewContent"></div>
+                    </div>
+
+                    <!-- Buyer Information (for standalone generation - shown when no transfer request) -->
+                    <div class="form-section" id="buyerInfoSection" style="display: none;">
+                        <h4><i class="fas fa-user"></i> Buyer Information</h4>
+                        <div class="info-badge">
+                            <strong><i class="fas fa-info-circle"></i> Note:</strong> 
+                            Buyer information is required for standalone certificate generation. Buyer must be registered in the system.
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="buyerEmail">Buyer Email *</label>
+                                <input type="email" id="buyerEmail" name="buyerEmail" 
+                                       class="form-control" placeholder="buyer@example.com">
+                                <small style="color: #666; margin-top: 0.5rem; display: block;">Buyer must be registered in the system. Enter email to lookup buyer details.</small>
+                            </div>
+                        </div>
+                        <!-- Buyer Details Preview (read-only, auto-filled) -->
+                        <div id="buyerPreview" style="display: none; margin-top: 1rem; padding: 1rem; background: #e8f5e9; border-radius: 4px; border-left: 4px solid #4caf50;">
+                            <h5 style="margin: 0 0 0.5rem 0; color: #2e7d32;"><i class="fas fa-check-circle"></i> Buyer Found</h5>
+                            <div id="buyerDetails" style="font-size: 0.9rem; color: #333;"></div>
+                        </div>
+                        <div id="buyerError" style="display: none; margin-top: 1rem; padding: 1rem; background: #ffebee; border-radius: 4px; border-left: 4px solid #f44336; color: #c62828; font-size: 0.9rem;"></div>
                     </div>
 
                     <!-- Seller Documents -->
@@ -388,8 +450,9 @@
 
                 <!-- Certificate Generation Status -->
                 <div id="certificateStatus" class="certificate-status"></div>
-            </div>
-        </main>
+                </div>
+            </main>
+        </div>
     </div>
 
     <!-- Loading Overlay -->
@@ -398,6 +461,9 @@
             <div class="spinner"></div>
             <h3>Generating Certificates...</h3>
             <p>Please wait while we generate all compliance documents</p>
+        </div>
+                </div>
+            </main>
         </div>
     </div>
 

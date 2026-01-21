@@ -8,7 +8,6 @@
 const DOCUMENT_TYPES = {
     REGISTRATION_CERT: 'registrationCert',
     INSURANCE_CERT: 'insuranceCert',
-    EMISSION_CERT: 'emissionCert',
     OWNER_ID: 'ownerId',
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',

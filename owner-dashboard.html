@@ -2202,22 +2202,35 @@
                 // Load from API
                 window.apiClient.get('/api/notifications')
                     .then(response => {
-                        if (response && response.data) {
+                        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
                             notifications = response.data;
+                            // Save to localStorage for offline access
+                            try {
+                                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                            } catch (e) {
+                                console.error('Error saving notifications to localStorage:', e);
+                            }
                         } else {
                             notifications = getSampleNotifications();
+                            // Save sample notifications to localStorage
+                            try {
+                                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                            } catch (e) {
+                                console.error('Error saving notifications to localStorage:', e);
+                            }
                         }
                         renderNotifications();
                         updateNotificationBadge();
                     })
                     .catch(error => {
-                        console.error('Error loading notifications:', error);
+                        console.error('Error loading notifications from API:', error);
+                        // Try localStorage first, then sample
                         notifications = getSampleNotifications();
                         renderNotifications();
                         updateNotificationBadge();
                     });
             } else {
-                // Use sample notifications
+                // Use sample notifications or localStorage
                 notifications = getSampleNotifications();
                 renderNotifications();
                 updateNotificationBadge();
@@ -2232,6 +2245,7 @@
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     if (Array.isArray(parsed) && parsed.length > 0) {
+                        console.log('Loaded notifications from localStorage:', parsed);
                         return parsed;
                     }
                 }
@@ -2239,7 +2253,8 @@
                 console.error('Error loading notifications from localStorage:', e);
             }
             
-            return [
+            // Default sample notifications with at least 1 unread
+            const defaultNotifications = [
                 {
                     id: 1,
                     title: 'Application Approved',
@@ -2265,18 +2280,29 @@
                     type: 'info'
                 }
             ];
+            
+            console.log('Using default sample notifications:', defaultNotifications);
+            return defaultNotifications;
         }
 
         function renderNotifications() {
             const notificationList = document.getElementById('notificationList');
             if (!notificationList) {
-                console.error('Notification list element not found');
+                console.error('Notification list element not found - element ID: notificationList');
                 return;
             }
 
-            console.log('Rendering notifications:', notifications);
+            console.log('Rendering notifications. Count:', notifications ? notifications.length : 0);
+            console.log('Notifications data:', notifications);
+
+            // Ensure notifications is an array
+            if (!Array.isArray(notifications)) {
+                console.warn('Notifications is not an array, resetting to sample data');
+                notifications = getSampleNotifications();
+            }
 
             if (!notifications || notifications.length === 0) {
+                console.log('No notifications to display, showing empty state');
                 notificationList.innerHTML = `
                     <div class="notification-empty">
                         <i class="fas fa-bell-slash"></i>
@@ -2286,25 +2312,43 @@
                 return;
             }
 
-            notificationList.innerHTML = notifications.map(notification => `
-                <div class="notification-item ${notification.read ? '' : 'unread'}" data-id="${notification.id}">
-                    <div class="notification-item-header">
-                        <h3 class="notification-item-title">${escapeHtml(notification.title || 'Notification')}</h3>
-                        <span class="notification-item-time">${escapeHtml(notification.time || 'Recently')}</span>
+            // Render notifications
+            try {
+                notificationList.innerHTML = notifications.map(notification => {
+                    if (!notification || !notification.id) {
+                        console.warn('Invalid notification object:', notification);
+                        return '';
+                    }
+                    return `
+                        <div class="notification-item ${notification.read ? '' : 'unread'}" data-id="${notification.id}">
+                            <div class="notification-item-header">
+                                <h3 class="notification-item-title">${escapeHtml(notification.title || 'Notification')}</h3>
+                                <span class="notification-item-time">${escapeHtml(notification.time || 'Recently')}</span>
+                            </div>
+                            <p class="notification-item-message">${escapeHtml(notification.message || '')}</p>
+                            <div class="notification-item-actions">
+                                ${!notification.read ? `
+                                    <button class="btn-mark-read" onclick="markNotificationAsRead(${notification.id})">
+                                        <i class="fas fa-check"></i> Mark as Read
+                                    </button>
+                                ` : ''}
+                                <button class="btn-delete" onclick="deleteNotification(${notification.id})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).filter(html => html !== '').join('');
+                console.log('Notifications rendered successfully');
+            } catch (error) {
+                console.error('Error rendering notifications:', error);
+                notificationList.innerHTML = `
+                    <div class="notification-empty">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error loading notifications</p>
                     </div>
-                    <p class="notification-item-message">${escapeHtml(notification.message || '')}</p>
-                    <div class="notification-item-actions">
-                        ${!notification.read ? `
-                            <button class="btn-mark-read" onclick="markNotificationAsRead(${notification.id})">
-                                <i class="fas fa-check"></i> Mark as Read
-                            </button>
-                        ` : ''}
-                        <button class="btn-delete" onclick="deleteNotification(${notification.id})">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }
         }
 
         function updateNotificationBadge() {
@@ -2329,10 +2373,17 @@
         function openNotificationModal() {
             const notificationModal = document.getElementById('notificationModal');
             if (notificationModal) {
-                // Ensure notifications are loaded and rendered before opening
-                if (notifications.length === 0) {
+                // Always render notifications when opening modal
+                // If notifications array is empty, load them first
+                if (!notifications || notifications.length === 0) {
+                    // Force load and wait a bit for async operations
                     loadNotifications();
+                    // Render after a short delay to ensure data is loaded
+                    setTimeout(function() {
+                        renderNotifications();
+                    }, 100);
                 } else {
+                    // Render immediately if we have notifications
                     renderNotifications();
                 }
                 notificationModal.classList.add('active');

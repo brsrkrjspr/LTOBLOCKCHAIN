@@ -681,6 +681,33 @@
             z-index: 100;
         }
 
+        /* Navy Blue Gradient Blurry Lines Background */
+        .dashboard-sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(135deg, rgba(0, 31, 63, 0.08) 0%, transparent 50%),
+                linear-gradient(45deg, rgba(0, 61, 122, 0.06) 0%, transparent 60%),
+                linear-gradient(225deg, rgba(0, 21, 41, 0.05) 0%, transparent 70%),
+                linear-gradient(315deg, rgba(0, 86, 179, 0.04) 0%, transparent 80%);
+            background-size: 200% 200%, 180% 180%, 160% 160%, 140% 140%;
+            background-position: 0% 0%, 20% 20%, 40% 40%, 60% 60%;
+            filter: blur(40px);
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 0;
+            border-radius: inherit;
+        }
+
+        .dashboard-sidebar > * {
+            position: relative;
+            z-index: 1;
+        }
+
         @media (min-width: 1201px) {
             .dashboard-sidebar {
                 border-radius: 24px 0 0 24px;

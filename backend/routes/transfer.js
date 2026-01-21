@@ -1111,18 +1111,111 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
         }
     });
 
+    // Trigger auto-verification if HPG clearance document exists (buyer uploads this)
+    let autoVerificationResult = null;
+    const buyerHpgTransferDoc = transferDocuments.find(td => 
+        td.document_type === 'buyer_hpg_clearance' && td.document_id
+    );
+    
+    if (buyerHpgTransferDoc && buyerHpgTransferDoc.document_id) {
+        try {
+            // Get actual document record
+            const hpgClearanceDoc = await db.getDocumentById(buyerHpgTransferDoc.document_id);
+            if (hpgClearanceDoc) {
+                const autoVerificationService = require('../services/autoVerificationService');
+                const vehicle = await db.getVehicleById(request.vehicle_id);
+                
+                // Prepare documents array for auto-verification (HPG expects array)
+                const documentsForVerification = [hpgClearanceDoc];
+                if (orCrDoc && orCrDoc.document_id) {
+                    const orCrDocRecord = await db.getDocumentById(orCrDoc.document_id);
+                    if (orCrDocRecord) documentsForVerification.push(orCrDocRecord);
+                }
+                
+                autoVerificationResult = await autoVerificationService.autoVerifyHPG(
+                    request.vehicle_id,
+                    documentsForVerification,
+                    vehicle
+                );
+                
+                console.log(`[Transfer→HPG Auto-Verify] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+                
+                // Update clearance request metadata with auto-verification result
+                const updatedMetadata = {
+                    ...clearanceRequest.metadata,
+                    autoVerify: {
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        completedBy: 'system',
+                        confidenceScore: autoVerificationResult.score || autoVerificationResult.confidence * 100,
+                        recommendation: autoVerificationResult.recommendation || 'MANUAL_REVIEW',
+                        authenticityCheck: autoVerificationResult.authenticityCheck || {}
+                    }
+                };
+                
+                await dbModule.query(
+                    `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+                    [JSON.stringify(updatedMetadata), clearanceRequest.id]
+                );
+                
+                // Add auto-verification result to history
+                if (autoVerificationResult.automated) {
+                    await db.addVehicleHistory({
+                        vehicleId: request.vehicle_id,
+                        action: autoVerificationResult.status === 'APPROVED' 
+                            ? 'TRANSFER_HPG_AUTO_VERIFIED_APPROVED' 
+                            : 'TRANSFER_HPG_AUTO_VERIFIED_PENDING',
+                        description: autoVerificationResult.status === 'APPROVED'
+                            ? `Transfer HPG auto-verified and approved. Score: ${autoVerificationResult.score}%`
+                            : `Transfer HPG auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
+                        performedBy: requestedBy,
+                        transactionId: null,
+                        metadata: {
+                            transferRequestId: request.id,
+                            clearanceRequestId: clearanceRequest.id,
+                            autoVerificationResult
+                        }
+                    });
+                }
+            }
+        } catch (autoVerifyError) {
+            console.error('[Transfer→HPG Auto-Verify] Error:', autoVerifyError);
+            // Don't fail clearance request creation if auto-verification fails
+        }
+    }
+
     const updatedRequest = await db.getTransferRequestById(request.id);
-    return { clearanceRequest, updatedRequest };
+    return { clearanceRequest, updatedRequest, autoVerification: autoVerificationResult };
 }
 
 async function forwardTransferToInsurance({ request, requestedBy, purpose, notes, autoTriggered = false }) {
+    // Get transfer documents (buyer uploads CTPL)
+    const transferDocuments = await db.getTransferRequestDocuments(request.id);
     const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-    const insuranceDoc = vehicleDocuments.find(d => 
-        d.document_type === 'insurance_cert' || 
-        d.document_type === 'insuranceCert' ||
-        d.document_type === 'insurance' ||
-        (d.original_name && d.original_name.toLowerCase().includes('insurance'))
+    
+    // Find CTPL from transfer documents (buyer uploads this)
+    let insuranceDoc = null;
+    const buyerCtplTransferDoc = transferDocuments.find(td => 
+        td.document_type === 'buyer_ctpl' && td.document_id
     );
+    
+    if (buyerCtplTransferDoc && buyerCtplTransferDoc.document_id) {
+        // Get actual document record
+        insuranceDoc = await db.getDocumentById(buyerCtplTransferDoc.document_id);
+    }
+    
+    // Fallback: check vehicle documents for insurance/CTPL
+    if (!insuranceDoc) {
+        insuranceDoc = vehicleDocuments.find(d => 
+            d.document_type === 'insurance_cert' || 
+            d.document_type === 'insuranceCert' ||
+            d.document_type === 'ctpl_cert' ||
+            d.document_type === 'insurance' ||
+            (d.original_name && d.original_name.toLowerCase().includes('insurance')) ||
+            (d.original_name && d.original_name.toLowerCase().includes('ctpl'))
+        );
+    }
+    
     const insuranceDocuments = insuranceDoc ? [{
         id: insuranceDoc.id,
         type: insuranceDoc.document_type,
@@ -1185,8 +1278,59 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
         }
     });
 
+    // Trigger auto-verification if insurance document exists
+    let autoVerificationResult = null;
+    if (insuranceDoc) {
+        try {
+            const autoVerificationService = require('../services/autoVerificationService');
+            const vehicle = await db.getVehicleById(request.vehicle_id);
+            autoVerificationResult = await autoVerificationService.autoVerifyInsurance(
+                request.vehicle_id,
+                insuranceDoc,
+                vehicle
+            );
+            
+            console.log(`[Transfer→Insurance Auto-Verify] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+            
+            // Update clearance request status if auto-approved
+            if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
+                await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
+                    verifiedBy: 'system',
+                    verifiedAt: new Date().toISOString(),
+                    notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
+                    autoVerified: true,
+                    autoVerificationResult
+                });
+                console.log(`[Transfer→Insurance Auto-Verify] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+            }
+            
+            // Add auto-verification result to history
+            if (autoVerificationResult.automated) {
+                await db.addVehicleHistory({
+                    vehicleId: request.vehicle_id,
+                    action: autoVerificationResult.status === 'APPROVED' 
+                        ? 'TRANSFER_INSURANCE_AUTO_VERIFIED_APPROVED' 
+                        : 'TRANSFER_INSURANCE_AUTO_VERIFIED_PENDING',
+                    description: autoVerificationResult.status === 'APPROVED'
+                        ? `Transfer Insurance auto-verified and approved. Score: ${autoVerificationResult.score}%`
+                        : `Transfer Insurance auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
+                    performedBy: requestedBy,
+                    transactionId: null,
+                    metadata: {
+                        transferRequestId: request.id,
+                        clearanceRequestId: clearanceRequest.id,
+                        autoVerificationResult
+                    }
+                });
+            }
+        } catch (autoVerifyError) {
+            console.error('[Transfer→Insurance Auto-Verify] Error:', autoVerifyError);
+            // Don't fail clearance request creation if auto-verification fails
+        }
+    }
+
     const updatedRequest = await db.getTransferRequestById(request.id);
-    return { clearanceRequest, updatedRequest };
+    return { clearanceRequest, updatedRequest, autoVerification: autoVerificationResult };
 }
 
 async function autoForwardTransferRequest(request, triggeredBy) {
@@ -2800,6 +2944,200 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin']),
             message: `Your transfer request has been rejected. Reason: ${reason}`,
             type: 'error'
         });
+        
+        // Send email notification to seller
+        try {
+            const vehicle = await db.getVehicleById(request.vehicle_id);
+            const sellerEmail = request.seller_email;
+            const sellerName = request.seller_first_name && request.seller_last_name
+                ? `${request.seller_first_name} ${request.seller_last_name}`
+                : sellerEmail || 'Vehicle Owner';
+            
+            if (sellerEmail) {
+                const gmailApiService = require('../services/gmailApiService');
+                const appUrl = process.env.APP_URL || 'http://localhost:3000';
+                const dashboardUrl = `${appUrl}/owner-dashboard.html`;
+                
+                const subject = 'Transfer Request Rejected - TrustChain LTO';
+                const html = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #d32f2f;">Transfer Request Rejected</h2>
+                        <p>Dear ${sellerName},</p>
+                        <p>We regret to inform you that your vehicle ownership transfer request has been <strong>rejected</strong>.</p>
+                        
+                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #856404;">Vehicle Details</h3>
+                            ${vehicle ? `
+                                <p style="margin: 0.5rem 0;"><strong>VIN:</strong> ${vehicle.vin || 'N/A'}</p>
+                                ${vehicle.plate_number ? `<p style="margin: 0.5rem 0;"><strong>Plate Number:</strong> ${vehicle.plate_number}</p>` : ''}
+                                ${vehicle.make ? `<p style="margin: 0.5rem 0;"><strong>Make:</strong> ${vehicle.make}</p>` : ''}
+                                ${vehicle.model ? `<p style="margin: 0.5rem 0;"><strong>Model:</strong> ${vehicle.model}</p>` : ''}
+                            ` : '<p>Vehicle details not available</p>'}
+                        </div>
+                        
+                        <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #721c24;">Reason for Rejection</h3>
+                            <p style="margin: 0; white-space: pre-wrap;">${reason}</p>
+                        </div>
+                        
+                        <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #0d47a1;">What You Can Do</h3>
+                            <p>If you believe this rejection was made in error, or if you can address the issues mentioned above:</p>
+                            <ol>
+                                <li>Review the rejection reason carefully</li>
+                                <li>Log into your TrustChain account</li>
+                                <li>Go to your vehicle dashboard</li>
+                                <li>If documents need updating, click the "Update Document" button next to the relevant document</li>
+                                <li>Upload corrected documents if needed</li>
+                                <li>Contact LTO Lipa City if you have questions</li>
+                            </ol>
+                            <p style="margin-top: 1rem;">
+                                <a href="${dashboardUrl}" style="background: #2196f3; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Dashboard</a>
+                            </p>
+                        </div>
+                        
+                        <p style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                            If you have any questions, please contact LTO Lipa City.
+                        </p>
+                        
+                        <p style="margin-top: 1rem;">
+                            Best regards,<br>
+                            <strong>LTO Lipa City Team</strong>
+                        </p>
+                    </div>
+                `;
+                
+                const text = `
+Transfer Request Rejected - TrustChain LTO
+
+Dear ${sellerName},
+
+We regret to inform you that your vehicle ownership transfer request has been REJECTED.
+
+Vehicle Details:
+${vehicle ? `
+- VIN: ${vehicle.vin || 'N/A'}
+${vehicle.plate_number ? `- Plate Number: ${vehicle.plate_number}` : ''}
+${vehicle.make ? `- Make: ${vehicle.make}` : ''}
+${vehicle.model ? `- Model: ${vehicle.model}` : ''}
+` : 'Vehicle details not available'}
+
+Reason for Rejection:
+${reason}
+
+What You Can Do:
+1. Review the rejection reason carefully
+2. Log into your TrustChain account
+3. Go to your vehicle dashboard
+4. If documents need updating, click the "Update Document" button next to the relevant document
+5. Upload corrected documents if needed
+6. Contact LTO Lipa City if you have questions
+
+Dashboard: ${dashboardUrl}
+
+If you have any questions, please contact LTO Lipa City.
+
+Best regards,
+LTO Lipa City Team
+                `;
+                
+                await gmailApiService.sendMail({
+                    to: sellerEmail,
+                    subject,
+                    text,
+                    html
+                });
+                
+                console.log(`✅ Rejection email sent to seller ${sellerEmail} for transfer request ${id}`);
+            }
+        } catch (emailError) {
+            console.error('❌ Failed to send rejection email:', emailError);
+            // Don't fail the request if email fails
+        }
+        
+        // Send email notification to buyer if buyer email exists
+        try {
+            const buyerEmail = request.buyer_email;
+            if (buyerEmail && buyerEmail !== request.seller_email) {
+                const vehicle = await db.getVehicleById(request.vehicle_id);
+                const buyerName = request.buyer_first_name && request.buyer_last_name
+                    ? `${request.buyer_first_name} ${request.buyer_last_name}`
+                    : buyerEmail;
+                
+                const gmailApiService = require('../services/gmailApiService');
+                const appUrl = process.env.APP_URL || 'http://localhost:3000';
+                const dashboardUrl = `${appUrl}/my-vehicle-ownership.html`;
+                
+                const subject = 'Transfer Request Rejected - TrustChain LTO';
+                const html = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #d32f2f;">Transfer Request Rejected</h2>
+                        <p>Dear ${buyerName},</p>
+                        <p>The vehicle ownership transfer request you were involved in has been <strong>rejected</strong>.</p>
+                        
+                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #856404;">Vehicle Details</h3>
+                            ${vehicle ? `
+                                <p style="margin: 0.5rem 0;"><strong>VIN:</strong> ${vehicle.vin || 'N/A'}</p>
+                                ${vehicle.plate_number ? `<p style="margin: 0.5rem 0;"><strong>Plate Number:</strong> ${vehicle.plate_number}</p>` : ''}
+                                ${vehicle.make ? `<p style="margin: 0.5rem 0;"><strong>Make:</strong> ${vehicle.make}</p>` : ''}
+                                ${vehicle.model ? `<p style="margin: 0.5rem 0;"><strong>Model:</strong> ${vehicle.model}</p>` : ''}
+                            ` : '<p>Vehicle details not available</p>'}
+                        </div>
+                        
+                        <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #721c24;">Reason for Rejection</h3>
+                            <p style="margin: 0; white-space: pre-wrap;">${reason}</p>
+                        </div>
+                        
+                        <p style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                            Please contact the seller or LTO Lipa City if you have any questions.
+                        </p>
+                        
+                        <p style="margin-top: 1rem;">
+                            Best regards,<br>
+                            <strong>LTO Lipa City Team</strong>
+                        </p>
+                    </div>
+                `;
+                
+                const text = `
+Transfer Request Rejected - TrustChain LTO
+
+Dear ${buyerName},
+
+The vehicle ownership transfer request you were involved in has been REJECTED.
+
+Vehicle Details:
+${vehicle ? `
+- VIN: ${vehicle.vin || 'N/A'}
+${vehicle.plate_number ? `- Plate Number: ${vehicle.plate_number}` : ''}
+${vehicle.make ? `- Make: ${vehicle.make}` : ''}
+${vehicle.model ? `- Model: ${vehicle.model}` : ''}
+` : 'Vehicle details not available'}
+
+Reason for Rejection:
+${reason}
+
+Please contact the seller or LTO Lipa City if you have any questions.
+
+Best regards,
+LTO Lipa City Team
+                `;
+                
+                await gmailApiService.sendMail({
+                    to: buyerEmail,
+                    subject,
+                    text,
+                    html
+                });
+                
+                console.log(`✅ Rejection email sent to buyer ${buyerEmail} for transfer request ${id}`);
+            }
+        } catch (emailError) {
+            console.error('❌ Failed to send rejection email to buyer:', emailError);
+            // Don't fail the request if email fails
+        }
         
         // Get updated request
         const updatedRequest = await db.getTransferRequestById(id);

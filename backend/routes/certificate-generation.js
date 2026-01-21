@@ -2231,4 +2231,6 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
     }
 });
 
+// Export lookupAndValidateOwner for use in other routes
 module.exports = router;
+module.exports.lookupAndValidateOwner = lookupAndValidateOwner;

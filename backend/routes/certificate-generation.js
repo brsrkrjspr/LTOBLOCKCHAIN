@@ -127,10 +127,6 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             switch (type) {
                 case 'insurance':
                     return `CTPL-${year}-${random}`;
-                case 'emission':
-                    const month = String(new Date().getMonth() + 1).padStart(2, '0');
-                    const day = String(new Date().getDate()).padStart(2, '0');
-                    return `ETC-${year}${month}${day}-${random}`;
                 case 'hpg':
                     return `HPG-${year}-${random}`;
                 default:
@@ -273,187 +269,6 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
 });
 
 /**
- * POST /api/certificate-generation/emission/generate-and-send
- * Generate emission certificate and send via email
- */
-router.post('/emission/generate-and-send', authenticateToken, authorizeRole(['emission_verifier', 'admin']), async (req, res) => {
-    try {
-        const {
-            ownerId,
-            ownerEmail,
-            vehicleVIN,
-            vehiclePlate,
-            certificateNumber,
-            testDate,
-            expiryDate,
-            testResults
-        } = req.body;
-
-        // Lookup and validate owner from database
-        let owner;
-        try {
-            owner = await lookupAndValidateOwner(ownerId, ownerEmail);
-        } catch (error) {
-            if (error.message.includes('Missing required field')) {
-                return res.status(400).json({
-                    success: false,
-                    error: error.message
-                });
-            } else if (error.message.includes('Invalid email format')) {
-                return res.status(400).json({
-                    success: false,
-                    error: error.message
-                });
-            } else if (error.message.includes('not found')) {
-                return res.status(404).json({
-                    success: false,
-                    error: error.message
-                });
-            } else if (error.message.includes('inactive')) {
-                return res.status(403).json({
-                    success: false,
-                    error: error.message
-                });
-            } else {
-                return res.status(400).json({
-                    success: false,
-                    error: error.message
-                });
-            }
-        }
-
-        // Auto-generate certificate number if not provided
-        const generateCertificateNumber = (type) => {
-            const year = new Date().getFullYear();
-            const month = String(new Date().getMonth() + 1).padStart(2, '0');
-            const day = String(new Date().getDate()).padStart(2, '0');
-            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-            switch (type) {
-                case 'insurance':
-                    return `CTPL-${year}-${random}`;
-                case 'emission':
-                    return `ETC-${year}${month}${day}-${random}`;
-                case 'hpg':
-                    return `HPG-${year}-${random}`;
-                default:
-                    return `CERT-${year}-${random}`;
-            }
-        };
-
-        const finalCertificateNumber = certificateNumber || generateCertificateNumber('emission');
-        const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
-        const finalTestDate = testDate || new Date().toISOString();
-        const finalExpiryDate = expiryDate || (() => {
-            const date = new Date();
-            date.setFullYear(date.getFullYear() + 1);
-            return date.toISOString();
-        })();
-
-        console.log(`[Emission Certificate] Generating for owner: ${owner.name} (${owner.email}), VIN: ${finalVIN}, Cert: ${finalCertificateNumber}`);
-
-        // Generate PDF
-        const { pdfBuffer, fileHash } = await certificatePdfGenerator.generateEmissionCertificate({
-            ownerName: owner.name,
-            vehicleVIN: finalVIN,
-            vehiclePlate,
-            certificateNumber: finalCertificateNumber,
-            testDate: finalTestDate,
-            expiryDate: finalExpiryDate,
-            testResults
-        });
-
-        console.log(`[Emission Certificate] PDF generated, hash: ${fileHash}, size: ${pdfBuffer.length} bytes`);
-
-        // Additional validation before sending
-        if (!Buffer.isBuffer(pdfBuffer)) {
-            throw new Error('PDF buffer is not a valid Buffer instance');
-        }
-
-        if (pdfBuffer.length === 0) {
-            throw new Error('PDF buffer is empty');
-        }
-
-        // Verify PDF header
-        const pdfHeader = pdfBuffer.toString('ascii', 0, Math.min(4, pdfBuffer.length));
-        if (pdfHeader !== '%PDF') {
-            console.error(`[Emission Certificate] Invalid PDF header before sending: ${pdfHeader}`);
-            throw new Error(`Invalid PDF format detected: ${pdfHeader}`);
-        }
-
-        const compositeHash = certificatePdfGenerator.generateCompositeHash(
-            finalCertificateNumber,
-            finalVIN,
-            finalExpiryDate,
-            fileHash
-        );
-
-        // Store in database
-        try {
-            const issuerQuery = await dbRaw.query(
-                `SELECT id FROM external_issuers WHERE issuer_type = 'emission' AND is_active = true LIMIT 1`
-            );
-
-            if (issuerQuery.rows.length > 0) {
-                await dbRaw.query(
-                    `INSERT INTO issued_certificates 
-                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, issued_at, expires_at, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                    [
-                        issuerQuery.rows[0].id,
-                        'emission',
-                        finalCertificateNumber,
-                        finalVIN,
-                        ownerName,
-                        fileHash,
-                        compositeHash,
-                        finalTestDate,
-                        finalExpiryDate,
-                        JSON.stringify({ testResults, vehiclePlate })
-                    ]
-                );
-            }
-        } catch (dbError) {
-            console.error(`[Emission Certificate] Database error:`, dbError);
-        }
-
-        // Send email
-        const emailResult = await certificateEmailService.sendEmissionCertificate({
-            to: owner.email,
-            ownerName: owner.name,
-            certificateNumber: finalCertificateNumber,
-            vehicleVIN: finalVIN,
-            pdfBuffer,
-            expiryDate: finalExpiryDate
-        });
-
-        console.log(`[Emission Certificate] Email sent to ${owner.email}, messageId: ${emailResult.id}`);
-
-        res.json({
-            success: true,
-            message: 'Emission certificate generated and sent successfully',
-            certificate: {
-                certificateNumber: finalCertificateNumber,
-                vehicleVIN: finalVIN,
-                ownerName: owner.name,
-                ownerEmail: owner.email,
-                fileHash,
-                compositeHash,
-                emailSent: true
-            }
-        });
-
-    } catch (error) {
-        console.error('[Emission Certificate] Error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to generate or send certificate',
-            details: error.message
-        });
-    }
-});
-
-/**
  * POST /api/certificate-generation/hpg/generate-and-send
  * Generate HPG clearance and send via email
  */
@@ -509,10 +324,6 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
             switch (type) {
                 case 'insurance':
                     return `CTPL-${year}-${random}`;
-                case 'emission':
-                    const month = String(new Date().getMonth() + 1).padStart(2, '0');
-                    const day = String(new Date().getDate()).padStart(2, '0');
-                    return `ETC-${year}${month}${day}-${random}`;
                 case 'hpg':
                     return `HPG-${year}-${random}`;
                 default:

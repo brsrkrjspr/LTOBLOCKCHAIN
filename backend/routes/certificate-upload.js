@@ -62,7 +62,7 @@ async function saveFile(buffer, filename) {
  * 
  * Form Data:
  * - vehicleId (UUID)
- * - certificateType ('insurance', 'emission', 'hpg_clearance')
+ * - certificateType ('insurance', 'hpg_clearance')
  * - file (PDF/JPG/PNG)
  * 
  * Response:
@@ -87,7 +87,7 @@ router.post('/submit',
                 });
             }
 
-            if (!['insurance', 'emission', 'hpg_clearance'].includes(certificateType)) {
+            if (!['insurance', 'hpg_clearance'].includes(certificateType)) {
                 return res.status(400).json({
                     success: false,
                     error: 'Invalid certificate type'

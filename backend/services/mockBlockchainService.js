@@ -93,7 +93,6 @@ class MockBlockchainService {
                 registrationDate: timestamp,
                 verificationStatus: {
                     insurance: 'PENDING',
-                    emission: 'PENDING',
                     admin: 'PENDING'
                 },
                 history: [{

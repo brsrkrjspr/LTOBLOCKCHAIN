@@ -6,10 +6,6 @@ const dbModule = require('../database/db');
 const docTypes = require('../config/documentTypes');
 const hpgDatabaseService = require('./hpgDatabaseService');
 
-// Feature flag: Emission clearance for registrations.
-// Default: disabled unless explicitly enabled via EMISSION_FEATURE_ENABLED=true
-const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true';
-
 /**
  * Automatically send clearance requests to all required organizations
  * @param {string} vehicleId - The vehicle ID
@@ -20,8 +16,7 @@ const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true'
 async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
     const results = {
         hpg: { sent: false, requestId: null, error: null },
-        insurance: { sent: false, requestId: null, error: null },
-        emission: { sent: false, requestId: null, error: null }
+        insurance: { sent: false, requestId: null, error: null }
     };
 
     try {
@@ -170,63 +165,8 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             }
         }
 
-        // 3. Send to Emission (requires: emission_cert)
-        // If emission feature is disabled, skip entirely.
-        if (!EMISSION_FEATURE_ENABLED) {
-            console.log(`[Auto-Send→Emission] Skipping - emission feature disabled`);
-            results.emission = { sent: false, reason: 'Emission feature disabled' };
-        } else if (!isNewRegistration) {
-            // Use document type mapping to properly detect documents
-            const hasEmissionDoc = allDocuments.some(d => {
-                const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-                return logicalType === 'emissionCert' ||
-                       d.document_type === 'emission_cert' ||
-                       d.document_type === 'emission';
-            }) || (documents && (
-                documents.emissionCert ||
-                documents.emission
-            ));
-
-            if (hasEmissionDoc) {
-                try {
-                    console.log(`[Auto-Send→Emission] Sending request for vehicle ${vehicleId}`);
-                    const emissionResult = await sendToEmission(vehicleId, vehicle, allDocuments, requestedBy);
-                    results.emission = emissionResult;
-                    console.log(`[Auto-Send→Emission] Result:`, emissionResult);
-                } catch (error) {
-                    console.error('[Auto-Send→Emission] Error:', error);
-                    console.error('[Auto-Send→Emission] Error stack:', error.stack);
-                    results.emission.error = error.message;
-                }
-            } else {
-                console.log(`[Auto-Send→Emission] Skipping - no emission_cert document found`);
-                // Enhanced logging
-                console.log(`[Auto-Send→Emission] Available document types:`, 
-                    allDocuments.map(d => ({
-                        id: d.id,
-                        type: d.document_type,
-                        logicalType: docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type),
-                        filename: d.original_name || d.filename
-                    }))
-                );
-                
-                // Check if 'other' documents exist that might be emission
-                const otherDocs = allDocuments.filter(d => d.document_type === 'other');
-                if (otherDocs.length > 0) {
-                    console.warn(`[Auto-Send→Emission] Found ${otherDocs.length} document(s) with type 'other' that may need correction:`, 
-                        otherDocs.map(d => ({ id: d.id, filename: d.original_name || d.filename }))
-                    );
-                }
-            }
-        } else {
-            console.log(`[Auto-Send→Emission] Skipping - emission not required for NEW registration`);
-            results.emission = { sent: false, reason: 'Not required for NEW registration' };
-        }
-
         // Update vehicle status if at least one request was sent
-        // For NEW registrations, emission is not included
-        const anySent = results.hpg.sent || results.insurance.sent || 
-                       (!isNewRegistration && results.emission.sent);
+        const anySent = results.hpg.sent || results.insurance.sent;
         if (anySent) {
             // NOTE: vehicle_status is an enum. Valid values: SUBMITTED, PENDING_BLOCKCHAIN, REGISTERED, APPROVED, REJECTED, SUSPENDED
             // Use SUBMITTED for vehicles awaiting clearance verification
@@ -237,9 +177,6 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             if (results.insurance.autoVerification) {
                 autoVerifySummary.push(`Insurance: ${results.insurance.autoVerification.status} (${results.insurance.autoVerification.automated ? 'Auto' : 'Manual'})`);
             }
-            if (results.emission.autoVerification) {
-                autoVerifySummary.push(`Emission: ${results.emission.autoVerification.status} (${results.emission.autoVerification.automated ? 'Auto' : 'Manual'})`);
-            }
             if (results.hpg.autoVerification) {
                 autoVerifySummary.push(`HPG: Pre-verified (${results.hpg.autoVerification.canPreFill ? 'Data extracted' : 'No data'})`);
             }
@@ -247,16 +184,14 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             await db.addVehicleHistory({
                 vehicleId,
                 action: 'CLEARANCE_REQUESTS_AUTO_SENT',
-                description: `Clearance requests automatically sent to organizations. HPG: ${results.hpg.sent ? 'Yes' : 'No'}, Insurance: ${results.insurance.sent ? 'Yes' : 'No'}, Emission: ${results.emission.sent ? 'Yes' : 'No'}. ${autoVerifySummary.length > 0 ? 'Auto-verification: ' + autoVerifySummary.join(', ') : ''}`,
+                description: `Clearance requests automatically sent to organizations. HPG: ${results.hpg.sent ? 'Yes' : 'No'}, Insurance: ${results.insurance.sent ? 'Yes' : 'No'}. ${autoVerifySummary.length > 0 ? 'Auto-verification: ' + autoVerifySummary.join(', ') : ''}`,
                 performedBy: requestedBy,
                 transactionId: null,
                 metadata: {
                     hpgRequestId: results.hpg.requestId,
                     insuranceRequestId: results.insurance.requestId,
-                    emissionRequestId: results.emission.requestId,
                     autoVerificationResults: {
                         insurance: results.insurance.autoVerification,
-                        emission: results.emission.autoVerification,
                         hpg: results.hpg.autoVerification
                     }
                 }
@@ -764,155 +699,6 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy) {
             }
         } catch (autoVerifyError) {
             console.error('[Auto-Verify→Insurance] Error:', autoVerifyError);
-            // Don't fail clearance request creation if auto-verification fails
-        }
-    }
-
-    return {
-        sent: true,
-        requestId: clearanceRequest.id,
-        autoVerification: autoVerificationResult
-    };
-}
-
-/**
- * Send clearance request to Emission
- */
-async function sendToEmission(vehicleId, vehicle, allDocuments, requestedBy) {
-    // Check if emission request already exists
-    const existingRequests = await db.getClearanceRequestsByVehicle(vehicleId);
-    const existingEmissionRequest = existingRequests.find(r => 
-        r.request_type === 'emission' && 
-        r.status !== 'REJECTED' && 
-        r.status !== 'COMPLETED'
-    );
-    
-    if (existingEmissionRequest) {
-        return {
-            sent: false,
-            requestId: existingEmissionRequest.id,
-            error: 'Emission verification request already exists'
-        };
-    }
-
-    // Find emission verifier
-    const emissionVerifiers = await dbModule.query(
-        "SELECT id FROM users WHERE role = 'emission_verifier' AND is_active = true LIMIT 1"
-    );
-    const assignedTo = emissionVerifiers.rows[0]?.id || null;
-
-    // Get emission document using document type mapping
-    const emissionDoc = allDocuments.find(d => {
-        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-        return logicalType === 'emissionCert' ||
-               d.document_type === 'emission_cert' ||
-               d.document_type === 'emission' ||
-               (d.original_name && d.original_name.toLowerCase().includes('emission'));
-    });
-
-    const emissionDocuments = emissionDoc ? [{
-        id: emissionDoc.id,
-        type: emissionDoc.document_type,
-        cid: emissionDoc.ipfs_cid,
-        path: emissionDoc.file_path,
-        filename: emissionDoc.original_name
-    }] : [];
-
-    // Create clearance request
-    const clearanceRequest = await db.createClearanceRequest({
-        vehicleId,
-        requestType: 'emission',
-        requestedBy,
-        purpose: 'Initial Vehicle Registration - Emission Verification',
-        notes: 'Automatically sent upon vehicle registration submission',
-        metadata: {
-            vehicleVin: vehicle.vin,
-            vehiclePlate: vehicle.plate_number,
-            vehicleMake: vehicle.make,
-            vehicleModel: vehicle.model,
-            vehicleYear: vehicle.year,
-            ownerName: vehicle.owner_name,
-            ownerEmail: vehicle.owner_email,
-            documentId: emissionDoc?.id || null,
-            documentCid: emissionDoc?.ipfs_cid || null,
-            documentPath: emissionDoc?.file_path || null,
-            documentType: emissionDoc?.document_type || null,
-            documentFilename: emissionDoc?.original_name || null,
-            documents: emissionDocuments
-        },
-        assignedTo
-    });
-
-    // Update vehicle verification status
-    await db.updateVerificationStatus(vehicleId, 'emission', 'PENDING', null, null);
-
-    // Add to history
-    await db.addVehicleHistory({
-        vehicleId,
-        action: 'EMISSION_VERIFICATION_REQUESTED',
-        description: `Emission verification automatically requested`,
-        performedBy: requestedBy,
-        transactionId: null,
-        metadata: { clearanceRequestId: clearanceRequest.id, documentId: emissionDoc?.id }
-    });
-
-    // Create notification
-    if (assignedTo) {
-        await db.createNotification({
-            userId: assignedTo,
-            title: 'New Emission Verification Request',
-            message: `New emission verification request for vehicle ${vehicle.plate_number || vehicle.vin}`,
-            type: 'info'
-        });
-    }
-
-    console.log(`[Auto-Send→Emission] Request created: ${clearanceRequest.id}`);
-
-    // Trigger auto-verification if emission document exists
-    let autoVerificationResult = null;
-    if (emissionDoc) {
-        try {
-            const autoVerificationService = require('./autoVerificationService');
-            autoVerificationResult = await autoVerificationService.autoVerifyEmission(
-                vehicleId,
-                emissionDoc,
-                vehicle
-            );
-            
-            console.log(`[Auto-Verify→Emission] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
-            
-            // Update clearance request status if auto-approved
-            if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
-                await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
-                    verifiedBy: 'system',
-                    verifiedAt: new Date().toISOString(),
-                    notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
-                    autoVerified: true,
-                    autoVerificationResult
-                });
-                console.log(`[Auto-Verify→Emission] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
-            }
-            
-            // Add auto-verification result to history
-            if (autoVerificationResult.automated !== false) {
-                await db.addVehicleHistory({
-                    vehicleId,
-                    action: autoVerificationResult.status === 'APPROVED' 
-                        ? 'EMISSION_AUTO_VERIFIED_APPROVED' 
-                        : 'EMISSION_AUTO_VERIFIED_PENDING',
-                    description: autoVerificationResult.status === 'APPROVED'
-                        ? `Emission auto-verified and approved. Score: ${autoVerificationResult.score}%`
-                        : `Emission auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
-                    performedBy: requestedBy,
-                    transactionId: null,
-                    metadata: {
-                        clearanceRequestId: clearanceRequest.id,
-                        autoVerificationResult
-                    }
-                });
-            }
-        } catch (autoVerifyError) {
-            console.error('[Auto-Verify→Emission] Error:', autoVerifyError);
             // Don't fail clearance request creation if auto-verification fails
         }
     }

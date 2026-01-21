@@ -8,7 +8,6 @@
 const LOGICAL_TYPES = {
     REGISTRATION_CERT: 'registrationCert',
     INSURANCE_CERT: 'insuranceCert',
-    EMISSION_CERT: 'emissionCert',
     CTPL: 'ctpl',
     MVIR: 'mvir',
     TIN_ID: 'tinId',
@@ -31,7 +30,6 @@ const LOGICAL_TYPES = {
 const DB_TYPES = {
     REGISTRATION_CERT: 'registration_cert',
     INSURANCE_CERT: 'insurance_cert',
-    EMISSION_CERT: 'emission_cert',
     CTPL: 'ctpl_cert',
     MVIR: 'mvir_cert',
     TIN_ID: 'tin_id',
@@ -73,7 +71,6 @@ function mapToDbType(logicalType) {
     const mapping = {
         [LOGICAL_TYPES.REGISTRATION_CERT]: DB_TYPES.REGISTRATION_CERT,
         [LOGICAL_TYPES.INSURANCE_CERT]: DB_TYPES.INSURANCE_CERT,
-        [LOGICAL_TYPES.EMISSION_CERT]: DB_TYPES.EMISSION_CERT,
         [LOGICAL_TYPES.CTPL]: DB_TYPES.CTPL,
         [LOGICAL_TYPES.MVIR]: DB_TYPES.MVIR,
         [LOGICAL_TYPES.TIN_ID]: DB_TYPES.TIN_ID,
@@ -101,7 +98,6 @@ function mapToLogicalType(dbType) {
     const mapping = {
         [DB_TYPES.REGISTRATION_CERT]: LOGICAL_TYPES.REGISTRATION_CERT,
         [DB_TYPES.INSURANCE_CERT]: LOGICAL_TYPES.INSURANCE_CERT,
-        [DB_TYPES.EMISSION_CERT]: LOGICAL_TYPES.EMISSION_CERT,
         [DB_TYPES.CTPL]: LOGICAL_TYPES.CTPL,
         [DB_TYPES.MVIR]: LOGICAL_TYPES.MVIR,
         [DB_TYPES.TIN_ID]: LOGICAL_TYPES.TIN_ID,
@@ -178,7 +174,6 @@ function isValidTransferRole(role) {
 function getRequiredTypesForAutoSend() {
     return {
         insurance: [LOGICAL_TYPES.INSURANCE_CERT],
-        emission: [LOGICAL_TYPES.EMISSION_CERT],
         hpg: [LOGICAL_TYPES.OWNER_ID, LOGICAL_TYPES.HPG_CLEARANCE]
     };
 }
@@ -224,7 +219,7 @@ function validateDocumentTypeForUpload(logicalType, options = {}) {
     if (isRequiredForAutoSend(logicalType) && logicalType === LOGICAL_TYPES.OTHER) {
         return {
             valid: false,
-            error: 'Document type "other" cannot be used for required documents (insurance, emission, HPG). Please specify the correct document type.'
+            error: 'Document type "other" cannot be used for required documents (insurance, HPG). Please specify the correct document type.'
         };
     }
     
@@ -254,7 +249,6 @@ function mapLegacyType(oldType) {
         'registration': LOGICAL_TYPES.REGISTRATION_CERT,
         'insurance': LOGICAL_TYPES.INSURANCE_CERT,
         'insuranceCertificate': LOGICAL_TYPES.INSURANCE_CERT,
-        'emission': LOGICAL_TYPES.EMISSION_CERT,
         'owner_id': LOGICAL_TYPES.OWNER_ID,
         'ownerId': LOGICAL_TYPES.OWNER_ID,
         'ownerValidId': LOGICAL_TYPES.OWNER_ID,

@@ -197,7 +197,6 @@ router.get('/ipfs/:cid', authenticateToken, async (req, res) => {
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
         const isVerifier =
             req.user.role === 'insurance_verifier' ||
-            req.user.role === 'emission_verifier' ||
             req.user.role === 'hpg_admin';
         
         console.log(`[Documents/IPFS] Permission check for CID ${cid}:`, {
@@ -882,7 +881,7 @@ router.get('/:documentId', authenticateToken, async (req, res) => {
         // Check permission - Allow: admins, vehicle owners, and verifiers (for verification purposes)
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
         
         // Debug logging (temporary)
         if (process.env.NODE_ENV === 'development') {
@@ -979,7 +978,7 @@ router.get('/:documentId/download', authenticateToken, async (req, res) => {
         // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
@@ -1069,7 +1068,7 @@ router.post('/:documentId/temp-view-token', authenticateToken, async (req, res) 
 
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
@@ -1130,7 +1129,7 @@ router.get('/:documentId/view', authenticateTokenOrTemp, async (req, res) => {
         // Check permission - Allow: admins, vehicle owners, and verifiers
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
@@ -1223,7 +1222,7 @@ router.post('/:documentId/verify', authenticateToken, async (req, res) => {
         }
 
         // Check permission (admin or verifier only)
-        if (!['admin', 'insurance_verifier', 'emission_verifier'].includes(req.user.role)) {
+        if (!['admin', 'insurance_verifier'].includes(req.user.role)) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied'
@@ -1311,7 +1310,7 @@ router.get('/vehicle/:vin', authenticateToken, async (req, res) => {
         // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        const isVerifier = req.user.role === 'insurance_verifier';
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
@@ -1379,7 +1378,7 @@ router.get('/vehicle-id/:vehicleId', authenticateToken, async (req, res) => {
         // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        const isVerifier = req.user.role === 'insurance_verifier';
         
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({

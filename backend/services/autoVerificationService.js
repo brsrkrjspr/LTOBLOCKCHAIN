@@ -1,19 +1,14 @@
 // TrustChain LTO - Auto-Verification Service
-// Automatically verifies insurance, emission, and HPG documents upon registration submission
+// Automatically verifies insurance and HPG documents upon registration submission
 
 const ocrService = require('./ocrService');
 const insuranceDatabase = require('./insuranceDatabaseService');
-const emissionDatabase = require('./emissionDatabaseService');
 const fraudDetectionService = require('./fraudDetectionService');
 const certificateBlockchain = require('./certificateBlockchainService');
 const db = require('../database/services');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
-
-// Feature flag: Emission auto-verification.
-// Default: disabled unless explicitly enabled via EMISSION_FEATURE_ENABLED=true
-const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true';
 
 class AutoVerificationService {
     constructor() {
@@ -350,362 +345,6 @@ class AutoVerificationService {
             }
         } catch (error) {
             console.error('[Auto-Verify] Insurance verification error:', error);
-            return {
-                status: 'PENDING',
-                automated: false,
-                reason: `Verification error: ${error.message}`,
-                confidence: 0
-            };
-        }
-    }
-
-    /**
-     * Automatically verify emission document
-     * @param {string} vehicleId - Vehicle ID
-     * @param {Object} emissionDoc - Emission document record
-     * @param {Object} vehicle - Vehicle data
-     * @returns {Promise<Object>} Verification result
-     */
-    async autoVerifyEmission(vehicleId, emissionDoc, vehicle) {
-        if (!this.enabled || !EMISSION_FEATURE_ENABLED) {
-            return { status: 'PENDING', automated: false, reason: 'Emission auto-verification disabled' };
-        }
-
-        try {
-            console.log(`[Auto-Verify] Starting emission verification for vehicle ${vehicleId}`);
-
-            // Get document file path
-            const filePath = emissionDoc.file_path || emissionDoc.filePath;
-            if (!filePath || !await this.fileExists(filePath)) {
-                return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: 'Emission document file not found',
-                    confidence: 0
-                };
-            }
-
-            // Extract data via OCR
-            const ocrData = await ocrService.extractEmissionInfo(filePath, emissionDoc.mime_type || emissionDoc.mimeType);
-            console.log(`[Auto-Verify] OCR extracted:`, ocrData);
-
-            const certificateNumber = ocrData.certificateNumber || ocrData.certificateRefNumber || ocrData.certRefNumber;
-            if (!certificateNumber) {
-                const reason = 'Certificate number not found in document';
-                console.warn('[Auto-Verify] Emission verification issue: ', reason);
-
-                const systemUserId = 'system';
-                // Set to PENDING instead of REJECTED, store results in metadata
-                await db.updateVerificationStatus(
-                    vehicleId,
-                    'emission',
-                    'PENDING',
-                    systemUserId,
-                    `Auto-verification completed with issues: ${reason}`,
-                    {
-                        automated: true,
-                        verificationScore: 0,
-                        verificationMetadata: {
-                            ocrData,
-                            autoVerified: true,
-                            verificationResult: 'FAILED',
-                            reason,
-                            flagReasons: [reason],
-                            verifiedAt: new Date().toISOString(),
-                            patternCheck: { valid: false, reason },
-                            authenticityCheck: null,
-                            hashCheck: null,
-                            expiryCheck: null,
-                            complianceCheck: null
-                        }
-                    }
-                );
-
-                return {
-                    status: 'PENDING',
-                    automated: true,
-                    reason,
-                    confidence: 0,
-                    ocrData,
-                    verificationResult: 'FAILED',
-                    flagReasons: [reason]
-                };
-            }
-
-            // Pattern validation
-            const patternCheck = this.validateDocumentNumberFormat(certificateNumber, 'emission');
-            console.log(`[Auto-Verify] Pattern check:`, patternCheck);
-
-            if (!patternCheck.valid) {
-                const reason = `Invalid certificate number format: ${patternCheck.reason}`;
-                console.warn('[Auto-Verify] Emission verification issue (pattern): ', reason);
-
-                const systemUserId = 'system';
-                // Set to PENDING instead of REJECTED, store results in metadata
-                await db.updateVerificationStatus(
-                    vehicleId,
-                    'emission',
-                    'PENDING',
-                    systemUserId,
-                    `Auto-verification completed with issues: ${reason}`,
-                    {
-                        automated: true,
-                        verificationScore: 0,
-                        verificationMetadata: {
-                            ocrData,
-                            autoVerified: true,
-                            verificationResult: 'FAILED',
-                            reason,
-                            flagReasons: [reason],
-                            verifiedAt: new Date().toISOString(),
-                            patternCheck,
-                            authenticityCheck: null,
-                            hashCheck: null,
-                            expiryCheck: null,
-                            complianceCheck: null
-                        }
-                    }
-                );
-
-                return {
-                    status: 'PENDING',
-                    automated: true,
-                    reason,
-                    confidence: 0,
-                    ocrData,
-                    patternCheck,
-                    verificationResult: 'FAILED',
-                    flagReasons: [reason]
-                };
-            }
-
-            // Check expiry date
-            const expiryCheck = this.checkExpiry(ocrData.expiryDate);
-            
-            // Check compliance (CO ≤ 4.5%, HC ≤ 600ppm, Smoke ≤ 50%)
-            const complianceCheck = {
-                coCompliant: ocrData.co === undefined || ocrData.co <= 4.5,
-                hcCompliant: ocrData.hc === undefined || ocrData.hc <= 600,
-                smokeCompliant: ocrData.smoke === undefined || ocrData.smoke <= 50,
-                allCompliant: (ocrData.co === undefined || ocrData.co <= 4.5) &&
-                             (ocrData.hc === undefined || ocrData.hc <= 600) &&
-                             (ocrData.smoke === undefined || ocrData.smoke <= 50)
-            };
-
-            // Calculate file hash
-            const fileHash = emissionDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
-            
-            // ============================================
-            // CERTIFICATE AUTHENTICITY CHECK (Blockchain Source of Truth)
-            // Verify that the certificate was issued by the certificate generator
-            // ============================================
-            const authenticityCheck = await certificateBlockchain.checkCertificateAuthenticity(
-                fileHash,
-                vehicleId,
-                'emission'
-            );
-            console.log(`[Auto-Verify] Certificate authenticity check:`, {
-                authentic: authenticityCheck.authentic,
-                reason: authenticityCheck.reason,
-                originalFound: authenticityCheck.originalCertificateFound,
-                score: authenticityCheck.authenticityScore
-            });
-            
-            // Generate composite hash
-            const expiryDateISO = expiryCheck.expiryDate || new Date().toISOString();
-            const compositeHash = certificateBlockchain.generateCompositeHash(
-                certificateNumber,
-                vehicle.vin,
-                expiryDateISO,
-                fileHash
-            );
-            console.log(`[Auto-Verify] Composite hash: ${compositeHash.substring(0, 16)}...`);
-
-            // Check for duplicate hash (document reuse)
-            const hashCheck = await certificateBlockchain.checkHashDuplicate(compositeHash);
-            console.log(`[Auto-Verify] Hash duplicate check:`, hashCheck);
-
-            if (hashCheck.exists) {
-                // Duplicate detected - set to PENDING with results stored
-                const reason = `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`;
-                console.warn('[Auto-Verify] Emission duplicate detected: ', reason);
-                
-                const systemUserId = 'system';
-                await db.updateVerificationStatus(
-                    vehicleId,
-                    'emission',
-                    'PENDING',
-                    systemUserId,
-                    `Auto-verification completed with critical issue: ${reason}`,
-                    {
-                        automated: true,
-                        verificationScore: 0,
-                        verificationMetadata: {
-                            ocrData,
-                            autoVerified: true,
-                            verificationResult: 'FAILED',
-                            reason,
-                            flagReasons: [reason],
-                            verifiedAt: new Date().toISOString(),
-                            patternCheck: patternCheck.valid ? patternCheck : null,
-                            authenticityCheck: null,
-                            hashCheck,
-                            expiryCheck: null,
-                            complianceCheck: null
-                        }
-                    }
-                );
-                
-                return {
-                    status: 'PENDING',
-                    automated: true,
-                    reason,
-                    confidence: 0,
-                    hashCheck,
-                    verificationResult: 'FAILED',
-                    flagReasons: [reason]
-                };
-            }
-
-            // Calculate pattern-based score
-            const verificationScore = this.calculatePatternBasedScore(
-                certificateNumber,
-                'emission',
-                !hashCheck.exists,
-                expiryCheck.isValid
-            );
-            console.log(`[Auto-Verify] Verification score: ${verificationScore.percentage}%`);
-
-            // Decision logic: Pattern valid + Certificate authentic + Hash unique + Not expired + Compliant
-            const shouldApprove = verificationScore.percentage >= 80 &&
-                                  patternCheck.valid &&
-                                  authenticityCheck.authentic &&
-                                  !hashCheck.exists &&
-                                  expiryCheck.isValid &&
-                                  complianceCheck.allCompliant;
-
-            if (shouldApprove) {
-                // Store hash on blockchain
-                let blockchainTxId = null;
-                try {
-                    const blockchainResult = await certificateBlockchain.storeCertificateHashOnBlockchain(
-                        compositeHash,
-                        {
-                            certificateType: 'emission',
-                            vehicleVIN: vehicle.vin,
-                            vehicleId: vehicleId,
-                            certificateNumber: certificateNumber,
-                            applicationStatus: 'PENDING',
-                            issuedAt: new Date().toISOString(),
-                            issuedBy: 'system',
-                            fileHash: fileHash
-                        }
-                    );
-                    blockchainTxId = blockchainResult.transactionId;
-                    console.log(`[Auto-Verify] Hash stored on blockchain: ${blockchainTxId}`);
-                } catch (blockchainError) {
-                    console.error('[Auto-Verify] Blockchain storage failed:', blockchainError);
-                    // Continue with approval even if blockchain storage fails
-                }
-
-                // Auto-approve
-                const systemUserId = 'system';
-                await db.updateVerificationStatus(
-                    vehicleId,
-                    'emission',
-                    'APPROVED',
-                    systemUserId,
-                    `Auto-verified: Pattern valid, Certificate authentic, Hash unique, Score ${verificationScore.percentage}%, Certificate: ${certificateNumber}`,
-                    {
-                        automated: true,
-                        verificationScore: verificationScore.percentage,
-                        verificationMetadata: {
-                            ocrData,
-                            patternCheck,
-                            hashCheck,
-                            expiryCheck,
-                            complianceCheck,
-                            authenticityCheck,
-                            compositeHash,
-                            blockchainTxId,
-                            verificationScore,
-                            verifiedAt: new Date().toISOString()
-                        }
-                    }
-                );
-
-                return {
-                    status: 'APPROVED',
-                    automated: true,
-                    confidence: verificationScore.percentage / 100,
-                    score: verificationScore.percentage,
-                    basis: verificationScore.checks,
-                    ocrData,
-                    patternCheck,
-                    hashCheck,
-                    authenticityCheck,
-                    compositeHash,
-                    blockchainTxId
-                };
-            } else {
-                // Clearly invalid / low-confidence → set to PENDING with results stored
-                const reasons = [];
-                if (!patternCheck.valid) reasons.push(`Invalid format: ${patternCheck.reason}`);
-                if (!authenticityCheck.authentic) reasons.push(`Certificate authenticity failed: ${authenticityCheck.reason}`);
-                if (hashCheck.exists) reasons.push('Document already used (duplicate)');
-                if (!expiryCheck.isValid) reasons.push('Certificate expired');
-                if (!complianceCheck.allCompliant) reasons.push('Test results non-compliant');
-                if (verificationScore.percentage < 80) reasons.push(`Low score: ${verificationScore.percentage}%`);
-
-                const reason = reasons.join(', ') || 'Auto-verification failed checks';
-                console.warn('[Auto-Verify] Emission verification issues detected: ', reason);
-
-                const systemUserId = 'system';
-                // Set to PENDING instead of REJECTED, store all verification results
-                await db.updateVerificationStatus(
-                    vehicleId,
-                    'emission',
-                    'PENDING',
-                    systemUserId,
-                    `Auto-verification completed with issues: ${reason}`,
-                    {
-                        automated: true,
-                        verificationScore: verificationScore.percentage,
-                        verificationMetadata: {
-                            ocrData,
-                            autoVerified: true,
-                            verificationResult: 'FAILED',
-                            patternCheck,
-                            hashCheck,
-                            expiryCheck,
-                            complianceCheck,
-                            authenticityCheck,
-                            verificationScore,
-                            verifiedAt: new Date().toISOString(),
-                            flagReasons: reasons,
-                            certificateNumber: certificateNumber
-                        }
-                    }
-                );
-
-                return {
-                    status: 'PENDING',
-                    automated: true,
-                    reason,
-                    confidence: verificationScore.percentage / 100,
-                    score: verificationScore.percentage,
-                    basis: verificationScore.checks,
-                    ocrData,
-                    patternCheck,
-                    hashCheck,
-                    authenticityCheck,
-                    complianceCheck,
-                    verificationResult: 'FAILED',
-                    flagReasons: reasons
-                };
-            }
-        } catch (error) {
-            console.error('[Auto-Verify] Emission verification error:', error);
             return {
                 status: 'PENDING',
                 automated: false,
@@ -1273,7 +912,7 @@ class AutoVerificationService {
         maxScore += 10;
         score += (1 - checks.fraudScore) * 10;
 
-        // Compliance (for emission only, 10 points)
+        // Compliance (optional, 10 points)
         if (checks.compliance !== undefined) {
             maxScore += 10;
             if (checks.compliance) score += 10;
@@ -1416,7 +1055,7 @@ class AutoVerificationService {
 
     /**
      * Get document number patterns for validation
-     * @param {string} documentType - Document type: 'insurance', 'emission', 'hpg'
+     * @param {string} documentType - Document type: 'insurance', 'hpg'
      * @returns {Object} Pattern object with regex and description
      */
     getDocumentNumberPatterns(documentType) {
@@ -1426,12 +1065,6 @@ class AutoVerificationService {
                 regex: /^CTPL-\d{4}-[A-Z0-9]{6}$/,
                 description: 'CTPL-YYYY-XXXXXX (e.g., CTPL-2026-C9P5EX)',
                 example: 'CTPL-2026-C9P5EX'
-            },
-            emission: {
-                // Matches generator format: ETC-YYYYMMDD-XXXXXX (6 alphanumeric chars)
-                regex: /^ETC-\d{8}-[A-Z0-9]{6}$/,
-                description: 'ETC-YYYYMMDD-XXXXXX (e.g., ETC-20260119-FRL3KR)',
-                example: 'ETC-20260119-FRL3KR'
             },
             hpg: {
                 // Matches generator format: HPG-YYYY-XXXXXX (6 alphanumeric chars)
@@ -1447,7 +1080,7 @@ class AutoVerificationService {
     /**
      * Validate document number format
      * @param {string} documentNumber - Document number to validate
-     * @param {string} documentType - Document type: 'insurance', 'emission', 'hpg'
+     * @param {string} documentType - Document type: 'insurance', 'hpg'
      * @returns {Object} Validation result
      */
     validateDocumentNumberFormat(documentNumber, documentType) {

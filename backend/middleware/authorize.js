@@ -175,13 +175,6 @@ function getPermissionsForRole(role) {
             'document.verify_insurance',
             'document.upload',
             'clearance.view_own'
-        ],
-        'emission_verifier': [
-            // Emission verifier permissions
-            'clearance.process_emission',
-            'document.verify_emission',
-            'document.upload',
-            'clearance.view_own'
         ]
     };
 

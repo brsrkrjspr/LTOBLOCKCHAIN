@@ -1268,11 +1268,7 @@
                                         <div class="summary-card">
                                             <h4><i class="fas fa-file-alt"></i> Uploaded Documents</h4>
                                             <ul id="summaryUploads">
-                                                <li>Deed of Sale</li>
-                                                <li>Seller Valid ID</li>
-                                                <li>Buyer Valid ID</li>
-                                                <li>Latest OR/CR</li>
-                                                <li>Optional: Emission Test Certificate</li>
+                                                <!-- Documents will be populated dynamically -->
                                             </ul>
                                         </div>
                                     </div>
@@ -2006,9 +2002,19 @@
             document.getElementById('summaryChassis').textContent = vehicle?.chassis_number || vehicle?.chassisNumber || vehicle?.vin || 'N/A';
             document.getElementById('summaryType').textContent = vehicle?.vehicle_type || vehicle?.vehicleType || 'N/A';
             
-            // OR/CR Number - prefer vehicle object, fallback to field value
-            const orCrNumber = vehicle?.or_cr_number || vehicle?.orCrNumber || document.getElementById('toOrCrNumber')?.value || 'N/A';
-            document.getElementById('summaryOrCr').textContent = orCrNumber;
+            // OR/CR Numbers - from vehicle object (separate OR and CR)
+            const orNumber = vehicle?.or_number || vehicle?.orNumber || 'N/A';
+            const crNumber = vehicle?.cr_number || vehicle?.crNumber || 'N/A';
+            const orCrNumber = vehicle?.or_cr_number || vehicle?.orCrNumber || (orNumber !== 'N/A' && crNumber !== 'N/A' ? `${orNumber} / ${crNumber}` : 'N/A');
+            
+            // Update summary display elements
+            const summaryOrEl = document.getElementById('summaryOr');
+            const summaryCrEl = document.getElementById('summaryCr');
+            const summaryOrCrEl = document.getElementById('summaryOrCr');
+            
+            if (summaryOrEl) summaryOrEl.textContent = orNumber;
+            if (summaryCrEl) summaryCrEl.textContent = crNumber;
+            if (summaryOrCrEl) summaryOrCrEl.textContent = orCrNumber;
             
             // Documents
             const uploadsList = document.getElementById('summaryUploads');

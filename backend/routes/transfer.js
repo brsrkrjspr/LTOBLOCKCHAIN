@@ -34,7 +34,6 @@ const VEHICLE_STATUS = {
 
 const TRANSFER_DEADLINE_DAYS = 3;
 
-// Emission feature removed (no emission clearance workflow for transfers).
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
@@ -431,7 +430,7 @@ async function sendTransferBuyerAcceptanceEmail({ to, sellerName, buyerName, veh
             
             <div class="info-box">
                 <strong>📋 Next Steps:</strong><br>
-                Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance, Emission Testing, and HPG clearance) before final approval.
+                Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance and HPG clearance) before final approval.
             </div>
             
             <p>You will receive another notification once the LTO has completed their review and made a decision on your transfer request.</p>
@@ -452,7 +451,7 @@ Dear ${safeSellerName},
 
 Good news! ${safeBuyerName} has accepted your transfer request for ${vehicleLabel}.
 
-Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance, Emission Testing, and HPG clearance) before final approval.
+Your transfer request is now under review by the LTO administration. The system will proceed with validation from the required organizations (Insurance and HPG clearance) before final approval.
 
 You will receive another notification once the LTO has completed their review and made a decision on your transfer request.
 
@@ -1111,18 +1110,111 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
         }
     });
 
+    // Trigger auto-verification if HPG clearance document exists (buyer uploads this)
+    let autoVerificationResult = null;
+    const buyerHpgTransferDoc = transferDocuments.find(td => 
+        td.document_type === docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE && td.document_id
+    );
+    
+    if (buyerHpgTransferDoc && buyerHpgTransferDoc.document_id) {
+        try {
+            // Get actual document record
+            const hpgClearanceDoc = await db.getDocumentById(buyerHpgTransferDoc.document_id);
+            if (hpgClearanceDoc) {
+                const autoVerificationService = require('../services/autoVerificationService');
+                const vehicle = await db.getVehicleById(request.vehicle_id);
+                
+                // Prepare documents array for auto-verification (HPG expects array)
+                const documentsForVerification = [hpgClearanceDoc];
+                if (orCrDoc && orCrDoc.document_id) {
+                    const orCrDocRecord = await db.getDocumentById(orCrDoc.document_id);
+                    if (orCrDocRecord) documentsForVerification.push(orCrDocRecord);
+                }
+                
+                autoVerificationResult = await autoVerificationService.autoVerifyHPG(
+                    request.vehicle_id,
+                    documentsForVerification,
+                    vehicle
+                );
+                
+                console.log(`[Transfer→HPG Auto-Verify] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+                
+                // Update clearance request metadata with auto-verification result
+                const updatedMetadata = {
+                    ...clearanceRequest.metadata,
+                    autoVerify: {
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        completedBy: 'system',
+                        confidenceScore: autoVerificationResult.score || autoVerificationResult.confidence * 100,
+                        recommendation: autoVerificationResult.recommendation || 'MANUAL_REVIEW',
+                        authenticityCheck: autoVerificationResult.authenticityCheck || {}
+                    }
+                };
+                
+                await dbModule.query(
+                    `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+                    [JSON.stringify(updatedMetadata), clearanceRequest.id]
+                );
+                
+                // Add auto-verification result to history
+                if (autoVerificationResult.automated) {
+                    await db.addVehicleHistory({
+                        vehicleId: request.vehicle_id,
+                        action: autoVerificationResult.status === 'APPROVED' 
+                            ? 'TRANSFER_HPG_AUTO_VERIFIED_APPROVED' 
+                            : 'TRANSFER_HPG_AUTO_VERIFIED_PENDING',
+                        description: autoVerificationResult.status === 'APPROVED'
+                            ? `Transfer HPG auto-verified and approved. Score: ${autoVerificationResult.score}%`
+                            : `Transfer HPG auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
+                        performedBy: requestedBy,
+                        transactionId: null,
+                        metadata: {
+                            transferRequestId: request.id,
+                            clearanceRequestId: clearanceRequest.id,
+                            autoVerificationResult
+                        }
+                    });
+                }
+            }
+        } catch (autoVerifyError) {
+            console.error('[Transfer→HPG Auto-Verify] Error:', autoVerifyError);
+            // Don't fail clearance request creation if auto-verification fails
+        }
+    }
+
     const updatedRequest = await db.getTransferRequestById(request.id);
-    return { clearanceRequest, updatedRequest };
+    return { clearanceRequest, updatedRequest, autoVerification: autoVerificationResult };
 }
 
 async function forwardTransferToInsurance({ request, requestedBy, purpose, notes, autoTriggered = false }) {
+    // Get transfer documents (buyer uploads CTPL)
+    const transferDocuments = await db.getTransferRequestDocuments(request.id);
     const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-    const insuranceDoc = vehicleDocuments.find(d => 
-        d.document_type === 'insurance_cert' || 
-        d.document_type === 'insuranceCert' ||
-        d.document_type === 'insurance' ||
-        (d.original_name && d.original_name.toLowerCase().includes('insurance'))
+    
+    // Find CTPL from transfer documents (buyer uploads this)
+    let insuranceDoc = null;
+    const buyerCtplTransferDoc = transferDocuments.find(td => 
+        td.document_type === docTypes.TRANSFER_ROLES.BUYER_CTPL && td.document_id
     );
+    
+    if (buyerCtplTransferDoc && buyerCtplTransferDoc.document_id) {
+        // Get actual document record
+        insuranceDoc = await db.getDocumentById(buyerCtplTransferDoc.document_id);
+    }
+    
+    // Fallback: check vehicle documents for insurance/CTPL
+    if (!insuranceDoc) {
+        insuranceDoc = vehicleDocuments.find(d => 
+            d.document_type === 'insurance_cert' || 
+            d.document_type === 'insuranceCert' ||
+            d.document_type === 'ctpl_cert' ||
+            d.document_type === 'insurance' ||
+            (d.original_name && d.original_name.toLowerCase().includes('insurance')) ||
+            (d.original_name && d.original_name.toLowerCase().includes('ctpl'))
+        );
+    }
+    
     const insuranceDocuments = insuranceDoc ? [{
         id: insuranceDoc.id,
         type: insuranceDoc.document_type,
@@ -1132,7 +1224,7 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     }] : [];
 
     if (!insuranceDoc) {
-        console.warn(`[Transfer→Insurance] Warning: No insurance certificate found for vehicle ${request.vehicle_id}`);
+        console.warn(`[Transfer→Insurance] Warning: No insurance/CTPL certificate found for vehicle ${request.vehicle_id}`);
     }
 
     console.log(`[Transfer→Insurance] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${vehicleDocuments.length} total)`);
@@ -1185,8 +1277,59 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
         }
     });
 
+    // Trigger auto-verification if insurance document exists
+    let autoVerificationResult = null;
+    if (insuranceDoc) {
+        try {
+            const autoVerificationService = require('../services/autoVerificationService');
+            const vehicle = await db.getVehicleById(request.vehicle_id);
+            autoVerificationResult = await autoVerificationService.autoVerifyInsurance(
+                request.vehicle_id,
+                insuranceDoc,
+                vehicle
+            );
+            
+            console.log(`[Transfer→Insurance Auto-Verify] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+            
+            // Update clearance request status if auto-approved
+            if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
+                await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
+                    verifiedBy: 'system',
+                    verifiedAt: new Date().toISOString(),
+                    notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
+                    autoVerified: true,
+                    autoVerificationResult
+                });
+                console.log(`[Transfer→Insurance Auto-Verify] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+            }
+            
+            // Add auto-verification result to history
+            if (autoVerificationResult.automated) {
+                await db.addVehicleHistory({
+                    vehicleId: request.vehicle_id,
+                    action: autoVerificationResult.status === 'APPROVED' 
+                        ? 'TRANSFER_INSURANCE_AUTO_VERIFIED_APPROVED' 
+                        : 'TRANSFER_INSURANCE_AUTO_VERIFIED_PENDING',
+                    description: autoVerificationResult.status === 'APPROVED'
+                        ? `Transfer Insurance auto-verified and approved. Score: ${autoVerificationResult.score}%`
+                        : `Transfer Insurance auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
+                    performedBy: requestedBy,
+                    transactionId: null,
+                    metadata: {
+                        transferRequestId: request.id,
+                        clearanceRequestId: clearanceRequest.id,
+                        autoVerificationResult
+                    }
+                });
+            }
+        } catch (autoVerifyError) {
+            console.error('[Transfer→Insurance Auto-Verify] Error:', autoVerifyError);
+            // Don't fail clearance request creation if auto-verification fails
+        }
+    }
+
     const updatedRequest = await db.getTransferRequestById(request.id);
-    return { clearanceRequest, updatedRequest };
+    return { clearanceRequest, updatedRequest, autoVerification: autoVerificationResult };
 }
 
 async function autoForwardTransferRequest(request, triggeredBy) {
@@ -2426,8 +2569,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             }
         }
         
-        // Emission approval is tracked for transfer requests but is not a hard blocker for LTO approval.
-        // We intentionally do NOT add it to pending/rejected approvals to keep HPG and Insurance as the only required orgs.
+        // HPG and Insurance are the only required organizations for transfer approval.
         
         if (pendingApprovals.length > 0) {
             return res.status(400).json({

@@ -445,20 +445,17 @@ function getVerificationStatusIcon(status) {
 async function viewVerificationDetails(requestId, orgType) {
     const orgLabels = {
         'hpg': 'HPG Clearance',
-        'insurance': 'Insurance Verification',
-        'emission': 'Emission Verification'
+        'insurance': 'Insurance Verification'
     };
     
     const orgIcons = {
         'hpg': 'fa-shield-alt',
-        'insurance': 'fa-file-shield',
-        'emission': 'fa-leaf'
+        'insurance': 'fa-file-shield'
     };
     
     const orgColors = {
         'hpg': '#2c3e50',
-        'insurance': '#3498db',
-        'emission': '#16a085'
+        'insurance': '#3498db'
     };
     
     // Create and show modal with loading state
@@ -512,8 +509,6 @@ async function viewVerificationDetails(requestId, orgType) {
         let requestEndpoint = '';
         if (orgType === 'insurance') {
             requestEndpoint = `/api/insurance/requests/${requestId}`;
-        } else if (orgType === 'emission') {
-            requestEndpoint = `/api/emission/requests/${requestId}`;
         } else {
             requestEndpoint = `/api/hpg/requests/${requestId}`;
         }
@@ -683,19 +678,6 @@ async function viewVerificationDetails(requestId, orgType) {
                         `;
                     }
                     
-                    // Emission-specific: compliance check
-                    if (metadata.complianceCheck && orgType === 'emission') {
-                        const isCompliant = metadata.complianceCheck.allCompliant !== false;
-                        contentHTML += `
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span>Test Compliance</span>
-                                        <span style="color: ${isCompliant ? '#27ae60' : '#e74c3c'};">
-                                            ${isCompliant ? '✓ Compliant' : '✗ Non-Compliant'}
-                                        </span>
-                                    </div>
-                        `;
-                    }
-                    
                     contentHTML += `
                                 </div>
                             </div>
@@ -724,10 +706,10 @@ async function viewVerificationDetails(requestId, orgType) {
             }
         }
         
-        // Check if Manual Verify button should be shown (for insurance/emission only)
+        // Check if Manual Verify button should be shown (for insurance only)
         let showManualVerify = false;
         let manualVerifyData = null;
-        if ((orgType === 'insurance' || orgType === 'emission') && verification) {
+        if (orgType === 'insurance' && verification) {
             const isPending = verification.status === 'PENDING';
             const isAutoVerified = verificationMetadata && verificationMetadata.autoVerified === true;
             const hasFailed = verificationMetadata && (

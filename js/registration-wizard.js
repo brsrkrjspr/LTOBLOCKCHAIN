@@ -1800,13 +1800,11 @@ function collectApplicationData() {
         priority: 'MEDIUM',
         verificationStatus: {
             insurance: 'PENDING',
-            emission: 'PENDING',
             hpg: 'PENDING'  // Changed from 'admin' to 'hpg' to match dashboard expectations
         },
         notes: {
             admin: '',
-            insurance: '',
-            emission: ''
+            insurance: ''
         }
     };
 }

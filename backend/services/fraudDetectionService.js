@@ -119,9 +119,6 @@ class FraudDetectionService {
             }
         }
 
-        // Check 5: Suspicious Values (0.15 points)
-        // (Emission-related suspicious value checks removed)
-
         // Check 6: Known Fraud Patterns (0.2 points)
         const knownFraudPatterns = [
             { pattern: /TEST|FAKE|SAMPLE/i, field: 'insuranceCompany', message: 'Contains test/fake keywords' },

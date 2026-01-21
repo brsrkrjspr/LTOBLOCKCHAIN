@@ -11,7 +11,6 @@ const path = require('path');
 const crypto = require('crypto');
 
 // Emission feature removed (no emission auto-verification).
-
 class AutoVerificationService {
     constructor() {
         this.enabled = process.env.AUTO_VERIFICATION_ENABLED !== 'false';

@@ -7,7 +7,6 @@ const docTypes = require('../config/documentTypes');
 const hpgDatabaseService = require('./hpgDatabaseService');
 
 // Emission feature removed (no emission clearance workflow).
-
 /**
  * Automatically send clearance requests to all required organizations
  * @param {string} vehicleId - The vehicle ID
@@ -166,8 +165,6 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
                 );
             }
         }
-
-        // 3. Emission clearance removed from workflow (no-op).
 
         // Update vehicle status if at least one request was sent
         const anySent = results.hpg.sent || results.insurance.sent;

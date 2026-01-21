@@ -1325,35 +1325,74 @@
             }
         }
 
-        @media (max-width: 900px) {
-            .dashboard {
-                flex-direction: column;
+        /* Mobile Hamburger Menu */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 0.5rem;
+            margin-right: 1rem;
+        }
+
+        .mobile-menu-toggle:hover {
+            color: var(--navy-primary);
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-menu-toggle {
+                display: block;
             }
 
             .dashboard-sidebar {
-                position: relative;
-                width: 100%;
-                min-width: 100%;
-                max-width: 100%;
-                height: auto;
-                border-right: none;
-                border-bottom: 1px solid var(--border-color);
-                padding: 1.5rem;
+                position: fixed;
+                left: -100%;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+                transition: left 0.3s ease-in-out;
+                box-shadow: 2px 0 10px rgba(0, 31, 63, 0.1);
                 margin: 0;
                 border-radius: 0;
+            }
+
+            .dashboard-sidebar.mobile-open {
                 left: 0;
             }
 
             .dashboard-main {
-                margin: 0;
-                margin-left: 0;
-                border-radius: 0;
+                margin-left: 0 !important;
+                width: 100%;
             }
 
-            .dashboard-sidebar.collapsed ~ .dashboard-main {
-                margin-left: 0;
+            .dashboard-sidebar.collapsed {
+                left: -100%;
             }
 
+            .dashboard-sidebar.collapsed.mobile-open {
+                left: 0;
+            }
+
+            /* Overlay when sidebar is open */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
+
+        @media (max-width: 900px) {
             .dashboard-content {
                 padding: 1.5rem 1.25rem;
             }
@@ -1392,11 +1431,11 @@
                     <span>My Vehicles</span>
                 </a>
                 <a href="registration-wizard.html" class="nav-item active">
-                    <i class="fas fa-file-plus"></i>
+                    <i class="fas fa-file-circle-plus"></i>
                     <span>New Registration</span>
                 </a>
                 <a href="owner-dashboard.html#notifications" class="nav-item">
-                    <i class="fas fa-bell-ring"></i>
+                    <i class="fas fa-bell"></i>
                     <span>Notifications</span>
                 </a>
                 <a href="transfer-ownership.html" class="nav-item">
@@ -1434,6 +1473,9 @@
                 <div class="container">
                     <div class="dashboard-nav">
                         <div class="nav-left">
+                            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                                <i class="fas fa-bars"></i>
+                            </button>
                             <div class="logo">
                                 <h1>New Registration</h1>
                             </div>
@@ -1828,7 +1870,7 @@
                 sidebar.classList.add('collapsed');
             }
 
-            // Sidebar toggle via logo
+            // Sidebar toggle (desktop - collapse/expand)
             const logoToggle = document.getElementById('logoToggle');
             
             function toggleSidebar(e) {
@@ -1836,13 +1878,13 @@
                     e.preventDefault();
                     e.stopPropagation();
                 }
-                if (!sidebar) return;
+                if (!sidebar || window.innerWidth <= 1024) return;
                 sidebar.classList.toggle('collapsed');
                 const isCollapsed = sidebar.classList.contains('collapsed');
                 localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
             }
             
-            if (logoToggle && sidebar) {
+            if (logoToggle && sidebar && window.innerWidth > 1024) {
                 logoToggle.addEventListener('click', toggleSidebar);
                 logoToggle.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -1850,6 +1892,65 @@
                     }
                 });
             }
+
+            // Mobile menu toggle
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            
+            function toggleMobileSidebar() {
+                if (sidebar && window.innerWidth <= 1024) {
+                    sidebar.classList.toggle('mobile-open');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.toggle('active');
+                    }
+                    document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+                }
+            }
+
+            function closeMobileSidebar() {
+                if (sidebar) {
+                    sidebar.classList.remove('mobile-open');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.remove('active');
+                    }
+                    document.body.style.overflow = '';
+                }
+            }
+
+            if (mobileMenuToggle) {
+                mobileMenuToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMobileSidebar();
+                });
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    closeMobileSidebar();
+                });
+            }
+
+            // Close sidebar when clicking on nav items (mobile)
+            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        closeMobileSidebar();
+                    }
+                });
+            });
+
+            // Handle window resize
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    if (window.innerWidth > 1024) {
+                        closeMobileSidebar();
+                    }
+                }, 250);
+            });
             
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
@@ -1872,87 +1973,8 @@
                     }
                 });
             }
-            
-            // Initialize mobile navigation
-            initializeMobileNavigation();
         });
         
-        // Initialize mobile navigation
-        function initializeMobileNavigation() {
-            const logoToggle = document.getElementById('logoToggle');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            
-            // Use logo toggle for mobile sidebar
-            if (logoToggle && sidebar && window.innerWidth <= 768) {
-                logoToggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleMobileSidebar();
-                });
-            }
-            
-            if (sidebarOverlay) {
-                sidebarOverlay.addEventListener('click', function() {
-                    closeMobileSidebar();
-                });
-            }
-            
-            // Close sidebar when clicking on nav items
-            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
-            navItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    if (window.innerWidth <= 768) {
-                        closeMobileSidebar();
-                    }
-                });
-            });
-        }
-        
-        // Toggle mobile sidebar
-        function toggleMobileSidebar() {
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            
-            if (!sidebar) return;
-            
-            if (sidebar.classList.contains('mobile-open')) {
-                closeMobileSidebar();
-            } else {
-                openMobileSidebar();
-            }
-        }
-        
-        // Open mobile sidebar
-        function openMobileSidebar() {
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            
-            if (sidebar) {
-                sidebar.classList.add('mobile-open');
-                sidebar.classList.remove('collapsed');
-            }
-            
-            if (overlay) {
-                overlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-        }
-        
-        // Close mobile sidebar
-        function closeMobileSidebar() {
-            const sidebar = document.querySelector('.dashboard-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            
-            if (sidebar) {
-                sidebar.classList.remove('mobile-open');
-            }
-            
-            if (overlay) {
-                overlay.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-        }
     </script>
 </body>
 </html>

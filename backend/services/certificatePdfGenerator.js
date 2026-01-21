@@ -66,6 +66,72 @@ class CertificatePdfGenerator {
     }
 
     /**
+     * Get a random vehicle profile (make/model/body type) for auto generation
+     * @returns {{make: string, model: string, vehicleType: string, bodyType: string}}
+     */
+    getRandomVehicleProfile() {
+        const VEHICLE_CATALOG = [
+            // Cars (Sedan / Hatchback)
+            { make: 'Toyota', model: 'Vios', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Toyota', model: 'Corolla Altis', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Honda', model: 'Civic', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Honda', model: 'City', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Hyundai', model: 'Accent', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Mitsubishi', model: 'Mirage G4', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Kia', model: 'Rio', vehicleType: 'Car', bodyType: 'Hatchback' },
+            { make: 'Suzuki', model: 'Swift', vehicleType: 'Car', bodyType: 'Hatchback' },
+
+            // SUV / Crossover / MPV
+            { make: 'Toyota', model: 'Fortuner', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Toyota', model: 'Innova', vehicleType: 'MPV', bodyType: 'MPV' },
+            { make: 'Mitsubishi', model: 'Montero Sport', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Nissan', model: 'Terra', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Ford', model: 'Everest', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Ford', model: 'EcoSport', vehicleType: 'Crossover', bodyType: 'Crossover' },
+            { make: 'Hyundai', model: 'Tucson', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Honda', model: 'CR-V', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Kia', model: 'Stonic', vehicleType: 'Crossover', bodyType: 'Crossover' },
+            { make: 'Suzuki', model: 'Ertiga', vehicleType: 'MPV', bodyType: 'MPV' },
+
+            // Pickup / Light Truck
+            { make: 'Toyota', model: 'Hilux', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Ford', model: 'Ranger', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Nissan', model: 'Navara', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Isuzu', model: 'D-Max', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Mitsubishi', model: 'Strada', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Isuzu', model: 'N-Series', vehicleType: 'Truck', bodyType: 'Light truck' },
+            { make: 'Fuso', model: 'Canter', vehicleType: 'Truck', bodyType: 'Light truck' },
+            { make: 'Hino', model: '300', vehicleType: 'Truck', bodyType: 'Light truck' },
+
+            // Vans
+            { make: 'Toyota', model: 'HiAce', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Hyundai', model: 'Starex', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Nissan', model: 'Urvan', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Foton', model: 'Toano', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Maxus', model: 'V80', vehicleType: 'Van', bodyType: 'Van' },
+
+            // Motorcycles
+            { make: 'Honda', model: 'Click 125', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'Yamaha', model: 'Mio i 125', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'Suzuki', model: 'Raider 150', vehicleType: 'Motorcycle', bodyType: 'Underbone' },
+            { make: 'Kawasaki', model: 'Barako II', vehicleType: 'Motorcycle', bodyType: 'Standard' },
+            { make: 'Honda', model: 'TMX Supremo', vehicleType: 'Motorcycle', bodyType: 'Standard' },
+            { make: 'Yamaha', model: 'Aerox 155', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'Honda', model: 'ADV 160', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'KTM', model: 'Duke 200', vehicleType: 'Motorcycle', bodyType: 'Naked' },
+            { make: 'Royal Enfield', model: 'Classic 350', vehicleType: 'Motorcycle', bodyType: 'Standard' }
+        ];
+
+        const chosen = VEHICLE_CATALOG[Math.floor(Math.random() * VEHICLE_CATALOG.length)];
+        return {
+            make: chosen.make,
+            model: chosen.model,
+            vehicleType: chosen.vehicleType,
+            bodyType: chosen.bodyType
+        };
+    }
+
+    /**
      * Validate PDF buffer
      * @param {Buffer} buffer - PDF buffer to validate
      * @param {string} certificateType - Type of certificate for logging

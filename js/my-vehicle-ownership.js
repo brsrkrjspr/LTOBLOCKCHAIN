@@ -48,6 +48,9 @@ function initializeMyOwnership() {
 
     // Load vehicles
     loadMyVehicles();
+    
+    // Load transfer requests (where user is seller)
+    loadMyTransferRequests();
 }
 
 async function loadMyVehicles() {
@@ -734,6 +737,355 @@ function transferVehicle(vehicleId, plateNumber) {
     // Redirect to transfer ownership page
     window.location.href = 'transfer-ownership.html';
 }
+
+// Load transfer requests where user is seller
+async function loadMyTransferRequests() {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Get transfer requests where user is seller
+        const response = await apiClient.get('/api/vehicles/transfer/requests?status=REJECTED,UNDER_REVIEW,AWAITING_BUYER_DOCS,PENDING');
+        
+        if (!response.success) {
+            console.warn('Failed to load transfer requests:', response.error);
+            return;
+        }
+        
+        const requests = response.requests || [];
+        
+        // Filter to only show rejected or pending requests (where document updates are needed)
+        const updateableRequests = requests.filter(req => {
+            const status = (req.status || '').toUpperCase();
+            return status === 'REJECTED' || status === 'UNDER_REVIEW' || status === 'AWAITING_BUYER_DOCS' || status === 'PENDING';
+        });
+        
+        if (updateableRequests.length === 0) {
+            // Hide section if no updateable requests
+            const listEl = document.getElementById('myTransferRequestsList');
+            if (listEl) listEl.style.display = 'none';
+            return;
+        }
+        
+        // Display transfer requests
+        displayMyTransferRequests(updateableRequests);
+        
+    } catch (error) {
+        console.error('Error loading transfer requests:', error);
+        // Don't show error to user - this is a secondary feature
+    }
+}
+
+// Display transfer requests with document update options
+function displayMyTransferRequests(requests) {
+    const listEl = document.getElementById('myTransferRequestsList');
+    const contentEl = document.getElementById('myTransferRequestsContent');
+    const countEl = document.getElementById('myTransferRequestsCount');
+    
+    if (!listEl || !contentEl) {
+        console.error('Transfer requests DOM elements not found');
+        return;
+    }
+    
+    // Show section
+    listEl.style.display = 'block';
+    
+    // Update count
+    if (countEl) countEl.textContent = requests.length;
+    
+    // Clear existing content
+    contentEl.innerHTML = '';
+    
+    // Create cards for each transfer request
+    requests.forEach(request => {
+        const card = createTransferRequestCard(request);
+        contentEl.appendChild(card);
+    });
+}
+
+// Create transfer request card with document update options
+function createTransferRequestCard(request) {
+    const card = document.createElement('div');
+    card.className = 'vehicle-card';
+    card.style.marginBottom = '1rem';
+    
+    const vehicle = request.vehicle || {};
+    const status = (request.status || '').toUpperCase();
+    const normalizedStatus = status.toLowerCase();
+    const canUpdate = ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
+    
+    // Get rejection reason if available
+    const rejectionReason = request.rejectionReason || request.rejection_reason || null;
+    
+    // Format date
+    const createdDate = request.created_at || request.createdAt;
+    const dateFormatted = createdDate ? new Date(createdDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    }) : 'N/A';
+    
+    // Get buyer name
+    const buyerName = request.buyer_name || 
+                     (request.buyer_info && request.buyer_info.email ? request.buyer_info.email : 'Pending') ||
+                     'Pending';
+    
+    card.innerHTML = `
+        <div style="padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; background: white;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                <div>
+                    <h4 style="margin: 0 0 0.5rem 0; color: #1f2937;">
+                        <i class="fas fa-exchange-alt" style="color: #3b82f6; margin-right: 0.5rem;"></i>
+                        Transfer Request
+                    </h4>
+                    <p style="margin: 0; color: #6b7280; font-size: 0.875rem;">
+                        Vehicle: ${vehicle.make || ''} ${vehicle.model || ''} (${vehicle.year || ''}) - ${vehicle.plate_number || vehicle.vin || 'N/A'}
+                    </p>
+                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">
+                        Buyer: ${escapeHtml(buyerName)} • Created: ${dateFormatted}
+                    </p>
+                </div>
+                <span class="status-chip state ${normalizedStatus}" style="font-size: 0.875rem; padding: 0.4rem 0.8rem;">
+                    ${escapeHtml(request.status || 'PENDING')}
+                </span>
+            </div>
+            
+            ${rejectionReason ? `
+            <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0; border-radius: 4px;">
+                <h5 style="margin: 0 0 0.5rem 0; color: #721c24; font-size: 0.9375rem;">
+                    <i class="fas fa-exclamation-triangle"></i> Reason for Rejection
+                </h5>
+                <p style="margin: 0; color: #721c24; white-space: pre-wrap; font-size: 0.875rem;">${escapeHtml(rejectionReason)}</p>
+            </div>
+            ` : ''}
+            
+            ${canUpdate ? `
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                <button class="btn btn-primary" onclick="showTransferRequestDetails('${escapeHtml(request.id)}')" style="width: 100%;">
+                    <i class="fas fa-eye"></i> View Details & Update Documents
+                </button>
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    return card;
+}
+
+// Show transfer request details modal with documents
+async function showTransferRequestDetails(requestId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/vehicles/transfer/requests/${requestId}`);
+        
+        if (!response.success || !response.transferRequest) {
+            throw new Error(response.error || 'Failed to load transfer request');
+        }
+        
+        const request = response.transferRequest;
+        const vehicle = request.vehicle || {};
+        const documents = request.documents || [];
+        const status = (request.status || '').toUpperCase();
+        const normalizedStatus = status.toLowerCase();
+        const canUpdate = ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
+        
+        // Create modal (reuse structure from owner-dashboard.js)
+        const modal = document.createElement('div');
+        modal.id = 'transferRequestDetailsModal';
+        modal.className = 'owner-details-modal';
+        modal.style.display = 'flex';
+        
+        // Map transfer documents to display format
+        const documentTypes = [
+            { key: 'deed_of_sale', label: 'Deed of Sale', icon: 'fa-file-contract', type: 'other' },
+            { key: 'seller_id', label: 'Seller ID', icon: 'fa-user-tag', type: 'id' },
+            { key: 'buyer_id', label: 'Buyer ID', icon: 'fa-user-check', type: 'id' },
+            { key: 'buyer_tin', label: 'Buyer TIN', icon: 'fa-id-card', type: 'id' },
+            { key: 'buyer_ctpl', label: 'Buyer CTPL', icon: 'fa-shield-alt', type: 'insurance' },
+            { key: 'buyer_hpg_clearance', label: 'Buyer HPG Clearance', icon: 'fa-shield-alt', type: 'other' },
+            { key: 'buyer_mvir', label: 'Buyer MVIR', icon: 'fa-file-alt', type: 'other' },
+            { key: 'or_cr', label: 'OR/CR', icon: 'fa-car', type: 'registration' }
+        ];
+        
+        let documentListHTML = '';
+        const documentsMap = {};
+        documents.forEach(doc => {
+            const key = doc.document_type || doc.type;
+            documentsMap[key] = {
+                id: doc.document_id || doc.id,
+                filename: doc.original_name || doc.filename || key,
+                type: key
+            };
+        });
+        
+        documentTypes.forEach(docType => {
+            const docData = documentsMap[docType.key];
+            if (docData) {
+                documentListHTML += `
+                    <div class="doc-select-item" data-doc-key="${docType.key}" data-doc-id="${docData.id || ''}">
+                        <div class="doc-select-icon">
+                            <i class="fas ${docType.icon}"></i>
+                        </div>
+                        <div class="doc-select-info">
+                            <div class="doc-select-title">${docType.label}</div>
+                            <div class="doc-select-subtitle">${docData.filename}</div>
+                            <div class="doc-select-status">
+                                <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
+                            </div>
+                        </div>
+                        <div class="doc-select-actions" style="display: flex; gap: 0.5rem;">
+                            <button class="btn-icon" onclick="openTransferDocument('${docData.id}')" title="View Document">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            ${canUpdate ? `
+                            <button class="btn-icon btn-update-doc" onclick="updateTransferDocument('${docType.key}', '${docType.label}', '${docData.id || ''}', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Update Document" style="color: #3498db;">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        modal.innerHTML = `
+            <div class="owner-modal-overlay" onclick="closeTransferRequestDetailsModal()"></div>
+            <div class="owner-modal-content">
+                <div class="owner-modal-header">
+                    <div class="owner-modal-title">
+                        <div class="owner-modal-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div>
+                            <h3>Transfer Request Details</h3>
+                            <small>ID: ${requestId.substring(0, 8)}...</small>
+                        </div>
+                    </div>
+                    <button class="owner-modal-close" onclick="closeTransferRequestDetailsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="owner-modal-body">
+                    <!-- Status Banner -->
+                    <div class="status-banner status-banner-${normalizedStatus}">
+                        <i class="fas ${getStatusIconForTransfer(status)}"></i>
+                        <span>${request.status || 'PENDING'}</span>
+                    </div>
+                    
+                    ${request.rejectionReason ? `
+                    <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0; border-radius: 4px;">
+                        <h4 style="margin-top: 0; color: #721c24; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-exclamation-triangle"></i> Reason for Rejection
+                        </h4>
+                        <p style="margin: 0; white-space: pre-wrap; color: #721c24;">${escapeHtml(request.rejectionReason)}</p>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Vehicle Info -->
+                    <div class="detail-section">
+                        <h4><i class="fas fa-car"></i> Vehicle Information</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">VIN</span>
+                                <span class="detail-value">${vehicle.vin || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Plate Number</span>
+                                <span class="detail-value">${vehicle.plate_number || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Make</span>
+                                <span class="detail-value">${vehicle.make || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Model</span>
+                                <span class="detail-value">${vehicle.model || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Year</span>
+                                <span class="detail-value">${vehicle.year || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documents Section -->
+                    <div class="detail-section">
+                        <h4><i class="fas fa-folder-open"></i> Documents</h4>
+                        ${documentListHTML ? `
+                            <div class="doc-select-list">
+                                ${documentListHTML}
+                            </div>
+                        ` : '<p style="color: #7f8c8d;">No documents uploaded yet.</p>'}
+                    </div>
+                </div>
+                
+                <div class="owner-modal-footer">
+                    <button class="btn-secondary" onclick="closeTransferRequestDetailsModal()">Close</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+        
+    } catch (error) {
+        console.error('Error showing transfer request details:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Error: ${error.message}`, 'error');
+        } else {
+            alert(`Error: ${error.message}`);
+        }
+    }
+}
+
+function closeTransferRequestDetailsModal() {
+    const modal = document.getElementById('transferRequestDetailsModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+function getStatusIconForTransfer(status) {
+    const normalized = (status || '').toUpperCase();
+    if (normalized === 'REJECTED') return 'fa-times-circle';
+    if (normalized === 'APPROVED' || normalized === 'COMPLETED') return 'fa-check-circle';
+    if (normalized === 'UNDER_REVIEW' || normalized === 'AWAITING_BUYER_DOCS') return 'fa-clock';
+    return 'fa-hourglass-half';
+}
+
+function openTransferDocument(documentId) {
+    if (documentId) {
+        window.open(`/api/documents/${documentId}/view`, '_blank');
+    }
+}
+
+// Update document for transfer request
+async function updateTransferDocument(docKey, docLabel, docId, transferRequestId, vehicleId) {
+    // Reuse the document update modal from owner-dashboard.js if available
+    if (typeof window.showDocumentUpdateModal === 'function') {
+        // Show modal with transfer request context
+        window.showDocumentUpdateModal(docKey, docLabel, docId, transferRequestId, true, transferRequestId, vehicleId);
+    } else {
+        // Fallback: create our own modal
+        alert('Document update functionality is being initialized. Please try again in a moment.');
+    }
+}
+
+// Helper function to escape HTML (if not already defined)
+function escapeHtml(text) {
+    if (typeof text !== 'string') return text;
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Make functions globally available
+window.loadMyTransferRequests = loadMyTransferRequests;
+window.showTransferRequestDetails = showTransferRequestDetails;
+window.closeTransferRequestDetailsModal = closeTransferRequestDetailsModal;
+window.updateTransferDocument = updateTransferDocument;
+window.openTransferDocument = openTransferDocument;
 
 // Make functions globally available for inline onclick handlers
 window.viewOwnershipHistory = viewOwnershipHistory;

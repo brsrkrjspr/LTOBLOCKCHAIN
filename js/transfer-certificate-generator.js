@@ -89,7 +89,16 @@ async function loadTransferContext(transferRequestId) {
         }
     } catch (error) {
         console.error('Error loading transfer context:', error);
-        showError('Failed to load transfer context: ' + error.message);
+        
+        // Check if error is due to HTML response (API returning error page instead of JSON)
+        let errorMessage = error.message || 'Failed to load transfer context';
+        if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
+            errorMessage = 'API endpoint returned an error page. Please check your authentication and try again.';
+        } else if (error.message && error.message.includes('JSON')) {
+            errorMessage = 'Invalid response from server. Please check your connection and try again.';
+        }
+        
+        showError('Failed to load transfer context: ' + errorMessage);
     }
 }
 
@@ -222,7 +231,16 @@ async function generateCertificates() {
     } catch (error) {
         console.error('Error generating certificates:', error);
         loadingOverlay.classList.remove('show');
-        showError('Failed to generate certificates: ' + error.message);
+        
+        // Check if error is due to HTML response (API returning error page instead of JSON)
+        let errorMessage = error.message || 'Failed to generate certificates';
+        if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
+            errorMessage = 'API endpoint returned an error page. Please check your authentication and try again. If the problem persists, contact support.';
+        } else if (error.message && error.message.includes('JSON')) {
+            errorMessage = 'Invalid response from server. Please check your connection and try again.';
+        }
+        
+        showError('Failed to generate certificates: ' + errorMessage);
     }
 }
 

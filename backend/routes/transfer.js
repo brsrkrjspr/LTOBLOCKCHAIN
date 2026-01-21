@@ -3559,5 +3559,56 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
     }
 });
 
+// Link document to transfer request (for document updates)
+router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { documents } = req.body;
+        
+        if (!documents || typeof documents !== 'object') {
+            return res.status(400).json({
+                success: false,
+                error: 'Documents object is required'
+            });
+        }
+        
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+        
+        // Check permissions - user must be seller or admin
+        if (req.user.role === 'vehicle_owner' && String(request.seller_id) !== String(req.user.userId)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied. You can only update documents for your own transfer requests.'
+            });
+        }
+        
+        // Link documents using the existing linkTransferDocuments function
+        await linkTransferDocuments({
+            transferRequestId: id,
+            documents: documents,
+            uploadedBy: req.user.userId
+        });
+        
+        res.json({
+            success: true,
+            message: 'Document linked to transfer request successfully'
+        });
+        
+    } catch (error) {
+        console.error('Link document to transfer request error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
 module.exports = router;
 

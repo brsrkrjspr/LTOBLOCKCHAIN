@@ -222,6 +222,35 @@ router.get('/my-vehicles', authenticateToken, async (req, res) => {
             vehicle.verifications.forEach(v => {
                 vehicle.verificationStatus[v.verification_type] = v.status;
             });
+            
+            // Extract rejection reason from verifications if vehicle is rejected
+            if (vehicle.status === 'REJECTED') {
+                // Check for rejection in verifications
+                const rejectedVerification = vehicle.verifications.find(v => v.status === 'REJECTED');
+                if (rejectedVerification) {
+                    // Try to extract from verification metadata
+                    let rejectionReason = rejectedVerification.notes || null;
+                    
+                    // Check metadata for manual review notes
+                    if (rejectedVerification.verification_metadata) {
+                        try {
+                            const metadata = typeof rejectedVerification.verification_metadata === 'string' 
+                                ? JSON.parse(rejectedVerification.verification_metadata)
+                                : rejectedVerification.verification_metadata;
+                            
+                            if (metadata.manualReview && metadata.manualReview.manualNotes) {
+                                rejectionReason = metadata.manualReview.manualNotes;
+                            } else if (metadata.verificationMetadata && metadata.verificationMetadata.reason) {
+                                rejectionReason = metadata.verificationMetadata.reason;
+                            }
+                        } catch (e) {
+                            console.warn('Failed to parse verification metadata:', e);
+                        }
+                    }
+                    
+                    vehicle.rejectionReason = rejectionReason;
+                }
+            }
         }
 
         res.json({

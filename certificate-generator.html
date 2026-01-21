@@ -446,7 +446,7 @@
             
             try {
                 const apiClient = window.apiClient || new APIClient();
-                const response = await apiClient.get(`/api/users/lookup?email=${encodeURIComponent(email)}`);
+                const response = await apiClient.get(`/api/auth/users/lookup?email=${encodeURIComponent(email)}`);
                 
                 if (response.success && response.user) {
                     // Show owner details

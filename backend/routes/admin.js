@@ -766,6 +766,22 @@ LTO Lipa City Team
                 console.error('❌ Failed to send rejection email:', emailError);
                 // Don't fail the request if email fails
             }
+            
+            // Create in-app notification
+            if (vehicle && vehicle.owner_id) {
+                try {
+                    await db.createNotification({
+                        userId: vehicle.owner_id,
+                        title: `${verificationType.toUpperCase()} Document Rejected`,
+                        message: `Your ${verificationType} document verification has been rejected. Reason: ${notes || 'No reason provided'}`,
+                        type: 'error'
+                    });
+                    console.log(`✅ In-app notification created for vehicle owner ${vehicle.owner_id}`);
+                } catch (notifError) {
+                    console.error('❌ Failed to create in-app notification:', notifError);
+                    // Don't fail the request if notification fails
+                }
+            }
         }
         
         res.json({

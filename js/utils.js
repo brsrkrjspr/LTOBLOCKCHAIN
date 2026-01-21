@@ -40,6 +40,44 @@ class ToastNotification {
         
         return toast;
     }
+
+    /**
+     * Confirm dialog helper.
+     * Returns a Promise<boolean> and optionally runs callbacks.
+     *
+     * NOTE: Some pages load both `js/toast-notification.js` and `js/utils.js`.
+     * Those pages may call `ToastNotification.confirm(...)`.
+     * This implementation keeps behavior consistent even if this file is loaded last.
+     */
+    static confirm(message, onConfirm, onCancel) {
+        // Prefer the richer ConfirmationDialog if present
+        if (typeof window !== 'undefined' && window.ConfirmationDialog && typeof window.ConfirmationDialog.show === 'function') {
+            return window.ConfirmationDialog.show({
+                title: 'Confirm Action',
+                message: message || 'Are you sure you want to proceed?',
+                confirmText: 'Confirm',
+                cancelText: 'Cancel',
+                confirmColor: '#3498db',
+                type: 'question'
+            }).then((ok) => {
+                if (ok) {
+                    if (typeof onConfirm === 'function') onConfirm();
+                } else {
+                    if (typeof onCancel === 'function') onCancel();
+                }
+                return ok;
+            });
+        }
+
+        // Fallback to native confirm if ConfirmationDialog is unavailable
+        const ok = window.confirm(message || 'Are you sure you want to proceed?');
+        if (ok) {
+            if (typeof onConfirm === 'function') onConfirm();
+        } else {
+            if (typeof onCancel === 'function') onCancel();
+        }
+        return Promise.resolve(ok);
+    }
     
     static getToastColor(type) {
         const colors = {

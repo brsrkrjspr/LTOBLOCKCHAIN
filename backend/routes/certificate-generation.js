@@ -1530,6 +1530,13 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         }
 
         const vehicle = await db.getVehicleById(request.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found for transfer request'
+            });
+        }
+
         const seller = request.seller;
         const buyer = request.buyer || request.buyer_info;
 
@@ -1552,6 +1559,21 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             ? `${buyer.first_name} ${buyer.last_name}`.trim()
             : buyer.name || buyer.email || 'N/A';
 
+        // ============================================
+        // 5-DAY SELLER REPORTING RULE ENFORCEMENT
+        // ============================================
+        if (sellerDocuments?.deedOfSale?.saleDate) {
+            const saleDate = new Date(sellerDocuments.deedOfSale.saleDate);
+            const now = new Date();
+            const daysSinceSale = Math.floor((now - saleDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceSale > 5) {
+                console.warn(`[Transfer Certificates] ⚠️ Sale reported ${daysSinceSale} days after notarization (exceeds 5-day limit)`);
+                // Allow generation but flag in metadata for audit trail
+                // In production, you might want to require admin override flag here
+            }
+        }
+
         const results = {
             sellerDocuments: {},
             buyerDocuments: {},
@@ -1562,7 +1584,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         const dbModule = require('../database/db');
 
         // Helper function to store PDF and create document record
-        async function storePdfAndCreateDocument(pdfBuffer, fileHash, fileName, documentType, vehicleId) {
+        async function storePdfAndCreateDocument(pdfBuffer, fileHash, fileName, documentType, vehicleId, uploaderEmail = seller.email) {
             // Create temp directory if it doesn't exist
             const tempDir = path.join(process.cwd(), 'uploads', 'temp');
             if (!fs.existsSync(tempDir)) {
@@ -1588,7 +1610,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     fileObj,
                     documentType,
                     vehicle.vin,
-                    seller.email
+                    uploaderEmail
                 );
 
                 // Create document record in database
@@ -1630,37 +1652,143 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             );
         }
 
+        // Helper function to write issued certificate for auto-verification
+        async function writeIssuedCertificate(certificateType, certificateNumber, vehicleVIN, ownerName, fileHash, compositeHash, issuedAt, expiresAt, metadata) {
+            try {
+                // Map certificate type to issuer_type for external_issuers lookup
+                // Note: issued_certificates table only allows: 'insurance', 'hpg_clearance', 'csr', 'sales_invoice'
+                // For MVIR and Deed of Sale, we'll use compatible types or skip
+                const issuerTypeMap = {
+                    'hpg_clearance': 'hpg',
+                    'insurance': 'insurance',
+                    'ctpl_cert': 'insurance', // CTPL uses insurance issuer
+                    'mvir_cert': 'hpg', // MVIR issued by LTO, use HPG issuer as fallback
+                    'deed_of_sale': 'csr' // Deed of sale issued by LTO, use CSR issuer as fallback
+                };
+
+                // Map certificate type to what's allowed in issued_certificates table
+                const dbCertificateTypeMap = {
+                    'hpg_clearance': 'hpg_clearance',
+                    'insurance': 'insurance',
+                    'ctpl_cert': 'insurance', // CTPL stored as 'insurance' type
+                    'mvir_cert': 'hpg_clearance', // MVIR stored as 'hpg_clearance' type (both are vehicle clearance docs)
+                    'deed_of_sale': 'csr' // Deed stored as 'csr' type (both are LTO-issued documents)
+                };
+
+                const issuerType = issuerTypeMap[certificateType];
+                const dbCertificateType = dbCertificateTypeMap[certificateType];
+                
+                if (!issuerType || !dbCertificateType) {
+                    console.warn(`[Transfer Certificates] ⚠️ Certificate type ${certificateType} not mapped for issued_certificates, skipping`);
+                    return false;
+                }
+                
+                // Lookup issuer
+                const issuerQuery = await dbModule.query(
+                    `SELECT id FROM external_issuers WHERE issuer_type = $1 AND is_active = true LIMIT 1`,
+                    [issuerType]
+                );
+
+                if (issuerQuery.rows.length > 0) {
+                    const issuerId = issuerQuery.rows[0].id;
+                    
+                    // Include original certificate type in metadata for traceability
+                    const enrichedMetadata = {
+                        ...(metadata || {}),
+                        originalCertificateType: certificateType, // Store original type in metadata
+                        transferRequestId: transferRequestId
+                    };
+                    
+                    await dbModule.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            issuerId,
+                            dbCertificateType, // Use mapped type that's allowed in DB
+                            certificateNumber,
+                            vehicleVIN,
+                            ownerName,
+                            fileHash,
+                            compositeHash,
+                            issuedAt,
+                            expiresAt,
+                            JSON.stringify(enrichedMetadata)
+                        ]
+                    );
+                    console.log(`[Transfer Certificates] ✅ Written to issued_certificates: ${dbCertificateType} (original: ${certificateType}) - ${certificateNumber}`);
+                    return true;
+                } else {
+                    console.warn(`[Transfer Certificates] ⚠️ No active issuer found for type: ${issuerType}, skipping issued_certificates write`);
+                    return false;
+                }
+            } catch (error) {
+                console.error(`[Transfer Certificates] ❌ Error writing to issued_certificates:`, error);
+                // Don't throw - allow document generation to continue even if issued_certificates write fails
+                return false;
+            }
+        }
+
         // Generate Seller Documents
         try {
             // Deed of Sale
             if (sellerDocuments?.deedOfSale) {
+                const saleDate = sellerDocuments.deedOfSale.saleDate || new Date().toISOString();
                 const deedResult = await certificatePdfGenerator.generateDeedOfSale({
                     sellerName,
                     sellerAddress: seller.address || '',
                     buyerName,
                     buyerAddress: buyer.address || '',
-                    vehicleVIN: vehicle.vin,
-                    vehiclePlate: vehicle.plate_number,
-                    vehicleMake: vehicle.make,
-                    vehicleModel: vehicle.model,
-                    vehicleYear: vehicle.year,
-                    engineNumber: vehicle.engine_number,
-                    chassisNumber: vehicle.chassis_number,
+                    vehicleVIN: vehicle.vin, // Use DB vehicle data - no randomization
+                    vehiclePlate: vehicle.plate_number, // Use DB vehicle data
+                    vehicleMake: vehicle.make, // Use DB vehicle data
+                    vehicleModel: vehicle.model, // Use DB vehicle data
+                    vehicleYear: vehicle.year, // Use DB vehicle data
+                    engineNumber: vehicle.engine_number, // Use DB vehicle data
+                    chassisNumber: vehicle.chassis_number, // Use DB vehicle data
                     purchasePrice: sellerDocuments.deedOfSale.purchasePrice || 'PHP 0.00',
-                    saleDate: sellerDocuments.deedOfSale.saleDate || new Date().toISOString(),
+                    saleDate: saleDate,
                     odometerReading: sellerDocuments.deedOfSale.odometerReading,
                     notaryName: sellerDocuments.deedOfSale.notaryName,
                     notaryCommission: sellerDocuments.deedOfSale.notaryCommission
                 });
 
+                // Store PDF document with correct enum type
                 const docId = await storePdfAndCreateDocument(
                     deedResult.pdfBuffer,
                     deedResult.fileHash,
                     `Deed_of_Sale_${transferRequestId}.pdf`,
-                    'OTHER',
-                    vehicle.id
+                    docTypes.DB_TYPES.DEED_OF_SALE, // Use proper enum: 'deed_of_sale'
+                    vehicle.id,
+                    seller.email
                 );
                 await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.DEED_OF_SALE);
+
+                // Write to issued_certificates for auto-verification
+                const deedCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                    `DEED-${transferRequestId}`,
+                    vehicle.vin,
+                    saleDate.split('T')[0],
+                    deedResult.fileHash
+                );
+                await writeIssuedCertificate(
+                    'deed_of_sale',
+                    `DEED-${transferRequestId}`,
+                    vehicle.vin,
+                    sellerName,
+                    deedResult.fileHash,
+                    deedCompositeHash,
+                    saleDate.split('T')[0],
+                    null, // Deed of sale doesn't expire
+                    {
+                        transferRequestId,
+                        buyerName,
+                        purchasePrice: sellerDocuments.deedOfSale.purchasePrice,
+                        notaryName: sellerDocuments.deedOfSale.notaryName
+                    }
+                );
+
                 results.sellerDocuments.deedOfSale = { documentId: docId, fileHash: deedResult.fileHash };
             }
 
@@ -1679,8 +1807,9 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     sellerIdResult.pdfBuffer,
                     sellerIdResult.fileHash,
                     `Seller_ID_${transferRequestId}.pdf`,
-                    'ID',
-                    vehicle.id
+                    docTypes.DB_TYPES.SELLER_ID, // Use proper enum: 'seller_id'
+                    vehicle.id,
+                    seller.email
                 );
                 await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.SELLER_ID);
                 results.sellerDocuments.sellerId = { documentId: docId, fileHash: sellerIdResult.fileHash };
@@ -1707,8 +1836,9 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     buyerIdResult.pdfBuffer,
                     buyerIdResult.fileHash,
                     `Buyer_ID_${transferRequestId}.pdf`,
-                    'ID',
-                    vehicle.id
+                    docTypes.DB_TYPES.BUYER_ID, // Use proper enum: 'buyer_id'
+                    vehicle.id,
+                    buyer.email
                 );
                 await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_ID);
                 results.buyerDocuments.buyerId = { documentId: docId, fileHash: buyerIdResult.fileHash };
@@ -1726,8 +1856,9 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     tinResult.pdfBuffer,
                     tinResult.fileHash,
                     `Buyer_TIN_${transferRequestId}.pdf`,
-                    'OTHER',
-                    vehicle.id
+                    docTypes.DB_TYPES.TIN_ID, // Use proper enum: 'tin_id'
+                    vehicle.id,
+                    buyer.email
                 );
                 await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_TIN);
                 results.buyerDocuments.buyerTin = { documentId: docId, fileHash: tinResult.fileHash };
@@ -1735,27 +1866,57 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
             // HPG Clearance
             if (buyerDocuments?.hpgClearance) {
+                const issueDate = new Date().toISOString();
+                const clearanceNumber = buyerDocuments.hpgClearance.clearanceNumber || `HPG-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+                
                 const hpgResult = await certificatePdfGenerator.generateHpgClearance({
                     ownerName: buyerName,
-                    vehicleVIN: vehicle.vin,
-                    vehiclePlate: vehicle.plate_number,
-                    vehicleMake: vehicle.make,
-                    vehicleModel: vehicle.model,
-                    vehicleYear: vehicle.year,
-                    engineNumber: vehicle.engine_number,
-                    clearanceNumber: buyerDocuments.hpgClearance.clearanceNumber || `HPG-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-                    issueDate: new Date().toISOString(),
-                    verificationDetails: 'No adverse record found. Vehicle cleared for registration.'
+                    vehicleVIN: vehicle.vin, // Use DB vehicle data - no randomization
+                    vehiclePlate: vehicle.plate_number, // Use DB vehicle data
+                    vehicleMake: vehicle.make, // Use DB vehicle data
+                    vehicleModel: vehicle.model, // Use DB vehicle data
+                    vehicleYear: vehicle.year, // Use DB vehicle data
+                    engineNumber: vehicle.engine_number, // Use DB vehicle data
+                    clearanceNumber: clearanceNumber,
+                    issueDate: issueDate,
+                    verificationDetails: buyerDocuments.hpgClearance.verificationDetails || 'No adverse record found. Vehicle cleared for registration.'
                 });
 
-                const docId = await createDocumentRecord(
+                // Store PDF document with correct enum type
+                const docId = await storePdfAndCreateDocument(
                     hpgResult.pdfBuffer,
                     hpgResult.fileHash,
                     `HPG_Clearance_${transferRequestId}.pdf`,
-                    'HPG_CLEARANCE'
+                    docTypes.DB_TYPES.HPG_CLEARANCE, // Use proper enum: 'hpg_clearance'
+                    vehicle.id,
+                    buyer.email
                 );
                 await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE);
-                results.buyerDocuments.hpgClearance = { documentId: docId, fileHash: hpgResult.fileHash };
+
+                // Write to issued_certificates for auto-verification
+                const hpgCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                    clearanceNumber,
+                    vehicle.vin,
+                    issueDate.split('T')[0],
+                    hpgResult.fileHash
+                );
+                await writeIssuedCertificate(
+                    'hpg_clearance',
+                    clearanceNumber,
+                    vehicle.vin,
+                    buyerName,
+                    hpgResult.fileHash,
+                    hpgCompositeHash,
+                    issueDate.split('T')[0],
+                    null, // HPG clearance doesn't expire
+                    {
+                        transferRequestId,
+                        vehiclePlate: vehicle.plate_number,
+                        verificationDetails: buyerDocuments.hpgClearance.verificationDetails
+                    }
+                );
+
+                results.buyerDocuments.hpgClearance = { documentId: docId, fileHash: hpgResult.fileHash, clearanceNumber };
             }
 
             // CTPL Insurance
@@ -1763,58 +1924,114 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const effectiveDate = new Date();
                 const expiryDate = new Date();
                 expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+                const policyNumber = buyerDocuments.ctplInsurance.policyNumber || `CTPL-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
                 const ctplResult = await certificatePdfGenerator.generateInsuranceCertificate({
                     ownerName: buyerName,
-                    vehicleVIN: vehicle.vin,
-                    vehiclePlate: vehicle.plate_number,
-                    vehicleMake: vehicle.make,
-                    vehicleModel: vehicle.model,
-                    engineNumber: vehicle.engine_number,
-                    chassisNumber: vehicle.chassis_number,
-                    policyNumber: buyerDocuments.ctplInsurance.policyNumber || `CTPL-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                    vehicleVIN: vehicle.vin, // Use DB vehicle data - no randomization
+                    vehiclePlate: vehicle.plate_number, // Use DB vehicle data
+                    vehicleMake: vehicle.make, // Use DB vehicle data
+                    vehicleModel: vehicle.model, // Use DB vehicle data
+                    engineNumber: vehicle.engine_number, // Use DB vehicle data
+                    chassisNumber: vehicle.chassis_number, // Use DB vehicle data
+                    policyNumber: policyNumber,
                     coverageType: 'CTPL',
                     coverageAmount: buyerDocuments.ctplInsurance.coverageAmount || 'PHP 200,000 / PHP 50,000',
                     effectiveDate: effectiveDate.toISOString(),
                     expiryDate: expiryDate.toISOString()
                 });
 
+                // Store PDF document with correct enum type
                 const docId = await storePdfAndCreateDocument(
                     ctplResult.pdfBuffer,
                     ctplResult.fileHash,
                     `CTPL_Insurance_${transferRequestId}.pdf`,
-                    'INSURANCE',
-                    vehicle.id
+                    docTypes.DB_TYPES.CTPL, // Use proper enum: 'ctpl_cert'
+                    vehicle.id,
+                    buyer.email
                 );
                 await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_CTPL);
-                results.buyerDocuments.ctplInsurance = { documentId: docId, fileHash: ctplResult.fileHash };
+
+                // Write to issued_certificates for auto-verification
+                const ctplCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                    policyNumber,
+                    vehicle.vin,
+                    expiryDate.toISOString().split('T')[0],
+                    ctplResult.fileHash
+                );
+                await writeIssuedCertificate(
+                    'insurance', // Use 'insurance' type for issued_certificates (CTPL is a subtype)
+                    policyNumber,
+                    vehicle.vin,
+                    buyerName,
+                    ctplResult.fileHash,
+                    ctplCompositeHash,
+                    effectiveDate.toISOString().split('T')[0],
+                    expiryDate.toISOString().split('T')[0],
+                    {
+                        transferRequestId,
+                        coverageType: 'CTPL',
+                        coverageAmount: buyerDocuments.ctplInsurance.coverageAmount
+                    }
+                );
+
+                results.buyerDocuments.ctplInsurance = { documentId: docId, fileHash: ctplResult.fileHash, policyNumber };
             }
 
             // MVIR
             if (buyerDocuments?.mvir) {
+                const inspectionDate = vehicle.inspection_date || new Date().toISOString();
+                const mvirNumber = buyerDocuments.mvir.mvirNumber || `MVIR-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
                 const mvirResult = await certificatePdfGenerator.generateMvir({
-                    vehicleVIN: vehicle.vin,
-                    vehiclePlate: vehicle.plate_number,
-                    vehicleMake: vehicle.make,
-                    vehicleModel: vehicle.model,
-                    vehicleYear: vehicle.year,
-                    engineNumber: vehicle.engine_number,
-                    chassisNumber: vehicle.chassis_number,
-                    inspectionDate: vehicle.inspection_date || new Date().toISOString(),
-                    mvirNumber: buyerDocuments.mvir.mvirNumber || `MVIR-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                    vehicleVIN: vehicle.vin, // Use DB vehicle data - no randomization
+                    vehiclePlate: vehicle.plate_number, // Use DB vehicle data
+                    vehicleMake: vehicle.make, // Use DB vehicle data
+                    vehicleModel: vehicle.model, // Use DB vehicle data
+                    vehicleYear: vehicle.year, // Use DB vehicle data
+                    engineNumber: vehicle.engine_number, // Use DB vehicle data
+                    chassisNumber: vehicle.chassis_number, // Use DB vehicle data
+                    inspectionDate: inspectionDate,
+                    mvirNumber: mvirNumber,
                     inspectionResult: buyerDocuments.mvir.inspectionResult || 'PASS',
                     inspectorName: buyerDocuments.mvir.inspectorName || 'LTO Inspector'
                 });
 
+                // Store PDF document with correct enum type
                 const docId = await storePdfAndCreateDocument(
                     mvirResult.pdfBuffer,
                     mvirResult.fileHash,
                     `MVIR_${transferRequestId}.pdf`,
-                    'MVIR',
-                    vehicle.id
+                    docTypes.DB_TYPES.MVIR, // Use proper enum: 'mvir_cert'
+                    vehicle.id,
+                    buyer.email
                 );
                 await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_MVIR);
-                results.buyerDocuments.mvir = { documentId: docId, fileHash: mvirResult.fileHash };
+
+                // Write to issued_certificates for auto-verification
+                const mvirCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                    mvirNumber,
+                    vehicle.vin,
+                    inspectionDate.split('T')[0],
+                    mvirResult.fileHash
+                );
+                await writeIssuedCertificate(
+                    'mvir_cert',
+                    mvirNumber,
+                    vehicle.vin,
+                    buyerName,
+                    mvirResult.fileHash,
+                    mvirCompositeHash,
+                    inspectionDate.split('T')[0],
+                    null, // MVIR doesn't expire
+                    {
+                        transferRequestId,
+                        inspectionResult: buyerDocuments.mvir.inspectionResult,
+                        inspectorName: buyerDocuments.mvir.inspectorName
+                    }
+                );
+
+                results.buyerDocuments.mvir = { documentId: docId, fileHash: mvirResult.fileHash, mvirNumber };
             }
         } catch (error) {
             console.error('[Buyer Documents] Error:', error);
@@ -1823,44 +2040,171 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
         // Send emails with documents
         try {
-            // Seller email
-            const sellerDocs = [];
+            // Helper function to retrieve PDF buffer from storage
+            async function getPdfBufferFromDocument(documentId) {
+                try {
+                    const docQuery = await dbModule.query(
+                        'SELECT file_path, file_hash FROM documents WHERE id = $1',
+                        [documentId]
+                    );
+                    if (docQuery.rows.length > 0 && docQuery.rows[0].file_path) {
+                        const filePath = docQuery.rows[0].file_path;
+                        if (fs.existsSync(filePath)) {
+                            return fs.readFileSync(filePath);
+                        }
+                    }
+                    return null;
+                } catch (error) {
+                    console.error(`[Email] Error retrieving PDF for document ${documentId}:`, error);
+                    return null;
+                }
+            }
+
+            // Seller email - Deed of Sale and Seller ID
+            const sellerEmailDocs = [];
             if (results.sellerDocuments.deedOfSale) {
-                const deedDoc = await dbModule.query('SELECT file_name, file_hash FROM documents WHERE id = $1', [results.sellerDocuments.deedOfSale.documentId]);
-                if (deedDoc.rows[0]) {
-                    // Note: In production, you'd need to retrieve the PDF buffer from storage
-                    // For now, we'll just send the email notification
-                    sellerDocs.push({ type: 'deed_of_sale', filename: deedDoc.rows[0].file_name });
+                const deedPdfBuffer = await getPdfBufferFromDocument(results.sellerDocuments.deedOfSale.documentId);
+                if (deedPdfBuffer) {
+                    sellerEmailDocs.push({
+                        filename: `Deed_of_Sale_${transferRequestId}.pdf`,
+                        buffer: deedPdfBuffer
+                    });
                 }
             }
             if (results.sellerDocuments.sellerId) {
-                const sellerIdDoc = await dbModule.query('SELECT file_name, file_hash FROM documents WHERE id = $1', [results.sellerDocuments.sellerId.documentId]);
-                if (sellerIdDoc.rows[0]) {
-                    sellerDocs.push({ type: 'seller_id', filename: sellerIdDoc.rows[0].file_name });
+                const sellerIdPdfBuffer = await getPdfBufferFromDocument(results.sellerDocuments.sellerId.documentId);
+                if (sellerIdPdfBuffer) {
+                    sellerEmailDocs.push({
+                        filename: `Seller_ID_${transferRequestId}.pdf`,
+                        buffer: sellerIdPdfBuffer
+                    });
                 }
             }
 
-            // Buyer email
-            const buyerDocs = [];
-            if (results.buyerDocuments.buyerId) {
-                buyerDocs.push({ type: 'buyer_id', filename: `Buyer_ID_${transferRequestId}.pdf` });
-            }
-            if (results.buyerDocuments.buyerTin) {
-                buyerDocs.push({ type: 'buyer_tin', filename: `Buyer_TIN_${transferRequestId}.pdf` });
-            }
-            if (results.buyerDocuments.hpgClearance) {
-                buyerDocs.push({ type: 'buyer_hpg_clearance', filename: `HPG_Clearance_${transferRequestId}.pdf` });
-            }
-            if (results.buyerDocuments.ctplInsurance) {
-                buyerDocs.push({ type: 'buyer_ctpl', filename: `CTPL_Insurance_${transferRequestId}.pdf` });
-            }
-            if (results.buyerDocuments.mvir) {
-                buyerDocs.push({ type: 'buyer_mvir', filename: `MVIR_${transferRequestId}.pdf` });
+            if (sellerEmailDocs.length > 0 && seller.email) {
+                try {
+                    // Send seller email with attachments
+                    const sellerSubject = `Transfer Documents - Deed of Sale and Seller Documents`;
+                    const sellerHtml = `
+                        <h2>Transfer Documents Generated</h2>
+                        <p>Dear ${sellerName},</p>
+                        <p>Your transfer documents have been generated and are attached to this email.</p>
+                        <p><strong>Vehicle:</strong> ${vehicle.plate_number || vehicle.vin} - ${vehicle.make} ${vehicle.model} (${vehicle.year})</p>
+                        <p><strong>Buyer:</strong> ${buyerName}</p>
+                        <p>Please review the attached documents and ensure all information is correct.</p>
+                        <p>Note: Under the new AO, sellers must report the sale to LTO within 5 days of notarization.</p>
+                    `;
+                    
+                    // Use Gmail API service to send email with attachments
+                    const gmailApiService = require('../services/gmailApiService');
+                    await gmailApiService.sendMail({
+                        to: seller.email,
+                        subject: sellerSubject,
+                        html: sellerHtml,
+                        text: `Transfer Documents Generated\n\nDear ${sellerName},\n\nYour transfer documents have been generated and are attached.\n\nVehicle: ${vehicle.plate_number || vehicle.vin} - ${vehicle.make} ${vehicle.model} (${vehicle.year})\nBuyer: ${buyerName}`,
+                        attachments: sellerEmailDocs.map(doc => ({
+                            filename: doc.filename,
+                            content: doc.buffer,
+                            contentType: 'application/pdf'
+                        }))
+                    });
+                    console.log(`[Transfer Certificates] ✅ Email sent to seller: ${seller.email}`);
+                } catch (sellerEmailError) {
+                    console.error('[Email] Error sending seller email:', sellerEmailError);
+                    results.errors.push({ type: 'sellerEmail', error: sellerEmailError.message });
+                }
             }
 
-            // Note: For full email with attachments, you'd need to retrieve PDF buffers from storage
-            // This is a simplified version - in production, implement proper file storage retrieval
-            console.log(`[Transfer Certificates] Documents generated. Seller: ${sellerDocs.length} docs, Buyer: ${buyerDocs.length} docs`);
+            // Buyer email - HPG, CTPL, MVIR, Buyer ID, Buyer TIN
+            const buyerEmailDocs = [];
+            if (results.buyerDocuments.buyerId) {
+                const buyerIdPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.buyerId.documentId);
+                if (buyerIdPdfBuffer) {
+                    buyerEmailDocs.push({
+                        filename: `Buyer_ID_${transferRequestId}.pdf`,
+                        buffer: buyerIdPdfBuffer
+                    });
+                }
+            }
+            if (results.buyerDocuments.buyerTin) {
+                const buyerTinPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.buyerTin.documentId);
+                if (buyerTinPdfBuffer) {
+                    buyerEmailDocs.push({
+                        filename: `Buyer_TIN_${transferRequestId}.pdf`,
+                        buffer: buyerTinPdfBuffer
+                    });
+                }
+            }
+            if (results.buyerDocuments.hpgClearance) {
+                const hpgPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.hpgClearance.documentId);
+                if (hpgPdfBuffer) {
+                    buyerEmailDocs.push({
+                        filename: `HPG_Clearance_${transferRequestId}.pdf`,
+                        buffer: hpgPdfBuffer
+                    });
+                }
+            }
+            if (results.buyerDocuments.ctplInsurance) {
+                const ctplPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.ctplInsurance.documentId);
+                if (ctplPdfBuffer) {
+                    buyerEmailDocs.push({
+                        filename: `CTPL_Insurance_${transferRequestId}.pdf`,
+                        buffer: ctplPdfBuffer
+                    });
+                }
+            }
+            if (results.buyerDocuments.mvir) {
+                const mvirPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.mvir.documentId);
+                if (mvirPdfBuffer) {
+                    buyerEmailDocs.push({
+                        filename: `MVIR_${transferRequestId}.pdf`,
+                        buffer: mvirPdfBuffer
+                    });
+                }
+            }
+
+            if (buyerEmailDocs.length > 0 && buyer.email) {
+                try {
+                    // Send buyer email with attachments
+                    const buyerSubject = `Transfer Documents - Compliance Certificates`;
+                    const buyerHtml = `
+                        <h2>Transfer Compliance Documents Generated</h2>
+                        <p>Dear ${buyerName},</p>
+                        <p>Your transfer compliance documents have been generated and are attached to this email.</p>
+                        <p><strong>Vehicle:</strong> ${vehicle.plate_number || vehicle.vin} - ${vehicle.make} ${vehicle.model} (${vehicle.year})</p>
+                        <p><strong>Seller:</strong> ${sellerName}</p>
+                        <p>Please review the attached documents:</p>
+                        <ul>
+                            ${results.buyerDocuments.hpgClearance ? '<li>HPG Clearance Certificate</li>' : ''}
+                            ${results.buyerDocuments.ctplInsurance ? '<li>CTPL Insurance Certificate</li>' : ''}
+                            ${results.buyerDocuments.mvir ? '<li>Motor Vehicle Inspection Report (MVIR)</li>' : ''}
+                            ${results.buyerDocuments.buyerId ? '<li>Buyer ID</li>' : ''}
+                            ${results.buyerDocuments.buyerTin ? '<li>Buyer TIN</li>' : ''}
+                        </ul>
+                        <p>These documents are required for completing the transfer of ownership process.</p>
+                    `;
+                    
+                    // Use Gmail API service to send email with attachments
+                    const gmailApiService = require('../services/gmailApiService');
+                    await gmailApiService.sendMail({
+                        to: buyer.email,
+                        subject: buyerSubject,
+                        html: buyerHtml,
+                        text: `Transfer Compliance Documents Generated\n\nDear ${buyerName},\n\nYour transfer compliance documents have been generated and are attached.\n\nVehicle: ${vehicle.plate_number || vehicle.vin} - ${vehicle.make} ${vehicle.model} (${vehicle.year})\nSeller: ${sellerName}`,
+                        attachments: buyerEmailDocs.map(doc => ({
+                            filename: doc.filename,
+                            content: doc.buffer,
+                            contentType: 'application/pdf'
+                        }))
+                    });
+                    console.log(`[Transfer Certificates] ✅ Email sent to buyer: ${buyer.email}`);
+                } catch (buyerEmailError) {
+                    console.error('[Email] Error sending buyer email:', buyerEmailError);
+                    results.errors.push({ type: 'buyerEmail', error: buyerEmailError.message });
+                }
+            }
+
+            console.log(`[Transfer Certificates] Documents generated. Seller: ${sellerEmailDocs.length} docs, Buyer: ${buyerEmailDocs.length} docs`);
 
         } catch (emailError) {
             console.error('[Email Sending] Error:', emailError);

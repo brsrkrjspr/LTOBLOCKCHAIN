@@ -1335,15 +1335,24 @@
             cursor: pointer;
             padding: 0.5rem;
             margin-right: 1rem;
+            z-index: 1001;
+            position: relative;
+            pointer-events: auto;
         }
 
         .mobile-menu-toggle:hover {
             color: var(--navy-primary);
         }
 
+        .mobile-menu-toggle:active {
+            transform: scale(0.95);
+        }
+
         @media (max-width: 1024px) {
             .mobile-menu-toggle {
-                display: block;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             }
 
             .dashboard-sidebar {
@@ -1918,11 +1927,22 @@
             }
 
             if (mobileMenuToggle) {
+                console.log('Mobile menu toggle button found, attaching event listener');
                 mobileMenuToggle.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    console.log('Mobile menu toggle clicked');
                     toggleMobileSidebar();
                 });
+                // Also add touchstart for better mobile support
+                mobileMenuToggle.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Mobile menu toggle touched');
+                    toggleMobileSidebar();
+                });
+            } else {
+                console.warn('Mobile menu toggle button not found!');
             }
 
             if (sidebarOverlay) {

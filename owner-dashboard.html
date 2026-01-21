@@ -1418,15 +1418,24 @@
             cursor: pointer;
             padding: 0.5rem;
             margin-right: 1rem;
+            z-index: 1001;
+            position: relative;
+            pointer-events: auto;
         }
 
         .mobile-menu-toggle:hover {
             color: var(--navy-primary);
         }
 
+        .mobile-menu-toggle:active {
+            transform: scale(0.95);
+        }
+
         @media (max-width: 1024px) {
             .mobile-menu-toggle {
-                display: block;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             }
 
             .dashboard-sidebar {
@@ -2099,6 +2108,77 @@
             // Also handle hash changes (in case user navigates with back/forward buttons)
             window.addEventListener('hashchange', scrollToHashSection);
 
+            // Mobile menu toggle
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            
+            function toggleMobileSidebar() {
+                if (sidebar && window.innerWidth <= 1024) {
+                    sidebar.classList.toggle('mobile-open');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.toggle('active');
+                    }
+                    document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+                }
+            }
+
+            function closeMobileSidebar() {
+                if (sidebar) {
+                    sidebar.classList.remove('mobile-open');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.remove('active');
+                    }
+                    document.body.style.overflow = '';
+                }
+            }
+
+            if (mobileMenuToggle) {
+                console.log('Mobile menu toggle button found, attaching event listener');
+                mobileMenuToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Mobile menu toggle clicked');
+                    toggleMobileSidebar();
+                });
+                // Also add touchstart for better mobile support
+                mobileMenuToggle.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Mobile menu toggle touched');
+                    toggleMobileSidebar();
+                });
+            } else {
+                console.warn('Mobile menu toggle button not found!');
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    closeMobileSidebar();
+                });
+            }
+
+            // Close sidebar when clicking on nav items (mobile)
+            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        closeMobileSidebar();
+                    }
+                });
+            });
+
+            // Handle window resize
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    if (window.innerWidth > 1024) {
+                        closeMobileSidebar();
+                    }
+                    convertTablesToCards();
+                }, 250);
+            });
+
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
@@ -2163,6 +2243,8 @@
             
             // Convert tables to cards on mobile
             convertTablesToCards();
+            
+            // Handle window resize for responsive updates (already handled above, but keeping for compatibility)
         });
         
         

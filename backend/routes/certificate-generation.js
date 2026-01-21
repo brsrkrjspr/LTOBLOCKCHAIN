@@ -1037,8 +1037,10 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             engineNumber,
             chassisNumber,
             bodyType,
+            vehicleType,
             color,
             fuelType,
+            fuelType: bodyFuelType, // alias/backward-compatibility
             // Optional certificate-specific overrides
             insurance,
             emission,
@@ -1180,9 +1182,9 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             year: vehicleYear || new Date().getFullYear(),
             engineNumber: engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
             chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber(),
-            bodyType: bodyType || 'Sedan',
+            bodyType: bodyType || vehicleType || 'Sedan',
             color: color || 'White',
-            fuelType: fuelType || 'Gasoline'
+            fuelType: fuelType || bodyFuelType || 'Gasoline'
         };
 
         // Common issuance date (same for all certificates)
@@ -1238,6 +1240,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                 vehicleModel: sharedVehicleData.model,
                 engineNumber: sharedVehicleData.engineNumber,
                 chassisNumber: sharedVehicleData.chassisNumber,
+                bodyType: sharedVehicleData.bodyType,
                 policyNumber: certificateNumbers.insurance,
                 coverageType: insurance?.coverageType || 'CTPL',
                 coverageAmount: insurance?.coverageAmount || 'PHP 200,000 / PHP 50,000',

@@ -301,6 +301,25 @@
                                                class="form-control" placeholder="ABC1234567890">
                                     </div>
                                 </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="vehicleType">Vehicle Type</label>
+                                        <input type="text" id="vehicleType" name="vehicleType" 
+                                               class="form-control" placeholder="e.g., Sedan, SUV, MC">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="fuelType">Fuel Type</label>
+                                        <select id="fuelType" name="fuelType" class="form-control">
+                                            <option value="">Select Fuel Type</option>
+                                            <option value="Gasoline">Gasoline</option>
+                                            <option value="Diesel">Diesel</option>
+                                            <option value="Electric">Electric</option>
+                                            <option value="Hybrid">Hybrid</option>
+                                            <option value="LPG">LPG</option>
+                                            <option value="CNG">CNG</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="button-group" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
@@ -414,7 +433,9 @@
                         vehicleModel: form.vehicleModel.value.trim() || undefined,
                         vehicleYear: form.vehicleYear.value ? parseInt(form.vehicleYear.value) : undefined,
                         engineNumber: form.engineNumber.value.trim() || undefined,
-                        chassisNumber: form.chassisNumber.value.trim() || undefined
+                        chassisNumber: form.chassisNumber.value.trim() || undefined,
+                        vehicleType: form.vehicleType.value.trim() || undefined,
+                        fuelType: form.fuelType.value || undefined
                     };
                 }
 

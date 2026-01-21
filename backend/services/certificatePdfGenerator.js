@@ -203,6 +203,7 @@ class CertificatePdfGenerator {
             vehicleModel,
             engineNumber,
             chassisNumber,
+            bodyType,
             policyNumber,
             coverageType,
             coverageAmount,
@@ -290,6 +291,13 @@ class CertificatePdfGenerator {
         htmlTemplate = htmlTemplate.replace(
             /(Model: <input value=")[^"]*(")/,
             `$1${finalModel}$2`
+        );
+        
+        // Vehicle Type - match the full line
+        const finalBodyType = bodyType || 'Sedan';
+        htmlTemplate = htmlTemplate.replace(
+            /(Vehicle Type: <input value=")[^"]*(")/,
+            `$1${finalBodyType}$2`
         );
         
         // Engine No. - match the full line

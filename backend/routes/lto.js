@@ -58,7 +58,7 @@ const upload = multer({
 // Perform LTO vehicle inspection
 router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
-        const { vehicleId, inspectionResult, roadworthinessStatus, emissionCompliance, inspectionOfficer, inspectionNotes } = req.body;
+        const { vehicleId, inspectionResult, roadworthinessStatus, inspectionOfficer, inspectionNotes } = req.body;
         
         if (!vehicleId) {
             return res.status(400).json({
@@ -68,17 +68,16 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
         }
 
         // Validate required fields
-        if (!inspectionResult || !roadworthinessStatus || !emissionCompliance) {
+        if (!inspectionResult || !roadworthinessStatus) {
             return res.status(400).json({
                 success: false,
-                error: 'Inspection result, roadworthiness status, and emission compliance are required'
+                error: 'Inspection result and roadworthiness status are required'
             });
         }
 
         // Validate values
         const validResults = ['PASS', 'FAIL', 'PENDING'];
         const validRoadworthiness = ['ROADWORTHY', 'NOT_ROADWORTHY'];
-        const validCompliance = ['COMPLIANT', 'NON_COMPLIANT'];
 
         if (!validResults.includes(inspectionResult)) {
             return res.status(400).json({
@@ -91,13 +90,6 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
             return res.status(400).json({
                 success: false,
                 error: `Invalid roadworthiness status. Must be one of: ${validRoadworthiness.join(', ')}`
-            });
-        }
-
-        if (!validCompliance.includes(emissionCompliance)) {
-            return res.status(400).json({
-                success: false,
-                error: `Invalid emission compliance. Must be one of: ${validCompliance.join(', ')}`
             });
         }
 
@@ -128,7 +120,6 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
         const inspectionResult_data = await db.assignMvirNumber(vehicleId, {
             inspectionResult,
             roadworthinessStatus,
-            emissionCompliance,
             inspectionOfficer: officerName,
             inspectionNotes: inspectionNotes || null
         });
@@ -137,14 +128,13 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
         await db.addVehicleHistory({
             vehicleId,
             action: 'LTO_INSPECTION_COMPLETED',
-            description: `LTO inspection completed. Result: ${inspectionResult}, Roadworthiness: ${roadworthinessStatus}, Emission: ${emissionCompliance}. MVIR: ${inspectionResult_data.mvirNumber}`,
+            description: `LTO inspection completed. Result: ${inspectionResult}, Roadworthiness: ${roadworthinessStatus}. MVIR: ${inspectionResult_data.mvirNumber}`,
             performedBy: req.user.userId,
             transactionId: null,
             metadata: {
                 mvirNumber: inspectionResult_data.mvirNumber,
                 inspectionResult,
                 roadworthinessStatus,
-                emissionCompliance,
                 inspectionOfficer: officerName
             }
         });
@@ -177,7 +167,6 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
                                 inspectionDate: inspectionResult_data.inspectionDate,
                                 inspectionResult,
                                 roadworthinessStatus,
-                                emissionCompliance,
                                 inspectionOfficer: officerName
                             }
                         }
@@ -231,7 +220,6 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
                 inspectionDate: inspectionResult_data.inspectionDate,
                 inspectionResult,
                 roadworthinessStatus,
-                emissionCompliance,
                 inspectionOfficer: officerName,
                 inspectionNotes: inspectionNotes || null
             },
@@ -421,7 +409,6 @@ router.get('/inspection/:vehicleId', authenticateToken, authorizeRole(['admin', 
                 inspectionDate: vehicle.inspection_date,
                 inspectionResult: vehicle.inspection_result,
                 roadworthinessStatus: vehicle.roadworthiness_status,
-                emissionCompliance: vehicle.emission_compliance,
                 inspectionOfficer: vehicle.inspection_officer,
                 inspectionNotes: vehicle.inspection_notes
             }
@@ -488,15 +475,10 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             }
         }
         
-        // Emission verification is tracked in the system but is *not* a hard blocker for final LTO approval.
-        // We still fetch it for logging/observability, but it does not contribute to pending/rejected approvals.
-        const emissionVerification = verifications.find(v => v.verification_type === 'emission');
-        
         // Log validation check for debugging
         console.log(`[LTO Approval] Checking verifications for vehicle ${vehicleId}:`, {
             hpg: hpgRequest ? hpgRequest.status : 'MISSING',
             insurance: insuranceVerification ? insuranceVerification.status : 'MISSING',
-            emission: emissionVerification ? emissionVerification.status : 'MISSING',
             pendingApprovals,
             rejectedApprovals
         });
@@ -567,7 +549,6 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     const inspectionResult = await db.assignMvirNumber(vehicleId, {
                         inspectionResult: 'PASS',
                         roadworthinessStatus: 'ROADWORTHY',
-                        emissionCompliance: 'COMPLIANT',
                         inspectionOfficer: officerName,
                         inspectionNotes: 'Auto-generated during approval process (transfer of ownership)'
                     });

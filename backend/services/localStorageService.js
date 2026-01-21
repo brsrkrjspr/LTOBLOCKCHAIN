@@ -32,7 +32,6 @@ class LocalStorageService {
                 this.metadataPath,
                 path.join(this.documentsPath, 'registration'),
                 path.join(this.documentsPath, 'insurance'),
-                path.join(this.documentsPath, 'emission'),
                 path.join(this.documentsPath, 'identity')
             ];
 
@@ -89,7 +88,6 @@ class LocalStorageService {
         const pathMap = {
             'registrationCert': path.join(this.documentsPath, 'registration'),
             'insuranceCert': path.join(this.documentsPath, 'insurance'),
-            'emissionCert': path.join(this.documentsPath, 'emission'),
             'ownerId': path.join(this.documentsPath, 'identity')
         };
 

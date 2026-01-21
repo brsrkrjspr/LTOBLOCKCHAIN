@@ -273,11 +273,6 @@ router.get('/status', optionalAuth, (req, res) => {
                     name: 'peer0.insurance.example.com',
                     status: fabricStatus.isConnected ? 'UP' : 'DOWN',
                     port: 8051
-                },
-                {
-                    name: 'peer0.emission.example.com',
-                    status: fabricStatus.isConnected ? 'UP' : 'DOWN',
-                    port: 9051
                 }
             ],
             orderer: {

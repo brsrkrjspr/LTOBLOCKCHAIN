@@ -102,8 +102,7 @@ class FraudDetectionService {
 
         // Check 4: Missing Critical Fields (0.1 points per missing field)
         const criticalFields = {
-            insurance: ['policyNumber', 'expiryDate', 'insuranceCompany'],
-            emission: ['testDate', 'expiryDate', 'testCenter', 'co', 'hc', 'smoke']
+            insurance: ['policyNumber', 'expiryDate', 'insuranceCompany']
         };
         
         if (documentData.documentType === 'insurance') {
@@ -118,46 +117,10 @@ class FraudDetectionService {
                     fraudScore += 0.1;
                 }
             }
-        } else if (documentData.documentType === 'emission') {
-            for (const field of criticalFields.emission) {
-                if (!documentData[field]) {
-                    fraudIndicators.push({
-                        type: 'MISSING_FIELD',
-                        severity: 'medium',
-                        message: `Missing critical field: ${field}`,
-                        score: 0.1
-                    });
-                    fraudScore += 0.1;
-                }
-            }
         }
 
         // Check 5: Suspicious Values (0.15 points)
-        if (documentData.documentType === 'emission' && documentData.co !== undefined) {
-            // Emission values that are too perfect (exactly at limits) might be suspicious
-            if (documentData.co === 4.5 || documentData.hc === 600 || documentData.smoke === 50) {
-                fraudIndicators.push({
-                    type: 'SUSPICIOUS_VALUES',
-                    severity: 'low',
-                    message: 'Test results are exactly at compliance limits',
-                    score: 0.05
-                });
-                fraudScore += 0.05;
-            }
-            
-            // Values that exceed limits but document shows passed
-            if (documentData.status === 'PASSED' || documentData.status === 'PASS') {
-                if (documentData.co > 4.5 || documentData.hc > 600 || documentData.smoke > 50) {
-                    fraudIndicators.push({
-                        type: 'FAILED_BUT_PASSED',
-                        severity: 'high',
-                        message: 'Test results exceed limits but document shows passed',
-                        score: 0.2
-                    });
-                    fraudScore += 0.2;
-                }
-            }
-        }
+        // (Emission-related suspicious value checks removed)
 
         // Check 6: Known Fraud Patterns (0.2 points)
         const knownFraudPatterns = [

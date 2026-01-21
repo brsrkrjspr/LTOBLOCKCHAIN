@@ -5,10 +5,10 @@
 // Certificate generation by LTO system has been discontinued.
 // 
 // REASON:
-// LTO cannot legally generate insurance, emission, or HPG certificates.
+// LTO cannot legally generate insurance or HPG certificates.
 // These must be issued by authorized external organizations only:
 // - Insurance Certificates: Issued by Insurance Companies
-// - Emission Certificates: Issued by Emission Testing Centers  
+// - (Emission certificates removed from this system)
 // - HPG Clearances: Issued by Philippine National Police - HPG
 // 
 // NEW PROCESS:
@@ -47,7 +47,7 @@ class CertificateGeneratorService {
 
     /**
      * Generate unique certificate number
-     * @param {string} type - Certificate type: 'insurance', 'emission', 'hpg'
+     * @param {string} type - Certificate type: 'insurance', 'hpg'
      * @param {string} vehicleVIN - Vehicle VIN
      * @param {number} sequence - Sequence number (from database)
      * @returns {string} Certificate number
@@ -60,8 +60,6 @@ class CertificateGeneratorService {
         switch (type) {
             case 'insurance':
                 return `CTPL-${year}-${String(sequence).padStart(6, '0')}`;
-            case 'emission':
-                return `ETC-${dateStr}-${String(sequence).padStart(3, '0')}`;
             case 'hpg':
                 return `HPG-${year}-${String(sequence).padStart(6, '0')}`;
             default:
@@ -190,27 +188,6 @@ class CertificateGeneratorService {
             'DEPRECATED: generateInsuranceCertificate() is no longer supported.\n' +
             'Insurance certificates must be issued by authorized insurance companies.\n' +
             'Use POST /api/issuer/insurance/issue-certificate instead.\n' +
-            'Migration deadline: 2026-02-17'
-        );
-    }
-
-    /**
-     * DEPRECATED - Generate Emission Certificate
-     * @deprecated Use POST /api/issuer/emission/issue-certificate instead
-     * @param {Object} vehicleData - Vehicle information
-     * @param {Object} ownerData - Owner information
-     * @param {string} certificateNumber - Certificate number (optional)
-     * @returns {Promise<Object>} Certificate data with PDF buffer and hash
-     */
-    async generateEmissionCertificate(vehicleData, ownerData, certificateNumber = null) {
-        console.error('❌ DEPRECATED METHOD: generateEmissionCertificate()');
-        console.error('   Use POST /api/issuer/emission/issue-certificate instead');
-        console.error('   This method will be removed on 2026-02-17');
-        
-        throw new Error(
-            'DEPRECATED: generateEmissionCertificate() is no longer supported.\n' +
-            'Emission certificates must be issued by authorized emission testing centers.\n' +
-            'Use POST /api/issuer/emission/issue-certificate instead.\n' +
             'Migration deadline: 2026-02-17'
         );
     }

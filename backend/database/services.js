@@ -1347,10 +1347,6 @@ async function getRegistrationProgress(vehicleId) {
             status: vehicle.status !== 'SUBMITTED' ? 'completed' : 'pending',
             date: vehicle.registration_date || vehicle.created_at
         },
-        emissionTest: {
-            status: 'pending',
-            date: null
-        },
         insuranceVerification: {
             status: 'pending',
             date: null
@@ -1368,16 +1364,6 @@ async function getRegistrationProgress(vehicleId) {
             date: vehicle.status === 'REGISTERED' ? vehicle.last_updated : null
         }
     };
-    
-    // Check emission verification
-    const emissionVerification = verifications.find(v => v.verification_type === 'emission');
-    if (emissionVerification) {
-        progress.emissionTest = {
-            status: emissionVerification.status === 'APPROVED' ? 'completed' : 
-                   emissionVerification.status === 'REJECTED' ? 'rejected' : 'pending',
-            date: emissionVerification.verified_at
-        };
-    }
     
     // Check insurance verification
     const insuranceVerification = verifications.find(v => v.verification_type === 'insurance');
@@ -1408,7 +1394,7 @@ async function getRegistrationProgress(vehicleId) {
     }
     
     // Finalization status (when all verifications are approved but not yet registered)
-    const allVerificationsApproved = verifications.length >= 3 && 
+    const allVerificationsApproved = verifications.length >= 2 && 
                                      verifications.every(v => v.status === 'APPROVED');
     if (allVerificationsApproved && vehicle.status !== 'REGISTERED') {
         progress.finalization = {

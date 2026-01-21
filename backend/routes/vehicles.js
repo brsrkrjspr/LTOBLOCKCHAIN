@@ -578,10 +578,6 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
                 status: 'pending',
                 date: null
             },
-            emissionTest: {
-                status: 'pending',
-                date: null
-            },
             // LTO inspection is not part of the NEW_REG registration application workflow.
             // It is only relevant for transfer-of-ownership scenarios. For registration
             // progress, we explicitly mark this step as not applicable.
@@ -641,27 +637,6 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
             }
         }
         
-        // Check Emission test
-        const emissionVerification = verifications.find(v => v.organization_type === 'emission');
-        if (emissionVerification) {
-            if (emissionVerification.status === 'APPROVED') {
-                progress.emissionTest = {
-                    status: 'completed',
-                    date: emissionVerification.verified_at || emissionVerification.created_at
-                };
-            } else if (emissionVerification.status === 'PENDING') {
-                progress.emissionTest = {
-                    status: 'pending',
-                    date: emissionVerification.created_at
-                };
-            } else if (emissionVerification.status === 'REJECTED') {
-                progress.emissionTest = {
-                    status: 'rejected',
-                    date: emissionVerification.verified_at
-                };
-            }
-        }
-        
         // NOTE: LTO inspection (MVIR) is intentionally excluded from the registration
         // progress timeline. Inspection/MVIR is handled only for transfer-of-ownership
         // workflows and should not appear as a registration application step.
@@ -714,7 +689,7 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
         // Allow: admins, vehicle owners, and verifiers (for verification purposes)
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier' || req.user.role === 'hpg_admin';
+        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
         
         // Debug logging in development
         if (process.env.NODE_ENV === 'development') {
@@ -775,7 +750,7 @@ router.get('/:vin', authenticateToken, async (req, res) => {
         // Allow: admins, vehicle owners, and verifiers (for verification purposes)
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'emission_verifier';
+        const isVerifier = req.user.role === 'insurance_verifier';
         
         // Debug logging (temporary)
         if (process.env.NODE_ENV === 'development') {
@@ -1626,7 +1601,7 @@ LTO Lipa City Team
             // Email is a notification, not critical to the registration process
         }
 
-        // Automatically send clearance requests to organizations
+        // Automatically send clearance requests to organizations (emission removed)
         let autoSendResults = null;
         try {
             const clearanceService = require('../services/clearanceService');
@@ -1638,8 +1613,7 @@ LTO Lipa City Team
             );
             console.log('✅ Auto-sent clearance requests:', {
                 hpg: autoSendResults.hpg.sent ? 'Yes' : 'No',
-                insurance: autoSendResults.insurance.sent ? 'Yes' : 'No',
-                emission: autoSendResults.emission.sent ? 'Yes' : 'No'
+                insurance: autoSendResults.insurance.sent ? 'Yes' : 'No'
             });
         } catch (autoSendError) {
             console.error('❌ Failed to auto-send clearance requests:', autoSendError);
@@ -1659,15 +1633,6 @@ LTO Lipa City Team
                     reason: autoSendResults.insurance.autoVerification.reason
                 };
             }
-            if (autoSendResults.emission.autoVerification) {
-                autoVerificationSummary.emission = {
-                    status: autoSendResults.emission.autoVerification.status,
-                    automated: autoSendResults.emission.autoVerification.automated,
-                    score: autoSendResults.emission.autoVerification.score,
-                    confidence: autoSendResults.emission.autoVerification.confidence,
-                    reason: autoSendResults.emission.autoVerification.reason
-                };
-            }
             if (autoSendResults.hpg.autoVerification) {
                 autoVerificationSummary.hpg = {
                     status: autoSendResults.hpg.autoVerification.status,
@@ -1685,8 +1650,7 @@ LTO Lipa City Team
             blockchainStatus: blockchainTxId ? 'REGISTERED' : 'PENDING',
             clearanceRequests: autoSendResults ? {
                 hpg: autoSendResults.hpg.sent,
-                insurance: autoSendResults.insurance.sent,
-                emission: autoSendResults.emission.sent
+                insurance: autoSendResults.insurance.sent
             } : null,
             autoVerification: Object.keys(autoVerificationSummary).length > 0 ? autoVerificationSummary : null
         });
@@ -1810,13 +1774,13 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin']), async 
 });
 
 // Update vehicle verification status
-router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'insurance_verifier', 'emission_verifier']), async (req, res) => {
+router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {
         const { vin } = req.params;
         const { verificationType, status, notes } = req.body;
 
         // Validate verification type
-        const validTypes = ['insurance', 'emission', 'admin'];
+        const validTypes = ['insurance', 'admin'];
         if (!validTypes.includes(verificationType)) {
             return res.status(400).json({
                 success: false,
@@ -1835,13 +1799,6 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
 
         // Check role permissions
         if (req.user.role === 'insurance_verifier' && verificationType !== 'insurance') {
-            return res.status(403).json({
-                success: false,
-                error: 'Insufficient permissions for this verification type'
-            });
-        }
-
-        if (req.user.role === 'emission_verifier' && verificationType !== 'emission') {
             return res.status(403).json({
                 success: false,
                 error: 'Insufficient permissions for this verification type'

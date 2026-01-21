@@ -107,8 +107,6 @@ function generateCertificateNumber(issuerType) {
     switch (issuerType) {
         case 'insurance':
             return `CTPL-${year}-${random}`;
-        case 'emission':
-            return `ETC-${year}${month}${day}-${random}`;
         case 'hpg':
             return `HPG-${year}-${random}`;
         default:
@@ -137,7 +135,7 @@ async function storeCertificateHashOnBlockchain(compositeHash, metadata) {
         const result = await fabricService.updateVerificationStatus(
             metadata.vehicleVIN,
             metadata.certificateType,
-            'ISSUED',
+            'APPROVED',
             notes
         );
 
@@ -299,143 +297,6 @@ router.post('/insurance/issue-certificate',
             res.status(500).json({
                 success: false,
                 error: 'Failed to issue insurance certificate',
-                details: error.message
-            });
-        }
-    }
-);
-
-// ============================================
-// EMISSION CERTIFICATE ISSUANCE
-// ============================================
-
-/**
- * Issue Emission Test Certificate
- * POST /api/issuer/emission/issue-certificate
- */
-router.post('/emission/issue-certificate',
-    authenticateIssuer,
-    authorizeIssuerType(['emission']),
-    async (req, res) => {
-        try {
-            const {
-                vehicleVIN,
-                ownerName,
-                testResults,
-                testDate,
-                expiryDate,
-                inspectorName,
-                certificateFile
-            } = req.body;
-
-            // Validation
-            if (!vehicleVIN || !ownerName || !testResults || !certificateFile) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required fields'
-                });
-            }
-
-            // Validate test results format
-            if (!testResults.result || !['PASS', 'FAIL'].includes(testResults.result)) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Invalid test results - must include result: PASS or FAIL'
-                });
-            }
-
-            // Generate certificate number
-            const certificateNumber = generateCertificateNumber('emission');
-
-            // Calculate hashes
-            const buffer = Buffer.from(certificateFile, 'base64');
-            const fileHash = calculateFileHash(buffer);
-            const compositeHash = generateCompositeHash(
-                certificateNumber,
-                vehicleVIN,
-                expiryDate,
-                fileHash
-            );
-
-            // Check for duplicate
-            const duplicateCheck = await db.query(
-                'SELECT id FROM issued_certificates WHERE file_hash = $1',
-                [fileHash]
-            );
-
-            if (duplicateCheck.rows && duplicateCheck.rows.length > 0) {
-                return res.status(409).json({
-                    success: false,
-                    error: 'Duplicate certificate detected'
-                });
-            }
-
-            // Store on blockchain
-            let blockchainTxId = null;
-            try {
-                const blockchainResult = await storeCertificateHashOnBlockchain(compositeHash, {
-                    certificateNumber,
-                    vehicleVIN,
-                    certificateType: 'emission',
-                    issuer: req.issuer.name,
-                    issuedAt: new Date().toISOString(),
-                    fileHash
-                });
-                blockchainTxId = blockchainResult.transactionId;
-            } catch (blockchainError) {
-                console.error('Blockchain storage failed:', blockchainError);
-            }
-
-            // Store in database
-            const certificate = await db.query(
-                `INSERT INTO issued_certificates 
-                (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                 file_hash, composite_hash, issued_at, expires_at, blockchain_tx_id, metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                RETURNING *`,
-                [
-                    req.issuer.id,
-                    'emission',
-                    certificateNumber,
-                    vehicleVIN,
-                    ownerName,
-                    fileHash,
-                    compositeHash,
-                    new Date(testDate),
-                    new Date(expiryDate),
-                    blockchainTxId,
-                    JSON.stringify({
-                        testResults,
-                        inspectorName,
-                        issued_by: req.issuer.name,
-                        issued_at: new Date().toISOString()
-                    })
-                ]
-            );
-
-            res.json({
-                success: true,
-                message: 'Emission test certificate issued successfully',
-                certificate: {
-                    id: certificate.rows[0].id,
-                    certificateNumber: certificate.rows[0].certificate_number,
-                    vehicleVIN: certificate.rows[0].vehicle_vin,
-                    ownerName: certificate.rows[0].owner_name,
-                    testResult: testResults.result,
-                    fileHash: certificate.rows[0].file_hash,
-                    compositeHash: certificate.rows[0].composite_hash,
-                    issuedAt: certificate.rows[0].issued_at,
-                    expiresAt: certificate.rows[0].expires_at,
-                    blockchainTxId: blockchainTxId,
-                    verificationCode: compositeHash.substring(0, 16).toUpperCase()
-                }
-            });
-
-        } catch (error) {
-            console.error('Emission certificate issuance error:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Failed to issue emission test certificate',
                 details: error.message
             });
         }

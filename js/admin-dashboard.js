@@ -283,26 +283,23 @@ async function loadOrgVerificationStatus() {
             response = null;
         }
         
-        let hpgRequests = [], insuranceRequests = [], emissionRequests = [];
+        let hpgRequests = [], insuranceRequests = [];
         let stats = null;
         
         if (response && response.success) {
             // Use consolidated response
             hpgRequests = response.grouped?.hpg || [];
             insuranceRequests = response.grouped?.insurance || [];
-            emissionRequests = response.grouped?.emission || [];
             stats = response.stats;
         } else {
-            // Fallback to individual endpoints
-            const [hpgResponse, insuranceResponse, emissionResponse] = await Promise.all([
+            // Fallback to individual endpoints (HPG + Insurance only)
+            const [hpgResponse, insuranceResponse] = await Promise.all([
                 apiClient.get('/api/hpg/requests').catch(e => ({ success: false, requests: [] })),
-                apiClient.get('/api/insurance/requests').catch(e => ({ success: false, requests: [] })),
-                apiClient.get('/api/emission/requests').catch(e => ({ success: false, requests: [] }))
+                apiClient.get('/api/insurance/requests').catch(e => ({ success: false, requests: [] }))
             ]);
             
             hpgRequests = hpgResponse.requests || [];
             insuranceRequests = insuranceResponse.requests || [];
-            emissionRequests = emissionResponse.requests || [];
         }
         
         // Calculate stats if not provided
@@ -317,11 +314,6 @@ async function loadOrgVerificationStatus() {
                     pending: insuranceRequests.filter(r => r.status === 'PENDING').length,
                     approved: insuranceRequests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED').length,
                     rejected: insuranceRequests.filter(r => r.status === 'REJECTED').length
-                },
-                emission: {
-                    pending: emissionRequests.filter(r => r.status === 'PENDING').length,
-                    approved: emissionRequests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED').length,
-                    rejected: emissionRequests.filter(r => r.status === 'REJECTED').length
                 }
             };
         }
@@ -342,19 +334,10 @@ async function loadOrgVerificationStatus() {
         if (insuranceApprovedEl) insuranceApprovedEl.textContent = stats.insurance.approved + (stats.insurance.completed || 0);
         if (insuranceRejectedEl) insuranceRejectedEl.textContent = stats.insurance.rejected;
         
-        // Update Emission counts (with null checks)
-        const emissionPendingEl = document.getElementById('emissionPendingCount');
-        const emissionApprovedEl = document.getElementById('emissionApprovedCount');
-        const emissionRejectedEl = document.getElementById('emissionRejectedCount');
-        if (emissionPendingEl) emissionPendingEl.textContent = stats.emission.pending;
-        if (emissionApprovedEl) emissionApprovedEl.textContent = stats.emission.approved + (stats.emission.completed || 0);
-        if (emissionRejectedEl) emissionRejectedEl.textContent = stats.emission.rejected;
-        
         // Combine all requests and sort by date for the table
         const allRequests = [
             ...hpgRequests.map(r => ({ ...r, orgType: 'HPG', orgIcon: 'fa-shield-alt', orgColor: '#2c3e50' })),
-            ...insuranceRequests.map(r => ({ ...r, orgType: 'Insurance', orgIcon: 'fa-file-shield', orgColor: '#3498db' })),
-            ...emissionRequests.map(r => ({ ...r, orgType: 'Emission', orgIcon: 'fa-leaf', orgColor: '#16a085' }))
+            ...insuranceRequests.map(r => ({ ...r, orgType: 'Insurance', orgIcon: 'fa-file-shield', orgColor: '#3498db' }))
         ].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
         
         // Render the verification responses table (with null check)
@@ -2791,9 +2774,12 @@ async function approveApplication(applicationId) {
         }
         
         const vehicle = vehicleResponse.vehicle;
+        const originType = vehicle.origin_type || vehicle.originType || 'NEW_REG';
+        const isTransferWorkflow = originType === 'TRANSFER';
         
-        // Check if inspection is required but missing
-        if (!vehicle.mvir_number) {
+        // Only transfers require MVIR/inspection before approval.
+        // Registrations MUST NOT be gated by inspection.
+        if (isTransferWorkflow && !vehicle.mvir_number) {
             const proceedWithoutInspection = await ConfirmationDialog.show({
                 title: 'Inspection Required',
                 message: 'This vehicle has not been inspected yet. Inspection is required before approval per LTO Citizen Charter. Do you want to proceed anyway? (Inspection will be auto-generated)',

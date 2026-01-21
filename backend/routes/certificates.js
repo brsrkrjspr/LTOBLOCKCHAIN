@@ -20,7 +20,7 @@ const storageService = require('../services/storageService');
  * ⚠️ DEPRECATION NOTICE:
  * This endpoint is DEPRECATED as of 2026-01-17.
  * 
- * REASON: LTO cannot generate insurance, emission, or HPG certificates.
+ * REASON: LTO cannot generate insurance or HPG certificates.
  * These must be issued by the authorized external organizations:
  * - Insurance: Insurance Companies
  * - Emission: Emission Testing Centers
@@ -29,7 +29,7 @@ const storageService = require('../services/storageService');
  * MIGRATION PATH:
  * 1. External organizations issue certificates using:
  *    POST /api/issuer/insurance/issue-certificate
- *    POST /api/issuer/emission/issue-certificate
+ *    (Emission issuer endpoints removed)
  *    POST /api/issuer/hpg/issue-clearance
  * 
  * 2. Vehicle owners upload certificates using:
@@ -80,7 +80,7 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
             });
         }
 
-        const certificateTypes = types || ['insurance', 'emission', 'hpg'];
+        const certificateTypes = types || ['insurance', 'hpg'];
         const results = [];
 
         // Get vehicle and owner data
@@ -110,7 +110,6 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                 const existingCerts = await db.getCertificatesByVehicle(vehicleId);
                 const existingCert = existingCerts.find(c => {
                     if (certType === 'insurance') return c.certificate_type === 'insurance';
-                    if (certType === 'emission') return c.certificate_type === 'emission';
                     if (certType === 'hpg') return c.certificate_type === 'hpg_clearance';
                     return false;
                 });
@@ -128,12 +127,6 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                 // Generate certificate
                 if (certType === 'insurance') {
                     certificateResult = await certificateGenerator.generateInsuranceCertificate(
-                        vehicle,
-                        owner,
-                        certificateNumber
-                    );
-                } else if (certType === 'emission') {
-                    certificateResult = await certificateGenerator.generateEmissionCertificate(
                         vehicle,
                         owner,
                         certificateNumber
@@ -172,7 +165,7 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                             size: certificateResult.pdfBuffer.length
                         },
                         certType === 'insurance' ? 'insurance_cert' : 
-                        certType === 'emission' ? 'emission_cert' : 'hpg_clearance',
+                        'hpg_clearance',
                         vehicle.vin,
                         req.user.email
                     );
@@ -185,7 +178,7 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                 const document = await db.createDocument({
                     vehicleId: vehicleId,
                     documentType: certType === 'insurance' ? 'insurance_cert' : 
-                                  certType === 'emission' ? 'emission_cert' : 'hpg_clearance',
+                                  'hpg_clearance',
                     filename: filename,
                     originalName: filename,
                     filePath: filePath,
@@ -197,7 +190,7 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                 });
 
                 // Generate composite hash
-                const expiryDate = certType === 'insurance' || certType === 'emission' 
+                const expiryDate = certType === 'insurance'
                     ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year from now
                     : new Date().toISOString();
 
@@ -216,7 +209,7 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                     filePath: filePath,
                     ipfsCid: storageResult.cid || null,
                     issuedBy: req.user.userId,
-                    expiresAt: certType === 'insurance' || certType === 'emission' 
+                    expiresAt: certType === 'insurance'
                         ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) 
                         : null,
                     status: 'ISSUED',

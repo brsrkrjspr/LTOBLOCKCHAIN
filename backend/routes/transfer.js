@@ -34,9 +34,7 @@ const VEHICLE_STATUS = {
 
 const TRANSFER_DEADLINE_DAYS = 3;
 
-// Feature flag: Emission clearance workflow for transfers.
-// Default: disabled unless explicitly enabled via EMISSION_FEATURE_ENABLED=true
-const EMISSION_FEATURE_ENABLED = process.env.EMISSION_FEATURE_ENABLED === 'true';
+// Emission feature removed (no emission clearance workflow for transfers).
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -53,8 +51,7 @@ const AUTO_FORWARD_CONFIG = {
     includeExisting: process.env.TRANSFER_AUTO_FORWARD_INCLUDE_EXISTING === 'true',
     orgs: {
         hpg: process.env.TRANSFER_AUTO_FORWARD_HPG !== 'false',
-        insurance: process.env.TRANSFER_AUTO_FORWARD_INSURANCE !== 'false',
-        emission: process.env.TRANSFER_AUTO_FORWARD_EMISSION !== 'false'
+        insurance: process.env.TRANSFER_AUTO_FORWARD_INSURANCE !== 'false'
     }
 };
 
@@ -68,8 +65,7 @@ function isAutoForwardEligible(request) {
 function getAutoForwardTargets(request) {
     return {
         hpg: AUTO_FORWARD_CONFIG.orgs.hpg && !request.hpg_clearance_request_id,
-        insurance: AUTO_FORWARD_CONFIG.orgs.insurance && !request.insurance_clearance_request_id,
-        emission: EMISSION_FEATURE_ENABLED && AUTO_FORWARD_CONFIG.orgs.emission && !request.emission_clearance_request_id
+        insurance: AUTO_FORWARD_CONFIG.orgs.insurance && !request.insurance_clearance_request_id
     };
 }
 
@@ -1194,87 +1190,13 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     return { clearanceRequest, updatedRequest };
 }
 
-async function forwardTransferToEmission({ request, requestedBy, purpose, notes, autoTriggered = false }) {
-    const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-    const emissionDoc = vehicleDocuments.find(d => 
-        d.document_type === 'emission_cert' || 
-        d.document_type === 'emissionCert' ||
-        d.document_type === 'emission' ||
-        (d.original_name && d.original_name.toLowerCase().includes('emission'))
-    );
-    const emissionDocuments = emissionDoc ? [{
-        id: emissionDoc.id,
-        type: emissionDoc.document_type,
-        cid: emissionDoc.ipfs_cid,
-        path: emissionDoc.file_path,
-        filename: emissionDoc.original_name
-    }] : [];
-
-    if (!emissionDoc) {
-        console.warn(`[Transfer→Emission] Warning: No emission certificate found for vehicle ${request.vehicle_id}`);
-    }
-
-    console.log(`[Transfer→Emission] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${emissionDocuments.length} document(s) to Emission (filtered from ${vehicleDocuments.length} total)`);
-    console.log(`[Transfer→Emission] Document type sent: ${emissionDoc?.document_type || 'none'}`);
-
-    const clearanceRequest = await db.createClearanceRequest({
-        vehicleId: request.vehicle_id,
-        requestType: 'emission',
-        requestedBy,
-        purpose: purpose || 'Vehicle ownership transfer clearance',
-        notes: notes || null,
-        metadata: {
-            transferRequestId: request.id,
-            vehicleVin: request.vehicle?.vin,
-            vehiclePlate: request.vehicle?.plate_number,
-            documentId: emissionDoc?.id || null,
-            documentCid: emissionDoc?.ipfs_cid || null,
-            documentPath: emissionDoc?.file_path || null,
-            documentType: emissionDoc?.document_type || null,
-            documentFilename: emissionDoc?.original_name || null,
-            documents: emissionDocuments,
-            autoTriggered
-        }
-    });
-
-    await dbModule.query(
-        `UPDATE transfer_requests 
-         SET emission_clearance_request_id = $1,
-             emission_approval_status = 'PENDING',
-             metadata = metadata || $2::jsonb,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3`,
-        [
-            clearanceRequest.id,
-            JSON.stringify({ emissionClearanceRequestId: clearanceRequest.id }),
-            request.id
-        ]
-    );
-
-    await db.addVehicleHistory({
-        vehicleId: request.vehicle_id,
-        action: 'TRANSFER_FORWARDED_TO_EMISSION',
-        description: `Transfer request forwarded to Emission for clearance review`,
-        performedBy: requestedBy,
-        metadata: { 
-            transferRequestId: request.id, 
-            clearanceRequestId: clearanceRequest.id,
-            documentsSent: emissionDocuments.length,
-            autoTriggered
-        }
-    });
-
-    const updatedRequest = await db.getTransferRequestById(request.id);
-    return { clearanceRequest, updatedRequest };
-}
-
 async function autoForwardTransferRequest(request, triggeredBy) {
     if (!isAutoForwardEligible(request)) {
         return { skipped: true, reason: 'Auto-forward disabled or not eligible for this request', transferRequest: request };
     }
 
     const targets = getAutoForwardTargets(request);
-    const anyTarget = targets.hpg || targets.insurance || targets.emission;
+    const anyTarget = targets.hpg || targets.insurance;
     if (!anyTarget) {
         return { skipped: true, reason: 'No pending organizations to forward', transferRequest: request };
     }
@@ -1314,23 +1236,6 @@ async function autoForwardTransferRequest(request, triggeredBy) {
         } catch (error) {
             console.error('[AutoForward→Insurance] Error:', error);
             results.insurance = { success: false, error: error.message };
-        }
-    }
-
-    if (targets.emission) {
-        try {
-            const { clearanceRequest, updatedRequest } = await forwardTransferToEmission({
-                request: latestRequest,
-                requestedBy: triggeredBy,
-                purpose: 'Vehicle ownership transfer clearance',
-                notes: 'Auto-forwarded on buyer acceptance',
-                autoTriggered: true
-            });
-            latestRequest = updatedRequest;
-            results.emission = { success: true, clearanceRequestId: clearanceRequest.id };
-        } catch (error) {
-            console.error('[AutoForward→Emission] Error:', error);
-            results.emission = { success: false, error: error.message };
         }
     }
 
@@ -3279,69 +3184,6 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
     }
 });
 
-// Emission approves transfer request
-router.post('/requests/:id/emission-approve', authenticateToken, authorizeRole(['admin', 'emission_admin']), async (req, res) => {
-    if (!EMISSION_FEATURE_ENABLED) {
-        return res.status(410).json({
-            success: false,
-            error: 'Emission clearance feature is disabled'
-        });
-    }
-    try {
-        const { id } = req.params;
-        const { notes } = req.body;
-        
-        const request = await db.getTransferRequestById(id);
-        if (!request) {
-            return res.status(404).json({
-                success: false,
-                error: 'Transfer request not found'
-            });
-        }
-        
-        // Update Emission approval status
-        const dbModule = require('../database/db');
-        await dbModule.query(
-            `UPDATE transfer_requests 
-             SET emission_approval_status = 'APPROVED',
-                 emission_approved_at = CURRENT_TIMESTAMP,
-                 emission_approved_by = $1,
-                 metadata = metadata || $2::jsonb,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = $3`,
-            [
-                req.user.userId,
-                JSON.stringify({ emissionApprovalNotes: notes || null }),
-                id
-            ]
-        );
-        
-        // Add to vehicle history
-        await db.addVehicleHistory({
-            vehicleId: request.vehicle_id,
-            action: 'TRANSFER_EMISSION_APPROVED',
-            description: `Emission approved transfer request ${id}`,
-            performedBy: req.user.userId,
-            metadata: { transferRequestId: id, notes: notes || null }
-        });
-        
-        const updatedRequest = await db.getTransferRequestById(id);
-        
-        res.json({
-            success: true,
-            message: 'Emission approval recorded successfully',
-            transferRequest: updatedRequest
-        });
-        
-    } catch (error) {
-        console.error('Emission approve transfer error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-});
-
 // Forward transfer request to Insurance
 router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
@@ -3373,50 +3215,6 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
 
     } catch (error) {
         console.error('Forward to Insurance error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-});
-
-// Forward transfer request to Emission
-router.post('/requests/:id/forward-emission', authenticateToken, authorizeRole(['admin']), async (req, res) => {
-    if (!EMISSION_FEATURE_ENABLED) {
-        return res.status(410).json({
-            success: false,
-            error: 'Emission clearance feature is disabled'
-        });
-    }
-    try {
-        const { id } = req.params;
-        const { purpose, notes } = req.body;
-
-        const request = await db.getTransferRequestById(id);
-        if (!request) {
-            return res.status(404).json({
-                success: false,
-                error: 'Transfer request not found'
-            });
-        }
-
-        const { clearanceRequest, updatedRequest } = await forwardTransferToEmission({
-            request,
-            requestedBy: req.user.userId,
-            purpose,
-            notes,
-            autoTriggered: false
-        });
-
-        res.json({
-            success: true,
-            message: 'Transfer request forwarded to Emission',
-            transferRequest: updatedRequest,
-            clearanceRequest
-        });
-
-    } catch (error) {
-        console.error('Forward to Emission error:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error'

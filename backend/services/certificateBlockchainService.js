@@ -156,7 +156,7 @@ class CertificateBlockchainService {
      * 
      * @param {string} fileHash - File hash of submitted certificate
      * @param {string} vehicleId - Vehicle ID (UUID) - optional, used for fallback lookup only
-     * @param {string} certificateType - Certificate type (hpg_clearance, insurance, emission)
+     * @param {string} certificateType - Certificate type (hpg_clearance, insurance)
      * @returns {Promise<Object>} Authenticity check result
      */
     async checkCertificateAuthenticity(fileHash, vehicleId, certificateType) {

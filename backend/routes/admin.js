@@ -72,8 +72,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
         const clearances = {
             total: 0,
             hpg: { total: 0, pending: 0, approved: 0, rejected: 0 },
-            insurance: { total: 0, pending: 0, approved: 0, rejected: 0 },
-            emission: { total: 0, pending: 0, approved: 0, rejected: 0 }
+            insurance: { total: 0, pending: 0, approved: 0, rejected: 0 }
         };
         
         clearanceStats.rows.forEach(row => {
@@ -100,8 +99,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
             total: 0,
             admin: 0,
             vehicle_owner: 0,
-            insurance_verifier: 0,
-            emission_verifier: 0
+            insurance_verifier: 0
         };
         
         userStats.rows.forEach(row => {
@@ -187,15 +185,13 @@ router.get('/clearance-requests', authenticateToken, authorizeRole(['admin']), a
         const requests = result.rows;
         const grouped = {
             hpg: requests.filter(r => r.request_type === 'hpg'),
-            insurance: requests.filter(r => r.request_type === 'insurance'),
-            emission: requests.filter(r => r.request_type === 'emission')
+            insurance: requests.filter(r => r.request_type === 'insurance')
         };
         
         // Count by status for each type
         const stats = {
             hpg: { pending: 0, approved: 0, rejected: 0, completed: 0 },
-            insurance: { pending: 0, approved: 0, rejected: 0, completed: 0 },
-            emission: { pending: 0, approved: 0, rejected: 0, completed: 0 }
+            insurance: { pending: 0, approved: 0, rejected: 0, completed: 0 }
         };
         
         requests.forEach(r => {
@@ -321,7 +317,7 @@ function validateUserInput(data, isAdminCreation = false) {
 
     // Role validation (for admin creation only)
     if (isAdminCreation) {
-        const validRoles = ['admin', 'insurance_verifier', 'emission_verifier', 'hpg_admin', 'staff', 'vehicle_owner'];
+        const validRoles = ['admin', 'insurance_verifier', 'hpg_admin', 'staff', 'vehicle_owner'];
         if (!data.role) {
             errors.push('Role is required for admin account creation');
         } else if (!validRoles.includes(data.role)) {
@@ -492,7 +488,7 @@ router.post('/create-user', authenticateToken, authorizeRole(['admin']), async (
     }
 });
 
-// Manual verification for insurance and emission (admin only)
+// Manual verification for insurance (admin only)
 router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { vehicleId, requestId, verificationType, decision, notes } = req.body;
@@ -505,10 +501,10 @@ router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['a
             });
         }
         
-        if (!['insurance', 'emission'].includes(verificationType)) {
+        if (!['insurance'].includes(verificationType)) {
             return res.status(400).json({
                 success: false,
-                error: 'Invalid verification type. Must be insurance or emission'
+                error: 'Invalid verification type. Must be insurance'
             });
         }
         

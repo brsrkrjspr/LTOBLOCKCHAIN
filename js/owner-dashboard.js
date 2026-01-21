@@ -380,9 +380,11 @@ function handleNotificationClick(e) {
 }
 
 async function loadUserNotifications() {
-    // Try multiple selectors
+    // Try multiple selectors including the modal notification list
     let notificationsList = null;
     const selectors = [
+        '#notificationList', // Modal notification list
+        '.notification-list', // Modal notification list class
         '.notifications-list-modern',
         '#notifications .notifications-list-modern',
         '.dashboard-card-modern.notifications-card .notifications-list-modern',
@@ -395,7 +397,7 @@ async function loadUserNotifications() {
     }
     
     if (!notificationsList) {
-        console.warn('⚠️ Could not find notifications list');
+        console.warn('⚠️ Could not find notifications list - this is normal if using the modal notification system');
         return;
     }
     

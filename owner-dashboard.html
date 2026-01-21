@@ -2202,8 +2202,25 @@
                 // Load from API
                 window.apiClient.get('/api/notifications')
                     .then(response => {
-                        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-                            notifications = response.data;
+                        // API returns { success: true, notifications: [...] }
+                        // Also check for response.data for compatibility
+                        let apiNotifications = null;
+                        if (response && response.success && response.notifications && Array.isArray(response.notifications) && response.notifications.length > 0) {
+                            apiNotifications = response.notifications;
+                        } else if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+                            apiNotifications = response.data;
+                        }
+                        
+                        if (apiNotifications) {
+                            // Transform API notifications to match expected format
+                            notifications = apiNotifications.map(notif => ({
+                                id: notif.id,
+                                title: notif.title || 'Notification',
+                                message: notif.message || '',
+                                time: notif.sentAt ? formatTimeAgo(notif.sentAt) : 'Recently',
+                                read: notif.read || false,
+                                type: notif.type || 'info'
+                            }));
                             // Save to localStorage for offline access
                             try {
                                 localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
@@ -2234,6 +2251,26 @@
                 notifications = getSampleNotifications();
                 renderNotifications();
                 updateNotificationBadge();
+            }
+        }
+
+        function formatTimeAgo(dateString) {
+            if (!dateString) return 'Recently';
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+                return date.toLocaleDateString();
+            } catch (e) {
+                return 'Recently';
             }
         }
 

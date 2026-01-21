@@ -831,7 +831,7 @@ router.post('/sales-invoice/generate-and-send', authenticateToken, authorizeRole
 
 /**
  * POST /api/certificate-generation/batch/generate-all
- * Generate all 5 certificates (Insurance, Emission, HPG, CSR, Sales Invoice) at once with shared vehicle data
+ * Generate all certificates (Insurance, HPG, CSR, Sales Invoice) at once with shared vehicle data
  * Authorization: Admin only
  */
 router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -854,7 +854,6 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             fuelType: bodyFuelType, // alias/backward-compatibility
             // Optional certificate-specific overrides
             insurance,
-            emission,
             hpg,
             csr,
             salesInvoice
@@ -982,18 +981,21 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             console.log(`[Batch] Using provided plate: ${finalPlate}`);
         }
 
+        const randomVehicleProfile = certificatePdfGenerator.getRandomVehicleProfile();
+
         const sharedVehicleData = {
             vin: finalVIN,
             plate: finalPlate,
             ownerName: owner.name,
             ownerEmail: owner.email,
             ownerAddress: owner.address,
-            make: vehicleMake || 'Toyota',
-            model: vehicleModel || 'Vios',
+            make: vehicleMake || randomVehicleProfile.make,
+            model: vehicleModel || randomVehicleProfile.model,
             year: vehicleYear || new Date().getFullYear(),
             engineNumber: engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
             chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber(),
-            bodyType: bodyType || vehicleType || 'Sedan',
+            bodyType: bodyType || vehicleType || randomVehicleProfile.bodyType,
+            vehicleType: vehicleType || randomVehicleProfile.vehicleType,
             color: color || 'White',
             fuelType: fuelType || bodyFuelType || 'Gasoline'
         };
@@ -1006,12 +1008,6 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
         const insuranceExpiryDate = insurance?.expiryDate || (() => {
             const date = new Date();
             date.setFullYear(date.getFullYear() + 1); // Insurance: 1 year
-            return date.toISOString();
-        })();
-
-        const emissionExpiryDate = emission?.expiryDate || (() => {
-            const date = new Date();
-            date.setFullYear(date.getFullYear() + 1); // Emission: 1 year
             return date.toISOString();
         })();
 
@@ -1028,7 +1024,6 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
         const certificateNumbers = {
             insurance: insurance?.policyNumber || `CTPL-${year}-${randomSuffix()}`,
-            emission: emission?.certificateNumber || `ETC-${year}${month}${day}-${randomSuffix()}`,
             hpg: hpg?.clearanceNumber || `HPG-${year}-${randomSuffix()}`,
             csr: csr?.csrNumber || `CSR-${year}-${randomSuffix()}`,
             salesInvoice: salesInvoice?.invoiceNumber || `INV-${year}${month}${day}-${randomSuffix()}`
@@ -1117,90 +1112,6 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
         } catch (error) {
             console.error('[Batch] Insurance Certificate error:', error);
             results.errors.push({ type: 'insurance', error: error.message });
-        }
-
-        // Generate Emission Certificate
-        try {
-            console.log(`[Batch] Generating Emission Certificate: ${certificateNumbers.emission}`);
-            const emissionData = {
-                ownerName: sharedVehicleData.ownerName,
-                vehicleVIN: sharedVehicleData.vin,
-                vehiclePlate: sharedVehicleData.plate,
-                vehicleMake: sharedVehicleData.make,
-                vehicleModel: sharedVehicleData.model,
-                vehicleYear: sharedVehicleData.year,
-                bodyType: sharedVehicleData.bodyType,
-                color: sharedVehicleData.color,
-                engineNumber: sharedVehicleData.engineNumber,
-                fuelType: sharedVehicleData.fuelType,
-                certificateNumber: certificateNumbers.emission,
-                testDate: emission?.testDate || issuanceDate,
-                expiryDate: emissionExpiryDate,
-                testResults: emission?.testResults || {
-                    co: '0.20',
-                    hc: '120',
-                    nox: '0.25',
-                    smoke: '18'
-                }
-            };
-
-            const emissionResult = await certificatePdfGenerator.generateEmissionCertificate(emissionData);
-            const emissionCompositeHash = certificatePdfGenerator.generateCompositeHash(
-                certificateNumbers.emission,
-                sharedVehicleData.vin,
-                emissionExpiryDate,
-                emissionResult.fileHash
-            );
-
-            // Store in database
-            try {
-                const issuerQuery = await dbRaw.query(
-                    `SELECT id FROM external_issuers WHERE issuer_type = 'emission' AND is_active = true LIMIT 1`
-                );
-                if (issuerQuery.rows.length > 0) {
-                    await dbRaw.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, issued_at, expires_at, metadata)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        [
-                            issuerQuery.rows[0].id,
-                            'emission',
-                            certificateNumbers.emission,
-                            sharedVehicleData.vin,
-                            sharedVehicleData.ownerName,
-                            emissionResult.fileHash,
-                            emissionCompositeHash,
-                            emissionData.testDate.split('T')[0],
-                            emissionExpiryDate.split('T')[0],
-                            JSON.stringify({ testResults: emissionData.testResults, vehiclePlate: sharedVehicleData.plate })
-                        ]
-                    );
-                }
-            } catch (dbError) {
-                console.error(`[Batch] Emission database error:`, dbError);
-            }
-
-            // Send email
-            await certificateEmailService.sendEmissionCertificate({
-                to: sharedVehicleData.ownerEmail,
-                ownerName: sharedVehicleData.ownerName,
-                certificateNumber: certificateNumbers.emission,
-                vehicleVIN: sharedVehicleData.vin,
-                pdfBuffer: emissionResult.pdfBuffer,
-                expiryDate: emissionExpiryDate
-            });
-
-            results.certificates.emission = {
-                certificateNumber: certificateNumbers.emission,
-                fileHash: emissionResult.fileHash,
-                compositeHash: emissionCompositeHash,
-                emailSent: true
-            };
-            console.log(`[Batch] Emission Certificate generated and sent`);
-        } catch (error) {
-            console.error('[Batch] Emission Certificate error:', error);
-            results.errors.push({ type: 'emission', error: error.message });
         }
 
         // Generate HPG Clearance

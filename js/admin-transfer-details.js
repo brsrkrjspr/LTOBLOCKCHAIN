@@ -207,10 +207,8 @@ function renderOrgApprovalStatus(request) {
     console.log('Organization Approval Statuses:', {
         hpg: request.hpg_approval_status,
         insurance: request.insurance_approval_status,
-        emission: request.emission_approval_status,
         hpg_clearance_request_id: request.hpg_clearance_request_id,
-        insurance_clearance_request_id: request.insurance_clearance_request_id,
-        emission_clearance_request_id: request.emission_clearance_request_id
+        insurance_clearance_request_id: request.insurance_clearance_request_id
     });
     
     const orgSection = document.getElementById('orgApprovalSection');
@@ -218,8 +216,8 @@ function renderOrgApprovalStatus(request) {
     
     if (!orgSection) return;
     
-    // Show section if any org approval is tracked
-    const hasOrgTracking = request.hpg_approval_status || request.insurance_approval_status || request.emission_approval_status;
+    // Show section if any org approval is tracked (HPG or Insurance)
+    const hasOrgTracking = request.hpg_approval_status || request.insurance_approval_status;
     
     if (hasOrgTracking) {
         orgSection.style.display = 'block';
@@ -275,28 +273,6 @@ function renderOrgApprovalStatus(request) {
         insuranceDateEl.textContent = '';
     }
     
-    // Emission Approval Status
-    const emissionStatus = request.emission_approval_status || 'PENDING';
-    const emissionStatusEl = document.getElementById('emissionApprovalStatus');
-    const emissionDateEl = document.getElementById('emissionApprovalDate');
-    
-    if (emissionStatusEl) {
-        const statusClass = emissionStatus === 'APPROVED' ? 'status-approved' : 
-                           emissionStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
-        emissionStatusEl.innerHTML = `<span class="status-badge ${statusClass}">${emissionStatus}</span>`;
-    }
-    
-    if (emissionDateEl && request.emission_approved_at) {
-        emissionDateEl.textContent = `Approved: ${new Date(request.emission_approved_at).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })}`;
-    } else if (emissionDateEl) {
-        emissionDateEl.textContent = '';
-    }
 }
 
 function renderSellerInfo(request) {
@@ -711,12 +687,10 @@ function updateActionButtons(request) {
     // Check organization approval statuses
     const hpgStatus = request.hpg_approval_status || 'NOT_FORWARDED';
     const insuranceStatus = request.insurance_approval_status || 'NOT_FORWARDED';
-    const emissionStatus = request.emission_approval_status || 'NOT_FORWARDED';
     
     // Determine if all orgs have approved
     const hpgApproved = hpgStatus === 'APPROVED';
     const insuranceApproved = insuranceStatus === 'APPROVED';
-    const emissionApproved = emissionStatus === 'APPROVED';
     // Only HPG and Insurance are treated as required organizations for final approval.
     const allOrgsApproved = hpgApproved && insuranceApproved;
     
@@ -752,13 +726,6 @@ function updateActionButtons(request) {
             buttonsHTML += `
                 <button class="btn-info btn-block" onclick="forwardToInsurance()">
                     <i class="fas fa-file-shield"></i> Forward to Insurance
-                </button>
-            `;
-        }
-        if (emissionStatus === 'NOT_FORWARDED' || !emissionStatus || !request.emission_clearance_request_id) {
-            buttonsHTML += `
-                <button class="btn-info btn-block" onclick="forwardToEmission()">
-                    <i class="fas fa-leaf"></i> Forward to Emission
                 </button>
             `;
         }
@@ -883,7 +850,6 @@ async function approveTransfer() {
     if (currentTransferRequest) {
         const hpgStatus = currentTransferRequest.hpg_approval_status || 'PENDING';
         const insuranceStatus = currentTransferRequest.insurance_approval_status || 'PENDING';
-        const emissionStatus = currentTransferRequest.emission_approval_status || 'PENDING';
         
         const pendingApprovals = [];
         if (hpgStatus !== 'APPROVED') pendingApprovals.push('HPG');
@@ -1044,27 +1010,7 @@ async function forwardToInsurance() {
 }
 
 async function forwardToEmission() {
-    if (!confirm('Forward this transfer request to Emission for clearance review?')) {
-        return;
-    }
-
-    try {
-        const apiClient = window.apiClient || new APIClient();
-        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/forward-emission`, {
-            purpose: 'Vehicle ownership transfer clearance',
-            notes: 'Forwarded for Emission clearance review'
-        });
-        
-        if (response.success) {
-            showSuccess('Transfer request forwarded to Emission successfully');
-            loadTransferRequestDetails(); // Reload to update status
-        } else {
-            throw new Error(response.error || 'Failed to forward to Emission');
-        }
-    } catch (error) {
-        console.error('Forward to Emission error:', error);
-        showError(error.message || 'Failed to forward to Emission');
-    }
+    showError('Emission clearance workflow has been disabled in this system.');
 }
 
 // Make functions globally available for inline onclick handlers

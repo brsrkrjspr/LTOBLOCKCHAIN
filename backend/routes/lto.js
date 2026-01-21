@@ -11,6 +11,7 @@ const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const fabricService = require('../services/optimizedFabricService');
+const { sendMail } = require('../services/gmailApiService');
 
 // Configure multer for file uploads
 const inspectionDocsDir = path.join(__dirname, '../uploads/inspection-documents');
@@ -652,6 +653,99 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                 }
             });
             console.log(`✅ Created BLOCKCHAIN_REGISTERED history entry with txId: ${blockchainTxId}`);
+
+            // Send approval email to owner (only on successful blockchain registration)
+            try {
+                if (vehicle.owner_id) {
+                    const ownerUser = await db.getUserById(vehicle.owner_id);
+                    const ownerEmail = ownerUser?.email || vehicle.owner_email;
+                    const ownerName = ownerUser ? `${ownerUser.first_name || ''} ${ownerUser.last_name || ''}`.trim() : (vehicle.owner_name || 'Owner');
+                    if (ownerEmail) {
+                        const appBaseUrl = process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
+                        const subject = 'Vehicle Registration Approved';
+                        const statusLabel = blockchainTxId ? 'REGISTERED' : 'APPROVED';
+                        const trackUrl = `${appBaseUrl}`;
+                        const downloadNote = 'You can download your OR/CR by logging in to your account.';
+
+                        const text = `
+Dear ${ownerName || 'Owner'},
+
+Your vehicle registration has been ${statusLabel}.
+
+Details:
+- VIN: ${vehicle.vin}
+- Plate Number: ${vehicle.plate_number || vehicle.plateNumber || 'Pending'}
+- OR: ${orNumber || 'Pending'}
+- CR: ${crNumber || 'Pending'}
+- Blockchain Tx: ${blockchainTxId}
+
+${downloadNote}
+Track status: ${trackUrl}
+
+Thank you,
+TrustChain LTO Team
+                        `.trim();
+
+                        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+        .email-container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+        .header { background: #667eea; color: #ffffff; padding: 20px 24px; }
+        .header h1 { margin: 0; font-size: 22px; }
+        .content { padding: 24px; color: #374151; }
+        .content p { line-height: 1.6; margin: 0 0 12px 0; }
+        .details { background: #f8fafc; border-left: 4px solid #667eea; padding: 16px; border-radius: 6px; margin: 16px 0; }
+        .details p { margin: 6px 0; font-size: 14px; }
+        .details strong { color: #111827; }
+        .button { display: inline-block; padding: 12px 18px; background: #667eea; color: #ffffff; text-decoration: none; border-radius: 8px; margin: 12px 0; font-weight: 600; }
+        .footer { padding: 16px 24px; font-size: 12px; color: #6b7280; text-align: center; border-top: 1px solid #e5e7eb; }
+    </style>
+</head>
+<body>
+    <div style="padding: 16px;">
+        <div class="email-container">
+            <div class="header">
+                <h1>Vehicle Registration ${statusLabel}</h1>
+            </div>
+            <div class="content">
+                <p>Dear ${ownerName || 'Owner'},</p>
+                <p>Your vehicle registration has been <strong>${statusLabel}</strong>.</p>
+                <div class="details">
+                    <p><strong>VIN:</strong> ${vehicle.vin}</p>
+                    <p><strong>Plate Number:</strong> ${vehicle.plate_number || vehicle.plateNumber || 'Pending'}</p>
+                    <p><strong>OR Number:</strong> ${orNumber || 'Pending'}</p>
+                    <p><strong>CR Number:</strong> ${crNumber || 'Pending'}</p>
+                    <p><strong>Blockchain Tx:</strong> ${blockchainTxId}</p>
+                </div>
+                <p>${downloadNote}</p>
+                <p style="text-align: center;">
+                    <a href="${trackUrl}" class="button">Track Status</a>
+                </p>
+                <p>Thank you for using TrustChain LTO System.</p>
+            </div>
+            <div class="footer">
+                <p>TrustChain LTO Team</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+                        `.trim();
+
+                        await sendMail({ to: ownerEmail, subject, text, html });
+                        console.log('✅ Approval email sent to owner:', ownerEmail);
+                    } else {
+                        console.warn('⚠️ No owner email available, skipping approval email');
+                    }
+                }
+            } catch (emailError) {
+                console.error('❌ Failed to send approval email:', emailError);
+            }
         }
 
         // Add to history (include separate OR/CR numbers in metadata)

@@ -217,7 +217,6 @@ async function submitInspection() {
     // Get form values
     const inspectionResult = form.querySelector('input[name="inspectionResult"]:checked')?.value;
     const roadworthinessStatus = form.querySelector('input[name="roadworthinessStatus"]:checked')?.value;
-    const emissionCompliance = form.querySelector('input[name="emissionCompliance"]:checked')?.value;
     const inspectionOfficer = document.getElementById('inspectionOfficer').value.trim();
     const inspectionNotes = document.getElementById('inspectionNotes').value.trim();
     
@@ -227,7 +226,7 @@ async function submitInspection() {
     const additionalDocuments = document.getElementById('additionalDocuments').files;
     
     // Validate required fields
-    if (!inspectionResult || !roadworthinessStatus || !emissionCompliance || !inspectionOfficer) {
+    if (!inspectionResult || !roadworthinessStatus || !inspectionOfficer) {
         showError('Please fill in all required inspection fields');
         return;
     }
@@ -300,7 +299,6 @@ async function submitInspection() {
             vehicleId: currentVehicleId,
             inspectionResult,
             roadworthinessStatus,
-            emissionCompliance,
             inspectionOfficer,
             inspectionNotes: inspectionNotes || null,
             documentReferences: docData.documentReferences || {}

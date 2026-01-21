@@ -6,6 +6,7 @@ const dbModule = require('../database/db');
 const docTypes = require('../config/documentTypes');
 const hpgDatabaseService = require('./hpgDatabaseService');
 
+// Emission feature removed (no emission clearance workflow).
 /**
  * Automatically send clearance requests to all required organizations
  * @param {string} vehicleId - The vehicle ID

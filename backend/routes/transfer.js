@@ -34,6 +34,7 @@ const VEHICLE_STATUS = {
 
 const TRANSFER_DEADLINE_DAYS = 3;
 
+// Emission feature removed (no emission clearance workflow for transfers).
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');

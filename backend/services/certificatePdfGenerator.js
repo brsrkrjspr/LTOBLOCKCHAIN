@@ -66,6 +66,72 @@ class CertificatePdfGenerator {
     }
 
     /**
+     * Get a random vehicle profile (make/model/body type) for auto generation
+     * @returns {{make: string, model: string, vehicleType: string, bodyType: string}}
+     */
+    getRandomVehicleProfile() {
+        const VEHICLE_CATALOG = [
+            // Cars (Sedan / Hatchback)
+            { make: 'Toyota', model: 'Vios', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Toyota', model: 'Corolla Altis', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Honda', model: 'Civic', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Honda', model: 'City', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Hyundai', model: 'Accent', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Mitsubishi', model: 'Mirage G4', vehicleType: 'Car', bodyType: 'Sedan' },
+            { make: 'Kia', model: 'Rio', vehicleType: 'Car', bodyType: 'Hatchback' },
+            { make: 'Suzuki', model: 'Swift', vehicleType: 'Car', bodyType: 'Hatchback' },
+
+            // SUV / Crossover / MPV
+            { make: 'Toyota', model: 'Fortuner', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Toyota', model: 'Innova', vehicleType: 'MPV', bodyType: 'MPV' },
+            { make: 'Mitsubishi', model: 'Montero Sport', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Nissan', model: 'Terra', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Ford', model: 'Everest', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Ford', model: 'EcoSport', vehicleType: 'Crossover', bodyType: 'Crossover' },
+            { make: 'Hyundai', model: 'Tucson', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Honda', model: 'CR-V', vehicleType: 'SUV', bodyType: 'SUV' },
+            { make: 'Kia', model: 'Stonic', vehicleType: 'Crossover', bodyType: 'Crossover' },
+            { make: 'Suzuki', model: 'Ertiga', vehicleType: 'MPV', bodyType: 'MPV' },
+
+            // Pickup / Light Truck
+            { make: 'Toyota', model: 'Hilux', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Ford', model: 'Ranger', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Nissan', model: 'Navara', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Isuzu', model: 'D-Max', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Mitsubishi', model: 'Strada', vehicleType: 'Truck', bodyType: 'Pickup' },
+            { make: 'Isuzu', model: 'N-Series', vehicleType: 'Truck', bodyType: 'Light truck' },
+            { make: 'Fuso', model: 'Canter', vehicleType: 'Truck', bodyType: 'Light truck' },
+            { make: 'Hino', model: '300', vehicleType: 'Truck', bodyType: 'Light truck' },
+
+            // Vans
+            { make: 'Toyota', model: 'HiAce', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Hyundai', model: 'Starex', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Nissan', model: 'Urvan', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Foton', model: 'Toano', vehicleType: 'Van', bodyType: 'Van' },
+            { make: 'Maxus', model: 'V80', vehicleType: 'Van', bodyType: 'Van' },
+
+            // Motorcycles
+            { make: 'Honda', model: 'Click 125', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'Yamaha', model: 'Mio i 125', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'Suzuki', model: 'Raider 150', vehicleType: 'Motorcycle', bodyType: 'Underbone' },
+            { make: 'Kawasaki', model: 'Barako II', vehicleType: 'Motorcycle', bodyType: 'Standard' },
+            { make: 'Honda', model: 'TMX Supremo', vehicleType: 'Motorcycle', bodyType: 'Standard' },
+            { make: 'Yamaha', model: 'Aerox 155', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'Honda', model: 'ADV 160', vehicleType: 'Motorcycle', bodyType: 'Scooter' },
+            { make: 'KTM', model: 'Duke 200', vehicleType: 'Motorcycle', bodyType: 'Naked' },
+            { make: 'Royal Enfield', model: 'Classic 350', vehicleType: 'Motorcycle', bodyType: 'Standard' }
+        ];
+
+        const chosen = VEHICLE_CATALOG[Math.floor(Math.random() * VEHICLE_CATALOG.length)];
+        return {
+            make: chosen.make,
+            model: chosen.model,
+            vehicleType: chosen.vehicleType,
+            bodyType: chosen.bodyType
+        };
+    }
+
+    /**
      * Validate PDF buffer
      * @param {Buffer} buffer - PDF buffer to validate
      * @param {string} certificateType - Type of certificate for logging
@@ -384,200 +450,7 @@ class CertificatePdfGenerator {
      * @returns {Promise<{pdfBuffer: Buffer, fileHash: string, certificateNumber: string}>}
      */
     async generateEmissionCertificate(data) {
-        const {
-            ownerName,
-            vehicleVIN,
-            vehiclePlate,
-            vehicleMake,
-            vehicleModel,
-            vehicleYear,
-            bodyType,
-            color,
-            engineNumber,
-            fuelType,
-            certificateNumber,
-            testDate,
-            expiryDate,
-            testResults
-        } = data;
-
-        // Read template
-        const templatePath = path.join(this.templatesPath, 'Emission Cert', 'emission-certificate.html');
-        let htmlTemplate = await fs.readFile(templatePath, 'utf-8');
-
-        // Format dates
-        const formatDateLong = (dateStr) => {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        };
-
-        // Replace input field values by ID (Emission cert uses IDs)
-        // Certificate Reference Number
-        htmlTemplate = htmlTemplate.replace(
-            /id="cert-ref-input"[^>]*value="[^"]*"/,
-            `id="cert-ref-input" class="editable-field" value="${certificateNumber}" data-field="cert-ref"`
-        );
-        
-        // Owner Name
-        htmlTemplate = htmlTemplate.replace(
-            /id="owner-name"[^>]*value="[^"]*"/,
-            `id="owner-name" class="editable-field" value="${ownerName}" data-field="owner-name"`
-        );
-        
-        // Make / Model
-        const finalMake = vehicleMake || 'Toyota';
-        const finalModel = vehicleModel || 'Vios';
-        const makeModel = `${finalMake} ${finalModel}`;
-        htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-make"[^>]*value="[^"]*"/,
-            `id="vehicle-make" class="editable-field" value="${makeModel}" data-field="vehicle-make"`
-        );
-        
-        // Year Model
-        const finalYear = vehicleYear || new Date().getFullYear();
-        htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-year"[^>]*value="[^"]*"/,
-            `id="vehicle-year" class="editable-field" value="${finalYear}" data-field="vehicle-year"`
-        );
-        
-        // Vehicle Type
-        const finalBodyType = bodyType || 'Sedan';
-        htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-body"[^>]*value="[^"]*"/,
-            `id="vehicle-body" class="editable-field" value="${finalBodyType}" data-field="vehicle-body"`
-        );
-        
-        // Color
-        const finalColor = color || 'White';
-        htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-color"[^>]*value="[^"]*"/,
-            `id="vehicle-color" class="editable-field" value="${finalColor}" data-field="vehicle-color"`
-        );
-        
-        // Engine No.
-        const finalEngineNumber = engineNumber || this.generateRandomEngineNumber();
-        htmlTemplate = htmlTemplate.replace(
-            /id="engine-no"[^>]*value="[^"]*"/,
-            `id="engine-no" class="editable-field" value="${finalEngineNumber}" data-field="engine-no"`
-        );
-        
-        // Chassis / VIN (use provided or generate random)
-        const finalVIN = vehicleVIN || this.generateRandomVIN();
-        htmlTemplate = htmlTemplate.replace(
-            /id="chassis-vin"[^>]*value="[^"]*"/,
-            `id="chassis-vin" class="editable-field" value="${finalVIN}" data-field="chassis-vin"`
-        );
-        
-        // Plate No. (use provided or generate random)
-        const finalPlate = vehiclePlate || this.generateRandomPlateNumber();
-        htmlTemplate = htmlTemplate.replace(
-            /id="plate-no"[^>]*value="[^"]*"/,
-            `id="plate-no" class="editable-field" value="${finalPlate}" data-field="plate-no"`
-        );
-        
-        // Fuel Type
-        const finalFuelType = fuelType || 'Gasoline';
-        htmlTemplate = htmlTemplate.replace(
-            /id="fuel-type"[^>]*value="[^"]*"/,
-            `id="fuel-type" class="editable-field" value="${finalFuelType}" data-field="fuel-type"`
-        );
-        
-        // Test Results - CO Level
-        const coValue = testResults?.co ? `${testResults.co} - Pass` : '0.20% - Pass';
-        htmlTemplate = htmlTemplate.replace(
-            /id="co-level"[^>]*value="[^"]*"/,
-            `id="co-level" class="editable-field table-input" value="${coValue}" data-field="co-level"`
-        );
-        
-        // Test Results - HC Level
-        const hcValue = testResults?.hc ? `${testResults.hc} - Pass` : '120 ppm - Pass';
-        htmlTemplate = htmlTemplate.replace(
-            /id="hc-level"[^>]*value="[^"]*"/,
-            `id="hc-level" class="editable-field table-input" value="${hcValue}" data-field="hc-level"`
-        );
-        
-        // Test Results - NOx Level
-        const noxValue = testResults?.nox ? `${testResults.nox} - Pass` : '0.25% - Pass';
-        htmlTemplate = htmlTemplate.replace(
-            /id="nox-level"[^>]*value="[^"]*"/,
-            `id="nox-level" class="editable-field table-input" value="${noxValue}" data-field="nox-level"`
-        );
-        
-        // Test Results - Smoke Opacity
-        const smokeValue = testResults?.smoke ? `${testResults.smoke}% - Pass` : '18% - Pass';
-        htmlTemplate = htmlTemplate.replace(
-            /id="smoke-opacity"[^>]*value="[^"]*"/,
-            `id="smoke-opacity" class="editable-field table-input" value="${smokeValue}" data-field="smoke-opacity"`
-        );
-        
-        // Update date spans if they exist
-        htmlTemplate = htmlTemplate.replace(
-            /id="date-issue"[^>]*>.*?<\/span>/,
-            `id="date-issue">${formatDateLong(testDate)}</span>`
-        );
-        htmlTemplate = htmlTemplate.replace(
-            /id="date-expiry"[^>]*>.*?<\/span>/,
-            `id="date-expiry">${formatDateLong(expiryDate)}</span>`
-        );
-
-        // Inline CSS for Emission certificate
-        const cssPath = path.join(this.templatesPath, 'Emission Cert', 'emission-certificate.css');
-        try {
-            const cssContent = await fs.readFile(cssPath, 'utf-8');
-            htmlTemplate = htmlTemplate.replace(
-                /<link rel="stylesheet" href="emission-certificate\.css">/,
-                `<style>${cssContent}</style>`
-            );
-        } catch (cssError) {
-            console.warn('[Emission Certificate] Could not load CSS file:', cssError.message);
-        }
-
-        // Generate PDF
-        const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
-
-        try {
-            const page = await browser.newPage();
-            await page.setContent(htmlTemplate, {
-                waitUntil: 'networkidle0'
-            });
-
-            // Wait a bit more to ensure all fonts and resources are loaded
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            const pdfResult = await page.pdf({
-                format: 'Letter',
-                printBackground: true,
-                margin: {
-                    top: '0.5in',
-                    right: '0.5in',
-                    bottom: '0.5in',
-                    left: '0.5in'
-                }
-            });
-
-            await browser.close();
-
-            // Ensure pdfResult is converted to a Buffer
-            const pdfBuffer = this.ensurePdfBuffer(pdfResult, 'Emission Certificate');
-
-            // Validate PDF buffer
-            this.validatePdfBuffer(pdfBuffer, 'Emission Certificate');
-
-            const fileHash = this.calculateFileHash(pdfBuffer);
-
-            return {
-                pdfBuffer,
-                fileHash,
-                certificateNumber
-            };
-        } catch (error) {
-            await browser.close();
-            throw error;
-        }
+        throw new Error('Emission certificate generation has been removed from this system.');
     }
 
     /**

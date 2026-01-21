@@ -292,7 +292,7 @@ async function loadOrgVerificationStatus() {
             insuranceRequests = response.grouped?.insurance || [];
             stats = response.stats;
         } else {
-            // Fallback to individual endpoints
+            // Fallback to individual endpoints (HPG + Insurance only)
             const [hpgResponse, insuranceResponse] = await Promise.all([
                 apiClient.get('/api/hpg/requests').catch(e => ({ success: false, requests: [] })),
                 apiClient.get('/api/insurance/requests').catch(e => ({ success: false, requests: [] }))
@@ -2774,9 +2774,12 @@ async function approveApplication(applicationId) {
         }
         
         const vehicle = vehicleResponse.vehicle;
+        const originType = vehicle.origin_type || vehicle.originType || 'NEW_REG';
+        const isTransferWorkflow = originType === 'TRANSFER';
         
-        // Check if inspection is required but missing
-        if (!vehicle.mvir_number) {
+        // Only transfers require MVIR/inspection before approval.
+        // Registrations MUST NOT be gated by inspection.
+        if (isTransferWorkflow && !vehicle.mvir_number) {
             const proceedWithoutInspection = await ConfirmationDialog.show({
                 title: 'Inspection Required',
                 message: 'This vehicle has not been inspected yet. Inspection is required before approval per LTO Citizen Charter. Do you want to proceed anyway? (Inspection will be auto-generated)',

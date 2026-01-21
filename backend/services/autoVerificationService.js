@@ -10,6 +10,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 
+// Emission feature removed (no emission auto-verification).
 class AutoVerificationService {
     constructor() {
         this.enabled = process.env.AUTO_VERIFICATION_ENABLED !== 'false';
@@ -912,7 +913,7 @@ class AutoVerificationService {
         maxScore += 10;
         score += (1 - checks.fraudScore) * 10;
 
-        // Compliance (optional, 10 points)
+        // Compliance check (optional, 10 points)
         if (checks.compliance !== undefined) {
             maxScore += 10;
             if (checks.compliance) score += 10;

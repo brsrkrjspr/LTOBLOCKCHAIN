@@ -1597,8 +1597,7 @@ router.post('/extract-info', authenticateToken, upload.single('document'), async
             'salesInvoice', 'sales_invoice',
             'certificateOfStockReport', 'csr',
             'pnpHpgClearance', 'hpg_clearance', 'hpgClearance',
-            'insuranceCertificate', 'insurance_cert', 'insuranceCert',
-            'emissionCert', 'emission_cert'
+            'insuranceCertificate', 'insurance_cert', 'insuranceCert'
         ];
         
         if (documentType && !validDocumentTypes.includes(documentType)) {

@@ -1066,51 +1066,39 @@ function updateProgressBar() {
 function updateReviewData() {
     console.log('[Review] updateReviewData() started');
     
-    // Helper: Get value from form input, fallback to stored OCR data
-    const getFieldValue = (formElementId, ocrDataKey) => {
-        const formValue = document.getElementById(formElementId)?.value || '';
-        if (formValue) return formValue;
-        // Fallback to OCR stored data if form is empty
-        return storedOCRExtractedData[ocrDataKey] || '';
+    // Helper: Get value directly from form input (no OCR fallback in summary)
+    const getFieldValue = (formElementId) => {
+        const el = document.getElementById(formElementId);
+        if (!el) {
+            console.warn('[Review] Field not found for summary:', formElementId);
+            return '';
+        }
+        return (el.value || '').trim();
     };
     
     // Update review section with form data, with OCR fallback
-    const make = getFieldValue('make', 'make');
-    const model = getFieldValue('model', 'model');
-    const year = getFieldValue('year', 'year');
-    const color = getFieldValue('color', 'color');
-    const plate = getFieldValue('plateNumber', 'plateNumber');
-    const vehicleCategory = getFieldValue('vehicleCategory', 'vehicleCategory');
-    const passengerCapacity = getFieldValue('passengerCapacity', 'passengerCapacity');
-    const grossVehicleWeight = getFieldValue('grossVehicleWeight', 'grossVehicleWeight');
-    const netWeight = getFieldValue('netWeight', 'netWeight');
-    const classification = getFieldValue('classification', 'classification');
-    const firstName = getFieldValue('firstName', 'firstName');
-    const lastName = getFieldValue('lastName', 'lastName');
-    const email = getFieldValue('email', 'email');
-    const phone = getFieldValue('phone', 'phone');
-    const idType = getFieldValue('idType', 'idType');
-    const idNumber = getFieldValue('idNumber', 'idNumber');
+    const make = getFieldValue('make');
+    const model = getFieldValue('model');
+    const year = getFieldValue('year');
+    const color = getFieldValue('color');
+    const plate = getFieldValue('plateNumber');
+    const vehicleCategory = getFieldValue('vehicleCategory');
+    const passengerCapacity = getFieldValue('passengerCapacity');
+    const grossVehicleWeight = getFieldValue('grossVehicleWeight');
+    const netWeight = getFieldValue('netWeight');
+    const classification = getFieldValue('classification');
+    const firstName = getFieldValue('firstName');
+    const lastName = getFieldValue('lastName');
+    const email = getFieldValue('email');
+    const phone = getFieldValue('phone');
+    const idType = getFieldValue('idNumber') ? getFieldValue('idType') : getFieldValue('idType'); // still maps directly from form
+    const idNumber = getFieldValue('idNumber');
     
     console.log('[Review] Basic fields extracted');
     
     // Handle vehicle type with OCR fallback
     const vehicleTypeElement = document.getElementById('vehicleType');
-    let vehicleTypeRaw = vehicleTypeElement?.value || '';
-    
-    // If element value is empty, try stored OCR value
-    if (!vehicleTypeRaw && storedOCRExtractedData.vehicleType) {
-        vehicleTypeRaw = storedOCRExtractedData.vehicleType;
-        console.log('Using stored vehicle type from OCR:', storedOCRExtractedData.vehicleType);
-    }
-    
-    // Fallback to session stored type if available
-    if (!vehicleTypeRaw && storedVehicleType) {
-        vehicleTypeRaw = storedVehicleType;
-        console.log('Using stored vehicle type from session:', storedVehicleType);
-    }
-    
-    const vehicleType = vehicleTypeRaw.trim() || 'PASSENGER_CAR';
+    const vehicleType = vehicleTypeElement?.value?.trim() || '';
 
     // Map vehicle type value to display name (handle both old and new formats)
     const vehicleTypeMap = {
@@ -1175,16 +1163,8 @@ function updateReviewData() {
                 // Use the option text as fallback
                 displayVehicleType = selectedOption.text;
             }
-        } else if (selectedOption && selectedOption.text && selectedOption.value) {
-            // Fallback to option text if value is empty but option exists
+        } else if (selectedOption && selectedOption.text) {
             displayVehicleType = selectedOption.text;
-        }
-    } else {
-        // If element not found, try using the vehicleType variable
-        if (vehicleType && vehicleTypeMap[vehicleType]) {
-            displayVehicleType = vehicleTypeMap[vehicleType];
-        } else if (vehicleType) {
-            displayVehicleType = vehicleType;
         }
     }
     
@@ -1584,7 +1564,7 @@ async function uploadDocuments(signal) {
     const fileInputs = container ? 
         Array.from(container.querySelectorAll('input[type="file"]')) :
         // Fallback: try to find static fields
-        ['registrationCert', 'insuranceCert', 'emissionCert', 'ownerId']
+        ['registrationCert', 'insuranceCert', 'ownerId']
             .map(id => document.getElementById(id))
             .filter(input => input !== null);
     
@@ -2143,19 +2123,6 @@ function renderStaticDocumentFields(container) {
                 <input type="file" id="insuranceCert" accept=".pdf,.jpg,.jpeg" data-document-type="insuranceCert" required>
                 <label for="insuranceCert" class="upload-label">
                     <span class="upload-icon">🛡️</span>
-                    <span>Choose File</span>
-                </label>
-            </div>
-        </div>
-        <div class="upload-item">
-            <div class="upload-info">
-                <h4>Emission Test Certificate <span class="required">*</span></h4>
-                <p>Upload your emission test certificate (PDF, JPEG)</p>
-            </div>
-            <div class="upload-area">
-                <input type="file" id="emissionCert" accept=".pdf,.jpg,.jpeg" data-document-type="emissionCert" required>
-                <label for="emissionCert" class="upload-label">
-                    <span class="upload-icon">🌱</span>
                     <span>Choose File</span>
                 </label>
             </div>

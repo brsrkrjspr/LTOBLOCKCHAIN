@@ -673,8 +673,12 @@
             margin: 1.5rem 0 1.5rem 1.5rem;
             border-radius: 0 24px 24px 0;
             flex-shrink: 0;
-            position: relative;
-            z-index: 1;
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
         }
 
         @media (min-width: 1201px) {
@@ -749,13 +753,14 @@
             background: linear-gradient(135deg, rgba(0, 31, 63, 0.03) 0%, rgba(0, 61, 122, 0.03) 100%);
             border-radius: 16px;
             border: 1px solid var(--border-color);
+            min-height: auto;
         }
 
         .sidebar-user-profile {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            gap: 0.75rem;
+            gap: 0;
             color: var(--text-primary);
             text-decoration: none;
             margin-bottom: 0;
@@ -767,6 +772,9 @@
             align-items: center;
             gap: 0.875rem;
             width: 100%;
+            margin-bottom: 0.75rem;
+            text-decoration: none;
+            color: inherit;
         }
 
         .sidebar-user-avatar {
@@ -807,29 +815,35 @@
 
         .sidebar-user-actions {
             width: 100%;
-            margin-top: 0;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border-color);
+            display: block;
+            visibility: visible;
+            opacity: 1;
         }
 
         .sidebar-action-item {
             display: flex;
             align-items: center;
             gap: 0.625rem;
-            color: var(--text-secondary);
-            padding: 0.5rem 0;
-            border-radius: 0;
+            color: #dc2626;
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
             transition: all 0.2s ease;
             text-decoration: none;
             font-weight: 600;
             font-size: 0.875rem;
             width: 100%;
-            background: none;
-            border: none;
+            background: rgba(220, 38, 38, 0.05);
+            border: 1px solid rgba(220, 38, 38, 0.2);
             cursor: pointer;
         }
 
         .sidebar-action-item:hover {
-            color: var(--navy-primary);
-            background: none;
+            color: #ffffff;
+            background: #dc2626;
+            border-color: #dc2626;
         }
 
         .sidebar-action-item i {
@@ -842,6 +856,10 @@
             min-width: 80px;
             max-width: 80px;
             padding: 2rem 0.75rem;
+        }
+
+        .dashboard-sidebar.collapsed ~ .dashboard-main {
+            margin-left: calc(80px + 1.5rem + 1.5rem);
         }
 
         .dashboard-sidebar.collapsed .sidebar-header {
@@ -1068,6 +1086,7 @@
             background: #ffffff;
             border-radius: 24px 0 0 24px;
             margin: 1.5rem 1.5rem 1.5rem 0;
+            margin-left: calc(280px + 1.5rem + 1.5rem);
             box-shadow: 0 4px 20px rgba(0, 31, 63, 0.08);
             overflow: hidden;
             min-width: 0;
@@ -1370,6 +1389,7 @@
         @media (max-width: 1200px) {
             .dashboard-main {
                 margin: 1rem 1rem 1rem 0;
+                margin-left: calc(280px + 1.5rem + 1rem);
                 border-radius: 20px 0 0 0;
             }
 
@@ -1384,16 +1404,26 @@
             }
 
             .dashboard-sidebar {
+                position: relative;
                 width: 100%;
                 min-width: 100%;
+                max-width: 100%;
+                height: auto;
                 border-right: none;
                 border-bottom: 1px solid var(--border-color);
                 padding: 1.5rem;
+                margin: 0;
+                border-radius: 0;
             }
 
             .dashboard-main {
                 margin: 0;
+                margin-left: 0;
                 border-radius: 0;
+            }
+
+            .dashboard-sidebar.collapsed ~ .dashboard-main {
+                margin-left: 0;
             }
 
             .dashboard-content {
@@ -1550,21 +1580,21 @@
             
             <!-- Sidebar Footer with User Info -->
             <div class="sidebar-footer">
-                <a href="settings.html" class="sidebar-user-profile">
-                    <div class="sidebar-user-profile-top">
+                <div class="sidebar-user-profile">
+                    <a href="settings.html" class="sidebar-user-profile-top">
                         <div class="sidebar-user-avatar" id="sidebarUserAvatar">GU</div>
                         <div class="sidebar-user-details">
                             <span class="sidebar-user-name" id="sidebarUserName">Loading...</span>
                             <span class="sidebar-user-role" id="sidebarUserRole">Loading...</span>
                         </div>
-                    </div>
+                    </a>
                     <div class="sidebar-user-actions">
                         <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
                             <i class="fas fa-right-from-bracket"></i>
                             <span>Logout</span>
                         </a>
                     </div>
-                </a>
+                </div>
             </div>
         </aside>
 

@@ -833,10 +833,26 @@ async function getTransferRequestById(id) {
     const buyerInfo = row.buyer_info ? (typeof row.buyer_info === 'string' ? JSON.parse(row.buyer_info) : row.buyer_info) : null;
     const metadata = row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {};
     
+    // Extract rejection reason if status is REJECTED
+    let rejectionReason = null;
+    if (row.status === 'REJECTED') {
+        // Check metadata first
+        if (metadata.rejectionReason) {
+            rejectionReason = metadata.rejectionReason;
+        } else if (metadata.rejection_reason) {
+            rejectionReason = metadata.rejection_reason;
+        }
+        // Check if there's a rejection_reason column (may not exist in all schemas)
+        if (!rejectionReason && row.rejection_reason) {
+            rejectionReason = row.rejection_reason;
+        }
+    }
+    
     return {
         ...row,
         buyer_info: buyerInfo,
         metadata: metadata,
+        rejectionReason: rejectionReason,
         vehicle: {
             id: row.vehicle_id,
             vin: row.vin,
@@ -990,11 +1006,27 @@ async function getTransferRequests(filters = {}) {
             finalBuyerName = buyerInfo.email;
         }
         
+        // Extract rejection reason if status is REJECTED
+        let rejectionReason = null;
+        if (row.status === 'REJECTED') {
+            // Check metadata first
+            if (metadata.rejectionReason) {
+                rejectionReason = metadata.rejectionReason;
+            } else if (metadata.rejection_reason) {
+                rejectionReason = metadata.rejection_reason;
+            }
+            // Check if there's a rejection_reason column (may not exist in all schemas)
+            if (!rejectionReason && row.rejection_reason) {
+                rejectionReason = row.rejection_reason;
+            }
+        }
+        
         return {
             ...row,
             buyer_name: finalBuyerName || null, // Never use 'N/A' or placeholders
             buyer_info: buyerInfo,
             metadata: metadata,
+            rejectionReason: rejectionReason,
             vehicle: {
                 vin: row.vin,
                 plate_number: row.plate_number,

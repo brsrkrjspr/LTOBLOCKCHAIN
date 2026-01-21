@@ -2943,6 +2943,200 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin']),
             type: 'error'
         });
         
+        // Send email notification to seller
+        try {
+            const vehicle = await db.getVehicleById(request.vehicle_id);
+            const sellerEmail = request.seller_email;
+            const sellerName = request.seller_first_name && request.seller_last_name
+                ? `${request.seller_first_name} ${request.seller_last_name}`
+                : sellerEmail || 'Vehicle Owner';
+            
+            if (sellerEmail) {
+                const gmailApiService = require('../services/gmailApiService');
+                const appUrl = process.env.APP_URL || 'http://localhost:3000';
+                const dashboardUrl = `${appUrl}/owner-dashboard.html`;
+                
+                const subject = 'Transfer Request Rejected - TrustChain LTO';
+                const html = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #d32f2f;">Transfer Request Rejected</h2>
+                        <p>Dear ${sellerName},</p>
+                        <p>We regret to inform you that your vehicle ownership transfer request has been <strong>rejected</strong>.</p>
+                        
+                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #856404;">Vehicle Details</h3>
+                            ${vehicle ? `
+                                <p style="margin: 0.5rem 0;"><strong>VIN:</strong> ${vehicle.vin || 'N/A'}</p>
+                                ${vehicle.plate_number ? `<p style="margin: 0.5rem 0;"><strong>Plate Number:</strong> ${vehicle.plate_number}</p>` : ''}
+                                ${vehicle.make ? `<p style="margin: 0.5rem 0;"><strong>Make:</strong> ${vehicle.make}</p>` : ''}
+                                ${vehicle.model ? `<p style="margin: 0.5rem 0;"><strong>Model:</strong> ${vehicle.model}</p>` : ''}
+                            ` : '<p>Vehicle details not available</p>'}
+                        </div>
+                        
+                        <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #721c24;">Reason for Rejection</h3>
+                            <p style="margin: 0; white-space: pre-wrap;">${reason}</p>
+                        </div>
+                        
+                        <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #0d47a1;">What You Can Do</h3>
+                            <p>If you believe this rejection was made in error, or if you can address the issues mentioned above:</p>
+                            <ol>
+                                <li>Review the rejection reason carefully</li>
+                                <li>Log into your TrustChain account</li>
+                                <li>Go to your vehicle dashboard</li>
+                                <li>If documents need updating, click the "Update Document" button next to the relevant document</li>
+                                <li>Upload corrected documents if needed</li>
+                                <li>Contact LTO Lipa City if you have questions</li>
+                            </ol>
+                            <p style="margin-top: 1rem;">
+                                <a href="${dashboardUrl}" style="background: #2196f3; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Dashboard</a>
+                            </p>
+                        </div>
+                        
+                        <p style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                            If you have any questions, please contact LTO Lipa City.
+                        </p>
+                        
+                        <p style="margin-top: 1rem;">
+                            Best regards,<br>
+                            <strong>LTO Lipa City Team</strong>
+                        </p>
+                    </div>
+                `;
+                
+                const text = `
+Transfer Request Rejected - TrustChain LTO
+
+Dear ${sellerName},
+
+We regret to inform you that your vehicle ownership transfer request has been REJECTED.
+
+Vehicle Details:
+${vehicle ? `
+- VIN: ${vehicle.vin || 'N/A'}
+${vehicle.plate_number ? `- Plate Number: ${vehicle.plate_number}` : ''}
+${vehicle.make ? `- Make: ${vehicle.make}` : ''}
+${vehicle.model ? `- Model: ${vehicle.model}` : ''}
+` : 'Vehicle details not available'}
+
+Reason for Rejection:
+${reason}
+
+What You Can Do:
+1. Review the rejection reason carefully
+2. Log into your TrustChain account
+3. Go to your vehicle dashboard
+4. If documents need updating, click the "Update Document" button next to the relevant document
+5. Upload corrected documents if needed
+6. Contact LTO Lipa City if you have questions
+
+Dashboard: ${dashboardUrl}
+
+If you have any questions, please contact LTO Lipa City.
+
+Best regards,
+LTO Lipa City Team
+                `;
+                
+                await gmailApiService.sendMail({
+                    to: sellerEmail,
+                    subject,
+                    text,
+                    html
+                });
+                
+                console.log(`✅ Rejection email sent to seller ${sellerEmail} for transfer request ${id}`);
+            }
+        } catch (emailError) {
+            console.error('❌ Failed to send rejection email:', emailError);
+            // Don't fail the request if email fails
+        }
+        
+        // Send email notification to buyer if buyer email exists
+        try {
+            const buyerEmail = request.buyer_email;
+            if (buyerEmail && buyerEmail !== request.seller_email) {
+                const vehicle = await db.getVehicleById(request.vehicle_id);
+                const buyerName = request.buyer_first_name && request.buyer_last_name
+                    ? `${request.buyer_first_name} ${request.buyer_last_name}`
+                    : buyerEmail;
+                
+                const gmailApiService = require('../services/gmailApiService');
+                const appUrl = process.env.APP_URL || 'http://localhost:3000';
+                const dashboardUrl = `${appUrl}/my-vehicle-ownership.html`;
+                
+                const subject = 'Transfer Request Rejected - TrustChain LTO';
+                const html = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #d32f2f;">Transfer Request Rejected</h2>
+                        <p>Dear ${buyerName},</p>
+                        <p>The vehicle ownership transfer request you were involved in has been <strong>rejected</strong>.</p>
+                        
+                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #856404;">Vehicle Details</h3>
+                            ${vehicle ? `
+                                <p style="margin: 0.5rem 0;"><strong>VIN:</strong> ${vehicle.vin || 'N/A'}</p>
+                                ${vehicle.plate_number ? `<p style="margin: 0.5rem 0;"><strong>Plate Number:</strong> ${vehicle.plate_number}</p>` : ''}
+                                ${vehicle.make ? `<p style="margin: 0.5rem 0;"><strong>Make:</strong> ${vehicle.make}</p>` : ''}
+                                ${vehicle.model ? `<p style="margin: 0.5rem 0;"><strong>Model:</strong> ${vehicle.model}</p>` : ''}
+                            ` : '<p>Vehicle details not available</p>'}
+                        </div>
+                        
+                        <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0;">
+                            <h3 style="margin-top: 0; color: #721c24;">Reason for Rejection</h3>
+                            <p style="margin: 0; white-space: pre-wrap;">${reason}</p>
+                        </div>
+                        
+                        <p style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                            Please contact the seller or LTO Lipa City if you have any questions.
+                        </p>
+                        
+                        <p style="margin-top: 1rem;">
+                            Best regards,<br>
+                            <strong>LTO Lipa City Team</strong>
+                        </p>
+                    </div>
+                `;
+                
+                const text = `
+Transfer Request Rejected - TrustChain LTO
+
+Dear ${buyerName},
+
+The vehicle ownership transfer request you were involved in has been REJECTED.
+
+Vehicle Details:
+${vehicle ? `
+- VIN: ${vehicle.vin || 'N/A'}
+${vehicle.plate_number ? `- Plate Number: ${vehicle.plate_number}` : ''}
+${vehicle.make ? `- Make: ${vehicle.make}` : ''}
+${vehicle.model ? `- Model: ${vehicle.model}` : ''}
+` : 'Vehicle details not available'}
+
+Reason for Rejection:
+${reason}
+
+Please contact the seller or LTO Lipa City if you have any questions.
+
+Best regards,
+LTO Lipa City Team
+                `;
+                
+                await gmailApiService.sendMail({
+                    to: buyerEmail,
+                    subject,
+                    text,
+                    html
+                });
+                
+                console.log(`✅ Rejection email sent to buyer ${buyerEmail} for transfer request ${id}`);
+            }
+        } catch (emailError) {
+            console.error('❌ Failed to send rejection email to buyer:', emailError);
+            // Don't fail the request if email fails
+        }
+        
         // Get updated request
         const updatedRequest = await db.getTransferRequestById(id);
         
@@ -3359,6 +3553,57 @@ router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(
         res.status(500).json({
             success: false,
             error: 'Internal server error'
+        });
+    }
+});
+
+// Link document to transfer request (for document updates)
+router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { documents } = req.body;
+        
+        if (!documents || typeof documents !== 'object') {
+            return res.status(400).json({
+                success: false,
+                error: 'Documents object is required'
+            });
+        }
+        
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+        
+        // Check permissions - user must be seller or admin
+        if (req.user.role === 'vehicle_owner' && String(request.seller_id) !== String(req.user.userId)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied. You can only update documents for your own transfer requests.'
+            });
+        }
+        
+        // Link documents using the existing linkTransferDocuments function
+        await linkTransferDocuments({
+            transferRequestId: id,
+            documents: documents,
+            uploadedBy: req.user.userId
+        });
+        
+        res.json({
+            success: true,
+            message: 'Document linked to transfer request successfully'
+        });
+        
+    } catch (error) {
+        console.error('Link document to transfer request error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

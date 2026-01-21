@@ -1562,6 +1562,8 @@ function showApplicationDetailsModal(application) {
     const vehicle = application.vehicle || {};
     let documents = application.documents || {};
     const status = application.status || 'submitted';
+    // Normalize status for consistent comparison
+    const normalizedStatus = (status || '').toLowerCase();
     
     console.log('📂 Initial documents:', documents, 'Type:', typeof documents, 'IsArray:', Array.isArray(documents));
     
@@ -1637,7 +1639,9 @@ function showApplicationDetailsModal(application) {
             const filename = typeof docData === 'object' ? (docData.filename || docType.label) : docType.label;
             
             // Check if application is pending/rejected (allows document updates)
-            const canUpdate = status === 'submitted' || status === 'processing' || status === 'rejected' || status === 'pending';
+            // Normalize status to handle both uppercase and lowercase from backend
+            const normalizedStatus = (status || '').toLowerCase();
+            const canUpdate = ['submitted', 'processing', 'rejected', 'pending'].includes(normalizedStatus);
             
             documentListHTML += `
                 <div class="doc-select-item" data-doc-key="${docType.key}" data-doc-id="${docData.id || ''}">
@@ -1709,6 +1713,16 @@ function showApplicationDetailsModal(application) {
                     <i class="fas ${getStatusIcon(status)}"></i>
                     <span>${getStatusText(status)}</span>
                 </div>
+                
+                <!-- Rejection Reason Display -->
+                ${normalizedStatus === 'rejected' && (application.rejectionReason || application.notes || application.rejection_reason) ? `
+                <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0; border-radius: 4px;">
+                    <h4 style="margin-top: 0; color: #721c24; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-exclamation-triangle"></i> Reason for Rejection
+                    </h4>
+                    <p style="margin: 0; white-space: pre-wrap; color: #721c24;">${application.rejectionReason || application.notes || application.rejection_reason}</p>
+                </div>
+                ` : ''}
                 
                 <!-- OR/CR Number Display -->
                 ${application.or_cr_number || application.vehicle?.or_cr_number ? `
@@ -3026,10 +3040,15 @@ let currentUpdateDocKey = null;
 let currentUpdateDocId = null;
 let currentUpdateApplicationId = null;
 
-function showDocumentUpdateModal(docKey, docLabel, docId, applicationId) {
+function showDocumentUpdateModal(docKey, docLabel, docId, applicationId, isTransferRequest = false, transferRequestId = null, vehicleId = null) {
     currentUpdateDocKey = docKey;
     currentUpdateDocId = docId;
     currentUpdateApplicationId = applicationId;
+    // Store transfer request context if applicable
+    if (isTransferRequest) {
+        window.currentTransferRequestId = transferRequestId;
+        window.currentTransferVehicleId = vehicleId;
+    }
     
     const modal = document.getElementById('documentUpdateModal');
     if (!modal) {
@@ -3134,13 +3153,19 @@ async function submitDocumentUpdate() {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         }
         
-        // Get application details to find vehicle ID
-        const application = currentModalApplication;
-        if (!application || !application.vehicle || !application.vehicle.id) {
-            throw new Error('Application or vehicle information not found');
+        // Get vehicle ID - check if this is a transfer request update
+        let vehicleId = null;
+        if (window.currentTransferRequestId && window.currentTransferVehicleId) {
+            // Transfer request context
+            vehicleId = window.currentTransferVehicleId;
+        } else {
+            // Regular application context
+            const application = currentModalApplication;
+            if (!application || !application.vehicle || !application.vehicle.id) {
+                throw new Error('Application or vehicle information not found');
+            }
+            vehicleId = application.vehicle.id;
         }
-        
-        const vehicleId = application.vehicle.id;
         
         // Map document key to logical type
         const docTypeMap = {
@@ -3172,6 +3197,50 @@ async function submitDocumentUpdate() {
             throw new Error(uploadResponse.error || 'Upload failed');
         }
         
+        // If this is a transfer request, link the document to the transfer request
+        if (window.currentTransferRequestId && uploadResponse.document && uploadResponse.document.id) {
+            try {
+                // Map document key to transfer document role (matching linkTransferDocuments mapping)
+                const transferDocRoleMap = {
+                    'deedOfSale': 'deedOfSale',
+                    'deed_of_sale': 'deedOfSale',
+                    'sellerId': 'sellerId',
+                    'buyerId': 'buyerId',
+                    'buyerTin': 'buyerTin',
+                    'buyer_tin': 'buyerTin',
+                    'buyerCtpl': 'buyerCtpl',
+                    'buyer_ctpl': 'buyerCtpl',
+                    'buyerHpgClearance': 'buyerHpgClearance',
+                    'buyer_hpg_clearance': 'buyerHpgClearance',
+                    'buyerMvir': 'buyerMvir',
+                    'buyer_mvir': 'buyerMvir',
+                    'or_cr': 'orCr',
+                    'orCr': 'orCr',
+                    'hpgClearance': 'buyerHpgClearance'
+                };
+                
+                const transferDocRole = transferDocRoleMap[currentUpdateDocKey] || currentUpdateDocKey;
+                
+                // Link document to transfer request using the accept endpoint's document linking logic
+                // We'll use a direct API call that accepts documents object
+                const linkResponse = await apiClient.post(`/api/vehicles/transfer/requests/${window.currentTransferRequestId}/link-document`, {
+                    documents: {
+                        [transferDocRole]: uploadResponse.document.id
+                    }
+                });
+                
+                if (!linkResponse.success) {
+                    console.warn('Document uploaded but failed to link to transfer request:', linkResponse.error);
+                    // Don't fail - document is uploaded, just not linked
+                } else {
+                    console.log('✅ Document linked to transfer request successfully');
+                }
+            } catch (linkError) {
+                console.error('Error linking document to transfer request:', linkError);
+                // Don't fail - document is uploaded, just not linked
+            }
+        }
+        
         // Show success message
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show('Document updated successfully. The new document has been uploaded.', 'success');
@@ -3179,26 +3248,40 @@ async function submitDocumentUpdate() {
             alert('Document updated successfully!');
         }
         
-        // Close modal and reload application details
+        // Close modal
         closeDocumentUpdateModal();
-        closeApplicationDetailsModal();
         
-        // Reload applications list
-        if (typeof loadUserApplications === 'function') {
-            loadUserApplications();
-        }
-        
-        // Optionally reopen the application details modal
-        setTimeout(() => {
-            if (currentUpdateApplicationId && typeof showApplicationDetailsModal === 'function') {
-                // Reload application data
-                const applications = window.myApplications || [];
-                const updatedApp = applications.find(app => app.id === currentUpdateApplicationId);
-                if (updatedApp) {
-                    showApplicationDetailsModal(updatedApp);
-                }
+        // Handle reload based on context
+        if (window.currentTransferRequestId) {
+            // Transfer request context - reload transfer requests
+            closeTransferRequestDetailsModal();
+            if (typeof loadMyTransferRequests === 'function') {
+                loadMyTransferRequests();
             }
-        }, 500);
+            // Clear transfer request context
+            window.currentTransferRequestId = null;
+            window.currentTransferVehicleId = null;
+        } else {
+            // Regular application context
+            closeApplicationDetailsModal();
+            
+            // Reload applications list
+            if (typeof loadUserApplications === 'function') {
+                loadUserApplications();
+            }
+            
+            // Optionally reopen the application details modal
+            setTimeout(() => {
+                if (currentUpdateApplicationId && typeof showApplicationDetailsModal === 'function') {
+                    // Reload application data
+                    const applications = window.myApplications || [];
+                    const updatedApp = applications.find(app => app.id === currentUpdateApplicationId);
+                    if (updatedApp) {
+                        showApplicationDetailsModal(updatedApp);
+                    }
+                }
+            }, 500);
+        }
         
     } catch (error) {
         console.error('Error updating document:', error);

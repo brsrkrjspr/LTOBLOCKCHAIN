@@ -649,6 +649,141 @@ router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['a
             }
         }
         
+        // Send email notification if document is rejected
+        if (decision === 'REJECTED' && vehicle) {
+            try {
+                // Get owner information
+                let ownerEmail = vehicle.owner_email;
+                let ownerName = vehicle.owner_name || 'Vehicle Owner';
+                
+                // If owner_email is not available, try to get from users table
+                if (!ownerEmail && vehicle.owner_id) {
+                    try {
+                        const ownerUser = await db.getUserById(vehicle.owner_id);
+                        if (ownerUser) {
+                            ownerEmail = ownerUser.email;
+                            ownerName = ownerUser.first_name && ownerUser.last_name 
+                                ? `${ownerUser.first_name} ${ownerUser.last_name}` 
+                                : ownerUser.email || ownerName;
+                        }
+                    } catch (userError) {
+                        console.warn('Could not fetch owner user:', userError);
+                    }
+                }
+                
+                if (ownerEmail) {
+                    const gmailApiService = require('../services/gmailApiService');
+                    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+                    const dashboardUrl = `${appUrl}/owner-dashboard.html`;
+                    
+                    const subject = `Document Verification Rejected - ${verificationType.toUpperCase()} - TrustChain LTO`;
+                    const html = `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                            <h2 style="color: #d32f2f;">Document Verification Rejected</h2>
+                            <p>Dear ${ownerName},</p>
+                            <p>We regret to inform you that your ${verificationType.toUpperCase()} document verification has been <strong>rejected</strong>.</p>
+                            
+                            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 1rem 0;">
+                                <h3 style="margin-top: 0; color: #856404;">Vehicle Details</h3>
+                                <p style="margin: 0.5rem 0;"><strong>VIN:</strong> ${vehicle.vin || 'N/A'}</p>
+                                ${vehicle.plate_number ? `<p style="margin: 0.5rem 0;"><strong>Plate Number:</strong> ${vehicle.plate_number}</p>` : ''}
+                                ${vehicle.make ? `<p style="margin: 0.5rem 0;"><strong>Make:</strong> ${vehicle.make}</p>` : ''}
+                                ${vehicle.model ? `<p style="margin: 0.5rem 0;"><strong>Model:</strong> ${vehicle.model}</p>` : ''}
+                            </div>
+                            
+                            <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin: 1rem 0;">
+                                <h3 style="margin-top: 0; color: #721c24;">Reason for Rejection</h3>
+                                <p style="margin: 0; white-space: pre-wrap;">${notes || 'No specific reason provided. Please review your document and ensure it meets all requirements.'}</p>
+                            </div>
+                            
+                            <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 1rem; margin: 1rem 0;">
+                                <h3 style="margin-top: 0; color: #0d47a1;">What You Need to Do</h3>
+                                <p>Please review the reason above and upload a corrected document:</p>
+                                <ol>
+                                    <li>Log into your TrustChain account</li>
+                                    <li>Go to your vehicle dashboard</li>
+                                    <li>Find the application with status "Rejected" or "Pending"</li>
+                                    <li>Click the "Update Document" button next to the ${verificationType.toUpperCase()} document</li>
+                                    <li>Upload the corrected document</li>
+                                </ol>
+                                <p style="margin-top: 1rem;">
+                                    <a href="${dashboardUrl}" style="background: #2196f3; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Dashboard</a>
+                                </p>
+                            </div>
+                            
+                            <p style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                                If you have any questions, please contact LTO Lipa City.
+                            </p>
+                            
+                            <p style="margin-top: 1rem;">
+                                Best regards,<br>
+                                <strong>LTO Lipa City Team</strong>
+                            </p>
+                        </div>
+                    `;
+                    
+                    const text = `
+Document Verification Rejected - TrustChain LTO
+
+Dear ${ownerName},
+
+We regret to inform you that your ${verificationType.toUpperCase()} document verification has been REJECTED.
+
+Vehicle Details:
+- VIN: ${vehicle.vin || 'N/A'}
+${vehicle.plate_number ? `- Plate Number: ${vehicle.plate_number}` : ''}
+${vehicle.make ? `- Make: ${vehicle.make}` : ''}
+${vehicle.model ? `- Model: ${vehicle.model}` : ''}
+
+Reason for Rejection:
+${notes || 'No specific reason provided. Please review your document and ensure it meets all requirements.'}
+
+What You Need to Do:
+1. Log into your TrustChain account
+2. Go to your vehicle dashboard
+3. Find the application with status "Rejected" or "Pending"
+4. Click the "Update Document" button next to the ${verificationType.toUpperCase()} document
+5. Upload the corrected document
+
+Dashboard: ${dashboardUrl}
+
+If you have any questions, please contact LTO Lipa City.
+
+Best regards,
+LTO Lipa City Team
+                    `;
+                    
+                    await gmailApiService.sendMail({
+                        to: ownerEmail,
+                        subject,
+                        text,
+                        html
+                    });
+                    
+                    console.log(`✅ Rejection email sent to ${ownerEmail} for ${verificationType} verification`);
+                }
+            } catch (emailError) {
+                console.error('❌ Failed to send rejection email:', emailError);
+                // Don't fail the request if email fails
+            }
+            
+            // Create in-app notification
+            if (vehicle && vehicle.owner_id) {
+                try {
+                    await db.createNotification({
+                        userId: vehicle.owner_id,
+                        title: `${verificationType.toUpperCase()} Document Rejected`,
+                        message: `Your ${verificationType} document verification has been rejected. Reason: ${notes || 'No reason provided'}`,
+                        type: 'error'
+                    });
+                    console.log(`✅ In-app notification created for vehicle owner ${vehicle.owner_id}`);
+                } catch (notifError) {
+                    console.error('❌ Failed to create in-app notification:', notifError);
+                    // Don't fail the request if notification fails
+                }
+            }
+        }
+        
         res.json({
             success: true,
             message: `${verificationType} verification manually ${decision.toLowerCase()} successfully`,

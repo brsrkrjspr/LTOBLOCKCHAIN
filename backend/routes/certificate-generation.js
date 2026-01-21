@@ -1879,7 +1879,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     engineNumber: vehicle.engine_number, // Use DB vehicle data
                     clearanceNumber: clearanceNumber,
                     issueDate: issueDate,
-                    verificationDetails: buyerDocuments.hpgClearance.verificationDetails || 'No adverse record found. Vehicle cleared for registration.'
+                    verificationDetails: buyerDocuments.hpgClearance?.verificationDetails || 'No adverse record found. Vehicle cleared for registration.'
                 });
 
                 // Store PDF document with correct enum type
@@ -1912,7 +1912,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     {
                         transferRequestId,
                         vehiclePlate: vehicle.plate_number,
-                        verificationDetails: buyerDocuments.hpgClearance.verificationDetails
+                        verificationDetails: buyerDocuments.hpgClearance?.verificationDetails || 'No adverse record found. Vehicle cleared for registration.'
                     }
                 );
 

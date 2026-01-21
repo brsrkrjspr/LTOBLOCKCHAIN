@@ -1646,8 +1646,11 @@ function showApplicationDetailsModal(application) {
             // Get filename for display
             const filename = typeof docData === 'object' ? (docData.filename || docType.label) : docType.label;
             
+            // Check if application is pending/rejected (allows document updates)
+            const canUpdate = status === 'submitted' || status === 'processing' || status === 'rejected' || status === 'pending';
+            
             documentListHTML += `
-                <div class="doc-select-item" data-doc-key="${docType.key}" onclick="openDocumentByKey('${docType.key}')">
+                <div class="doc-select-item" data-doc-key="${docType.key}" data-doc-id="${docData.id || ''}">
                     <div class="doc-select-icon">
                         <i class="fas ${docType.icon}"></i>
                     </div>
@@ -1658,8 +1661,15 @@ function showApplicationDetailsModal(application) {
                             <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
                         </div>
                     </div>
-                    <div class="doc-select-action">
-                        <i class="fas fa-eye"></i>
+                    <div class="doc-select-actions" style="display: flex; gap: 0.5rem;">
+                        <button class="btn-icon" onclick="openDocumentByKey('${docType.key}')" title="View Document">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${canUpdate ? `
+                        <button class="btn-icon btn-update-doc" onclick="showDocumentUpdateModal('${docType.key}', '${docType.label}', '${docData.id || ''}', '${application.id}')" title="Update Document" style="color: #3498db;">
+                            <i class="fas fa-upload"></i>
+                        </button>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -1787,12 +1797,72 @@ function showApplicationDetailsModal(application) {
                         <i class="fas fa-images"></i> Quick View
                     </button>
                 ` : ''}
+                ${status === 'submitted' || status === 'processing' || status === 'rejected' || status === 'pending' ? `
+                <button class="btn-warning" onclick="showBulkDocumentUpdateModal('${application.id}')" style="background: #f39c12; color: white;">
+                    <i class="fas fa-upload"></i> Update Documents
+                </button>
+                ` : ''}
                 <button class="btn-secondary" onclick="closeApplicationDetailsModal()">
                     Close
                 </button>
             </div>
         </div>
     `;
+    
+    // Add document update modal HTML if not exists
+    if (!document.getElementById('documentUpdateModal')) {
+        const updateModal = document.createElement('div');
+        updateModal.id = 'documentUpdateModal';
+        updateModal.className = 'owner-details-modal';
+        updateModal.style.display = 'none';
+        updateModal.innerHTML = `
+            <div class="owner-modal-overlay" onclick="closeDocumentUpdateModal()"></div>
+            <div class="owner-modal-content" style="max-width: 600px;">
+                <div class="owner-modal-header">
+                    <div class="owner-modal-title">
+                        <div class="owner-modal-icon">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                        <div>
+                            <h3>Update Document</h3>
+                            <small id="updateDocTypeLabel">Document Type</small>
+                        </div>
+                    </div>
+                    <button class="owner-modal-close" onclick="closeDocumentUpdateModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="owner-modal-body">
+                    <p style="margin-bottom: 1.5rem; color: #555; font-size: 0.95rem;">
+                        Upload a new version of this document. The new document will replace the existing one for this application.
+                    </p>
+                    <div class="transfer-upload-item" style="margin-bottom: 1rem;">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas fa-file"></i> Select New Document</h4>
+                            <p>PDF, JPG, PNG (max 10MB)</p>
+                        </div>
+                        <div class="transfer-upload-area">
+                            <input type="file" id="updateDocumentFile" accept=".pdf,.jpg,.jpeg,.png" 
+                                   style="display: none;">
+                            <label for="updateDocumentFile" class="transfer-upload-label" id="label-updateDocumentFile">
+                                <span class="transfer-upload-icon">📄</span>
+                                <span class="transfer-upload-text">Choose File</span>
+                            </label>
+                            <div class="transfer-file-name" id="updateDocumentFileName"></div>
+                        </div>
+                    </div>
+                    <div id="updateDocumentError" style="display: none; padding: 0.75rem; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c33; margin-top: 1rem;"></div>
+                </div>
+                <div class="owner-modal-footer">
+                    <button class="btn-secondary" onclick="closeDocumentUpdateModal()">Cancel</button>
+                    <button class="btn-primary" id="submitDocumentUpdateBtn" onclick="submitDocumentUpdate()">
+                        <i class="fas fa-upload"></i> Upload & Update
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(updateModal);
+    }
     
     // Add styles
     if (!document.getElementById('owner-modal-styles')) {
@@ -2003,6 +2073,16 @@ function showApplicationDetailsModal(application) {
             .doc-select-action {
                 color: #3498db;
                 font-size: 1rem;
+            }
+            .doc-select-actions {
+                display: flex;
+                gap: 0.5rem;
+                align-items: center;
+            }
+            .btn-sm {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.875rem;
+                border-radius: 6px;
             }
             .mini-timeline {
                 display: flex;
@@ -2950,3 +3030,208 @@ window.viewTransferRequest = viewTransferRequest;
 
 // Signal that the real showApplicationTab function is loaded
 window.showApplicationTabLoaded = true;
+
+// Document Update Functions
+let currentUpdateDocKey = null;
+let currentUpdateDocId = null;
+let currentUpdateApplicationId = null;
+
+function showDocumentUpdateModal(docKey, docLabel, docId, applicationId) {
+    currentUpdateDocKey = docKey;
+    currentUpdateDocId = docId;
+    currentUpdateApplicationId = applicationId;
+    
+    const modal = document.getElementById('documentUpdateModal');
+    if (!modal) {
+        console.error('Document update modal not found');
+        return;
+    }
+    
+    // Update label
+    const labelEl = document.getElementById('updateDocTypeLabel');
+    if (labelEl) labelEl.textContent = docLabel;
+    
+    // Reset form
+    const fileInput = document.getElementById('updateDocumentFile');
+    const fileNameDiv = document.getElementById('updateDocumentFileName');
+    const errorDiv = document.getElementById('updateDocumentError');
+    
+    if (fileInput) fileInput.value = '';
+    if (fileNameDiv) fileNameDiv.textContent = '';
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+    }
+    
+    // Show modal
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Add file change listener and trigger label click
+    if (fileInput) {
+        // Make label clickable
+        const label = document.getElementById('label-updateDocumentFile');
+        if (label) {
+            label.onclick = function(e) {
+                e.preventDefault();
+                fileInput.click();
+            };
+        }
+        
+        fileInput.onchange = function() {
+            if (this.files && this.files.length > 0) {
+                const fileName = this.files[0].name;
+                if (fileNameDiv) {
+                    fileNameDiv.innerHTML = `<span style="color: #27ae60;">✅ ${fileName}</span>`;
+                }
+                if (label) {
+                    label.classList.add('uploaded');
+                }
+            }
+        };
+    }
+}
+
+function closeDocumentUpdateModal() {
+    const modal = document.getElementById('documentUpdateModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    currentUpdateDocKey = null;
+    currentUpdateDocId = null;
+    currentUpdateApplicationId = null;
+}
+
+async function submitDocumentUpdate() {
+    const fileInput = document.getElementById('updateDocumentFile');
+    const errorDiv = document.getElementById('updateDocumentError');
+    const submitBtn = document.getElementById('submitDocumentUpdateBtn');
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        if (errorDiv) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Please select a file to upload';
+        }
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        if (errorDiv) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'File size exceeds 10MB limit';
+        }
+        return;
+    }
+    
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+        if (errorDiv) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Invalid file type. Please upload PDF, JPG, or PNG';
+        }
+        return;
+    }
+    
+    try {
+        // Disable submit button
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        }
+        
+        // Get application details to find vehicle ID
+        const application = currentModalApplication;
+        if (!application || !application.vehicle || !application.vehicle.id) {
+            throw new Error('Application or vehicle information not found');
+        }
+        
+        const vehicleId = application.vehicle.id;
+        
+        // Map document key to logical type
+        const docTypeMap = {
+            'registrationCert': 'registrationCert',
+            'insuranceCert': 'insuranceCert',
+            'emissionCert': 'emissionCert',
+            'ownerId': 'ownerId',
+            'validId': 'ownerId',
+            'deedOfSale': 'deedOfSale',
+            'sellerId': 'sellerId',
+            'buyerId': 'buyerId',
+            'hpgClearance': 'hpgClearance',
+            'csr': 'csr',
+            'salesInvoice': 'salesInvoice'
+        };
+        
+        const logicalDocType = docTypeMap[currentUpdateDocKey] || currentUpdateDocKey;
+        
+        // Upload new document
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('type', logicalDocType);
+        formData.append('vehicleId', vehicleId);
+        
+        const apiClient = window.apiClient || new APIClient();
+        const uploadResponse = await apiClient.post('/api/documents/upload', formData);
+        
+        if (!uploadResponse.success) {
+            throw new Error(uploadResponse.error || 'Upload failed');
+        }
+        
+        // Show success message
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Document updated successfully. The new document has been uploaded.', 'success');
+        } else {
+            alert('Document updated successfully!');
+        }
+        
+        // Close modal and reload application details
+        closeDocumentUpdateModal();
+        closeApplicationDetailsModal();
+        
+        // Reload applications list
+        if (typeof loadUserApplications === 'function') {
+            loadUserApplications();
+        }
+        
+        // Optionally reopen the application details modal
+        setTimeout(() => {
+            if (currentUpdateApplicationId && typeof showApplicationDetailsModal === 'function') {
+                // Reload application data
+                const applications = window.myApplications || [];
+                const updatedApp = applications.find(app => app.id === currentUpdateApplicationId);
+                if (updatedApp) {
+                    showApplicationDetailsModal(updatedApp);
+                }
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error('Error updating document:', error);
+        if (errorDiv) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = error.message || 'Failed to update document. Please try again.';
+        }
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Error: ${error.message || 'Failed to update document'}`, 'error');
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload & Update';
+        }
+    }
+}
+
+function showBulkDocumentUpdateModal(applicationId) {
+    // For now, just show a message directing to individual document updates
+    if (typeof ToastNotification !== 'undefined') {
+        ToastNotification.show('Click the upload icon next to each document to update it individually.', 'info');
+    } else {
+        alert('Click the upload icon next to each document to update it individually.');
+    }
+}

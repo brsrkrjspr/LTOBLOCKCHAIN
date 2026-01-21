@@ -1267,6 +1267,75 @@
             box-shadow: 0 4px 12px rgba(22, 160, 133, 0.3);
         }
 
+        /* Transfer Upload Styles (for buyer document upload modal) */
+        .transfer-upload-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        .transfer-upload-info {
+            flex: 1;
+        }
+        .transfer-upload-info h4 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .transfer-upload-info p {
+            margin: 0;
+            color: #7f8c8d;
+            font-size: 0.875rem;
+        }
+        .transfer-upload-area {
+            position: relative;
+            min-width: 150px;
+        }
+        .transfer-upload-area input[type="file"] {
+            display: none;
+        }
+        .transfer-upload-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .transfer-upload-label:hover {
+            background: #e3f2fd;
+            border-color: #2980b9;
+        }
+        .transfer-upload-label.uploaded {
+            border-color: #27ae60;
+            border-style: solid;
+            background: #d4edda;
+        }
+        .transfer-upload-icon {
+            font-size: 1.5rem;
+        }
+        .transfer-upload-text {
+            font-size: 0.9rem;
+            color: #555;
+        }
+        .transfer-file-name {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #27ae60;
+            font-weight: bold;
+        }
+
         /* Verification Modal Styles */
         .verification-modal {
             display: none;
@@ -2452,8 +2521,125 @@
         </div>
     </div>
 
+    <!-- Buyer Document Upload Modal -->
+    <div class="verification-modal" id="buyerDocumentUploadModal">
+        <div class="verification-modal-content" style="max-width: 700px;">
+            <div class="verification-modal-header">
+                <h3><i class="fas fa-file-upload"></i> Upload Buyer Documents</h3>
+                <button class="verification-modal-close" onclick="closeBuyerDocumentUploadModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="verification-modal-body">
+                <p style="margin-bottom: 1.5rem; color: #555; font-size: 0.95rem;">
+                    To complete the transfer acceptance, please upload the required buyer documents. 
+                    You can upload them now or accept and upload later (within 3 days).
+                </p>
+                
+                <form id="buyerDocumentUploadForm">
+                    <!-- Buyer ID -->
+                    <div class="transfer-upload-item" style="margin-bottom: 1.5rem;">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas fa-id-card"></i> Buyer Valid ID <span style="color: #e74c3c;">*</span></h4>
+                            <p>Government-issued ID (Driver's License, National ID, Passport, etc.)</p>
+                        </div>
+                        <div class="transfer-upload-area">
+                            <input type="file" id="buyerId" accept=".pdf,.jpg,.jpeg,.png" 
+                                   onchange="handleBuyerDocumentUpload(this, 'buyerId')" 
+                                   style="display: none;">
+                            <label for="buyerId" class="transfer-upload-label" id="label-buyerId">
+                                <span class="transfer-upload-icon">📄</span>
+                                <span class="transfer-upload-text">Choose File</span>
+                            </label>
+                            <div class="transfer-file-name" id="filename-buyerId"></div>
+                        </div>
+                    </div>
+
+                    <!-- Buyer TIN -->
+                    <div class="transfer-upload-item" style="margin-bottom: 1.5rem;">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas fa-file-invoice"></i> Buyer TIN <span style="color: #e74c3c;">*</span></h4>
+                            <p>Tax Identification Number document</p>
+                        </div>
+                        <div class="transfer-upload-area">
+                            <input type="file" id="buyerTin" accept=".pdf,.jpg,.jpeg,.png" 
+                                   onchange="handleBuyerDocumentUpload(this, 'buyerTin')" 
+                                   style="display: none;">
+                            <label for="buyerTin" class="transfer-upload-label" id="label-buyerTin">
+                                <span class="transfer-upload-icon">📄</span>
+                                <span class="transfer-upload-text">Choose File</span>
+                            </label>
+                            <div class="transfer-file-name" id="filename-buyerTin"></div>
+                        </div>
+                    </div>
+
+                    <!-- HPG Clearance -->
+                    <div class="transfer-upload-item" style="margin-bottom: 1.5rem;">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas fa-shield-alt"></i> HPG Clearance <span style="color: #e74c3c;">*</span></h4>
+                            <p>PNP-HPG Motor Vehicle Clearance Certificate</p>
+                        </div>
+                        <div class="transfer-upload-area">
+                            <input type="file" id="buyerHpgClearance" accept=".pdf,.jpg,.jpeg,.png" 
+                                   onchange="handleBuyerDocumentUpload(this, 'buyerHpgClearance')" 
+                                   style="display: none;">
+                            <label for="buyerHpgClearance" class="transfer-upload-label" id="label-buyerHpgClearance">
+                                <span class="transfer-upload-icon">📄</span>
+                                <span class="transfer-upload-text">Choose File</span>
+                            </label>
+                            <div class="transfer-file-name" id="filename-buyerHpgClearance"></div>
+                        </div>
+                    </div>
+
+                    <!-- CTPL Insurance -->
+                    <div class="transfer-upload-item" style="margin-bottom: 1.5rem;">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas fa-car-crash"></i> CTPL Insurance <span style="color: #e74c3c;">*</span></h4>
+                            <p>Compulsory Third-Party Liability Insurance Certificate</p>
+                        </div>
+                        <div class="transfer-upload-area">
+                            <input type="file" id="buyerCtpl" accept=".pdf,.jpg,.jpeg,.png" 
+                                   onchange="handleBuyerDocumentUpload(this, 'buyerCtpl')" 
+                                   style="display: none;">
+                            <label for="buyerCtpl" class="transfer-upload-label" id="label-buyerCtpl">
+                                <span class="transfer-upload-icon">📄</span>
+                                <span class="transfer-upload-text">Choose File</span>
+                            </label>
+                            <div class="transfer-file-name" id="filename-buyerCtpl"></div>
+                        </div>
+                    </div>
+
+                    <!-- MVIR -->
+                    <div class="transfer-upload-item" style="margin-bottom: 1.5rem;">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas fa-clipboard-check"></i> MVIR <span style="color: #e74c3c;">*</span></h4>
+                            <p>Motor Vehicle Inspection Report</p>
+                        </div>
+                        <div class="transfer-upload-area">
+                            <input type="file" id="buyerMvir" accept=".pdf,.jpg,.jpeg,.png" 
+                                   onchange="handleBuyerDocumentUpload(this, 'buyerMvir')" 
+                                   style="display: none;">
+                            <label for="buyerMvir" class="transfer-upload-label" id="label-buyerMvir">
+                                <span class="transfer-upload-icon">📄</span>
+                                <span class="transfer-upload-text">Choose File</span>
+                            </label>
+                            <div class="transfer-file-name" id="filename-buyerMvir"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="verification-modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeBuyerDocumentUploadModal()">Cancel</button>
+                <button class="btn-primary" id="submitBuyerAcceptanceBtn" onclick="submitBuyerAcceptance()">
+                    <i class="fas fa-check"></i> Accept & Submit Documents
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/certificate-generator.js?v=3.0"></script>
     <script src="js/my-vehicle-ownership.js"></script>
+    <script src="js/document-upload-utils.js"></script>
     <script>
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -2687,7 +2873,210 @@
         }
 
         async function acceptTransferRequest(requestId) {
-            if (!confirm('Are you sure you want to accept this transfer request? This will move it to LTO review.')) {
+            // Show buyer document upload modal instead of direct accept
+            showBuyerDocumentUploadModal(requestId);
+        }
+
+        // Show buyer document upload modal
+        function showBuyerDocumentUploadModal(requestId) {
+            const modal = document.getElementById('buyerDocumentUploadModal');
+            if (!modal) {
+                console.error('Buyer document upload modal not found');
+                // Fallback to old behavior
+                acceptTransferRequestDirect(requestId);
+                return;
+            }
+            
+            // Store requestId for use in submit
+            modal.dataset.requestId = requestId;
+            
+            // Reset form
+            const form = modal.querySelector('#buyerDocumentUploadForm');
+            if (form) form.reset();
+            
+            // Clear previous file names
+            ['buyerId', 'buyerTin', 'buyerHpgClearance', 'buyerCtpl', 'buyerMvir'].forEach(id => {
+                const filenameDiv = document.getElementById(`filename-${id}`);
+                if (filenameDiv) filenameDiv.textContent = '';
+            });
+            
+            // Show modal
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close buyer document upload modal
+        function closeBuyerDocumentUploadModal() {
+            const modal = document.getElementById('buyerDocumentUploadModal');
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Handle buyer document upload
+        async function handleBuyerDocumentUpload(input, docType) {
+            if (!input.files || input.files.length === 0) {
+                return;
+            }
+            
+            const file = input.files[0];
+            const filenameDiv = document.getElementById(`filename-${docType}`);
+            
+            try {
+                // Use DocumentUploadUtils if available
+                if (typeof DocumentUploadUtils !== 'undefined') {
+                    // Map form field names to logical document types (matching backend documentTypes.js)
+                    const docTypeMap = {
+                        'buyerId': 'buyerId',        // BUYER_ID
+                        'buyerTin': 'tinId',         // TIN_ID
+                        'buyerHpgClearance': 'hpgClearance', // HPG_CLEARANCE
+                        'buyerCtpl': 'ctpl',         // CTPL
+                        'buyerMvir': 'mvir'          // MVIR
+                    };
+                    
+                    const logicalDocType = docTypeMap[docType];
+                    if (!logicalDocType) {
+                        throw new Error(`Unknown document type: ${docType}`);
+                    }
+                    
+                    // Get vehicle ID from transfer request
+                    const modal = document.getElementById('buyerDocumentUploadModal');
+                    const requestId = modal?.dataset.requestId;
+                    if (!requestId) {
+                        throw new Error('Transfer request ID not found');
+                    }
+                    
+                    // Fetch transfer request to get vehicle ID
+                    const transferRequest = await window.apiClient.get(`/api/vehicles/transfer/requests/${requestId}`);
+                    if (!transferRequest.success || !transferRequest.transferRequest) {
+                        throw new Error('Failed to load transfer request details');
+                    }
+                    
+                    const vehicleId = transferRequest.transferRequest.vehicle_id;
+                    if (!vehicleId) {
+                        throw new Error('Vehicle ID not found in transfer request');
+                    }
+                    
+                    // Upload document using direct API call (DocumentUploadUtils may not have all types)
+                    const formData = new FormData();
+                    formData.append('document', file);
+                    formData.append('type', logicalDocType);
+                    formData.append('vehicleId', vehicleId);
+                    
+                    const uploadResponse = await window.apiClient.post('/api/documents/upload', formData);
+                    
+                    if (!uploadResponse.success || !uploadResponse.document) {
+                        throw new Error(uploadResponse.error || 'Upload failed');
+                    }
+                    
+                    const result = {
+                        success: true,
+                        document: uploadResponse.document
+                    };
+                    
+                    if (result.success && result.document) {
+                        // Store document ID for later use in accept request
+                        if (!window.buyerDocuments) window.buyerDocuments = {};
+                        window.buyerDocuments[docType] = result.document.id;
+                        
+                        if (filenameDiv) {
+                            filenameDiv.innerHTML = `<span style="color: #27ae60;">✅ ${file.name}</span>`;
+                        }
+                        // Update label to show uploaded state
+                        const label = document.getElementById(`label-${docType}`);
+                        if (label) {
+                            label.classList.add('uploaded');
+                        }
+                    } else {
+                        throw new Error(result.error || 'Upload failed');
+                    }
+                } else {
+                    throw new Error('DocumentUploadUtils not available');
+                }
+            } catch (error) {
+                console.error(`Error uploading ${docType}:`, error);
+                if (filenameDiv) {
+                    filenameDiv.innerHTML = `<span style="color: #e74c3c;">❌ Upload failed: ${error.message}</span>`;
+                }
+                showNotification(`Failed to upload ${docType}: ${error.message}`, 'error');
+            }
+        }
+
+        // Submit buyer acceptance with documents
+        async function submitBuyerAcceptance() {
+            const modal = document.getElementById('buyerDocumentUploadModal');
+            const requestId = modal?.dataset.requestId;
+            
+            if (!requestId) {
+                showNotification('Transfer request ID not found', 'error');
+                return;
+            }
+            
+            // Collect uploaded document IDs (matching backend linkTransferDocuments mapping)
+            const documents = {};
+            
+            if (window.buyerDocuments) {
+                // Map form field names to backend API keys (must match linkTransferDocuments in transfer.js)
+                if (window.buyerDocuments.buyerId) documents.buyerId = window.buyerDocuments.buyerId;
+                if (window.buyerDocuments.buyerTin) documents.buyerTin = window.buyerDocuments.buyerTin;
+                if (window.buyerDocuments.buyerHpgClearance) documents.buyerHpgClearance = window.buyerDocuments.buyerHpgClearance;
+                if (window.buyerDocuments.buyerCtpl) documents.buyerCtpl = window.buyerDocuments.buyerCtpl;
+                if (window.buyerDocuments.buyerMvir) documents.buyerMvir = window.buyerDocuments.buyerMvir;
+            }
+            
+            // Check if at least some documents are uploaded (not all required, but recommended)
+            const uploadedCount = Object.keys(documents).length;
+            if (uploadedCount === 0) {
+                if (!confirm('No documents uploaded. You can accept now and upload documents later, but it\'s recommended to upload them now. Continue without documents?')) {
+                    return;
+                }
+            }
+            
+            try {
+                // Show loading
+                const submitBtn = document.getElementById('submitBuyerAcceptanceBtn');
+                const originalText = submitBtn?.textContent;
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+                }
+                
+                // Submit accept request with documents
+                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
+                    documents: documents
+                });
+                
+                if (response.success) {
+                    showNotification(
+                        uploadedCount > 0 
+                            ? 'Transfer request accepted with documents. Awaiting LTO review.' 
+                            : 'Transfer request accepted. Please upload required documents within 3 days.',
+                        'success'
+                    );
+                    closeBuyerDocumentUploadModal();
+                    // Clear stored documents
+                    window.buyerDocuments = {};
+                    // Reload incoming requests
+                    loadIncomingTransferRequests();
+                } else {
+                    throw new Error(response.error || 'Failed to accept transfer request');
+                }
+            } catch (error) {
+                console.error('Error accepting transfer request:', error);
+                showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+            } finally {
+                const submitBtn = document.getElementById('submitBuyerAcceptanceBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Accept & Submit Documents';
+                }
+            }
+        }
+
+        // Fallback: Direct accept without documents (legacy behavior)
+        async function acceptTransferRequestDirect(requestId) {
+            if (!confirm('Are you sure you want to accept this transfer request? You will need to upload required documents later.')) {
                 return;
             }
             
@@ -2695,8 +3084,7 @@
                 const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`);
                 
                 if (response.success) {
-                    showNotification('Transfer request accepted successfully. Awaiting LTO review.', 'success');
-                    // Reload incoming requests
+                    showNotification('Transfer request accepted. Please upload required documents within 3 days.', 'success');
                     loadIncomingTransferRequests();
                 } else {
                     throw new Error(response.error || 'Failed to accept transfer request');

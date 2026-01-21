@@ -189,7 +189,9 @@ async function generateCertificates() {
                 },
                 hpgClearance: {
                     clearanceNumber: document.getElementById('hpgClearanceNumber').value || null,
-                    officerName: document.getElementById('hpgOfficerName').value || null
+                    verificationDetails: document.getElementById('hpgOfficerName').value 
+                        ? `Verified by ${document.getElementById('hpgOfficerName').value}. No adverse record found. Vehicle cleared for registration.`
+                        : 'No adverse record found. Vehicle cleared for registration.'
                 },
                 ctplInsurance: {
                     policyNumber: document.getElementById('ctplPolicyNumber').value || null,

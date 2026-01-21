@@ -1186,22 +1186,6 @@
                                             </div>
                                         </div>
 
-                                        <!-- Deed of Sale (Additional Copy) -->
-                                        <div class="transfer-upload-item" id="upload-item-deedOfSale2">
-                                            <div class="transfer-upload-info">
-                                                <h4>📝 Deed of Sale <span style="color: #e74c3c;">*</span></h4>
-                                                <p>Additional copy of notarized deed of sale document</p>
-                                            </div>
-                                            <div class="transfer-upload-area">
-                                                <input type="file" id="deedOfSale2" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'deedOfSale2')" required>
-                                                <label for="deedOfSale2" class="transfer-upload-label" id="label-deedOfSale2">
-                                                    <span class="transfer-upload-icon">📄</span>
-                                                    <span class="transfer-upload-text">Choose File</span>
-                                                </label>
-                                                <div class="transfer-file-name" id="filename-deedOfSale2"></div>
-                                            </div>
-                                        </div>
-
                                         <!-- Seller Valid ID -->
                                         <div class="transfer-upload-item" id="upload-item-sellerId">
                                             <div class="transfer-upload-info">
@@ -1218,27 +1202,11 @@
                                             </div>
                                         </div>
 
-                                        <!-- Buyer Valid ID -->
-                                        <div class="transfer-upload-item" id="upload-item-buyerId">
-                                            <div class="transfer-upload-info">
-                                                <h4>🪪 Buyer Valid ID <span style="color: #e74c3c;">*</span></h4>
-                                                <p>Government-issued ID of the buyer</p>
-                                            </div>
-                                            <div class="transfer-upload-area">
-                                                <input type="file" id="buyerId" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'buyerId')">
-                                                <label for="buyerId" class="transfer-upload-label" id="label-buyerId">
-                                                    <span class="transfer-upload-icon">🆔</span>
-                                                    <span class="transfer-upload-text">Choose File</span>
-                                                </label>
-                                                <div class="transfer-file-name" id="filename-buyerId"></div>
-                                            </div>
-                                        </div>
-
-                                        <!-- OR/CR -->
+                                        <!-- OR/CR (Optional - Can be pulled from vehicle record) -->
                                         <div class="transfer-upload-item" id="upload-item-orCr">
                                             <div class="transfer-upload-info">
-                                                <h4>📋 Latest OR/CR <span style="color: #e74c3c;">*</span></h4>
-                                                <p>Official Receipt / Certificate of Registration</p>
+                                                <h4>📋 Latest OR/CR <span style="color: #7f8c8d;">(Optional)</span></h4>
+                                                <p>Official Receipt / Certificate of Registration. If vehicle is already registered, OR/CR will be pulled from vehicle record automatically.</p>
                                             </div>
                                             <div class="transfer-upload-area">
                                                 <input type="file" id="orCr" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'orCr')">
@@ -1247,22 +1215,6 @@
                                                     <span class="transfer-upload-text">Choose File</span>
                                                 </label>
                                                 <div class="transfer-file-name" id="filename-orCr"></div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Emission Certificate (Optional) -->
-                                        <div class="transfer-upload-item" id="upload-item-emissionCert">
-                                            <div class="transfer-upload-info">
-                                                <h4>🌱 Emission Test Certificate <span style="color: #7f8c8d;">(Optional)</span></h4>
-                                                <p>If available, upload emission test certificate</p>
-                                            </div>
-                                            <div class="transfer-upload-area">
-                                                <input type="file" id="emissionCert" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'emissionCert')">
-                                                <label for="emissionCert" class="transfer-upload-label" id="label-emissionCert">
-                                                    <span class="transfer-upload-icon">📄</span>
-                                                    <span class="transfer-upload-text">Choose File</span>
-                                                </label>
-                                                <div class="transfer-file-name" id="filename-emissionCert"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -1736,7 +1688,7 @@
             console.log('🔧 Initializing file upload handlers...');
             
             // Add click listeners to debug and ensure they work
-            const docTypes = ['deedOfSale', 'sellerId', 'buyerId', 'orCr', 'emissionCert'];
+            const docTypes = ['deedOfSale', 'sellerId', 'orCr']; // Seller documents only (OR/CR optional)
             
             docTypes.forEach(docType => {
                 const input = document.getElementById(docType);
@@ -1804,11 +1756,8 @@
             // Missing mappings will cause upload to fail (by design - fail-fast)
             const docTypeMap = {
                 'deedOfSale': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
-                'deedOfSale2': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
                 'sellerId': DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID,
-                'buyerId': DocumentUploadUtils.DOCUMENT_TYPES.BUYER_ID,
-                'orCr': DocumentUploadUtils.DOCUMENT_TYPES.REGISTRATION_CERT, // OR/CR is a registration cert
-                'emissionCert': DocumentUploadUtils.DOCUMENT_TYPES.EMISSION_CERT
+                'orCr': DocumentUploadUtils.DOCUMENT_TYPES.REGISTRATION_CERT // OR/CR is a registration cert (optional)
             };
             
             // Fail-fast: Every upload slot MUST have a valid mapping
@@ -2002,8 +1951,8 @@
                     showWizardError(3, `Please complete all required fields: ${missingFields.join(', ')}`);
                 }
             } else if (step === 4) {
-                // Check required documents
-                const requiredDocs = ['deedOfSale', 'deedOfSale2', 'sellerId', 'buyerId', 'orCr'];
+                // Check required documents (Seller documents only)
+                const requiredDocs = ['deedOfSale', 'sellerId'];
                 // Enhanced validation: Check that documents exist AND have IDs
                 const missingDocs = requiredDocs.filter(doc => {
                     const docData = transferData.documents[doc];
@@ -2013,15 +1962,13 @@
                 if (missingDocs.length > 0) {
                     const docNames = {
                         'deedOfSale': 'Deed of Sale',
-                        'deedOfSale2': 'Deed of Sale (Copy)',
-                        'sellerId': 'Seller ID',
-                        'buyerId': 'Buyer ID',
-                        'orCr': 'OR/CR'
+                        'sellerId': 'Seller ID'
                     };
                     const missingNames = missingDocs.map(d => docNames[d] || d).join(', ');
                     showWizardError(4, `Please upload all required documents: ${missingNames}`);
                     valid = false;
                 }
+                // Note: OR/CR is optional - can be pulled from vehicle record if vehicle is already registered
             }
 
             return valid;
@@ -2068,11 +2015,8 @@
             if (uploadsList) {
                 const docNames = {
                     'deedOfSale': 'Deed of Sale',
-                    'deedOfSale2': 'Deed of Sale (Copy)',
                     'sellerId': 'Seller Valid ID',
-                    'buyerId': 'Buyer Valid ID',
-                    'orCr': 'Latest OR/CR',
-                    'emissionCert': 'Emission Test Certificate'
+                    'orCr': 'Latest OR/CR (Optional)'
                 };
                 uploadsList.innerHTML = Object.entries(transferData.documents)
                     .map(([type, doc]) => `<li>✅ ${docNames[type] || type}: ${doc.filename}</li>`)
@@ -2103,16 +2047,14 @@
                     return;
                 }
                 
-                // Validate required documents are present
-                const requiredDocs = ['deedOfSale', 'sellerId', 'buyerId', 'orCr'];
+                // Validate required documents are present (Seller documents only)
+                const requiredDocs = ['deedOfSale', 'sellerId'];
                 const missingDocs = requiredDocs.filter(doc => !transferData.documents[doc] || !transferData.documents[doc].id);
                 
                 if (missingDocs.length > 0) {
                     const docNames = {
                         'deedOfSale': 'Deed of Sale',
-                        'sellerId': 'Seller ID',
-                        'buyerId': 'Buyer ID',
-                        'orCr': 'OR/CR'
+                        'sellerId': 'Seller ID'
                     };
                     showNotification(`Please upload all required documents: ${missingDocs.map(d => docNames[d] || d).join(', ')}`, 'error');
                     return;
@@ -2122,12 +2064,11 @@
                 const requestData = {
                     vehicleId: transferData.vehicleId,
                     buyerEmail: transferData.buyer.email,
-                    // NEW: Explicit document roles (preferred)
+                    // NEW: Explicit document roles (preferred) - Seller documents only
                     documents: {
                         deedOfSale: transferData.documents.deedOfSale?.id,
                         sellerId: transferData.documents.sellerId?.id,
-                        buyerId: transferData.documents.buyerId?.id,
-                        orCr: transferData.documents.orCr?.id
+                        orCr: transferData.documents.orCr?.id // Optional - can be pulled from vehicle record
                     }
                     // LEGACY: Keep documentIds for backward compatibility (will be ignored if documents is provided)
                     // documentIds: Object.values(transferData.documents)

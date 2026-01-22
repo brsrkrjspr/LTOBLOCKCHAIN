@@ -490,6 +490,16 @@ async function markNotificationAsRead(notificationId, userId) {
     return result.rows[0] || null;
 }
 
+async function deleteNotification(notificationId, userId) {
+    const result = await db.query(
+        `DELETE FROM notifications
+         WHERE id = $1 AND user_id = $2
+         RETURNING id`,
+        [notificationId, userId]
+    );
+    return result.rowCount > 0;
+}
+
 // ============================================
 // CLEARANCE REQUEST OPERATIONS
 // ============================================
@@ -1886,6 +1896,7 @@ module.exports = {
     createNotification,
     getUserNotifications,
     markNotificationAsRead,
+    deleteNotification,
     
     // Clearance request operations
     createClearanceRequest,

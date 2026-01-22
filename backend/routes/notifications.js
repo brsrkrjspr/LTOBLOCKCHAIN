@@ -463,57 +463,32 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
             userIdType: typeof userId
         });
         
-        // Check database connection
-        if (!db || typeof db.query !== 'function') {
-            console.error('❌ [BACKEND] Database connection not available');
+        // Use db.markNotificationAsRead from services (db = require('../database/services'))
+        if (!db || typeof db.markNotificationAsRead !== 'function') {
+            console.error('❌ [BACKEND] db.markNotificationAsRead not available');
             return res.status(500).json({
                 success: false,
-                error: 'Database connection error'
+                error: 'Notification service not available'
             });
         }
         
-        // Update notification and verify ownership in single query
-        const result = await db.query(
-            `UPDATE notifications
-             SET read = true, read_at = CURRENT_TIMESTAMP
-             WHERE id = $1 AND user_id = $2
-             RETURNING *`,
-            [notificationId, userId]
-        );
+        const notification = await db.markNotificationAsRead(notificationId, userId);
         
-        console.log('🔍 [BACKEND] Database query result:', {
-            rowCount: result?.rows?.length || 0,
-            hasRows: !!result?.rows,
-            firstRow: result?.rows?.[0] || null
+        console.log('🔍 [BACKEND] markNotificationAsRead result:', {
+            hasNotification: !!notification,
+            notificationId: notification?.id
         });
 
-        if (!result || !result.rows || result.rows.length === 0) {
+        if (!notification) {
             console.warn('⚠️ [BACKEND] Notification not found or access denied:', {
                 notificationId,
-                userId,
-                searchedFor: { id: notificationId, user_id: userId }
+                userId
             });
-            
-            // Check if notification exists at all (for better error message)
-            const checkResult = await db.query(
-                `SELECT id, user_id FROM notifications WHERE id = $1`,
-                [notificationId]
-            );
-            
-            if (checkResult.rows.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Notification not found'
-                });
-            } else {
-                return res.status(403).json({
-                    success: false,
-                    error: 'You do not have permission to mark this notification as read'
-                });
-            }
+            return res.status(404).json({
+                success: false,
+                error: 'Notification not found or access denied'
+            });
         }
-
-        const notification = result.rows[0];
         
         console.log('✅ [BACKEND] Successfully marked notification as read:', {
             notificationId: notification.id,
@@ -564,6 +539,46 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to mark notification as read',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Delete notification
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+        const notificationId = req.params.id;
+        const userId = req.user?.userId || req.user?.id || req.user?.user_id;
+
+        if (!req.user) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'User ID not found in token' });
+        }
+        if (!notificationId) {
+            return res.status(400).json({ success: false, error: 'Notification ID is required' });
+        }
+
+        if (!db || typeof db.deleteNotification !== 'function') {
+            return res.status(500).json({ success: false, error: 'Notification service not available' });
+        }
+
+        const deleted = await db.deleteNotification(notificationId, userId);
+
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                error: 'Notification not found or access denied'
+            });
+        }
+
+        res.json({ success: true, message: 'Notification deleted' });
+    } catch (error) {
+        console.error('Delete notification error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete notification',
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }

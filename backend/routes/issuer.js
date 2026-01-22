@@ -123,6 +123,27 @@ async function storeCertificateHashOnBlockchain(compositeHash, metadata) {
             await fabricService.initialize();
         }
 
+        // Check vehicle status - only store on blockchain if vehicle is REGISTERED
+        // Vehicles in SUBMITTED/APPROVED status are not yet on blockchain
+        if (metadata.vehicleVIN) {
+            try {
+                const vehicle = await db.getVehicleByVin(metadata.vehicleVIN);
+                if (vehicle && vehicle.status !== 'REGISTERED') {
+                    console.log(`[Issuer Blockchain] Storage deferred - vehicle ${metadata.vehicleVIN} is ${vehicle.status}, not yet registered on blockchain. Hash will be stored when vehicle is registered during approval.`);
+                    return {
+                        success: true,
+                        transactionId: null,
+                        hash: compositeHash,
+                        deferred: true,
+                        reason: `Vehicle status is ${vehicle.status}, not yet registered on blockchain`
+                    };
+                }
+            } catch (vehicleLookupError) {
+                console.warn(`[Issuer Blockchain] Could not lookup vehicle ${metadata.vehicleVIN} for status check:`, vehicleLookupError.message);
+                // Continue with blockchain storage attempt - if it fails, error handling will catch it
+            }
+        }
+
         const notes = JSON.stringify({
             type: 'certificate_hash',
             hash: compositeHash,

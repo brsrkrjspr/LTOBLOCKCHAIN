@@ -1758,25 +1758,32 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
             notes
         );
 
-        // Sync verification status to blockchain
+        // Sync verification status to blockchain (only if vehicle is REGISTERED)
         let blockchainTxId = null;
-        try {
-            const fabricService = require('../services/optimizedFabricService');
-            const blockchainResult = await fabricService.updateVerificationStatus(
-                vin,
-                verificationType,
-                status,
-                notes || ''
-            );
-            
-            if (blockchainResult && blockchainResult.transactionId) {
-                blockchainTxId = blockchainResult.transactionId;
-                console.log(`✅ Verification status synced to blockchain: ${verificationType} = ${status}`);
+        let blockchainSynced = false;
+        
+        if (vehicle.status === 'REGISTERED') {
+            try {
+                const fabricService = require('../services/optimizedFabricService');
+                const blockchainResult = await fabricService.updateVerificationStatus(
+                    vin,
+                    verificationType,
+                    status,
+                    notes || ''
+                );
+                
+                if (blockchainResult && blockchainResult.transactionId) {
+                    blockchainTxId = blockchainResult.transactionId;
+                    blockchainSynced = true;
+                    console.log(`✅ Verification status synced to blockchain: ${verificationType} = ${status}`);
+                }
+            } catch (blockchainError) {
+                // Log error but continue - database is source of truth
+                console.warn('⚠️ Blockchain sync failed for verification update:', blockchainError.message);
+                console.warn('   Database update succeeded, but blockchain update failed');
             }
-        } catch (blockchainError) {
-            // Log error but continue - database is source of truth
-            console.warn('⚠️ Blockchain sync failed for verification update:', blockchainError.message);
-            console.warn('   Database update succeeded, but blockchain update failed');
+        } else {
+            console.log(`[Verification Update] Blockchain sync deferred - vehicle ${vin} is ${vehicle.status}, not yet registered on blockchain. Sync will occur when vehicle is registered during approval.`);
         }
 
         // Add to history
@@ -1786,7 +1793,7 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
             description: notes || `${verificationType} verification ${status.toLowerCase()}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId,
-            metadata: { verificationType, status, notes, blockchainSynced: !!blockchainTxId }
+            metadata: { verificationType, status, notes, blockchainSynced: blockchainSynced }
         });
 
         // Check if all verifications are complete

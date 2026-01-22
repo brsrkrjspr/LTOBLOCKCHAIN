@@ -34,6 +34,38 @@ class CertificateBlockchainService {
                 await fabricService.initialize();
             }
 
+            // Check vehicle status - only store on blockchain if vehicle is REGISTERED
+            // Vehicles in SUBMITTED/APPROVED status are not yet on blockchain
+            if (metadata.vehicleId) {
+                try {
+                    const vehicle = await db.getVehicleById(metadata.vehicleId);
+                    if (vehicle && vehicle.status !== 'REGISTERED') {
+                        console.log(`[Certificate Blockchain] Storage deferred - vehicle ${metadata.vehicleVIN} is ${vehicle.status}, not yet registered on blockchain. Hash will be stored when vehicle is registered during approval.`);
+                        return {
+                            success: true,
+                            transactionId: null,
+                            hash: compositeHash,
+                            metadata: {
+                                hash: compositeHash,
+                                certificateType: metadata.certificateType,
+                                vehicleVIN: metadata.vehicleVIN,
+                                vehicleId: metadata.vehicleId,
+                                certificateNumber: metadata.certificateNumber,
+                                applicationStatus: metadata.applicationStatus || 'PENDING',
+                                issuedAt: metadata.issuedAt || new Date().toISOString(),
+                                issuedBy: metadata.issuedBy || 'system',
+                                fileHash: metadata.fileHash,
+                                deferred: true,
+                                reason: `Vehicle status is ${vehicle.status}, not yet registered on blockchain`
+                            }
+                        };
+                    }
+                } catch (vehicleLookupError) {
+                    console.warn(`[Certificate Blockchain] Could not lookup vehicle ${metadata.vehicleId} for status check:`, vehicleLookupError.message);
+                    // Continue with blockchain storage attempt - if it fails, error handling will catch it
+                }
+            }
+
             // Prepare metadata for blockchain
             const blockchainMetadata = {
                 hash: compositeHash,

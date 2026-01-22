@@ -11,6 +11,7 @@ const autoVerificationService = require('../services/autoVerificationService');
 const certificateBlockchain = require('../services/certificateBlockchainService');
 const crypto = require('crypto');
 const fs = require('fs').promises;
+const { CLEARANCE_STATUS, normalizeStatusLower } = require('../config/statusConstants');
 
 // Get HPG dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
@@ -18,12 +19,12 @@ router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), a
         // Get all HPG requests
         const requests = await db.getClearanceRequestsByType('hpg');
         
-        // Count by status
+        // Count by status (using normalized status for consistent comparison)
         const stats = {
-            pending: requests.filter(r => r.status === 'PENDING' || r.status === 'pending').length,
-            verified: requests.filter(r => r.status === 'VERIFIED' || r.status === 'verified' || r.status === 'APPROVED' || r.status === 'approved').length,
-            completed: requests.filter(r => r.status === 'COMPLETED' || r.status === 'completed').length,
-            rejected: requests.filter(r => r.status === 'REJECTED' || r.status === 'rejected').length
+            pending: requests.filter(r => normalizeStatusLower(r.status) === 'pending').length,
+            approved: requests.filter(r => normalizeStatusLower(r.status) === 'approved').length,
+            completed: requests.filter(r => normalizeStatusLower(r.status) === 'completed').length,
+            rejected: requests.filter(r => normalizeStatusLower(r.status) === 'rejected').length
         };
 
         res.json({

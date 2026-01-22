@@ -7,6 +7,7 @@ const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const dbModule = require('../database/db');
+const { normalizeStatusLower } = require('../config/statusConstants');
 
 // Get enhanced admin statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -30,7 +31,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
         
         vehicleStats.rows.forEach(row => {
             vehicles.total += parseInt(row.count);
-            const status = row.status.toLowerCase();
+            const status = normalizeStatusLower(row.status);
             if (vehicles.hasOwnProperty(status)) {
                 vehicles[status] = parseInt(row.count);
             }
@@ -55,9 +56,11 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
         
         transferStats.rows.forEach(row => {
             transfers.total += parseInt(row.count);
-            const status = row.status.toLowerCase();
-            if (transfers.hasOwnProperty(status)) {
-                transfers[status] = parseInt(row.count);
+            const status = normalizeStatusLower(row.status);
+            // Map UNDER_REVIEW to reviewing for backward compatibility
+            const mappedStatus = status === 'under_review' ? 'reviewing' : status;
+            if (transfers.hasOwnProperty(mappedStatus)) {
+                transfers[mappedStatus] = parseInt(row.count);
             }
         });
         
@@ -76,8 +79,8 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
         
         clearanceStats.rows.forEach(row => {
             clearances.total += parseInt(row.count);
-            const type = row.request_type.toLowerCase();
-            const status = row.status.toLowerCase();
+            const type = normalizeStatusLower(row.request_type);
+            const status = normalizeStatusLower(row.status);
             if (clearances[type]) {
                 clearances[type].total += parseInt(row.count);
                 if (clearances[type].hasOwnProperty(status)) {

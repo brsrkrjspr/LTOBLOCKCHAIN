@@ -190,7 +190,7 @@ async function lookupBuyer(email) {
     
     try {
         const apiClient = window.apiClient || new APIClient();
-        const response = await apiClient.get(`/api/users/lookup?email=${encodeURIComponent(email)}`);
+        const response = await apiClient.get(`/api/auth/users/lookup?email=${encodeURIComponent(email)}`);
         
         if (response.success && response.user) {
             // Show buyer details
@@ -222,7 +222,20 @@ async function lookupBuyer(email) {
         }
     } catch (error) {
         console.error('Buyer lookup error:', error);
-        errorDiv.textContent = error.message || 'Buyer not found. User must be registered in the system.';
+        
+        // Check if error is due to HTML response (API returning error page instead of JSON)
+        let errorMessage = error.message || 'Buyer not found. User must be registered in the system.';
+        if (error.message && (error.message.includes('Unexpected token') || error.message.includes('<!DOCTYPE'))) {
+            errorMessage = 'API endpoint returned an error page. Please check your authentication and try again.';
+        } else if (error.message && error.message.includes('JSON')) {
+            errorMessage = 'Invalid response from server. Please check your connection and try again.';
+        } else if (error.message && error.message.includes('404')) {
+            errorMessage = 'Buyer lookup endpoint not found. Please contact support.';
+        } else if (error.message && (error.message.includes('401') || error.message.includes('403'))) {
+            errorMessage = 'You do not have permission to lookup users. Please contact an administrator.';
+        }
+        
+        errorDiv.textContent = errorMessage;
         errorDiv.style.display = 'block';
         previewDiv.style.display = 'none';
     }

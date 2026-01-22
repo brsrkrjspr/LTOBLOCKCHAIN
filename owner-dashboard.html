@@ -2472,6 +2472,10 @@
 
         function renderNotifications() {
             console.log('🎨 [RENDER] Starting renderNotifications()');
+            console.log('🎨 [RENDER] Global notifications variable:', notifications);
+            console.log('🎨 [RENDER] Notifications type:', typeof notifications);
+            console.log('🎨 [RENDER] Is array:', Array.isArray(notifications));
+            
             const notificationList = document.getElementById('notificationList');
             if (!notificationList) {
                 console.error('❌ [RENDER] Notification list element not found - element ID: notificationList');
@@ -2488,10 +2492,12 @@
                 return;
             }
 
-            // CRITICAL: Remove any loader immediately
+            // CRITICAL: Remove any loader immediately - do this FIRST
             const loader = notificationList.querySelector('.fa-spinner');
-            if (loader) {
-                console.log('🔄 [RENDER] Removing loader...');
+            const emptyStateDiv = notificationList.querySelector('.notification-empty');
+            if (loader || emptyStateDiv) {
+                console.log('🔄 [RENDER] Removing loader/empty state before rendering...');
+                notificationList.innerHTML = ''; // Clear everything first
             }
 
             // Ensure element is visible
@@ -2563,26 +2569,33 @@
                 }).join('');
                 
                 // CRITICAL: Clear loader first, then set HTML
-                notificationList.innerHTML = '';
+                notificationList.innerHTML = ''; // Clear first to remove any loader
                 
                 // Use direct innerHTML assignment for reliability
                 notificationList.innerHTML = html;
                 
                 console.log(`✅ [RENDER] Successfully rendered ${renderedCount} notification(s)`);
                 console.log('📝 [RENDER] Rendered HTML length:', html.length);
+                console.log('📝 [RENDER] HTML preview:', html.substring(0, 300));
                 
                 // Verify the HTML was actually inserted
-                if (notificationList.children.length === 0) {
+                const childCount = notificationList.children.length;
+                console.log('🔍 [RENDER] Children count after insertion:', childCount);
+                
+                if (childCount === 0) {
                     console.error('❌ [RENDER] HTML was set but no children found in notificationList');
-                    console.error('❌ [RENDER] HTML content preview:', html.substring(0, 200));
+                    console.error('❌ [RENDER] Full HTML content:', html);
                     // Try alternative method
                     try {
                         const tempDiv = document.createElement('div');
                         tempDiv.innerHTML = html;
+                        const fragment = document.createDocumentFragment();
                         while (tempDiv.firstChild) {
-                            notificationList.appendChild(tempDiv.firstChild);
+                            fragment.appendChild(tempDiv.firstChild);
                         }
-                        console.log('✅ [RENDER] Used alternative insertion method');
+                        notificationList.appendChild(fragment);
+                        console.log('✅ [RENDER] Used alternative insertion method (fragment)');
+                        console.log('🔍 [RENDER] Children count after fragment:', notificationList.children.length);
                     } catch (altError) {
                         console.error('❌ [RENDER] Alternative insertion also failed:', altError);
                         // Last resort: show error
@@ -2590,11 +2603,15 @@
                             <div class="notification-empty">
                                 <i class="fas fa-exclamation-triangle"></i>
                                 <p>Error rendering notifications</p>
+                                <p style="font-size: 0.75rem; margin-top: 0.5rem;">${altError.message}</p>
                             </div>
                         `;
                     }
                 } else {
-                    console.log(`✅ [RENDER] Verified: ${notificationList.children.length} notification element(s) in DOM`);
+                    console.log(`✅ [RENDER] Verified: ${childCount} notification element(s) in DOM`);
+                    // Verify we have notification-item elements
+                    const notificationItems = notificationList.querySelectorAll('.notification-item');
+                    console.log(`✅ [RENDER] Found ${notificationItems.length} .notification-item elements`);
                 }
                 
                 // Force a reflow to ensure rendering
@@ -2602,10 +2619,18 @@
                 
                 // Final check: ensure no loader is present
                 const remainingLoader = notificationList.querySelector('.fa-spinner');
-                if (remainingLoader) {
-                    console.warn('⚠️ [RENDER] Loader still present after render, removing...');
-                    remainingLoader.closest('.notification-empty')?.remove();
+                const remainingEmptyState = notificationList.querySelector('.notification-empty');
+                if (remainingLoader || (remainingEmptyState && notificationList.querySelector('.notification-item'))) {
+                    console.warn('⚠️ [RENDER] Loader/empty state still present after render, removing...');
+                    if (remainingLoader) {
+                        remainingLoader.closest('.notification-empty')?.remove();
+                    }
+                    if (remainingEmptyState && notificationList.querySelector('.notification-item')) {
+                        remainingEmptyState.remove();
+                    }
                 }
+                
+                console.log('✅ [RENDER] Render complete. Final children count:', notificationList.children.length);
             } catch (error) {
                 console.error('❌ Error rendering notifications:', error);
                 console.error('Error stack:', error.stack);
@@ -2671,12 +2696,25 @@
             const removeLoaderAndRender = (notificationsToRender) => {
                 console.log('🔄 [MODAL] Removing loader and rendering notifications...');
                 console.log('🔄 [MODAL] Notifications to render:', notificationsToRender ? notificationsToRender.length : 0);
+                console.log('🔄 [MODAL] Notifications data:', JSON.stringify(notificationsToRender, null, 2));
                 
-                // Always remove loader first
-                if (notificationsToRender && Array.isArray(notificationsToRender) && notificationsToRender.length > 0) {
-                    // Set notifications variable
+                // CRITICAL: Set global notifications variable FIRST (synchronously)
+                if (notificationsToRender && Array.isArray(notificationsToRender)) {
                     notifications = notificationsToRender;
-                    // Render notifications
+                    console.log('✅ [MODAL] Set global notifications variable, count:', notifications.length);
+                } else {
+                    notifications = notificationsToRender || [];
+                    console.log('⚠️ [MODAL] No valid notifications, setting empty array');
+                }
+                
+                // CRITICAL: Clear loader FIRST by clearing innerHTML immediately
+                console.log('🔄 [MODAL] Clearing loader immediately...');
+                notificationList.innerHTML = '';
+                
+                // Render immediately (no setTimeout to avoid race conditions)
+                if (notifications && Array.isArray(notifications) && notifications.length > 0) {
+                    console.log('✅ [MODAL] Rendering', notifications.length, 'notifications immediately...');
+                    // Call renderNotifications which will use the global notifications variable
                     renderNotifications();
                 } else {
                     // Show empty state

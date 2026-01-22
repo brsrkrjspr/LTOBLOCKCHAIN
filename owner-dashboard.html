@@ -222,12 +222,17 @@
             padding: 1.5rem;
             overflow-y: auto;
             flex: 1;
+            min-height: 200px; /* Ensure body has minimum height */
+            max-height: calc(80vh - 120px); /* Account for header */
+            position: relative; /* Ensure proper positioning */
         }
 
         .notification-list {
             display: flex;
             flex-direction: column;
             gap: 1rem;
+            min-height: 100%; /* Ensure list takes full height */
+            width: 100%; /* Ensure full width */
         }
 
         .notification-item {
@@ -236,6 +241,10 @@
             border-radius: 12px;
             background: #fff;
             transition: all 0.2s ease;
+            width: 100%; /* Ensure full width */
+            box-sizing: border-box; /* Include padding in width */
+            opacity: 1; /* Ensure visibility */
+            visibility: visible; /* Ensure visibility */
         }
 
         .notification-item:hover {
@@ -315,6 +324,11 @@
             text-align: center;
             padding: 3rem 1.5rem;
             color: var(--text-secondary);
+            min-height: 200px; /* Ensure empty state is visible */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .notification-empty i {
@@ -2393,10 +2407,17 @@
                     if (retryList) {
                         console.log('✅ Found notification list on retry');
                         renderNotifications();
+                    } else {
+                        console.error('❌ Notification list still not found after retry');
                     }
                 }, 100);
                 return;
             }
+
+            // Ensure element is visible
+            notificationList.style.display = 'flex';
+            notificationList.style.visibility = 'visible';
+            notificationList.style.opacity = '1';
 
             console.log('🎨 Rendering notifications. Count:', notifications ? notifications.length : 0);
             console.log('📋 Notifications data:', JSON.stringify(notifications, null, 2));
@@ -2412,7 +2433,7 @@
                 notificationList.innerHTML = `
                     <div class="notification-empty">
                         <i class="fas fa-bell-slash"></i>
-                        <p>No notifications</p>
+                        <p>No notifications available</p>
                     </div>
                 `;
                 return;
@@ -2460,16 +2481,30 @@
                     `;
                 }).join('');
                 
-                notificationList.innerHTML = html;
+                // Clear and set HTML using insertAdjacentHTML for better DOM handling
+                notificationList.innerHTML = '';
+                notificationList.insertAdjacentHTML('beforeend', html);
+                
                 console.log(`✅ Successfully rendered ${renderedCount} notification(s)`);
                 console.log('📝 Rendered HTML length:', html.length);
                 
                 // Verify the HTML was actually inserted
                 if (notificationList.children.length === 0) {
                     console.error('❌ HTML was set but no children found in notificationList');
+                    console.error('HTML content:', html.substring(0, 200));
+                    // Try alternative method
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    while (tempDiv.firstChild) {
+                        notificationList.appendChild(tempDiv.firstChild);
+                    }
+                    console.log('✅ Used alternative insertion method');
                 } else {
                     console.log(`✅ Verified: ${notificationList.children.length} notification element(s) in DOM`);
                 }
+                
+                // Force a reflow to ensure rendering
+                notificationList.offsetHeight;
             } catch (error) {
                 console.error('❌ Error rendering notifications:', error);
                 console.error('Error stack:', error.stack);
@@ -2503,30 +2538,59 @@
 
         async function openNotificationModal() {
             const notificationModal = document.getElementById('notificationModal');
-            if (notificationModal) {
-                console.log('🔔 Opening notification modal...');
-                // Open modal first for better UX
-                notificationModal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-                
-                // Always reload notifications when opening modal to get latest data
-                try {
-                    console.log('📥 Loading notifications...');
-                    await loadNotifications();
-                    console.log('✅ Notifications loaded, count:', notifications ? notifications.length : 0);
-                    // renderNotifications() is already called inside loadNotifications()
-                    // But force a re-render to ensure it displays
-                    setTimeout(() => {
-                        console.log('🔄 Force re-rendering notifications after modal open...');
-                        renderNotifications();
-                    }, 50);
-                } catch (error) {
-                    console.error('❌ Error loading notifications in modal:', error);
-                    // Still try to render what we have
-                    renderNotifications();
-                }
-            } else {
+            const notificationList = document.getElementById('notificationList');
+            
+            if (!notificationModal) {
                 console.error('❌ Notification modal element not found');
+                return;
+            }
+            
+            if (!notificationList) {
+                console.error('❌ Notification list element not found');
+                return;
+            }
+            
+            console.log('🔔 Opening notification modal...');
+            
+            // Open modal first for better UX
+            notificationModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Show loading state immediately
+            notificationList.innerHTML = `
+                <div class="notification-empty">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading notifications...</p>
+                </div>
+            `;
+            
+            // Wait for modal to be fully visible in DOM
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Always reload notifications when opening modal to get latest data
+            try {
+                console.log('📥 Loading notifications...');
+                await loadNotifications();
+                console.log('✅ Notifications loaded, count:', notifications ? notifications.length : 0);
+                
+                // Force a re-render after a short delay to ensure DOM is ready
+                setTimeout(() => {
+                    console.log('🔄 Force re-rendering notifications after modal open...');
+                    renderNotifications();
+                    
+                    // Double-check after another short delay
+                    setTimeout(() => {
+                        const list = document.getElementById('notificationList');
+                        if (list && list.children.length === 0 && notifications && notifications.length > 0) {
+                            console.warn('⚠️ No children found after render, forcing re-render...');
+                            renderNotifications();
+                        }
+                    }, 100);
+                }, 50);
+            } catch (error) {
+                console.error('❌ Error loading notifications in modal:', error);
+                // Still try to render what we have
+                renderNotifications();
             }
         }
 

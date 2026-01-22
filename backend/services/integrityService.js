@@ -88,18 +88,24 @@ class IntegrityService {
                 };
             }
 
-            // Step 2: Get vehicle from blockchain
+            // Step 2: Get vehicle from blockchain (only if vehicle is REGISTERED)
+            // Vehicles in SUBMITTED/APPROVED status are not yet on blockchain
             let blockchainVehicle = null;
             let blockchainError = null;
             
-            try {
-                const blockchainResult = await fabricService.getVehicle(vin);
-                if (blockchainResult.success && blockchainResult.vehicle) {
-                    blockchainVehicle = blockchainResult.vehicle;
+            if (dbVehicle.status === 'REGISTERED') {
+                try {
+                    const blockchainResult = await fabricService.getVehicle(vin);
+                    if (blockchainResult.success && blockchainResult.vehicle) {
+                        blockchainVehicle = blockchainResult.vehicle;
+                    }
+                } catch (error) {
+                    blockchainError = error.message;
+                    console.warn(`⚠️ Blockchain query failed for VIN ${vin}:`, error.message);
                 }
-            } catch (error) {
-                blockchainError = error.message;
-                console.warn(`⚠️ Blockchain query failed for VIN ${vin}:`, error.message);
+            } else {
+                // Vehicle is not REGISTERED yet - skip blockchain query
+                blockchainError = `Vehicle status is ${dbVehicle.status}, not yet registered on blockchain`;
             }
 
             // Step 3: Compare fields

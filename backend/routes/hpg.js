@@ -424,13 +424,18 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             verifiedAt: new Date().toISOString()
         });
 
-        // Assign to current user if not already assigned
-        if (!clearanceRequest.assigned_to) {
-            await db.assignClearanceRequest(requestId, req.user.userId);
-        }
-
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
+        
+        // Assign to current user if not already assigned (update directly to avoid overwriting status)
+        if (!clearanceRequest.assigned_to) {
+            await dbModule.query(
+                `UPDATE clearance_requests 
+                 SET assigned_to = $1, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $2`,
+                [req.user.userId, requestId]
+            );
+        }
         const transferRequests = await dbModule.query(
             `SELECT id FROM transfer_requests WHERE hpg_clearance_request_id = $1`,
             [requestId]

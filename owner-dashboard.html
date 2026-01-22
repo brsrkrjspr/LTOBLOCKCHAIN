@@ -2220,16 +2220,25 @@
                             
                             if (apiNotifications !== null) {
                                 console.log('✅ Loaded notifications from API:', apiNotifications.length);
+                                console.log('📋 Raw API notifications:', JSON.stringify(apiNotifications, null, 2));
+                                
                                 // Transform API notifications to match expected format
-                                notifications = apiNotifications.map(notif => ({
-                                    id: notif.id,
-                                    title: notif.title || 'Notification',
-                                    message: notif.message || '',
-                                    time: notif.sentAt ? formatTimeAgo(notif.sentAt) : 'Recently',
-                                    read: notif.read || false,
-                                    type: notif.type || 'info'
-                                }));
+                                // Display ALL notifications, not just a subset
+                                notifications = apiNotifications.map((notif, index) => {
+                                    // Ensure ID exists
+                                    const notifId = notif.id || `api-notif-${Date.now()}-${index}`;
+                                    return {
+                                        id: notifId,
+                                        title: notif.title || 'Notification',
+                                        message: notif.message || '',
+                                        time: notif.sentAt ? formatTimeAgo(notif.sentAt) : 'Recently',
+                                        read: notif.read === true || notif.read === 1 || notif.read === 'true',
+                                        type: notif.type || 'info'
+                                    };
+                                });
                                 console.log('✅ Transformed notifications:', notifications.length);
+                                console.log('📋 Transformed notifications data:', JSON.stringify(notifications, null, 2));
+                                
                                 // Save to localStorage for offline access
                                 try {
                                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
@@ -2261,7 +2270,10 @@
                                     console.error('Error saving notifications to localStorage:', e);
                                 }
                             }
-                            renderNotifications();
+                            // Force render after a small delay to ensure DOM is ready
+                            setTimeout(() => {
+                                renderNotifications();
+                            }, 10);
                             updateNotificationBadge();
                             resolve(notifications);
                         })
@@ -2283,14 +2295,20 @@
                             } else {
                                 notifications = getSampleNotifications();
                             }
-                            renderNotifications();
+                            // Force render after a small delay to ensure DOM is ready
+                            setTimeout(() => {
+                                renderNotifications();
+                            }, 10);
                             updateNotificationBadge();
                             resolve(notifications);
                         });
                 } else {
                     // Use sample notifications or localStorage
                     notifications = getSampleNotifications();
-                    renderNotifications();
+                    // Force render after a small delay to ensure DOM is ready
+                    setTimeout(() => {
+                        renderNotifications();
+                    }, 10);
                     updateNotificationBadge();
                     resolve(notifications);
                 }
@@ -2368,21 +2386,29 @@
         function renderNotifications() {
             const notificationList = document.getElementById('notificationList');
             if (!notificationList) {
-                console.error('Notification list element not found - element ID: notificationList');
+                console.error('❌ Notification list element not found - element ID: notificationList');
+                // Try to find it after a short delay in case DOM isn't ready
+                setTimeout(() => {
+                    const retryList = document.getElementById('notificationList');
+                    if (retryList) {
+                        console.log('✅ Found notification list on retry');
+                        renderNotifications();
+                    }
+                }, 100);
                 return;
             }
 
-            console.log('Rendering notifications. Count:', notifications ? notifications.length : 0);
-            console.log('Notifications data:', notifications);
+            console.log('🎨 Rendering notifications. Count:', notifications ? notifications.length : 0);
+            console.log('📋 Notifications data:', JSON.stringify(notifications, null, 2));
 
             // Ensure notifications is an array
             if (!Array.isArray(notifications)) {
-                console.warn('Notifications is not an array, resetting to sample data');
+                console.warn('⚠️ Notifications is not an array, resetting to sample data');
                 notifications = getSampleNotifications();
             }
 
             if (!notifications || notifications.length === 0) {
-                console.log('No notifications to display, showing empty state');
+                console.log('ℹ️ No notifications to display, showing empty state');
                 notificationList.innerHTML = `
                     <div class="notification-empty">
                         <i class="fas fa-bell-slash"></i>
@@ -2392,40 +2418,65 @@
                 return;
             }
 
-            // Render notifications
+            // Render ALL notifications (not just first 5)
             try {
-                notificationList.innerHTML = notifications.map(notification => {
-                    if (!notification || !notification.id) {
-                        console.warn('Invalid notification object:', notification);
-                        return '';
+                let renderedCount = 0;
+                const html = notifications.map((notification, index) => {
+                    // Generate ID if missing
+                    if (!notification.id) {
+                        notification.id = `notif-${Date.now()}-${index}`;
+                        console.warn(`⚠️ Notification missing ID, generated: ${notification.id}`, notification);
                     }
+                    
+                    // Ensure required fields exist
+                    const notif = {
+                        id: notification.id,
+                        title: notification.title || 'Notification',
+                        message: notification.message || '',
+                        time: notification.time || 'Recently',
+                        read: notification.read === true || notification.read === 'true',
+                        type: notification.type || 'info'
+                    };
+                    
+                    renderedCount++;
                     return `
-                        <div class="notification-item ${notification.read ? '' : 'unread'}" data-id="${notification.id}">
+                        <div class="notification-item ${notif.read ? '' : 'unread'}" data-id="${notif.id}">
                             <div class="notification-item-header">
-                                <h3 class="notification-item-title">${escapeHtml(notification.title || 'Notification')}</h3>
-                                <span class="notification-item-time">${escapeHtml(notification.time || 'Recently')}</span>
+                                <h3 class="notification-item-title">${escapeHtml(notif.title)}</h3>
+                                <span class="notification-item-time">${escapeHtml(notif.time)}</span>
                             </div>
-                            <p class="notification-item-message">${escapeHtml(notification.message || '')}</p>
+                            <p class="notification-item-message">${escapeHtml(notif.message)}</p>
                             <div class="notification-item-actions">
-                                ${!notification.read ? `
-                                    <button class="btn-mark-read" onclick="markNotificationAsRead(${notification.id})">
+                                ${!notif.read ? `
+                                    <button class="btn-mark-read" onclick="markNotificationAsRead(${notif.id})">
                                         <i class="fas fa-check"></i> Mark as Read
                                     </button>
                                 ` : ''}
-                                <button class="btn-delete" onclick="deleteNotification(${notification.id})">
+                                <button class="btn-delete" onclick="deleteNotification(${notif.id})">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                             </div>
                         </div>
                     `;
-                }).filter(html => html !== '').join('');
-                console.log('Notifications rendered successfully');
+                }).join('');
+                
+                notificationList.innerHTML = html;
+                console.log(`✅ Successfully rendered ${renderedCount} notification(s)`);
+                console.log('📝 Rendered HTML length:', html.length);
+                
+                // Verify the HTML was actually inserted
+                if (notificationList.children.length === 0) {
+                    console.error('❌ HTML was set but no children found in notificationList');
+                } else {
+                    console.log(`✅ Verified: ${notificationList.children.length} notification element(s) in DOM`);
+                }
             } catch (error) {
-                console.error('Error rendering notifications:', error);
+                console.error('❌ Error rendering notifications:', error);
+                console.error('Error stack:', error.stack);
                 notificationList.innerHTML = `
                     <div class="notification-empty">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <p>Error loading notifications</p>
+                        <p>Error loading notifications: ${error.message}</p>
                     </div>
                 `;
             }
@@ -2464,6 +2515,11 @@
                     await loadNotifications();
                     console.log('✅ Notifications loaded, count:', notifications ? notifications.length : 0);
                     // renderNotifications() is already called inside loadNotifications()
+                    // But force a re-render to ensure it displays
+                    setTimeout(() => {
+                        console.log('🔄 Force re-rendering notifications after modal open...');
+                        renderNotifications();
+                    }, 50);
                 } catch (error) {
                     console.error('❌ Error loading notifications in modal:', error);
                     // Still try to render what we have

@@ -448,7 +448,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
         }
         
         // Determine if vehicle is actually pending
-        const isPending = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'PROCESSING'].includes(vehicle.status);
+        const isPending = ['SUBMITTED', 'PROCESSING'].includes(vehicle.status);
         
         if (isPending) {
             // Vehicle is genuinely pending - this is expected
@@ -939,7 +939,7 @@ router.post('/register', optionalAuth, async (req, res) => {
         const existingVehicle = await db.getVehicleByVin(vehicle.vin);
         if (existingVehicle) {
             // Only block if vehicle is in an active state
-            const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+            const blockingStatuses = ['SUBMITTED', 'REGISTERED', 'APPROVED'];
             
             if (blockingStatuses.includes(existingVehicle.status)) {
                 return res.status(409).json({
@@ -959,7 +959,7 @@ router.post('/register', optionalAuth, async (req, res) => {
         if (vehicle.plateNumber) {
             const existingByPlate = await db.getVehicleByPlate(vehicle.plateNumber);
             if (existingByPlate) {
-                const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+                const blockingStatuses = ['SUBMITTED', 'REGISTERED', 'APPROVED'];
                 
                 if (blockingStatuses.includes(existingByPlate.status)) {
                     return res.status(409).json({
@@ -1342,119 +1342,12 @@ router.post('/register', optionalAuth, async (req, res) => {
         
         // Log document linking summary
         const linkedCount = Object.keys(documentCids).length;
-        console.log(`📄 Document linking summary: ${linkedCount} document(s) linked with CIDs for blockchain registration`);
-        console.log(`📄 Document linking complete: ${linkedCount} documents linked, proceeding to auto-send`);
+        console.log(`📄 Document linking summary: ${linkedCount} document(s) linked`);
+        console.log(`📄 Document linking complete: ${linkedCount} documents linked`);
+        console.log(`✅ Vehicle registration submitted successfully. Status: SUBMITTED. Blockchain registration will occur during admin approval.`);
         
-        // Register on blockchain
-        let blockchainTxId = null;
-        let blockchainStatus = 'PENDING';
-        try {
-            // Set status to PENDING_BLOCKCHAIN while registration is in progress
-            await db.updateVehicle(newVehicle.id, { status: 'PENDING_BLOCKCHAIN' });
-            
-            // Prepare blockchain registration data with proper owner object and document CIDs
-            const blockchainData = {
-                vin: vehicle.vin,
-                plateNumber: vehicle.plateNumber,
-                make: vehicle.make,
-                model: vehicle.model,
-                year: vehicle.year,
-                color: vehicle.color,
-                engineNumber: vehicle.engineNumber,
-                chassisNumber: vehicle.chassisNumber,
-                vehicleType: vehicle.vehicleType || 'PASSENGER',
-                fuelType: vehicle.fuelType || 'GASOLINE',
-                transmission: vehicle.transmission || 'AUTOMATIC',
-                engineDisplacement: vehicle.engineDisplacement,
-                // Send owner as object (not just ID) to match chaincode expectations
-                owner: {
-                    id: ownerUser.id,
-                    email: ownerUser.email,
-                    firstName: ownerUser.first_name || owner.firstName,
-                    lastName: ownerUser.last_name || owner.lastName
-                },
-                // Include document CIDs for blockchain storage
-                documents: documentCids
-            };
-            
-            const blockchainResult = await fabricService.registerVehicle(blockchainData);
-            blockchainTxId = blockchainResult.transactionId;
-            
-            // Poll for transaction status to confirm it's committed
-            if (blockchainTxId && fabricService.mode === 'fabric') {
-                try {
-                    const txStatus = await fabricService.getTransactionStatus(blockchainTxId, vehicle.vin);
-                    blockchainStatus = txStatus.status;
-                    
-                    if (txStatus.status === 'committed') {
-                        // Change status back to SUBMITTED - admin needs to approve before REGISTERED
-                        // Blockchain registration is just for audit trail
-                        // Status will change to REGISTERED when admin approves via /api/lto/approve-clearance
-                        await db.updateVehicle(newVehicle.id, { status: 'SUBMITTED' });
-                        
-                        // Add blockchain history
-                        await db.addVehicleHistory({
-                            vehicleId: newVehicle.id,
-                            action: 'BLOCKCHAIN_REGISTERED',
-                            description: 'Vehicle registered on blockchain (awaiting admin approval)',
-                            performedBy: ownerUser.id,
-                            transactionId: blockchainTxId,
-                            metadata: createSafeBlockchainMetadata(blockchainResult, txStatus)
-                        });
-                    } else {
-                        // Transaction pending, keep PENDING_BLOCKCHAIN status
-                        await db.addVehicleHistory({
-                            vehicleId: newVehicle.id,
-                            action: 'BLOCKCHAIN_PENDING',
-                            description: `Vehicle registration submitted to blockchain (status: ${txStatus.status})`,
-                            performedBy: ownerUser.id,
-                            transactionId: blockchainTxId,
-                            metadata: createSafeBlockchainMetadata(blockchainResult, txStatus)
-                        });
-                    }
-                } catch (pollError) {
-                    console.warn('⚠️ Transaction status polling failed, assuming committed:', pollError.message);
-                    // Assume committed if polling fails, change status back to SUBMITTED
-                    // Admin will approve later via /api/lto/approve-clearance
-                    await db.updateVehicle(newVehicle.id, { status: 'SUBMITTED' });
-                    await db.addVehicleHistory({
-                        vehicleId: newVehicle.id,
-                        action: 'BLOCKCHAIN_REGISTERED',
-                        description: 'Vehicle registered on blockchain (status polling unavailable, awaiting admin approval)',
-                        performedBy: ownerUser.id,
-                        transactionId: blockchainTxId,
-                        metadata: createSafeBlockchainMetadata(blockchainResult, { status: 'unknown', error: pollError.message })
-                    });
-                }
-            } else {
-                // No transaction ID - keep SUBMITTED status
-                // Blockchain registration failed or not attempted, admin can still review
-                await db.addVehicleHistory({
-                    vehicleId: newVehicle.id,
-                    action: 'REGISTRATION_SUBMITTED',
-                    description: 'Vehicle registration submitted (blockchain registration not attempted)',
-                    performedBy: ownerUser.id,
-                    transactionId: null,
-                    metadata: createSafeRegistrationMetadata(registrationData, vehicle, owner)
-                });
-            }
-            
-        } catch (blockchainError) {
-            console.error('❌ Blockchain registration failed:', blockchainError);
-            // Rollback: Delete vehicle record since blockchain registration failed
-            try {
-                await db.deleteVehicle(newVehicle.id);
-            } catch (deleteError) {
-                console.error('Failed to rollback vehicle record:', deleteError);
-            }
-            
-            // Return error - no fallback allowed
-            return res.status(500).json({
-                success: false,
-                error: `Vehicle registration failed: Blockchain registration required but failed: ${blockchainError.message}`,
-                details: 'System requires real Hyperledger Fabric. Ensure Fabric network is running and properly configured.'
-            });
-        }
+        // Note: Blockchain registration is now deferred until admin approval
+        // This ensures OR/CR numbers are included in the blockchain record
 
         // Get full vehicle data with error handling
         let fullVehicle;
@@ -1745,7 +1638,7 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin']), async 
         console.log(`[PUT /api/vehicles/id/${id}/status] Updating vehicle status to ${status}`);
 
         // Validate status
-        const validStatuses = ['SUBMITTED', 'APPROVED', 'REJECTED', 'REGISTERED', 'PENDING_BLOCKCHAIN', 'PROCESSING'];
+        const validStatuses = ['SUBMITTED', 'APPROVED', 'REJECTED', 'REGISTERED', 'PROCESSING'];
         if (!status || !validStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,

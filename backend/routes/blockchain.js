@@ -398,7 +398,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             if (historyResult.rows.length > 0) {
                 const history = historyResult.rows[0];
                 const vehicleStatus = history.vehicle_status;
-                const isPending = vehicleStatus === 'PENDING_BLOCKCHAIN' || vehicleStatus === 'SUBMITTED';
+                const isPending = vehicleStatus === 'SUBMITTED';
                 
                 return {
                     success: true,

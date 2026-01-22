@@ -169,7 +169,7 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         // Update vehicle status if at least one request was sent
         const anySent = results.hpg.sent || results.insurance.sent;
         if (anySent) {
-            // NOTE: vehicle_status is an enum. Valid values: SUBMITTED, PENDING_BLOCKCHAIN, REGISTERED, APPROVED, REJECTED, SUSPENDED
+            // NOTE: vehicle_status is an enum. Valid values: SUBMITTED, REGISTERED, APPROVED, REJECTED, SUSPENDED
             // Use SUBMITTED for vehicles awaiting clearance verification
             await db.updateVehicle(vehicleId, { status: 'SUBMITTED' });
             

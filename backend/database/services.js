@@ -177,7 +177,7 @@ async function updateVehicle(id, updateData) {
 
 async function getVehiclesByOwner(ownerId) {
     // Get ALL vehicles where the user is the owner (including pending applications)
-    // Include all statuses: SUBMITTED, PENDING_BLOCKCHAIN, REGISTERED, APPROVED, etc.
+    // Include all statuses: SUBMITTED, REGISTERED, APPROVED, etc.
     // This allows owners to see their pending applications in addition to registered vehicles
     // Use owner_id directly (current_owner_id may not exist in all schemas)
     // Use registration_date and last_updated for ordering (created_at may not exist in all schemas)

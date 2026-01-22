@@ -947,7 +947,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                 existingVehicle = await db.getVehicleByPlate(finalPlate);
                 // Only treat as duplicate if vehicle is in active state
                 if (existingVehicle) {
-                    const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+                    const blockingStatuses = ['SUBMITTED', 'REGISTERED', 'APPROVED'];
                     if (!blockingStatuses.includes(existingVehicle.status)) {
                         // Vehicle exists but is inactive - allow reuse
                         existingVehicle = null;
@@ -966,7 +966,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             // Check if provided plate already exists (only block active vehicles)
             const existingVehicle = await db.getVehicleByPlate(finalPlate);
             if (existingVehicle) {
-                const blockingStatuses = ['SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED'];
+                const blockingStatuses = ['SUBMITTED', 'REGISTERED', 'APPROVED'];
                 if (blockingStatuses.includes(existingVehicle.status)) {
                     return res.status(409).json({
                         success: false,

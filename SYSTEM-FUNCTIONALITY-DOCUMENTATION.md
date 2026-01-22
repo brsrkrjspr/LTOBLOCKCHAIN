@@ -187,7 +187,7 @@ User Registration → Document Upload → Vehicle Registration → Blockchain Re
        - Transaction ID: Fabric TX ID
        - Metadata: Full blockchain result and transaction status
 
-**✅ Answer: YES, ALL registrations (even pending approval) are recorded on blockchain IMMEDIATELY upon submission.**
+**✅ Answer: Vehicles are registered on blockchain only after admin approval, ensuring OR/CR numbers are included in the blockchain record.**
 
 #### **Step 4: Admin Approval**
 - **Endpoint:** `POST /api/lto/approve-clearance`
@@ -199,16 +199,20 @@ User Registration → Document Upload → Vehicle Registration → Blockchain Re
 - **Process:**
   1. Admin reviews vehicle and verifications
   2. Admin approves clearance
-  3. Vehicle status: `APPROVED`
-  4. Vehicle is now fully registered and operational
+  3. OR/CR numbers are generated
+  4. Vehicle status: `APPROVED`
+  5. Vehicle registered on blockchain (with OR/CR numbers and documents)
+  6. Vehicle status: `REGISTERED` (if blockchain registration succeeds)
+  7. Vehicle is now fully registered and operational
 
 ### 2.3 Registration Status Flow
 
 ```
-SUBMITTED → PENDING_BLOCKCHAIN → SUBMITTED → APPROVED
-   ↓              ↓                  ↓           ↓
-[Created]  [Blockchain TX]    [Awaiting]  [Fully]
-           [In Progress]      [Admin]      [Registered]
+SUBMITTED → APPROVED → REGISTERED
+   ↓           ↓           ↓
+[Created]  [Admin]    [Fully]
+           [Approved] [Registered]
+                      [On Blockchain]
 ```
 
 ### 2.4 Error Handling
@@ -219,11 +223,12 @@ SUBMITTED → PENDING_BLOCKCHAIN → SUBMITTED → APPROVED
 - **Message:** "IPFS storage is required (STORAGE_MODE=ipfs) but IPFS service is unavailable"
 - **Action Required:** Start IPFS service, then retry upload
 
-#### **Blockchain Registration Failure**
-- **Cause:** Fabric network unavailable or chaincode error
-- **Response:** Vehicle record is **DELETED** (rollback)
-- **Error:** "Blockchain registration required but failed"
-- **Action Required:** Fix Fabric network, then retry registration
+#### **Blockchain Registration Failure (During Approval)**
+- **Cause:** Fabric network unavailable or chaincode error during approval
+- **Response:** Vehicle status remains `APPROVED` (no rollback)
+- **Error:** Logged but approval continues
+- **Action Required:** Fix Fabric network, then retry blockchain registration via approval endpoint
+- **Note:** Vehicle remains approved in database even if blockchain registration fails
 
 #### **Duplicate VIN (409)**
 - **Cause:** Vehicle with same VIN already exists

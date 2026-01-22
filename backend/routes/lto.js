@@ -594,10 +594,51 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             status: 'APPROVED'
         });
 
-        // Register vehicle on blockchain
+        // Register vehicle on blockchain (with OR/CR numbers and documents)
         let blockchainTxId = null;
         try {
             if (fabricService.isConnected && fabricService.mode === 'fabric') {
+                // Fetch vehicle documents and build document CIDs object
+                const documents = await db.getDocumentsByVehicle(vehicleId);
+                const documentCids = {};
+                const docTypes = require('../config/documentTypes');
+                
+                for (const doc of documents) {
+                    if (doc.ipfs_cid) {
+                        // Map database type to logical type
+                        const logicalType = docTypes.mapToLogicalType(doc.document_type);
+                        
+                        // Only include valid logical types (exclude 'other')
+                        if (logicalType && logicalType !== 'other' && docTypes.isValidLogicalType(logicalType)) {
+                            documentCids[logicalType] = {
+                                cid: doc.ipfs_cid,
+                                filename: doc.filename || doc.original_name || 'unknown',
+                                documentType: doc.document_type
+                            };
+                        }
+                    }
+                }
+                
+                console.log(`[LTO Approval] Prepared ${Object.keys(documentCids).length} document(s) for blockchain registration`);
+                
+                // Get owner user details for blockchain record
+                let ownerData = vehicle.owner_name || vehicle.owner_email;
+                if (vehicle.owner_id) {
+                    try {
+                        const ownerUser = await db.getUserById(vehicle.owner_id);
+                        if (ownerUser) {
+                            ownerData = {
+                                id: ownerUser.id,
+                                email: ownerUser.email,
+                                firstName: ownerUser.first_name || '',
+                                lastName: ownerUser.last_name || ''
+                            };
+                        }
+                    } catch (ownerError) {
+                        console.warn(`[LTO Approval] Could not fetch owner user details: ${ownerError.message}`);
+                    }
+                }
+                
                 const vehicleData = {
                     vin: vehicle.vin,
                     plateNumber: vehicle.plate_number,
@@ -611,18 +652,73 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     fuelType: vehicle.fuel_type,
                     transmission: vehicle.transmission,
                     engineDisplacement: vehicle.engine_displacement,
-                    owner: vehicle.owner_name || vehicle.owner_email,
+                    owner: ownerData, // Include owner as object (not just email)
                     orNumber: orNumber, // Include separate OR number in blockchain record
                     crNumber: crNumber, // Include separate CR number in blockchain record
-                    documents: {}
+                    documents: documentCids // Include document CIDs
                 };
 
-                const result = await fabricService.registerVehicle(vehicleData);
-                blockchainTxId = result.transactionId;
+                // Check if vehicle already exists on blockchain (migration concern)
+                let vehicleExists = false;
+                try {
+                    const existingVehicle = await fabricService.getVehicle(vehicle.vin);
+                    if (existingVehicle && existingVehicle.success && existingVehicle.vehicle) {
+                        vehicleExists = true;
+                        // Get transaction ID from existing vehicle
+                        blockchainTxId = existingVehicle.vehicle.blockchainTxId || 
+                                        existingVehicle.vehicle.transactionId ||
+                                        existingVehicle.vehicle.lastTxId ||
+                                        existingVehicle.vehicle.history?.[0]?.transactionId ||
+                                        null;
+                        
+                        if (blockchainTxId) {
+                            console.log(`[LTO Approval] Vehicle already exists on blockchain. Using existing transaction ID: ${blockchainTxId}`);
+                        } else {
+                            console.warn(`[LTO Approval] Vehicle exists on blockchain but no transaction ID found`);
+                        }
+                    }
+                } catch (queryError) {
+                    // Vehicle doesn't exist on blockchain - proceed with registration
+                    vehicleExists = false;
+                }
+                
+                // Only register if vehicle doesn't exist
+                if (!vehicleExists) {
+                    const result = await fabricService.registerVehicle(vehicleData);
+                    blockchainTxId = result.transactionId;
+                    console.log(`[LTO Approval] Vehicle registered on blockchain. Transaction ID: ${blockchainTxId}`);
+                } else {
+                    console.log(`[LTO Approval] Vehicle already on blockchain. Skipping registration. Status will be updated to REGISTERED.`);
+                }
             }
         } catch (blockchainError) {
-            console.error('Failed to register vehicle on blockchain:', blockchainError);
-            // Continue with approval even if blockchain fails
+            const errorMessage = blockchainError.message || blockchainError.toString();
+            const isAlreadyExists = errorMessage.includes('already exists') || 
+                                   (errorMessage.includes('Vehicle with VIN') && errorMessage.includes('already exists'));
+            
+            if (isAlreadyExists) {
+                // Vehicle already exists - try to get transaction ID
+                console.log(`[LTO Approval] Vehicle already exists on blockchain. Attempting to retrieve transaction ID...`);
+                try {
+                    const existingVehicle = await fabricService.getVehicle(vehicle.vin);
+                    if (existingVehicle && existingVehicle.success && existingVehicle.vehicle) {
+                        blockchainTxId = existingVehicle.vehicle.blockchainTxId || 
+                                        existingVehicle.vehicle.transactionId ||
+                                        existingVehicle.vehicle.lastTxId ||
+                                        existingVehicle.vehicle.history?.[0]?.transactionId ||
+                                        null;
+                        
+                        if (blockchainTxId) {
+                            console.log(`[LTO Approval] Recovered transaction ID from existing blockchain record: ${blockchainTxId}`);
+                        }
+                    }
+                } catch (queryError) {
+                    console.error(`[LTO Approval] Failed to query existing vehicle from blockchain:`, queryError.message);
+                }
+            } else {
+                console.error('Failed to register vehicle on blockchain:', blockchainError);
+                // Continue with approval even if blockchain fails - status stays APPROVED
+            }
         }
 
         // Update vehicle status to REGISTERED if blockchain registration succeeded

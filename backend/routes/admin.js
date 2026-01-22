@@ -23,7 +23,6 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
         const vehicles = {
             total: 0,
             submitted: 0,
-            pending_blockchain: 0,
             registered: 0,
             approved: 0,
             rejected: 0

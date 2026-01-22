@@ -2391,6 +2391,14 @@ function viewUserApplication_OLD(applicationId) {
 }
 
 function showUserApplicationModal(application) {
+    // Prepare vehicle data with safe property access
+    const vehicle = application.vehicle || {};
+    const vehicleMake = vehicle.make || 'N/A';
+    const vehicleModel = vehicle.model || 'N/A';
+    const vehicleYear = vehicle.year || 'N/A';
+    const vehicleColor = vehicle.color || 'N/A';
+    const vehiclePlate = vehicle.plateNumber || vehicle.plate_number || 'N/A';
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
@@ -2406,19 +2414,19 @@ function showUserApplicationModal(application) {
                         <div class="detail-grid">
                             <div class="detail-item">
                                 <span class="detail-label">Make/Model:</span>
-                                <span class="detail-value">${application.vehicle.make} ${application.vehicle.model}</span>
+                                <span class="detail-value">${vehicleMake} ${vehicleModel}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Year:</span>
-                                <span class="detail-value">${application.vehicle.year}</span>
+                                <span class="detail-value">${vehicleYear}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Color:</span>
-                                <span class="detail-value">${application.vehicle.color}</span>
+                                <span class="detail-value">${vehicleColor}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Plate Number:</span>
-                                <span class="detail-value">${application.vehicle.plateNumber}</span>
+                                <span class="detail-value">${vehiclePlate}</span>
                             </div>
                         </div>
                     </div>

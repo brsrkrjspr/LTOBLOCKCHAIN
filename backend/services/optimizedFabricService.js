@@ -687,10 +687,44 @@ class OptimizedFabricService {
             console.warn('⚠️ Failed to extract timestamp from block:', error.message);
         }
 
+        // Compute current block hash from header components
+        // Hash = SHA-256(blockNumber (8 bytes BE) + previous_hash + data_hash)
+        // This represents the block header hash that should match the next block's previousHash
+        let currentHash = null;
+        try {
+            const blockNumber = this.longToNumber(header.number);
+            const previousHashBuffer = header.previous_hash;
+            const dataHashBuffer = header.data_hash;
+            
+            if (blockNumber !== null && previousHashBuffer && dataHashBuffer) {
+                // Convert blockNumber to 8-byte big-endian buffer
+                const blockNumberBuffer = Buffer.allocUnsafe(8);
+                blockNumberBuffer.writeBigUInt64BE(BigInt(blockNumber), 0);
+                
+                // Ensure buffers are Buffer objects
+                const prevBuffer = Buffer.isBuffer(previousHashBuffer) 
+                    ? previousHashBuffer 
+                    : Buffer.from(previousHashBuffer);
+                const dataBuffer = Buffer.isBuffer(dataHashBuffer) 
+                    ? dataHashBuffer 
+                    : Buffer.from(dataHashBuffer);
+                
+                // Concatenate: blockNumber (8 bytes) + previous_hash + data_hash
+                const hashInput = Buffer.concat([blockNumberBuffer, prevBuffer, dataBuffer]);
+                
+                // Compute SHA-256 hash
+                const hash = crypto.createHash('sha256').update(hashInput).digest();
+                currentHash = '0x' + hash.toString('hex');
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to compute block hash:', error.message);
+        }
+
         return {
             blockNumber: this.longToNumber(header.number),
             previousHash: this.bufferToHex(header.previous_hash),
             dataHash: this.bufferToHex(header.data_hash),
+            currentHash: currentHash, // Computed header hash for chain integrity validation
             txCount: txIds.length,
             txIds,
             timestamp: firstTimestamp || null

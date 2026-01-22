@@ -1736,9 +1736,9 @@ function applyFilters(applications) {
         const searchTerm = searchInput.value.toLowerCase();
         filtered = filtered.filter(app => 
             app.id.toLowerCase().includes(searchTerm) ||
-            `${app.vehicle.make} ${app.vehicle.model}`.toLowerCase().includes(searchTerm) ||
-            `${app.owner.firstName} ${app.owner.lastName}`.toLowerCase().includes(searchTerm) ||
-            (app.vehicle.plateNumber && app.vehicle.plateNumber.toLowerCase().includes(searchTerm))
+            (app.vehicle && `${app.vehicle.make || ''} ${app.vehicle.model || ''}`.toLowerCase().includes(searchTerm)) ||
+            (app.owner && `${app.owner.firstName || app.owner.first_name || ''} ${app.owner.lastName || app.owner.last_name || ''}`.toLowerCase().includes(searchTerm)) ||
+            (app.vehicle && (app.vehicle.plateNumber || app.vehicle.plate_number) && (app.vehicle.plateNumber || app.vehicle.plate_number).toLowerCase().includes(searchTerm))
         );
     }
     
@@ -2072,15 +2072,24 @@ function createApplicationRow(application) {
     const approveButtonDisabled = canApprove ? '' : 'disabled';
     const approveButtonTitle = canApprove ? 'Approve application' : 'Inspection required before approval';
     
+    const vehicleData = application.vehicle || {};
+    const ownerData = application.owner || {};
+    const vehicleMake = vehicleData.make || 'N/A';
+    const vehicleModel = vehicleData.model || 'N/A';
+    const vehicleYear = vehicleData.year || 'N/A';
+    const vehiclePlate = vehicleData.plateNumber || vehicleData.plate_number || 'N/A';
+    const ownerFirstName = ownerData.firstName || ownerData.first_name || 'N/A';
+    const ownerLastName = ownerData.lastName || ownerData.last_name || 'N/A';
+    
     row.innerHTML = `
         <td>${application.id}</td>
         <td>
             <div class="vehicle-info">
-                <strong>${application.vehicle.make} ${application.vehicle.model} ${application.vehicle.year}</strong>
-                <small>${application.vehicle.plateNumber}</small>
+                <strong>${vehicleMake} ${vehicleModel} ${vehicleYear}</strong>
+                <small>${vehiclePlate}</small>
             </div>
         </td>
-        <td>${application.owner.firstName} ${application.owner.lastName}</td>
+        <td>${ownerFirstName} ${ownerLastName}</td>
         <td>${new Date(application.submittedDate).toLocaleDateString()}</td>
         <td><span class="status-badge status-${(application.status || '').toLowerCase()}">${getStatusText(application.status)}</span></td>
         <td><span class="priority-badge priority-${application.priority}">${application.priority}</span></td>
@@ -2335,6 +2344,15 @@ function showApplicationModal(application) {
     // Format date for input field
     const formattedInspectionDate = inspectionDate ? inspectionDate.split('T')[0] : '';
     
+    // Prepare owner data with safe property access
+    const owner = application.owner || {};
+    const ownerFirstName = owner.firstName || owner.first_name || 'N/A';
+    const ownerLastName = owner.lastName || owner.last_name || 'N/A';
+    const ownerEmail = owner.email || 'N/A';
+    const ownerPhone = owner.phone || 'N/A';
+    const ownerIdType = owner.idType || owner.id_type || 'N/A';
+    const ownerIdNumber = owner.idNumber || owner.id_number || 'N/A';
+    
     // Helper function to get status badge color
     const getStatusColor = (status) => {
         const colorMap = {
@@ -2393,27 +2411,27 @@ function showApplicationModal(application) {
                         <div class="detail-grid">
                             <div class="detail-item">
                                 <span class="detail-label">Make/Model:</span>
-                                <span class="detail-value">${application.vehicle.make} ${application.vehicle.model}</span>
+                                <span class="detail-value">${vehicle.make || 'N/A'} ${vehicle.model || 'N/A'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Year:</span>
-                                <span class="detail-value">${application.vehicle.year}</span>
+                                <span class="detail-value">${vehicle.year || 'N/A'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Color:</span>
-                                <span class="detail-value">${application.vehicle.color}</span>
+                                <span class="detail-value">${vehicle.color || 'N/A'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Plate Number:</span>
-                                <span class="detail-value">${application.vehicle.plateNumber}</span>
+                                <span class="detail-value">${vehicle.plateNumber || vehicle.plate_number || 'N/A'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Engine Number:</span>
-                                <span class="detail-value">${application.vehicle.engineNumber}</span>
+                                <span class="detail-value">${vehicle.engineNumber || vehicle.engine_number || 'N/A'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Chassis Number:</span>
-                                <span class="detail-value">${application.vehicle.chassisNumber}</span>
+                                <span class="detail-value">${vehicle.chassisNumber || vehicle.chassis_number || 'N/A'}</span>
                             </div>
                         </div>
                     </div>
@@ -2423,23 +2441,23 @@ function showApplicationModal(application) {
                         <div class="detail-grid">
                             <div class="detail-item">
                                 <span class="detail-label">Name:</span>
-                                <span class="detail-value">${application.owner.firstName} ${application.owner.lastName}</span>
+                                <span class="detail-value">${ownerFirstName} ${ownerLastName}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Email:</span>
-                                <span class="detail-value">${application.owner.email}</span>
+                                <span class="detail-value">${ownerEmail}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Phone:</span>
-                                <span class="detail-value">${application.owner.phone}</span>
+                                <span class="detail-value">${ownerPhone}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">ID Type:</span>
-                                <span class="detail-value">${application.owner.idType}</span>
+                                <span class="detail-value">${ownerIdType}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">ID Number:</span>
-                                <span class="detail-value">${application.owner.idNumber}</span>
+                                <span class="detail-value">${ownerIdNumber}</span>
                             </div>
                         </div>
                     </div>
@@ -3154,7 +3172,7 @@ function addUserNotification(applicationId, type, message) {
         type: type,
         title: type === 'approved' ? 'Application Approved' : 'Application Rejected',
         message: message,
-        vehicleInfo: `${application.vehicle.make} ${application.vehicle.model} (${application.vehicle.plateNumber})`,
+        vehicleInfo: application.vehicle ? `${application.vehicle.make || 'N/A'} ${application.vehicle.model || 'N/A'} (${application.vehicle.plateNumber || application.vehicle.plate_number || 'N/A'})` : 'N/A',
         timestamp: new Date().toISOString(),
         read: false
     };

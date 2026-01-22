@@ -220,6 +220,24 @@ ON vehicle_verifications(clearance_request_id);
 -- ============================================
 -- STEP 3: Transfer of ownership workflow (requests + docs + verifications)
 -- ============================================
+--
+-- IMPORTANT: OR/CR EXEMPTION FOR TRANSFERS
+-- Latest OR/CR is NOT required for transfer request submission by seller.
+-- Every registered vehicle already has OR/CR linked in the vehicles table.
+-- When transfer is completed, a new OR/CR will be automatically generated
+-- for the new owner using the registration certificate generator.
+--
+-- OR/CR AUTO-INCLUSION:
+-- Although sellers don't upload OR/CR, the system automatically compiles/includes
+-- OR/CR from vehicle records when:
+-- - Viewing transfer request details (admin/buyer/seller)
+-- - Forwarding transfer to HPG for clearance
+-- - Generating transfer application packages
+-- - Any other transfer application compilation
+--
+-- This ensures OR/CR is always available with transfer applications since
+-- vehicle and OR/CR are linked in the system.
+--
 
 CREATE TABLE IF NOT EXISTS transfer_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

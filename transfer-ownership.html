@@ -1594,21 +1594,10 @@
                                             </div>
                                         </div>
 
-                                        <!-- OR/CR (Optional - Can be pulled from vehicle record) -->
-                                        <div class="transfer-upload-item" id="upload-item-orCr">
-                                            <div class="transfer-upload-info">
-                                                <h4>📋 Latest OR/CR <span style="color: #7f8c8d;">(Optional)</span></h4>
-                                                <p>Official Receipt / Certificate of Registration. If vehicle is already registered, OR/CR will be pulled from vehicle record automatically.</p>
-                                            </div>
-                                            <div class="transfer-upload-area">
-                                                <input type="file" id="orCr" accept=".pdf,.jpg,.jpeg,.png" onchange="handleTransferUpload(this, 'orCr')">
-                                                <label for="orCr" class="transfer-upload-label" id="label-orCr">
-                                                    <span class="transfer-upload-icon">📄</span>
-                                                    <span class="transfer-upload-text">Choose File</span>
-                                                </label>
-                                                <div class="transfer-file-name" id="filename-orCr"></div>
-                                            </div>
-                                        </div>
+                                        <!-- OR/CR REMOVED: Latest OR/CR is not required for transfer requests.
+                                             Every registered vehicle already has OR/CR linked in the system.
+                                             When transfer is completed, a new OR/CR will be automatically generated
+                                             for the new owner using the registration certificate generator. -->
                                     </div>
                                     <div class="wizard-actions">
                                         <button class="btn-secondary" onclick="toPrevStep(3)">Previous</button>
@@ -2136,8 +2125,8 @@
             // Missing mappings will cause upload to fail (by design - fail-fast)
             const docTypeMap = {
                 'deedOfSale': DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE,
-                'sellerId': DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID,
-                'orCr': DocumentUploadUtils.DOCUMENT_TYPES.REGISTRATION_CERT // OR/CR is a registration cert (optional)
+                'sellerId': DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID
+                // OR/CR removed: Not required for transfer requests. System automatically generates new OR/CR after transfer completion.
             };
             
             // Fail-fast: Every upload slot MUST have a valid mapping

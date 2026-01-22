@@ -398,21 +398,17 @@ async function generateCertificates() {
                     odometerReading: document.getElementById('odometerReading').value,
                     notaryName: document.getElementById('notaryName').value,
                     notaryCommission: document.getElementById('notaryCommission').value
-                },
-                sellerId: {
-                    idType: document.getElementById('sellerIdType').value,
-                    idNumber: document.getElementById('sellerIdNumber').value,
-                    dateOfBirth: document.getElementById('sellerDob').value
                 }
+                // Seller ID removed: IDs should not be generated as certificates
+                // IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded
+                // sellerId: { ... } // REMOVED - IDs are upload-only, not generated
             },
             buyerDocuments: {
                 // Include buyer email/ID for standalone generation (when no transfer request)
                 ...(buyerEmail && !transferRequestId ? { email: buyerEmail } : {}),
-                buyerId: {
-                    idType: document.getElementById('buyerIdType').value,
-                    idNumber: document.getElementById('buyerIdNumber').value,
-                    dateOfBirth: document.getElementById('buyerDob').value
-                },
+                // Buyer ID removed: IDs should not be generated as certificates
+                // IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded
+                // buyerId: { ... } // REMOVED - IDs are upload-only, not generated
                 buyerTin: {
                     tinNumber: document.getElementById('buyerTin').value
                 },
@@ -479,15 +475,13 @@ function showSuccess(message, response) {
             if (response.results.sellerDocuments.deedOfSale) {
                 html += '<li>Deed of Sale ✓</li>';
             }
-            if (response.results.sellerDocuments.sellerId) {
-                html += '<li>Seller ID ✓</li>';
-            }
+            // Seller ID removed: IDs are upload-only, not generated
             html += '</ul>';
         }
         
         if (response.results.buyerDocuments) {
             html += '<h5>Buyer Documents:</h5><ul>';
-            if (response.results.buyerDocuments.buyerId) html += '<li>Buyer ID ✓</li>';
+            // Buyer ID removed: IDs are upload-only, not generated
             if (response.results.buyerDocuments.buyerTin) html += '<li>TIN Document ✓</li>';
             if (response.results.buyerDocuments.hpgClearance) html += '<li>HPG Clearance ✓</li>';
             if (response.results.buyerDocuments.ctplInsurance) html += '<li>CTPL Insurance ✓</li>';

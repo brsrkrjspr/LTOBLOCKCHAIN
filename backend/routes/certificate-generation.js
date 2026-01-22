@@ -1653,25 +1653,45 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
             // Buyer must be provided in buyerDocuments or form
             // Use lookupAndValidateOwner for consistent owner lookup (same as registration certificates)
+            // FIX: Validate that buyerId is a valid UUID before using it (prevents error when ID document object is accidentally sent)
             if (buyerDocuments && buyerDocuments.buyerId) {
-                try {
-                    const buyerData = await lookupAndValidateOwner(buyerDocuments.buyerId, null);
-                    buyer = {
-                        id: buyerData.id,
-                        first_name: buyerData.firstName,
-                        last_name: buyerData.lastName,
-                        email: buyerData.email,
-                        address: buyerData.address,
-                        phone: buyerData.phone
-                    };
-                    buyerName = buyerData.name;
-                } catch (error) {
-                    return res.status(400).json({
-                        success: false,
-                        error: `Buyer lookup failed: ${error.message}`
-                    });
+                // Check if buyerId is a valid UUID format (not an ID document object)
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                const buyerIdValue = typeof buyerDocuments.buyerId === 'string' ? buyerDocuments.buyerId : 
+                                     (buyerDocuments.buyerId && typeof buyerDocuments.buyerId === 'object' ? JSON.stringify(buyerDocuments.buyerId) : buyerDocuments.buyerId);
+                
+                // If it's not a valid UUID, it might be an ID document object - skip and use email instead
+                if (typeof buyerIdValue === 'string' && uuidRegex.test(buyerIdValue)) {
+                    try {
+                        const buyerData = await lookupAndValidateOwner(buyerIdValue, null);
+                        buyer = {
+                            id: buyerData.id,
+                            first_name: buyerData.firstName,
+                            last_name: buyerData.lastName,
+                            email: buyerData.email,
+                            address: buyerData.address,
+                            phone: buyerData.phone
+                        };
+                        buyerName = buyerData.name;
+                    } catch (error) {
+                        // If UUID lookup fails, fall back to email if available
+                        if (buyerDocuments && buyerDocuments.email) {
+                            console.warn(`Buyer UUID lookup failed (${error.message}), falling back to email lookup`);
+                        } else {
+                            return res.status(400).json({
+                                success: false,
+                                error: `Buyer lookup failed: ${error.message}`
+                            });
+                        }
+                    }
+                } else {
+                    // buyerId is not a valid UUID (likely an ID document object) - skip and use email instead
+                    console.warn(`buyerId is not a valid UUID (received: ${typeof buyerIdValue === 'string' ? buyerIdValue.substring(0, 100) : typeof buyerIdValue}), falling back to email lookup`);
                 }
-            } else if (buyerDocuments && buyerDocuments.email) {
+            }
+            
+            // Use email lookup if buyerId wasn't used or wasn't a valid UUID
+            if (!buyer && buyerDocuments && buyerDocuments.email) {
                 try {
                     // Use lookupAndValidateOwner to fetch full buyer details from DB
                     const buyerData = await lookupAndValidateOwner(null, buyerDocuments.email);
@@ -1926,6 +1946,10 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         // Generate Seller Documents
         try {
             // Deed of Sale
+            // NOTE: Deed of Sale generation is kept for potential thesis demo purposes (frontend "just for show")
+            // In production, Deed of Sale should be upload-only (not auto-generated) since LTO is not the issuer
+            // Dealers/Notaries issue Deed of Sale documents, not LTO
+            // This generation does NOT represent authoritative certificates - they are supporting documents for review
             if (sellerDocuments?.deedOfSale) {
                 const saleDate = sellerDocuments.deedOfSale.saleDate || new Date().toISOString();
                 const deedResult = await certificatePdfGenerator.generateDeedOfSale({
@@ -1985,28 +2009,12 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 results.sellerDocuments.deedOfSale = { documentId: docId, fileHash: deedResult.fileHash };
             }
 
-            // Seller ID
-            if (sellerDocuments?.sellerId) {
-                const sellerIdResult = await certificatePdfGenerator.generateGovernmentId({
-                    holderName: sellerName,
-                    holderAddress: seller.address || '',
-                    idType: sellerDocuments.sellerId.idType || 'Driver\'s License',
-                    idNumber: sellerDocuments.sellerId.idNumber,
-                    dateOfBirth: sellerDocuments.sellerId.dateOfBirth,
-                    isSeller: true
-                });
-
-                const docId = await storePdfAndCreateDocument(
-                    sellerIdResult.pdfBuffer,
-                    sellerIdResult.fileHash,
-                    `Seller_ID_${transferRequestId}.pdf`,
-                    docTypes.DB_TYPES.SELLER_ID, // Use proper enum: 'seller_id'
-                    vehicle.id,
-                    seller.email
-                );
-                await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.SELLER_ID);
-                results.sellerDocuments.sellerId = { documentId: docId, fileHash: sellerIdResult.fileHash };
-            }
+            // Seller ID - REMOVED: IDs should not be generated as certificates
+            // IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users
+            // The system stores uploaded ID documents but does not generate "ID certificates"
+            // if (sellerDocuments?.sellerId) {
+            //     // ID generation removed per validator model: IDs are upload-only, no certificate generation
+            // }
         } catch (error) {
             console.error('[Seller Documents] Error:', error);
             results.errors.push({ type: 'sellerDocuments', error: error.message });
@@ -2014,28 +2022,12 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
         // Generate Buyer Documents
         try {
-            // Buyer ID
-            if (buyerDocuments?.buyerId) {
-                const buyerIdResult = await certificatePdfGenerator.generateGovernmentId({
-                    holderName: buyerName,
-                    holderAddress: buyer.address || '',
-                    idType: buyerDocuments.buyerId.idType || 'National ID',
-                    idNumber: buyerDocuments.buyerId.idNumber,
-                    dateOfBirth: buyerDocuments.buyerId.dateOfBirth,
-                    isSeller: false
-                });
-
-                const docId = await storePdfAndCreateDocument(
-                    buyerIdResult.pdfBuffer,
-                    buyerIdResult.fileHash,
-                    `Buyer_ID_${transferRequestId}.pdf`,
-                    docTypes.DB_TYPES.BUYER_ID, // Use proper enum: 'buyer_id'
-                    vehicle.id,
-                    buyer.email
-                );
-                await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_ID);
-                results.buyerDocuments.buyerId = { documentId: docId, fileHash: buyerIdResult.fileHash };
-            }
+            // Buyer ID - REMOVED: IDs should not be generated as certificates
+            // IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users
+            // The system stores uploaded ID documents but does not generate "ID certificates"
+            // if (buyerDocuments?.buyerId) {
+            //     // ID generation removed per validator model: IDs are upload-only, no certificate generation
+            // }
 
             // Buyer TIN
             if (buyerDocuments?.buyerTin) {

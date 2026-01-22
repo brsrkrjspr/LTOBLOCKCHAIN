@@ -72,8 +72,9 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         'seller_id': docTypes.TRANSFER_ROLES.SELLER_ID,
         'buyerId': docTypes.TRANSFER_ROLES.BUYER_ID,
         'buyer_id': docTypes.TRANSFER_ROLES.BUYER_ID,
-        'orCr': docTypes.TRANSFER_ROLES.OR_CR,
-        'or_cr': docTypes.TRANSFER_ROLES.OR_CR,
+        // OR/CR removed: Not required for transfer requests. System automatically generates new OR/CR after transfer completion.
+        // 'orCr': docTypes.TRANSFER_ROLES.OR_CR, // DEPRECATED
+        // 'or_cr': docTypes.TRANSFER_ROLES.OR_CR, // DEPRECATED
         'buyerTin': docTypes.TRANSFER_ROLES.BUYER_TIN,
         'buyer_tin': docTypes.TRANSFER_ROLES.BUYER_TIN,
         'buyerCtpl': docTypes.TRANSFER_ROLES.BUYER_CTPL,
@@ -857,9 +858,11 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
     const transferDocuments = await db.getTransferRequestDocuments(request.id);
     const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
 
-    // Find OR/CR from transfer documents (document_type = 'or_cr') or vehicle documents
-    let orCrDoc = transferDocuments.find(td => td.document_type === 'or_cr' && td.document_id);
-    if (!orCrDoc && vehicleDocuments.length > 0) {
+    // Find OR/CR from vehicle documents only (not from transfer documents)
+    // OR/CR is not required for transfer submission - system automatically generates new OR/CR after transfer
+    // But HPG may need existing OR/CR for clearance, so we pull it from vehicle records if available
+    let orCrDoc = null;
+    if (vehicleDocuments.length > 0) {
         orCrDoc = vehicleDocuments.find(d => 
             d.document_type === 'or_cr' || 
             d.document_type === 'registration_cert' || 
@@ -1582,7 +1585,9 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                             ? docTypes.TRANSFER_ROLES.SELLER_ID 
                             : docTypes.TRANSFER_ROLES.BUYER_ID;
                     } else if (document.document_type === 'registration_cert') {
-                        docType = docTypes.TRANSFER_ROLES.OR_CR;
+                        // OR/CR removed: Not required for transfer requests. System automatically generates new OR/CR after transfer completion.
+                        // docType = docTypes.TRANSFER_ROLES.OR_CR; // DEPRECATED
+                        docType = null; // Skip OR/CR documents in legacy inference
                     } else if (document.document_type === 'deed_of_sale') {
                         docType = docTypes.TRANSFER_ROLES.DEED_OF_SALE;
                     }
@@ -2429,6 +2434,33 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
         
         // Get documents
         const documents = await db.getTransferRequestDocuments(id);
+        
+        // Automatically include OR/CR from vehicle records (even though seller didn't upload it)
+        // OR/CR is linked to the vehicle, so it's automatically compiled with the transfer application
+        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+        const orCrDoc = vehicleDocuments.find(d => 
+            d.document_type === 'or_cr' || 
+            d.document_type === 'registration_cert' || 
+            d.document_type === 'registrationCert' ||
+            d.document_type === 'registration' ||
+            (d.original_name && (
+                d.original_name.toLowerCase().includes('or_cr') ||
+                d.original_name.toLowerCase().includes('or-cr') ||
+                d.original_name.toLowerCase().includes('orcr') ||
+                d.original_name.toLowerCase().includes('registration')
+            ))
+        );
+        
+        // Add OR/CR to documents array if found (marked as auto-included from vehicle)
+        if (orCrDoc) {
+            documents.push({
+                ...orCrDoc,
+                document_type: 'or_cr',
+                auto_included: true, // Flag indicating this was pulled from vehicle, not uploaded by seller
+                source: 'vehicle_record'
+            });
+        }
+        
         request.documents = documents;
         
         // Get verification history
@@ -2471,6 +2503,35 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
         }
         
         const documents = await db.getTransferRequestDocuments(id);
+        
+        // Automatically include OR/CR from vehicle records (even though seller didn't upload it)
+        // OR/CR is linked to the vehicle, so it's automatically compiled with the transfer application
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        if (vehicle) {
+            const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+            const orCrDoc = vehicleDocuments.find(d => 
+                d.document_type === 'or_cr' || 
+                d.document_type === 'registration_cert' || 
+                d.document_type === 'registrationCert' ||
+                d.document_type === 'registration' ||
+                (d.original_name && (
+                    d.original_name.toLowerCase().includes('or_cr') ||
+                    d.original_name.toLowerCase().includes('or-cr') ||
+                    d.original_name.toLowerCase().includes('orcr') ||
+                    d.original_name.toLowerCase().includes('registration')
+                ))
+            );
+            
+            // Add OR/CR to documents array if found (marked as auto-included from vehicle)
+            if (orCrDoc) {
+                documents.push({
+                    ...orCrDoc,
+                    document_type: 'or_cr',
+                    auto_included: true, // Flag indicating this was pulled from vehicle, not uploaded by seller
+                    source: 'vehicle_record'
+                });
+            }
+        }
         
         res.json({
             success: true,

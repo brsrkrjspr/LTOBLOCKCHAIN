@@ -152,12 +152,15 @@ class OptimizedFabricService {
             };
             
             const vehicleJson = JSON.stringify(vehiclePayload);
-            const fabricResult = await this.contract.submitTransaction('RegisterVehicle', vehicleJson);
+            // Use createTransaction() to get access to transaction ID
+            const transaction = this.contract.createTransaction('RegisterVehicle');
+            const fabricResult = await transaction.submit(vehicleJson);
+            const transactionId = transaction.getTransactionId();
             
             const result = {
                 success: true,
                 message: 'Vehicle registered successfully on Fabric',
-                transactionId: fabricResult.toString(),
+                transactionId: transactionId,
                 vin: vehicleData.vin
             };
 
@@ -215,18 +218,15 @@ class OptimizedFabricService {
         }
 
         try {
-            const fabricResult = await this.contract.submitTransaction(
-                'UpdateVerificationStatus', 
-                vin, 
-                verificationType, 
-                status, 
-                notes || ''
-            );
+            // Use createTransaction() to get access to transaction ID
+            const transaction = this.contract.createTransaction('UpdateVerificationStatus');
+            const fabricResult = await transaction.submit(vin, verificationType, status, notes || '');
+            const transactionId = transaction.getTransactionId();
             
             const result = {
                 success: true,
                 message: 'Verification status updated successfully on Fabric',
-                transactionId: fabricResult.toString(),
+                transactionId: transactionId,
                 vin: vin,
                 verificationType: verificationType,
                 status: status
@@ -251,17 +251,15 @@ class OptimizedFabricService {
             const newOwnerJson = JSON.stringify(newOwnerData);
             const transferJson = JSON.stringify(transferData);
             
-            const result = await this.contract.submitTransaction(
-                'TransferOwnership', 
-                vin, 
-                newOwnerJson, 
-                transferJson
-            );
+            // Use createTransaction() to get access to transaction ID
+            const transaction = this.contract.createTransaction('TransferOwnership');
+            const fabricResult = await transaction.submit(vin, newOwnerJson, transferJson);
+            const transactionId = transaction.getTransactionId();
             
             return {
                 success: true,
                 message: 'Ownership transferred successfully on Fabric',
-                transactionId: result.toString(),
+                transactionId: transactionId,
                 vin: vin,
                 newOwner: newOwnerData.email
             };
@@ -283,13 +281,15 @@ class OptimizedFabricService {
         }
         
         try {
-            const result = await this.contract.submitTransaction('ScrapVehicle', vin, scrapReason);
-            const parsedResult = JSON.parse(result.toString());
+            // Use createTransaction() to get access to transaction ID
+            const transaction = this.contract.createTransaction('ScrapVehicle');
+            const fabricResult = await transaction.submit(vin, scrapReason);
+            const transactionId = transaction.getTransactionId();
             
             return {
                 success: true,
                 message: 'Vehicle scrapped successfully on blockchain',
-                transactionId: parsedResult.transactionId,
+                transactionId: transactionId,
                 vin: vin
             };
         } catch (error) {

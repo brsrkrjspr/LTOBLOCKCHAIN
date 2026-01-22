@@ -2471,20 +2471,27 @@
         }
 
         function renderNotifications() {
+            console.log('🎨 [RENDER] Starting renderNotifications()');
             const notificationList = document.getElementById('notificationList');
             if (!notificationList) {
-                console.error('❌ Notification list element not found - element ID: notificationList');
+                console.error('❌ [RENDER] Notification list element not found - element ID: notificationList');
                 // Try to find it after a short delay in case DOM isn't ready
                 setTimeout(() => {
                     const retryList = document.getElementById('notificationList');
                     if (retryList) {
-                        console.log('✅ Found notification list on retry');
+                        console.log('✅ [RENDER] Found notification list on retry');
                         renderNotifications();
                     } else {
-                        console.error('❌ Notification list still not found after retry');
+                        console.error('❌ [RENDER] Notification list still not found after retry');
                     }
                 }, 100);
                 return;
+            }
+
+            // CRITICAL: Remove any loader immediately
+            const loader = notificationList.querySelector('.fa-spinner');
+            if (loader) {
+                console.log('🔄 [RENDER] Removing loader...');
             }
 
             // Ensure element is visible
@@ -2492,23 +2499,24 @@
             notificationList.style.visibility = 'visible';
             notificationList.style.opacity = '1';
 
-            console.log('🎨 Rendering notifications. Count:', notifications ? notifications.length : 0);
-            console.log('📋 Notifications data:', JSON.stringify(notifications, null, 2));
+            console.log('🎨 [RENDER] Rendering notifications. Count:', notifications ? notifications.length : 0);
+            console.log('📋 [RENDER] Notifications data:', JSON.stringify(notifications, null, 2));
 
             // Ensure notifications is an array
             if (!Array.isArray(notifications)) {
-                console.warn('⚠️ Notifications is not an array, resetting to sample data');
+                console.warn('⚠️ [RENDER] Notifications is not an array, resetting to sample data');
                 notifications = getSampleNotifications();
             }
 
             if (!notifications || notifications.length === 0) {
-                console.log('ℹ️ No notifications to display, showing empty state');
+                console.log('ℹ️ [RENDER] No notifications to display, showing empty state');
                 notificationList.innerHTML = `
                     <div class="notification-empty">
                         <i class="fas fa-bell-slash"></i>
                         <p>No notifications available</p>
                     </div>
                 `;
+                console.log('✅ [RENDER] Empty state rendered');
                 return;
             }
 
@@ -2554,30 +2562,50 @@
                     `;
                 }).join('');
                 
-                // Clear and set HTML using insertAdjacentHTML for better DOM handling
+                // CRITICAL: Clear loader first, then set HTML
                 notificationList.innerHTML = '';
-                notificationList.insertAdjacentHTML('beforeend', html);
                 
-                console.log(`✅ Successfully rendered ${renderedCount} notification(s)`);
-                console.log('📝 Rendered HTML length:', html.length);
+                // Use direct innerHTML assignment for reliability
+                notificationList.innerHTML = html;
+                
+                console.log(`✅ [RENDER] Successfully rendered ${renderedCount} notification(s)`);
+                console.log('📝 [RENDER] Rendered HTML length:', html.length);
                 
                 // Verify the HTML was actually inserted
                 if (notificationList.children.length === 0) {
-                    console.error('❌ HTML was set but no children found in notificationList');
-                    console.error('HTML content:', html.substring(0, 200));
+                    console.error('❌ [RENDER] HTML was set but no children found in notificationList');
+                    console.error('❌ [RENDER] HTML content preview:', html.substring(0, 200));
                     // Try alternative method
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = html;
-                    while (tempDiv.firstChild) {
-                        notificationList.appendChild(tempDiv.firstChild);
+                    try {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = html;
+                        while (tempDiv.firstChild) {
+                            notificationList.appendChild(tempDiv.firstChild);
+                        }
+                        console.log('✅ [RENDER] Used alternative insertion method');
+                    } catch (altError) {
+                        console.error('❌ [RENDER] Alternative insertion also failed:', altError);
+                        // Last resort: show error
+                        notificationList.innerHTML = `
+                            <div class="notification-empty">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <p>Error rendering notifications</p>
+                            </div>
+                        `;
                     }
-                    console.log('✅ Used alternative insertion method');
                 } else {
-                    console.log(`✅ Verified: ${notificationList.children.length} notification element(s) in DOM`);
+                    console.log(`✅ [RENDER] Verified: ${notificationList.children.length} notification element(s) in DOM`);
                 }
                 
                 // Force a reflow to ensure rendering
-                notificationList.offsetHeight;
+                void notificationList.offsetHeight;
+                
+                // Final check: ensure no loader is present
+                const remainingLoader = notificationList.querySelector('.fa-spinner');
+                if (remainingLoader) {
+                    console.warn('⚠️ [RENDER] Loader still present after render, removing...');
+                    remainingLoader.closest('.notification-empty')?.remove();
+                }
             } catch (error) {
                 console.error('❌ Error rendering notifications:', error);
                 console.error('Error stack:', error.stack);
@@ -2680,14 +2708,93 @@
             // Wait for modal to be fully visible in DOM
             await new Promise(resolve => setTimeout(resolve, 100));
             
+            // CRITICAL: Set a maximum timeout that ALWAYS removes the loader
+            const MAX_LOAD_TIME = 3000; // 3 seconds max
+            const forceRemoveLoader = setTimeout(() => {
+                console.warn('⚠️ [MODAL] FORCE TIMEOUT: Maximum load time exceeded, removing loader...');
+                const list = document.getElementById('notificationList');
+                if (list) {
+                    const hasLoader = list.querySelector('.fa-spinner');
+                    if (hasLoader) {
+                        console.warn('⚠️ [MODAL] Loader still showing after timeout, forcing removal...');
+                        // Try to use existing notifications or show empty state
+                        if (notifications && Array.isArray(notifications) && notifications.length > 0) {
+                            console.log('✅ [MODAL] Using existing notifications after timeout');
+                            notifications = notifications; // Ensure it's set
+                            renderNotifications();
+                        } else {
+                            // Try localStorage
+                            const saved = localStorage.getItem('ownerNotifications');
+                            if (saved) {
+                                try {
+                                    const parsed = JSON.parse(saved);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                        notifications = parsed;
+                                        renderNotifications();
+                                        return;
+                                    }
+                                } catch (e) {
+                                    // Continue to empty state
+                                }
+                            }
+                            // Show empty state
+                            list.innerHTML = `
+                                <div class="notification-empty">
+                                    <i class="fas fa-bell-slash"></i>
+                                    <p>No notifications available</p>
+                                </div>
+                            `;
+                        }
+                    }
+                }
+            }, MAX_LOAD_TIME);
+            
             // Always reload notifications when opening modal to get latest data
             try {
                 console.log('📥 [MODAL] Starting to load notifications...');
-                const loadedNotifications = await loadNotifications();
+                
+                // Use Promise.race to ensure we don't wait forever
+                const loadPromise = loadNotifications();
+                const timeoutPromise = new Promise((resolve) => {
+                    setTimeout(() => {
+                        console.warn('⚠️ [MODAL] Load promise taking too long, using fallback...');
+                        resolve(null);
+                    }, 2500); // 2.5 seconds
+                });
+                
+                const loadedNotifications = await Promise.race([loadPromise, timeoutPromise]);
+                
+                // Clear the force timeout since we got a result
+                clearTimeout(forceRemoveLoader);
+                
                 console.log('✅ [MODAL] Notifications loaded, count:', loadedNotifications ? loadedNotifications.length : 0);
                 
-                // CRITICAL: Always remove loader and render, even if empty
-                removeLoaderAndRender(loadedNotifications);
+                // CRITICAL: Always remove loader and render, even if empty or null
+                if (loadedNotifications === null) {
+                    // Timeout occurred, use fallback
+                    console.log('⚠️ [MODAL] Load timed out, using fallback data...');
+                    const saved = localStorage.getItem('ownerNotifications');
+                    if (saved) {
+                        try {
+                            const parsed = JSON.parse(saved);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                notifications = parsed;
+                                removeLoaderAndRender(notifications);
+                            } else {
+                                notifications = getSampleNotifications();
+                                removeLoaderAndRender(notifications);
+                            }
+                        } catch (e) {
+                            notifications = getSampleNotifications();
+                            removeLoaderAndRender(notifications);
+                        }
+                    } else {
+                        notifications = getSampleNotifications();
+                        removeLoaderAndRender(notifications);
+                    }
+                } else {
+                    removeLoaderAndRender(loadedNotifications);
+                }
                 
                 // Double-check after a short delay to ensure rendering worked
                 setTimeout(() => {
@@ -2708,8 +2815,17 @@
                         
                         // If loader is still showing, force remove it
                         if (hasLoader) {
-                            console.warn('⚠️ [MODAL] Loader still visible, forcing removal...');
-                            removeLoaderAndRender(notifications);
+                            console.warn('⚠️ [MODAL] Loader still visible after render, forcing removal...');
+                            if (notifications && Array.isArray(notifications) && notifications.length > 0) {
+                                renderNotifications();
+                            } else {
+                                list.innerHTML = `
+                                    <div class="notification-empty">
+                                        <i class="fas fa-bell-slash"></i>
+                                        <p>No notifications available</p>
+                                    </div>
+                                `;
+                            }
                         }
                         
                         // If we have notifications but they're not displayed, force render
@@ -2720,6 +2836,9 @@
                     }
                 }, 300);
             } catch (error) {
+                // Clear the force timeout since we're handling the error
+                clearTimeout(forceRemoveLoader);
+                
                 console.error('❌ [MODAL] Error in try block:', error);
                 console.error('❌ [MODAL] Error details:', {
                     message: error.message,
@@ -2732,7 +2851,23 @@
                     console.log('✅ [MODAL] Using existing notifications after error');
                     removeLoaderAndRender(notifications);
                 } else {
-                    showError(error.message || 'Failed to load notifications');
+                    // Try localStorage as last resort
+                    const saved = localStorage.getItem('ownerNotifications');
+                    if (saved) {
+                        try {
+                            const parsed = JSON.parse(saved);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                notifications = parsed;
+                                removeLoaderAndRender(notifications);
+                            } else {
+                                showError(error.message || 'Failed to load notifications');
+                            }
+                        } catch (e) {
+                            showError(error.message || 'Failed to load notifications');
+                        }
+                    } else {
+                        showError(error.message || 'Failed to load notifications');
+                    }
                 }
             }
         }

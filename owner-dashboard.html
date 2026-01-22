@@ -2470,7 +2470,7 @@
             return defaultNotifications;
         }
 
-        function renderNotifications() {
+        async function renderNotifications() {
             console.log('🎨 [RENDER] Starting renderNotifications()');
             console.log('🎨 [RENDER] Global notifications variable:', notifications);
             console.log('🎨 [RENDER] Notifications type:', typeof notifications);
@@ -2528,12 +2528,14 @@
 
             // Render ALL notifications (not just first 5)
             try {
+                console.log('🎨 [RENDER] Starting to build HTML for', notifications.length, 'notifications');
+                
                 let renderedCount = 0;
-                const html = notifications.map((notification, index) => {
+                const htmlParts = notifications.map((notification, index) => {
                     // Generate ID if missing
                     if (!notification.id) {
                         notification.id = `notif-${Date.now()}-${index}`;
-                        console.warn(`⚠️ Notification missing ID, generated: ${notification.id}`, notification);
+                        console.warn(`⚠️ [RENDER] Notification missing ID, generated: ${notification.id}`, notification);
                     }
                     
                     // Ensure required fields exist
@@ -2542,12 +2544,12 @@
                         title: notification.title || 'Notification',
                         message: notification.message || '',
                         time: notification.time || 'Recently',
-                        read: notification.read === true || notification.read === 'true',
+                        read: notification.read === true || notification.read === 'true' || notification.read === 1,
                         type: notification.type || 'info'
                     };
                     
                     renderedCount++;
-                    return `
+                    const itemHtml = `
                         <div class="notification-item ${notif.read ? '' : 'unread'}" data-id="${notif.id}">
                             <div class="notification-item-header">
                                 <h3 class="notification-item-title">${escapeHtml(notif.title)}</h3>
@@ -2566,52 +2568,145 @@
                             </div>
                         </div>
                     `;
-                }).join('');
+                    return itemHtml;
+                });
+                
+                const html = htmlParts.join('');
+                console.log('🎨 [RENDER] Generated HTML string, length:', html.length);
+                console.log('🎨 [RENDER] HTML preview (first 500 chars):', html.substring(0, 500));
+                
+                // CRITICAL: Verify element exists and is in DOM before manipulating
+                if (!notificationList || !notificationList.parentNode) {
+                    console.error('❌ [RENDER] notificationList element is not in DOM!');
+                    console.error('❌ [RENDER] Element:', notificationList);
+                    return;
+                }
+                
+                // Verify element is the correct one
+                if (notificationList.id !== 'notificationList') {
+                    console.error('❌ [RENDER] Element ID mismatch! Expected: notificationList, Got:', notificationList.id);
+                }
+                
+                console.log('✅ [RENDER] Element verified in DOM, parent:', notificationList.parentNode?.className);
                 
                 // CRITICAL: Clear loader first, then set HTML
+                console.log('🔄 [RENDER] Clearing innerHTML...');
                 notificationList.innerHTML = ''; // Clear first to remove any loader
                 
+                // Verify it's cleared
+                if (notificationList.children.length > 0) {
+                    console.warn('⚠️ [RENDER] Element still has children after clear:', notificationList.children.length);
+                    // Force clear
+                    while (notificationList.firstChild) {
+                        notificationList.removeChild(notificationList.firstChild);
+                    }
+                }
+                
+                console.log('✅ [RENDER] Element cleared, children count:', notificationList.children.length);
+                
                 // Use direct innerHTML assignment for reliability
+                console.log('🔄 [RENDER] Setting innerHTML with', html.length, 'characters...');
                 notificationList.innerHTML = html;
                 
-                console.log(`✅ [RENDER] Successfully rendered ${renderedCount} notification(s)`);
-                console.log('📝 [RENDER] Rendered HTML length:', html.length);
-                console.log('📝 [RENDER] HTML preview:', html.substring(0, 300));
+                // Immediate verification
+                const immediateChildCount = notificationList.children.length;
+                console.log('🔍 [RENDER] Immediate children count after innerHTML:', immediateChildCount);
+                
+                // Wait a microtask to ensure DOM is updated
+                await new Promise(resolve => setTimeout(resolve, 0));
                 
                 // Verify the HTML was actually inserted
                 const childCount = notificationList.children.length;
-                console.log('🔍 [RENDER] Children count after insertion:', childCount);
+                console.log('🔍 [RENDER] Children count after insertion (after microtask):', childCount);
+                console.log('🔍 [RENDER] Element innerHTML length:', notificationList.innerHTML.length);
                 
-                if (childCount === 0) {
-                    console.error('❌ [RENDER] HTML was set but no children found in notificationList');
-                    console.error('❌ [RENDER] Full HTML content:', html);
-                    // Try alternative method
+                if (childCount === 0 || notificationList.innerHTML.trim() === '') {
+                    console.error('❌ [RENDER] CRITICAL: HTML was set but no children found!');
+                    console.error('❌ [RENDER] innerHTML is empty:', notificationList.innerHTML.length === 0);
+                    console.error('❌ [RENDER] Generated HTML length was:', html.length);
+                    console.error('❌ [RENDER] Generated HTML (first 1000 chars):', html.substring(0, 1000));
+                    console.error('❌ [RENDER] Element details:', {
+                        id: notificationList.id,
+                        className: notificationList.className,
+                        parentNode: notificationList.parentNode?.className,
+                        isConnected: notificationList.isConnected,
+                        offsetHeight: notificationList.offsetHeight,
+                        offsetWidth: notificationList.offsetWidth
+                    });
+                    
+                    // Try alternative method - create elements directly
                     try {
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = html;
-                        const fragment = document.createDocumentFragment();
-                        while (tempDiv.firstChild) {
-                            fragment.appendChild(tempDiv.firstChild);
+                        console.log('🔄 [RENDER] Attempting alternative insertion method...');
+                        notificationList.innerHTML = ''; // Clear again
+                        
+                        // Create elements one by one
+                        notifications.forEach((notification, index) => {
+                            const notif = {
+                                id: notification.id || `notif-${Date.now()}-${index}`,
+                                title: notification.title || 'Notification',
+                                message: notification.message || '',
+                                time: notification.time || 'Recently',
+                                read: notification.read === true || notification.read === 'true' || notification.read === 1,
+                                type: notification.type || 'info'
+                            };
+                            
+                            const itemDiv = document.createElement('div');
+                            itemDiv.className = `notification-item ${notif.read ? '' : 'unread'}`;
+                            itemDiv.setAttribute('data-id', notif.id);
+                            
+                            itemDiv.innerHTML = `
+                                <div class="notification-item-header">
+                                    <h3 class="notification-item-title">${escapeHtml(notif.title)}</h3>
+                                    <span class="notification-item-time">${escapeHtml(notif.time)}</span>
+                                </div>
+                                <p class="notification-item-message">${escapeHtml(notif.message)}</p>
+                                <div class="notification-item-actions">
+                                    ${!notif.read ? `
+                                        <button class="btn-mark-read" onclick="markNotificationAsRead(${notif.id})">
+                                            <i class="fas fa-check"></i> Mark as Read
+                                        </button>
+                                    ` : ''}
+                                    <button class="btn-delete" onclick="deleteNotification(${notif.id})">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            `;
+                            
+                            notificationList.appendChild(itemDiv);
+                        });
+                        
+                        const altChildCount = notificationList.children.length;
+                        console.log('✅ [RENDER] Alternative method complete, children count:', altChildCount);
+                        
+                        if (altChildCount === 0) {
+                            throw new Error('Alternative insertion method also failed - no children created');
                         }
-                        notificationList.appendChild(fragment);
-                        console.log('✅ [RENDER] Used alternative insertion method (fragment)');
-                        console.log('🔍 [RENDER] Children count after fragment:', notificationList.children.length);
                     } catch (altError) {
                         console.error('❌ [RENDER] Alternative insertion also failed:', altError);
-                        // Last resort: show error
+                        console.error('❌ [RENDER] Error stack:', altError.stack);
+                        // Last resort: show error with details
                         notificationList.innerHTML = `
                             <div class="notification-empty">
                                 <i class="fas fa-exclamation-triangle"></i>
                                 <p>Error rendering notifications</p>
-                                <p style="font-size: 0.75rem; margin-top: 0.5rem;">${altError.message}</p>
+                                <p style="font-size: 0.75rem; margin-top: 0.5rem; color: #ef4444;">
+                                    ${escapeHtml(altError.message)}<br>
+                                    Notifications loaded: ${notifications.length}
+                                </p>
                             </div>
                         `;
+                        return; // Exit early on error
                     }
                 } else {
                     console.log(`✅ [RENDER] Verified: ${childCount} notification element(s) in DOM`);
                     // Verify we have notification-item elements
                     const notificationItems = notificationList.querySelectorAll('.notification-item');
                     console.log(`✅ [RENDER] Found ${notificationItems.length} .notification-item elements`);
+                    
+                    if (notificationItems.length === 0) {
+                        console.warn('⚠️ [RENDER] Children exist but no .notification-item elements found!');
+                        console.warn('⚠️ [RENDER] Children classes:', Array.from(notificationList.children).map(c => c.className));
+                    }
                 }
                 
                 // Force a reflow to ensure rendering
@@ -2623,14 +2718,35 @@
                 if (remainingLoader || (remainingEmptyState && notificationList.querySelector('.notification-item'))) {
                     console.warn('⚠️ [RENDER] Loader/empty state still present after render, removing...');
                     if (remainingLoader) {
-                        remainingLoader.closest('.notification-empty')?.remove();
+                        const loaderParent = remainingLoader.closest('.notification-empty');
+                        if (loaderParent) loaderParent.remove();
                     }
                     if (remainingEmptyState && notificationList.querySelector('.notification-item')) {
                         remainingEmptyState.remove();
                     }
                 }
                 
-                console.log('✅ [RENDER] Render complete. Final children count:', notificationList.children.length);
+                // Final verification
+                const finalChildCount = notificationList.children.length;
+                const finalNotificationItems = notificationList.querySelectorAll('.notification-item').length;
+                console.log('✅ [RENDER] Render complete. Final stats:', {
+                    childrenCount: finalChildCount,
+                    notificationItems: finalNotificationItems,
+                    innerHTMLLength: notificationList.innerHTML.length
+                });
+                
+                // If still no items, this is a critical error
+                if (finalNotificationItems === 0 && notifications.length > 0) {
+                    console.error('❌ [RENDER] CRITICAL: Render completed but no notification items in DOM!');
+                    console.error('❌ [RENDER] This should not happen. Element state:', {
+                        innerHTML: notificationList.innerHTML.substring(0, 200),
+                        children: Array.from(notificationList.children).map(c => ({
+                            tagName: c.tagName,
+                            className: c.className,
+                            innerHTML: c.innerHTML.substring(0, 100)
+                        }))
+                    });
+                }
             } catch (error) {
                 console.error('❌ Error rendering notifications:', error);
                 console.error('Error stack:', error.stack);
@@ -2693,7 +2809,7 @@
             };
             
             // Function to remove loader and render content
-            const removeLoaderAndRender = (notificationsToRender) => {
+            const removeLoaderAndRender = async (notificationsToRender) => {
                 console.log('🔄 [MODAL] Removing loader and rendering notifications...');
                 console.log('🔄 [MODAL] Notifications to render:', notificationsToRender ? notificationsToRender.length : 0);
                 console.log('🔄 [MODAL] Notifications data:', JSON.stringify(notificationsToRender, null, 2));
@@ -2715,7 +2831,7 @@
                 if (notifications && Array.isArray(notifications) && notifications.length > 0) {
                     console.log('✅ [MODAL] Rendering', notifications.length, 'notifications immediately...');
                     // Call renderNotifications which will use the global notifications variable
-                    renderNotifications();
+                    await renderNotifications();
                 } else {
                     // Show empty state
                     console.log('ℹ️ [MODAL] No notifications to display, showing empty state');
@@ -2817,21 +2933,21 @@
                             const parsed = JSON.parse(saved);
                             if (Array.isArray(parsed) && parsed.length > 0) {
                                 notifications = parsed;
-                                removeLoaderAndRender(notifications);
+                                await removeLoaderAndRender(notifications);
                             } else {
                                 notifications = getSampleNotifications();
-                                removeLoaderAndRender(notifications);
+                                await removeLoaderAndRender(notifications);
                             }
                         } catch (e) {
                             notifications = getSampleNotifications();
-                            removeLoaderAndRender(notifications);
+                            await removeLoaderAndRender(notifications);
                         }
                     } else {
                         notifications = getSampleNotifications();
-                        removeLoaderAndRender(notifications);
+                        await removeLoaderAndRender(notifications);
                     }
                 } else {
-                    removeLoaderAndRender(loadedNotifications);
+                    await removeLoaderAndRender(loadedNotifications);
                 }
                 
                 // Double-check after a short delay to ensure rendering worked
@@ -2855,7 +2971,7 @@
                         if (hasLoader) {
                             console.warn('⚠️ [MODAL] Loader still visible after render, forcing removal...');
                             if (notifications && Array.isArray(notifications) && notifications.length > 0) {
-                                renderNotifications();
+                                await renderNotifications();
                             } else {
                                 list.innerHTML = `
                                     <div class="notification-empty">
@@ -2869,7 +2985,7 @@
                         // If we have notifications but they're not displayed, force render
                         if (notifications && notifications.length > 0 && !hasNotifications && !hasLoader) {
                             console.warn('⚠️ [MODAL] Notifications exist but not displayed, forcing render...');
-                            renderNotifications();
+                            await renderNotifications();
                         }
                     }
                 }, 300);
@@ -2887,7 +3003,7 @@
                 // CRITICAL: Always remove loader, even on error
                 if (notifications && Array.isArray(notifications) && notifications.length > 0) {
                     console.log('✅ [MODAL] Using existing notifications after error');
-                    removeLoaderAndRender(notifications);
+                    await removeLoaderAndRender(notifications);
                 } else {
                     // Try localStorage as last resort
                     const saved = localStorage.getItem('ownerNotifications');
@@ -2896,7 +3012,7 @@
                             const parsed = JSON.parse(saved);
                             if (Array.isArray(parsed) && parsed.length > 0) {
                                 notifications = parsed;
-                                removeLoaderAndRender(notifications);
+                                await removeLoaderAndRender(notifications);
                             } else {
                                 showError(error.message || 'Failed to load notifications');
                             }

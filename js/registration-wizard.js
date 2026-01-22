@@ -1036,17 +1036,25 @@ function handleFileUpload(input) {
             reader.onload = function(e) {
                 label.innerHTML = `
                     <img src="${e.target.result}" style="max-width: 100px; max-height: 100px; border-radius: 4px; margin-bottom: 0.5rem;" alt="Preview">
-                    <span>${file.name}</span>
-                    <small style="display: block; color: #666; font-size: 0.8rem;">${(file.size / 1024).toFixed(2)} KB</small>
+                    <span style="color: #000000 !important; font-weight: 600;">${file.name}</span>
+                    <small style="display: block; color: #000000 !important; font-size: 0.8rem;">${(file.size / 1024).toFixed(2)} KB</small>
                 `;
+                // Update label background to show file is selected
+                label.style.background = '#f8f9fa';
+                label.style.border = '2px solid #2d7ff9';
+                label.style.color = '#000000';
             };
             reader.readAsDataURL(file);
         } else if (label) {
             label.innerHTML = `
                 <span class="upload-icon">✅</span>
-                <span>${file.name}</span>
-                <small style="display: block; color: #666; font-size: 0.8rem;">${(file.size / 1024).toFixed(2)} KB</small>
+                <span style="color: #000000 !important; font-weight: 600;">${file.name}</span>
+                <small style="display: block; color: #000000 !important; font-size: 0.8rem;">${(file.size / 1024).toFixed(2)} KB</small>
             `;
+            // Update label background to show file is selected
+            label.style.background = '#f8f9fa';
+            label.style.border = '2px solid #2d7ff9';
+            label.style.color = '#000000';
         }
         
         ToastNotification.show(`File "${file.name}" uploaded successfully`, 'success');

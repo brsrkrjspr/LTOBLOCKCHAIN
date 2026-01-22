@@ -1194,6 +1194,55 @@
             box-shadow: 0 4px 12px rgba(45,127,249,0.3);
         }
 
+        /* File input - hide visually but keep accessible for label */
+        .upload-area input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 0.1px;
+            height: 0.1px;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        /* If file input is visible, ensure text is black */
+        .upload-area input[type="file"]:not([style*="display: none"]) {
+            color: #000000 !important;
+        }
+
+        /* File name display in label after selection - ensure text is black */
+        .upload-label span:not(.upload-icon) {
+            color: #000000 !important;
+            font-weight: 600;
+        }
+
+        /* File name in the label when file is selected */
+        .upload-label small {
+            color: #000000 !important;
+        }
+
+        /* When file is selected, the label background changes and text should be black */
+        .upload-item input[type="file"]:valid + .upload-label,
+        .upload-item input[type="file"].valid + .upload-label {
+            background: #f8f9fa !important;
+            border: 2px solid #2d7ff9 !important;
+            color: #000000 !important;
+        }
+
+        .upload-item input[type="file"]:valid + .upload-label span,
+        .upload-item input[type="file"].valid + .upload-label span {
+            color: #000000 !important;
+        }
+
+        /* Ensure file name text is always visible and black */
+        .upload-label {
+            color: #fff; /* Default white for "Choose File" button */
+        }
+
+        .upload-label img + span,
+        .upload-label .upload-icon + span {
+            color: #000000 !important;
+        }
+
         /* Review Cards - Horizontal Grid */
         .review-section {
             margin-bottom: 1rem;

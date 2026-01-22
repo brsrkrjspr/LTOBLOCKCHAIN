@@ -2553,8 +2553,10 @@
                     };
                     
                     renderedCount++;
+                    // Ensure ID is properly quoted for onclick handlers
+                    const notifIdStr = typeof notif.id === 'string' ? `'${notif.id.replace(/'/g, "\\'")}'` : notif.id;
                     const itemHtml = `
-                        <div class="notification-item ${notif.read ? '' : 'unread'}" data-id="${notif.id}">
+                        <div class="notification-item ${notif.read ? '' : 'unread'}" data-id="${escapeHtml(String(notif.id))}">
                             <div class="notification-item-header">
                                 <h3 class="notification-item-title">${escapeHtml(notif.title)}</h3>
                                 <span class="notification-item-time">${escapeHtml(notif.time)}</span>
@@ -2562,11 +2564,11 @@
                             <p class="notification-item-message">${escapeHtml(notif.message)}</p>
                             <div class="notification-item-actions">
                                 ${!notif.read ? `
-                                    <button class="btn-mark-read" onclick="markNotificationAsRead(${notif.id})">
+                                    <button class="btn-mark-read" onclick="markNotificationAsRead(${notifIdStr})">
                                         <i class="fas fa-check"></i> Mark as Read
                                     </button>
                                 ` : ''}
-                                <button class="btn-delete" onclick="deleteNotification(${notif.id})">
+                                <button class="btn-delete" onclick="deleteNotification(${notifIdStr})">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                             </div>
@@ -2655,6 +2657,8 @@
                             itemDiv.className = `notification-item ${notif.read ? '' : 'unread'}`;
                             itemDiv.setAttribute('data-id', notif.id);
                             
+                            // Ensure ID is properly quoted for onclick handlers
+                            const notifIdStr = typeof notif.id === 'string' ? `'${notif.id.replace(/'/g, "\\'")}'` : notif.id;
                             itemDiv.innerHTML = `
                                 <div class="notification-item-header">
                                     <h3 class="notification-item-title">${escapeHtml(notif.title)}</h3>
@@ -2663,11 +2667,11 @@
                                 <p class="notification-item-message">${escapeHtml(notif.message)}</p>
                                 <div class="notification-item-actions">
                                     ${!notif.read ? `
-                                        <button class="btn-mark-read" onclick="markNotificationAsRead(${notif.id})">
+                                        <button class="btn-mark-read" onclick="markNotificationAsRead(${notifIdStr})">
                                             <i class="fas fa-check"></i> Mark as Read
                                         </button>
                                     ` : ''}
-                                    <button class="btn-delete" onclick="deleteNotification(${notif.id})">
+                                    <button class="btn-delete" onclick="deleteNotification(${notifIdStr})">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
                                 </div>
@@ -2816,23 +2820,60 @@
                 console.log('🔄 [MODAL] Notifications data:', JSON.stringify(notificationsToRender, null, 2));
                 
                 // CRITICAL: Set global notifications variable FIRST (synchronously)
-                if (notificationsToRender && Array.isArray(notificationsToRender)) {
+                // If notificationsToRender is null/undefined/empty, try to use existing global notifications or fallback
+                if (notificationsToRender && Array.isArray(notificationsToRender) && notificationsToRender.length > 0) {
                     notifications = notificationsToRender;
                     console.log('✅ [MODAL] Set global notifications variable, count:', notifications.length);
+                } else if (notifications && Array.isArray(notifications) && notifications.length > 0) {
+                    // Use existing global notifications if available
+                    console.log('✅ [MODAL] Using existing global notifications, count:', notifications.length);
                 } else {
-                    notifications = notificationsToRender || [];
-                    console.log('⚠️ [MODAL] No valid notifications, setting empty array');
+                    // Try localStorage as fallback
+                    const saved = localStorage.getItem('ownerNotifications');
+                    if (saved) {
+                        try {
+                            const parsed = JSON.parse(saved);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                notifications = parsed;
+                                console.log('✅ [MODAL] Using cached notifications from localStorage, count:', notifications.length);
+                            } else {
+                                notifications = getSampleNotifications();
+                                console.log('✅ [MODAL] Using sample notifications (empty cache), count:', notifications.length);
+                            }
+                        } catch (e) {
+                            notifications = getSampleNotifications();
+                            console.log('✅ [MODAL] Using sample notifications (parse error), count:', notifications.length);
+                        }
+                    } else {
+                        notifications = getSampleNotifications();
+                        console.log('✅ [MODAL] Using sample notifications (no cache), count:', notifications.length);
+                    }
                 }
                 
                 // CRITICAL: Clear loader FIRST by clearing innerHTML immediately
                 console.log('🔄 [MODAL] Clearing loader immediately...');
                 notificationList.innerHTML = '';
                 
+                // Ensure element is visible
+                notificationList.style.display = 'flex';
+                notificationList.style.visibility = 'visible';
+                notificationList.style.opacity = '1';
+                
                 // Render immediately (no setTimeout to avoid race conditions)
                 if (notifications && Array.isArray(notifications) && notifications.length > 0) {
                     console.log('✅ [MODAL] Rendering', notifications.length, 'notifications immediately...');
                     // Call renderNotifications which will use the global notifications variable
                     await renderNotifications();
+                    
+                    // Verify rendering worked
+                    setTimeout(() => {
+                        const renderedItems = notificationList.querySelectorAll('.notification-item');
+                        console.log('🔍 [MODAL] Verification: Rendered', renderedItems.length, 'notification items');
+                        if (renderedItems.length === 0 && notifications.length > 0) {
+                            console.error('❌ [MODAL] CRITICAL: Notifications not rendered! Forcing re-render...');
+                            renderNotifications();
+                        }
+                    }, 100);
                 } else {
                     // Show empty state
                     console.log('ℹ️ [MODAL] No notifications to display, showing empty state');
@@ -2905,29 +2946,71 @@
             }, MAX_LOAD_TIME);
             
             // Always reload notifications when opening modal to get latest data
-            try {
-                console.log('📥 [MODAL] Starting to load notifications...');
-                
-                // Use Promise.race to ensure we don't wait forever
-                const loadPromise = loadNotifications();
-                const timeoutPromise = new Promise((resolve) => {
-                    setTimeout(() => {
-                        console.warn('⚠️ [MODAL] Load promise taking too long, using fallback...');
-                        resolve(null);
-                    }, 2500); // 2.5 seconds
-                });
-                
-                const loadedNotifications = await Promise.race([loadPromise, timeoutPromise]);
-                
-                // Clear the force timeout since we got a result
+            // But first, check if we already have notifications loaded
+            if (notifications && Array.isArray(notifications) && notifications.length > 0) {
+                console.log('✅ [MODAL] Notifications already loaded, rendering immediately...');
                 clearTimeout(forceRemoveLoader);
+                await removeLoaderAndRender(notifications);
                 
-                console.log('✅ [MODAL] Notifications loaded, count:', loadedNotifications ? loadedNotifications.length : 0);
-                
-                // CRITICAL: Always remove loader and render, even if empty or null
-                if (loadedNotifications === null) {
-                    // Timeout occurred, use fallback
-                    console.log('⚠️ [MODAL] Load timed out, using fallback data...');
+                // Still try to refresh in background
+                loadNotifications().then(updatedNotifications => {
+                    if (updatedNotifications && Array.isArray(updatedNotifications) && updatedNotifications.length > 0) {
+                        notifications = updatedNotifications;
+                        renderNotifications();
+                    }
+                }).catch(err => {
+                    console.warn('⚠️ [MODAL] Background refresh failed:', err);
+                });
+            } else {
+                try {
+                    console.log('📥 [MODAL] Starting to load notifications...');
+                    
+                    // Use Promise.race to ensure we don't wait forever
+                    const loadPromise = loadNotifications();
+                    const timeoutPromise = new Promise((resolve) => {
+                        setTimeout(() => {
+                            console.warn('⚠️ [MODAL] Load promise taking too long, using fallback...');
+                            resolve(null);
+                        }, 2500); // 2.5 seconds
+                    });
+                    
+                    const loadedNotifications = await Promise.race([loadPromise, timeoutPromise]);
+                    
+                    // Clear the force timeout since we got a result
+                    clearTimeout(forceRemoveLoader);
+                    
+                    console.log('✅ [MODAL] Notifications loaded, count:', loadedNotifications ? loadedNotifications.length : 0);
+                    
+                    // CRITICAL: Always remove loader and render, even if empty or null
+                    if (loadedNotifications === null || !Array.isArray(loadedNotifications) || loadedNotifications.length === 0) {
+                        // Timeout occurred or empty result, use fallback
+                        console.log('⚠️ [MODAL] Load timed out or empty, using fallback data...');
+                        const saved = localStorage.getItem('ownerNotifications');
+                        if (saved) {
+                            try {
+                                const parsed = JSON.parse(saved);
+                                if (Array.isArray(parsed) && parsed.length > 0) {
+                                    notifications = parsed;
+                                    await removeLoaderAndRender(notifications);
+                                } else {
+                                    notifications = getSampleNotifications();
+                                    await removeLoaderAndRender(notifications);
+                                }
+                            } catch (e) {
+                                notifications = getSampleNotifications();
+                                await removeLoaderAndRender(notifications);
+                            }
+                        } else {
+                            notifications = getSampleNotifications();
+                            await removeLoaderAndRender(notifications);
+                        }
+                    } else {
+                        await removeLoaderAndRender(loadedNotifications);
+                    }
+                } catch (error) {
+                    clearTimeout(forceRemoveLoader);
+                    console.error('❌ [MODAL] Error loading notifications:', error);
+                    // Use fallback
                     const saved = localStorage.getItem('ownerNotifications');
                     if (saved) {
                         try {
@@ -2947,9 +3030,8 @@
                         notifications = getSampleNotifications();
                         await removeLoaderAndRender(notifications);
                     }
-                } else {
-                    await removeLoaderAndRender(loadedNotifications);
                 }
+            }
                 
                 // Double-check after a short delay to ensure rendering worked
                 setTimeout(async () => {

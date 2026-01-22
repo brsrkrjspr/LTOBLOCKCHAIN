@@ -2310,11 +2310,30 @@
                                 notifications = apiNotifications.map((notif, index) => {
                                     // Ensure ID exists
                                     const notifId = notif.id || `api-notif-${Date.now()}-${index}`;
+                                    
+                                    // Generate title from type or message if not provided
+                                    let title = notif.title;
+                                    if (!title) {
+                                        if (notif.type === 'success') {
+                                            title = 'Application Approved';
+                                        } else if (notif.type === 'warning') {
+                                            title = 'Action Required';
+                                        } else if (notif.type === 'error') {
+                                            title = 'Error';
+                                        } else if (notif.message) {
+                                            // Extract first sentence or first 50 chars as title
+                                            const firstSentence = notif.message.split('.')[0];
+                                            title = firstSentence.length > 60 ? firstSentence.substring(0, 60) + '...' : firstSentence;
+                                        } else {
+                                            title = 'Notification';
+                                        }
+                                    }
+                                    
                                     return {
                                         id: notifId,
-                                        title: notif.title || 'Notification',
+                                        title: title,
                                         message: notif.message || '',
-                                        time: notif.sentAt ? formatTimeAgo(notif.sentAt) : (notif.sent_at ? formatTimeAgo(notif.sent_at) : 'Recently'),
+                                        time: notif.sentAt ? formatTimeAgo(notif.sentAt) : (notif.sent_at ? formatTimeAgo(notif.sent_at) : (notif.createdAt ? formatTimeAgo(notif.createdAt) : 'Recently')),
                                         read: notif.read === true || notif.read === 1 || notif.read === 'true' || notif.read === '1',
                                         type: notif.type || 'info'
                                     };
@@ -2859,21 +2878,73 @@
                 notificationList.style.visibility = 'visible';
                 notificationList.style.opacity = '1';
                 
-                // Render immediately (no setTimeout to avoid race conditions)
+                // Render immediately using direct DOM manipulation for reliability
                 if (notifications && Array.isArray(notifications) && notifications.length > 0) {
                     console.log('✅ [MODAL] Rendering', notifications.length, 'notifications immediately...');
-                    // Call renderNotifications which will use the global notifications variable
-                    await renderNotifications();
                     
-                    // Verify rendering worked
-                    setTimeout(() => {
-                        const renderedItems = notificationList.querySelectorAll('.notification-item');
-                        console.log('🔍 [MODAL] Verification: Rendered', renderedItems.length, 'notification items');
-                        if (renderedItems.length === 0 && notifications.length > 0) {
-                            console.error('❌ [MODAL] CRITICAL: Notifications not rendered! Forcing re-render...');
-                            renderNotifications();
+                    // Use direct rendering here instead of calling renderNotifications to avoid timing issues
+                    try {
+                        // Clear any existing content
+                        while (notificationList.firstChild) {
+                            notificationList.removeChild(notificationList.firstChild);
                         }
-                    }, 100);
+                        
+                        // Render each notification directly
+                        notifications.forEach((notification, index) => {
+                            // Ensure notification has required fields
+                            const notif = {
+                                id: notification.id || `notif-${Date.now()}-${index}`,
+                                title: notification.title || notification.type || 'Notification',
+                                message: notification.message || '',
+                                time: notification.time || (notification.sentAt ? formatTimeAgo(notification.sentAt) : 'Recently'),
+                                read: notification.read === true || notification.read === 1 || notification.read === 'true' || notification.read === '1',
+                                type: notification.type || 'info'
+                            };
+                            
+                            // Create notification item element
+                            const itemDiv = document.createElement('div');
+                            itemDiv.className = `notification-item ${notif.read ? '' : 'unread'}`;
+                            itemDiv.setAttribute('data-id', String(notif.id));
+                            
+                            // Ensure ID is properly quoted for onclick handlers
+                            const notifIdStr = typeof notif.id === 'string' ? `'${String(notif.id).replace(/'/g, "\\'")}'` : notif.id;
+                            
+                            // Build HTML content
+                            itemDiv.innerHTML = `
+                                <div class="notification-item-header">
+                                    <h3 class="notification-item-title">${escapeHtml(notif.title)}</h3>
+                                    <span class="notification-item-time">${escapeHtml(notif.time)}</span>
+                                </div>
+                                <p class="notification-item-message">${escapeHtml(notif.message)}</p>
+                                <div class="notification-item-actions">
+                                    ${!notif.read ? `
+                                        <button class="btn-mark-read" onclick="markNotificationAsRead(${notifIdStr})">
+                                            <i class="fas fa-check"></i> Mark as Read
+                                        </button>
+                                    ` : ''}
+                                    <button class="btn-delete" onclick="deleteNotification(${notifIdStr})">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            `;
+                            
+                            // Append to list
+                            notificationList.appendChild(itemDiv);
+                        });
+                        
+                        console.log('✅ [MODAL] Direct rendering complete. Children count:', notificationList.children.length);
+                        
+                        // Verify rendering worked
+                        if (notificationList.children.length === 0) {
+                            console.error('❌ [MODAL] CRITICAL: Direct rendering failed - no children created!');
+                            // Fallback to renderNotifications
+                            await renderNotifications();
+                        }
+                    } catch (renderError) {
+                        console.error('❌ [MODAL] Error in direct rendering:', renderError);
+                        // Fallback to renderNotifications
+                        await renderNotifications();
+                    }
                 } else {
                     // Show empty state
                     console.log('ℹ️ [MODAL] No notifications to display, showing empty state');

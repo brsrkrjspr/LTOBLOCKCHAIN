@@ -3184,53 +3184,173 @@
             }
         }
 
-        function markNotificationAsRead(id) {
-            const notification = notifications.find(n => n.id === id);
-            if (notification) {
-                notification.read = true;
-                
-                // Save to localStorage
+        async function markNotificationAsRead(id) {
+            console.log('🔔 [MARK READ] Marking notification as read, ID:', id);
+            
+            const notification = notifications.find(n => n.id === id || String(n.id) === String(id));
+            if (!notification) {
+                console.error('❌ [MARK READ] Notification not found:', id);
+                showToast('Notification not found', 'error');
+                return;
+            }
+            
+            // Optimistically update UI
+            const originalReadState = notification.read;
+            notification.read = true;
+            
+            // Update localStorage immediately for better UX
+            try {
+                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+            } catch (e) {
+                console.error('Error saving notifications to localStorage:', e);
+            }
+            
+            // Update UI immediately
+            renderNotifications();
+            updateNotificationBadge();
+            
+            // Update via API
+            if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                 try {
+                    console.log('📡 [MARK READ] Calling API to mark notification as read...');
+                    const response = await window.apiClient.patch(`/api/notifications/${id}/read`, {});
+                    
+                    console.log('✅ [MARK READ] API response:', response);
+                    
+                    if (response && response.success) {
+                        // Update notification with server response if available
+                        if (response.notification) {
+                            const index = notifications.findIndex(n => n.id === id || String(n.id) === String(id));
+                            if (index !== -1) {
+                                notifications[index] = {
+                                    ...notifications[index],
+                                    read: true,
+                                    readAt: response.notification.readAt
+                                };
+                                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                            }
+                        }
+                        
+                        console.log('✅ [MARK READ] Successfully marked notification as read');
+                        showToast('Notification marked as read', 'success');
+                    } else {
+                        throw new Error(response?.error || 'Failed to mark notification as read');
+                    }
+                } catch (error) {
+                    console.error('❌ [MARK READ] Error marking notification as read:', error);
+                    console.error('❌ [MARK READ] Error details:', {
+                        message: error?.message,
+                        error: error?.error,
+                        status: error?.status,
+                        stack: error?.stack
+                    });
+                    
+                    // Revert optimistic update on error
+                    notification.read = originalReadState;
                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
-                } catch (e) {
-                    console.error('Error saving notifications to localStorage:', e);
+                    renderNotifications();
+                    updateNotificationBadge();
+                    
+                    // Extract error message from various possible formats
+                    let errorMessage = 'Failed to mark notification as read';
+                    if (error?.message) {
+                        errorMessage = error.message;
+                    } else if (error?.error) {
+                        errorMessage = error.error;
+                    } else if (typeof error === 'string') {
+                        errorMessage = error;
+                    } else if (error?.response?.error) {
+                        errorMessage = error.response.error;
+                    } else if (error?.response?.message) {
+                        errorMessage = error.response.message;
+                    }
+                    
+                    showToast(errorMessage, 'error');
                 }
-                
-                // Update via API if available
-                if (typeof window.apiClient !== 'undefined' && window.apiClient) {
-                    window.apiClient.put(`/api/notifications/${id}/read`, { read: true })
-                        .catch(error => {
-                            console.error('Error marking notification as read:', error);
-                        });
-                }
-                
-                renderNotifications();
-                updateNotificationBadge();
+            } else {
+                console.warn('⚠️ [MARK READ] API client not available, only updated locally');
             }
         }
 
-        function deleteNotification(id) {
-            if (confirm('Are you sure you want to delete this notification?')) {
-                // Remove from array
-                notifications = notifications.filter(n => n.id !== id);
-                
-                // Save to localStorage
+        async function deleteNotification(id) {
+            console.log('🗑️ [DELETE] Deleting notification, ID:', id);
+            
+            if (!confirm('Are you sure you want to delete this notification?')) {
+                return;
+            }
+            
+            const notification = notifications.find(n => n.id === id || String(n.id) === String(id));
+            if (!notification) {
+                console.error('❌ [DELETE] Notification not found:', id);
+                showToast('Notification not found', 'error');
+                return;
+            }
+            
+            // Store original array for rollback
+            const originalNotifications = [...notifications];
+            
+            // Optimistically remove from array
+            notifications = notifications.filter(n => n.id !== id && String(n.id) !== String(id));
+            
+            // Update localStorage immediately
+            try {
+                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+            } catch (e) {
+                console.error('Error saving notifications to localStorage:', e);
+            }
+            
+            // Update UI immediately
+            renderNotifications();
+            updateNotificationBadge();
+            
+            // Delete via API
+            if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                 try {
+                    console.log('📡 [DELETE] Calling API to delete notification...');
+                    const response = await window.apiClient.delete(`/api/notifications/${id}`);
+                    
+                    console.log('✅ [DELETE] API response:', response);
+                    
+                    if (response && response.success !== false) {
+                        console.log('✅ [DELETE] Successfully deleted notification');
+                        showToast('Notification deleted', 'success');
+                    } else {
+                        throw new Error(response?.error || 'Failed to delete notification');
+                    }
+                } catch (error) {
+                    console.error('❌ [DELETE] Error deleting notification:', error);
+                    console.error('❌ [DELETE] Error details:', {
+                        message: error?.message,
+                        error: error?.error,
+                        status: error?.status,
+                        stack: error?.stack
+                    });
+                    
+                    // Revert optimistic update on error
+                    notifications = originalNotifications;
                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
-                } catch (e) {
-                    console.error('Error saving notifications to localStorage:', e);
+                    renderNotifications();
+                    updateNotificationBadge();
+                    
+                    // Extract error message from various possible formats
+                    let errorMessage = 'Failed to delete notification';
+                    if (error?.message) {
+                        errorMessage = error.message;
+                    } else if (error?.error) {
+                        errorMessage = error.error;
+                    } else if (typeof error === 'string') {
+                        errorMessage = error;
+                    } else if (error?.response?.error) {
+                        errorMessage = error.response.error;
+                    } else if (error?.response?.message) {
+                        errorMessage = error.response.message;
+                    }
+                    
+                    showToast(errorMessage, 'error');
                 }
-                
-                // Delete via API if available
-                if (typeof window.apiClient !== 'undefined' && window.apiClient) {
-                    window.apiClient.delete(`/api/notifications/${id}`)
-                        .catch(error => {
-                            console.error('Error deleting notification:', error);
-                        });
-                }
-                
-                renderNotifications();
-                updateNotificationBadge();
+            } else {
+                console.warn('⚠️ [DELETE] API client not available, only deleted locally');
+                showToast('Notification deleted locally', 'success');
             }
         }
 
@@ -3238,6 +3358,16 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        // Helper function to show toast notifications
+        function showToast(message, type = 'info') {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show(message, type);
+            } else {
+                // Fallback to alert if ToastNotification is not available
+                alert(message);
+            }
         }
 
         // Make functions globally available

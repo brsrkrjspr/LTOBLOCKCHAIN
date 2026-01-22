@@ -525,11 +525,30 @@ async function markNotificationAsRead(notificationId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         console.log('📡 [MARK READ] Calling API to mark notification as read...');
+        console.log('📡 [MARK READ] Notification ID:', notificationId);
+        console.log('📡 [MARK READ] API Client:', apiClient);
+        console.log('📡 [MARK READ] Auth Token:', apiClient.getAuthToken() ? 'Present' : 'Missing');
         
-        // Use patch method instead of request
-        const response = await apiClient.patch(`/api/notifications/${notificationId}/read`, {});
+        // Try using request method directly with PATCH and no body (some backends don't expect body for PATCH)
+        let response;
+        try {
+            // First try with patch method (sends empty object as body)
+            response = await apiClient.patch(`/api/notifications/${notificationId}/read`, {});
+        } catch (patchError) {
+            console.warn('⚠️ [MARK READ] Patch method failed, trying request method without body...', patchError);
+            // Fallback: try request method directly with no body
+            response = await apiClient.request(`/api/notifications/${notificationId}/read`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+                // No body - some backends don't expect body for PATCH operations
+            });
+        }
         
         console.log('✅ [MARK READ] API response:', response);
+        console.log('✅ [MARK READ] Response type:', typeof response);
+        console.log('✅ [MARK READ] Response success:', response?.success);
         
         if (response && response.success) {
             // Update notification with server response if available
@@ -565,7 +584,9 @@ async function markNotificationAsRead(notificationId) {
             
             console.log('✅ [MARK READ] Successfully marked notification as read');
         } else {
-            throw new Error(response?.error || 'Failed to mark notification as read');
+            const errorMsg = response?.error || response?.message || 'Failed to mark notification as read';
+            console.error('❌ [MARK READ] API returned unsuccessful response:', response);
+            throw new Error(errorMsg);
         }
     } catch (error) {
         console.error('❌ [MARK READ] Error marking notification as read:', error);
@@ -573,8 +594,22 @@ async function markNotificationAsRead(notificationId) {
             message: error?.message,
             error: error?.error,
             status: error?.status,
+            isServerError: error?.isServerError,
             stack: error?.stack
         });
+        
+        // Log the full error object for debugging
+        console.error('❌ [MARK READ] Full error object:', error);
+        
+        // Check if it's a 500 error - this indicates a backend issue
+        if (error?.status === 500 || error?.isServerError) {
+            console.error('❌ [MARK READ] Backend returned 500 error. Possible causes:');
+            console.error('   - Authentication middleware not setting req.user');
+            console.error('   - Database connection issue');
+            console.error('   - Database query failing');
+            console.error('   - Notification ID format mismatch');
+            console.error('   Please check backend logs for detailed error information.');
+        }
         
         // Revert optimistic update on error
         if (notification && originalReadState !== null) {
@@ -602,6 +637,11 @@ async function markNotificationAsRead(notificationId) {
             errorMessage = error.error;
         } else if (typeof error === 'string') {
             errorMessage = error;
+        }
+        
+        // Add more context for 500 errors
+        if (error?.status === 500 || error?.isServerError) {
+            errorMessage += ' (Server error - please check backend logs)';
         }
         
         // Show error message

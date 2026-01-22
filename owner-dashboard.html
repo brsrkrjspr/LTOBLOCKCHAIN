@@ -111,20 +111,25 @@
             margin-left: auto; /* Push to far right */
         }
 
-        /* Notification Bell Icon */
+        /* Notification Bell Icon - Fixed at right side */
         .notification-bell {
-            position: relative;
+            position: fixed !important;
+            top: 1.5rem;
+            right: 1.5rem;
             background: none;
             border: none;
             cursor: pointer;
             padding: 0.5rem;
-            margin-left: 0; /* Remove left margin - positioned at far right */
-            margin-right: 0; /* No right margin */
+            margin: 0;
             color: var(--text-secondary);
             font-size: 1.25rem;
             transition: all 0.2s ease;
-            display: flex;
-            align-items: right;
+            z-index: 1000;
+            width: auto;
+            height: auto;
+            visibility: visible !important;
+            display: flex !important;
+            align-items: center;
             justify-content: center;
         }
 
@@ -172,6 +177,8 @@
             align-items: center;
             justify-content: center;
             padding: 1rem;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .notification-modal.active {
@@ -213,6 +220,11 @@
             cursor: pointer;
             padding: 0.25rem;
             transition: all 0.2s ease;
+            min-width: 32px;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .notification-modal-close:hover {
@@ -360,18 +372,40 @@
         }
 
         @media (max-width: 768px) {
+            /* Notification Modal - Mobile Responsive */
+            .notification-modal {
+                padding: 0.5rem;
+            }
+            
             .notification-modal-content {
-                max-width: 95%;
-                max-height: 90vh;
-                margin: 1rem;
+                max-width: 100%;
+                width: 100%;
+                max-height: 95vh;
+                margin: 0;
+                border-radius: 16px 16px 0 0;
+            }
+            
+            .notification-modal-header {
+                padding: 1rem 1.25rem;
+            }
+            
+            .notification-modal-header h2 {
+                font-size: 1.25rem;
+            }
+            
+            .notification-modal-close {
+                font-size: 1.25rem;
+                min-width: 36px;
+                min-height: 36px;
             }
             
             .notification-modal-body {
-                padding: 1.25rem;
+                padding: 1rem;
+                max-height: calc(95vh - 80px);
             }
             
             .notification-item {
-                padding: 1rem;
+                padding: 0.875rem;
             }
             
             .notification-item-header {
@@ -382,9 +416,67 @@
             .notification-item-time {
                 white-space: normal;
             }
+            
+            .notification-item-actions {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .notification-item-actions button {
+                width: 100%;
+            }
 
+            /* Notification Bell - Mobile Position */
             .notification-bell {
-                margin-left: 0.5rem;
+                top: 1rem;
+                right: 1rem;
+                padding: 0.625rem;
+                font-size: 1.125rem;
+            }
+            
+            .notification-badge {
+                width: 18px;
+                height: 18px;
+                font-size: 0.6875rem;
+                border-width: 1.5px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            /* Extra small mobile devices */
+            .notification-modal {
+                padding: 0;
+            }
+            
+            .notification-modal-content {
+                max-height: 100vh;
+                border-radius: 0;
+            }
+            
+            .notification-modal-header {
+                padding: 0.875rem 1rem;
+            }
+            
+            .notification-modal-header h2 {
+                font-size: 1.125rem;
+            }
+            
+            .notification-modal-close {
+                font-size: 1.125rem;
+                min-width: 32px;
+                min-height: 32px;
+            }
+            
+            .notification-modal-body {
+                padding: 0.875rem;
+                max-height: calc(100vh - 70px);
+            }
+            
+            .notification-bell {
+                top: 0.75rem;
+                right: 0.75rem;
+                padding: 0.5rem;
+                font-size: 1rem;
             }
         }
         

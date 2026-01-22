@@ -411,9 +411,67 @@ router.get('/', authenticateToken, async (req, res) => {
 // Mark notification as read
 router.patch('/:id/read', authenticateToken, async (req, res) => {
     try {
+        // Debug logging
+        console.log('🔍 [BACKEND] Mark notification as read request received');
+        console.log('🔍 [BACKEND] Request params:', req.params);
+        console.log('🔍 [BACKEND] Request user:', {
+            hasUser: !!req.user,
+            userId: req.user?.userId,
+            email: req.user?.email,
+            role: req.user?.role,
+            userObject: req.user
+        });
+        
+        // Validate authentication
+        if (!req.user) {
+            console.error('❌ [BACKEND] req.user is undefined - authentication middleware failed');
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+        
+        // Validate userId
+        const userId = req.user.userId || req.user.id || req.user.user_id;
+        if (!userId) {
+            console.error('❌ [BACKEND] userId not found in req.user:', req.user);
+            return res.status(401).json({
+                success: false,
+                error: 'User ID not found in token'
+            });
+        }
+        
+        // Validate notification ID
         const notificationId = req.params.id;
-        const userId = req.user.userId;
-
+        if (!notificationId) {
+            console.error('❌ [BACKEND] Notification ID missing from params');
+            return res.status(400).json({
+                success: false,
+                error: 'Notification ID is required'
+            });
+        }
+        
+        // Validate UUID format (if using UUIDs)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(notificationId) && notificationId.length < 1) {
+            console.warn('⚠️ [BACKEND] Notification ID format may be invalid:', notificationId);
+        }
+        
+        console.log('🔍 [BACKEND] Attempting to mark notification as read:', {
+            notificationId,
+            userId,
+            userIdType: typeof userId
+        });
+        
+        // Check database connection
+        if (!db || typeof db.query !== 'function') {
+            console.error('❌ [BACKEND] Database connection not available');
+            return res.status(500).json({
+                success: false,
+                error: 'Database connection error'
+            });
+        }
+        
         // Update notification and verify ownership in single query
         const result = await db.query(
             `UPDATE notifications
@@ -422,15 +480,47 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
              RETURNING *`,
             [notificationId, userId]
         );
+        
+        console.log('🔍 [BACKEND] Database query result:', {
+            rowCount: result?.rows?.length || 0,
+            hasRows: !!result?.rows,
+            firstRow: result?.rows?.[0] || null
+        });
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Notification not found or access denied'
+        if (!result || !result.rows || result.rows.length === 0) {
+            console.warn('⚠️ [BACKEND] Notification not found or access denied:', {
+                notificationId,
+                userId,
+                searchedFor: { id: notificationId, user_id: userId }
             });
+            
+            // Check if notification exists at all (for better error message)
+            const checkResult = await db.query(
+                `SELECT id, user_id FROM notifications WHERE id = $1`,
+                [notificationId]
+            );
+            
+            if (checkResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Notification not found'
+                });
+            } else {
+                return res.status(403).json({
+                    success: false,
+                    error: 'You do not have permission to mark this notification as read'
+                });
+            }
         }
 
         const notification = result.rows[0];
+        
+        console.log('✅ [BACKEND] Successfully marked notification as read:', {
+            notificationId: notification.id,
+            userId: notification.user_id,
+            read: notification.read,
+            readAt: notification.read_at
+        });
 
         res.json({
             success: true,
@@ -445,10 +535,36 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Mark notification as read error:', error);
+        console.error('❌ [BACKEND] Mark notification as read error:', error);
+        console.error('❌ [BACKEND] Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+            code: error.code
+        });
+        
+        // Return specific error messages based on error type
+        if (error.code === '23505') { // Unique violation
+            return res.status(409).json({
+                success: false,
+                error: 'Notification already marked as read'
+            });
+        } else if (error.code === '23503') { // Foreign key violation
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid notification or user reference'
+            });
+        } else if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+            return res.status(503).json({
+                success: false,
+                error: 'Database connection failed. Please try again later.'
+            });
+        }
+        
         res.status(500).json({
             success: false,
-            error: 'Failed to mark notification as read'
+            error: 'Failed to mark notification as read',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

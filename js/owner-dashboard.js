@@ -492,6 +492,19 @@ function getTimeAgo(timestamp) {
 async function markNotificationAsRead(notificationId) {
     console.log('🔔 [MARK READ] Marking notification as read, ID:', notificationId);
     
+    // Find button by data-id attribute on parent notification item
+    const notificationItem = document.querySelector(`.notification-item[data-id="${notificationId}"], .notification-item[data-id="${String(notificationId)}"]`);
+    const button = notificationItem?.querySelector('.btn-mark-read');
+    const originalButtonText = button?.innerHTML || '';
+    const originalButtonDisabled = button?.disabled || false;
+    
+    if (button) {
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        button.style.cursor = 'not-allowed';
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking...';
+    }
+    
     // Get the global notifications array if it exists (from owner-dashboard.html)
     const globalNotifications = window.notifications || [];
     const notification = globalNotifications.find(n => n.id === notificationId || String(n.id) === String(notificationId));
@@ -529,22 +542,8 @@ async function markNotificationAsRead(notificationId) {
         console.log('📡 [MARK READ] API Client:', apiClient);
         console.log('📡 [MARK READ] Auth Token:', apiClient.getAuthToken() ? 'Present' : 'Missing');
         
-        // Try using request method directly with PATCH and no body (some backends don't expect body for PATCH)
-        let response;
-        try {
-            // First try with patch method (sends empty object as body)
-            response = await apiClient.patch(`/api/notifications/${notificationId}/read`, {});
-        } catch (patchError) {
-            console.warn('⚠️ [MARK READ] Patch method failed, trying request method without body...', patchError);
-            // Fallback: try request method directly with no body
-            response = await apiClient.request(`/api/notifications/${notificationId}/read`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-                // No body - some backends don't expect body for PATCH operations
-            });
-        }
+        // Use patch method
+        const response = await apiClient.patch(`/api/notifications/${notificationId}/read`, {});
         
         console.log('✅ [MARK READ] API response:', response);
         console.log('✅ [MARK READ] Response type:', typeof response);
@@ -601,16 +600,6 @@ async function markNotificationAsRead(notificationId) {
         // Log the full error object for debugging
         console.error('❌ [MARK READ] Full error object:', error);
         
-        // Check if it's a 500 error - this indicates a backend issue
-        if (error?.status === 500 || error?.isServerError) {
-            console.error('❌ [MARK READ] Backend returned 500 error. Possible causes:');
-            console.error('   - Authentication middleware not setting req.user');
-            console.error('   - Database connection issue');
-            console.error('   - Database query failing');
-            console.error('   - Notification ID format mismatch');
-            console.error('   Please check backend logs for detailed error information.');
-        }
-        
         // Revert optimistic update on error
         if (notification && originalReadState !== null) {
             notification.read = originalReadState;
@@ -639,11 +628,6 @@ async function markNotificationAsRead(notificationId) {
             errorMessage = error;
         }
         
-        // Add more context for 500 errors
-        if (error?.status === 500 || error?.isServerError) {
-            errorMessage += ' (Server error - please check backend logs)';
-        }
-        
         // Show error message
         if (typeof showNotification === 'function') {
             showNotification(errorMessage, 'error');
@@ -651,6 +635,14 @@ async function markNotificationAsRead(notificationId) {
             ToastNotification.show(errorMessage, 'error');
         } else {
             alert(errorMessage);
+        }
+    } finally {
+        // Re-enable button
+        if (button) {
+            button.disabled = originalButtonDisabled;
+            button.style.opacity = '';
+            button.style.cursor = '';
+            button.innerHTML = originalButtonText;
         }
     }
 }
@@ -660,6 +652,19 @@ async function deleteNotification(notificationId) {
     
     if (!confirm('Are you sure you want to delete this notification?')) {
         return;
+    }
+    
+    // Find button by data-id attribute on parent notification item
+    const notificationItem = document.querySelector(`.notification-item[data-id="${notificationId}"], .notification-item[data-id="${String(notificationId)}"]`);
+    const button = notificationItem?.querySelector('.btn-delete');
+    const originalButtonText = button?.innerHTML || '';
+    const originalButtonDisabled = button?.disabled || false;
+    
+    if (button) {
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        button.style.cursor = 'not-allowed';
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
     }
     
     // Get the global notifications array if it exists (from owner-dashboard.html)
@@ -673,6 +678,14 @@ async function deleteNotification(notificationId) {
             showNotification(errorMsg, 'error');
         } else if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show(errorMsg, 'error');
+        }
+        
+        // Re-enable button
+        if (button) {
+            button.disabled = originalButtonDisabled;
+            button.style.opacity = '';
+            button.style.cursor = '';
+            button.innerHTML = originalButtonText;
         }
         return;
     }
@@ -767,6 +780,14 @@ async function deleteNotification(notificationId) {
             ToastNotification.show(errorMessage, 'error');
         } else {
             alert(errorMessage);
+        }
+    } finally {
+        // Re-enable button
+        if (button) {
+            button.disabled = originalButtonDisabled;
+            button.style.opacity = '';
+            button.style.cursor = '';
+            button.innerHTML = originalButtonText;
         }
     }
 }

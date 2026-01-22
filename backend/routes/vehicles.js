@@ -385,8 +385,9 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
             }
         }
         
-        // Priority 4: For REGISTERED/APPROVED vehicles, query Fabric directly
-        if (!transactionId && ['REGISTERED', 'APPROVED'].includes(vehicle.status)) {
+        // Priority 4: For REGISTERED vehicles only, query Fabric directly
+        // NOTE: APPROVED vehicles are not yet on blockchain (registration happens during approval)
+        if (!transactionId && vehicle.status === 'REGISTERED') {
             try {
                 const fabricService = require('../services/optimizedFabricService');
                 
@@ -462,7 +463,19 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
             });
         }
         
-        // Vehicle is REGISTERED/APPROVED but no transaction ID found - this is an error state
+        // Handle APPROVED vehicles (awaiting blockchain registration during approval)
+        if (vehicle.status === 'APPROVED') {
+            return res.json({
+                success: true,
+                transactionId: null,
+                source: 'awaiting_blockchain',
+                vehicleStatus: vehicle.status,
+                isPending: false,
+                message: 'Vehicle is approved and awaiting blockchain registration during final approval'
+            });
+        }
+        
+        // Vehicle is REGISTERED but no transaction ID found - this is an error state
         // Per Chapter 2 requirements: "all registrations are recorded on blockchain IMMEDIATELY"
         console.error(`❌ Data integrity issue: Vehicle ${vehicle.vin} is ${vehicle.status} but has no blockchain transaction ID`);
         return res.status(500).json({
@@ -1569,7 +1582,7 @@ LTO Lipa City Team
             success: true,
             message: 'Vehicle registration submitted successfully',
             vehicle: formatVehicleResponse(fullVehicle, req, res),
-            blockchainStatus: blockchainTxId ? 'REGISTERED' : 'PENDING',
+            blockchainStatus: 'PENDING', // Blockchain registration will occur during admin approval
             clearanceRequests: autoSendResults ? {
                 hpg: autoSendResults.hpg.sent,
                 insurance: autoSendResults.insurance.sent

@@ -2160,17 +2160,30 @@
 
         function useAutoVerifyData() {
             if (!autoVerifyResults || !autoVerifyResults.preFilledData) {
-                ToastNotification.show('Auto-verify data not available. Please run auto-verify first.', 'warning');
+                if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.show === 'function') {
+                    ToastNotification.show('Auto-verify data not available. Please run auto-verify first.', 'warning');
+                } else {
+                    alert('Auto-verify data not available. Please run auto-verify first.');
+                }
                 return;
             }
 
             // Check if duplicate was detected
             if (autoVerifyResults.hashCheck && autoVerifyResults.hashCheck.exists) {
-                ToastNotification.show('Cannot proceed. Document duplicate detected. Certificate reuse detected.', 'error', 10000);
+                if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.show === 'function') {
+                    ToastNotification.show('Cannot proceed. Document duplicate detected. Certificate reuse detected.', 'error', 10000);
+                } else {
+                    alert('Cannot proceed. Document duplicate detected. Certificate reuse detected.');
+                }
                 return;
             }
 
-            ToastNotification.confirm('Use auto-verify data to pre-fill the verification form? You can still edit the fields before final approval.').then((ok) => {
+            // Use ToastNotification.confirm if available, otherwise fall back to native confirm
+            const confirmPromise = (typeof ToastNotification !== 'undefined' && typeof ToastNotification.confirm === 'function')
+                ? ToastNotification.confirm('Use auto-verify data to pre-fill the verification form? You can still edit the fields before final approval.')
+                : Promise.resolve(window.confirm('Use auto-verify data to pre-fill the verification form? You can still edit the fields before final approval.'));
+
+            confirmPromise.then((ok) => {
                 if (!ok) return;
                 const preFilled = autoVerifyResults.preFilledData;
                 
@@ -2212,7 +2225,14 @@
                 }
 
                 // Show success notification
-                ToastNotification.show('Auto-verify data applied. Please review and approve.', 'success');
+                if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.show === 'function') {
+                    ToastNotification.show('Auto-verify data applied. Please review and approve.', 'success');
+                } else {
+                    alert('Auto-verify data applied. Please review and approve.');
+                }
+            }).catch((error) => {
+                console.error('Error in confirmation dialog:', error);
+                // If promise fails, just proceed (user might have cancelled)
             });
         }
 
@@ -2249,7 +2269,11 @@
         function confirmReject() {
             const reason = document.getElementById('rejectReason').value;
             if (!reason.trim()) {
-                ToastNotification.show('Please provide a reason for denial', 'warning');
+                if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.show === 'function') {
+                    ToastNotification.show('Please provide a reason for denial', 'warning');
+                } else {
+                    alert('Please provide a reason for denial');
+                }
                 return;
             }
 
@@ -2262,8 +2286,20 @@
 
         function cancelVerification() {
             const doCancel = () => window.location.href = 'hpg-requests-list.html';
-            ToastNotification.confirm('Are you sure you want to cancel? Changes will be lost.').then((ok) => {
+            
+            // Use ToastNotification.confirm if available, otherwise fall back to native confirm
+            const confirmPromise = (typeof ToastNotification !== 'undefined' && typeof ToastNotification.confirm === 'function')
+                ? ToastNotification.confirm('Are you sure you want to cancel? Changes will be lost.')
+                : Promise.resolve(window.confirm('Are you sure you want to cancel? Changes will be lost.'));
+            
+            confirmPromise.then((ok) => {
                 if (ok) doCancel();
+            }).catch((error) => {
+                console.error('Error in confirmation dialog:', error);
+                // Fallback to native confirm on error
+                if (window.confirm('Are you sure you want to cancel? Changes will be lost.')) {
+                    doCancel();
+                }
             });
         }
 

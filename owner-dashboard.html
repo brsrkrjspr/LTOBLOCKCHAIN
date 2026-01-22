@@ -2213,53 +2213,96 @@
         function loadNotifications() {
             // Return a promise so callers can await it
             return new Promise((resolve, reject) => {
+                console.log('🔍 [DEBUG] Starting loadNotifications()');
+                console.log('🔍 [DEBUG] API Client available:', typeof window.apiClient !== 'undefined' && !!window.apiClient);
+                
                 // Set a timeout to prevent hanging
                 const timeoutId = setTimeout(() => {
-                    console.warn('⚠️ API call timeout, using fallback data');
+                    console.warn('⚠️ [TIMEOUT] API call timeout after 5 seconds, using fallback data');
                     const saved = localStorage.getItem('ownerNotifications');
                     if (saved) {
                         try {
                             const parsed = JSON.parse(saved);
                             if (Array.isArray(parsed) && parsed.length > 0) {
                                 notifications = parsed;
+                                console.log('✅ [TIMEOUT] Using cached notifications:', notifications.length);
                             } else {
                                 notifications = getSampleNotifications();
+                                console.log('✅ [TIMEOUT] Using sample notifications:', notifications.length);
                             }
                         } catch (e) {
                             notifications = getSampleNotifications();
+                            console.log('✅ [TIMEOUT] Using sample notifications (parse error):', notifications.length);
                         }
                     } else {
                         notifications = getSampleNotifications();
+                        console.log('✅ [TIMEOUT] Using sample notifications (no cache):', notifications.length);
                     }
                     resolve(notifications);
                 }, 5000); // 5 second timeout
                 
+                // Helper function to extract notifications from various response structures
+                const extractNotifications = (response) => {
+                    console.log('🔍 [DEBUG] Extracting notifications from response:', {
+                        hasResponse: !!response,
+                        responseType: typeof response,
+                        responseKeys: response ? Object.keys(response) : [],
+                        isArray: Array.isArray(response),
+                        responsePreview: JSON.stringify(response).substring(0, 200)
+                    });
+                    
+                    // Case 1: Response is already an array
+                    if (Array.isArray(response)) {
+                        console.log('✅ [DEBUG] Response is direct array, length:', response.length);
+                        return response;
+                    }
+                    
+                    // Case 2: Standard structure { success: true, notifications: [...] }
+                    if (response && response.success === true && Array.isArray(response.notifications)) {
+                        console.log('✅ [DEBUG] Found notifications in response.notifications, length:', response.notifications.length);
+                        return response.notifications;
+                    }
+                    
+                    // Case 3: Alternative structure { success: true, data: [...] }
+                    if (response && response.success === true && Array.isArray(response.data)) {
+                        console.log('✅ [DEBUG] Found notifications in response.data, length:', response.data.length);
+                        return response.data;
+                    }
+                    
+                    // Case 4: Nested structure { result: { notifications: [...] } }
+                    if (response && response.result && Array.isArray(response.result.notifications)) {
+                        console.log('✅ [DEBUG] Found notifications in response.result.notifications, length:', response.result.notifications.length);
+                        return response.result.notifications;
+                    }
+                    
+                    // Case 5: Error response
+                    if (response && response.success === false) {
+                        console.warn('⚠️ [DEBUG] API returned error response:', response.error || response.message);
+                        return null;
+                    }
+                    
+                    // Case 6: Empty or unexpected structure
+                    console.warn('⚠️ [DEBUG] Could not extract notifications from response structure');
+                    return null;
+                };
+                
                 // Try to load from API, fallback to localStorage or sample data
                 if (typeof window.apiClient !== 'undefined' && window.apiClient) {
+                    console.log('📡 [DEBUG] Making API request to /api/notifications');
                     // Load from API
                     window.apiClient.get('/api/notifications')
                         .then(response => {
                             clearTimeout(timeoutId); // Clear timeout on success
-                            // API returns { success: true, notifications: [...] }
-                            // Also check for response.data for compatibility
-                            let apiNotifications = null;
-                            if (response && response.success === true && response.notifications && Array.isArray(response.notifications)) {
-                                // Accept empty arrays too - they're valid responses
-                                apiNotifications = response.notifications;
-                            } else if (response && response.success === true && response.data && Array.isArray(response.data)) {
-                                apiNotifications = response.data;
-                            } else if (response && response.success === false) {
-                                // API returned an error response, fall through to use localStorage/sample
-                                console.warn('API returned error response:', response.error || response.message);
-                                apiNotifications = null;
-                            }
+                            console.log('✅ [DEBUG] API request successful');
+                            
+                            // Extract notifications from response (handles multiple structures)
+                            let apiNotifications = extractNotifications(response);
                             
                             if (apiNotifications !== null) {
-                                console.log('✅ Loaded notifications from API:', apiNotifications.length);
-                                console.log('📋 Raw API notifications:', JSON.stringify(apiNotifications, null, 2));
+                                console.log('✅ [DEBUG] Loaded notifications from API:', apiNotifications.length);
+                                console.log('📋 [DEBUG] Raw API notifications:', JSON.stringify(apiNotifications, null, 2));
                                 
                                 // Transform API notifications to match expected format
-                                // Display ALL notifications, not just a subset
                                 notifications = apiNotifications.map((notif, index) => {
                                     // Ensure ID exists
                                     const notifId = notif.id || `api-notif-${Date.now()}-${index}`;
@@ -2267,22 +2310,22 @@
                                         id: notifId,
                                         title: notif.title || 'Notification',
                                         message: notif.message || '',
-                                        time: notif.sentAt ? formatTimeAgo(notif.sentAt) : 'Recently',
-                                        read: notif.read === true || notif.read === 1 || notif.read === 'true',
+                                        time: notif.sentAt ? formatTimeAgo(notif.sentAt) : (notif.sent_at ? formatTimeAgo(notif.sent_at) : 'Recently'),
+                                        read: notif.read === true || notif.read === 1 || notif.read === 'true' || notif.read === '1',
                                         type: notif.type || 'info'
                                     };
                                 });
-                                console.log('✅ Transformed notifications:', notifications.length);
-                                console.log('📋 Transformed notifications data:', JSON.stringify(notifications, null, 2));
+                                console.log('✅ [DEBUG] Transformed notifications:', notifications.length);
                                 
                                 // Save to localStorage for offline access
                                 try {
                                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                                    console.log('✅ [DEBUG] Saved notifications to localStorage');
                                 } catch (e) {
-                                    console.error('Error saving notifications to localStorage:', e);
+                                    console.error('❌ [DEBUG] Error saving to localStorage:', e);
                                 }
                             } else {
-                                console.log('⚠️ No API notifications, using fallback');
+                                console.log('⚠️ [DEBUG] No valid API notifications, using fallback');
                                 // No valid API response, try localStorage first
                                 const saved = localStorage.getItem('ownerNotifications');
                                 if (saved) {
@@ -2290,28 +2333,39 @@
                                         const parsed = JSON.parse(saved);
                                         if (Array.isArray(parsed) && parsed.length > 0) {
                                             notifications = parsed;
+                                            console.log('✅ [DEBUG] Using cached notifications:', notifications.length);
                                         } else {
                                             notifications = getSampleNotifications();
+                                            console.log('✅ [DEBUG] Using sample notifications (empty cache):', notifications.length);
                                         }
                                     } catch (e) {
                                         notifications = getSampleNotifications();
+                                        console.log('✅ [DEBUG] Using sample notifications (parse error):', notifications.length);
                                     }
                                 } else {
                                     notifications = getSampleNotifications();
+                                    console.log('✅ [DEBUG] Using sample notifications (no cache):', notifications.length);
                                 }
                                 // Save sample notifications to localStorage
                                 try {
                                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
                                 } catch (e) {
-                                    console.error('Error saving notifications to localStorage:', e);
+                                    console.error('❌ [DEBUG] Error saving to localStorage:', e);
                                 }
                             }
                             updateNotificationBadge();
+                            console.log('✅ [DEBUG] Resolving with notifications:', notifications.length);
                             resolve(notifications);
                         })
                         .catch(error => {
                             clearTimeout(timeoutId); // Clear timeout on error
-                            console.error('Error loading notifications from API:', error);
+                            console.error('❌ [DEBUG] API request failed:', error);
+                            console.error('❌ [DEBUG] Error details:', {
+                                message: error.message,
+                                stack: error.stack,
+                                name: error.name
+                            });
+                            
                             // Try localStorage first, then sample
                             const saved = localStorage.getItem('ownerNotifications');
                             if (saved) {
@@ -2319,23 +2373,30 @@
                                     const parsed = JSON.parse(saved);
                                     if (Array.isArray(parsed) && parsed.length > 0) {
                                         notifications = parsed;
+                                        console.log('✅ [DEBUG] Using cached notifications after error:', notifications.length);
                                     } else {
                                         notifications = getSampleNotifications();
+                                        console.log('✅ [DEBUG] Using sample notifications after error (empty cache):', notifications.length);
                                     }
                                 } catch (e) {
                                     notifications = getSampleNotifications();
+                                    console.log('✅ [DEBUG] Using sample notifications after error (parse error):', notifications.length);
                                 }
                             } else {
                                 notifications = getSampleNotifications();
+                                console.log('✅ [DEBUG] Using sample notifications after error (no cache):', notifications.length);
                             }
                             updateNotificationBadge();
+                            console.log('✅ [DEBUG] Resolving with fallback notifications:', notifications.length);
                             resolve(notifications);
                         });
                 } else {
                     clearTimeout(timeoutId); // Clear timeout if no API client
+                    console.log('⚠️ [DEBUG] No API client available, using sample notifications');
                     // Use sample notifications or localStorage
                     notifications = getSampleNotifications();
                     updateNotificationBadge();
+                    console.log('✅ [DEBUG] Resolving with sample notifications:', notifications.length);
                     resolve(notifications);
                 }
             });
@@ -2553,75 +2614,125 @@
             const notificationList = document.getElementById('notificationList');
             
             if (!notificationModal) {
-                console.error('❌ Notification modal element not found');
+                console.error('❌ [MODAL] Notification modal element not found');
                 return;
             }
             
             if (!notificationList) {
-                console.error('❌ Notification list element not found');
+                console.error('❌ [MODAL] Notification list element not found');
                 return;
             }
             
-            console.log('🔔 Opening notification modal...');
+            console.log('🔔 [MODAL] Opening notification modal...');
             
             // Open modal first for better UX
             notificationModal.classList.add('active');
             document.body.style.overflow = 'hidden';
             
-            // Show loading state immediately
-            notificationList.innerHTML = `
-                <div class="notification-empty">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading notifications...</p>
-                </div>
-            `;
+            // Show loading state immediately - THIS MUST BE REMOVED LATER
+            const showLoader = () => {
+                notificationList.innerHTML = `
+                    <div class="notification-empty">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading notifications...</p>
+                    </div>
+                `;
+            };
+            
+            // Function to remove loader and render content
+            const removeLoaderAndRender = (notificationsToRender) => {
+                console.log('🔄 [MODAL] Removing loader and rendering notifications...');
+                console.log('🔄 [MODAL] Notifications to render:', notificationsToRender ? notificationsToRender.length : 0);
+                
+                // Always remove loader first
+                if (notificationsToRender && Array.isArray(notificationsToRender) && notificationsToRender.length > 0) {
+                    // Set notifications variable
+                    notifications = notificationsToRender;
+                    // Render notifications
+                    renderNotifications();
+                } else {
+                    // Show empty state
+                    console.log('ℹ️ [MODAL] No notifications to display, showing empty state');
+                    notificationList.innerHTML = `
+                        <div class="notification-empty">
+                            <i class="fas fa-bell-slash"></i>
+                            <p>No notifications available</p>
+                        </div>
+                    `;
+                }
+            };
+            
+            // Function to show error state
+            const showError = (errorMessage) => {
+                console.error('❌ [MODAL] Showing error state:', errorMessage);
+                notificationList.innerHTML = `
+                    <div class="notification-empty">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error loading notifications</p>
+                        <p style="font-size: 0.875rem; margin-top: 0.5rem; opacity: 0.7;">${escapeHtml(errorMessage || 'Please try again later')}</p>
+                    </div>
+                `;
+            };
+            
+            // Show loader
+            showLoader();
             
             // Wait for modal to be fully visible in DOM
             await new Promise(resolve => setTimeout(resolve, 100));
             
             // Always reload notifications when opening modal to get latest data
             try {
-                console.log('📥 Loading notifications...');
+                console.log('📥 [MODAL] Starting to load notifications...');
                 const loadedNotifications = await loadNotifications();
-                console.log('✅ Notifications loaded, count:', loadedNotifications ? loadedNotifications.length : 0);
+                console.log('✅ [MODAL] Notifications loaded, count:', loadedNotifications ? loadedNotifications.length : 0);
                 
-                // Ensure notifications variable is set
-                if (loadedNotifications) {
-                    notifications = loadedNotifications;
-                }
-                
-                // Render notifications immediately after loading
-                console.log('🔄 Rendering notifications...');
-                renderNotifications();
+                // CRITICAL: Always remove loader and render, even if empty
+                removeLoaderAndRender(loadedNotifications);
                 
                 // Double-check after a short delay to ensure rendering worked
                 setTimeout(() => {
                     const list = document.getElementById('notificationList');
                     if (list) {
                         const childCount = list.children.length;
+                        const hasLoader = list.querySelector('.fa-spinner');
                         const hasEmptyState = list.querySelector('.notification-empty');
+                        const hasNotifications = list.querySelector('.notification-item');
                         
-                        if (childCount === 0 || (hasEmptyState && notifications && notifications.length > 0)) {
-                            console.warn('⚠️ No children found after render, forcing re-render...');
-                            console.log('Current notifications:', notifications);
+                        console.log('🔍 [MODAL] Verification check:', {
+                            childCount,
+                            hasLoader,
+                            hasEmptyState,
+                            hasNotifications,
+                            notificationsCount: notifications ? notifications.length : 0
+                        });
+                        
+                        // If loader is still showing, force remove it
+                        if (hasLoader) {
+                            console.warn('⚠️ [MODAL] Loader still visible, forcing removal...');
+                            removeLoaderAndRender(notifications);
+                        }
+                        
+                        // If we have notifications but they're not displayed, force render
+                        if (notifications && notifications.length > 0 && !hasNotifications && !hasLoader) {
+                            console.warn('⚠️ [MODAL] Notifications exist but not displayed, forcing render...');
                             renderNotifications();
-                        } else {
-                            console.log(`✅ Successfully displayed ${childCount} notification element(s)`);
                         }
                     }
-                }, 200);
+                }, 300);
             } catch (error) {
-                console.error('❌ Error loading notifications in modal:', error);
-                // Still try to render what we have or show error
-                if (notifications && notifications.length > 0) {
-                    renderNotifications();
+                console.error('❌ [MODAL] Error in try block:', error);
+                console.error('❌ [MODAL] Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                
+                // CRITICAL: Always remove loader, even on error
+                if (notifications && Array.isArray(notifications) && notifications.length > 0) {
+                    console.log('✅ [MODAL] Using existing notifications after error');
+                    removeLoaderAndRender(notifications);
                 } else {
-                    notificationList.innerHTML = `
-                        <div class="notification-empty">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <p>Error loading notifications. Please try again.</p>
-                        </div>
-                    `;
+                    showError(error.message || 'Failed to load notifications');
                 }
             }
         }
@@ -2693,6 +2804,48 @@
         // Make functions globally available
         window.markNotificationAsRead = markNotificationAsRead;
         window.deleteNotification = deleteNotification;
+        
+        // Debug helper function - call from browser console: debugNotifications()
+        window.debugNotifications = async function() {
+            console.log('🔍 [DEBUG HELPER] Starting notification debug...');
+            console.log('🔍 [DEBUG HELPER] Current notifications variable:', notifications);
+            console.log('🔍 [DEBUG HELPER] API Client available:', typeof window.apiClient !== 'undefined' && !!window.apiClient);
+            
+            if (typeof window.apiClient !== 'undefined' && window.apiClient) {
+                try {
+                    console.log('🔍 [DEBUG HELPER] Making test API call...');
+                    const response = await window.apiClient.get('/api/notifications');
+                    console.log('✅ [DEBUG HELPER] API Response:', response);
+                    console.log('✅ [DEBUG HELPER] Response type:', typeof response);
+                    console.log('✅ [DEBUG HELPER] Is array:', Array.isArray(response));
+                    console.log('✅ [DEBUG HELPER] Response keys:', response ? Object.keys(response) : 'null');
+                    console.log('✅ [DEBUG HELPER] Full response JSON:', JSON.stringify(response, null, 2));
+                    
+                    if (response && response.notifications) {
+                        console.log('✅ [DEBUG HELPER] Found response.notifications:', response.notifications.length);
+                    }
+                    if (response && response.data) {
+                        console.log('✅ [DEBUG HELPER] Found response.data:', response.data.length);
+                    }
+                    if (Array.isArray(response)) {
+                        console.log('✅ [DEBUG HELPER] Response is direct array:', response.length);
+                    }
+                    
+                    return response;
+                } catch (error) {
+                    console.error('❌ [DEBUG HELPER] API call failed:', error);
+                    console.error('❌ [DEBUG HELPER] Error details:', {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name
+                    });
+                    return null;
+                }
+            } else {
+                console.warn('⚠️ [DEBUG HELPER] API Client not available');
+                return null;
+            }
+        };
     </script>
     <script src="js/error-tracker.js"></script>
     <script src="js/utils.js"></script>

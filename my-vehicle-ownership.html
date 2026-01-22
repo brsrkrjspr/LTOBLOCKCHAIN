@@ -1762,7 +1762,7 @@
             display: flex;
             align-items: center;
             gap: 0.625rem;
-            color: #dc2626;
+            color: #ff0000 !important;
             padding: 0.5rem 0.75rem;
             border-radius: 8px;
             transition: all 0.2s ease;
@@ -1770,19 +1770,24 @@
             font-weight: 600;
             font-size: 0.875rem;
             width: 100%;
-            background: rgba(220, 38, 38, 0.05);
-            border: 1px solid rgba(220, 38, 38, 0.2);
+            background: #ffffff;
+            border: 1px solid #ff0000 !important;
             cursor: pointer;
         }
 
         .sidebar-action-item:hover {
-            color: #ffffff;
-            background: #dc2626;
-            border-color: #dc2626;
+            color: #ffffff !important;
+            background: #ff0000 !important;
+            border-color: #ff0000 !important;
         }
 
         .sidebar-action-item i {
             font-size: 0.875rem;
+            color: #ff0000 !important;
+        }
+
+        .sidebar-action-item:hover i {
+            color: #ffffff !important;
         }
 
         /* Collapsed Sidebar */
@@ -2841,10 +2846,6 @@
                 <a href="registration-wizard.html" class="nav-item">
                     <i class="fas fa-file-circle-plus"></i>
                     <span>New Registration</span>
-                </a>
-                <a href="owner-dashboard.html#notifications" class="nav-item">
-                    <i class="fas fa-bell"></i>
-                    <span>Notifications</span>
                 </a>
                 <a href="transfer-ownership.html" class="nav-item">
                     <i class="fas fa-arrows-rotate"></i>

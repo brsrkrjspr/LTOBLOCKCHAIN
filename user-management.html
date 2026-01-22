@@ -1609,100 +1609,12 @@
                                     </tr>
                                 </thead>
                                 <tbody id="usersTableBody">
-                                    <!-- Placeholder rows - will be populated dynamically -->
+                                    <!-- Users will be loaded dynamically from API -->
                                     <tr>
-                                        <td data-label="Full Name">
-                                            <div class="user-info">
-                                                <div class="user-avatar">JD</div>
-                                                <span class="user-name">John Doe</span>
-                                            </div>
-                                        </td>
-                                        <td data-label="Email Address">john.doe@example.com</td>
-                                        <td data-label="Role">
-                                            <span class="role-badge admin">Admin</span>
-                                        </td>
-                                        <td data-label="Account Status">
-                                            <span class="status-badge active">Active</span>
-                                        </td>
-                                        <td data-label="Date Created">2024-01-15</td>
-                                        <td data-label="Actions">
-                                            <div class="action-buttons">
-                                                <button class="action-btn view" onclick="viewUser('1')" aria-label="View user">
-                                                    <i class="fas fa-eye" aria-hidden="true"></i> View
-                                                </button>
-                                                <button class="action-btn edit" onclick="editUser('1')" aria-label="Edit user">
-                                                    <i class="fas fa-edit" aria-hidden="true"></i> Edit
-                                                </button>
-                                                <button class="action-btn suspend" onclick="suspendUser('1')" aria-label="Suspend user">
-                                                    <i class="fas fa-lock" aria-hidden="true"></i> Suspend
-                                                </button>
-                                                <button class="action-btn delete" onclick="deleteUser('1')" aria-label="Delete user">
-                                                    <i class="fas fa-trash" aria-hidden="true"></i> Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td data-label="Full Name">
-                                            <div class="user-info">
-                                                <div class="user-avatar">JS</div>
-                                                <span class="user-name">Jane Smith</span>
-                                            </div>
-                                        </td>
-                                        <td data-label="Email Address">jane.smith@lto.gov.ph</td>
-                                        <td data-label="Role">
-                                            <span class="role-badge lto">LTO</span>
-                                        </td>
-                                        <td data-label="Account Status">
-                                            <span class="status-badge active">Active</span>
-                                        </td>
-                                        <td data-label="Date Created">2024-02-20</td>
-                                        <td data-label="Actions">
-                                            <div class="action-buttons">
-                                                <button class="action-btn view" onclick="viewUser('2')" aria-label="View user">
-                                                    <i class="fas fa-eye" aria-hidden="true"></i> View
-                                                </button>
-                                                <button class="action-btn edit" onclick="editUser('2')" aria-label="Edit user">
-                                                    <i class="fas fa-edit" aria-hidden="true"></i> Edit
-                                                </button>
-                                                <button class="action-btn suspend" onclick="suspendUser('2')" aria-label="Suspend user">
-                                                    <i class="fas fa-lock" aria-hidden="true"></i> Suspend
-                                                </button>
-                                                <button class="action-btn delete" onclick="deleteUser('2')" aria-label="Delete user">
-                                                    <i class="fas fa-trash" aria-hidden="true"></i> Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td data-label="Full Name">
-                                            <div class="user-info">
-                                                <div class="user-avatar">RB</div>
-                                                <span class="user-name">Robert Brown</span>
-                                            </div>
-                                        </td>
-                                        <td data-label="Email Address">robert.brown@hpg.gov.ph</td>
-                                        <td data-label="Role">
-                                            <span class="role-badge hpg">HPG</span>
-                                        </td>
-                                        <td data-label="Account Status">
-                                            <span class="status-badge suspended">Suspended</span>
-                                        </td>
-                                        <td data-label="Date Created">2024-03-10</td>
-                                        <td data-label="Actions">
-                                            <div class="action-buttons">
-                                                <button class="action-btn view" onclick="viewUser('3')" aria-label="View user">
-                                                    <i class="fas fa-eye" aria-hidden="true"></i> View
-                                                </button>
-                                                <button class="action-btn edit" onclick="editUser('3')" aria-label="Edit user">
-                                                    <i class="fas fa-edit" aria-hidden="true"></i> Edit
-                                                </button>
-                                                <button class="action-btn activate" onclick="activateUser('3')" aria-label="Activate user">
-                                                    <i class="fas fa-unlock" aria-hidden="true"></i> Activate
-                                                </button>
-                                                <button class="action-btn delete" onclick="deleteUser('3')" aria-label="Delete user">
-                                                    <i class="fas fa-trash" aria-hidden="true"></i> Delete
-                                                </button>
+                                        <td colspan="6" style="text-align: center; padding: 2rem;">
+                                            <div class="empty-state">
+                                                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #0ea5e9;"></i>
+                                                <p>Loading users...</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -1751,10 +1663,14 @@
                     <label for="modalRole">Role</label>
                     <select id="modalRole" class="form-control">
                         <option value="admin">Admin</option>
-                        <option value="lto">LTO</option>
-                        <option value="hpg">HPG</option>
-                        <option value="insurance">Insurance</option>
-                        <option value="user">User</option>
+                        <option value="lto_officer">LTO Officer</option>
+                        <option value="lto_supervisor">LTO Supervisor</option>
+                        <option value="lto_admin">LTO Admin</option>
+                        <option value="staff">Staff</option>
+                        <option value="hpg_officer">HPG Officer</option>
+                        <option value="insurance_verifier">Insurance Verifier</option>
+                        <option value="emission_verifier">Emission Verifier</option>
+                        <option value="vehicle_owner">Vehicle Owner</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1865,11 +1781,19 @@
                 });
             }
 
+            // Load users on page load
+            loadUsers();
+            
+            // Set up auto-refresh every 30 seconds to catch new registrations
+            refreshInterval = setInterval(() => {
+                loadUsers();
+            }, 30000); // Refresh every 30 seconds
+            
             // Search functionality
             const searchInput = document.getElementById('searchInput');
             if (searchInput) {
                 searchInput.addEventListener('input', function() {
-                    filterUsers(this.value);
+                    applyFilters();
                 });
             }
 
@@ -1888,6 +1812,13 @@
                     applyFilters();
                 });
             }
+            
+            // Clean up interval on page unload
+            window.addEventListener('beforeunload', () => {
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                }
+            });
 
             // Add User button
             const addUserBtn = document.getElementById('addUserBtn');
@@ -1915,49 +1846,227 @@
             });
         });
 
-        // Placeholder functions (UI only - no backend logic)
-        function filterUsers(searchTerm) {
-            const rows = document.querySelectorAll('#usersTableBody tr');
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm.toLowerCase()) ? '' : 'none';
-            });
+        // Global variables
+        let allUsers = [];
+        let refreshInterval = null;
+
+        // Fetch users from API
+        async function loadUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            if (!tbody) return;
+            
+            try {
+                const response = await apiClient.get('/api/admin/users');
+                
+                if (response.success && response.users) {
+                    allUsers = response.users;
+                    renderUsers(allUsers);
+                } else {
+                    throw new Error(response.error || 'Failed to load users');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem;">
+                            <div class="empty-state">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #ef4444;"></i>
+                                <h3>Error Loading Users</h3>
+                                <p>${error.message || 'Failed to load users. Please refresh the page.'}</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
         }
 
+        // Render users in table
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
+            if (!tbody) return;
+            
+            if (users.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem;">
+                            <div class="empty-state">
+                                <i class="fas fa-users" style="font-size: 2rem; color: #d1d5db;"></i>
+                                <h3>No Users Found</h3>
+                                <p>No users are registered in the system yet.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = users.map(user => {
+                const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U';
+                const roleClass = mapRoleToClass(user.role);
+                const statusClass = user.isActive ? 'active' : 'suspended';
+                const statusText = user.isActive ? 'Active' : 'Suspended';
+                const dateCreated = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                }) : 'N/A';
+                
+                return `
+                    <tr>
+                        <td data-label="Full Name">
+                            <div class="user-info">
+                                <div class="user-avatar">${initials}</div>
+                                <span class="user-name">${escapeHtml(user.fullName || `${user.firstName} ${user.lastName}`)}</span>
+                            </div>
+                        </td>
+                        <td data-label="Email Address">${escapeHtml(user.email)}</td>
+                        <td data-label="Role">
+                            <span class="role-badge ${roleClass}">${escapeHtml(formatRole(user.role))}</span>
+                        </td>
+                        <td data-label="Account Status">
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </td>
+                        <td data-label="Date Created">${dateCreated}</td>
+                        <td data-label="Actions">
+                            <div class="action-buttons">
+                                <button class="action-btn view" onclick="viewUser('${user.id}')" aria-label="View user">
+                                    <i class="fas fa-eye" aria-hidden="true"></i> View
+                                </button>
+                                <button class="action-btn edit" onclick="editUser('${user.id}')" aria-label="Edit user">
+                                    <i class="fas fa-edit" aria-hidden="true"></i> Edit
+                                </button>
+                                ${user.isActive 
+                                    ? `<button class="action-btn suspend" onclick="suspendUser('${user.id}')" aria-label="Suspend user">
+                                        <i class="fas fa-lock" aria-hidden="true"></i> Suspend
+                                       </button>`
+                                    : `<button class="action-btn activate" onclick="activateUser('${user.id}')" aria-label="Activate user">
+                                        <i class="fas fa-unlock" aria-hidden="true"></i> Activate
+                                       </button>`
+                                }
+                                <button class="action-btn delete" onclick="deleteUser('${user.id}')" aria-label="Delete user">
+                                    <i class="fas fa-trash" aria-hidden="true"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Helper function to map role to CSS class
+        function mapRoleToClass(role) {
+            const roleMap = {
+                'admin': 'admin',
+                'lto_officer': 'lto',
+                'lto_supervisor': 'lto',
+                'lto_admin': 'lto',
+                'staff': 'lto',
+                'hpg_officer': 'hpg',
+                'insurance_verifier': 'insurance',
+                'emission_verifier': 'insurance',
+                'vehicle_owner': 'user'
+            };
+            return roleMap[role] || 'user';
+        }
+
+        // Helper function to format role name
+        function formatRole(role) {
+            const roleMap = {
+                'admin': 'Admin',
+                'lto_officer': 'LTO Officer',
+                'lto_supervisor': 'LTO Supervisor',
+                'lto_admin': 'LTO Admin',
+                'staff': 'Staff',
+                'hpg_officer': 'HPG',
+                'insurance_verifier': 'Insurance',
+                'emission_verifier': 'Emission',
+                'vehicle_owner': 'User'
+            };
+            return roleMap[role] || role;
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Filter users
+        function filterUsers(searchTerm) {
+            const filtered = allUsers.filter(user => {
+                const searchLower = searchTerm.toLowerCase();
+                const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+                const email = user.email.toLowerCase();
+                const role = formatRole(user.role).toLowerCase();
+                return fullName.includes(searchLower) || 
+                       email.includes(searchLower) || 
+                       role.includes(searchLower);
+            });
+            renderUsers(filtered);
+        }
+
+        // Apply filters
         function applyFilters() {
             const roleFilter = document.getElementById('roleFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
-            const rows = document.querySelectorAll('#usersTableBody tr');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
-            rows.forEach(row => {
-                let showRow = true;
-                
-                if (roleFilter) {
-                    const roleBadge = row.querySelector('.role-badge');
-                    if (roleBadge && !roleBadge.classList.contains(roleFilter)) {
-                        showRow = false;
-                    }
+            let filtered = allUsers;
+            
+            // Apply role filter
+            if (roleFilter) {
+                const roleMap = {
+                    'admin': ['admin'],
+                    'lto': ['lto_officer', 'lto_supervisor', 'lto_admin', 'staff'],
+                    'hpg': ['hpg_officer'],
+                    'insurance': ['insurance_verifier', 'emission_verifier'],
+                    'user': ['vehicle_owner']
+                };
+                const rolesToMatch = roleMap[roleFilter] || [];
+                filtered = filtered.filter(user => rolesToMatch.includes(user.role));
+            }
+            
+            // Apply status filter
+            if (statusFilter) {
+                if (statusFilter === 'active') {
+                    filtered = filtered.filter(user => user.isActive);
+                } else if (statusFilter === 'suspended') {
+                    filtered = filtered.filter(user => !user.isActive);
                 }
-                
-                if (statusFilter) {
-                    const statusBadge = row.querySelector('.status-badge');
-                    if (statusBadge && !statusBadge.classList.contains(statusFilter)) {
-                        showRow = false;
-                    }
-                }
-                
-                row.style.display = showRow ? '' : 'none';
-            });
+            }
+            
+            // Apply search filter
+            if (searchTerm) {
+                filtered = filtered.filter(user => {
+                    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+                    const email = user.email.toLowerCase();
+                    const role = formatRole(user.role).toLowerCase();
+                    return fullName.includes(searchTerm) || 
+                           email.includes(searchTerm) || 
+                           role.includes(searchTerm);
+                });
+            }
+            
+            renderUsers(filtered);
         }
 
         function viewUser(userId) {
-            console.log('View user:', userId);
-            openUserModal('view', userId);
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) {
+                console.error('User not found:', userId);
+                return;
+            }
+            openUserModal('view', user);
         }
 
         function editUser(userId) {
-            console.log('Edit user:', userId);
-            openUserModal('edit', userId);
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) {
+                console.error('User not found:', userId);
+                return;
+            }
+            openUserModal('edit', user);
         }
 
         function suspendUser(userId) {
@@ -1977,7 +2086,7 @@
             }
         }
 
-        function openUserModal(mode, userId) {
+        function openUserModal(mode, user) {
             const modal = document.getElementById('userModal');
             const modalTitle = document.getElementById('modalTitle');
             
@@ -1986,18 +2095,32 @@
                 // Reset form fields
                 document.getElementById('modalFullName').value = '';
                 document.getElementById('modalEmail').value = '';
-                document.getElementById('modalRole').value = 'user';
+                document.getElementById('modalRole').value = 'vehicle_owner';
                 document.getElementById('modalStatus').checked = true;
                 document.getElementById('modalAvatar').textContent = 'NU';
-            } else if (mode === 'view') {
+            } else if (mode === 'view' && user) {
                 modalTitle.textContent = 'User Details';
+                // Populate form fields with user data
+                document.getElementById('modalFullName').value = user.fullName || `${user.firstName} ${user.lastName}`;
+                document.getElementById('modalEmail').value = user.email;
+                document.getElementById('modalRole').value = user.role;
+                document.getElementById('modalStatus').checked = user.isActive;
+                const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U';
+                document.getElementById('modalAvatar').textContent = initials;
                 // Disable form fields for view mode
                 document.getElementById('modalFullName').disabled = true;
                 document.getElementById('modalEmail').disabled = true;
                 document.getElementById('modalRole').disabled = true;
                 document.getElementById('modalStatus').disabled = true;
-            } else if (mode === 'edit') {
+            } else if (mode === 'edit' && user) {
                 modalTitle.textContent = 'Edit User';
+                // Populate form fields with user data
+                document.getElementById('modalFullName').value = user.fullName || `${user.firstName} ${user.lastName}`;
+                document.getElementById('modalEmail').value = user.email;
+                document.getElementById('modalRole').value = user.role;
+                document.getElementById('modalStatus').checked = user.isActive;
+                const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U';
+                document.getElementById('modalAvatar').textContent = initials;
                 // Enable form fields for edit mode
                 document.getElementById('modalFullName').disabled = false;
                 document.getElementById('modalEmail').disabled = false;

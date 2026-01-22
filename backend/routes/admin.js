@@ -488,6 +488,44 @@ router.post('/create-user', authenticateToken, authorizeRole(['admin']), async (
     }
 });
 
+// Get all users (admin only)
+router.get('/users', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const users = await db.getAllUsers();
+        
+        // Format users for frontend
+        const formattedUsers = users.map(user => ({
+            id: user.id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            fullName: `${user.first_name} ${user.last_name}`,
+            role: user.role,
+            organization: user.organization || 'N/A',
+            phone: user.phone || 'N/A',
+            address: user.address || 'N/A',
+            isActive: user.is_active,
+            emailVerified: user.email_verified,
+            createdAt: user.created_at,
+            lastLogin: user.last_login
+        }));
+        
+        res.json({
+            success: true,
+            users: formattedUsers,
+            count: formattedUsers.length
+        });
+        
+    } catch (error) {
+        console.error('Get all users error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch users',
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
 // Manual verification for insurance (admin only)
 router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {

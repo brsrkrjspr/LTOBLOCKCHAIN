@@ -45,6 +45,27 @@ async function updateUserLastLogin(userId) {
     );
 }
 
+async function getAllUsers() {
+    const result = await db.query(
+        `SELECT 
+            id,
+            email,
+            first_name,
+            last_name,
+            role,
+            organization,
+            phone,
+            address,
+            is_active,
+            email_verified,
+            created_at,
+            last_login
+         FROM users
+         ORDER BY created_at DESC`
+    );
+    return result.rows;
+}
+
 // ============================================
 // VEHICLE OPERATIONS
 // ============================================
@@ -1836,6 +1857,7 @@ module.exports = {
     getUserById,
     createUser,
     updateUserLastLogin,
+    getAllUsers,
     
     // Vehicle operations
     getVehicleByVin,

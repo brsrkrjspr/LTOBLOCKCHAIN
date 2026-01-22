@@ -2480,11 +2480,11 @@
             if (!notificationList) {
                 console.error('❌ [RENDER] Notification list element not found - element ID: notificationList');
                 // Try to find it after a short delay in case DOM isn't ready
-                setTimeout(() => {
+                setTimeout(async () => {
                     const retryList = document.getElementById('notificationList');
                     if (retryList) {
                         console.log('✅ [RENDER] Found notification list on retry');
-                        renderNotifications();
+                        await renderNotifications();
                     } else {
                         console.error('❌ [RENDER] Notification list still not found after retry');
                     }
@@ -2608,16 +2608,13 @@
                 console.log('🔄 [RENDER] Setting innerHTML with', html.length, 'characters...');
                 notificationList.innerHTML = html;
                 
-                // Immediate verification
+                // Immediate verification (no await needed)
                 const immediateChildCount = notificationList.children.length;
                 console.log('🔍 [RENDER] Immediate children count after innerHTML:', immediateChildCount);
                 
-                // Wait a microtask to ensure DOM is updated
-                await new Promise(resolve => setTimeout(resolve, 0));
-                
                 // Verify the HTML was actually inserted
                 const childCount = notificationList.children.length;
-                console.log('🔍 [RENDER] Children count after insertion (after microtask):', childCount);
+                console.log('🔍 [RENDER] Children count after insertion:', childCount);
                 console.log('🔍 [RENDER] Element innerHTML length:', notificationList.innerHTML.length);
                 
                 if (childCount === 0 || notificationList.innerHTML.trim() === '') {
@@ -2951,7 +2948,7 @@
                 }
                 
                 // Double-check after a short delay to ensure rendering worked
-                setTimeout(() => {
+                setTimeout(async () => {
                     const list = document.getElementById('notificationList');
                     if (list) {
                         const childCount = list.children.length;

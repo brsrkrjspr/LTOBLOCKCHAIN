@@ -2213,11 +2213,33 @@
         function loadNotifications() {
             // Return a promise so callers can await it
             return new Promise((resolve, reject) => {
+                // Set a timeout to prevent hanging
+                const timeoutId = setTimeout(() => {
+                    console.warn('⚠️ API call timeout, using fallback data');
+                    const saved = localStorage.getItem('ownerNotifications');
+                    if (saved) {
+                        try {
+                            const parsed = JSON.parse(saved);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                notifications = parsed;
+                            } else {
+                                notifications = getSampleNotifications();
+                            }
+                        } catch (e) {
+                            notifications = getSampleNotifications();
+                        }
+                    } else {
+                        notifications = getSampleNotifications();
+                    }
+                    resolve(notifications);
+                }, 5000); // 5 second timeout
+                
                 // Try to load from API, fallback to localStorage or sample data
                 if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                     // Load from API
                     window.apiClient.get('/api/notifications')
                         .then(response => {
+                            clearTimeout(timeoutId); // Clear timeout on success
                             // API returns { success: true, notifications: [...] }
                             // Also check for response.data for compatibility
                             let apiNotifications = null;
@@ -2284,14 +2306,11 @@
                                     console.error('Error saving notifications to localStorage:', e);
                                 }
                             }
-                            // Force render after a small delay to ensure DOM is ready
-                            setTimeout(() => {
-                                renderNotifications();
-                            }, 10);
                             updateNotificationBadge();
                             resolve(notifications);
                         })
                         .catch(error => {
+                            clearTimeout(timeoutId); // Clear timeout on error
                             console.error('Error loading notifications from API:', error);
                             // Try localStorage first, then sample
                             const saved = localStorage.getItem('ownerNotifications');
@@ -2309,20 +2328,13 @@
                             } else {
                                 notifications = getSampleNotifications();
                             }
-                            // Force render after a small delay to ensure DOM is ready
-                            setTimeout(() => {
-                                renderNotifications();
-                            }, 10);
                             updateNotificationBadge();
                             resolve(notifications);
                         });
                 } else {
+                    clearTimeout(timeoutId); // Clear timeout if no API client
                     // Use sample notifications or localStorage
                     notifications = getSampleNotifications();
-                    // Force render after a small delay to ensure DOM is ready
-                    setTimeout(() => {
-                        renderNotifications();
-                    }, 10);
                     updateNotificationBadge();
                     resolve(notifications);
                 }
@@ -2570,27 +2582,47 @@
             // Always reload notifications when opening modal to get latest data
             try {
                 console.log('📥 Loading notifications...');
-                await loadNotifications();
-                console.log('✅ Notifications loaded, count:', notifications ? notifications.length : 0);
+                const loadedNotifications = await loadNotifications();
+                console.log('✅ Notifications loaded, count:', loadedNotifications ? loadedNotifications.length : 0);
                 
-                // Force a re-render after a short delay to ensure DOM is ready
+                // Ensure notifications variable is set
+                if (loadedNotifications) {
+                    notifications = loadedNotifications;
+                }
+                
+                // Render notifications immediately after loading
+                console.log('🔄 Rendering notifications...');
+                renderNotifications();
+                
+                // Double-check after a short delay to ensure rendering worked
                 setTimeout(() => {
-                    console.log('🔄 Force re-rendering notifications after modal open...');
-                    renderNotifications();
-                    
-                    // Double-check after another short delay
-                    setTimeout(() => {
-                        const list = document.getElementById('notificationList');
-                        if (list && list.children.length === 0 && notifications && notifications.length > 0) {
+                    const list = document.getElementById('notificationList');
+                    if (list) {
+                        const childCount = list.children.length;
+                        const hasEmptyState = list.querySelector('.notification-empty');
+                        
+                        if (childCount === 0 || (hasEmptyState && notifications && notifications.length > 0)) {
                             console.warn('⚠️ No children found after render, forcing re-render...');
+                            console.log('Current notifications:', notifications);
                             renderNotifications();
+                        } else {
+                            console.log(`✅ Successfully displayed ${childCount} notification element(s)`);
                         }
-                    }, 100);
-                }, 50);
+                    }
+                }, 200);
             } catch (error) {
                 console.error('❌ Error loading notifications in modal:', error);
-                // Still try to render what we have
-                renderNotifications();
+                // Still try to render what we have or show error
+                if (notifications && notifications.length > 0) {
+                    renderNotifications();
+                } else {
+                    notificationList.innerHTML = `
+                        <div class="notification-empty">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Error loading notifications. Please try again.</p>
+                        </div>
+                    `;
+                }
             }
         }
 

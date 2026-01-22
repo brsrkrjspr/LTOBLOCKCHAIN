@@ -38,6 +38,45 @@
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
     <style>
+        /* Logo Icon Styles - Match admin-dashboard */
+        .dashboard-sidebar .logo-icon {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: #ffffff;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 0;
+        }
+        
+        .dashboard-sidebar .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        
+        .dashboard-sidebar .logo-icon:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        }
+        
+        .dashboard-sidebar .logo-icon:hover img {
+            opacity: 0.95;
+            transform: scale(1.05);
+        }
+        
+        .dashboard-sidebar .logo-icon:active {
+            transform: scale(0.95);
+        }
+        
+        .dashboard-sidebar .logo-icon:active img {
+            transform: scale(0.95);
+        }
+        
         /* Profile Settings Styles */
         .settings-container {
             max-width: 900px;

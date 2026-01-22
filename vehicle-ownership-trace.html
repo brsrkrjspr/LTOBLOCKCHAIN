@@ -122,6 +122,18 @@
             color: #ffffff;
             transition: opacity 0.2s ease, transform 0.2s ease;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 0;
+        }
+        
+        .dashboard-sidebar .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: opacity 0.2s ease, transform 0.2s ease;
         }
         
         .dashboard-sidebar .logo-icon:hover {
@@ -130,7 +142,16 @@
             background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
         }
         
+        .dashboard-sidebar .logo-icon:hover img {
+            opacity: 0.95;
+            transform: scale(1.05);
+        }
+        
         .dashboard-sidebar .logo-icon:active {
+            transform: scale(0.95);
+        }
+        
+        .dashboard-sidebar .logo-icon:active img {
             transform: scale(0.95);
         }
         

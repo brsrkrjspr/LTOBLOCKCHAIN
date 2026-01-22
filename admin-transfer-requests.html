@@ -7,6 +7,31 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Apply sidebar state immediately to prevent flash and disable transitions on page load
+        (function() {
+            function initSidebar() {
+                const sidebar = document.querySelector('.dashboard-sidebar');
+                if (sidebar) {
+                    sidebar.classList.add('no-transition');
+                    const savedState = localStorage.getItem('adminSidebarCollapsed');
+                    if (savedState === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                    setTimeout(function() {
+                        sidebar.classList.remove('no-transition');
+                    }, 100);
+                } else {
+                    setTimeout(initSidebar, 10);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+    </script>
     <style>
         /* ============================================
            LIGHT THEME ADMIN - TRANSFER REQUESTS
@@ -1127,10 +1152,12 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">AD</div>
+                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">
+                        <img src="css/logo.png" alt="LTO Logo">
+                    </div>
                     <div class="logo-text">
                         <h2>Admin</h2>
-                        <p>Dashboard</p>
+                        <p>Transfer of Ownership</p>
                     </div>
                 </div>
             </div>
@@ -1173,11 +1200,11 @@
                     </div>
                 </div>
                 <div class="sidebar-user-actions">
-                    <a href="admin-settings.html" class="sidebar-action-item" title="Settings">
+                    <a href="admin-settings.html" class="sidebar-action-item">
                         <i class="fas fa-cog"></i>
                         <span>Settings</span>
                     </a>
-                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn" title="Logout">
+                    <a href="#" class="sidebar-action-item" id="sidebarLogoutBtn">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>

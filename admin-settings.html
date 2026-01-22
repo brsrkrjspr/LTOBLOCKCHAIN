@@ -338,10 +338,12 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">AD</div>
+                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">
+                        <img src="css/logo.png" alt="LTO Logo">
+                    </div>
                     <div class="logo-text">
                         <h2>Admin</h2>
-                        <p>Dashboard</p>
+                        <p>Settings</p>
                     </div>
                 </div>
             </div>
@@ -350,23 +352,28 @@
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="user-management.html" class="nav-item">
-                    <i class="fas fa-users"></i>
-                    <span>User Management</span>
-                </a>
                 <a href="admin-blockchain-viewer.html" class="nav-item">
                     <i class="fas fa-link"></i>
                     <span>Blockchain Ledger</span>
                 </a>
-                <a href="admin-transfer-requests.html" class="nav-item">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span>Transfer of Ownership</span>
-                </a>
+                <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
                 <a href="vehicle-ownership-trace.html" class="nav-item">
                     <i class="fas fa-history"></i>
                     <span>Ownership Trace</span>
                 </a>
-                <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
+                <a href="admin-transfer-requests.html" class="nav-item">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transfer of Ownership</span>
+                    <span class="badge" id="transferBadge" style="display: none;">3</span>
+                </a>
+                <a href="user-management.html" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="lto-inspection-form.html" class="nav-item">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Vehicle Inspection</span>
+                </a>
             </nav>
             
             <!-- Sidebar Footer with User Info -->

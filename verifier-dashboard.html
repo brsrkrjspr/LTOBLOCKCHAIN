@@ -737,7 +737,7 @@
                     <div class="dashboard-nav">
                         <div class="logo">
                             <h1>LTO Blockchain</h1>
-                            <p>Emission Verifier Dashboard</p>
+                            <p style="color: #e74c3c; font-weight: bold;">⚠️ Emission Verifier Dashboard - Feature Deprecated</p>
                         </div>
                     </div>
                 </div>
@@ -745,6 +745,25 @@
 
         <main class="dashboard-content">
             <div class="container">
+                <!-- DEPRECATION WARNING -->
+                <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
+                        <h2 style="margin: 0; color: white; font-size: 1.5rem;">⚠️ Feature Deprecated</h2>
+                    </div>
+                    <p style="margin: 0.5rem 0; font-size: 1.1rem; line-height: 1.6;">
+                        <strong>Emission verification workflow has been REMOVED from this system.</strong>
+                    </p>
+                    <p style="margin: 0.5rem 0; font-size: 1rem; line-height: 1.6;">
+                        LTO can no longer generate or verify emission certificates. Emission certificates must be issued by authorized external emission testing centers and uploaded by vehicle owners via the certificate upload system.
+                    </p>
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3);">
+                        <p style="margin: 0; font-size: 0.95rem; opacity: 0.9;">
+                            <strong>Current Process:</strong> Vehicle owners upload emission certificates → System verifies by hash matching against blockchain records → No LTO-administered verification workflow.
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Quick Stats -->
                 <div class="stats-grid">
                     <div class="stat-card">

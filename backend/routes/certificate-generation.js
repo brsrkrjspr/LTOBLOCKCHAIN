@@ -2029,25 +2029,11 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             //     // ID generation removed per validator model: IDs are upload-only, no certificate generation
             // }
 
-            // Buyer TIN
-            if (buyerDocuments?.buyerTin) {
-                const tinResult = await certificatePdfGenerator.generateTinDocument({
-                    holderName: buyerName,
-                    holderAddress: buyer.address || '',
-                    tinNumber: buyerDocuments.buyerTin.tinNumber
-                });
-
-                const docId = await storePdfAndCreateDocument(
-                    tinResult.pdfBuffer,
-                    tinResult.fileHash,
-                    `Buyer_TIN_${transferRequestId}.pdf`,
-                    docTypes.DB_TYPES.TIN_ID, // Use proper enum: 'tin_id'
-                    vehicle.id,
-                    buyer.email
-                );
-                await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_TIN);
-                results.buyerDocuments.buyerTin = { documentId: docId, fileHash: tinResult.fileHash };
-            }
+            // Buyer TIN removed: TIN is not required for certificate generation
+            // TIN documents should be uploaded by users, not generated as certificates
+            // if (buyerDocuments?.buyerTin) {
+            //     // TIN generation removed - TIN is not generated as a certificate
+            // }
 
             // HPG Clearance
             if (buyerDocuments?.hpgClearance) {
@@ -2256,15 +2242,9 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     });
                 }
             }
-            if (results.sellerDocuments.sellerId) {
-                const sellerIdPdfBuffer = await getPdfBufferFromDocument(results.sellerDocuments.sellerId.documentId);
-                if (sellerIdPdfBuffer) {
-                    sellerEmailDocs.push({
-                        filename: `Seller_ID_${transferRequestId}.pdf`,
-                        buffer: sellerIdPdfBuffer
-                    });
-                }
-            }
+            // Seller ID removed: IDs should not be generated as certificates
+            // IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users
+            // if (results.sellerDocuments.sellerId) { ... } // REMOVED - IDs are upload-only, not generated
 
             if (sellerEmailDocs.length > 0 && seller.email) {
                 try {
@@ -2300,26 +2280,15 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 }
             }
 
-            // Buyer email - HPG, CTPL, MVIR, Buyer ID, Buyer TIN
+            // Buyer email - HPG, CTPL, MVIR
+            // Note: Buyer ID and Buyer TIN removed - IDs and TIN should not be generated as certificates
+            // IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users
+            // TIN documents should be uploaded by users, not generated as certificates
             const buyerEmailDocs = [];
-            if (results.buyerDocuments.buyerId) {
-                const buyerIdPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.buyerId.documentId);
-                if (buyerIdPdfBuffer) {
-                    buyerEmailDocs.push({
-                        filename: `Buyer_ID_${transferRequestId}.pdf`,
-                        buffer: buyerIdPdfBuffer
-                    });
-                }
-            }
-            if (results.buyerDocuments.buyerTin) {
-                const buyerTinPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.buyerTin.documentId);
-                if (buyerTinPdfBuffer) {
-                    buyerEmailDocs.push({
-                        filename: `Buyer_TIN_${transferRequestId}.pdf`,
-                        buffer: buyerTinPdfBuffer
-                    });
-                }
-            }
+            // Buyer ID removed: IDs are upload-only, not generated
+            // if (results.buyerDocuments.buyerId) { ... } // REMOVED - IDs are upload-only, not generated
+            // Buyer TIN removed: TIN is not generated as a certificate
+            // if (results.buyerDocuments.buyerTin) { ... } // REMOVED - TIN is not generated as a certificate
             if (results.buyerDocuments.hpgClearance) {
                 const hpgPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.hpgClearance.documentId);
                 if (hpgPdfBuffer) {
@@ -2363,9 +2332,8 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                             ${results.buyerDocuments.hpgClearance ? '<li>HPG Clearance Certificate</li>' : ''}
                             ${results.buyerDocuments.ctplInsurance ? '<li>CTPL Insurance Certificate</li>' : ''}
                             ${results.buyerDocuments.mvir ? '<li>Motor Vehicle Inspection Report (MVIR)</li>' : ''}
-                            ${results.buyerDocuments.buyerId ? '<li>Buyer ID</li>' : ''}
-                            ${results.buyerDocuments.buyerTin ? '<li>Buyer TIN</li>' : ''}
                         </ul>
+                        <p><strong>Note:</strong> Buyer ID and Buyer TIN must be uploaded separately. IDs and TIN are not generated as certificates.</p>
                         <p>These documents are required for completing the transfer of ownership process.</p>
                     `;
                     

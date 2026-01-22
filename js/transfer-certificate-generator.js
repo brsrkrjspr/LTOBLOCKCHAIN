@@ -409,9 +409,8 @@ async function generateCertificates() {
                 // Buyer ID removed: IDs should not be generated as certificates
                 // IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded
                 // buyerId: { ... } // REMOVED - IDs are upload-only, not generated
-                buyerTin: {
-                    tinNumber: document.getElementById('buyerTin').value
-                },
+                // Buyer TIN removed: TIN is not required for certificate generation
+                // buyerTin: { ... } // REMOVED - TIN is not generated as a certificate
                 hpgClearance: {
                     clearanceNumber: document.getElementById('hpgClearanceNumber').value || null,
                     verificationDetails: document.getElementById('hpgOfficerName').value 
@@ -482,7 +481,8 @@ function showSuccess(message, response) {
         if (response.results.buyerDocuments) {
             html += '<h5>Buyer Documents:</h5><ul>';
             // Buyer ID removed: IDs are upload-only, not generated
-            if (response.results.buyerDocuments.buyerTin) html += '<li>TIN Document ✓</li>';
+            // Buyer TIN removed: TIN is not generated as a certificate
+            // if (response.results.buyerDocuments.buyerTin) html += '<li>TIN Document ✓</li>'; // REMOVED
             if (response.results.buyerDocuments.hpgClearance) html += '<li>HPG Clearance ✓</li>';
             if (response.results.buyerDocuments.ctplInsurance) html += '<li>CTPL Insurance ✓</li>';
             if (response.results.buyerDocuments.mvir) html += '<li>MVIR ✓</li>';

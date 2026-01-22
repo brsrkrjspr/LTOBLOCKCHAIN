@@ -313,28 +313,8 @@
                                 </div>
                             </div>
 
-                            <!-- Seller ID -->
-                            <h5 style="margin-top: 1.5rem;">Seller ID</h5>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="sellerIdType">ID Type *</label>
-                                    <select id="sellerIdType" name="sellerIdType" class="form-control" required>
-                                        <option value="Driver's License">Driver's License</option>
-                                        <option value="National ID">National ID</option>
-                                        <option value="Passport">Passport</option>
-                                        <option value="SSS ID">SSS ID</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="sellerIdNumber">ID Number *</label>
-                                    <input type="text" id="sellerIdNumber" name="sellerIdNumber" class="form-control" 
-                                           placeholder="D01-23-456789" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="sellerDob">Date of Birth (Optional)</label>
-                                    <input type="date" id="sellerDob" name="sellerDob" class="form-control">
-                                </div>
-                            </div>
+                            <!-- Seller ID removed: IDs should not be generated as certificates -->
+                            <!-- IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users -->
                         </div>
                     </div>
 
@@ -344,40 +324,11 @@
                             <i class="fas fa-chevron-down"></i> Buyer Documents
                         </h4>
                         <div id="buyerDocs" class="collapsible-content show">
-                            <!-- Buyer ID -->
-                            <h5>Buyer ID</h5>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="buyerIdType">ID Type *</label>
-                                    <select id="buyerIdType" name="buyerIdType" class="form-control" required>
-                                        <option value="National ID">National ID</option>
-                                        <option value="Driver's License">Driver's License</option>
-                                        <option value="Passport">Passport</option>
-                                        <option value="SSS ID">SSS ID</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="buyerIdNumber">ID Number *</label>
-                                    <input type="text" id="buyerIdNumber" name="buyerIdNumber" class="form-control" 
-                                           placeholder="N01-23-456789" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="buyerDob">Date of Birth (Optional)</label>
-                                    <input type="date" id="buyerDob" name="buyerDob" class="form-control">
-                                </div>
-                            </div>
-
-                            <!-- Buyer TIN -->
-                            <h5 style="margin-top: 1.5rem;">Buyer TIN</h5>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="buyerTin">TIN Number *</label>
-                                    <input type="text" id="buyerTin" name="buyerTin" class="form-control" 
-                                           placeholder="123-456-789" pattern="[0-9]{3}-[0-9]{3}-[0-9]{3}" required>
-                                    <small style="color: #666; margin-top: 0.25rem;">Format: XXX-XXX-XXX</small>
-                                </div>
-                            </div>
-
+                            <!-- Buyer ID removed: IDs should not be generated as certificates -->
+                            <!-- IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users -->
+                            
+                            <!-- Buyer TIN removed: TIN is not required for certificate generation -->
+                            
                             <!-- HPG Clearance -->
                             <h5 style="margin-top: 1.5rem;">HPG Clearance</h5>
                             <div class="form-row">

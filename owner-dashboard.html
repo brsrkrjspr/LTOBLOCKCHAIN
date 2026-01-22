@@ -3072,41 +3072,6 @@
                         }
                     }
                 }, 300);
-            } catch (error) {
-                // Clear the force timeout since we're handling the error
-                clearTimeout(forceRemoveLoader);
-                
-                console.error('❌ [MODAL] Error in try block:', error);
-                console.error('❌ [MODAL] Error details:', {
-                    message: error.message,
-                    stack: error.stack,
-                    name: error.name
-                });
-                
-                // CRITICAL: Always remove loader, even on error
-                if (notifications && Array.isArray(notifications) && notifications.length > 0) {
-                    console.log('✅ [MODAL] Using existing notifications after error');
-                    await removeLoaderAndRender(notifications);
-                } else {
-                    // Try localStorage as last resort
-                    const saved = localStorage.getItem('ownerNotifications');
-                    if (saved) {
-                        try {
-                            const parsed = JSON.parse(saved);
-                            if (Array.isArray(parsed) && parsed.length > 0) {
-                                notifications = parsed;
-                                await removeLoaderAndRender(notifications);
-                            } else {
-                                showError(error.message || 'Failed to load notifications');
-                            }
-                        } catch (e) {
-                            showError(error.message || 'Failed to load notifications');
-                        }
-                    } else {
-                        showError(error.message || 'Failed to load notifications');
-                    }
-                }
-            }
         }
 
         function closeNotificationModal() {

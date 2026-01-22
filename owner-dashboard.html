@@ -108,6 +108,7 @@
             display: flex;
             align-items: center;
             gap: 1rem;
+            margin-left: auto; /* Push to far right */
         }
 
         /* Notification Bell Icon */
@@ -117,7 +118,8 @@
             border: none;
             cursor: pointer;
             padding: 0.5rem;
-            margin-left: 1rem;
+            margin-left: 0; /* Remove left margin - positioned at far right */
+            margin-right: 0; /* No right margin */
             color: var(--text-secondary);
             font-size: 1.25rem;
             transition: all 0.2s ease;

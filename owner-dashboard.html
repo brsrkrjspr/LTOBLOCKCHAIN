@@ -2197,61 +2197,104 @@
         }
 
         function loadNotifications() {
-            // Try to load from API, fallback to localStorage or sample data
-            if (typeof window.apiClient !== 'undefined' && window.apiClient) {
-                // Load from API
-                window.apiClient.get('/api/notifications')
-                    .then(response => {
-                        // API returns { success: true, notifications: [...] }
-                        // Also check for response.data for compatibility
-                        let apiNotifications = null;
-                        if (response && response.success && response.notifications && Array.isArray(response.notifications) && response.notifications.length > 0) {
-                            apiNotifications = response.notifications;
-                        } else if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-                            apiNotifications = response.data;
-                        }
-                        
-                        if (apiNotifications) {
-                            // Transform API notifications to match expected format
-                            notifications = apiNotifications.map(notif => ({
-                                id: notif.id,
-                                title: notif.title || 'Notification',
-                                message: notif.message || '',
-                                time: notif.sentAt ? formatTimeAgo(notif.sentAt) : 'Recently',
-                                read: notif.read || false,
-                                type: notif.type || 'info'
-                            }));
-                            // Save to localStorage for offline access
-                            try {
-                                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
-                            } catch (e) {
-                                console.error('Error saving notifications to localStorage:', e);
+            // Return a promise so callers can await it
+            return new Promise((resolve, reject) => {
+                // Try to load from API, fallback to localStorage or sample data
+                if (typeof window.apiClient !== 'undefined' && window.apiClient) {
+                    // Load from API
+                    window.apiClient.get('/api/notifications')
+                        .then(response => {
+                            // API returns { success: true, notifications: [...] }
+                            // Also check for response.data for compatibility
+                            let apiNotifications = null;
+                            if (response && response.success === true && response.notifications && Array.isArray(response.notifications)) {
+                                // Accept empty arrays too - they're valid responses
+                                apiNotifications = response.notifications;
+                            } else if (response && response.success === true && response.data && Array.isArray(response.data)) {
+                                apiNotifications = response.data;
+                            } else if (response && response.success === false) {
+                                // API returned an error response, fall through to use localStorage/sample
+                                console.warn('API returned error response:', response.error || response.message);
+                                apiNotifications = null;
                             }
-                        } else {
-                            notifications = getSampleNotifications();
-                            // Save sample notifications to localStorage
-                            try {
-                                localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
-                            } catch (e) {
-                                console.error('Error saving notifications to localStorage:', e);
+                            
+                            if (apiNotifications !== null) {
+                                console.log('✅ Loaded notifications from API:', apiNotifications.length);
+                                // Transform API notifications to match expected format
+                                notifications = apiNotifications.map(notif => ({
+                                    id: notif.id,
+                                    title: notif.title || 'Notification',
+                                    message: notif.message || '',
+                                    time: notif.sentAt ? formatTimeAgo(notif.sentAt) : 'Recently',
+                                    read: notif.read || false,
+                                    type: notif.type || 'info'
+                                }));
+                                console.log('✅ Transformed notifications:', notifications.length);
+                                // Save to localStorage for offline access
+                                try {
+                                    localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                                } catch (e) {
+                                    console.error('Error saving notifications to localStorage:', e);
+                                }
+                            } else {
+                                console.log('⚠️ No API notifications, using fallback');
+                                // No valid API response, try localStorage first
+                                const saved = localStorage.getItem('ownerNotifications');
+                                if (saved) {
+                                    try {
+                                        const parsed = JSON.parse(saved);
+                                        if (Array.isArray(parsed) && parsed.length > 0) {
+                                            notifications = parsed;
+                                        } else {
+                                            notifications = getSampleNotifications();
+                                        }
+                                    } catch (e) {
+                                        notifications = getSampleNotifications();
+                                    }
+                                } else {
+                                    notifications = getSampleNotifications();
+                                }
+                                // Save sample notifications to localStorage
+                                try {
+                                    localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
+                                } catch (e) {
+                                    console.error('Error saving notifications to localStorage:', e);
+                                }
                             }
-                        }
-                        renderNotifications();
-                        updateNotificationBadge();
-                    })
-                    .catch(error => {
-                        console.error('Error loading notifications from API:', error);
-                        // Try localStorage first, then sample
-                        notifications = getSampleNotifications();
-                        renderNotifications();
-                        updateNotificationBadge();
-                    });
-            } else {
-                // Use sample notifications or localStorage
-                notifications = getSampleNotifications();
-                renderNotifications();
-                updateNotificationBadge();
-            }
+                            renderNotifications();
+                            updateNotificationBadge();
+                            resolve(notifications);
+                        })
+                        .catch(error => {
+                            console.error('Error loading notifications from API:', error);
+                            // Try localStorage first, then sample
+                            const saved = localStorage.getItem('ownerNotifications');
+                            if (saved) {
+                                try {
+                                    const parsed = JSON.parse(saved);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                        notifications = parsed;
+                                    } else {
+                                        notifications = getSampleNotifications();
+                                    }
+                                } catch (e) {
+                                    notifications = getSampleNotifications();
+                                }
+                            } else {
+                                notifications = getSampleNotifications();
+                            }
+                            renderNotifications();
+                            updateNotificationBadge();
+                            resolve(notifications);
+                        });
+                } else {
+                    // Use sample notifications or localStorage
+                    notifications = getSampleNotifications();
+                    renderNotifications();
+                    updateNotificationBadge();
+                    resolve(notifications);
+                }
+            });
         }
 
         function formatTimeAgo(dateString) {
@@ -2407,24 +2450,27 @@
             }
         }
 
-        function openNotificationModal() {
+        async function openNotificationModal() {
             const notificationModal = document.getElementById('notificationModal');
             if (notificationModal) {
-                // Always render notifications when opening modal
-                // If notifications array is empty, load them first
-                if (!notifications || notifications.length === 0) {
-                    // Force load and wait a bit for async operations
-                    loadNotifications();
-                    // Render after a short delay to ensure data is loaded
-                    setTimeout(function() {
-                        renderNotifications();
-                    }, 100);
-                } else {
-                    // Render immediately if we have notifications
-                    renderNotifications();
-                }
+                console.log('🔔 Opening notification modal...');
+                // Open modal first for better UX
                 notificationModal.classList.add('active');
                 document.body.style.overflow = 'hidden';
+                
+                // Always reload notifications when opening modal to get latest data
+                try {
+                    console.log('📥 Loading notifications...');
+                    await loadNotifications();
+                    console.log('✅ Notifications loaded, count:', notifications ? notifications.length : 0);
+                    // renderNotifications() is already called inside loadNotifications()
+                } catch (error) {
+                    console.error('❌ Error loading notifications in modal:', error);
+                    // Still try to render what we have
+                    renderNotifications();
+                }
+            } else {
+                console.error('❌ Notification modal element not found');
             }
         }
 

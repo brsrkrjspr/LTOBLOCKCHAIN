@@ -490,22 +490,244 @@ function getTimeAgo(timestamp) {
 }
 
 async function markNotificationAsRead(notificationId) {
+    console.log('🔔 [MARK READ] Marking notification as read, ID:', notificationId);
+    
+    // Get the global notifications array if it exists (from owner-dashboard.html)
+    const globalNotifications = window.notifications || [];
+    const notification = globalNotifications.find(n => n.id === notificationId || String(n.id) === String(notificationId));
+    
+    // Store original state for rollback
+    let originalReadState = null;
+    
+    // Optimistically update UI if notification found in global array
+    if (notification) {
+        originalReadState = notification.read;
+        notification.read = true;
+        
+        // Update localStorage immediately
+        try {
+            localStorage.setItem('ownerNotifications', JSON.stringify(globalNotifications));
+        } catch (e) {
+            console.error('Error saving to localStorage:', e);
+        }
+        
+        // Update UI if renderNotifications function exists
+        if (typeof window.renderNotifications === 'function') {
+            window.renderNotifications();
+        }
+        
+        // Update badge if function exists
+        if (typeof window.updateNotificationBadge === 'function') {
+            window.updateNotificationBadge();
+        }
+    }
+    
     try {
         const apiClient = window.apiClient || new APIClient();
-        const response = await apiClient.request(`/api/notifications/${notificationId}/read`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        console.log('📡 [MARK READ] Calling API to mark notification as read...');
+        
+        // Use patch method instead of request
+        const response = await apiClient.patch(`/api/notifications/${notificationId}/read`, {});
+        
+        console.log('✅ [MARK READ] API response:', response);
         
         if (response && response.success) {
+            // Update notification with server response if available
+            if (response.notification && notification) {
+                notification.read = true;
+                notification.readAt = response.notification.readAt;
+                try {
+                    localStorage.setItem('ownerNotifications', JSON.stringify(globalNotifications));
+                } catch (e) {
+                    console.error('Error saving to localStorage:', e);
+                }
+            }
+            
             // Reload notifications to reflect the change
-            await loadUserNotifications();
+            if (typeof loadUserNotifications === 'function') {
+                await loadUserNotifications();
+            }
+            
+            // Update UI
+            if (typeof window.renderNotifications === 'function') {
+                window.renderNotifications();
+            }
+            if (typeof window.updateNotificationBadge === 'function') {
+                window.updateNotificationBadge();
+            }
+            
+            // Show success message
+            if (typeof showNotification === 'function') {
+                showNotification('Notification marked as read', 'success');
+            } else if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Notification marked as read', 'success');
+            }
+            
+            console.log('✅ [MARK READ] Successfully marked notification as read');
+        } else {
+            throw new Error(response?.error || 'Failed to mark notification as read');
         }
     } catch (error) {
-        console.error('Failed to mark notification as read:', error);
-        showNotification('Failed to mark notification as read', 'error');
+        console.error('❌ [MARK READ] Error marking notification as read:', error);
+        console.error('❌ [MARK READ] Error details:', {
+            message: error?.message,
+            error: error?.error,
+            status: error?.status,
+            stack: error?.stack
+        });
+        
+        // Revert optimistic update on error
+        if (notification && originalReadState !== null) {
+            notification.read = originalReadState;
+            try {
+                localStorage.setItem('ownerNotifications', JSON.stringify(globalNotifications));
+            } catch (e) {
+                console.error('Error reverting in localStorage:', e);
+            }
+            
+            // Update UI
+            if (typeof window.renderNotifications === 'function') {
+                window.renderNotifications();
+            }
+            if (typeof window.updateNotificationBadge === 'function') {
+                window.updateNotificationBadge();
+            }
+        }
+        
+        // Extract error message
+        let errorMessage = 'Failed to mark notification as read';
+        if (error?.message) {
+            errorMessage = error.message;
+        } else if (error?.error) {
+            errorMessage = error.error;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        }
+        
+        // Show error message
+        if (typeof showNotification === 'function') {
+            showNotification(errorMessage, 'error');
+        } else if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(errorMessage, 'error');
+        } else {
+            alert(errorMessage);
+        }
+    }
+}
+
+async function deleteNotification(notificationId) {
+    console.log('🗑️ [DELETE] Deleting notification, ID:', notificationId);
+    
+    if (!confirm('Are you sure you want to delete this notification?')) {
+        return;
+    }
+    
+    // Get the global notifications array if it exists (from owner-dashboard.html)
+    const globalNotifications = window.notifications || [];
+    const notification = globalNotifications.find(n => n.id === notificationId || String(n.id) === String(notificationId));
+    
+    if (!notification) {
+        console.error('❌ [DELETE] Notification not found:', notificationId);
+        const errorMsg = 'Notification not found';
+        if (typeof showNotification === 'function') {
+            showNotification(errorMsg, 'error');
+        } else if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(errorMsg, 'error');
+        }
+        return;
+    }
+    
+    // Store original array for rollback
+    const originalNotifications = [...globalNotifications];
+    
+    // Optimistically remove from array
+    const filteredNotifications = globalNotifications.filter(n => n.id !== notificationId && String(n.id) !== String(notificationId));
+    window.notifications = filteredNotifications;
+    
+    // Update localStorage immediately
+    try {
+        localStorage.setItem('ownerNotifications', JSON.stringify(filteredNotifications));
+    } catch (e) {
+        console.error('Error saving to localStorage:', e);
+    }
+    
+    // Update UI immediately
+    if (typeof window.renderNotifications === 'function') {
+        window.renderNotifications();
+    }
+    if (typeof window.updateNotificationBadge === 'function') {
+        window.updateNotificationBadge();
+    }
+    
+    // Delete via API
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        console.log('📡 [DELETE] Calling API to delete notification...');
+        
+        const response = await apiClient.delete(`/api/notifications/${notificationId}`);
+        
+        console.log('✅ [DELETE] API response:', response);
+        
+        if (response && response.success !== false) {
+            console.log('✅ [DELETE] Successfully deleted notification');
+            
+            // Show success message
+            if (typeof showNotification === 'function') {
+                showNotification('Notification deleted', 'success');
+            } else if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Notification deleted', 'success');
+            }
+            
+            // Reload notifications
+            if (typeof loadUserNotifications === 'function') {
+                await loadUserNotifications();
+            }
+        } else {
+            throw new Error(response?.error || 'Failed to delete notification');
+        }
+    } catch (error) {
+        console.error('❌ [DELETE] Error deleting notification:', error);
+        console.error('❌ [DELETE] Error details:', {
+            message: error?.message,
+            error: error?.error,
+            status: error?.status,
+            stack: error?.stack
+        });
+        
+        // Revert optimistic update on error
+        window.notifications = originalNotifications;
+        try {
+            localStorage.setItem('ownerNotifications', JSON.stringify(originalNotifications));
+        } catch (e) {
+            console.error('Error reverting in localStorage:', e);
+        }
+        
+        // Update UI
+        if (typeof window.renderNotifications === 'function') {
+            window.renderNotifications();
+        }
+        if (typeof window.updateNotificationBadge === 'function') {
+            window.updateNotificationBadge();
+        }
+        
+        // Extract error message
+        let errorMessage = 'Failed to delete notification';
+        if (error?.message) {
+            errorMessage = error.message;
+        } else if (error?.error) {
+            errorMessage = error.error;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        }
+        
+        // Show error message
+        if (typeof showNotification === 'function') {
+            showNotification(errorMessage, 'error');
+        } else if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(errorMessage, 'error');
+        } else {
+            alert(errorMessage);
+        }
     }
 }
 
@@ -3333,4 +3555,10 @@ function showBulkDocumentUpdateModal(applicationId) {
     } else {
         alert('Click the upload icon next to each document to update it individually.');
     }
+}
+
+// Make notification functions globally available for onclick handlers
+if (typeof window !== 'undefined') {
+    window.markNotificationAsRead = markNotificationAsRead;
+    window.deleteNotification = deleteNotification;
 }

@@ -13,24 +13,7 @@ const transferDocumentGenerator = require('../services/transferDocumentGenerator
 const jwt = require('jsonwebtoken');
 const { sendMail } = require('../services/gmailApiService');
 const dbModule = require('../database/db');
-
-const TRANSFER_STATUS = {
-    PENDING: 'PENDING',
-    AWAITING_BUYER_DOCS: 'AWAITING_BUYER_DOCS',
-    UNDER_REVIEW: 'UNDER_REVIEW',
-    // When LTO has determined that a fresh inspection is required
-    AWAITING_LTO_INSPECTION: 'AWAITING_LTO_INSPECTION',
-    APPROVED: 'APPROVED',
-    REJECTED: 'REJECTED',
-    EXPIRED: 'EXPIRED',
-    COMPLETED: 'COMPLETED'
-};
-
-const VEHICLE_STATUS = {
-    REGISTERED: 'REGISTERED',
-    TRANSFER_IN_PROGRESS: 'TRANSFER_IN_PROGRESS',
-    TRANSFER_COMPLETED: 'TRANSFER_COMPLETED'
-};
+const { TRANSFER_STATUS, VEHICLE_STATUS } = require('../config/statusConstants');
 
 const TRANSFER_DEADLINE_DAYS = 3;
 
@@ -1487,8 +1470,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 status: [
                     TRANSFER_STATUS.PENDING,
                     TRANSFER_STATUS.AWAITING_BUYER_DOCS,
-                    TRANSFER_STATUS.UNDER_REVIEW,
-                    TRANSFER_STATUS.AWAITING_LTO_INSPECTION
+                    TRANSFER_STATUS.UNDER_REVIEW
                 ]
             });
         } catch (checkError) {
@@ -1780,7 +1762,7 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
             JOIN users seller ON tr.seller_id = seller.id
             WHERE
                 (tr.buyer_id = $1 OR (tr.buyer_id IS NULL AND ((tr.buyer_info::jsonb)->>'email') = $2))
-                AND tr.status IN ('PENDING', 'AWAITING_BUYER_DOCS', 'UNDER_REVIEW', 'AWAITING_LTO_INSPECTION')
+                AND tr.status IN ('PENDING', 'AWAITING_BUYER_DOCS', 'UNDER_REVIEW')
             ORDER BY tr.created_at DESC
             `,
             [userId, userEmail]
@@ -2539,7 +2521,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             });
         }
         
-        if (![TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS, TRANSFER_STATUS.UNDER_REVIEW, TRANSFER_STATUS.AWAITING_LTO_INSPECTION].includes(request.status)) {
+        if (![TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS, TRANSFER_STATUS.UNDER_REVIEW].includes(request.status)) {
             return res.status(400).json({
                 success: false,
                 error: `Cannot approve request with status: ${request.status}`
@@ -2602,12 +2584,13 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         // We treat any existing mvir_number as evidence of a completed LTO inspection.
         const hasInspection = !!vehicle.mvir_number;
         if (!hasInspection) {
-            // If not already flagged, mark the transfer as awaiting LTO inspection and notify parties.
-            if (request.status !== TRANSFER_STATUS.AWAITING_LTO_INSPECTION) {
+            // If not already flagged, mark the transfer as under review (awaiting LTO inspection) and notify parties.
+            // NOTE: AWAITING_LTO_INSPECTION is not in database CHECK constraint, so we use UNDER_REVIEW
+            if (request.status !== TRANSFER_STATUS.UNDER_REVIEW) {
                 const nowIso = new Date().toISOString();
                 await db.updateTransferRequestStatus(
                     id,
-                    TRANSFER_STATUS.AWAITING_LTO_INSPECTION,
+                    TRANSFER_STATUS.UNDER_REVIEW,
                     req.user.userId,
                     null,
                     {

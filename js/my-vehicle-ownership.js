@@ -110,7 +110,9 @@ function displayVehiclesList(ownershipHistory) {
 
         // Normalize status for comparison (handle both uppercase and lowercase)
         const status = (vehicle.status || '').toUpperCase().trim();
-        const isApprovedOrRegistered = status === 'APPROVED' || status === 'REGISTERED';
+        const isApprovedOrRegistered = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.isApprovedOrRegistered) 
+            ? window.StatusUtils.isApprovedOrRegistered(vehicle.status)
+            : (status === 'APPROVED' || status === 'REGISTERED');
 
         if (isApprovedOrRegistered) {
             myVehicles.push(vehicleData);
@@ -756,7 +758,12 @@ async function loadMyTransferRequests() {
         // Filter to only show rejected or pending requests (where document updates are needed)
         const updateableRequests = requests.filter(req => {
             const status = (req.status || '').toUpperCase();
-            return status === 'REJECTED' || status === 'UNDER_REVIEW' || status === 'AWAITING_BUYER_DOCS' || status === 'PENDING';
+            const normalized = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+                ? window.StatusUtils.normalizeStatus(req.status)
+                : status.toLowerCase();
+            return (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
+                ? window.StatusUtils.canUpdateDocuments(req.status)
+                : (status === 'REJECTED' || status === 'UNDER_REVIEW' || status === 'AWAITING_BUYER_DOCS' || status === 'PENDING');
         });
         
         if (updateableRequests.length === 0) {
@@ -810,8 +817,12 @@ function createTransferRequestCard(request) {
     
     const vehicle = request.vehicle || {};
     const status = (request.status || '').toUpperCase();
-    const normalizedStatus = status.toLowerCase();
-    const canUpdate = ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
+    const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+        ? window.StatusUtils.normalizeStatus(request.status)
+        : status.toLowerCase();
+    const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
+        ? window.StatusUtils.canUpdateDocuments(request.status)
+        : ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
     
     // Get rejection reason if available
     const rejectionReason = request.rejectionReason || request.rejection_reason || null;
@@ -885,8 +896,12 @@ async function showTransferRequestDetails(requestId) {
         const vehicle = request.vehicle || {};
         const documents = request.documents || [];
         const status = (request.status || '').toUpperCase();
-        const normalizedStatus = status.toLowerCase();
-        const canUpdate = ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
+        const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+            ? window.StatusUtils.normalizeStatus(request.status)
+            : status.toLowerCase();
+        const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
+            ? window.StatusUtils.canUpdateDocuments(request.status)
+            : ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
         
         // Create modal (reuse structure from owner-dashboard.js)
         const modal = document.createElement('div');

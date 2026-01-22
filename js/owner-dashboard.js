@@ -184,10 +184,16 @@ async function updateOwnerStats() {
                     return status === 'APPROVED' || status === 'REGISTERED';
                 }).length;
                 stats.pendingApplications = localApplications.filter(v => {
+                    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.isPendingOrSubmitted) {
+                        return window.StatusUtils.isPendingOrSubmitted(v.status);
+                    }
                     const status = (v.status || '').toUpperCase();
                     return status === 'SUBMITTED' || status === 'PENDING' || status === 'PENDING_BLOCKCHAIN';
                 }).length;
                 stats.approvedApplications = localApplications.filter(v => {
+                    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.isApprovedOrRegistered) {
+                        return window.StatusUtils.isApprovedOrRegistered(v.status);
+                    }
                     const status = (v.status || '').toUpperCase();
                     return status === 'APPROVED' || status === 'REGISTERED';
                 }).length;
@@ -1313,7 +1319,12 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Use StatusUtils.getStatusText if available, otherwise fallback
 function getStatusText(status) {
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
+        return window.StatusUtils.getStatusText(status);
+    }
+    // Fallback for backward compatibility
     const statusMap = {
         'submitted': 'Pending Review',
         'approved': 'Approved',
@@ -1321,7 +1332,8 @@ function getStatusText(status) {
         'processing': 'Processing',
         'completed': 'Completed'
     };
-    return statusMap[status] || status;
+    const normalized = (status || '').toLowerCase();
+    return statusMap[normalized] || status;
 }
 
 function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
@@ -1563,9 +1575,11 @@ function showApplicationDetailsModal(application) {
     let documents = application.documents || {};
     const status = application.status || 'submitted';
     // Normalize status for consistent comparison
-    const normalizedStatus = (status || '').toLowerCase();
-    
-    console.log('📂 Initial documents:', documents, 'Type:', typeof documents, 'IsArray:', Array.isArray(documents));
+            const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+                ? window.StatusUtils.normalizeStatus(status)
+                : (status || '').toLowerCase();
+            
+            console.log('📂 Initial documents:', documents, 'Type:', typeof documents, 'IsArray:', Array.isArray(documents));
     
     // Handle documents if they're in array format (from API)
     if (Array.isArray(documents)) {
@@ -1640,8 +1654,12 @@ function showApplicationDetailsModal(application) {
             
             // Check if application is pending/rejected (allows document updates)
             // Normalize status to handle both uppercase and lowercase from backend
-            const normalizedStatus = (status || '').toLowerCase();
-            const canUpdate = ['submitted', 'processing', 'rejected', 'pending'].includes(normalizedStatus);
+            const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+                ? window.StatusUtils.normalizeStatus(status)
+                : (status || '').toLowerCase();
+            const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
+                ? window.StatusUtils.canUpdateDocuments(status)
+                : ['submitted', 'processing', 'rejected', 'pending'].includes(normalizedStatus);
             
             documentListHTML += `
                 <div class="doc-select-item" data-doc-key="${docType.key}" data-doc-id="${docData.id || ''}">

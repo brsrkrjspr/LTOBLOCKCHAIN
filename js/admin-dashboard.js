@@ -2129,7 +2129,11 @@ function createApplicationRow(application) {
 }
 
 function getStatusText(status) {
-    // Normalize status to lowercase for mapping
+    // Use StatusUtils.getStatusText if available, otherwise fallback
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
+        return window.StatusUtils.getStatusText(status);
+    }
+    // Fallback for backward compatibility
     const normalizedStatus = (status || '').toLowerCase();
     const statusMap = {
         'submitted': 'Pending Review',

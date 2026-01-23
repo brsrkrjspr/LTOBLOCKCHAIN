@@ -3002,10 +3002,18 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         
         // Update vehicle ownership and set origin type to TRANSFER for the new owner
         // After transfer completion, vehicle should remain REGISTERED (or APPROVED) so it shows up properly for the new owner
-        // TRANSFER_COMPLETED is a temporary status - we should restore the vehicle to its active status
-        const vehicleStatusAfterTransfer = vehicle.status === 'REGISTERED' || vehicle.status === 'APPROVED' 
-            ? vehicle.status 
-            : VEHICLE_STATUS.REGISTERED; // Default to REGISTERED if vehicle wasn't in an active state
+        // TRANSFER_COMPLETED and TRANSFER_IN_PROGRESS are temporary statuses - we should restore the vehicle to its active status
+        let vehicleStatusAfterTransfer;
+        if (vehicle.status === 'REGISTERED' || vehicle.status === 'APPROVED') {
+            // Keep the existing active status
+            vehicleStatusAfterTransfer = vehicle.status;
+        } else if (vehicle.status === 'TRANSFER_COMPLETED' || vehicle.status === 'TRANSFER_IN_PROGRESS') {
+            // Explicitly revert transfer statuses to REGISTERED (they were active before transfer started)
+            vehicleStatusAfterTransfer = VEHICLE_STATUS.REGISTERED;
+        } else {
+            // For any other status, default to REGISTERED
+            vehicleStatusAfterTransfer = VEHICLE_STATUS.REGISTERED;
+        }
         
         await db.updateVehicle(request.vehicle_id, { 
             ownerId: buyerId, 

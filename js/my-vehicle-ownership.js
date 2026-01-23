@@ -110,9 +110,16 @@ function displayVehiclesList(ownershipHistory) {
 
         // Normalize status for comparison (handle both uppercase and lowercase)
         const status = (vehicle.status || '').toUpperCase().trim();
+        
+        // TRANSFER_COMPLETED should be treated as REGISTERED (it's a temporary status that should be reverted)
+        // Also handle TRANSFER_IN_PROGRESS which might appear in pending vehicles
+        const normalizedStatus = (status === 'TRANSFER_COMPLETED' || status === 'TRANSFER_IN_PROGRESS') 
+            ? 'REGISTERED' 
+            : status;
+        
         const isApprovedOrRegistered = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.isApprovedOrRegistered) 
-            ? window.StatusUtils.isApprovedOrRegistered(vehicle.status)
-            : (status === 'APPROVED' || status === 'REGISTERED');
+            ? window.StatusUtils.isApprovedOrRegistered(normalizedStatus)
+            : (normalizedStatus === 'APPROVED' || normalizedStatus === 'REGISTERED');
 
         if (isApprovedOrRegistered) {
             myVehicles.push(vehicleData);

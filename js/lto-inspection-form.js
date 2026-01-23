@@ -177,15 +177,46 @@ async function loadVehicleDetails(vehicleId) {
                 }
             }
             
-            // Populate vehicle info
-            document.getElementById('ownerName').value = 
-                `${response.vehicle.owner_first_name || ''} ${response.vehicle.owner_last_name || ''}`.trim() || 'N/A';
-            document.getElementById('plateNumber').value = response.vehicle.plate_number || 'N/A';
-            document.getElementById('vin').value = response.vehicle.vin || 'N/A';
-            document.getElementById('makeModel').value = `${response.vehicle.make || ''} ${response.vehicle.model || ''}`.trim() || 'N/A';
-            document.getElementById('year').value = response.vehicle.year || 'N/A';
-            document.getElementById('engineNumber').value = response.vehicle.engine_number || 'N/A';
-            document.getElementById('chassisNumber').value = response.vehicle.chassis_number || 'N/A';
+            // Populate vehicle info - handle multiple field name variations and null values
+            const vehicle = response.vehicle;
+            
+            // Owner name - try multiple field variations (current owner after transfer)
+            const ownerFirstName = vehicle.owner_first_name || vehicle.ownerFirstName || 
+                (vehicle.owner && vehicle.owner.firstName) || '';
+            const ownerLastName = vehicle.owner_last_name || vehicle.ownerLastName || 
+                (vehicle.owner && vehicle.owner.lastName) || '';
+            const ownerName = vehicle.owner_name || vehicle.ownerName || 
+                (vehicle.owner && vehicle.owner.name) || 
+                (ownerFirstName && ownerLastName ? `${ownerFirstName} ${ownerLastName}` : '') ||
+                vehicle.owner_email || '';
+            
+            document.getElementById('ownerName').value = ownerName.trim() || 'Not Available';
+            
+            // Plate number - try multiple variations
+            document.getElementById('plateNumber').value = 
+                vehicle.plate_number || vehicle.plateNumber || 'Pending Assignment';
+            
+            // VIN - should always be present
+            document.getElementById('vin').value = vehicle.vin || 'Not Available';
+            
+            // Make/Model - combine with proper handling
+            const make = vehicle.make || '';
+            const model = vehicle.model || '';
+            document.getElementById('makeModel').value = 
+                `${make} ${model}`.trim() || 'Not Available';
+            
+            // Year - handle null/undefined
+            document.getElementById('year').value = vehicle.year || 'Not Available';
+            
+            // Engine number - try multiple field variations
+            document.getElementById('engineNumber').value = 
+                vehicle.engine_number || vehicle.engineNumber || vehicle.engine_no || 
+                vehicle.engineNo || 'Not Recorded';
+            
+            // Chassis number - try multiple field variations, fallback to VIN if available
+            document.getElementById('chassisNumber').value = 
+                vehicle.chassis_number || vehicle.chassisNumber || vehicle.chassis_no || 
+                vehicle.chassisNo || vehicle.vin || 'Not Recorded';
             
             // Show vehicle info and inspection form
             document.getElementById('vehicleInfoCard').style.display = 'block';

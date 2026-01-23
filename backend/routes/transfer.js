@@ -3015,13 +3015,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             vehicleStatusAfterTransfer = VEHICLE_STATUS.REGISTERED;
         }
         
-        await db.updateVehicle(request.vehicle_id, { 
-            ownerId: buyerId, 
-            originType: 'TRANSFER', 
-            status: vehicleStatusAfterTransfer 
-        });
-        
-        // Transfer ownership on blockchain
+        // Transfer ownership on blockchain FIRST to get transaction ID
         let blockchainTxId = null;
         try {
             if (fabricService.isConnected && fabricService.mode === 'fabric') {
@@ -3029,7 +3023,8 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                 const transferData = {
                     reason: 'Ownership transfer approved',
                     transferDate: new Date().toISOString(),
-                    approvedBy: req.user.email
+                    approvedBy: req.user.email,
+                    currentOwnerEmail: vehicle.owner_email  // Include current owner email for validation
                 };
                 
                 const result = await fabricService.transferOwnership(
@@ -3043,11 +3038,20 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                 );
                 
                 blockchainTxId = result.transactionId;
+                console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
             }
         } catch (blockchainError) {
-            console.warn('Blockchain transfer failed:', blockchainError.message);
-            // Continue with approval even if blockchain fails
+            console.warn('⚠️ Blockchain transfer failed:', blockchainError.message);
+            // Continue with approval even if blockchain fails - database is source of truth
         }
+        
+        // Update vehicle with new owner, status, and blockchain transaction ID
+        await db.updateVehicle(request.vehicle_id, { 
+            ownerId: buyerId, 
+            originType: 'TRANSFER', 
+            status: vehicleStatusAfterTransfer,
+            blockchainTxId: blockchainTxId || undefined  // Save blockchain transaction ID if available
+        });
         
         // Update transfer request status
         await db.updateTransferRequestStatus(id, TRANSFER_STATUS.COMPLETED, req.user.userId, null, {
@@ -3055,8 +3059,6 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             approvedAt: new Date().toISOString(),
             notes: notes || null
         });
-
-        // FIX 3: Link buyer's documents to vehicle (for blockchain history - append-only)
         try {
             const buyerDocs = await db.getTransferRequestDocuments(id);
             const buyerDocIds = buyerDocs

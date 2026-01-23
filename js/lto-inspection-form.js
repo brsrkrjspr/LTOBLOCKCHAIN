@@ -180,21 +180,38 @@ async function loadVehicleDetails(vehicleId) {
             // Populate vehicle info - handle multiple field name variations and null values
             const vehicle = response.vehicle;
             
+            // Debug: Log vehicle data to help diagnose N/A issues
+            if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
+                console.log('[LTO Inspection] Vehicle data received:', {
+                    hasOwner: !!vehicle.owner,
+                    ownerId: vehicle.ownerId || vehicle.owner_id,
+                    ownerName: vehicle.ownerName || vehicle.owner_name,
+                    ownerFirstName: vehicle.ownerFirstName || vehicle.owner_first_name,
+                    ownerLastName: vehicle.ownerLastName || vehicle.owner_last_name,
+                    ownerEmail: vehicle.ownerEmail || vehicle.owner_email,
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    year: vehicle.year,
+                    plateNumber: vehicle.plateNumber || vehicle.plate_number,
+                    vin: vehicle.vin
+                });
+            }
+            
             // Owner name - try multiple field variations (current owner after transfer)
-            const ownerFirstName = vehicle.owner_first_name || vehicle.ownerFirstName || 
+            const ownerFirstName = vehicle.ownerFirstName || vehicle.owner_first_name || 
                 (vehicle.owner && vehicle.owner.firstName) || '';
-            const ownerLastName = vehicle.owner_last_name || vehicle.ownerLastName || 
+            const ownerLastName = vehicle.ownerLastName || vehicle.owner_last_name || 
                 (vehicle.owner && vehicle.owner.lastName) || '';
-            const ownerName = vehicle.owner_name || vehicle.ownerName || 
+            const ownerName = vehicle.ownerName || vehicle.owner_name || 
                 (vehicle.owner && vehicle.owner.name) || 
                 (ownerFirstName && ownerLastName ? `${ownerFirstName} ${ownerLastName}` : '') ||
-                vehicle.owner_email || '';
+                vehicle.ownerEmail || vehicle.owner_email || '';
             
             document.getElementById('ownerName').value = ownerName.trim() || 'Not Available';
             
             // Plate number - try multiple variations
             document.getElementById('plateNumber').value = 
-                vehicle.plate_number || vehicle.plateNumber || 'Pending Assignment';
+                vehicle.plateNumber || vehicle.plate_number || 'Pending Assignment';
             
             // VIN - should always be present
             document.getElementById('vin').value = vehicle.vin || 'Not Available';
@@ -205,18 +222,19 @@ async function loadVehicleDetails(vehicleId) {
             document.getElementById('makeModel').value = 
                 `${make} ${model}`.trim() || 'Not Available';
             
-            // Year - handle null/undefined
-            document.getElementById('year').value = vehicle.year || 'Not Available';
+            // Year - handle null/undefined (convert to string for input field)
+            const yearValue = vehicle.year ? String(vehicle.year) : 'Not Available';
+            document.getElementById('year').value = yearValue;
             
             // Engine number - try multiple field variations
-            document.getElementById('engineNumber').value = 
-                vehicle.engine_number || vehicle.engineNumber || vehicle.engine_no || 
-                vehicle.engineNo || 'Not Recorded';
+            const engineNumber = vehicle.engineNumber || vehicle.engine_number || vehicle.engine_no || 
+                vehicle.engineNo || '';
+            document.getElementById('engineNumber').value = engineNumber || 'Not Recorded';
             
             // Chassis number - try multiple field variations, fallback to VIN if available
-            document.getElementById('chassisNumber').value = 
-                vehicle.chassis_number || vehicle.chassisNumber || vehicle.chassis_no || 
-                vehicle.chassisNo || vehicle.vin || 'Not Recorded';
+            const chassisNumber = vehicle.chassisNumber || vehicle.chassis_number || vehicle.chassis_no || 
+                vehicle.chassisNo || '';
+            document.getElementById('chassisNumber').value = chassisNumber || vehicle.vin || 'Not Recorded';
             
             // Show vehicle info and inspection form
             document.getElementById('vehicleInfoCard').style.display = 'block';

@@ -90,11 +90,12 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         'buyerMvir': docTypes.TRANSFER_ROLES.BUYER_MVIR,
         'buyer_mvir': docTypes.TRANSFER_ROLES.BUYER_MVIR,
         'buyerHpgClearance': docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE,
-        'buyer_hpg_clearance': docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE,
-        'transferPackage': docTypes.TRANSFER_ROLES.TRANSFER_PACKAGE,
-        'transfer_package_pdf': docTypes.TRANSFER_ROLES.TRANSFER_PACKAGE,
-        'transferCertificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE,
-        'transfer_certificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE
+        'buyer_hpg_clearance': docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
+        // transferPackage and transferCertificate removed: System-generated, not user-uploaded
+        // 'transferPackage': docTypes.TRANSFER_ROLES.TRANSFER_PACKAGE, // DEPRECATED
+        // 'transfer_package_pdf': docTypes.TRANSFER_ROLES.TRANSFER_PACKAGE, // DEPRECATED
+        // 'transferCertificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE, // DEPRECATED
+        // 'transfer_certificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE // DEPRECATED
     };
 
     for (const [roleKey, docId] of Object.entries(documents)) {
@@ -2910,7 +2911,11 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             notes: notes || null
         });
 
-        // Generate transfer package document for record/demo
+        // Transfer package generation removed - not needed per requirements
+        // Seller: Deed of Sale, ID
+        // Buyer: MVIR, HPG, Insurance (CTPL), ID, TIN
+        // OR/CR is auto-linked to vehicle
+        /*
         let generatedPackage = null;
         try {
             generatedPackage = await transferDocumentGenerator.generateTransferPackage({
@@ -2948,6 +2953,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         } catch (packageError) {
             console.warn('⚠️ Failed to generate transfer package document:', packageError.message);
         }
+        */
         
         // Get full owner details for history
         const previousOwner = await db.getUserById(request.seller_id);

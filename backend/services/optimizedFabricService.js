@@ -117,6 +117,48 @@ class OptimizedFabricService {
         }
     }
 
+    /**
+     * Replicate Fabric's BlockHeaderBytes (protoutil/blockutils.go): ASN.1 DER
+     * SEQUENCE { INTEGER Number, OCTET STRING PreviousHash, OCTET STRING DataHash }.
+     * BlockHeaderHash = SHA256(BlockHeaderBytes(header)); this must match
+     * the next block's header.previous_hash for chain integrity.
+     */
+    _blockHeaderBytesAsn1(header) {
+        if (!header) return null;
+        const prev = header.previous_hash;
+        const data = header.data_hash;
+        const num = header.number;
+        const prevBuf = (prev != null) ? (Buffer.isBuffer(prev) ? prev : Buffer.from(prev)) : Buffer.alloc(0);
+        const dataBuf = (data != null) ? (Buffer.isBuffer(data) ? data : Buffer.from(data)) : Buffer.alloc(0);
+        let n = 0n;
+        if (num !== undefined && num !== null) {
+            if (typeof num === 'number') n = BigInt(num);
+            else if (typeof num.low === 'number') n = BigInt(num.low) + BigInt(num.high || 0) * (2n ** 32n);
+            else if (typeof num.toNumber === 'function') n = BigInt(num.toNumber());
+            else n = BigInt(num);
+        }
+        if (n < 0n) n = 0n;
+        let numBytes;
+        if (n === 0n) numBytes = Buffer.from([0]);
+        else {
+            let h = n.toString(16);
+            if (h.length % 2) h = '0' + h;
+            numBytes = Buffer.from(h, 'hex');
+            if (numBytes[0] & 0x80) numBytes = Buffer.concat([Buffer.from([0x00]), numBytes]);
+        }
+        const encLenFull = (L) => {
+            if (L < 128) return Buffer.from([L]);
+            const bytes = [];
+            let x = L;
+            while (x > 0) { bytes.unshift(x & 0xff); x = Math.floor(x / 256); }
+            return Buffer.concat([Buffer.from([0x80 | bytes.length]), Buffer.from(bytes)]);
+        };
+        const encInt = Buffer.concat([Buffer.from([0x02]), encLenFull(numBytes.length), numBytes]);
+        const encOct = (buf) => Buffer.concat([Buffer.from([0x04]), encLenFull(buf.length), buf]);
+        const inner = Buffer.concat([encInt, encOct(prevBuf), encOct(dataBuf)]);
+        return Buffer.concat([Buffer.from([0x30]), encLenFull(inner.length), inner]);
+    }
+
     // Register vehicle - Fabric only (with separate OR and CR)
     async registerVehicle(vehicleData) {
         // Auto-reconnect if connection lost
@@ -687,23 +729,18 @@ class OptimizedFabricService {
             console.warn('⚠️ Failed to extract timestamp from block:', error.message);
         }
 
-        // Compute current block hash the same way Fabric does: SHA-256 of the
-        // serialized BlockHeader protobuf. This must match what the orderer puts
-        // into the next block's header.previous_hash for chain integrity to hold.
+        // Compute current block hash exactly like Fabric: SHA-256 of BlockHeaderBytes(header).
+        // Fabric's BlockHeaderBytes uses ASN.1 DER: SEQUENCE { INTEGER number, OCTET STRING previous_hash, OCTET STRING data_hash }
+        // (see fabric/protoutil/blockutils.go BlockHeaderBytes+BlockHeaderHash). This must match
+        // the next block's header.previous_hash for chain integrity.
         let currentHash = null;
         try {
-            const fabricProtos = require('fabric-protos');
-            const BlockHeader = fabricProtos.common && fabricProtos.common.BlockHeader;
-            if (BlockHeader && typeof BlockHeader.encode === 'function' && block && block.header) {
-                const writer = BlockHeader.encode(block.header);
-                const encoded = writer && typeof writer.finish === 'function' ? writer.finish() : null;
-                if (encoded && encoded.length > 0) {
-                    const hash = crypto.createHash('sha256').update(Buffer.from(encoded)).digest('hex');
-                    currentHash = '0x' + hash;
-                }
+            const headerBytes = this._blockHeaderBytesAsn1(block?.header);
+            if (headerBytes && headerBytes.length > 0) {
+                currentHash = '0x' + crypto.createHash('sha256').update(headerBytes).digest('hex');
             }
         } catch (error) {
-            console.warn('⚠️ Failed to compute block hash (Fabric BlockHeader.encode):', error.message);
+            console.warn('⚠️ Failed to compute block hash (Fabric ASN.1 BlockHeaderBytes):', error.message);
         }
 
         return {

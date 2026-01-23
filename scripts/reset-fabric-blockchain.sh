@@ -201,32 +201,82 @@ docker cp "$CHANNEL_TX" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/
 
 # Copy orderer TLS CA cert to peer container (CRITICAL: use orderer's TLS CA, not peer's)
 ORDERER_TLS_CA="fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/ca.crt"
+ORDERER_TLSCA_DIR="fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/tlsca"
+
+# Find orderer TLS CA (try multiple locations)
 if [ ! -f "$ORDERER_TLS_CA" ]; then
-    echo "❌ Orderer TLS CA certificate not found at: $ORDERER_TLS_CA"
+    # Try tlsca directory
+    ORDERER_TLS_CA=$(find "$ORDERER_TLSCA_DIR" -name "*.pem" 2>/dev/null | head -1)
+fi
+
+if [ ! -f "$ORDERER_TLS_CA" ]; then
+    # Try orderer org MSP cacerts as fallback
+    ORDERER_TLS_CA=$(find "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/msp/cacerts" -name "*.pem" 2>/dev/null | head -1)
+fi
+
+if [ ! -f "$ORDERER_TLS_CA" ]; then
+    echo "❌ Orderer TLS CA certificate not found!"
     echo "💡 Check if certificates were generated correctly"
+    echo "💡 Expected locations:"
+    echo "   - fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/ca.crt"
+    echo "   - fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/tlsca/*.pem"
     exit 1
 fi
 
 echo "   Copying orderer TLS CA certificate..."
+echo "   Using: $ORDERER_TLS_CA"
 docker cp "$ORDERER_TLS_CA" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt
+
+# Verify the file was copied
+if ! docker exec peer0.lto.gov.ph test -f /opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt; then
+    echo "❌ Failed to copy orderer TLS CA to peer container"
+    exit 1
+fi
+
 TLS_CA_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt"
 
-# Create channel with timeout wrapper (in case --timeout flag doesn't work)
+# Create channel with timeout wrapper
 echo "   Creating channel..."
-CHANNEL_CREATE_OUTPUT=$(timeout 90s docker exec peer0.lto.gov.ph peer channel create \
+echo "   Using TLS CA: $TLS_CA_FILE"
+
+# First, verify orderer is ready and can accept connections
+echo "   Verifying orderer connectivity..."
+ORDERER_READY=false
+for i in {1..15}; do
+    if docker exec peer0.lto.gov.ph timeout 5s bash -c "echo > /dev/tcp/orderer.lto.gov.ph/7050" 2>/dev/null; then
+        ORDERER_READY=true
+        break
+    fi
+    sleep 2
+done
+
+if [ "$ORDERER_READY" != "true" ]; then
+    echo "⚠️  Orderer port check failed, but continuing..."
+fi
+
+# Create channel
+CHANNEL_CREATE_OUTPUT=$(timeout 120s docker exec peer0.lto.gov.ph peer channel create \
     -o orderer.lto.gov.ph:7050 \
     -c ltochannel \
     -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel.tx \
     --tls \
     --cafile "$TLS_CA_FILE" \
     --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
-    --timeout 60s \
+    --timeout 90s \
     2>&1) || {
-    echo "❌ Channel creation timed out or failed"
-    echo "💡 Checking orderer logs..."
-    docker logs orderer.lto.gov.ph --tail 20
-    echo "💡 Checking peer logs..."
-    docker logs peer0.lto.gov.ph --tail 20
+    CHANNEL_CREATE_EXIT_CODE=$?
+    echo "❌ Channel creation failed (exit code: $CHANNEL_CREATE_EXIT_CODE)"
+    echo ""
+    echo "Channel creation output:"
+    echo "$CHANNEL_CREATE_OUTPUT" | tail -20
+    echo ""
+    echo "💡 Checking orderer logs for channel 'ltochannel'..."
+    docker logs orderer.lto.gov.ph 2>&1 | grep -i "ltochannel\|channel" | tail -10
+    echo ""
+    echo "💡 If orderer says channel already exists, you may need to:"
+    echo "   1. Stop orderer: docker stop orderer.lto.gov.ph"
+    echo "   2. Remove orderer volume: docker volume rm orderer-data"
+    echo "   3. Restart orderer and try again"
     exit 1
 }
 

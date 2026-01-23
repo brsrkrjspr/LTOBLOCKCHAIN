@@ -23,16 +23,15 @@ docker-compose -f docker-compose.fabric.yml ps
 
 ### Step 2: Start Fabric Network
 
-**Option A: Using Fabric-only compose**
+**Using unified compose (recommended):**
 ```bash
 cd ~/LTOBLOCKCHAIN
-docker-compose -f docker-compose.fabric.yml up -d
-```
 
-**Option B: Using unified compose (if Fabric is included)**
-```bash
-cd ~/LTOBLOCKCHAIN
+# Start all services (including Fabric)
 docker-compose -f docker-compose.unified.yml up -d
+
+# OR start only Fabric services
+docker-compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph peer0.lto.gov.ph couchdb
 ```
 
 ### Step 3: Wait for Containers to Start
@@ -42,7 +41,7 @@ docker-compose -f docker-compose.unified.yml up -d
 sleep 30
 
 # Check status
-docker-compose -f docker-compose.fabric.yml ps
+docker-compose -f docker-compose.unified.yml ps
 ```
 
 **Expected Output:**
@@ -50,17 +49,22 @@ docker-compose -f docker-compose.fabric.yml ps
 NAME                    STATUS          PORTS
 peer0.lto.gov.ph        Up              7051/tcp
 orderer.lto.gov.ph      Up              7050/tcp
-ca.lto.gov.ph           Up              7054/tcp
 couchdb                 Up              5984/tcp
+cli                     Up (optional)
 ```
 
 ### Step 4: Verify Fabric is Ready
 
 ```bash
 # Check logs for errors
-docker-compose -f docker-compose.fabric.yml logs peer0.lto.gov.ph | tail -20
+docker-compose -f docker-compose.unified.yml logs peer0.lto.gov.ph | tail -20
 
 # Should see: "Started peer with ID=name:peer0.lto.gov.ph"
+
+# Check orderer logs
+docker-compose -f docker-compose.unified.yml logs orderer.lto.gov.ph | tail -20
+
+# Should see: "Beginning to serve requests"
 ```
 
 ### Step 5: Run the Script Again
@@ -83,7 +87,7 @@ docker ps
 netstat -tulpn | grep -E "7051|7050|7054|5984"
 
 # Check logs
-docker-compose -f docker-compose.fabric.yml logs
+docker-compose -f docker-compose.unified.yml logs peer0.lto.gov.ph orderer.lto.gov.ph
 ```
 
 ### If connection still fails:

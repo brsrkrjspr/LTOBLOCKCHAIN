@@ -13,17 +13,17 @@ cd ~/LTOBLOCKCHAIN
 # Check if Fabric containers exist
 docker ps -a | grep -E "peer0|orderer"
 
-# Start Fabric network
-docker-compose -f docker-compose.fabric.yml up -d
+# Start Fabric network (using unified compose)
+docker-compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph peer0.lto.gov.ph couchdb
 
-# Or if using unified compose
-docker-compose -f docker-compose.unified.yml up -d fabric
+# Or start all services
+docker-compose -f docker-compose.unified.yml up -d
 
 # Wait for containers to be ready (30-60 seconds)
 sleep 30
 
 # Verify they're running
-docker-compose -f docker-compose.fabric.yml ps
+docker-compose -f docker-compose.unified.yml ps
 ```
 
 **Expected:** All containers should show "Up" status.

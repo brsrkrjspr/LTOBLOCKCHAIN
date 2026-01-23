@@ -60,6 +60,13 @@ async function registerMissingVehiclesOnBlockchain() {
             require('dotenv').config();
         }
         
+        // IMPORTANT: When running scripts on host (outside Docker), use localhost
+        // The Fabric SDK will translate Docker hostnames to localhost when asLocalhost=true
+        if (!process.env.FABRIC_AS_LOCALHOST) {
+            process.env.FABRIC_AS_LOCALHOST = 'true';
+            console.log('📝 Set FABRIC_AS_LOCALHOST=true for host-side execution');
+        }
+        
         console.log(`👤 Running as: ${currentUser} on ${hostname}`);
         console.log(`⏰ Started at: ${new Date().toISOString()}\n`);
         

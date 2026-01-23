@@ -70,12 +70,22 @@ fi
 
 echo ""
 echo "4️⃣  Checking vehicles on Fabric blockchain..."
-if command -v node &> /dev/null; then
-    FABRIC_VEHICLES=$(node backend/scripts/show-fabric-vehicles.js 2>&1 | grep -oE "Found [0-9]+ vehicle" | grep -oE "[0-9]+" | head -1 || echo "0")
+echo "   Trying to query via application container (can access Docker network)..."
+if docker ps | grep -q "lto-app"; then
+    FABRIC_VEHICLES=$(docker exec lto-app node backend/scripts/show-fabric-vehicles.js 2>&1 | grep -oE "Found [0-9]+ vehicle" | grep -oE "[0-9]+" | head -1 || echo "0")
     FABRIC_VEHICLES=${FABRIC_VEHICLES:-0}
     if [ "$FABRIC_VEHICLES" = "0" ]; then
         echo "   ❌ No vehicles found on Fabric blockchain"
-        echo "   ⚠️  This suggests Fabric is NOT being used"
+        echo "   ⚠️  This suggests Fabric is NOT being used OR vehicles were registered before blockchain enforcement"
+    else
+        echo "   ✅ Found $FABRIC_VEHICLES vehicle(s) on Fabric blockchain"
+    fi
+elif command -v node &> /dev/null; then
+    echo "   ⚠️  Application container not running, trying from host..."
+    FABRIC_VEHICLES=$(node backend/scripts/show-fabric-vehicles.js 2>&1 | grep -oE "Found [0-9]+ vehicle" | grep -oE "[0-9]+" | head -1 || echo "0")
+    FABRIC_VEHICLES=${FABRIC_VEHICLES:-0}
+    if [ "$FABRIC_VEHICLES" = "0" ]; then
+        echo "   ❌ No vehicles found (may be network issue - try running inside container)"
     else
         echo "   ✅ Found $FABRIC_VEHICLES vehicle(s) on Fabric blockchain"
     fi

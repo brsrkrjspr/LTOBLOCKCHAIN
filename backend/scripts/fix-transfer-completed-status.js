@@ -1,11 +1,34 @@
 // Script to fix vehicles with TRANSFER_COMPLETED status
 // This reverts them to REGISTERED status so they appear in "My Vehicles" section
 
+// Load environment variables first (before requiring db module)
+// Try to load .env file from project root, but don't fail if it doesn't exist
+const path = require('path');
+const envPath = path.join(__dirname, '../../.env');
+try {
+    require('dotenv').config({ path: envPath });
+    console.log(`📋 Loaded environment variables from: ${envPath}`);
+} catch (error) {
+    console.warn(`⚠️ Could not load .env file from ${envPath}, using system environment variables`);
+    // dotenv.config() will still work if .env doesn't exist - it just uses system env vars
+    require('dotenv').config();
+}
+
 const db = require('../database/db');
 const { VEHICLE_STATUS } = require('../config/statusConstants');
 
 async function fixTransferCompletedStatus() {
     try {
+        // Verify database connection first
+        console.log('🔌 Verifying database connection...');
+        console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
+        console.log(`   Database: ${process.env.DB_NAME || 'lto_blockchain'}`);
+        console.log(`   User: ${process.env.DB_USER || 'lto_user'}`);
+        
+        // Test connection
+        await db.query('SELECT 1');
+        console.log('✅ Database connection successful\n');
+        
         console.log('🔍 Checking for vehicles with TRANSFER_COMPLETED status...');
         
         // Find vehicles with TRANSFER_COMPLETED status

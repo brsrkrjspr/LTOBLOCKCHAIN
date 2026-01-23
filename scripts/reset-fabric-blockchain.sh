@@ -29,6 +29,17 @@ if [[ ! $REPLY == "RESET" ]]; then
     exit 1
 fi
 
+# Ask about PostgreSQL reset
+echo ""
+read -p "Do you also want to RESET PostgreSQL (delete all application data)? (type 'YES' to confirm, or press Enter to skip): " -r
+RESET_POSTGRES=""
+if [[ $REPLY == "YES" ]]; then
+    RESET_POSTGRES="yes"
+    echo "⚠️  PostgreSQL will be cleared (all vehicles, transfers, documents, etc.)"
+    echo "   User accounts and schema will be preserved"
+fi
+echo ""
+
 # Step 1: Stop all Fabric containers
 echo ""
 echo "1️⃣ Stopping Fabric containers..."
@@ -102,8 +113,39 @@ bash scripts/setup-tls-certs.sh 2>/dev/null || echo "⚠️  TLS setup had issue
 echo "🔟 Fixing MSP structure..."
 bash scripts/fix-fabric-ca-chain.sh 2>/dev/null || echo "⚠️  MSP fix had issues, continuing..."
 
-# Step 11: Recreate wallet
-echo "1️⃣1️⃣ Recreating wallet..."
+# Step 11: Reset PostgreSQL (if requested)
+if [ "$RESET_POSTGRES" == "yes" ]; then
+    echo "1️⃣1️⃣ Resetting PostgreSQL database..."
+    
+    # Check if PostgreSQL container is running
+    if ! docker ps | grep -q "postgres"; then
+        echo "⚠️  PostgreSQL container not running, skipping database reset"
+    else
+        # Check if clear-application-data.sql exists
+        if [ -f "database/clear-application-data.sql" ]; then
+            echo "   Clearing application data (preserving users and schema)..."
+            docker exec -i postgres psql -U lto_user -d lto_blockchain < database/clear-application-data.sql 2>&1 | grep -v "NOTICE" || {
+                echo "⚠️  PostgreSQL reset had issues (check logs above)"
+            }
+            echo "✅ PostgreSQL data cleared"
+        else
+            echo "⚠️  database/clear-application-data.sql not found"
+            echo "   Using TRUNCATE CASCADE instead..."
+            docker exec postgres psql -U lto_user -d lto_blockchain -c "
+                TRUNCATE TABLE vehicle_history, transfer_verifications, transfer_documents, 
+                certificate_submissions, notifications, expiry_notifications, certificates, 
+                vehicle_verifications, transfer_requests, clearance_requests, documents, 
+                issued_certificates, vehicles, system_settings, registration_document_requirements CASCADE;
+                ALTER SEQUENCE IF EXISTS or_cr_number_seq RESTART WITH 1;
+                ALTER SEQUENCE IF EXISTS mvir_number_seq RESTART WITH 1;
+            " 2>&1 | grep -v "NOTICE" || echo "⚠️  TRUNCATE had issues"
+            echo "✅ PostgreSQL data cleared (using TRUNCATE)"
+        fi
+    fi
+fi
+
+# Step 12: Recreate wallet
+echo "1️⃣2️⃣ Recreating wallet..."
 rm -rf wallet
 mkdir -p wallet
 if command -v node > /dev/null 2>&1; then
@@ -112,8 +154,8 @@ else
     echo "⚠️  Node.js not found, wallet will be created on app start"
 fi
 
-# Step 12: Start Fabric containers
-echo "1️⃣2️⃣ Starting Fabric containers..."
+# Step 13: Start Fabric containers
+echo "1️⃣3️⃣ Starting Fabric containers..."
 docker compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph couchdb 2>/dev/null || \
 docker-compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph couchdb 2>/dev/null || {
     docker start orderer.lto.gov.ph couchdb 2>/dev/null || true
@@ -130,8 +172,8 @@ docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph 2>/dev/null 
 echo "⏳ Waiting for peer to start..."
 sleep 10
 
-# Step 13: Create and join channel
-echo "1️⃣3️⃣ Creating and joining channel..."
+# Step 14: Create and join channel
+echo "1️⃣4️⃣ Creating and joining channel..."
 
 # Determine channel transaction file name
 CHANNEL_TX="fabric-network/channel-artifacts/ltochannel.tx"
@@ -142,32 +184,53 @@ fi
 # Copy channel transaction to peer
 docker cp "$CHANNEL_TX" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel.tx
 
-# Determine TLS CA file
-PEER_TLS_DIR="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls"
-TLS_CA_FILE="/etc/hyperledger/fabric/tls/ca.crt"
-if [ -f "$PEER_TLS_DIR/orderer-tls-ca.crt" ]; then
-    docker cp "$PEER_TLS_DIR/orderer-tls-ca.crt" peer0.lto.gov.ph:/tmp/orderer-tls-ca.crt
-    TLS_CA_FILE="/tmp/orderer-tls-ca.crt"
+# Copy orderer TLS CA cert to peer container (CRITICAL: use orderer's TLS CA, not peer's)
+ORDERER_TLS_CA="fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls/ca.crt"
+if [ ! -f "$ORDERER_TLS_CA" ]; then
+    echo "❌ Orderer TLS CA certificate not found at: $ORDERER_TLS_CA"
+    echo "💡 Check if certificates were generated correctly"
+    exit 1
 fi
+
+echo "   Copying orderer TLS CA certificate..."
+docker cp "$ORDERER_TLS_CA" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt
+TLS_CA_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt"
 
 # Create channel
 echo "   Creating channel..."
-docker exec peer0.lto.gov.ph peer channel create \
+CHANNEL_CREATE_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel create \
     -o orderer.lto.gov.ph:7050 \
     -c ltochannel \
     -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel.tx \
     --tls \
     --cafile "$TLS_CA_FILE" \
-    --timeout 30s \
-    2>&1 | tail -10
+    --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
+    --timeout 60s \
+    2>&1)
+
+if echo "$CHANNEL_CREATE_OUTPUT" | grep -qi "error\|failed"; then
+    echo "❌ Channel creation failed:"
+    echo "$CHANNEL_CREATE_OUTPUT" | tail -10
+    exit 1
+else
+    echo "$CHANNEL_CREATE_OUTPUT" | tail -5
+fi
 
 # Join channel
 echo "   Joining peer to channel..."
-docker exec peer0.lto.gov.ph peer channel join \
-    -b ltochannel.block \
+CHANNEL_JOIN_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel join \
+    -b /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
     --tls \
     --cafile "$TLS_CA_FILE" \
-    2>&1 | tail -5
+    2>&1)
+
+if echo "$CHANNEL_JOIN_OUTPUT" | grep -qi "error\|failed"; then
+    echo "❌ Channel join failed:"
+    echo "$CHANNEL_JOIN_OUTPUT" | tail -5
+    exit 1
+else
+    echo "$CHANNEL_JOIN_OUTPUT" | tail -5
+fi
 
 # Verify channel
 CHANNEL_LIST=$(docker exec peer0.lto.gov.ph peer channel list 2>&1)
@@ -178,23 +241,30 @@ else
     echo "$CHANNEL_LIST"
 fi
 
-# Step 14: Update anchor peer (if exists)
+# Step 15: Update anchor peer (if exists)
 if [ -f "fabric-network/channel-artifacts/LTOMSPanchors.tx" ]; then
-    echo "1️⃣4️⃣ Updating anchor peer..."
+    echo "1️⃣5️⃣ Updating anchor peer..."
     docker cp fabric-network/channel-artifacts/LTOMSPanchors.tx peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/anchors.tx
     
-    docker exec peer0.lto.gov.ph peer channel update \
+    ANCHOR_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel update \
         -o orderer.lto.gov.ph:7050 \
         -c ltochannel \
         -f /opt/gopath/src/github.com/hyperledger/fabric/peer/anchors.tx \
         --tls \
         --cafile "$TLS_CA_FILE" \
-        2>&1 | tail -3 || echo "⚠️  Anchor peer update failed (may not be critical)"
+        2>&1)
+    
+    if echo "$ANCHOR_OUTPUT" | grep -qi "error\|failed"; then
+        echo "⚠️  Anchor peer update failed (may not be critical):"
+        echo "$ANCHOR_OUTPUT" | tail -3
+    else
+        echo "$ANCHOR_OUTPUT" | tail -3
+    fi
 fi
 
-# Step 15: Deploy chaincode (CRITICAL for vehicle registration and ownership transfer)
+# Step 16: Deploy chaincode (CRITICAL for vehicle registration and ownership transfer)
 echo ""
-echo "1️⃣5️⃣ Deploying chaincode..."
+echo "1️⃣6️⃣ Deploying chaincode..."
 
 # Check if chaincode directory exists
 if [ ! -d "chaincode/vehicle-registration-production" ]; then
@@ -204,19 +274,37 @@ if [ ! -d "chaincode/vehicle-registration-production" ]; then
 else
     # Copy chaincode to peer container
     echo "   Copying chaincode to peer..."
-    docker cp chaincode/vehicle-registration-production peer0.lto.gov.ph:/opt/gopath/src/github.com/chaincode/ 2>/dev/null || {
-        echo "⚠️  Failed to copy chaincode (may already exist, continuing...)"
+    docker cp chaincode/vehicle-registration-production peer0.lto.gov.ph:/opt/gopath/src/github.com/chaincode/ || {
+        echo "❌ Failed to copy chaincode to peer container"
+        exit 1
     }
+    
+    # Verify chaincode was copied successfully
+    echo "   Verifying chaincode copy..."
+    if ! docker exec peer0.lto.gov.ph test -d /opt/gopath/src/github.com/chaincode/vehicle-registration-production; then
+        echo "❌ Chaincode directory not found in peer container after copy"
+        exit 1
+    fi
+    if ! docker exec peer0.lto.gov.ph test -f /opt/gopath/src/github.com/chaincode/vehicle-registration-production/index.js; then
+        echo "❌ Chaincode index.js not found in peer container"
+        exit 1
+    fi
+    echo "   ✅ Chaincode copied successfully"
     
     # Package chaincode
     echo "   Packaging chaincode..."
-    docker exec peer0.lto.gov.ph peer lifecycle chaincode package vehicle-registration.tar.gz \
+    PACKAGE_OUTPUT=$(docker exec peer0.lto.gov.ph peer lifecycle chaincode package vehicle-registration.tar.gz \
         --path /opt/gopath/src/github.com/chaincode/vehicle-registration-production \
         --lang node \
-        --label vehicle-registration_1.0 2>&1 | tail -5 || {
-        echo "❌ Failed to package chaincode"
+        --label vehicle-registration_1.0 2>&1)
+    
+    if echo "$PACKAGE_OUTPUT" | grep -qi "error\|failed"; then
+        echo "❌ Failed to package chaincode:"
+        echo "$PACKAGE_OUTPUT" | tail -10
         exit 1
-    }
+    else
+        echo "$PACKAGE_OUTPUT" | tail -5
+    fi
     
     # Install chaincode
     echo "   Installing chaincode..."
@@ -288,9 +376,9 @@ else
     fi
 fi
 
-# Step 16: Verify reset
+# Step 17: Verify reset
 echo ""
-echo "1️⃣6️⃣ Verifying reset..."
+echo "1️⃣7️⃣ Verifying reset..."
 sleep 5
 
 # Check for errors
@@ -347,6 +435,9 @@ if echo "$CHAINCODE_CHECK" | grep -q "vehicle-registration"; then
 else
     echo "  ⚠️  Chaincode deployment skipped or failed"
 fi
+if [ "$RESET_POSTGRES" == "yes" ]; then
+    echo "  ✅ PostgreSQL data cleared"
+fi
 echo ""
 echo "Next steps:"
 if echo "$CHAINCODE_CHECK" | grep -q "vehicle-registration"; then
@@ -360,18 +451,24 @@ else
     echo "  3. Test registration: Register a new vehicle"
 fi
 echo ""
-echo "⚠️  CRITICAL: PostgreSQL database was NOT cleared."
-echo ""
-echo "📋 IMPORTANT: After Fabric reset, PostgreSQL vehicles still have blockchain_tx_id"
-echo "   values that no longer exist in Fabric. You MUST re-register vehicles:"
-echo ""
-echo "   1. Verify sync status:"
-echo "      bash scripts/verify-postgres-fabric-sync.sh"
-echo ""
-echo "   2. Re-register vehicles from PostgreSQL to Fabric:"
-echo "      docker exec lto-app node backend/scripts/register-missing-vehicles-on-blockchain.js"
-echo ""
-echo "   See POSTGRESQL_FABRIC_SYNC_GUIDE.md for details."
-echo ""
-echo "   If you want to clear application data too, run:"
-echo "   docker exec postgres psql -U lto_user -d lto_blockchain -c 'TRUNCATE vehicles, users, transfers CASCADE;'"
+if [ "$RESET_POSTGRES" != "yes" ]; then
+    echo "⚠️  PostgreSQL database was NOT cleared."
+    echo ""
+    echo "📋 IMPORTANT: After Fabric reset, PostgreSQL vehicles still have blockchain_tx_id"
+    echo "   values that no longer exist in Fabric. You MUST re-register vehicles:"
+    echo ""
+    echo "   1. Verify sync status:"
+    echo "      bash scripts/verify-postgres-fabric-sync.sh"
+    echo ""
+    echo "   2. Re-register vehicles from PostgreSQL to Fabric:"
+    echo "      docker exec lto-app node backend/scripts/register-missing-vehicles-on-blockchain.js"
+    echo ""
+    echo "   See POSTGRESQL_FABRIC_SYNC_GUIDE.md for details."
+    echo ""
+    echo "   If you want to clear application data too, run:"
+    echo "   docker exec postgres psql -U lto_user -d lto_blockchain -c 'TRUNCATE vehicles, users, transfers CASCADE;'"
+else
+    echo "✅ System is completely reset - ready for fresh start!"
+    echo "   - Fabric blockchain: Empty"
+    echo "   - PostgreSQL: Application data cleared (users preserved)"
+fi

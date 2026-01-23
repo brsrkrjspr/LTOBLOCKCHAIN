@@ -2961,10 +2961,62 @@ async function inspectVehicle(vehicleId) {
                         <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
                     </div>
                     <div class="modal-body">
-                        <div style="margin-bottom: 1rem;">
-                            <strong>Vehicle:</strong> ${vehicle.plateNumber || vehicle.vin || 'N/A'}<br>
-                            <strong>Make/Model:</strong> ${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}
+                        <!-- Vehicle Information -->
+                        <div style="margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <h4 style="margin-top: 0; margin-bottom: 0.75rem; color: #1e293b; font-size: 0.95rem; font-weight: 600;">
+                                <i class="fas fa-car" style="margin-right: 0.5rem;"></i>Vehicle Information
+                            </h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.9rem;">
+                                <div>
+                                    <strong style="color: #64748b;">Plate Number:</strong><br>
+                                    <span style="color: #1e293b;">${vehicle.plateNumber || vehicle.plate_number || 'Pending Assignment'}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #64748b;">VIN:</strong><br>
+                                    <span style="color: #1e293b;">${vehicle.vin || 'Not Available'}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #64748b;">Make/Model:</strong><br>
+                                    <span style="color: #1e293b;">${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #64748b;">Color:</strong><br>
+                                    <span style="color: #1e293b;">${vehicle.color || 'Not Specified'}</span>
+                                </div>
+                            </div>
                         </div>
+                        
+                        <!-- Owner Information (Current Owner) -->
+                        <div style="margin-bottom: 1rem; padding: 1rem; background: #fef3c7; border-radius: 8px; border: 1px solid #fde68a;">
+                            <h4 style="margin-top: 0; margin-bottom: 0.75rem; color: #92400e; font-size: 0.95rem; font-weight: 600;">
+                                <i class="fas fa-user" style="margin-right: 0.5rem;"></i>Current Owner Information
+                            </h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.9rem;">
+                                <div>
+                                    <strong style="color: #92400e;">Owner Name:</strong><br>
+                                    <span style="color: #78350f;">${vehicle.ownerName || vehicle.owner_name || 
+                                        (vehicle.owner_first_name && vehicle.owner_last_name ? 
+                                            `${vehicle.owner_first_name} ${vehicle.owner_last_name}` : 
+                                            (vehicle.owner && vehicle.owner.name ? vehicle.owner.name : 'Not Available'))}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #92400e;">Owner Email:</strong><br>
+                                    <span style="color: #78350f;">${vehicle.ownerEmail || vehicle.owner_email || 
+                                        (vehicle.owner && vehicle.owner.email ? vehicle.owner.email : 'Not Available')}</span>
+                                </div>
+                                ${(vehicle.ownerPhone || vehicle.owner_phone || (vehicle.owner && vehicle.owner.phone)) ? `
+                                <div>
+                                    <strong style="color: #92400e;">Owner Phone:</strong><br>
+                                    <span style="color: #78350f;">${vehicle.ownerPhone || vehicle.owner_phone || (vehicle.owner && vehicle.owner.phone) || 'Not Available'}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+                            <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #fde68a; font-size: 0.85rem; color: #92400e;">
+                                <i class="fas fa-info-circle" style="margin-right: 0.25rem;"></i>
+                                <em>This is the current registered owner. For transfer inspections, this is the seller.</em>
+                            </div>
+                        </div>
+                        
                         <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
                             <h4 style="margin-top: 0; color: #0369a1;">Inspection Information</h4>
                             <p><strong>MVIR Number:</strong> ${vehicle.mvir_number || 'N/A'}</p>
@@ -2994,9 +3046,60 @@ async function inspectVehicle(vehicleId) {
                     <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
                 </div>
                 <div class="modal-body">
-                    <div style="margin-bottom: 1rem;">
-                        <strong>Vehicle:</strong> ${vehicle.plateNumber || vehicle.vin || 'N/A'}<br>
-                        <strong>Make/Model:</strong> ${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}
+                    <!-- Vehicle Information -->
+                    <div style="margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h4 style="margin-top: 0; margin-bottom: 0.75rem; color: #1e293b; font-size: 0.95rem; font-weight: 600;">
+                            <i class="fas fa-car" style="margin-right: 0.5rem;"></i>Vehicle Information
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.9rem;">
+                            <div>
+                                <strong style="color: #64748b;">Plate Number:</strong><br>
+                                <span style="color: #1e293b;">${vehicle.plateNumber || vehicle.plate_number || 'Pending Assignment'}</span>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b;">VIN:</strong><br>
+                                <span style="color: #1e293b;">${vehicle.vin || 'Not Available'}</span>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b;">Make/Model:</strong><br>
+                                <span style="color: #1e293b;">${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}</span>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b;">Color:</strong><br>
+                                <span style="color: #1e293b;">${vehicle.color || 'Not Specified'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Owner Information (Current Owner) -->
+                    <div style="margin-bottom: 1rem; padding: 1rem; background: #fef3c7; border-radius: 8px; border: 1px solid #fde68a;">
+                        <h4 style="margin-top: 0; margin-bottom: 0.75rem; color: #92400e; font-size: 0.95rem; font-weight: 600;">
+                            <i class="fas fa-user" style="margin-right: 0.5rem;"></i>Current Owner Information
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.9rem;">
+                            <div>
+                                <strong style="color: #92400e;">Owner Name:</strong><br>
+                                <span style="color: #78350f;">${vehicle.ownerName || vehicle.owner_name || 
+                                    (vehicle.owner_first_name && vehicle.owner_last_name ? 
+                                        `${vehicle.owner_first_name} ${vehicle.owner_last_name}` : 
+                                        (vehicle.owner && vehicle.owner.name ? vehicle.owner.name : 'Not Available'))}</span>
+                            </div>
+                            <div>
+                                <strong style="color: #92400e;">Owner Email:</strong><br>
+                                <span style="color: #78350f;">${vehicle.ownerEmail || vehicle.owner_email || 
+                                    (vehicle.owner && vehicle.owner.email ? vehicle.owner.email : 'Not Available')}</span>
+                            </div>
+                            ${(vehicle.ownerPhone || vehicle.owner_phone || (vehicle.owner && vehicle.owner.phone)) ? `
+                            <div>
+                                <strong style="color: #92400e;">Owner Phone:</strong><br>
+                                <span style="color: #78350f;">${vehicle.ownerPhone || vehicle.owner_phone || (vehicle.owner && vehicle.owner.phone) || 'Not Available'}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #fde68a; font-size: 0.85rem; color: #92400e;">
+                            <i class="fas fa-info-circle" style="margin-right: 0.25rem;"></i>
+                            <em>This is the current registered owner. For transfer inspections, this is the seller.</em>
+                        </div>
                     </div>
                     
                     <div style="margin-bottom: 1rem;">

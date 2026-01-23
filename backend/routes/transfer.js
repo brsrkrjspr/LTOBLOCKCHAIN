@@ -1161,6 +1161,26 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
                             autoVerificationResult
                         }
                     });
+                    
+                    // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
+                    if (autoVerificationResult.status === 'PENDING' && autoVerificationResult.reason) {
+                        const buyerId = request.buyer_id || request.buyer_user_id;
+                        const buyerEmail = request.buyer_email || (request.buyer_info && request.buyer_info.email);
+                        
+                        if (buyerId) {
+                            try {
+                                await db.createNotification({
+                                    userId: buyerId,
+                                    title: 'HPG Clearance Document Issue Detected',
+                                    message: `Your HPG Clearance document was flagged during auto-verification. Issues: ${autoVerificationResult.reason}. Please review and update the document if needed.`,
+                                    type: 'warning'
+                                });
+                                console.log(`✅ Notification sent to buyer ${buyerId} for HPG auto-verification failure`);
+                            } catch (notifError) {
+                                console.error('[Transfer→HPG Auto-Verify] Failed to create buyer notification:', notifError);
+                            }
+                        }
+                    }
                 }
             }
         } catch (autoVerifyError) {
@@ -1307,6 +1327,26 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                         autoVerificationResult
                     }
                 });
+                
+                // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
+                if (autoVerificationResult.status === 'PENDING' && autoVerificationResult.reason) {
+                    const buyerId = request.buyer_id || request.buyer_user_id;
+                    const buyerEmail = request.buyer_email || (request.buyer_info && request.buyer_info.email);
+                    
+                    if (buyerId) {
+                        try {
+                            await db.createNotification({
+                                userId: buyerId,
+                                title: 'CTPL Insurance Document Issue Detected',
+                                message: `Your CTPL Insurance document was flagged during auto-verification. Issues: ${autoVerificationResult.reason}. Please review and update the document if needed.`,
+                                type: 'warning'
+                            });
+                            console.log(`✅ Notification sent to buyer ${buyerId} for Insurance auto-verification failure`);
+                        } catch (notifError) {
+                            console.error('[Transfer→Insurance Auto-Verify] Failed to create buyer notification:', notifError);
+                        }
+                    }
+                }
             }
         } catch (autoVerifyError) {
             console.error('[Transfer→Insurance Auto-Verify] Error:', autoVerifyError);
@@ -2424,11 +2464,17 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
             });
         }
         
-        // Check permissions
-        if (req.user.role === 'vehicle_owner' && String(request.seller_id) !== String(req.user.userId)) {
+        // Check permissions - allow seller OR buyer
+        const isSeller = req.user.role === 'vehicle_owner' && String(request.seller_id) === String(req.user.userId);
+        const buyerInfo = request.buyer_info;
+        const buyerId = request.buyer_id || request.buyer_user_id;
+        const isBuyer = buyerId && String(buyerId) === String(req.user.userId);
+        const isBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === req.user.email.toLowerCase();
+        
+        if (req.user.role === 'vehicle_owner' && !isSeller && !isBuyer && !isBuyerByEmail) {
             return res.status(403).json({
                 success: false,
-                error: 'Access denied'
+                error: 'Access denied. You must be the seller or buyer for this transfer request.'
             });
         }
         
@@ -2494,11 +2540,17 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
             });
         }
         
-        // Check permissions
-        if (req.user.role === 'vehicle_owner' && String(request.seller_id) !== String(req.user.userId)) {
+        // Check permissions - allow seller OR buyer
+        const isSeller = req.user.role === 'vehicle_owner' && String(request.seller_id) === String(req.user.userId);
+        const buyerInfo = request.buyer_info;
+        const buyerId = request.buyer_id || request.buyer_user_id;
+        const isBuyer = buyerId && String(buyerId) === String(req.user.userId);
+        const isBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === req.user.email.toLowerCase();
+        
+        if (req.user.role === 'vehicle_owner' && !isSeller && !isBuyer && !isBuyerByEmail) {
             return res.status(403).json({
                 success: false,
-                error: 'Access denied'
+                error: 'Access denied. You must be the seller or buyer for this transfer request.'
             });
         }
         
@@ -3622,11 +3674,17 @@ router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['ve
             });
         }
         
-        // Check permissions - user must be seller or admin
-        if (req.user.role === 'vehicle_owner' && String(request.seller_id) !== String(req.user.userId)) {
+        // Check permissions - user must be seller OR buyer
+        const isSeller = req.user.role === 'vehicle_owner' && String(request.seller_id) === String(req.user.userId);
+        const buyerInfo = request.buyer_info;
+        const buyerId = request.buyer_id || request.buyer_user_id;
+        const isBuyer = buyerId && String(buyerId) === String(req.user.userId);
+        const isBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === req.user.email.toLowerCase();
+        
+        if (req.user.role === 'vehicle_owner' && !isSeller && !isBuyer && !isBuyerByEmail) {
             return res.status(403).json({
                 success: false,
-                error: 'Access denied. You can only update documents for your own transfer requests.'
+                error: 'Access denied. You must be the seller or buyer for this transfer request.'
             });
         }
         

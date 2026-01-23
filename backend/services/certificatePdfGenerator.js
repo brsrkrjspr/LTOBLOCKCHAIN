@@ -1053,6 +1053,55 @@ class CertificatePdfGenerator {
     }
 
     /**
+     * Convert number to words (for price in words)
+     * @param {number} num - Number to convert
+     * @returns {string} Number in words
+     */
+    numberToWords(num) {
+        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 
+                     'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+        
+        if (num === 0) return 'Zero';
+        if (num < 20) return ones[num];
+        if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + ones[num % 10] : '');
+        if (num < 1000) {
+            return ones[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' ' + this.numberToWords(num % 100) : '');
+        }
+        if (num < 1000000) {
+            return this.numberToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + this.numberToWords(num % 1000) : '');
+        }
+        if (num < 1000000000) {
+            return this.numberToWords(Math.floor(num / 1000000)) + ' Million' + (num % 1000000 !== 0 ? ' ' + this.numberToWords(num % 1000000) : '');
+        }
+        return 'Very Large Number';
+    }
+
+    /**
+     * Format price to words (e.g., "One Million One Hundred Twenty Thousand Pesos")
+     * @param {string} priceStr - Price string (e.g., "PHP 1,120,000.00" or "₱1,120,000.00")
+     * @returns {string} Price in words
+     */
+    formatPriceToWords(priceStr) {
+        if (!priceStr) return 'Zero Pesos';
+        
+        // Extract numeric value
+        const numericStr = priceStr.replace(/[^0-9.]/g, '');
+        const num = parseFloat(numericStr);
+        if (isNaN(num)) return 'Zero Pesos';
+        
+        const wholePart = Math.floor(num);
+        const decimalPart = Math.round((num - wholePart) * 100);
+        
+        let words = this.numberToWords(wholePart) + ' Pesos';
+        if (decimalPart > 0) {
+            words += ' and ' + this.numberToWords(decimalPart) + ' Centavos';
+        }
+        
+        return words;
+    }
+
+    /**
      * Generate Deed of Sale PDF for Transfer of Ownership
      * @param {Object} data - Deed of Sale data
      * @returns {Promise<{pdfBuffer: Buffer, fileHash: string, certificateNumber: string}>}
@@ -1077,114 +1126,149 @@ class CertificatePdfGenerator {
             notaryCommission
         } = data;
 
-        // Use Sales Invoice template as base for Deed of Sale
-        const templatePath = path.join(this.templatesPath, 'Sales Invoice', 'sales-invoice.html');
+        // Use Deed of Sale template
+        const templatePath = path.join(this.templatesPath, 'Deed of Sale', 'deedofsale.html');
         let htmlTemplate = await fs.readFile(templatePath, 'utf-8');
 
-        // Replace header title
+        // Remove JavaScript and controls (not needed for server-side PDF generation)
+        htmlTemplate = htmlTemplate.replace(/<script[\s\S]*?<\/script>/gi, '');
+        htmlTemplate = htmlTemplate.replace(/<div class="controls">[\s\S]*?<\/div>/gi, '');
+        htmlTemplate = htmlTemplate.replace(/<div id="previewModal"[\s\S]*?<\/div>/gi, '');
+
+        // Format sale date
+        const finalSaleDate = saleDate ? new Date(saleDate) : new Date();
+        const day = finalSaleDate.getDate();
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        const month = monthNames[finalSaleDate.getMonth()];
+        const formattedDate = finalSaleDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Replace seller information
         htmlTemplate = htmlTemplate.replace(
-            /<h2>AUTHENTICATED SALES INVOICE<\/h2>/,
-            '<h2>DEED OF ABSOLUTE SALE</h2>'
+            /id="seller-name"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="seller-name" class="field-input" value="${sellerName || 'N/A'}" readonly>`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="seller-address"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="seller-address" class="field-input" value="${sellerAddress || 'N/A'}" readonly>`
         );
 
-        // Format date
-        const formatDate = (dateStr) => {
-            if (!dateStr) return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        };
-
-        // Replace buyer name
+        // Replace buyer information
         htmlTemplate = htmlTemplate.replace(
-            /id="buyer-name"[^>]*value="[^"]*"/,
-            `id="buyer-name" class="editable-field" value="${buyerName || 'N/A'}"`
+            /id="buyer-name"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="buyer-name" class="field-input" value="${buyerName || 'N/A'}" readonly>`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="buyer-address"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="buyer-address" class="field-input" value="${buyerAddress || 'N/A'}" readonly>`
+        );
+
+        // Replace date fields
+        htmlTemplate = htmlTemplate.replace(
+            /id="day"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="day" class="field-input" value="${day}" readonly>`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /id="month"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="month" class="field-input" value="${month}" readonly>`
         );
 
         // Replace vehicle details
+        const makeModel = vehicleMake && vehicleModel ? `${vehicleMake} ${vehicleModel}` : (vehicleMake || vehicleModel || 'N/A');
         htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-make"[^>]*value="[^"]*"/,
-            `id="vehicle-make" class="editable-field" value="${vehicleMake || 'N/A'}"`
+            /id="model"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="model" class="field-input" value="${makeModel}" readonly>`
         );
         htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-model"[^>]*value="[^"]*"/,
-            `id="vehicle-model" class="editable-field" value="${vehicleModel || 'N/A'}"`
+            /id="color"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="color" class="field-input" value="N/A" readonly>`
         );
         htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-year"[^>]*value="[^"]*"/,
-            `id="vehicle-year" class="editable-field" value="${vehicleYear || 'N/A'}"`
+            /id="body"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="body" class="field-input" value="N/A" readonly>`
         );
         htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-engine"[^>]*value="[^"]*"/,
-            `id="vehicle-engine" class="editable-field" value="${engineNumber || 'N/A'}"`
+            /id="motor-no"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="motor-no" class="field-input" value="${engineNumber || 'N/A'}" readonly>`
         );
         htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-chassis"[^>]*value="[^"]*"/,
-            `id="vehicle-chassis" class="editable-field" value="${vehicleVIN || chassisNumber || 'N/A'}"`
+            /id="chassis-no"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="chassis-no" class="field-input" value="${vehicleVIN || chassisNumber || 'N/A'}" readonly>`
         );
         htmlTemplate = htmlTemplate.replace(
-            /id="vehicle-plate"[^>]*value="[^"]*"/,
-            `id="vehicle-plate" class="editable-field" value="${vehiclePlate || 'N/A'}"`
+            /id="plate-no"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="plate-no" class="field-input" value="${vehiclePlate || 'N/A'}" readonly>`
         );
 
         // Replace purchase price
         const priceText = purchasePrice || 'PHP 0.00';
         htmlTemplate = htmlTemplate.replace(
-            /<td>₱1,120,000.00<\/td>/,
-            `<td>${priceText}</td>`
+            /id="amount"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="amount" class="field-input" value="${priceText}" readonly>`
+        );
+        const priceInWords = this.formatPriceToWords(priceText);
+        htmlTemplate = htmlTemplate.replace(
+            /id="amount-words"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="amount-words" class="field-input" value="${priceInWords}" readonly>`
         );
 
-        // Replace sale date
-        const finalSaleDate = saleDate || new Date().toISOString();
+        // Replace acknowledgment section names
         htmlTemplate = htmlTemplate.replace(
-            /<span id="date-sale"><\/span>/,
-            formatDate(finalSaleDate)
+            /id="seller-name-ack"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="seller-name-ack" class="field-input" value="${sellerName || 'N/A'}" readonly>`
         );
         htmlTemplate = htmlTemplate.replace(
-            /<span id="seller-date"><\/span>/g,
-            formatDate(finalSaleDate)
-        );
-        htmlTemplate = htmlTemplate.replace(
-            /<span id="date-auth"><\/span>/g,
-            formatDate(finalSaleDate)
+            /id="buyer-name-ack"[^>]*placeholder="[^"]*"[^>]*>/,
+            `id="buyer-name-ack" class="field-input" value="${buyerName || 'N/A'}" readonly>`
         );
 
-        // Add seller information section
-        const sellerSection = `
-  <hr>
-  <section>
-    <h3>Seller Information</h3>
-    <p><strong>Name:</strong> ${sellerName || 'N/A'}</p>
-    <p><strong>Address:</strong> ${sellerAddress || 'N/A'}</p>
-  </section>
-`;
-        htmlTemplate = htmlTemplate.replace(
-            /<hr>\s*<!-- SIGNATURES -->/,
-            sellerSection + '\n  <hr>\n  <!-- SIGNATURES -->'
-        );
-
-        // Add notary information if provided
+        // Replace notary information if provided
         if (notaryName) {
             htmlTemplate = htmlTemplate.replace(
-                /<p><strong>Position:<\/strong> Sales Manager<\/p>/,
-                `<p><strong>Position:</strong> Notary Public</p><p><strong>Commission No.:</strong> ${notaryCommission || 'N/A'}</p>`
+                /<strong>JANE J. DOE<\/strong>/g,
+                `<strong>${notaryName}</strong>`
             );
             htmlTemplate = htmlTemplate.replace(
-                /<p><strong>Name:<\/strong> John M. Santos<\/p>/,
-                `<p><strong>Name:</strong> ${notaryName}</p>`
+                /<div class="seal-text-top">JANE J. DOE<\/div>/,
+                `<div class="seal-text-top">${notaryName.toUpperCase()}</div>`
             );
+            if (notaryCommission) {
+                htmlTemplate = htmlTemplate.replace(
+                    /My Commission Expires:<br>\s*January 21, 2029/,
+                    `Commission No.: ${notaryCommission}<br>My Commission Expires:<br>January 21, 2029`
+                );
+            }
         }
 
-        // Inline CSS
-        const cssPath = path.join(this.templatesPath, 'Sales Invoice', 'sales-invoice.css');
-        try {
-            const cssContent = await fs.readFile(cssPath, 'utf-8');
-            htmlTemplate = htmlTemplate.replace(
-                /<link rel="stylesheet" href="sales-invoice\.css">/,
-                `<style>${cssContent}</style>`
-            );
-        } catch (cssError) {
-            console.warn('[Deed of Sale] Could not load CSS file:', cssError.message);
-        }
+        // Replace date in acknowledgment section
+        htmlTemplate = htmlTemplate.replace(
+            /<strong>\[DATE OF NOTARIZATION\]<\/strong>/,
+            `<strong>${formattedDate}</strong>`
+        );
+
+        // Hide signature canvases (they won't work in server-side PDF generation)
+        htmlTemplate = htmlTemplate.replace(
+            /<canvas id="sellerCanvas"[^>]*>[\s\S]*?<\/canvas>/gi,
+            '<div style="border: 2px solid #333; width: 200px; height: 80px; margin: 10px auto; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">Signature</div>'
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /<canvas id="buyerCanvas"[^>]*>[\s\S]*?<\/canvas>/gi,
+            '<div style="border: 2px solid #333; width: 200px; height: 80px; margin: 10px auto; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">Signature</div>'
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /<button class="clear-btn"[^>]*>Clear<\/button>/gi,
+            ''
+        );
+
+        // Replace seller/buyer names in signature boxes
+        htmlTemplate = htmlTemplate.replace(
+            /<div><strong>\[NAME OF SELLER\]<\/strong><\/div>/,
+            `<div><strong>${sellerName || 'SELLER NAME'}</strong></div>`
+        );
+        htmlTemplate = htmlTemplate.replace(
+            /<div><strong>\[NAME OF BUYER\]<\/strong><\/div>/,
+            `<div><strong>${buyerName || 'BUYER NAME'}</strong></div>`
+        );
 
         // Generate PDF
         const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());

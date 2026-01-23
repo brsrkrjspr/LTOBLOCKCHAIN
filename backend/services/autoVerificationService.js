@@ -1137,6 +1137,239 @@ class AutoVerificationService {
     }
 
     /**
+     * Auto-verify MVIR document against LTO inspection record
+     * Validates that buyer-uploaded MVIR matches the vehicle's LTO inspection (mvir_number)
+     * @param {string} vehicleId - Vehicle ID
+     * @param {Object} mvirDoc - MVIR document record from transfer_documents
+     * @param {Object} vehicle - Vehicle data (must include mvir_number from LTO inspection)
+     * @returns {Promise<Object>} Auto-verification result
+     */
+    async autoVerifyMVIR(vehicleId, mvirDoc, vehicle) {
+        if (!this.enabled) {
+            return { status: 'PENDING', automated: false, reason: 'Auto-verification disabled' };
+        }
+
+        try {
+            console.log(`[Auto-Verify MVIR] Starting MVIR verification for vehicle ${vehicleId}`);
+
+            // Check if vehicle has LTO inspection record
+            if (!vehicle.mvir_number) {
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: 'Vehicle does not have LTO inspection record (mvir_number). LTO inspection must be completed first.',
+                    confidence: 0
+                };
+            }
+
+            // Get document file path (local or via storageService when IPFS/stale path)
+            let filePath = mvirDoc.file_path || mvirDoc.filePath;
+            if (!filePath || !(await this.fileExists(filePath))) {
+                if (mvirDoc.document_id || mvirDoc.id) {
+                    try {
+                        const doc = await storageService.getDocument(mvirDoc.document_id || mvirDoc.id);
+                        if (doc && doc.filePath && (await this.fileExists(doc.filePath))) {
+                            filePath = doc.filePath;
+                        }
+                    } catch (e) {
+                        console.warn('[Auto-Verify MVIR] storageService.getDocument failed:', e.message);
+                    }
+                }
+                if (!filePath || !(await this.fileExists(filePath))) {
+                    return {
+                        status: 'PENDING',
+                        automated: false,
+                        reason: 'MVIR document file not found',
+                        confidence: 0
+                    };
+                }
+            }
+
+            // Extract MVIR number from uploaded document via OCR
+            let extractedMvirNumber = null;
+            try {
+                const mvirText = await ocrService.extractText(filePath, mvirDoc.mime_type || mvirDoc.mimeType || 'application/pdf');
+                
+                // Extract MVIR number using patterns (MVIR-YYYY-XXXXXX or similar)
+                // Pattern 1: MVIR-YYYY-XXXXXX (6 alphanumeric)
+                const mvirPattern1 = /MVIR[-\s]?(\d{4})[-\s]?([A-Z0-9]{6,})/i;
+                const match1 = mvirText.match(mvirPattern1);
+                if (match1) {
+                    extractedMvirNumber = `MVIR-${match1[1]}-${match1[2].substring(0, 6).toUpperCase()}`;
+                } else {
+                    // Pattern 2: Just look for MVIR number format anywhere
+                    const mvirPattern2 = /(MVIR[-\s]?\d{4}[-\s]?[A-Z0-9]{6})/i;
+                    const match2 = mvirText.match(mvirPattern2);
+                    if (match2) {
+                        extractedMvirNumber = match2[1].replace(/\s+/g, '-').toUpperCase();
+                    } else {
+                        // Pattern 3: Look for "MVIR Number" or "Inspection Number" label
+                        const mvirPattern3 = /(?:MVIR|Inspection)\s*(?:Number|No\.?)[\s:.]*([A-Z0-9\-]+)/i;
+                        const match3 = mvirText.match(mvirPattern3);
+                        if (match3) {
+                            extractedMvirNumber = match3[1].trim().toUpperCase();
+                        }
+                    }
+                }
+                console.log(`[Auto-Verify MVIR] Extracted MVIR number from document: ${extractedMvirNumber}`);
+            } catch (ocrError) {
+                console.warn('[Auto-Verify MVIR] OCR extraction failed:', ocrError.message);
+                // Continue with hash-only validation if OCR fails
+            }
+
+            // Get file hash for authenticity check
+            let fileHash = mvirDoc.file_hash || mvirDoc.fileHash;
+            if (!fileHash && filePath) {
+                try {
+                    const fileBuffer = await fs.readFile(filePath);
+                    fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+                    console.log(`[Auto-Verify MVIR] Computed file hash: ${fileHash.substring(0, 16)}...`);
+                } catch (hashError) {
+                    console.warn('[Auto-Verify MVIR] Failed to compute file hash:', hashError.message);
+                }
+            }
+
+            // Compare extracted MVIR number with vehicle's mvir_number
+            let mvirNumberMatch = false;
+            if (extractedMvirNumber && vehicle.mvir_number) {
+                // Normalize both for comparison (remove spaces, dashes, case-insensitive)
+                const normalizedExtracted = extractedMvirNumber.replace(/[\s\-]/g, '').toUpperCase();
+                const normalizedVehicle = vehicle.mvir_number.replace(/[\s\-]/g, '').toUpperCase();
+                mvirNumberMatch = normalizedExtracted === normalizedVehicle;
+                console.log(`[Auto-Verify MVIR] MVIR number match: ${mvirNumberMatch} (extracted: ${extractedMvirNumber}, vehicle: ${vehicle.mvir_number})`);
+            }
+
+            // Check hash against issued certificate (if available)
+            let hashMatch = false;
+            let originalCertificateFound = false;
+            if (fileHash) {
+                try {
+                    // Look for issued MVIR certificate for this vehicle
+                    const issuedCert = await dbRaw.query(
+                        `SELECT * FROM issued_certificates 
+                         WHERE vehicle_id = $1 
+                           AND certificate_type = 'mvir_cert'
+                         ORDER BY issued_at DESC
+                         LIMIT 1`,
+                        [vehicleId]
+                    );
+
+                    if (issuedCert.rows.length > 0) {
+                        originalCertificateFound = true;
+                        const cert = issuedCert.rows[0];
+                        
+                        // Compare file hash
+                        if (cert.file_hash && cert.file_hash === fileHash) {
+                            hashMatch = true;
+                            console.log(`[Auto-Verify MVIR] ✅ File hash matches issued certificate`);
+                        } else {
+                            console.log(`[Auto-Verify MVIR] ⚠️ File hash mismatch with issued certificate`);
+                        }
+
+                        // Also check composite hash if available
+                        if (cert.composite_hash && vehicle.mvir_number && vehicle.vin) {
+                            const expectedCompositeHash = certificateBlockchain.generateCompositeHash(
+                                vehicle.mvir_number,
+                                vehicle.vin,
+                                vehicle.inspection_date ? new Date(vehicle.inspection_date).toISOString() : new Date().toISOString(),
+                                fileHash
+                            );
+                            if (cert.composite_hash === expectedCompositeHash) {
+                                hashMatch = true;
+                                console.log(`[Auto-Verify MVIR] ✅ Composite hash matches issued certificate`);
+                            }
+                        }
+                    } else {
+                        console.log(`[Auto-Verify MVIR] No issued certificate found for comparison`);
+                    }
+                } catch (certError) {
+                    console.warn('[Auto-Verify MVIR] Failed to check issued certificate:', certError.message);
+                }
+            }
+
+            // Determine verification status
+            let status = 'PENDING';
+            let automated = false;
+            let confidence = 0;
+            const flagReasons = [];
+
+            if (mvirNumberMatch) {
+                status = 'APPROVED';
+                automated = true;
+                confidence = 100;
+                console.log(`[Auto-Verify MVIR] ✅ MVIR number matches - AUTO-APPROVED`);
+            } else if (hashMatch && originalCertificateFound) {
+                status = 'APPROVED';
+                automated = true;
+                confidence = 95;
+                console.log(`[Auto-Verify MVIR] ✅ Hash matches issued certificate - AUTO-APPROVED`);
+            } else {
+                if (!extractedMvirNumber) {
+                    flagReasons.push('MVIR number could not be extracted from document (OCR failed or format not recognized)');
+                } else if (!mvirNumberMatch) {
+                    flagReasons.push(`MVIR number mismatch: extracted "${extractedMvirNumber}" does not match vehicle inspection record "${vehicle.mvir_number}"`);
+                }
+                if (!hashMatch && originalCertificateFound) {
+                    flagReasons.push('File hash does not match issued certificate');
+                }
+                if (!originalCertificateFound && !mvirNumberMatch) {
+                    flagReasons.push('Cannot verify authenticity: no issued certificate found and MVIR number does not match');
+                }
+                confidence = mvirNumberMatch ? 50 : (hashMatch ? 40 : 0);
+            }
+
+            // Update verification status in database
+            try {
+                await db.updateVerificationStatus(
+                    vehicleId,
+                    'mvir',
+                    status,
+                    'system',
+                    automated ? 'Auto-verified: MVIR matches LTO inspection record' : `Auto-verification completed with issues: ${flagReasons.join('; ')}`,
+                    {
+                        automated,
+                        verificationScore: confidence,
+                        verificationMetadata: {
+                            extractedMvirNumber,
+                            vehicleMvirNumber: vehicle.mvir_number,
+                            mvirNumberMatch,
+                            hashMatch,
+                            originalCertificateFound,
+                            fileHash: fileHash ? fileHash.substring(0, 32) + '...' : null,
+                            verifiedAt: new Date().toISOString(),
+                            flagReasons: flagReasons.length > 0 ? flagReasons : null
+                        }
+                    }
+                );
+            } catch (updateError) {
+                console.warn('[Auto-Verify MVIR] Failed to update verification status:', updateError.message);
+            }
+
+            return {
+                status,
+                automated,
+                confidence: confidence / 100,
+                reason: flagReasons.length > 0 ? flagReasons.join('; ') : 'MVIR verified successfully',
+                flagReasons: flagReasons.length > 0 ? flagReasons : [],
+                extractedMvirNumber,
+                vehicleMvirNumber: vehicle.mvir_number,
+                mvirNumberMatch,
+                hashMatch,
+                originalCertificateFound
+            };
+
+        } catch (error) {
+            console.error('[Auto-Verify MVIR] MVIR verification error:', error);
+            return {
+                status: 'PENDING',
+                automated: false,
+                reason: `Verification error: ${error.message}`,
+                confidence: 0
+            };
+        }
+    }
+
+    /**
      * Calculate pattern-based score for verification
      * @param {string} documentNumber - Document number
      * @param {string} documentType - Document type

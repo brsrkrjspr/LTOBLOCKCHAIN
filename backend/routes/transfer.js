@@ -2066,11 +2066,57 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
                 documents: transferDocs
             });
 
+            // Auto-verify MVIR document if present
+            let mvirAutoVerificationResult = null;
+            const mvirTransferDoc = transferDocs.find(td => 
+                td.document_type === docTypes.TRANSFER_ROLES.BUYER_MVIR && td.document_id
+            );
+            if (mvirTransferDoc && mvirTransferDoc.document_id) {
+                try {
+                    const autoVerificationService = require('../services/autoVerificationService');
+                    const mvirDoc = await db.getDocumentById(mvirTransferDoc.document_id);
+                    if (mvirDoc && vehicle) {
+                        mvirAutoVerificationResult = await autoVerificationService.autoVerifyMVIR(
+                            request.vehicle_id,
+                            mvirDoc,
+                            vehicle
+                        );
+                        console.log(`[Transfer→MVIR Auto-Verify] Result: ${mvirAutoVerificationResult.status}, Automated: ${mvirAutoVerificationResult.automated}`);
+                        
+                        // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
+                        if (mvirAutoVerificationResult.status === 'PENDING' && mvirAutoVerificationResult.reason) {
+                            const buyerId = request.buyer_id || request.buyer_user_id || currentUserId;
+                            if (buyerId) {
+                                try {
+                                    await db.createNotification({
+                                        userId: buyerId,
+                                        title: 'MVIR Document Issue Detected',
+                                        message: `Your MVIR document was flagged during auto-verification. Issues: ${mvirAutoVerificationResult.reason}. Please review and update the document if needed.`,
+                                        type: 'warning'
+                                    });
+                                    console.log(`✅ Notification sent to buyer ${buyerId} for MVIR auto-verification failure`);
+                                } catch (notifError) {
+                                    console.error('[Transfer→MVIR Auto-Verify] Failed to create buyer notification:', notifError);
+                                }
+                            }
+                        }
+                    }
+                } catch (mvirVerifyError) {
+                    console.error('[Transfer→MVIR Auto-Verify] Error:', mvirVerifyError);
+                    // Don't fail the request if MVIR verification fails
+                }
+            }
+
         const metadataUpdate = {
                 buyerAcceptedAt: nowIso,
                 buyerAcceptedBy: currentUserId,
                 buyerSubmittedAt: nowIso,
-                validation: validationResult
+                validation: validationResult,
+                mvirAutoVerification: mvirAutoVerificationResult ? {
+                    status: mvirAutoVerificationResult.status,
+                    automated: mvirAutoVerificationResult.automated,
+                    reason: mvirAutoVerificationResult.reason
+                } : null
             };
 
             await db.updateTransferRequestStatus(
@@ -2834,6 +2880,28 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                 code: 'LTO_INSPECTION_REQUIRED'
             });
         }
+
+        // Check MVIR document validation: buyer must have uploaded MVIR and it should be validated
+        const transferDocs = await db.getTransferRequestDocuments(id);
+        const mvirDoc = transferDocs.find(td => 
+            td.document_type === docTypes.TRANSFER_ROLES.BUYER_MVIR && td.document_id
+        );
+        if (!mvirDoc) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot approve transfer request. Buyer MVIR document is required.',
+                code: 'MVIR_DOCUMENT_REQUIRED'
+            });
+        }
+
+        // Check MVIR auto-verification status from metadata (if available)
+        const mvirAutoVerification = request.metadata?.mvirAutoVerification;
+        if (mvirAutoVerification && mvirAutoVerification.status === 'PENDING' && mvirAutoVerification.automated === false) {
+            console.warn(`[Transfer Approval] MVIR auto-verification failed: ${mvirAutoVerification.reason}`);
+            // Don't block approval, but log warning - LTO admin can manually verify
+        } else if (mvirAutoVerification && mvirAutoVerification.status === 'APPROVED' && mvirAutoVerification.automated === true) {
+            console.log(`[Transfer Approval] ✅ MVIR auto-verified successfully`);
+        }
         
         // Determine buyer ID (create user if buyer_info exists)
         let buyerId = request.buyer_id;
@@ -2873,16 +2941,18 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         // Enforce required transfer documents before ownership can change.
         // Seller must have: deed of sale + seller ID.
         // Buyer must have: valid ID, TIN, CTPL, MVIR, HPG clearance.
-        let transferDocs;
-        try {
-            transferDocs = await db.getTransferRequestDocuments(id);
-        } catch (docError) {
-            console.error('Failed to load transfer documents before approval:', docError);
-            return res.status(500).json({
-                success: false,
-                error: 'Failed to load transfer documents for approval',
-                message: process.env.NODE_ENV === 'development' ? docError.message : undefined
-            });
+        // Note: transferDocs was already loaded above for MVIR check, reuse it
+        if (!transferDocs) {
+            try {
+                transferDocs = await db.getTransferRequestDocuments(id);
+            } catch (docError) {
+                console.error('Failed to load transfer documents before approval:', docError);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to load transfer documents for approval',
+                    message: process.env.NODE_ENV === 'development' ? docError.message : undefined
+                });
+            }
         }
 
         const presentRoles = new Set(
@@ -3420,6 +3490,101 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
         res.status(500).json({
             success: false,
             error: 'Internal server error'
+        });
+    }
+});
+
+// Re-run MVIR auto-verification (LTO-side) for a transfer request
+router.post('/requests/:id/verify-mvir', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const request = await db.getTransferRequestById(id);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
+            });
+        }
+
+        // Do not allow changes once the transfer is finalized
+        if (['APPROVED', 'COMPLETED', 'REJECTED'].includes(request.status)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot re-run MVIR verification for a finalized transfer request'
+            });
+        }
+
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // Find buyer MVIR transfer document
+        const transferDocs = await db.getTransferRequestDocuments(id);
+        const buyerMvirRow = (transferDocs || []).find(td =>
+            td.document_type === docTypes.TRANSFER_ROLES.BUYER_MVIR && td.document_id
+        );
+
+        if (!buyerMvirRow || !buyerMvirRow.document_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Buyer MVIR document not found for this transfer request'
+            });
+        }
+
+        const mvirDoc = await db.getDocumentById(buyerMvirRow.document_id);
+        if (!mvirDoc) {
+            return res.status(404).json({
+                success: false,
+                error: 'MVIR document record not found'
+            });
+        }
+
+        const autoVerificationService = require('../services/autoVerificationService');
+        const result = await autoVerificationService.autoVerifyMVIR(
+            request.vehicle_id,
+            mvirDoc,
+            vehicle
+        );
+
+        // Persist to transfer_requests.metadata for UI display
+        const dbModule = require('../database/db');
+        const patch = {
+            mvirAutoVerification: {
+                status: result.status,
+                automated: result.automated,
+                reason: result.reason,
+                verifiedAt: new Date().toISOString(),
+                confidence: result.confidence
+            }
+        };
+
+        await dbModule.query(
+            `UPDATE transfer_requests
+             SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [JSON.stringify(patch), id]
+        );
+
+        const updatedRequest = await db.getTransferRequestById(id);
+
+        return res.json({
+            success: true,
+            message: 'MVIR verification completed',
+            result,
+            transferRequest: updatedRequest
+        });
+    } catch (error) {
+        console.error('Verify MVIR error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

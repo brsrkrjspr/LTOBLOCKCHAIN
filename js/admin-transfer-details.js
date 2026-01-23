@@ -197,10 +197,141 @@ function renderTransferRequestDetails(request) {
 
     // Update organization approval status display
     renderOrgApprovalStatus(request);
+
+    // Update MVIR (LTO) validation status display
+    renderMvirValidationStatus(request);
     
     // Update action buttons
     updateActionButtons(request);
 }
+
+function renderMvirValidationStatus(request) {
+    const section = document.getElementById('mvirVerificationSection');
+    if (!section) return;
+
+    // Show this section for transfer requests (safe default: show when viewing transfer details)
+    section.style.display = 'block';
+
+    const vehicle = request.vehicle || request.vehicle_info || {};
+    const mvirNumber =
+        vehicle.mvir_number ||
+        vehicle.mvirNumber ||
+        (request.vehicle && (request.vehicle.mvir_number || request.vehicle.mvirNumber)) ||
+        null;
+
+    const mvirInspectionNumberEl = document.getElementById('mvirInspectionNumber');
+    const mvirInspectionHintEl = document.getElementById('mvirInspectionHint');
+    const mvirAutoVerifyStatusEl = document.getElementById('mvirAutoVerifyStatus');
+    const mvirAutoVerifyReasonEl = document.getElementById('mvirAutoVerifyReason');
+    const mvirAutoVerifyCheckedAtEl = document.getElementById('mvirAutoVerifyCheckedAt');
+    const rerunBtn = document.getElementById('rerunMvirVerifyBtn');
+
+    if (mvirInspectionNumberEl) {
+        if (mvirNumber) {
+            mvirInspectionNumberEl.innerHTML = `<strong style="color: #0c4a6e;">${escapeHtml(String(mvirNumber))}</strong>`;
+        } else {
+            mvirInspectionNumberEl.innerHTML = `<span style="color: #7f8c8d;">Not yet inspected</span>`;
+        }
+    }
+
+    if (mvirInspectionHintEl) {
+        if (mvirNumber) {
+            mvirInspectionHintEl.textContent = 'Inspection record exists on the vehicle.';
+        } else {
+            mvirInspectionHintEl.textContent = 'LTO inspection is required before final approval.';
+        }
+    }
+
+    const mvirAuto = request.metadata && request.metadata.mvirAutoVerification
+        ? request.metadata.mvirAutoVerification
+        : null;
+
+    const status = mvirAuto?.status || 'NOT_CHECKED';
+    const automated = mvirAuto?.automated;
+    const reason = mvirAuto?.reason || '';
+
+    if (mvirAutoVerifyStatusEl) {
+        const statusClass =
+            status === 'APPROVED' ? 'status-approved' :
+            status === 'REJECTED' ? 'status-rejected' :
+            status === 'PENDING' ? 'status-pending' :
+            'status-pending';
+
+        const label =
+            status === 'NOT_CHECKED' ? 'Not checked' :
+            status;
+
+        const autoSuffix = (status !== 'NOT_CHECKED' && automated !== undefined)
+            ? (automated ? ' (Auto)' : ' (Manual/Review)')
+            : '';
+
+        mvirAutoVerifyStatusEl.innerHTML = `<span class="status-badge ${statusClass}">${escapeHtml(label)}${escapeHtml(autoSuffix)}</span>`;
+    }
+
+    if (mvirAutoVerifyReasonEl) {
+        mvirAutoVerifyReasonEl.textContent = reason ? reason : '—';
+    }
+
+    if (mvirAutoVerifyCheckedAtEl) {
+        // We don't currently store a checkedAt timestamp in metadata; keep it simple.
+        // If you later add it, it will appear automatically.
+        mvirAutoVerifyCheckedAtEl.textContent = status === 'NOT_CHECKED' ? '' : 'Saved on transfer metadata';
+    }
+
+    // Disable re-run button on finalized statuses (avoid confusion)
+    if (rerunBtn) {
+        const finalized = isFinalizedStatus(request.status);
+        rerunBtn.disabled = !!finalized;
+        rerunBtn.title = finalized ? 'Cannot re-run MVIR check on finalized requests' : 'Re-run MVIR auto-verification';
+        rerunBtn.style.opacity = finalized ? '0.6' : '1';
+        rerunBtn.style.cursor = finalized ? 'not-allowed' : 'pointer';
+    }
+}
+
+async function rerunMvirVerification() {
+    if (!currentRequestId) return;
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const btn = document.getElementById('rerunMvirVerifyBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Checking...`;
+        }
+
+        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/verify-mvir`, {});
+        if (!response || !response.success) {
+            throw new Error(response?.error || 'Failed to verify MVIR');
+        }
+
+        // Refresh UI with latest data from backend
+        await loadTransferRequestDetails();
+
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('MVIR verification completed', 'success');
+        }
+    } catch (error) {
+        console.error('[MVIR Verify] Error:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`MVIR verification failed: ${error.message}`, 'error');
+        } else {
+            alert(`MVIR verification failed: ${error.message}`);
+        }
+    } finally {
+        const btn = document.getElementById('rerunMvirVerifyBtn');
+        if (btn && currentTransferRequest && !isFinalizedStatus(currentTransferRequest.status)) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-sync-alt"></i> Re-run MVIR Check`;
+        }
+    }
+}
+window.rerunMvirVerification = rerunMvirVerification;
+
+function openLtoInspectionForm() {
+    const vehicleId = currentTransferRequest?.vehicle_id || currentTransferRequest?.vehicleId || null;
+    const url = vehicleId ? `lto-inspection-form.html?vehicleId=${encodeURIComponent(vehicleId)}` : 'lto-inspection-form.html';
+    window.open(url, '_blank');
+}
+window.openLtoInspectionForm = openLtoInspectionForm;
 
 function renderOrgApprovalStatus(request) {
     // Debug: Log approval statuses

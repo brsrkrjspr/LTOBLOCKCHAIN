@@ -1248,14 +1248,17 @@ class AutoVerificationService {
             let originalCertificateFound = false;
             if (fileHash) {
                 try {
-                    // Look for issued MVIR certificate for this vehicle
+                    // Look for issued MVIR certificate for this vehicle.
+                    // NOTE: issued_certificates table stores MVIR as certificate_type = 'hpg_clearance'
+                    // with metadata.originalCertificateType = 'mvir_cert', and uses vehicle_vin (no vehicle_id column).
                     const issuedCert = await dbRaw.query(
                         `SELECT * FROM issued_certificates 
-                         WHERE vehicle_id = $1 
-                           AND certificate_type = 'mvir_cert'
+                         WHERE vehicle_vin = $1
+                           AND certificate_type = 'hpg_clearance'
+                           AND (metadata->>'originalCertificateType') = 'mvir_cert'
                          ORDER BY issued_at DESC
                          LIMIT 1`,
-                        [vehicleId]
+                        [vehicle.vin]
                     );
 
                     if (issuedCert.rows.length > 0) {

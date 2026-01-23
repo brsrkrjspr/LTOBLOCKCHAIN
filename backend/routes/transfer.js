@@ -2773,7 +2773,19 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             });
         }
         
-        if (![TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS, TRANSFER_STATUS.UNDER_REVIEW].includes(request.status)) {
+        // Allow approval from the normal review states AND from the forwarded-to-HPG state.
+        // Rationale:
+        // - enum in DB includes FORWARDED_TO_HPG
+        // - once org approvals (HPG/Insurance) are done, LTO should still be able to finalize
+        //   even though status remains FORWARDED_TO_HPG.
+        const approvableStatuses = [
+            TRANSFER_STATUS.PENDING,
+            TRANSFER_STATUS.AWAITING_BUYER_DOCS,
+            TRANSFER_STATUS.UNDER_REVIEW,
+            TRANSFER_STATUS.FORWARDED_TO_HPG
+        ];
+
+        if (!approvableStatuses.includes(request.status)) {
             return res.status(400).json({
                 success: false,
                 error: `Cannot approve request with status: ${request.status}`

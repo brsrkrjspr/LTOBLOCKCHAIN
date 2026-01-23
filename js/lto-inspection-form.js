@@ -112,16 +112,21 @@ async function loadVehicles() {
     try {
         const apiClient = window.apiClient || new APIClient();
         
-        // Get all vehicles that are APPROVED or REGISTERED but may not have inspection
+        // Get all vehicles that may need inspection.
+        // We include:
+        // - REGISTERED / APPROVED: vehicles that are already in the registry but may not have MVIR yet
+        // - TRANSFER_IN_PROGRESS: vehicles currently in an ownership transfer (these MUST be inspectable)
         const response = await apiClient.get('/api/vehicles');
         
         if (response.success && response.vehicles) {
             const vehicleSelect = document.getElementById('vehicleSelect');
             vehicleSelect.innerHTML = '<option value="">-- Select a vehicle --</option>';
             
-            // Filter vehicles that are APPROVED or REGISTERED
+            // Filter eligible vehicles by status
             const eligibleVehicles = response.vehicles.filter(v => 
-                v.status === 'APPROVED' || v.status === 'REGISTERED'
+                v.status === 'APPROVED' ||
+                v.status === 'REGISTERED' ||
+                v.status === 'TRANSFER_IN_PROGRESS'
             );
             
             eligibleVehicles.forEach(vehicle => {

@@ -12,6 +12,9 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const fabricService = require('../services/optimizedFabricService');
 const { sendMail } = require('../services/gmailApiService');
+const crypto = require('crypto');
+const certificateBlockchain = require('../services/certificateBlockchainService');
+const dbModule = require('../database/db');
 
 // Configure multer for file uploads
 const inspectionDocsDir = path.join(__dirname, '../uploads/inspection-documents');
@@ -59,7 +62,7 @@ const upload = multer({
 // Perform LTO vehicle inspection
 router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
-        const { vehicleId, inspectionResult, roadworthinessStatus, inspectionOfficer, inspectionNotes } = req.body;
+        const { vehicleId, inspectionResult, roadworthinessStatus, inspectionOfficer, inspectionNotes, documentReferences } = req.body;
         
         if (!vehicleId) {
             return res.status(400).json({
@@ -117,13 +120,81 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
         const currentUser = await db.getUserById(req.user.userId);
         const officerName = inspectionOfficer || `${currentUser.first_name} ${currentUser.last_name}`;
 
-        // Assign MVIR number and inspection data
+        // Assign MVIR number and inspection data (writes mvir_number, inspection_date, etc. to vehicles table)
         const inspectionResult_data = await db.assignMvirNumber(vehicleId, {
             inspectionResult,
             roadworthinessStatus,
             inspectionOfficer: officerName,
             inspectionNotes: inspectionNotes || null
         });
+
+        // Issue MVIR certificate at inspection time so later transfers can validate against it.
+        // This mirrors the issued_certificates write in certificate-generation, but is now anchored to LTO inspection.
+        try {
+            if (documentReferences && documentReferences.mvirDocument && documentReferences.mvirDocument.filename) {
+                const mvirFilePath = path.join(inspectionDocsDir, documentReferences.mvirDocument.filename);
+                if (fs.existsSync(mvirFilePath)) {
+                    const fileBuffer = fs.readFileSync(mvirFilePath);
+                    const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+
+                    const issueDateIso = inspectionResult_data.inspectionDate || new Date().toISOString();
+                    const compositeHash = certificateBlockchain.generateCompositeHash(
+                        inspectionResult_data.mvirNumber,
+                        vehicle.vin,
+                        issueDateIso,
+                        fileHash
+                    );
+
+                    // MVIR is stored in issued_certificates as type 'hpg_clearance' (both are vehicle clearance docs),
+                    // using an issuer with issuer_type 'hpg' as in transfer certificate generation.
+                    const issuerQuery = await dbModule.query(
+                        `SELECT id FROM external_issuers WHERE issuer_type = $1 AND is_active = true LIMIT 1`,
+                        ['hpg']
+                    );
+
+                    if (issuerQuery.rows.length > 0) {
+                        const issuerId = issuerQuery.rows[0].id;
+
+                        const metadata = {
+                            originalCertificateType: 'mvir_cert',
+                            inspectionResult,
+                            roadworthinessStatus,
+                            inspectionOfficer: officerName,
+                            inspectionNotes: inspectionNotes || null
+                        };
+
+                        await dbModule.query(
+                            `INSERT INTO issued_certificates 
+                             (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                              file_hash, composite_hash, issued_at, expires_at, metadata)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                issuerId,
+                                'hpg_clearance', // DB-allowed type for MVIR certificates
+                                inspectionResult_data.mvirNumber,
+                                vehicle.vin,
+                                null, // owner_name optional; can be enriched later if needed
+                                fileHash,
+                                compositeHash,
+                                issueDateIso,
+                                null,
+                                JSON.stringify(metadata)
+                            ]
+                        );
+                        console.log(`[LTO Inspection] ✅ Issued MVIR certificate ${inspectionResult_data.mvirNumber} for VIN ${vehicle.vin}`);
+                    } else {
+                        console.warn('[LTO Inspection] ⚠️ No active issuer found for MVIR (issuer_type=hpg); skipping issued_certificates write');
+                    }
+                } else {
+                    console.warn('[LTO Inspection] ⚠️ MVIR document file not found at path:', mvirFilePath);
+                }
+            } else {
+                console.warn('[LTO Inspection] ⚠️ No MVIR document reference provided; skipping MVIR issued_certificates write');
+            }
+        } catch (certError) {
+            console.error('[LTO Inspection] ❌ Error issuing MVIR certificate:', certError.message);
+            // Do not fail the inspection if certificate issuance fails.
+        }
 
         // Log inspection to vehicle history
         await db.addVehicleHistory({

@@ -2158,59 +2158,10 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             }
 
             // MVIR
+            // NOTE: MVIR certificates are now issued exclusively via the LTO inspection flow (/api/lto/inspect).
+            // The transfer certificate generator no longer creates MVIR documents/certificates to avoid duplicates.
             if (buyerDocuments?.mvir) {
-                const inspectionDate = vehicle.inspection_date || new Date().toISOString();
-                const mvirNumber = buyerDocuments.mvir.mvirNumber || `MVIR-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-                const mvirResult = await certificatePdfGenerator.generateMvir({
-                    vehicleVIN: vehicle.vin, // Use DB vehicle data - no randomization
-                    vehiclePlate: vehicle.plate_number, // Use DB vehicle data
-                    vehicleMake: vehicle.make, // Use DB vehicle data
-                    vehicleModel: vehicle.model, // Use DB vehicle data
-                    vehicleYear: vehicle.year, // Use DB vehicle data
-                    engineNumber: vehicle.engine_number, // Use DB vehicle data
-                    chassisNumber: vehicle.chassis_number, // Use DB vehicle data
-                    inspectionDate: inspectionDate,
-                    mvirNumber: mvirNumber,
-                    inspectionResult: buyerDocuments.mvir.inspectionResult || 'PASS',
-                    inspectorName: buyerDocuments.mvir.inspectorName || 'LTO Inspector'
-                });
-
-                // Store PDF document with correct enum type
-                const docId = await storePdfAndCreateDocument(
-                    mvirResult.pdfBuffer,
-                    mvirResult.fileHash,
-                    `MVIR_${transferRequestId || vehicle.id}.pdf`,
-                    docTypes.DB_TYPES.MVIR, // Use proper enum: 'mvir_cert'
-                    vehicle.id,
-                    buyer.email
-                );
-                await linkDocumentToTransfer(docId, docTypes.TRANSFER_ROLES.BUYER_MVIR);
-
-                // Write to issued_certificates for auto-verification
-                const mvirCompositeHash = certificatePdfGenerator.generateCompositeHash(
-                    mvirNumber,
-                    vehicle.vin,
-                    inspectionDate.split('T')[0],
-                    mvirResult.fileHash
-                );
-                await writeIssuedCertificate(
-                    'mvir_cert',
-                    mvirNumber,
-                    vehicle.vin,
-                    buyerName,
-                    mvirResult.fileHash,
-                    mvirCompositeHash,
-                    inspectionDate.split('T')[0],
-                    null, // MVIR doesn't expire
-                    {
-                        transferRequestId,
-                        inspectionResult: buyerDocuments.mvir.inspectionResult,
-                        inspectorName: buyerDocuments.mvir.inspectorName
-                    }
-                );
-
-                results.buyerDocuments.mvir = { documentId: docId, fileHash: mvirResult.fileHash, mvirNumber };
+                console.log('[Transfer Certificates] Skipping MVIR generation - MVIR is issued via LTO inspection');
             }
         } catch (error) {
             console.error('[Buyer Documents] Error:', error);

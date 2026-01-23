@@ -64,6 +64,14 @@ function computeExpiresAt(days = TRANSFER_DEADLINE_DAYS) {
  */
 async function linkTransferDocuments({ transferRequestId, documents = {}, uploadedBy }) {
     if (!documents || typeof documents !== 'object') return;
+    
+    if (!uploadedBy) {
+        throw new Error('uploadedBy is required for linking documents');
+    }
+    
+    if (!transferRequestId) {
+        throw new Error('transferRequestId is required for linking documents');
+    }
 
     const documentRoleMap = {
         'deedOfSale': docTypes.TRANSFER_ROLES.DEED_OF_SALE,
@@ -92,35 +100,74 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
     for (const [roleKey, docId] of Object.entries(documents)) {
         if (!docId) continue;
 
-        const transferRole = documentRoleMap[roleKey];
-        if (!transferRole) {
-            console.warn('⚠️ Unknown document role key:', { roleKey, docId, transferRequestId });
-            continue;
-        }
+        try {
+            const transferRole = documentRoleMap[roleKey];
+            if (!transferRole) {
+                console.warn('⚠️ Unknown document role key:', { roleKey, docId, transferRequestId });
+                continue;
+            }
 
-        const document = await db.getDocumentById(docId);
-        if (!document) {
-            console.warn('⚠️ Document not found for transfer:', { docId, roleKey, transferRequestId });
-            continue;
-        }
+            let document;
+            try {
+                document = await db.getDocumentById(docId);
+            } catch (docErr) {
+                console.error('❌ Error fetching document:', { docId, roleKey, transferRequestId, error: docErr.message });
+                throw new Error(`Failed to fetch document ${docId} for role ${roleKey}: ${docErr.message}`);
+            }
 
-        if (!docTypes.isValidTransferRole(transferRole)) {
-            console.warn('⚠️ Invalid transfer role:', { roleKey, transferRole });
-            continue;
-        }
+            if (!document) {
+                console.warn('⚠️ Document not found for transfer:', { docId, roleKey, transferRequestId });
+                continue;
+            }
 
-        const existingDoc = await dbModule.query(
-            `SELECT id FROM transfer_documents 
-             WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
-            [transferRequestId, docId, transferRole]
-        );
+            if (!docTypes.isValidTransferRole(transferRole)) {
+                console.warn('⚠️ Invalid transfer role:', { roleKey, transferRole });
+                continue;
+            }
 
-        if (existingDoc.rows.length === 0) {
-            await dbModule.query(
-                `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
-                 VALUES ($1, $2, $3, $4)`,
-                [transferRequestId, transferRole, docId, uploadedBy]
-            );
+            let existingDoc;
+            try {
+                existingDoc = await dbModule.query(
+                    `SELECT id FROM transfer_documents 
+                     WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
+                    [transferRequestId, docId, transferRole]
+                );
+            } catch (queryErr) {
+                console.error('❌ Error checking existing transfer document:', { 
+                    transferRequestId, docId, transferRole, error: queryErr.message 
+                });
+                throw new Error(`Failed to check existing document link: ${queryErr.message}`);
+            }
+
+            if (existingDoc.rows.length === 0) {
+                try {
+                    await dbModule.query(
+                        `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
+                         VALUES ($1, $2, $3, $4)`,
+                        [transferRequestId, transferRole, docId, uploadedBy]
+                    );
+                    console.log(`✅ Linked document ${docId} as ${roleKey} (${transferRole}) to transfer ${transferRequestId}`);
+                } catch (insertErr) {
+                    console.error('❌ Error inserting transfer document:', { 
+                        transferRequestId, docId, transferRole, uploadedBy, error: insertErr.message,
+                        code: insertErr.code, constraint: insertErr.constraint
+                    });
+                    throw new Error(`Failed to link document ${docId} as ${roleKey}: ${insertErr.message}`);
+                }
+            } else {
+                console.log(`ℹ️ Document ${docId} already linked as ${roleKey} to transfer ${transferRequestId}`);
+            }
+        } catch (err) {
+            // Re-throw with context
+            console.error('❌ Error in linkTransferDocuments loop:', {
+                roleKey,
+                docId,
+                transferRequestId,
+                uploadedBy,
+                error: err.message,
+                stack: err.stack
+            });
+            throw err;
         }
     }
 }

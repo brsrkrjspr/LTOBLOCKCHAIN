@@ -383,13 +383,17 @@ class AutoVerificationService {
             console.log(`[Auto-Verify] Starting HPG auto-verification for vehicle ${vehicleId}`);
 
             // Find HPG Clearance document (HPG receives hpg_clearance, not OR/CR)
+            // For transfer requests, buyer uploads with type 'buyer_hpg_clearance' (transfer role)
+            // but the actual document in DB has document_type = 'hpg_clearance'
             const hpgClearanceDoc = documents.find(d => 
                 d.document_type === 'hpg_clearance' || 
                 d.document_type === 'hpgClearance' ||
                 d.document_type === 'pnp_hpg_clearance' ||
+                d.document_type === 'buyer_hpg_clearance' || // Transfer role (from transfer_documents)
                 d.type === 'hpg_clearance' ||
                 d.type === 'hpgClearance' ||
-                d.type === 'pnp_hpg_clearance'
+                d.type === 'pnp_hpg_clearance' ||
+                d.type === 'buyer_hpg_clearance' // Transfer role (from metadata.documents)
             );
 
             // Fallback: Also check for OR/CR (for transfer cases where OR/CR is submitted)

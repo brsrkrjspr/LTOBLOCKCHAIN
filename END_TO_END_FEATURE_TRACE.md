@@ -3,8 +3,8 @@
 
 **Purpose:** Trace every feature from UI element → API endpoint → Database schema with exact naming, IDs, and field mappings.
 
-**Last Updated:** 2026-01-XX
-**Verification Status:** In Progress
+**Last Updated:** 2026-01-23
+**Verification Status:** Transfer of Ownership flow re-verified end-to-end (UI → API → DB). Other sections: in progress.
 
 ---
 
@@ -1080,264 +1080,338 @@ WHERE id = $3
 
 ## 4. Transfer of Ownership
 
-### 4.1 Create Transfer Request
+### 4.1 Create Transfer Request (Seller → LTO)
 
 #### Frontend Elements
-**File:** `transfer-ownership.html`
+**Files:** `owner-dashboard.html`, `js/owner-dashboard.js`
 
 | Element | ID/Class | Type | Purpose |
 |---------|----------|------|---------|
-| Vehicle Select | `vehicleSelect` | Select | Select vehicle to transfer |
-| Buyer Email Input | `buyerEmail` | Input | Buyer email address |
-| Buyer First Name Input | `buyerFirstName` | Input | Buyer first name |
-| Buyer Last Name Input | `buyerLastName` | Input | Buyer last name |
-| Buyer Phone Input | `buyerPhone` | Input | Buyer phone |
-| Buyer Address Textarea | `buyerAddress` | Textarea | Buyer address |
-| Transfer Reason Textarea | `transferReason` | Textarea | Reason for transfer |
-| Submit Transfer Button | `.btn-primary` | Button | Create transfer request |
+| Vehicle Select | `#transferVehicleSelect` | Select | Choose vehicle to transfer (must be owned by seller) |
+| Buyer Email Input | `#transferBuyerEmail` | Input | Email of buyer (used to invite / link account) |
+| Buyer Name Input (optional) | `#transferBuyerName` | Input | Display name for buyer (for email/preview) |
+| Buyer Phone Input (optional) | `#transferBuyerPhone` | Input | Buyer contact number (stored in metadata) |
+| Create Transfer Button | `.btn-create-transfer` | Button | Creates transfer request and sends buyer invite |
 
-**JavaScript Function:** `submitTransferRequest()` in `js/transfer-ownership.js` (if exists) or `owner-dashboard.js`
+**JavaScript Function:** `createTransferRequest()` (final implementation is in `js/owner-dashboard.js` – calls `/api/vehicles/transfer/requests` with `vehicleId`, `buyerEmail`, `buyerName`, `buyerPhone`, and optional initial `documents`).
 
 #### Backend Endpoint
+**File:** `backend/routes/transfer.js` (mounted under `/api/vehicles/transfer`)
+
+| Method | Endpoint | Handler | Auth Required |
+|--------|----------|---------|---------------|
+| POST | `/api/vehicles/transfer/requests` | `router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {...})` | Yes (`vehicle_owner` / `admin`) |
+
+**Request Body (current implementation):**
+```javascript
+{
+  vehicleId: string,          // UUID - required
+  buyerId?: string,           // Optional direct link if buyer already has account
+  buyerInfo?: {               // Optional legacy payload (kept for backward compatibility)
+    email?: string,
+    firstName?: string,
+    lastName?: string,
+    phone?: string
+  },
+  buyerEmail?: string,        // Required if buyerId not provided
+  buyerName?: string,         // Optional display name for emails
+  buyerPhone?: string,        // Optional contact number
+  documentIds?: string[],     // Legacy array of document UUIDs (mapped to BUYER_ID)
+  documents?: {               // NEW: Explicit transfer roles mapped to document IDs
+    deedOfSale?: string,      // docTypes.TRANSFER_ROLES.DEED_OF_SALE
+    sellerId?: string,        // SELLER_ID
+    buyerId?: string,         // BUYER_ID (rare at creation time)
+    // buyer_tin / buyer_ctpl / buyer_mvir / buyer_hpg_clearance
+  }
+}
+```
+
+**Key Backend Logic (summarized):**
+- Verifies:
+  - `vehicleId` exists and belongs to the authenticated seller (unless `admin`).
+  - `buyerEmail` present if no `buyerId`.
+  - Seller profile has `first_name` + `last_name` (profile completeness check).
+  - No existing pending transfer for this vehicle (`PENDING`, `AWAITING_BUYER_DOCS`, `UNDER_REVIEW`).
+- Resolves buyer:
+  - If `buyerId` given → uses that user.
+  - Else, looks up `buyerEmail` in `users`; if found, binds `buyer_id`.
+  - If not found, stores `{ email: buyerEmail }` in `buyer_info` JSONB for later.
+- Creates `transfer_requests` row with:
+  - `status = 'PENDING'`
+  - `expires_at` computed via `computeExpiresAt()`
+  - `buyer_info` JSONB (email + optional name/phone)
+- Links any initial documents (if `documents` or `documentIds` provided) via `linkTransferDocuments`.
+- Sends email to buyer with secure preview / acceptance link via Gmail API (`sendTransferInviteEmail`).
+
+**Database Schema (key columns) – `transfer_requests`:**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID | Primary key |
+| `vehicle_id` | UUID | FK → `vehicles.id` (must be owned by seller) |
+| `seller_id` | UUID | FK → `users.id` (authenticated seller) |
+| `buyer_id` | UUID | FK → `users.id` (set once buyer account is linked) |
+| `buyer_email` | VARCHAR(255) | Canonical buyer email snapshot |
+| `buyer_info` | JSONB | `{ email, firstName, lastName, phone }` (invite metadata) |
+| `status` | TEXT | See status list below |
+| `expires_at` | TIMESTAMP | Computed expiry for handshake |
+| `metadata` | JSONB | Stores validation, auto-forward, MVIR flags, etc. |
+| `created_at` / `updated_at` | TIMESTAMP | Audit fields |
+
+**Status Values (effective for transfer):**
+- `PENDING` – Seller submitted request, waiting for buyer to accept / upload docs.
+- `AWAITING_BUYER_DOCS` – Buyer accepted, but has not yet uploaded all documents.
+- `UNDER_REVIEW` – Buyer docs submitted, LTO currently reviewing and/or waiting for HPG/Insurance.
+- `APPROVED` – LTO admin approved transfer (before blockchain + OR/CR completion).
+- `COMPLETED` – Transfer finalized, ownership and OR/CR updated, blockchain updated.
+- `REJECTED` – Transfer rejected by LTO or buyer.
+- (Internally in metadata: flags like `ltoInspectionRequired`, `autoForward`, etc.)
+
+**Verification Checklist (re-verified 2026‑01‑23):**
+- [x] Frontend uses `/api/vehicles/transfer/requests` (confirmed in `js/owner-dashboard.js`).
+- [x] Backend enforces seller-owns-vehicle check (`vehicle.owner_id` vs `req.user.userId`).
+- [x] Duplicate transfer prevention for active statuses.
+- [x] Buyer resolution via `buyerId` or `buyerEmail` + `getUserByEmail`.
+- [x] Initial documents correctly linked via `linkTransferDocuments`.
+- [x] Email invite sent to `buyerEmail` with preview/accept link.
+
+---
+
+### 4.2 Buyer Accept Transfer Request (+ Optional Doc Upload)
+
+#### Frontend Elements
+**File:** `my-vehicle-ownership.html` / `js/my-vehicle-ownership.js`
+
+| Element | ID/Class | Type | Purpose |
+|---------|----------|------|---------|
+| Accept Button | `#acceptTransferBtn` | Button | Buyer accepts transfer |
+| Reject Button | `#rejectTransferBtn` | Button | Buyer rejects transfer |
+| Buyer Document Upload Inputs | Driven by `buyerDocumentsConfig` | File inputs | Upload buyer ID, TIN, CTPL, MVIR, HPG |
+
+Buyer doc roles are configured in `js/my-vehicle-ownership.js`:
+
+```javascript
+buyerDocumentsConfig = [
+  { key: 'buyer_id',   label: 'Buyer ID',   ... },
+  { key: 'buyer_tin',  label: 'Buyer TIN', ... },
+  { key: 'buyer_ctpl', label: 'Buyer CTPL', ... },
+  { key: 'buyer_mvir', label: 'Buyer MVIR', ... },
+  { key: 'buyer_hpg_clearance', label: 'Buyer HPG Clearance', ... }
+];
+```
+
+These keys map directly to backend transfer roles via `documentRoleMap` in `backend/routes/transfer.js`.
+
+#### Backend Endpoint
+**File:** `backend/routes/transfer.js` (mounted under `/api/vehicles/transfer`)
+
+| Method | Endpoint | Handler | Auth Required |
+|--------|----------|---------|---------------|
+| POST | `/api/vehicles/transfer/requests/:id/accept` | `router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {...})` | Yes (`vehicle_owner` / `admin`) |
+
+**Request Body (current buyer flow):**
+```javascript
+{
+  documents?: {
+    buyer_id?: string,             // document UUID
+    buyer_tin?: string,
+    buyer_ctpl?: string,
+    buyer_mvir?: string,
+    buyer_hpg_clearance?: string
+  },
+  documentIds?: string[]           // Legacy fallback (mapped to BUYER_ID)
+}
+```
+
+**High-level Handler Logic:**
+- Loads transfer request (`db.getTransferRequestById(id)`).
+- Ensures status is `PENDING` or `AWAITING_BUYER_DOCS`.
+- Confirms current user is the designated buyer:
+  - by `buyer_id` / `buyer_user_id` OR
+  - by `buyer_info.email` matching `req.user.email`.
+- If `buyer_id` not set but email matches, binds `buyer_id` to current user and updates `buyer_info.email`.
+- If `documents` provided:
+  - Calls `linkTransferDocuments({ transferRequestId: id, documents, uploadedBy: currentUserId })`.
+  - Runs `transferAutoValidationService.validateDocuments({ transferRequest, vehicle, documents })` for **presence/hash** checks on:
+    - HPG (`BUYER_HPG_CLEARANCE`)
+    - MVIR (`BUYER_MVIR`)
+    - CTPL (`BUYER_CTPL`)
+    - Buyer TIN (`BUYER_TIN`)
+  - Runs `autoVerifyMVIR()` for MVIR if present (see §5).
+  - Persists validation + MVIR auto-verification into `transfer_requests.metadata`.
+  - Updates status → `UNDER_REVIEW`.
+- If no documents yet, marks:
+  - `status = 'AWAITING_BUYER_DOCS'`
+  - `metadata.awaitingBuyerDocs = true`.
+- Sends:
+  - Email to seller (buyer accepted).
+  - In‑app notification to seller.
+- If status became `UNDER_REVIEW` and request is eligible, triggers **auto-forward** to HPG and Insurance (see §4.5).
+
+**Response (simplified structure):**
+```javascript
+{
+  success: true,
+  message: string, // 'Buyer documents submitted. Awaiting LTO review.' or similar
+  transferRequest: { ...updated row... },
+  autoForward: { ... } | null,
+  validation: { ... } | null      // Result from transferAutoValidationService
+}
+```
+
+**Verification Checklist (re-verified 2026‑01‑23):**
+- [x] Only designated buyer (ID or email) can accept.
+- [x] Buyer docs map correctly from UI keys → `transfer_documents.document_type` roles.
+- [x] `transfer_documents` rows created via `linkTransferDocuments`.
+- [x] `transfer_requests.status` transitions:
+  - `PENDING` → `UNDER_REVIEW` (when docs provided)
+  - `PENDING` → `AWAITING_BUYER_DOCS` (when no docs yet)
+- [x] Validation + MVIR auto‑verification stored in `metadata.validation` and `metadata.mvirAutoVerification`.
+- [x] Seller notified via email + in‑app notification.
+
+---
+
+### 4.3 Transfer Documents (Schema & Roles)
+
+There is no longer a separate `/documents` multipart endpoint for transfer; documents are:
+- Uploaded via the **generic document upload** flow (`/api/documents`) and
+- Then linked to a transfer via:
+  - Buyer accept (`/requests/:id/accept` with `documents` mapping), or
+  - Explicit link route (`/requests/:id/link-document`) when buyer/admin replaces or adds docs.
+
+#### Link Document Endpoint
 **File:** `backend/routes/transfer.js`
 
 | Method | Endpoint | Handler | Auth Required |
 |--------|----------|---------|---------------|
-| POST | `/api/transfer/requests` | `router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {...})` | Yes (Owner/Admin) |
+| POST | `/api/vehicles/transfer/requests/:id/link-document` | `router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {...})` | Yes (Seller / Buyer / Admin) |
 
 **Request Body:**
 ```javascript
 {
-  vehicleId: uuid,
-  buyerEmail: string,
-  buyerFirstName: string,
-  buyerLastName: string,
-  buyerPhone?: string,
-  buyerAddress?: string,
-  transferReason?: string
-}
-```
-
-**Response:**
-```javascript
-{
-  success: true,
-  message: 'Transfer request created successfully',
-  transferRequest: {
-    id: uuid,
-    vehicleId: uuid,
-    sellerId: uuid,
-    buyerEmail: string,
-    status: 'PENDING',
-    createdAt: timestamp,
-    previewToken: string  // For buyer preview
+  documents: {
+    deed_of_sale?: string,
+    seller_id?: string,
+    buyer_id?: string,
+    buyer_tin?: string,
+    buyer_ctpl?: string,
+    buyer_mvir?: string,
+    buyer_hpg_clearance?: string,
+    other?: string
   }
 }
 ```
 
-#### Database Schema
-**Table:** `transfer_requests`
+This uses the same `documentRoleMap` as buyer-accept; roles come from `backend/config/documentTypes.js` (`TRANSFER_ROLES`).
+
+#### Database Schema – `transfer_documents`
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
-| `id` | UUID | PRIMARY KEY | Transfer request ID |
-| `vehicle_id` | UUID | FOREIGN KEY → vehicles.id | Vehicle reference |
-| `seller_id` | UUID | FOREIGN KEY → users.id | Current owner |
-| `buyer_email` | VARCHAR(255) | NOT NULL | Buyer email |
-| `buyer_first_name` | VARCHAR(100) | NULL | Buyer first name |
-| `buyer_last_name` | VARCHAR(100) | NULL | Buyer last name |
-| `buyer_phone` | VARCHAR(20) | NULL | Buyer phone |
-| `buyer_address` | TEXT | NULL | Buyer address |
-| `status` | VARCHAR(50) | DEFAULT 'PENDING' | Transfer status |
-| `transfer_reason` | TEXT | NULL | Reason for transfer |
-| `preview_token` | VARCHAR(255) | UNIQUE | Token for buyer preview |
-| `expires_at` | TIMESTAMP | NULL | Request expiration |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Creation time |
-| `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Update time (trigger) |
-| `approved_at` | TIMESTAMP | NULL | Approval time |
-| `approved_by` | UUID | FOREIGN KEY → users.id | Approver |
-| `completed_at` | TIMESTAMP | NULL | Completion time |
+| `id` | UUID | PRIMARY KEY | Transfer-document link ID |
+| `transfer_request_id` | UUID | FK → `transfer_requests.id` | Transfer reference |
+| `document_type` | VARCHAR(30) | CHECK constraint | **Transfer role** (not DB document type) |
+| `document_id` | UUID | FK → `documents.id` | Linked document record |
+| `uploaded_by` | UUID | FK → `users.id` | Uploader user ID |
+| `uploaded_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Link created time |
 
-**Status Values:**
-- `PENDING` - Initial state
-- `AWAITING_BUYER_DOCS` - Waiting for buyer documents
-- `UNDER_REVIEW` - Admin reviewing
-- `APPROVED` - Admin approved
-- `REJECTED` - Admin rejected
-- `EXPIRED` - Request expired
-- `COMPLETED` - Transfer completed
-- `FORWARDED_TO_HPG` - Sent to HPG
+**Allowed `document_type` values (post‑migration `008_update_transfer_documents_constraint.sql`):**
+- `deed_of_sale`        – Seller’s Deed of Sale
+- `seller_id`           – Seller’s government ID
+- `buyer_id`            – Buyer’s government ID
+- `buyer_tin`           – Buyer’s TIN document
+- `buyer_ctpl`          – Buyer’s CTPL insurance certificate
+- `buyer_mvir`          – Buyer’s MVIR scan
+- `buyer_hpg_clearance` – Buyer’s HPG clearance certificate
+- `other`               – Edge cases / misc docs
 
-**Verification Checklist:**
-- [ ] Frontend validates buyer email format
-- [ ] Frontend validates vehicle ownership
-- [ ] Backend verifies seller owns vehicle
-- [ ] Backend creates transfer request with status 'PENDING'
-- [ ] Backend generates preview token
-- [ ] Backend sends notification to buyer
-- [ ] Database stores all transfer request data
-- [ ] Database triggers update `updated_at` automatically
+Removed / deprecated roles:
+- `or_cr` – OR/CR is auto‑linked from `documents` per vehicle, **not** uploaded in transfer.
+- `emission_cert` – Emission workflow removed.
+- `insurance_cert` – CTPL handled via `buyer_ctpl` + insurance issuer integration.
+- `transfer_package_pdf`, `transfer_certificate` – System-generated, no longer stored as `transfer_documents`.
+
+**Verification Checklist (re-verified 2026‑01‑23):**
+- [x] CHECK constraint on `transfer_documents.document_type` matches `TRANSFER_ROLES` used by frontend (post‑migration).
+- [x] Buyer and seller uploads use only the whitelisted roles.
+- [x] `getTransferRequestDocuments` correctly distinguishes:
+  - `td.document_type` (transfer role)
+  - `d.document_type` (DB document type, exposed as `document_db_type`).
 
 ---
 
-### 4.2 Buyer Accept Transfer Request
+### 4.4 LTO Admin Transfer Review & Approval
 
 #### Frontend Elements
-**File:** `transfer-ownership.html` or preview page
+**Files:** `admin-transfer-requests.html`, `admin-transfer-details.html`, `js/admin-transfer-details.js`
 
-| Element | ID/Class | Type | Purpose |
-|---------|----------|------|---------|
-| Accept Button | `.btn-accept-transfer` | Button | Accept transfer |
-| Reject Button | `.btn-reject-transfer` | Button | Reject transfer |
+Key UI:
+- Transfer list: `admin-transfer-requests.html` shows summary + a **View** button → `admin-transfer-details.html?id=<transferRequestId>`.
+- Details screen:
+  - Section: **Organization Approval Status** (HPG + Insurance status badges).
+  - Section: **LTO MVIR Validation** (MVIR inspection + auto-verification status).
+  - Section: Seller / Buyer / Vehicle info + uploaded documents.
+  - Action panel:
+    - Forward to HPG / Insurance.
+    - Approve / Reject transfer (only when orgs approvals are satisfied).
 
-#### Backend Endpoint
+#### Approval Endpoint
 **File:** `backend/routes/transfer.js`
 
 | Method | Endpoint | Handler | Auth Required |
 |--------|----------|---------|---------------|
-| POST | `/api/transfer/requests/:id/accept` | `router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {...})` | Yes (Owner/Admin) |
+| POST | `/api/vehicles/transfer/requests/:id/approve` | `router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin']), async (req, res) => {...})` | Yes (`admin`) |
 
-**Response:**
+**Key Preconditions in Handler (re-verified):**
+1. **Organization approvals:**
+   - If `hpg_clearance_request_id` present → `hpg_approval_status` must not be `PENDING` or `REJECTED`.
+   - If `insurance_clearance_request_id` present → `insurance_approval_status` must not be `PENDING` or `REJECTED`.
+   - If any are pending → returns `400` with `pendingApprovals`.
+   - If any rejected → returns `400` with `rejectedApprovals`.
+2. **LTO Inspection (MVIR):**
+   - Loads `vehicle = db.getVehicleById(request.vehicle_id)`.
+   - If `vehicle.mvir_number` is falsy:
+     - Updates status to `UNDER_REVIEW` with `metadata.ltoInspectionRequired = true`.
+     - Sends notifications to seller (and buyer if resolved) that **LTO inspection is required**.
+     - Returns `400` with `code = 'LTO_INSPECTION_REQUIRED'`.
+3. **Buyer identity:**
+   - Ensures `buyer_id` is resolved; if only `buyer_info` exists, creates a new `vehicle_owner` user and updates `buyer_id`.
+4. **Required documents:**
+   - Loads `transferDocs = db.getTransferRequestDocuments(id)`.
+   - Asserts presence of required roles:
+     - Seller: `deed_of_sale`, `seller_id`.
+     - Buyer: `buyer_id`, `buyer_tin`, `buyer_ctpl`, `buyer_mvir`, `buyer_hpg_clearance`.
+   - If missing roles exist → returns `400` listing missing seller/buyer roles.
+
+**Core Effects on Approval:**
+- Updates `transfer_requests.status` → `APPROVED`, plus:
+  - `approved_at`, `approved_by`.
+  - `metadata` extended with inspection + org approval context.
+- Updates `vehicles`:
+  - Changes `owner_id` to buyer.
+  - Maintains inspection fields (`mvir_number`, `inspection_date`, etc.).
+  - Assigns OR/CR numbers if not already assigned (via LTO approval path, see §2/§8).
+- Links buyer’s documents to vehicle:
+  - For all `transfer_documents` with role starting `buyer_`:
+    - Updates the underlying `documents.vehicle_id = request.vehicle_id` (append-only history for blockchain).
+  - Attempts to mark old seller docs `is_active = false` (best-effort, tolerant if column missing).
+
+**Response (simplified):**
 ```javascript
 {
   success: true,
-  message: 'Transfer request accepted',
-  transferRequest: {
-    id: uuid,
-    status: 'AWAITING_BUYER_DOCS',
-    updatedAt: timestamp
-  }
+  message: 'Transfer request approved and ownership updated',
+  transferRequest: { ...updated row... }
 }
 ```
 
-#### Database Operations
-**Update:**
-```sql
-UPDATE transfer_requests
-SET 
-  status = 'AWAITING_BUYER_DOCS',
-  updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-```
+**Verification Checklist (re-verified 2026‑01‑23):**
+- [x] HPG + Insurance approvals must be complete (no lingering `PENDING`) before approval.
+- [x] LTO inspection (`vehicle.mvir_number`) is mandatory; otherwise approval is blocked with clear 400 error + notifications.
+- [x] All required transfer document roles present (`deed_of_sale`, `seller_id`, `buyer_id`, `buyer_tin`, `buyer_ctpl`, `buyer_mvir`, `buyer_hpg_clearance`).
+- [x] Buyer is fully resolved (`buyer_id` present), creating an account if only `buyer_info` existed.
+- [x] Vehicle ownership, OR/CR, and document links are updated atomically within the approval path.
 
-**Verification Checklist:**
-- [ ] Frontend sends accept request
-- [ ] Backend verifies buyer email matches authenticated user
-- [ ] Backend updates status to 'AWAITING_BUYER_DOCS'
-- [ ] Backend notifies seller of acceptance
-
----
-
-### 4.3 Buyer Document Upload
-
-#### Frontend Elements
-**File:** `transfer-ownership.html`
-
-| Element | ID/Class | Type | Purpose |
-|---------|----------|------|---------|
-| Buyer ID Upload | `buyerIdUpload` | File Input | Buyer ID document |
-| Buyer TIN Upload | `buyerTINUpload` | File Input | Buyer TIN document |
-| Buyer CTPL Upload | `buyerCTPLUpload` | File Input | Buyer CTPL certificate |
-| Buyer MVIR Upload | `buyerMVIRUpload` | File Input | Buyer MVIR certificate |
-| Buyer HPG Upload | `buyerHPGUpload` | File Input | Buyer HPG clearance |
-| Submit Documents Button | `.btn-submit-docs` | Button | Submit buyer documents |
-
-#### Backend Endpoint
-**File:** `backend/routes/transfer.js`
-
-| Method | Endpoint | Handler | Auth Required |
-|--------|----------|---------|---------------|
-| POST | `/api/transfer/requests/:id/documents` | Upload buyer documents | Yes (Owner/Admin) |
-
-**Request:**
-- Content-Type: `multipart/form-data`
-- Multiple files with document types
-
-#### Database Schema
-**Table:** `transfer_documents`
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| `id` | UUID | PRIMARY KEY | Document ID |
-| `transfer_request_id` | UUID | FOREIGN KEY → transfer_requests.id | Transfer reference |
-| `document_type` | VARCHAR(30) | NOT NULL | Document role |
-| `document_id` | UUID | FOREIGN KEY → documents.id | Document reference |
-| `uploaded_by` | UUID | FOREIGN KEY → users.id | Uploader |
-| `uploaded_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Upload time |
-| `verified` | BOOLEAN | DEFAULT false | Verification status |
-| `verified_at` | TIMESTAMP | NULL | Verification time |
-| `verified_by` | UUID | FOREIGN KEY → users.id | Verifier |
-
-**Document Types (transfer roles):**
-- `deed_of_sale`
-- `seller_id`
-- `buyer_id`
-- `or_cr`
-- `buyer_tin`
-- `buyer_ctpl`
-- `buyer_mvir`
-- `buyer_hpg_clearance`
-- `transfer_package_pdf`
-- `transfer_certificate`
-
-**Verification Checklist:**
-- [ ] Frontend uploads buyer documents
-- [ ] Backend links documents to transfer request
-- [ ] Backend creates transfer_documents records
-- [ ] Backend updates transfer status if all docs received
-
----
-
-### 4.4 Admin Transfer Approval
-
-#### Frontend Elements
-**File:** `admin-transfer-requests.html`
-
-| Element | ID/Class | Type | Purpose |
-|---------|----------|------|---------|
-| Approve Transfer Button | `.btn-approve-transfer` | Button | Approve transfer |
-| Reject Transfer Button | `.btn-reject-transfer` | Button | Reject transfer |
-| Approval Notes Input | `approvalNotes` | Textarea | Approval notes |
-
-#### Backend Endpoint
-**File:** `backend/routes/transfer.js`
-
-| Method | Endpoint | Handler | Auth Required |
-|--------|----------|---------|---------------|
-| POST | `/api/transfer/requests/:id/approve` | `router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin']), async (req, res) => {...})` | Yes (Admin) |
-
-**Request Body:**
-```javascript
-{
-  notes?: string
-}
-```
-
-**Response:**
-```javascript
-{
-  success: true,
-  message: 'Transfer approved successfully',
-  transferRequest: {
-    id: uuid,
-    status: 'APPROVED',
-    approvedAt: timestamp,
-    approvedBy: uuid
-  }
-}
-```
-
-#### Database Operations
-**Update Transfer Request:**
-```sql
-UPDATE transfer_requests
-SET 
-  status = 'APPROVED',
-  approved_at = CURRENT_TIMESTAMP,
-  approved_by = $1,
-  updated_at = CURRENT_TIMESTAMP
-WHERE id = $2
-```
 
 **Update Vehicle:**
 ```sql

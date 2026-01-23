@@ -226,40 +226,87 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
         const dbModule = require('../database/db');
 
         // Build documents array with REAL hashes/paths from DB
-        // Priority: use explicit IDs from metadata (hpgClearanceDocId, ownerIdDocId),
-        // then fall back to clearance_request_documents join if needed.
+        // Priority order:
+        // 1) Use metadata.documents array (contains full document objects from transfer forwarding)
+        // 2) Use explicit IDs from metadata (buyerHpgDocId for transfers, hpgClearanceDocId for legacy, ownerIdDocId)
+        // 3) Fall back to clearance_request_documents join if needed
         let documents = [];
 
         try {
-            // 1) Explicit HPG clearance document
-            if (metadata.hpgClearanceDocId) {
-                const hpgDocResult = await dbModule.query(
-                    `SELECT * FROM documents WHERE id = $1`,
-                    [metadata.hpgClearanceDocId]
-                );
-                if (hpgDocResult.rows.length > 0) {
-                    documents.push(hpgDocResult.rows[0]);
+            // 1) PRIMARY: Use metadata.documents array (from transfer forwarding - contains buyer HPG clearance)
+            if (metadata.documents && Array.isArray(metadata.documents) && metadata.documents.length > 0) {
+                console.log('📄 [HPG Auto-Verify API] Using metadata.documents array (from transfer forwarding)');
+                console.log('📄 [HPG Auto-Verify API] metadata.documents array:', JSON.stringify(metadata.documents.map(d => ({ id: d.id, type: d.type })), null, 2));
+                // Fetch full document records from DB using IDs from metadata.documents
+                const docIds = metadata.documents
+                    .map(d => d.id)
+                    .filter(Boolean);
+                
+                console.log(`📄 [HPG Auto-Verify API] Extracted ${docIds.length} document ID(s) from metadata.documents:`, docIds);
+                
+                if (docIds.length > 0) {
+                    const docResult = await dbModule.query(
+                        `SELECT * FROM documents WHERE id = ANY($1::uuid[])`,
+                        [docIds]
+                    );
+                    documents = docResult.rows || [];
+                    console.log(`📄 [HPG Auto-Verify API] Loaded ${documents.length} document(s) from metadata.documents array`);
+                    console.log('📄 [HPG Auto-Verify API] Loaded document types:', documents.map(d => d.document_type || d.type));
                 } else {
-                    console.warn('[HPG Auto-Verify API] hpgClearanceDocId set but document not found in documents table:', metadata.hpgClearanceDocId);
+                    console.warn('📄 [HPG Auto-Verify API] metadata.documents array exists but no valid IDs found');
                 }
             }
 
-            // 2) Owner ID document (optional, for completeness)
-            if (metadata.ownerIdDocId) {
-                const ownerDocResult = await dbModule.query(
-                    `SELECT * FROM documents WHERE id = $1`,
-                    [metadata.ownerIdDocId]
-                );
-                if (ownerDocResult.rows.length > 0) {
-                    documents.push(ownerDocResult.rows[0]);
-                } else {
-                    console.warn('[HPG Auto-Verify API] ownerIdDocId set but document not found in documents table:', metadata.ownerIdDocId);
-                }
-            }
-
-            // 3) Fallback: if still empty, use clearance_request_documents join
+            // 2) FALLBACK: Use explicit document IDs from metadata (for transfers: buyerHpgDocId, for legacy: hpgClearanceDocId)
             if (documents.length === 0) {
-                console.log('📄 [HPG Auto-Verify API] No explicit document IDs, fetching documents from clearance_request_documents join...');
+                // For transfer requests: buyerHpgDocId (buyer's HPG clearance)
+                if (metadata.buyerHpgDocId) {
+                    console.log('📄 [HPG Auto-Verify API] Using buyerHpgDocId from metadata (transfer request)');
+                    const hpgDocResult = await dbModule.query(
+                        `SELECT * FROM documents WHERE id = $1`,
+                        [metadata.buyerHpgDocId]
+                    );
+                    if (hpgDocResult.rows.length > 0) {
+                        documents.push(hpgDocResult.rows[0]);
+                    } else {
+                        console.warn('[HPG Auto-Verify API] buyerHpgDocId set but document not found in documents table:', metadata.buyerHpgDocId);
+                    }
+                }
+                // Legacy: hpgClearanceDocId (for non-transfer requests)
+                else if (metadata.hpgClearanceDocId) {
+                    console.log('📄 [HPG Auto-Verify API] Using hpgClearanceDocId from metadata (legacy)');
+                    const hpgDocResult = await dbModule.query(
+                        `SELECT * FROM documents WHERE id = $1`,
+                        [metadata.hpgClearanceDocId]
+                    );
+                    if (hpgDocResult.rows.length > 0) {
+                        documents.push(hpgDocResult.rows[0]);
+                    } else {
+                        console.warn('[HPG Auto-Verify API] hpgClearanceDocId set but document not found in documents table:', metadata.hpgClearanceDocId);
+                    }
+                }
+
+                // Owner ID document (optional, for completeness)
+                if (metadata.ownerIdDocId) {
+                    const ownerDocResult = await dbModule.query(
+                        `SELECT * FROM documents WHERE id = $1`,
+                        [metadata.ownerIdDocId]
+                    );
+                    if (ownerDocResult.rows.length > 0) {
+                        // Only add if not already in documents array
+                        const existing = documents.find(d => d.id === ownerDocResult.rows[0].id);
+                        if (!existing) {
+                            documents.push(ownerDocResult.rows[0]);
+                        }
+                    } else {
+                        console.warn('[HPG Auto-Verify API] ownerIdDocId set but document not found in documents table:', metadata.ownerIdDocId);
+                    }
+                }
+            }
+
+            // 3) FINAL FALLBACK: Use clearance_request_documents join if still empty
+            if (documents.length === 0) {
+                console.log('📄 [HPG Auto-Verify API] No documents from metadata, fetching from clearance_request_documents join...');
                 const docResult = await dbModule.query(
                     `SELECT d.* FROM documents d
                      JOIN clearance_request_documents crd ON d.id = crd.document_id
@@ -267,10 +314,16 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                     [requestId]
                 );
                 documents = docResult.rows || [];
+                if (documents.length > 0) {
+                    console.log(`📄 [HPG Auto-Verify API] Loaded ${documents.length} document(s) from clearance_request_documents join`);
+                }
             }
         } catch (docError) {
             console.error('[HPG Auto-Verify API] Error loading documents for auto-verify:', docError);
-            documents = metadata.documents || [];
+            // Last resort: use metadata.documents array as-is (may have incomplete data)
+            if (metadata.documents && Array.isArray(metadata.documents)) {
+                documents = metadata.documents;
+            }
         }
 
         console.log('📄 [HPG Auto-Verify API] Documents to verify:', documents.map(d => ({

@@ -175,6 +175,21 @@ sleep 10
 # Step 14: Create and join channel
 echo "1️⃣4️⃣ Creating and joining channel..."
 
+# Wait for orderer to be ready (check logs for "Beginning to serve requests")
+echo "   Waiting for orderer to be ready..."
+ORDERER_READY=false
+for i in {1..30}; do
+    if docker logs orderer.lto.gov.ph 2>&1 | grep -q "Beginning to serve requests\|Raft leader"; then
+        ORDERER_READY=true
+        break
+    fi
+    sleep 2
+done
+
+if [ "$ORDERER_READY" != "true" ]; then
+    echo "⚠️  Orderer may not be fully ready, but continuing..."
+fi
+
 # Determine channel transaction file name
 CHANNEL_TX="fabric-network/channel-artifacts/ltochannel.tx"
 if [ ! -f "$CHANNEL_TX" ]; then
@@ -196,9 +211,9 @@ echo "   Copying orderer TLS CA certificate..."
 docker cp "$ORDERER_TLS_CA" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt
 TLS_CA_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt"
 
-# Create channel
+# Create channel with timeout wrapper (in case --timeout flag doesn't work)
 echo "   Creating channel..."
-CHANNEL_CREATE_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel create \
+CHANNEL_CREATE_OUTPUT=$(timeout 90s docker exec peer0.lto.gov.ph peer channel create \
     -o orderer.lto.gov.ph:7050 \
     -c ltochannel \
     -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel.tx \
@@ -206,7 +221,14 @@ CHANNEL_CREATE_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel create \
     --cafile "$TLS_CA_FILE" \
     --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
     --timeout 60s \
-    2>&1)
+    2>&1) || {
+    echo "❌ Channel creation timed out or failed"
+    echo "💡 Checking orderer logs..."
+    docker logs orderer.lto.gov.ph --tail 20
+    echo "💡 Checking peer logs..."
+    docker logs peer0.lto.gov.ph --tail 20
+    exit 1
+}
 
 if echo "$CHANNEL_CREATE_OUTPUT" | grep -qi "error\|failed"; then
     echo "❌ Channel creation failed:"

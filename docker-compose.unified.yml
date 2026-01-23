@@ -338,10 +338,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1G  # Increased from 768M for DigitalOcean 8GB droplet stability
           cpus: '1.0'
         reservations:
-          memory: 512M
+          memory: 768M  # Increased from 512M for better stability
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]

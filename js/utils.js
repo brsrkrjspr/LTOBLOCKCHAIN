@@ -1,104 +1,6 @@
 // Utility functions for common features across the application
-
-// Toast Notification System
-class ToastNotification {
-    static show(message, type = 'info', duration = 5000) {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${this.getToastColor(type)};
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 10000;
-            animation: slideInRight 0.3s ease-out;
-            max-width: 400px;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        `;
-        
-        const icon = this.getToastIcon(type);
-        toast.innerHTML = `
-            <span style="font-size: 1.2rem;">${icon}</span>
-            <span style="flex: 1;">${message}</span>
-            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.style.animation = 'slideOutRight 0.3s ease-out';
-                setTimeout(() => toast.remove(), 300);
-            }
-        }, duration);
-        
-        return toast;
-    }
-
-    /**
-     * Confirm dialog helper.
-     * Returns a Promise<boolean> and optionally runs callbacks.
-     *
-     * NOTE: Some pages load both `js/toast-notification.js` and `js/utils.js`.
-     * Those pages may call `ToastNotification.confirm(...)`.
-     * This implementation keeps behavior consistent even if this file is loaded last.
-     */
-    static confirm(message, onConfirm, onCancel) {
-        // Prefer the richer ConfirmationDialog if present
-        if (typeof window !== 'undefined' && window.ConfirmationDialog && typeof window.ConfirmationDialog.show === 'function') {
-            return window.ConfirmationDialog.show({
-                title: 'Confirm Action',
-                message: message || 'Are you sure you want to proceed?',
-                confirmText: 'Confirm',
-                cancelText: 'Cancel',
-                confirmColor: '#3498db',
-                type: 'question'
-            }).then((ok) => {
-                if (ok) {
-                    if (typeof onConfirm === 'function') onConfirm();
-                } else {
-                    if (typeof onCancel === 'function') onCancel();
-                }
-                return ok;
-            });
-        }
-
-        // Fallback to native confirm if ConfirmationDialog is unavailable
-        const ok = window.confirm(message || 'Are you sure you want to proceed?');
-        if (ok) {
-            if (typeof onConfirm === 'function') onConfirm();
-        } else {
-            if (typeof onCancel === 'function') onCancel();
-        }
-        return Promise.resolve(ok);
-    }
-    
-    static getToastColor(type) {
-        const colors = {
-            success: '#27ae60',
-            error: '#e74c3c',
-            warning: '#f39c12',
-            info: '#3498db'
-        };
-        return colors[type] || colors.info;
-    }
-    
-    static getToastIcon(type) {
-        const icons = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
-        };
-        return icons[type] || icons.info;
-    }
-}
+// NOTE: ToastNotification is defined in js/toast-notification.js. Load that script
+// on any page that needs ToastNotification.show() or ToastNotification.confirm().
 
 // Confirmation Dialog System
 class ConfirmationDialog {
@@ -515,7 +417,6 @@ class PaginationHelper {
 }
 
 // Export for global use
-window.ToastNotification = ToastNotification;
 window.ConfirmationDialog = ConfirmationDialog;
 window.LoadingManager = LoadingManager;
 window.RequestManager = RequestManager;

@@ -81,8 +81,27 @@ class ToastNotification {
     }
     
     static confirm(message, onConfirm, onCancel) {
+        // Use ConfirmationDialog from utils.js when available (richer UI)
+        if (typeof window !== 'undefined' && window.ConfirmationDialog && typeof window.ConfirmationDialog.show === 'function') {
+            return window.ConfirmationDialog.show({
+                title: 'Confirm Action',
+                message: message || 'Are you sure you want to proceed?',
+                confirmText: 'Confirm',
+                cancelText: 'Cancel',
+                confirmColor: '#3498db',
+                type: 'question'
+            }).then((ok) => {
+                if (ok) {
+                    if (typeof onConfirm === 'function') onConfirm();
+                } else {
+                    if (typeof onCancel === 'function') onCancel();
+                }
+                return ok;
+            });
+        }
+
         this.init();
-        
+
         return new Promise((resolve) => {
             const modal = document.createElement('div');
             modal.className = 'toast-confirm-modal';

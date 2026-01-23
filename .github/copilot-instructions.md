@@ -76,4 +76,9 @@ When I ask you to "Trace", "Audit", or "Map" a feature, you must use this format
 - HPG auto-verification: 0% confidence driven by missing hashes/OCR/auth checks in `autoVerificationService`; fix hash calculation and OCR extraction rather than adding bypasses.
 - Certificates: `certificates` table empty; generation only triggers after all clearances are approved and blockchain tx succeeds—confirm those preconditions when debugging issuance.
 
+**Trace/DB Consistency Notes** (from TRACE_VERIFICATION_ERRORS.md, END_TO_END_FEATURE_TRACE.md, database/dump.sql)
+- Emission workflow is **deprecated/removed**: no `backend/routes/emission.js`, `certificatePdfGenerator` throws for emission, but legacy artifacts remain (role `emission_verifier`, columns `emission_clearance_request_id`, `emission_approval_status`, `emission_approved_at`, `emission_approved_by` in `transfer_requests`, and `emission_compliance` in `vehicles`). Treat emission references as legacy unless explicitly revived.
+- Transfer documents schema enforces `transfer_documents.transfer_request_id` NOT NULL. In standalone certificate generation (direct vehicle path), skip linking to `transfer_documents` when no `transferRequestId` is supplied to avoid constraint failures.
+- When auditing trace docs, mark emission sections in END_TO_END_FEATURE_TRACE.md as deprecated and align any verification checklists with current active routes only.
+
 If any area above is unclear or missing (e.g., additional scripts or environment expectations), tell me what you’re trying to extend, and I’ll refine these instructions.

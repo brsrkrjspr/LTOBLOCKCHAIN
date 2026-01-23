@@ -1855,8 +1855,13 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             }
         }
 
-        // Helper function to link document to transfer request
+        // Helper function to link document to transfer request (skip when no transferRequestId in standalone mode)
         async function linkDocumentToTransfer(documentId, transferRole) {
+            if (!transferRequestId) {
+                console.warn('[Transfer Certificates] Skipping transfer_documents link: no transferRequestId (standalone generation)');
+                return;
+            }
+
             await dbModule.query(
                 `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
                  VALUES ($1, $2, $3, $4)

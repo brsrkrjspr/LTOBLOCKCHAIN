@@ -3001,7 +3001,17 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         }
         
         // Update vehicle ownership and set origin type to TRANSFER for the new owner
-        await db.updateVehicle(request.vehicle_id, { ownerId: buyerId, originType: 'TRANSFER', status: VEHICLE_STATUS.TRANSFER_COMPLETED });
+        // After transfer completion, vehicle should remain REGISTERED (or APPROVED) so it shows up properly for the new owner
+        // TRANSFER_COMPLETED is a temporary status - we should restore the vehicle to its active status
+        const vehicleStatusAfterTransfer = vehicle.status === 'REGISTERED' || vehicle.status === 'APPROVED' 
+            ? vehicle.status 
+            : VEHICLE_STATUS.REGISTERED; // Default to REGISTERED if vehicle wasn't in an active state
+        
+        await db.updateVehicle(request.vehicle_id, { 
+            ownerId: buyerId, 
+            originType: 'TRANSFER', 
+            status: vehicleStatusAfterTransfer 
+        });
         
         // Transfer ownership on blockchain
         let blockchainTxId = null;
@@ -3049,7 +3059,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             if (buyerDocIds.length > 0) {
                 await dbModule.query(
                     `UPDATE documents 
-                     SET vehicle_id = $1, updated_at = CURRENT_TIMESTAMP
+                     SET vehicle_id = $1
                      WHERE id = ANY($2::uuid[])`,
                     [request.vehicle_id, buyerDocIds]
                 );
@@ -3061,7 +3071,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             try {
                 await dbModule.query(
                     `UPDATE documents 
-                     SET is_active = false, updated_at = CURRENT_TIMESTAMP
+                     SET is_active = false
                      WHERE vehicle_id = $1 AND uploaded_by = $2 AND (is_active IS NULL OR is_active = true)`,
                     [request.vehicle_id, request.seller_id]
                 );

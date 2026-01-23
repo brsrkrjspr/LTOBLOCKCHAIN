@@ -1221,7 +1221,11 @@ function applyFilters(applications) {
     }
     
     if (statusFilter && statusFilter.value !== 'all') {
-        filtered = filtered.filter(app => app.status === statusFilter.value);
+        var v = (statusFilter.value || '').toLowerCase();
+        filtered = filtered.filter(function(app) {
+            var s = (app.status || '').toLowerCase();
+            return s === v || (v === 'approved' && (s === 'registered' || s === 'approved'));
+        });
     }
     
     return filtered;
@@ -1549,7 +1553,8 @@ function createUserApplicationRow(application) {
     // Backward compatibility
     const orCrNumber = orNumber || crNumber || application.or_cr_number || application.vehicle?.or_cr_number || '-';
     const isApproved = application.status === 'approved' || application.status === 'registered';
-    const appId = (application.id || '').substring(0, 8) + '...';
+    const rawId = (application.id || '');
+    const appId = rawId.length <= 14 ? rawId : rawId.substring(0, 12) + '...';
     
     // Get verification status display
     const verificationStatus = application.verificationStatus || {};
@@ -1586,9 +1591,11 @@ function createUserApplicationRow(application) {
         <td>${application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : '-'}</td>
         <td>${verificationStatusText}</td>
         <td><span class="status-badge status-${application.status}">${getStatusText(application.status)}</span></td>
-        <td>
-            <button class="btn-secondary btn-sm" onclick="viewUserApplication('${application.id}')">View Details</button>
-            ${isApproved && (orNumber || crNumber || orCrNumber !== '-') ? `<button class="btn-primary btn-sm" onclick="downloadVehicleCertificate('${application.id}', '${escapeHtml(orNumber || crNumber || orCrNumber)}')">Download Certificate</button>` : ''}
+        <td class="app-actions-cell">
+            <div class="app-actions-wrap">
+                <button class="btn-secondary btn-sm" onclick="viewUserApplication('${application.id}')">View Details</button>
+                ${isApproved && (orNumber || crNumber || orCrNumber !== '-') ? `<button class="btn-primary btn-sm" onclick="downloadVehicleCertificate('${application.id}', '${escapeHtml(orNumber || crNumber || orCrNumber)}')">Download Certificate</button>` : ''}
+            </div>
         </td>
     `;
     return row;
@@ -1640,20 +1647,21 @@ function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
     const insuranceStatus = (verificationStatus.insurance || '').toLowerCase();
     const hpgStatus = (verificationStatus.hpg || '').toLowerCase();
     
+    var itemStyle = 'display:inline-flex;align-items:center;gap:4px;';
     if (insuranceStatus === 'approved') {
-        statuses.push('<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Insurance</span>');
+        statuses.push('<span style="color: #28a745;' + itemStyle + '"><i class="fas fa-check-circle" aria-hidden="true"></i> Insurance</span>');
     } else if (insuranceStatus === 'pending') {
-        statuses.push('<span style="color: #ffc107;"><i class="fas fa-clock"></i> Insurance</span>');
+        statuses.push('<span style="color: #ffc107;' + itemStyle + '"><i class="fas fa-clock" aria-hidden="true"></i> Insurance</span>');
     } else if (insuranceStatus === 'rejected') {
-        statuses.push('<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> Insurance</span>');
+        statuses.push('<span style="color: #dc3545;' + itemStyle + '"><i class="fas fa-times-circle" aria-hidden="true"></i> Insurance</span>');
     }
     
     if (hpgStatus === 'approved') {
-        statuses.push('<span style="color: #28a745;"><i class="fas fa-check-circle"></i> HPG</span>');
+        statuses.push('<span style="color: #28a745;' + itemStyle + '"><i class="fas fa-check-circle" aria-hidden="true"></i> HPG</span>');
     } else if (hpgStatus === 'pending') {
-        statuses.push('<span style="color: #ffc107;"><i class="fas fa-clock"></i> HPG</span>');
+        statuses.push('<span style="color: #ffc107;' + itemStyle + '"><i class="fas fa-clock" aria-hidden="true"></i> HPG</span>');
     } else if (hpgStatus === 'rejected') {
-        statuses.push('<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> HPG</span>');
+        statuses.push('<span style="color: #dc3545;' + itemStyle + '"><i class="fas fa-times-circle" aria-hidden="true"></i> HPG</span>');
     }
     
     if (statuses.length === 0) {

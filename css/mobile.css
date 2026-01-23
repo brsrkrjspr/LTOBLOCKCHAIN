@@ -433,8 +433,15 @@
         background: white;
         border-radius: 12px;
         padding: 1.25rem;
+        min-width: 0;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         border: 1px solid #f0f0f0;
+    }
+    
+    .mobile-app-title,
+    .mobile-app-detail-value {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
     
     .mobile-app-header {
@@ -490,15 +497,26 @@
     
     .mobile-app-actions {
         display: flex;
-        gap: 0.5rem;
+        flex-wrap: wrap;
+        gap: 12px;
         padding-top: 1rem;
         border-top: 1px solid #f3f4f6;
     }
     
-    .mobile-app-actions .btn-sm {
-        flex: 1;
+    .mobile-app-actions .app-actions-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+    
+    .mobile-app-actions .btn-sm,
+    .mobile-app-actions .btn-primary,
+    .mobile-app-actions .btn-secondary,
+    .mobile-app-actions button {
+        flex: 1 1 100%;
         min-height: 44px;
-        padding: 0.625rem 1rem;
+        padding: 0.75rem 1rem;
         font-size: 0.875rem;
         justify-content: center;
     }

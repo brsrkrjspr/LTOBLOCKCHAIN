@@ -72,29 +72,48 @@ else
     echo "⚠️  Node.js not found, wallet will be created on app start"
 fi
 
-# Step 4: Restart peer to apply MSP changes
+# Step 4: Recreate peer container (not just restart - forces MSP reload)
 echo ""
-echo "4️⃣ Restarting peer..."
-docker compose -f docker-compose.unified.yml restart peer0.lto.gov.ph 2>/dev/null || \
-docker-compose -f docker-compose.unified.yml restart peer0.lto.gov.ph 2>/dev/null || {
-    docker restart peer0.lto.gov.ph
+echo "4️⃣ Recreating peer container (to force MSP reload)..."
+docker compose -f docker-compose.unified.yml stop peer0.lto.gov.ph 2>/dev/null || \
+docker-compose -f docker-compose.unified.yml stop peer0.lto.gov.ph 2>/dev/null || {
+    docker stop peer0.lto.gov.ph 2>/dev/null || true
 }
 
-echo "⏳ Waiting for peer to start (15 seconds)..."
-sleep 15
+sleep 2
 
-# Step 5: Verify fix
+docker compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph 2>/dev/null || \
+docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph 2>/dev/null || {
+    docker start peer0.lto.gov.ph
+}
+
+echo "⏳ Waiting for peer to start (20 seconds)..."
+sleep 20
+
+# Step 5: Verify MSP inside container
 echo ""
-echo "5️⃣ Verifying fix..."
+echo "5️⃣ Verifying MSP structure inside peer container..."
 
-# Check if peer is running
-if ! docker ps | grep -q "peer0.lto.gov.ph"; then
-    echo "❌ Peer failed to start"
-    exit 1
+# Check if admincerts exist in container
+CONTAINER_ADMINCERTS=$(docker exec peer0.lto.gov.ph ls -la /etc/hyperledger/fabric/msp/admincerts/ 2>&1 | grep -c "\.pem" || echo "0")
+
+if [ "$CONTAINER_ADMINCERTS" -gt 0 ]; then
+    echo "   ✅ Admincerts found in peer container MSP"
+    docker exec peer0.lto.gov.ph ls -la /etc/hyperledger/fabric/msp/admincerts/ | head -3
+else
+    echo "   ⚠️  Admincerts missing in container - checking mount..."
+    # Verify mount is working
+    if docker exec peer0.lto.gov.ph test -d /etc/hyperledger/fabric/msp; then
+        echo "   ✅ MSP directory mounted"
+        echo "   ⚠️  Admincerts may need to be copied again"
+    else
+        echo "   ❌ MSP directory not found in container!"
+    fi
 fi
 
-# Try to query chaincode (should work now)
-echo "   Testing chaincode query..."
+# Step 6: Verify fix
+echo ""
+echo "6️⃣ Testing chaincode query..."
 CHAINCODE_CHECK=$(docker exec peer0.lto.gov.ph peer lifecycle chaincode querycommitted --channelID ltochannel 2>&1)
 
 if echo "$CHAINCODE_CHECK" | grep -qi "error\|access denied\|creator org unknown"; then

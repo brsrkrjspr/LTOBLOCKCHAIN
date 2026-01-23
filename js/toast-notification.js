@@ -1,6 +1,7 @@
 /**
  * Toast Notification System
  * Replaces alert() and confirm() with non-blocking UI feedback
+ * Supports both callback-based and async/await usage patterns
  */
 class ToastNotification {
     static container = null;
@@ -80,6 +81,24 @@ class ToastNotification {
         return icons[type] || icons.info;
     }
     
+    /**
+     * Confirm dialog - supports BOTH callback and async/await patterns
+     * 
+     * Usage 1 (async/await):
+     *   const ok = await ToastNotification.confirm('Are you sure?');
+     *   if (ok) { ... }
+     * 
+     * Usage 2 (callbacks):
+     *   ToastNotification.confirm('Are you sure?', 
+     *     () => { console.log('confirmed'); },
+     *     () => { console.log('cancelled'); }
+     *   );
+     * 
+     * @param {string} message - Confirmation message
+     * @param {function} onConfirm - Optional callback if user confirms
+     * @param {function} onCancel - Optional callback if user cancels
+     * @returns {Promise<boolean>} - true if confirmed, false if cancelled
+     */
     static confirm(message, onConfirm, onCancel) {
         this.init();
         
@@ -128,13 +147,13 @@ class ToastNotification {
             
             const handleConfirm = () => {
                 modal.remove();
-                if (onConfirm) onConfirm();
+                if (typeof onConfirm === 'function') onConfirm();
                 resolve(true);
             };
             
             const handleCancel = () => {
                 modal.remove();
-                if (onCancel) onCancel();
+                if (typeof onCancel === 'function') onCancel();
                 resolve(false);
             };
             

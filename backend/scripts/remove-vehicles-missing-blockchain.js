@@ -2,6 +2,7 @@
 // This allows starting fresh with proper blockchain integration
 
 const db = require('../database/db');
+const fabricService = require('../services/optimizedFabricService');
 const path = require('path');
 const readline = require('readline');
 

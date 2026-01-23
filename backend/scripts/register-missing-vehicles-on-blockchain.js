@@ -1,12 +1,54 @@
 // Script to register missing vehicles on blockchain
 // Fixes data integrity issues where vehicles are REGISTERED but not on blockchain
+//
+// SECURITY: This script requires:
+// 1. Server access (SSH/file system)
+// 2. Database credentials (.env file)
+// 3. Fabric network access (wallet, certificates)
+// 4. Admin confirmation (interactive prompt)
+//
+// This script is NOT exposed via API - it's a server-side admin tool only.
 
 const db = require('../database/db');
 const fabricService = require('../services/optimizedFabricService');
 const path = require('path');
+const readline = require('readline');
+
+// Security: Require admin confirmation
+function requireAdminConfirmation() {
+    return new Promise((resolve, reject) => {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        
+        console.log('\n⚠️  SECURITY WARNING:');
+        console.log('   This script will register vehicles on the blockchain.');
+        console.log('   Only authorized administrators should run this script.\n');
+        
+        rl.question('Are you an authorized administrator? Type "YES" to continue: ', (answer) => {
+            rl.close();
+            
+            if (answer.trim() !== 'YES') {
+                console.log('\n❌ Operation cancelled. Only authorized administrators can run this script.');
+                process.exit(1);
+            }
+            
+            console.log('✅ Admin confirmation received\n');
+            resolve();
+        });
+    });
+}
 
 async function registerMissingVehiclesOnBlockchain() {
+    // SECURITY: Log who is running this script (if possible)
+    const currentUser = process.env.USER || process.env.USERNAME || 'unknown';
+    const hostname = require('os').hostname();
+    
     try {
+        // SECURITY: Require admin confirmation
+        await requireAdminConfirmation();
+        
         console.log('🔧 Registering missing vehicles on blockchain...\n');
         
         // Load environment variables
@@ -17,6 +59,9 @@ async function registerMissingVehiclesOnBlockchain() {
         } catch (error) {
             require('dotenv').config();
         }
+        
+        console.log(`👤 Running as: ${currentUser} on ${hostname}`);
+        console.log(`⏰ Started at: ${new Date().toISOString()}\n`);
         
         // Check blockchain mode
         const blockchainMode = process.env.BLOCKCHAIN_MODE || 'fabric';
@@ -214,7 +259,7 @@ async function registerMissingVehiclesOnBlockchain() {
                     [blockchainTxId, vehicle.id]
                 );
                 
-                // Add history entry
+                // Add history entry with security metadata
                 await db.query(
                     `INSERT INTO vehicle_history 
                      (vehicle_id, action, description, transaction_id, performed_by, metadata)
@@ -222,9 +267,15 @@ async function registerMissingVehiclesOnBlockchain() {
                     [
                         vehicle.id,
                         'BLOCKCHAIN_REGISTERED',
-                        `Vehicle registered on blockchain (backfill). TX: ${blockchainTxId}`,
+                        `Vehicle registered on blockchain (backfill script). TX: ${blockchainTxId}`,
                         blockchainTxId,
-                        JSON.stringify({ source: 'backfill_script', registered: true })
+                        JSON.stringify({ 
+                            source: 'backfill_script',
+                            registered: true,
+                            scriptUser: currentUser,
+                            scriptHost: hostname,
+                            scriptTimestamp: new Date().toISOString()
+                        })
                     ]
                 );
                 
@@ -247,8 +298,13 @@ async function registerMissingVehiclesOnBlockchain() {
             console.log(`\n✅ Fixed ${successCount + alreadyExistsCount} vehicle(s) - QR codes should now work!`);
         }
         
+        // SECURITY: Log script completion
+        console.log(`\n📝 Script completed by: ${currentUser} on ${hostname}`);
+        console.log(`⏰ Completed at: ${new Date().toISOString()}`);
+        
     } catch (error) {
         console.error('❌ Error:', error);
+        console.error(`\n📝 Script failed - User: ${currentUser}, Host: ${hostname}`);
         throw error;
     } finally {
         await db.close();

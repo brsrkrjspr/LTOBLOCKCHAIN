@@ -1124,16 +1124,9 @@ async function updateTransferRequestStatus(
 async function getTransferRequestDocuments(transferRequestId) {
     const result = await db.query(
         `SELECT
-                -- Transfer role info (IMPORTANT: keep td.document_type as document_type)
-                td.id AS transfer_document_id,
-                td.transfer_request_id,
-                td.document_type,
-                td.document_id,
-                td.uploaded_by,
-                td.uploaded_at,
-                td.notes,
+                td.*,
 
-                -- Linked document info
+                -- Linked document info (aliased to avoid overwriting td.document_type)
                 d.document_type AS document_db_type,
                 d.filename,
                 d.original_name,

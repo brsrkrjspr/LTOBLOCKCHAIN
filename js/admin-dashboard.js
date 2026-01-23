@@ -3463,7 +3463,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Load registration applications
-async function loadRegistrationApplications() {
+// statusFilter: comma-separated statuses, defaults to in-flight application states
+async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED') {
     try {
         const tbody = document.getElementById('registration-applications-tbody');
         if (!tbody) return;
@@ -3471,7 +3472,7 @@ async function loadRegistrationApplications() {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
         
         const apiClient = window.apiClient || new APIClient();
-        const response = await apiClient.get('/api/vehicles?status=SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED&limit=50&page=1');
+        const response = await apiClient.get(`/api/vehicles?status=${encodeURIComponent(statusFilter)}&limit=50&page=1`);
         
         console.log('[loadRegistrationApplications] API Response:', response);
         
@@ -3649,29 +3650,20 @@ function getOrgStatusClass(status) {
 
 // Filter functions
 function filterRegistrations(status, btn) {
-    // Update active tab
     const tabs = document.querySelectorAll('#registration-applications-table ~ .table-header-actions .filter-tab, .table-header-actions:has(#registration-applications-table) .filter-tab');
     tabs.forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    
-    // Filter logic - reload with status filter
-    if (status === 'all') {
-        loadRegistrationApplications();
-    } else {
-        // Filter by status
-        const tbody = document.getElementById('registration-applications-tbody');
-        if (tbody) {
-            const rows = tbody.querySelectorAll('tr');
-            rows.forEach(row => {
-                const statusBadge = row.querySelector('.status-badge');
-                if (statusBadge) {
-                    const rowStatus = statusBadge.textContent.trim().toUpperCase();
-                    const shouldShow = status === 'all' || rowStatus === status.toUpperCase();
-                    row.style.display = shouldShow ? '' : 'none';
-                }
-            });
-        }
-    }
+
+    const statusMap = {
+        all: 'SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED',
+        SUBMITTED: 'SUBMITTED',
+        PROCESSING: 'PROCESSING',
+        APPROVED: 'APPROVED',
+        REGISTERED: 'REGISTERED'
+    };
+
+    const filterValue = statusMap[status] || statusMap.all;
+    loadRegistrationApplications(filterValue);
 }
 
 function filterTransfers(status, btn) {

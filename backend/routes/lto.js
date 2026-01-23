@@ -666,9 +666,24 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
         });
 
         // Register vehicle on blockchain (with OR/CR numbers and documents)
+        // CRITICAL: Blockchain registration is MANDATORY for vehicle registration
+        // If blockchain fails, the entire approval must fail (blockchain is source of truth)
         let blockchainTxId = null;
-        try {
-            if (fabricService.isConnected && fabricService.mode === 'fabric') {
+        
+        // Check if blockchain is required
+        const blockchainMode = process.env.BLOCKCHAIN_MODE || 'fabric';
+        const isBlockchainRequired = blockchainMode === 'fabric';
+        
+        if (isBlockchainRequired) {
+            if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
+                return res.status(503).json({
+                    success: false,
+                    error: 'Blockchain service unavailable',
+                    message: 'Cannot approve vehicle: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
+                });
+            }
+            
+            try {
                 // Fetch vehicle documents and build document CIDs object
                 const documents = await db.getDocumentsByVehicle(vehicleId);
                 const documentCids = {};
@@ -757,39 +772,70 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                 if (!vehicleExists) {
                     const result = await fabricService.registerVehicle(vehicleData);
                     blockchainTxId = result.transactionId;
+                    
+                    if (!blockchainTxId) {
+                        throw new Error('Blockchain registration completed but no transaction ID returned');
+                    }
+                    
                     console.log(`[LTO Approval] Vehicle registered on blockchain. Transaction ID: ${blockchainTxId}`);
                 } else {
                     console.log(`[LTO Approval] Vehicle already on blockchain. Skipping registration. Status will be updated to REGISTERED.`);
                 }
-            }
-        } catch (blockchainError) {
-            const errorMessage = blockchainError.message || blockchainError.toString();
-            const isAlreadyExists = errorMessage.includes('already exists') || 
-                                   (errorMessage.includes('Vehicle with VIN') && errorMessage.includes('already exists'));
-            
-            if (isAlreadyExists) {
-                // Vehicle already exists - try to get transaction ID
-                console.log(`[LTO Approval] Vehicle already exists on blockchain. Attempting to retrieve transaction ID...`);
-                try {
-                    const existingVehicle = await fabricService.getVehicle(vehicle.vin);
-                    if (existingVehicle && existingVehicle.success && existingVehicle.vehicle) {
-                        blockchainTxId = existingVehicle.vehicle.blockchainTxId || 
-                                        existingVehicle.vehicle.transactionId ||
-                                        existingVehicle.vehicle.lastTxId ||
-                                        existingVehicle.vehicle.history?.[0]?.transactionId ||
-                                        null;
-                        
-                        if (blockchainTxId) {
-                            console.log(`[LTO Approval] Recovered transaction ID from existing blockchain record: ${blockchainTxId}`);
+            } catch (blockchainError) {
+                const errorMessage = blockchainError.message || blockchainError.toString();
+                const isAlreadyExists = errorMessage.includes('already exists') || 
+                                       (errorMessage.includes('Vehicle with VIN') && errorMessage.includes('already exists'));
+                
+                if (isAlreadyExists) {
+                    // Vehicle already exists - try to get transaction ID
+                    console.log(`[LTO Approval] Vehicle already exists on blockchain. Attempting to retrieve transaction ID...`);
+                    try {
+                        const existingVehicle = await fabricService.getVehicle(vehicle.vin);
+                        if (existingVehicle && existingVehicle.success && existingVehicle.vehicle) {
+                            blockchainTxId = existingVehicle.vehicle.blockchainTxId || 
+                                            existingVehicle.vehicle.transactionId ||
+                                            existingVehicle.vehicle.lastTxId ||
+                                            existingVehicle.vehicle.history?.[0]?.transactionId ||
+                                            null;
+                            
+                            if (blockchainTxId) {
+                                console.log(`[LTO Approval] Recovered transaction ID from existing blockchain record: ${blockchainTxId}`);
+                            } else {
+                                throw new Error('Vehicle exists on blockchain but no transaction ID found');
+                            }
+                        } else {
+                            throw new Error('Vehicle exists on blockchain but could not retrieve details');
                         }
+                    } catch (queryError) {
+                        console.error(`[LTO Approval] Failed to query existing vehicle from blockchain:`, queryError.message);
+                        return res.status(500).json({
+                            success: false,
+                            error: 'Blockchain query failed',
+                            message: `Cannot approve vehicle: ${queryError.message}. Please try again or contact support.`
+                        });
                     }
-                } catch (queryError) {
-                    console.error(`[LTO Approval] Failed to query existing vehicle from blockchain:`, queryError.message);
+                } else {
+                    // Blockchain registration failed - this is CRITICAL
+                    console.error('❌ CRITICAL: Failed to register vehicle on blockchain:', blockchainError);
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Blockchain registration failed',
+                        message: `Cannot approve vehicle: ${blockchainError.message}. The vehicle registration must be recorded on the blockchain. Please try again or contact support if the issue persists.`
+                    });
                 }
-            } else {
-                console.error('Failed to register vehicle on blockchain:', blockchainError);
-                // Continue with approval even if blockchain fails - status stays APPROVED
             }
+        } else {
+            console.warn('⚠️ BLOCKCHAIN_MODE is not "fabric" - registration proceeding without blockchain (development mode only)');
+        }
+        
+        // Validate: If blockchain is required, transaction ID must exist
+        if (isBlockchainRequired && !blockchainTxId) {
+            console.error('❌ CRITICAL: Blockchain transaction ID missing after registration');
+            return res.status(500).json({
+                success: false,
+                error: 'Blockchain transaction ID missing',
+                message: 'Registration completed but blockchain transaction ID was not recorded. This should not happen. Please contact support.'
+            });
         }
 
         // Update vehicle status to REGISTERED if blockchain registration succeeded

@@ -3016,9 +3016,24 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         }
         
         // Transfer ownership on blockchain FIRST to get transaction ID
+        // CRITICAL: Blockchain transaction is MANDATORY for ownership transfers
+        // If blockchain fails, the entire transfer must fail (blockchain is source of truth)
         let blockchainTxId = null;
-        try {
-            if (fabricService.isConnected && fabricService.mode === 'fabric') {
+        
+        // Check if blockchain is required
+        const blockchainMode = process.env.BLOCKCHAIN_MODE || 'fabric';
+        const isBlockchainRequired = blockchainMode === 'fabric';
+        
+        if (isBlockchainRequired) {
+            if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
+                return res.status(503).json({
+                    success: false,
+                    error: 'Blockchain service unavailable',
+                    message: 'Cannot complete transfer: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
+                });
+            }
+            
+            try {
                 const buyer = await db.getUserById(buyerId);
                 const transferData = {
                     reason: 'Ownership transfer approved',
@@ -3038,11 +3053,32 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                 );
                 
                 blockchainTxId = result.transactionId;
+                
+                if (!blockchainTxId) {
+                    throw new Error('Blockchain transfer completed but no transaction ID returned');
+                }
+                
                 console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
+            } catch (blockchainError) {
+                console.error('❌ CRITICAL: Blockchain transfer failed:', blockchainError.message);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Blockchain transfer failed',
+                    message: `Cannot complete transfer: ${blockchainError.message}. The ownership transfer must be recorded on the blockchain. Please try again or contact support if the issue persists.`
+                });
             }
-        } catch (blockchainError) {
-            console.warn('⚠️ Blockchain transfer failed:', blockchainError.message);
-            // Continue with approval even if blockchain fails - database is source of truth
+        } else {
+            console.warn('⚠️ BLOCKCHAIN_MODE is not "fabric" - transfer proceeding without blockchain (development mode only)');
+        }
+        
+        // Validate: If blockchain is required, transaction ID must exist
+        if (isBlockchainRequired && !blockchainTxId) {
+            console.error('❌ CRITICAL: Blockchain transaction ID missing after transfer');
+            return res.status(500).json({
+                success: false,
+                error: 'Blockchain transaction ID missing',
+                message: 'Transfer completed but blockchain transaction ID was not recorded. This should not happen. Please contact support.'
+            });
         }
         
         // Update vehicle with new owner, status, and blockchain transaction ID
@@ -3050,7 +3086,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             ownerId: buyerId, 
             originType: 'TRANSFER', 
             status: vehicleStatusAfterTransfer,
-            blockchainTxId: blockchainTxId || undefined  // Save blockchain transaction ID if available
+            blockchainTxId: blockchainTxId || undefined  // Save blockchain transaction ID (required if blockchain mode is fabric)
         });
         
         // Update transfer request status

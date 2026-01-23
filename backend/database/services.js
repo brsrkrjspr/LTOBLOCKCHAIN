@@ -1123,9 +1123,26 @@ async function updateTransferRequestStatus(
 
 async function getTransferRequestDocuments(transferRequestId) {
     const result = await db.query(
-        `SELECT td.*,
-                d.id as document_id, d.document_type, d.filename, d.original_name, 
-                d.file_path, d.ipfs_cid, d.file_hash, d.uploaded_at,
+        `SELECT
+                -- Transfer role info (IMPORTANT: keep td.document_type as document_type)
+                td.id AS transfer_document_id,
+                td.transfer_request_id,
+                td.document_type,
+                td.document_id,
+                td.uploaded_by,
+                td.uploaded_at,
+                td.notes,
+
+                -- Linked document info
+                d.document_type AS document_db_type,
+                d.filename,
+                d.original_name,
+                d.file_path,
+                d.ipfs_cid,
+                d.file_hash,
+                d.uploaded_at AS document_uploaded_at,
+
+                -- Uploader display name
                 u.first_name || ' ' || u.last_name as uploaded_by_name
          FROM transfer_documents td
          LEFT JOIN documents d ON td.document_id = d.id

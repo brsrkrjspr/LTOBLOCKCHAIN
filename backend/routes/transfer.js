@@ -1389,7 +1389,8 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                         `UPDATE transfer_requests 
                          SET insurance_approval_status = 'APPROVED',
                              insurance_approved_at = CURRENT_TIMESTAMP,
-                             insurance_approved_by = '00000000-0000-0000-0000-000000000000'::uuid,
+                             -- approved_by has FK to users; auto-verify has no user row, so keep it NULL
+                             insurance_approved_by = NULL,
                              updated_at = CURRENT_TIMESTAMP
                          WHERE id = $1`,
                         [request.id]

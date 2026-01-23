@@ -449,13 +449,26 @@ async function generateCertificates() {
         
         // Check if error is due to HTML response (API returning error page instead of JSON)
         let errorMessage = error.message || 'Failed to generate certificates';
+        let errorDetails = null;
+        
         if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
             errorMessage = 'API endpoint returned an error page. Please check your authentication and try again. If the problem persists, contact support.';
         } else if (error.message && error.message.includes('JSON')) {
             errorMessage = 'Invalid response from server. Please check your connection and try again.';
         }
         
-        showError('Failed to generate certificates: ' + errorMessage);
+        // If we have a structured error response, extract details
+        if (error.details) {
+            errorDetails = error.details;
+        }
+        if (error.errorType) {
+            errorMessage += ` (${error.errorType})`;
+        }
+        if (error.stack && console) {
+            console.error('Server error stack:', error.stack);
+        }
+        
+        showError('Failed to generate certificates: ' + errorMessage + (errorDetails ? '\n\nDetails: ' + errorDetails : ''));
     }
 }
 
@@ -500,14 +513,33 @@ function showError(message, response) {
     const statusDiv = document.getElementById('certificateStatus');
     statusDiv.className = 'certificate-status show error';
     
-    let html = `<h4><i class="fas fa-exclamation-circle"></i> ${message}</h4>`;
+    // Escape HTML to prevent XSS while preserving line breaks
+    const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML.replace(/\n/g, '<br>');
+    };
     
+    let html = `<h4><i class="fas fa-exclamation-circle"></i> ${escapeHtml(message)}</h4>`;
+    
+    // Display structured errors from response.errors array (207 Multi-Status)
     if (response && response.errors && response.errors.length > 0) {
-        html += '<ul style="margin-top: 1rem;">';
+        html += '<div style="margin-top: 1rem;"><strong>Detailed Errors:</strong></div>';
+        html += '<ul style="margin-top: 0.5rem;">';
         response.errors.forEach(err => {
-            html += `<li>${err.type}: ${err.error}</li>`;
+            html += `<li><strong>${escapeHtml(err.type)}:</strong> ${escapeHtml(err.error)}</li>`;
         });
         html += '</ul>';
+    }
+    
+    // Display additional error details (500 errors with details field)
+    if (response && response.details) {
+        html += `<div style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.1); border-radius: 4px; font-family: monospace; font-size: 0.85em; white-space: pre-wrap;">${escapeHtml(response.details)}</div>`;
+    }
+    
+    // Display error type for debugging
+    if (response && response.errorType) {
+        html += `<div style="margin-top: 0.5rem; font-size: 0.85em; opacity: 0.8;">Error Type: ${escapeHtml(response.errorType)}</div>`;
     }
     
     statusDiv.innerHTML = html;

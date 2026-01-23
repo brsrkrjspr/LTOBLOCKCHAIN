@@ -2375,11 +2375,17 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         });
 
     } catch (error) {
-        console.error('[Transfer Compliance Documents] Error:', error);
+        console.error('[Transfer Compliance Documents] CRITICAL ERROR:', error);
+        console.error('[Transfer Compliance Documents] Error stack:', error.stack);
+        console.error('[Transfer Compliance Documents] Request body:', JSON.stringify(req.body, null, 2));
+        
         res.status(500).json({
             success: false,
             error: 'Failed to generate compliance documents',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+            errorType: error.name,
+            // Include stack trace in development for debugging
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });

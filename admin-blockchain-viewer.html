@@ -2282,8 +2282,8 @@
                 const height = typeof chain.height === 'number' ? chain.height : null;
                 const latestBlockNum = height !== null ? Math.max(0, height - 1) : null;
 
-                // Fetch last N block headers via proof endpoint
-                const maxBlocks = 6;
+                // Fetch last N block headers via proof endpoint (enough to reach genesis when chain is short)
+                const maxBlocks = 20;
                 const targetBlocks = [];
                 if (latestBlockNum !== null) {
                     for (let i = latestBlockNum; i >= 0 && targetBlocks.length < maxBlocks; i--) {

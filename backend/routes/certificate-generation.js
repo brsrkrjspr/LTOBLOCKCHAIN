@@ -1977,10 +1977,13 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 });
 
                 // Store PDF document with correct enum type
+                const deedCertNum = transferRequestId
+                    ? `DEED-${transferRequestId}`
+                    : `DEED-standalone-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
                 const docId = await storePdfAndCreateDocument(
                     deedResult.pdfBuffer,
                     deedResult.fileHash,
-                    `Deed_of_Sale_${transferRequestId}.pdf`,
+                    `Deed_of_Sale_${transferRequestId || vehicle.id}.pdf`,
                     docTypes.DB_TYPES.DEED_OF_SALE, // Use proper enum: 'deed_of_sale'
                     vehicle.id,
                     seller.email
@@ -1989,14 +1992,14 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
                 // Write to issued_certificates for auto-verification
                 const deedCompositeHash = certificatePdfGenerator.generateCompositeHash(
-                    `DEED-${transferRequestId}`,
+                    deedCertNum,
                     vehicle.vin,
                     saleDate.split('T')[0],
                     deedResult.fileHash
                 );
                 await writeIssuedCertificate(
                     'deed_of_sale',
-                    `DEED-${transferRequestId}`,
+                    deedCertNum,
                     vehicle.vin,
                     sellerName,
                     deedResult.fileHash,
@@ -2062,7 +2065,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const docId = await storePdfAndCreateDocument(
                     hpgResult.pdfBuffer,
                     hpgResult.fileHash,
-                    `HPG_Clearance_${transferRequestId}.pdf`,
+                    `HPG_Clearance_${transferRequestId || vehicle.id}.pdf`,
                     docTypes.DB_TYPES.HPG_CLEARANCE, // Use proper enum: 'hpg_clearance'
                     vehicle.id,
                     buyer.email
@@ -2121,7 +2124,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const docId = await storePdfAndCreateDocument(
                     ctplResult.pdfBuffer,
                     ctplResult.fileHash,
-                    `CTPL_Insurance_${transferRequestId}.pdf`,
+                    `CTPL_Insurance_${transferRequestId || vehicle.id}.pdf`,
                     docTypes.DB_TYPES.CTPL, // Use proper enum: 'ctpl_cert'
                     vehicle.id,
                     buyer.email
@@ -2177,7 +2180,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const docId = await storePdfAndCreateDocument(
                     mvirResult.pdfBuffer,
                     mvirResult.fileHash,
-                    `MVIR_${transferRequestId}.pdf`,
+                    `MVIR_${transferRequestId || vehicle.id}.pdf`,
                     docTypes.DB_TYPES.MVIR, // Use proper enum: 'mvir_cert'
                     vehicle.id,
                     buyer.email
@@ -2216,22 +2219,20 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
         // Send emails with documents
         try {
-            // Helper function to retrieve PDF buffer from storage
+            // Helper: get PDF buffer for email. Uses storageService.getDocument so IPFS and local storage both work.
             async function getPdfBufferFromDocument(documentId) {
                 try {
-                    const docQuery = await dbModule.query(
-                        'SELECT file_path, file_hash FROM documents WHERE id = $1',
-                        [documentId]
-                    );
-                    if (docQuery.rows.length > 0 && docQuery.rows[0].file_path) {
-                        const filePath = docQuery.rows[0].file_path;
-                        if (fs.existsSync(filePath)) {
-                            return fs.readFileSync(filePath);
-                        }
+                    const doc = await storageService.getDocument(documentId);
+                    if (!doc || !doc.filePath) return null;
+                    if (!fs.existsSync(doc.filePath)) return null;
+                    const buf = fs.readFileSync(doc.filePath);
+                    // If from IPFS, getDocument created a temp file; clean up after read
+                    if (doc.storageMode === 'ipfs') {
+                        try { fs.unlinkSync(doc.filePath); } catch (_) {}
                     }
-                    return null;
+                    return buf;
                 } catch (error) {
-                    console.error(`[Email] Error retrieving PDF for document ${documentId}:`, error);
+                    console.error(`[Email] Error retrieving PDF for document ${documentId}:`, error.message);
                     return null;
                 }
             }
@@ -2242,7 +2243,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const deedPdfBuffer = await getPdfBufferFromDocument(results.sellerDocuments.deedOfSale.documentId);
                 if (deedPdfBuffer) {
                     sellerEmailDocs.push({
-                        filename: `Deed_of_Sale_${transferRequestId}.pdf`,
+                        filename: `Deed_of_Sale_${transferRequestId || vehicle.id}.pdf`,
                         buffer: deedPdfBuffer
                     });
                 }
@@ -2298,7 +2299,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const hpgPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.hpgClearance.documentId);
                 if (hpgPdfBuffer) {
                     buyerEmailDocs.push({
-                        filename: `HPG_Clearance_${transferRequestId}.pdf`,
+                        filename: `HPG_Clearance_${transferRequestId || vehicle.id}.pdf`,
                         buffer: hpgPdfBuffer
                     });
                 }
@@ -2307,7 +2308,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const ctplPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.ctplInsurance.documentId);
                 if (ctplPdfBuffer) {
                     buyerEmailDocs.push({
-                        filename: `CTPL_Insurance_${transferRequestId}.pdf`,
+                        filename: `CTPL_Insurance_${transferRequestId || vehicle.id}.pdf`,
                         buffer: ctplPdfBuffer
                     });
                 }
@@ -2316,7 +2317,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const mvirPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.mvir.documentId);
                 if (mvirPdfBuffer) {
                     buyerEmailDocs.push({
-                        filename: `MVIR_${transferRequestId}.pdf`,
+                        filename: `MVIR_${transferRequestId || vehicle.id}.pdf`,
                         buffer: mvirPdfBuffer
                     });
                 }

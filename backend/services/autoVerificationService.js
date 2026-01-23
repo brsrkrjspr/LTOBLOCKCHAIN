@@ -5,8 +5,10 @@ const ocrService = require('./ocrService');
 const insuranceDatabase = require('./insuranceDatabaseService');
 const fraudDetectionService = require('./fraudDetectionService');
 const certificateBlockchain = require('./certificateBlockchainService');
+const storageService = require('./storageService');
 const db = require('../database/services');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -29,18 +31,25 @@ class AutoVerificationService {
             return { status: 'PENDING', automated: false, reason: 'Auto-verification disabled' };
         }
 
+        let ipfsTempPath = null;
         try {
             console.log(`[Auto-Verify] Starting insurance verification for vehicle ${vehicleId}`);
 
-            // Get document file path
-            const filePath = insuranceDoc.file_path || insuranceDoc.filePath;
-            if (!filePath || !await this.fileExists(filePath)) {
-                return {
-                    status: 'PENDING',
-                    automated: false,
-                    reason: 'Insurance document file not found',
-                    confidence: 0
-                };
+            // Get document file path (local or via storageService when IPFS/stale path)
+            let filePath = insuranceDoc.file_path || insuranceDoc.filePath;
+            if (!filePath || !(await this.fileExists(filePath))) {
+                if (insuranceDoc.id) {
+                    try {
+                        const doc = await storageService.getDocument(insuranceDoc.id);
+                        if (doc && doc.filePath && (await this.fileExists(doc.filePath))) {
+                            filePath = doc.filePath;
+                            if (doc.storageMode === 'ipfs') ipfsTempPath = doc.filePath;
+                        }
+                    } catch (e) { console.warn('[Auto-Verify] storageService.getDocument for insurance failed:', e.message); }
+                }
+                if (!filePath || !(await this.fileExists(filePath))) {
+                    return { status: 'PENDING', automated: false, reason: 'Insurance document file not found', confidence: 0 };
+                }
             }
 
             // Extract data via OCR
@@ -352,6 +361,8 @@ class AutoVerificationService {
                 reason: `Verification error: ${error.message}`,
                 confidence: 0
             };
+        } finally {
+            if (ipfsTempPath) { try { fsSync.unlinkSync(ipfsTempPath); } catch (_) {} }
         }
     }
 

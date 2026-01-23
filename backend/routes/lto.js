@@ -824,11 +824,9 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     });
                 }
             }
-        } else {
-            console.warn('⚠️ BLOCKCHAIN_MODE is not "fabric" - registration proceeding without blockchain (development mode only)');
         }
         
-        // Validate: If blockchain is required, transaction ID must exist
+        // STRICT FABRIC: Validate blockchain transaction ID exists
         if (isBlockchainRequired && !blockchainTxId) {
             console.error('❌ CRITICAL: Blockchain transaction ID missing after registration');
             return res.status(500).json({

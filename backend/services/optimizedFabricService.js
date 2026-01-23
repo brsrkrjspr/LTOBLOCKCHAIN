@@ -554,90 +554,19 @@ class OptimizedFabricService {
                     source: 'qscc'
                 };
             } catch (qsccError) {
-                console.warn('⚠️ qscc GetChainInfo failed, using block-scan fallback:', qsccError.message);
-                
-                // Fallback: Determine height by scanning blocks via qscc
-                try {
-                    const qscc = this.network.getContract('qscc');
-                    
-                    // Try to get block 0 first to confirm connection
-                    const block0Bytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, '0');
-                    if (!block0Bytes || block0Bytes.length === 0) {
-                        throw new Error('Cannot query blocks via qscc');
-                    }
-                    
-                    // Binary search to find chain height
-                    let low = 0, high = 10000;
-                    while (low < high) {
-                        const mid = Math.floor((low + high + 1) / 2);
-                        try {
-                            const blockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, mid.toString());
-                            if (blockBytes && blockBytes.length > 0) {
-                                low = mid;
-                            } else {
-                                high = mid - 1;
-                            }
-                        } catch {
-                            high = mid - 1;
-                        }
-                    }
-                    const height = low + 1;
-                    
-                    // Get latest block for hashes
-                    if (height > 0) {
-                        try {
-                            const latestBlockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, (height - 1).toString());
-                            if (latestBlockBytes && latestBlockBytes.length > 0) {
-                                const fabricProtos = require('fabric-protos');
-                                const latestBlock = fabricProtos.common.Block.decode(latestBlockBytes);
-                                const summary = this.summarizeBlock(latestBlock);
-                                
-                                return {
-                                    height: height,
-                                    currentBlockHash: summary.dataHash,
-                                    previousBlockHash: summary.previousHash,
-                                    source: 'qscc_block_scan'
-                                };
-                            }
-                        } catch (blockError) {
-                            console.warn('⚠️ Failed to get latest block for hashes:', blockError.message);
-                        }
-                    }
-                    
-                    return {
-                        height: height,
-                        currentBlockHash: null,
-                        previousBlockHash: null,
-                        source: 'qscc_block_scan'
-                    };
-                } catch (fallbackError) {
-                    console.error('❌ All chain info methods failed:', fallbackError.message);
-                    // Return minimal info rather than throwing
-                    return {
-                        height: 0,
-                        currentBlockHash: null,
-                        previousBlockHash: null,
-                        source: 'error',
-                        error: fallbackError.message
-                    };
-                }
+                console.error('❌ CRITICAL: qscc GetChainInfo failed:', qsccError.message);
+                throw new Error(`Failed to query chain info from Fabric: ${qsccError.message}. Chaincode query failed - Fabric network may be unavailable.`);
             }
             
         } catch (error) {
-            console.error('❌ Failed to query chain info:', error);
+            console.error('❌ CRITICAL: Failed to query chain info from Fabric:', error);
             console.error('Error details:', {
                 networkExists: !!this.network,
                 channelExists: !!this.channel,
                 errorMessage: error.message
             });
-            // Return minimal info rather than throwing to allow other operations
-            return {
-                height: 0,
-                currentBlockHash: null,
-                previousBlockHash: null,
-                source: 'error',
-                error: error.message
-            };
+            // STRICT FABRIC: Throw error instead of returning minimal info
+            throw new Error(`Chain info query failed: ${error.message}. Fabric network must be operational.`);
         }
     }
 
@@ -1038,19 +967,20 @@ class OptimizedFabricService {
                             source: 'fabric_native'
                         };
                     } else if (!processedTx && !block) {
-                        console.warn('⚠️ Both queryTransaction and queryBlockByTxID returned null, trying block-scan fallback');
+                        // STRICT FABRIC: Fail fast if native methods return null
+                        throw new Error('Both queryTransaction and queryBlockByTxID returned null. Fabric chaincode query failed.');
                     } else {
-                        console.warn('⚠️ Partial results from native methods, trying block-scan fallback');
+                        // STRICT FABRIC: Fail fast if partial results
+                        throw new Error('Partial results from native methods. Fabric chaincode query incomplete.');
                     }
                 } catch (nativeError) {
-                    console.warn('⚠️ Native queryTransaction/queryBlockByTxID failed, trying block-scan fallback:', nativeError.message);
+                    // STRICT FABRIC: Throw error instead of falling back
+                    console.error('❌ CRITICAL: Native queryTransaction/queryBlockByTxID failed:', nativeError.message);
+                    throw new Error(`Native Fabric query methods failed: ${nativeError.message}. Chaincode query must succeed.`);
                 }
             } else {
-                console.warn('⚠️ Native query methods not available:', {
-                    hasQueryTransaction,
-                    hasQueryBlockByTxID,
-                    channelType: this.channel?.constructor?.name
-                });
+                // STRICT FABRIC: Fail if native methods not available
+                throw new Error('Native query methods not available. Fabric channel must support queryTransaction and queryBlockByTxID.');
             }
 
             // Method 2: Use qscc (Query System Chaincode) to get transaction proof

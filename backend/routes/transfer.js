@@ -3067,12 +3067,20 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                     message: `Cannot complete transfer: ${blockchainError.message}. The ownership transfer must be recorded on the blockchain. Please try again or contact support if the issue persists.`
                 });
             }
-        } else {
-            console.warn('⚠️ BLOCKCHAIN_MODE is not "fabric" - transfer proceeding without blockchain (development mode only)');
         }
         
-        // Validate: If blockchain is required, transaction ID must exist
-        if (isBlockchainRequired && !blockchainTxId) {
+        // STRICT FABRIC: Blockchain is always required - no fallback mode
+        if (!isBlockchainRequired) {
+            console.error('❌ CRITICAL: BLOCKCHAIN_MODE must be "fabric". No fallback mode allowed.');
+            return res.status(500).json({
+                success: false,
+                error: 'Blockchain mode invalid',
+                message: 'BLOCKCHAIN_MODE must be set to "fabric". System requires real Hyperledger Fabric network.'
+            });
+        }
+        
+        // Validate: Blockchain transaction ID must exist
+        if (!blockchainTxId) {
             console.error('❌ CRITICAL: Blockchain transaction ID missing after transfer');
             return res.status(500).json({
                 success: false,

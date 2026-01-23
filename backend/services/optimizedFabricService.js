@@ -44,20 +44,6 @@ class OptimizedFabricService {
             throw new Error(`Failed to parse network configuration: ${error.message}`);
         }
         
-        // Determine if we should use localhost (for host-side execution) or Docker hostnames
-        const asLocalhost = process.env.FABRIC_AS_LOCALHOST !== 'false';
-        
-        // If running on host (asLocalhost=true), replace Docker hostnames with localhost
-        if (asLocalhost) {
-            const connectionProfileStr = JSON.stringify(connectionProfile);
-            // Replace peer URLs: peer0.lto.gov.ph:7051 -> localhost:7051
-            const modifiedProfileStr = connectionProfileStr
-                .replace(/peer0\.lto\.gov\.ph:7051/g, 'localhost:7051')
-                .replace(/orderer\.lto\.gov\.ph:7050/g, 'localhost:7050');
-            connectionProfile = JSON.parse(modifiedProfileStr);
-            console.log('📝 Using localhost for Fabric connections (host-side execution)');
-        }
-        
         console.log('🔗 Connecting to Hyperledger Fabric network...');
 
         // Create wallet
@@ -322,6 +308,34 @@ class OptimizedFabricService {
         } catch (error) {
             console.error('❌ Failed to transfer ownership on Fabric:', error);
             throw new Error(`Ownership transfer failed: ${error.message}`);
+        }
+    }
+
+    // Delete vehicle from blockchain (complete removal)
+    async deleteVehicle(vin) {
+        if (this.mode !== 'fabric') {
+            throw new Error('Blockchain service is not available. BLOCKCHAIN_MODE must be fabric.');
+        }
+        
+        if (!this.isConnected || !this.contract) {
+            throw new Error('Not connected to Fabric network. Cannot delete vehicle.');
+        }
+        
+        try {
+            // Use createTransaction() to get access to transaction ID
+            const transaction = this.contract.createTransaction('DeleteVehicle');
+            const fabricResult = await transaction.submit(vin);
+            const transactionId = transaction.getTransactionId();
+            
+            return {
+                success: true,
+                message: 'Vehicle deleted successfully from blockchain',
+                transactionId: transactionId,
+                vin: vin
+            };
+        } catch (error) {
+            console.error('DeleteVehicle chaincode error:', error);
+            throw error;
         }
     }
 

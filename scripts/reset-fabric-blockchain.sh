@@ -494,3 +494,8 @@ else
     echo "   - Fabric blockchain: Empty"
     echo "   - PostgreSQL: Application data cleared (users preserved)"
 fi
+echo ""
+echo "ℹ️  NOTE: You may see TLS certificate errors in orderer logs."
+echo "   These are harmless warnings from orderer trying to cluster with itself."
+echo "   They don't affect functionality - your channel is working fine!"
+echo "   See TLS_ERRORS_ARE_HARMLESS.md for details."

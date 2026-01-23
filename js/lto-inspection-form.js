@@ -181,7 +181,12 @@ async function loadVehicleDetails(vehicleId) {
             const vehicle = response.vehicle;
             
             // Debug: Log vehicle data to help diagnose N/A issues
-            if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
+            // Check if we're in development mode (browser-compatible check)
+            const isDevelopment = window.location.hostname === 'localhost' || 
+                                  window.location.hostname === '127.0.0.1' ||
+                                  window.location.hostname.includes('localhost');
+            
+            if (isDevelopment) {
                 console.log('[LTO Inspection] Vehicle data received:', {
                     hasOwner: !!vehicle.owner,
                     ownerId: vehicle.ownerId || vehicle.owner_id,

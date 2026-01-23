@@ -1174,10 +1174,8 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
     });
 
     // Trigger auto-verification if HPG clearance document exists (buyer uploads this)
+    // Note: buyerHpgTransferDoc is already declared above in the HPG forwarding section
     let autoVerificationResult = null;
-    const buyerHpgTransferDoc = transferDocuments.find(td => 
-        td.document_type === docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE && td.document_id
-    );
     
     if (buyerHpgTransferDoc && buyerHpgTransferDoc.document_id) {
         try {

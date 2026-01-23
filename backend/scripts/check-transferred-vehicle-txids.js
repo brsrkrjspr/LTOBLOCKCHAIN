@@ -8,18 +8,62 @@ async function checkAndFixTransferredVehicleTxIds() {
     try {
         console.log('🔍 Checking transferred vehicles for blockchain transaction IDs...\n');
         
+        // First, check if blockchain_tx_id column exists, add it if missing
+        try {
+            const columnCheck = await db.query(
+                `SELECT column_name 
+                 FROM information_schema.columns 
+                 WHERE table_name = 'vehicles' 
+                   AND column_name = 'blockchain_tx_id'`
+            );
+            
+            if (columnCheck.rows.length === 0) {
+                console.log('⚠️  Column blockchain_tx_id does not exist. Adding it...');
+                await db.query(
+                    `ALTER TABLE vehicles 
+                     ADD COLUMN IF NOT EXISTS blockchain_tx_id VARCHAR(255)`
+                );
+                console.log('✅ Added blockchain_tx_id column to vehicles table\n');
+            }
+        } catch (alterError) {
+            console.warn('⚠️  Could not add blockchain_tx_id column:', alterError.message);
+            // Continue anyway - we'll handle missing column gracefully
+        }
+        
         // Find vehicles that were transferred (have OWNERSHIP_TRANSFERRED history or origin_type = TRANSFER)
-        const vehiclesResult = await db.query(
-            `SELECT v.id, v.vin, v.plate_number, v.status, v.blockchain_tx_id, v.origin_type
-             FROM vehicles v
-             WHERE v.origin_type = 'TRANSFER' 
-                OR v.id IN (
-                    SELECT DISTINCT vehicle_id 
-                    FROM vehicle_history 
-                    WHERE action = 'OWNERSHIP_TRANSFERRED'
-                )
-             ORDER BY v.last_updated DESC`
-        );
+        // Check if column exists first, then query accordingly
+        let vehiclesResult;
+        try {
+            vehiclesResult = await db.query(
+                `SELECT v.id, v.vin, v.plate_number, v.status, 
+                        v.blockchain_tx_id, 
+                        v.origin_type
+                 FROM vehicles v
+                 WHERE v.origin_type = 'TRANSFER' 
+                    OR v.id IN (
+                        SELECT DISTINCT vehicle_id 
+                        FROM vehicle_history 
+                        WHERE action = 'OWNERSHIP_TRANSFERRED'
+                    )
+                 ORDER BY v.last_updated DESC`
+            );
+        } catch (columnError) {
+            // Column doesn't exist - query without it
+            console.log('⚠️  Column blockchain_tx_id not found, querying without it...');
+            vehiclesResult = await db.query(
+                `SELECT v.id, v.vin, v.plate_number, v.status, 
+                        NULL as blockchain_tx_id, 
+                        v.origin_type
+                 FROM vehicles v
+                 WHERE v.origin_type = 'TRANSFER' 
+                    OR v.id IN (
+                        SELECT DISTINCT vehicle_id 
+                        FROM vehicle_history 
+                        WHERE action = 'OWNERSHIP_TRANSFERRED'
+                    )
+                 ORDER BY v.last_updated DESC`
+            );
+        }
         
         if (vehiclesResult.rows.length === 0) {
             console.log('✅ No transferred vehicles found');
@@ -109,6 +153,22 @@ async function checkAndFixTransferredVehicleTxIds() {
                 // Update vehicles table if missing
                 if (!vehicle.blockchain_tx_id) {
                     try {
+                        // Ensure column exists before updating
+                        const columnExists = await db.query(
+                            `SELECT column_name 
+                             FROM information_schema.columns 
+                             WHERE table_name = 'vehicles' 
+                               AND column_name = 'blockchain_tx_id'`
+                        );
+                        
+                        if (columnExists.rows.length === 0) {
+                            await db.query(
+                                `ALTER TABLE vehicles 
+                                 ADD COLUMN IF NOT EXISTS blockchain_tx_id VARCHAR(255)`
+                            );
+                            console.log(`   ✅ Added blockchain_tx_id column`);
+                        }
+                        
                         await db.query(
                             `UPDATE vehicles 
                              SET blockchain_tx_id = $1, 

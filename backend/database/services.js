@@ -1697,7 +1697,6 @@ async function generateMvirNumber() {
  * @param {Object} inspectionData - Inspection data object
  * @param {string} inspectionData.inspectionResult - PASS, FAIL, PENDING
  * @param {string} inspectionData.roadworthinessStatus - ROADWORTHY, NOT_ROADWORTHY
- * @param {string} inspectionData.emissionCompliance - COMPLIANT, NON_COMPLIANT
  * @param {string} inspectionData.inspectionOfficer - Name of inspecting officer
  * @param {string} [inspectionData.inspectionNotes] - Optional inspection notes
  * @returns {Promise<{mvirNumber: string, inspectionDate: Date}>}
@@ -1706,7 +1705,6 @@ async function assignMvirNumber(vehicleId, inspectionData) {
     const {
         inspectionResult,
         roadworthinessStatus,
-        emissionCompliance,
         inspectionOfficer,
         inspectionNotes
     } = inspectionData;
@@ -1722,17 +1720,15 @@ async function assignMvirNumber(vehicleId, inspectionData) {
              inspection_date = $2,
              inspection_result = $3,
              roadworthiness_status = $4,
-             emission_compliance = $5,
-             inspection_officer = $6,
-             inspection_notes = $7,
+             inspection_officer = $5,
+             inspection_notes = $6,
              last_updated = CURRENT_TIMESTAMP
-         WHERE id = $8`,
+         WHERE id = $7`,
         [
             mvirNumber,
             inspectionDate,
             inspectionResult || 'PASS',
             roadworthinessStatus || 'ROADWORTHY',
-            emissionCompliance || 'COMPLIANT',
             inspectionOfficer || 'LTO INSPECTION OFFICER',
             inspectionNotes || null,
             vehicleId

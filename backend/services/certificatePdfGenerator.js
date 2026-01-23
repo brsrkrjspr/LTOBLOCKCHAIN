@@ -1528,117 +1528,135 @@ class CertificatePdfGenerator {
             inspectionDate,
             mvirNumber,
             inspectionResult,
-            inspectorName
+            roadworthinessStatus,
+            inspectorName,
+            inspectionNotes,
+            bodyType,
+            color,
+            fuelType
         } = data;
 
-        // Create MVIR HTML template
-        const htmlTemplate = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>MVIR - Motor Vehicle Inspection Report</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 40px;
-            max-width: 800px;
-            margin: 0 auto;
+        // Generate MVIR number if not provided
+        const finalMvirNumber = mvirNumber || `MVIR-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+        // Load MVIR template
+        const templatePath = path.join(this.templatesPath, 'mvir', 'mvir-form.html');
+        let htmlTemplate = await fs.readFile(templatePath, 'utf-8');
+
+        // Format inspection date
+        const formatDate = (dateStr) => {
+            if (!dateStr) return new Date().toISOString().split('T')[0];
+            const date = new Date(dateStr);
+            return date.toISOString().split('T')[0];
+        };
+
+        // Replace MVIR Number
+        htmlTemplate = htmlTemplate.replace(
+            /<input type="text" value="[^"]*" class="mvir-number">/,
+            `<input type="text" value="${finalMvirNumber}" class="mvir-number">`
+        );
+
+        // Replace Inspection Date
+        htmlTemplate = htmlTemplate.replace(
+            /<input type="date" id="inspectionDate" value="[^"]*">/,
+            `<input type="date" id="inspectionDate" value="${formatDate(inspectionDate)}">`
+        );
+
+        // Replace Plate Number
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Plate Number:<\/td>\s*<td>.*?value="[^"]*"/,
+            `<tr><td class="label">Plate Number:</td><td><input type="text" value="${vehiclePlate || ''}"`
+        );
+
+        // Replace Make / Brand
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Make \/ Brand:<\/td>\s*<td>.*?value="[^"]*"/,
+            `<tr><td class="label">Make / Brand:</td><td><input type="text" value="${vehicleMake || ''}"`
+        );
+
+        // Replace Model / Series
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Model \/ Series:<\/td>\s*<td>.*?value="[^"]*"/,
+            `<tr><td class="label">Model / Series:</td><td><input type="text" value="${vehicleModel || ''}"`
+        );
+
+        // Replace Year Model
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Year Model:<\/td>\s*<td>.*?value="[^"]*"/,
+            `<tr><td class="label">Year Model:</td><td><input type="text" value="${vehicleYear || ''}"`
+        );
+
+        // Replace Body Type
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Body Type:<\/td>\s*<td>.*?value="[^"]*"/,
+            `<tr><td class="label">Body Type:</td><td><input type="text" value="${bodyType || ''}"`
+        );
+
+        // Replace Color
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Color:<\/td>\s*<td>.*?value="[^"]*"/,
+            `<tr><td class="label">Color:</td><td><input type="text" value="${color || ''}"`
+        );
+
+        // Replace Fuel Type
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Fuel Type:<\/td>\s*<td>.*?value="[^"]*"/,
+            `<tr><td class="label">Fuel Type:</td><td><input type="text" value="${fuelType || ''}"`
+        );
+
+        // Replace Engine Number
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Engine Number:<\/td>\s*<td colspan="3">.*?value="[^"]*"/,
+            `<tr><td class="label">Engine Number:</td><td colspan="3"><input type="text" value="${engineNumber || ''}"`
+        );
+
+        // Replace Chassis / VIN
+        htmlTemplate = htmlTemplate.replace(
+            /<tr>\s*<td class="label">Chassis \/ VIN:<\/td>\s*<td colspan="3">.*?value="[^"]*"/,
+            `<tr><td class="label">Chassis / VIN:</td><td colspan="3"><input type="text" value="${chassisNumber || vehicleVIN || ''}"`
+        );
+
+        // Replace Inspection Result
+        const finalInspectionResult = (inspectionResult || 'PASS').toUpperCase();
+        const resultClass = finalInspectionResult === 'PASS' ? 'result-pass' : 'result-fail';
+        htmlTemplate = htmlTemplate.replace(
+            /<span class="result-badge result-pass">PASS<\/span>\s*<input type="hidden" id="inspectionResult" value="[^"]*">/,
+            `<span class="result-badge ${resultClass}">${finalInspectionResult}</span><input type="hidden" id="inspectionResult" value="${finalInspectionResult}">`
+        );
+
+        // Replace Roadworthiness Status
+        const finalRoadworthinessStatus = (roadworthinessStatus || 'ROADWORTHY').toUpperCase();
+        const roadworthinessClass = finalRoadworthinessStatus === 'ROADWORTHY' ? 'status-roadworthy' : 'status-not-roadworthy';
+        htmlTemplate = htmlTemplate.replace(
+            /<span class="status-badge status-roadworthy">ROADWORTHY<\/span>\s*<input type="hidden" id="roadworthinessStatus" value="[^"]*">/,
+            `<span class="status-badge ${roadworthinessClass}">${finalRoadworthinessStatus}</span><input type="hidden" id="roadworthinessStatus" value="${finalRoadworthinessStatus}">`
+        );
+
+        // Replace Inspection Notes
+        if (inspectionNotes) {
+            htmlTemplate = htmlTemplate.replace(
+                /<textarea class="notes-field"[^>]*>.*?<\/textarea>/s,
+                `<textarea class="notes-field" rows="3">${inspectionNotes}</textarea>`
+            );
         }
-        .header {
-            text-align: center;
-            border-bottom: 3px solid #1e4b7a;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+
+        // Replace Inspector Name
+        htmlTemplate = htmlTemplate.replace(
+            /<input type="text" value="[^"]*" class="inspector-name">/,
+            `<input type="text" value="${inspectorName || 'LTO Inspector'}" class="inspector-name">`
+        );
+
+        // Inline CSS for MVIR form
+        const cssPath = path.join(this.templatesPath, 'mvir', 'mvir-form.css');
+        try {
+            const cssContent = await fs.readFile(cssPath, 'utf-8');
+            htmlTemplate = htmlTemplate.replace(
+                /<link rel="stylesheet" href="mvir-form\.css">/,
+                `<style>${cssContent}</style>`
+            );
+        } catch (cssError) {
+            console.warn('[MVIR Certificate] Could not load CSS file:', cssError.message);
         }
-        .header h1 {
-            color: #1e4b7a;
-            margin: 0;
-        }
-        .content {
-            margin: 30px 0;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        table td {
-            padding: 10px;
-            border: 1px solid #ddd;
-        }
-        table td:first-child {
-            font-weight: bold;
-            background: #f5f5f5;
-            width: 200px;
-        }
-        .result-badge {
-            display: inline-block;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .result-pass {
-            background: #4caf50;
-            color: white;
-        }
-        .result-fail {
-            background: #f44336;
-            color: white;
-        }
-        .footer {
-            margin-top: 50px;
-            text-align: right;
-        }
-        .signature-line {
-            border-top: 1px solid #333;
-            width: 300px;
-            margin-top: 60px;
-            padding-top: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>LAND TRANSPORTATION OFFICE</h1>
-        <p>Republic of the Philippines</p>
-        <h2>MOTOR VEHICLE INSPECTION REPORT (MVIR)</h2>
-        <p><strong>MVIR Number:</strong> ${mvirNumber || 'MVIR-' + new Date().getFullYear() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase()}</p>
-    </div>
-    <div class="content">
-        <table>
-            <tr><td>Vehicle VIN</td><td>${vehicleVIN || 'N/A'}</td></tr>
-            <tr><td>Plate Number</td><td>${vehiclePlate || 'N/A'}</td></tr>
-            <tr><td>Make / Brand</td><td>${vehicleMake || 'N/A'}</td></tr>
-            <tr><td>Model</td><td>${vehicleModel || 'N/A'}</td></tr>
-            <tr><td>Year</td><td>${vehicleYear || 'N/A'}</td></tr>
-            <tr><td>Engine Number</td><td>${engineNumber || 'N/A'}</td></tr>
-            <tr><td>Chassis Number</td><td>${chassisNumber || vehicleVIN || 'N/A'}</td></tr>
-            <tr><td>Inspection Date</td><td>${inspectionDate ? new Date(inspectionDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
-        </table>
-        <div>
-            <strong>Inspection Result:</strong>
-            <div class="result-badge ${(inspectionResult || 'PASS').toUpperCase() === 'PASS' ? 'result-pass' : 'result-fail'}">
-                ${(inspectionResult || 'PASS').toUpperCase()}
-            </div>
-        </div>
-        <div>
-            <strong>Roadworthiness Status:</strong> ROADWORTHY
-        </div>
-        <div>
-            <strong>Emission Compliance:</strong> COMPLIANT
-        </div>
-    </div>
-    <div class="footer">
-        <div class="signature-line">
-            <p><strong>${inspectorName || 'LTO Inspector'}</strong></p>
-            <p>Inspector</p>
-        </div>
-    </div>
-</body>
-</html>
-        `;
 
         // Generate PDF
         const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
@@ -1662,7 +1680,7 @@ class CertificatePdfGenerator {
             return {
                 pdfBuffer,
                 fileHash,
-                certificateNumber: mvirNumber || `MVIR-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+                certificateNumber: finalMvirNumber
             };
         } catch (error) {
             await browser.close();

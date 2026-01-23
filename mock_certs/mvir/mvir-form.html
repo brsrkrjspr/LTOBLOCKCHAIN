@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Motor Vehicle Inspection Report (MVIR)</title>
+<link rel="stylesheet" href="mvir-form.css">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <p class="republic">Republic of the Philippines</p>
+    <p class="agency">LAND TRANSPORTATION OFFICE</p>
+    <h1>MOTOR VEHICLE INSPECTION REPORT</h1>
+    <p class="form-number">(MVIR)</p>
+  </div>
+
+  <!-- MVIR NUMBER AND DATE -->
+  <div class="meta">
+    <p><strong>MVIR No.:</strong> <input type="text" value="MVIR-2026-000123" class="mvir-number"></p>
+    <p><strong>Date:</strong> <input type="date" id="inspectionDate" value="2026-01-23"></p>
+  </div>
+
+  <!-- VEHICLE INFORMATION SECTION -->
+  <div class="section">
+    <div class="section-header">VEHICLE INFORMATION</div>
+    <div class="section-body">
+      <table class="vehicle-info">
+        <tr>
+          <td class="label">Plate Number:</td>
+          <td><input type="text" value="ABC-1234" class="field-value"></td>
+          <td class="label">MV File No.:</td>
+          <td><input type="text" value="" class="field-value"></td>
+        </tr>
+        <tr>
+          <td class="label">Make / Brand:</td>
+          <td><input type="text" value="Toyota" class="field-value"></td>
+          <td class="label">Model / Series:</td>
+          <td><input type="text" value="Corolla Altis" class="field-value"></td>
+        </tr>
+        <tr>
+          <td class="label">Year Model:</td>
+          <td><input type="text" value="2025" class="field-value"></td>
+          <td class="label">Body Type:</td>
+          <td><input type="text" value="Sedan" class="field-value"></td>
+        </tr>
+        <tr>
+          <td class="label">Color:</td>
+          <td><input type="text" value="White" class="field-value"></td>
+          <td class="label">Fuel Type:</td>
+          <td><input type="text" value="Gasoline" class="field-value"></td>
+        </tr>
+        <tr>
+          <td class="label">Engine Number:</td>
+          <td colspan="3"><input type="text" value="2NR-FE123456" class="field-value full-width"></td>
+        </tr>
+        <tr>
+          <td class="label">Chassis / VIN:</td>
+          <td colspan="3"><input type="text" value="1HGBH41JXMN109186" class="field-value full-width"></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- INSPECTION RESULTS SECTION -->
+  <div class="section">
+    <div class="section-header">INSPECTION RESULTS</div>
+    <div class="section-body">
+      <table class="inspection-results">
+        <tr>
+          <td class="label">Inspection Result:</td>
+          <td>
+            <span class="result-badge result-pass">PASS</span>
+            <input type="hidden" id="inspectionResult" value="PASS">
+          </td>
+        </tr>
+        <tr>
+          <td class="label">Roadworthiness Status:</td>
+          <td>
+            <span class="status-badge status-roadworthy">ROADWORTHY</span>
+            <input type="hidden" id="roadworthinessStatus" value="ROADWORTHY">
+          </td>
+        </tr>
+      </table>
+      
+      <div class="inspection-notes">
+        <p class="label">Inspection Notes:</p>
+        <textarea class="notes-field" rows="3" placeholder="Additional notes about the inspection..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNATURE SECTION -->
+  <div class="footer">
+    <div class="signatory">
+      <div class="signature-line"></div>
+      <p class="signature-name"><input type="text" value="Juan D. Inspector" class="inspector-name"></p>
+      <p class="signature-title">Inspector</p>
+      <p class="signature-office">Land Transportation Office</p>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

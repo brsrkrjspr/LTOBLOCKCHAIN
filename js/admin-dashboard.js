@@ -2339,8 +2339,6 @@ function showApplicationModal(application) {
     const inspectionDate = vehicle.inspection_date || vehicle.inspectionDate || '';
     const inspectionOfficer = vehicle.inspection_officer || vehicle.inspectionOfficer || 'N/A';
     const roadworthinessStatus = vehicle.roadworthiness_status || vehicle.roadworthinessStatus || 'PENDING';
-    const emissionCompliance = vehicle.emission_compliance || vehicle.emissionCompliance || 'PENDING';
-    
     // Format date for input field
     const formattedInspectionDate = inspectionDate ? inspectionDate.split('T')[0] : '';
     
@@ -2608,12 +2606,6 @@ function showApplicationModal(application) {
                                 <span style="color: #64748b; display: block; margin-bottom: 0.25rem;">Roadworthiness:</span>
                                 <strong style="display: block; color: ${roadworthinessStatus === 'ROADWORTHY' ? '#10b981' : '#ef4444'}; font-size: 0.95rem;">
                                     ${roadworthinessStatus || 'Not Assessed'}
-                                </strong>
-                            </div>
-                            <div>
-                                <span style="color: #64748b; display: block; margin-bottom: 0.25rem;">Emission:</span>
-                                <strong style="display: block; color: ${emissionCompliance === 'COMPLIANT' ? '#10b981' : '#ef4444'}; font-size: 0.95rem;">
-                                    ${emissionCompliance || 'Not Tested'}
                                 </strong>
                             </div>
                             <div>
@@ -2979,7 +2971,6 @@ async function inspectVehicle(vehicleId) {
                             <p><strong>Inspection Date:</strong> ${vehicle.inspection_date ? new Date(vehicle.inspection_date).toLocaleDateString() : 'N/A'}</p>
                             <p><strong>Result:</strong> <span class="badge badge-${vehicle.inspection_result === 'PASS' ? 'success' : 'danger'}">${vehicle.inspection_result || 'N/A'}</span></p>
                             <p><strong>Roadworthiness:</strong> <span class="badge badge-${vehicle.roadworthiness_status === 'ROADWORTHY' ? 'success' : 'danger'}">${vehicle.roadworthiness_status || 'N/A'}</span></p>
-                            <p><strong>Emission Compliance:</strong> <span class="badge badge-${vehicle.emission_compliance === 'COMPLIANT' ? 'success' : 'danger'}">${vehicle.emission_compliance || 'N/A'}</span></p>
                             ${vehicle.inspection_officer ? `<p><strong>Inspected By:</strong> ${vehicle.inspection_officer}</p>` : ''}
                             ${vehicle.inspection_notes ? `<p><strong>Notes:</strong> ${vehicle.inspection_notes}</p>` : ''}
                         </div>
@@ -3033,17 +3024,6 @@ async function inspectVehicle(vehicleId) {
                     
                     <div style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                            Emission Compliance <span style="color: red;">*</span>
-                        </label>
-                        <select id="emissionCompliance" class="form-control" required>
-                            <option value="">Select compliance...</option>
-                            <option value="COMPLIANT">COMPLIANT</option>
-                            <option value="NON_COMPLIANT">NON_COMPLIANT</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
                             Inspection Officer
                         </label>
                         <input type="text" id="inspectionOfficer" class="form-control" placeholder="Leave blank to use your name">
@@ -3071,12 +3051,11 @@ async function inspectVehicle(vehicleId) {
         modal.querySelector('#confirmInspect').onclick = async function() {
             const inspectionResult = document.getElementById('inspectionResult').value;
             const roadworthinessStatus = document.getElementById('roadworthinessStatus').value;
-            const emissionCompliance = document.getElementById('emissionCompliance').value;
             const inspectionOfficer = document.getElementById('inspectionOfficer').value.trim();
             const inspectionNotes = document.getElementById('inspectionNotes').value.trim();
             
             // Validate required fields
-            if (!inspectionResult || !roadworthinessStatus || !emissionCompliance) {
+            if (!inspectionResult || !roadworthinessStatus) {
                 ToastNotification.show('Please fill in all required fields', 'error');
                 return;
             }
@@ -3089,7 +3068,6 @@ async function inspectVehicle(vehicleId) {
                     vehicleId: vehicleId,
                     inspectionResult: inspectionResult,
                     roadworthinessStatus: roadworthinessStatus,
-                    emissionCompliance: emissionCompliance,
                     inspectionOfficer: inspectionOfficer || undefined,
                     inspectionNotes: inspectionNotes || undefined
                 });
@@ -4286,8 +4264,7 @@ async function markInspectionPassed(applicationId) {
             status: 'PASS',
             mvirNumber: mvirNumber.trim(),
             inspectionDate: inspectionDate || new Date().toISOString().split('T')[0],
-            roadworthinessStatus: 'ROADWORTHY',
-            emissionCompliance: 'COMPLIANT'
+            roadworthinessStatus: 'ROADWORTHY'
         });
         
         if (response.success) {
@@ -4326,7 +4303,6 @@ async function markInspectionFailed(applicationId) {
         const response = await ApiClient.post(`/api/applications/${applicationId}/inspection-status`, {
             status: 'FAIL',
             roadworthinessStatus: 'NOT_ROADWORTHY',
-            emissionCompliance: 'NON_COMPLIANT',
             inspectionNotes: reason.trim()
         });
         

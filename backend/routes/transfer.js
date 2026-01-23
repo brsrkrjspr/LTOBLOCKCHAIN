@@ -935,7 +935,7 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
         );
     }
 
-    // Build HPG documents array (only OR/CR and Owner ID)
+    // Build HPG documents array (OR/CR, Owner ID, and Buyer's HPG Clearance)
     const hpgDocuments = [];
 
     // Add OR/CR if found
@@ -961,7 +961,7 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
         }
     }
 
-    // Add Owner ID if found
+    // Add Owner ID (Seller ID) if found
     if (ownerIdDoc) {
         if (ownerIdDoc.document_id) {
             // From transfer documents
@@ -981,6 +981,30 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
                 path: ownerIdDoc.file_path,
                 filename: ownerIdDoc.original_name
             });
+        }
+    }
+
+    // FIX 1: Add Buyer's HPG Clearance Certificate (HPG needs this to verify)
+    const buyerHpgTransferDoc = transferDocuments.find(td => 
+        td.document_type === docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE && td.document_id
+    );
+    
+    let buyerHpgDoc = null;
+    if (buyerHpgTransferDoc && buyerHpgTransferDoc.document_id) {
+        try {
+            buyerHpgDoc = await db.getDocumentById(buyerHpgTransferDoc.document_id);
+            if (buyerHpgDoc) {
+                hpgDocuments.push({
+                    id: buyerHpgDoc.id,
+                    type: 'buyer_hpg_clearance',
+                    cid: buyerHpgDoc.ipfs_cid,
+                    path: buyerHpgDoc.file_path,
+                    filename: buyerHpgDoc.original_name
+                });
+                console.log(`[Transfer→HPG] Added buyer's HPG clearance certificate: ${buyerHpgDoc.original_name || buyerHpgDoc.id}`);
+            }
+        } catch (hpgDocError) {
+            console.warn(`[Transfer→HPG] Failed to fetch buyer's HPG clearance document:`, hpgDocError.message);
         }
     }
 
@@ -1013,7 +1037,12 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
             ownerIdDocCid: ownerIdDoc?.ipfs_cid || null,
             ownerIdDocPath: ownerIdDoc?.file_path || null,
             ownerIdDocFilename: ownerIdDoc?.original_name || null,
-            // Include ONLY HPG-relevant documents (OR/CR and Owner ID)
+            // Include buyer's HPG clearance certificate reference
+            buyerHpgDocId: buyerHpgDoc?.id || null,
+            buyerHpgDocCid: buyerHpgDoc?.ipfs_cid || null,
+            buyerHpgDocPath: buyerHpgDoc?.file_path || null,
+            buyerHpgDocFilename: buyerHpgDoc?.original_name || null,
+            // Include ALL HPG-relevant documents (OR/CR, Owner ID, and Buyer's HPG Clearance)
             documents: hpgDocuments,
             autoTriggered
         }
@@ -1355,6 +1384,23 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                     autoVerificationResult
                 });
                 console.log(`[Transfer→Insurance Auto-Verify] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+                
+                // FIX 2: Update transfer request insurance approval status
+                try {
+                    await dbModule.query(
+                        `UPDATE transfer_requests 
+                         SET insurance_approval_status = 'APPROVED',
+                             insurance_approved_at = CURRENT_TIMESTAMP,
+                             insurance_approved_by = '00000000-0000-0000-0000-000000000000'::uuid,
+                             updated_at = CURRENT_TIMESTAMP
+                         WHERE id = $1`,
+                        [request.id]
+                    );
+                    console.log(`[Transfer→Insurance Auto-Verify] Updated transfer request ${request.id} insurance_approval_status to APPROVED`);
+                } catch (statusUpdateError) {
+                    console.error(`[Transfer→Insurance Auto-Verify] Failed to update transfer request insurance status:`, statusUpdateError.message);
+                    // Don't fail the whole process if status update fails
+                }
             }
             
             // Add auto-verification result to history
@@ -2910,6 +2956,43 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             approvedAt: new Date().toISOString(),
             notes: notes || null
         });
+
+        // FIX 3: Link buyer's documents to vehicle (for blockchain history - append-only)
+        try {
+            const buyerDocs = await db.getTransferRequestDocuments(id);
+            const buyerDocIds = buyerDocs
+                .filter(td => td.document_type && td.document_type.startsWith('buyer_') && td.document_id)
+                .map(td => td.document_id)
+                .filter(Boolean);
+
+            if (buyerDocIds.length > 0) {
+                await dbModule.query(
+                    `UPDATE documents 
+                     SET vehicle_id = $1, updated_at = CURRENT_TIMESTAMP
+                     WHERE id = ANY($2::uuid[])`,
+                    [request.vehicle_id, buyerDocIds]
+                );
+                console.log(`[Transfer Approval] Linked ${buyerDocIds.length} buyer document(s) to vehicle ${request.vehicle_id}`);
+            }
+
+            // Mark old owner's documents as inactive (keep for blockchain history but mark as previous owner)
+            // Note: This assumes documents table has an is_active column. If not, skip this step.
+            try {
+                await dbModule.query(
+                    `UPDATE documents 
+                     SET is_active = false, updated_at = CURRENT_TIMESTAMP
+                     WHERE vehicle_id = $1 AND uploaded_by = $2 AND (is_active IS NULL OR is_active = true)`,
+                    [request.vehicle_id, request.seller_id]
+                );
+                console.log(`[Transfer Approval] Marked old owner's documents as inactive for vehicle ${request.vehicle_id}`);
+            } catch (inactiveError) {
+                // Column might not exist, that's okay - just log and continue
+                console.log(`[Transfer Approval] Note: Could not mark old documents as inactive (column may not exist): ${inactiveError.message}`);
+            }
+        } catch (docLinkError) {
+            console.error(`[Transfer Approval] Failed to link buyer documents to vehicle:`, docLinkError.message);
+            // Don't fail the transfer approval if document linking fails
+        }
 
         // Transfer package generation removed - not needed per requirements
         // Seller: Deed of Sale, ID

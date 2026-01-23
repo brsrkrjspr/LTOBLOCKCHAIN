@@ -117,6 +117,9 @@ docker cp "$CHANNEL_TX" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/
 TLS_CA_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt"
 
 echo "   Creating channel 'ltochannel'..."
+echo "   This may take up to 2 minutes..."
+
+# Run channel creation in background with timeout, capture output
 CHANNEL_CREATE_OUTPUT=$(timeout 120s docker exec peer0.lto.gov.ph peer channel create \
     -o orderer.lto.gov.ph:7050 \
     -c ltochannel \
@@ -125,7 +128,28 @@ CHANNEL_CREATE_OUTPUT=$(timeout 120s docker exec peer0.lto.gov.ph peer channel c
     --cafile "$TLS_CA_FILE" \
     --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
     --timeout 90s \
-    2>&1)
+    2>&1) || {
+    CHANNEL_CREATE_EXIT=$?
+    echo ""
+    echo "⚠️  Channel creation command exited with code: $CHANNEL_CREATE_EXIT"
+    echo "   Output:"
+    echo "$CHANNEL_CREATE_OUTPUT" | tail -20
+    echo ""
+    echo "💡 Checking if channel block was created anyway..."
+    if docker exec peer0.lto.gov.ph test -f /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block; then
+        echo "✅ Channel block exists! Channel may have been created successfully"
+        CHANNEL_CREATE_OUTPUT="Channel created successfully (block file exists)"
+    else
+        echo "❌ Channel block not found"
+        echo ""
+        echo "💡 Checking orderer logs..."
+        docker logs orderer.lto.gov.ph --tail 30 | grep -i "ltochannel\|error\|channel\|tls" || docker logs orderer.lto.gov.ph --tail 30
+        echo ""
+        echo "💡 Checking peer logs..."
+        docker logs peer0.lto.gov.ph --tail 30 | grep -i "ltochannel\|error\|channel\|tls" || docker logs peer0.lto.gov.ph --tail 30
+        exit 1
+    fi
+}
 
 if echo "$CHANNEL_CREATE_OUTPUT" | grep -qi "successfully\|created"; then
     echo "✅ Channel created successfully"

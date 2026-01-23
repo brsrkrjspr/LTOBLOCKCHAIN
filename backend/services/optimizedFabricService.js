@@ -44,6 +44,20 @@ class OptimizedFabricService {
             throw new Error(`Failed to parse network configuration: ${error.message}`);
         }
         
+        // Determine if we should use localhost (for host-side execution) or Docker hostnames
+        const asLocalhost = process.env.FABRIC_AS_LOCALHOST !== 'false';
+        
+        // If running on host (asLocalhost=true), replace Docker hostnames with localhost
+        if (asLocalhost) {
+            const connectionProfileStr = JSON.stringify(connectionProfile);
+            // Replace peer URLs: peer0.lto.gov.ph:7051 -> localhost:7051
+            const modifiedProfileStr = connectionProfileStr
+                .replace(/peer0\.lto\.gov\.ph:7051/g, 'localhost:7051')
+                .replace(/orderer\.lto\.gov\.ph:7050/g, 'localhost:7050');
+            connectionProfile = JSON.parse(modifiedProfileStr);
+            console.log('📝 Using localhost for Fabric connections (host-side execution)');
+        }
+        
         console.log('🔗 Connecting to Hyperledger Fabric network...');
 
         // Create wallet
@@ -60,7 +74,6 @@ class OptimizedFabricService {
             // Connect to gateway
             // Note: asLocalhost setting - true for localhost access, false for Docker network names
             // Set FABRIC_AS_LOCALHOST=false in .env to use Docker network names instead of localhost
-            const asLocalhost = process.env.FABRIC_AS_LOCALHOST !== 'false';
             await this.gateway.connect(connectionProfile, {
                 wallet: this.wallet,
                 identity: 'admin',

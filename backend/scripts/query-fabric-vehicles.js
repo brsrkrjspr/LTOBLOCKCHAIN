@@ -1,5 +1,5 @@
 // Query Fabric vehicles via application connection
-const fabricService = require('./backend/services/optimizedFabricService');
+const fabricService = require('../services/optimizedFabricService');
 
 (async () => {
   try {

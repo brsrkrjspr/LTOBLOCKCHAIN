@@ -687,37 +687,23 @@ class OptimizedFabricService {
             console.warn('⚠️ Failed to extract timestamp from block:', error.message);
         }
 
-        // Compute current block hash from header components
-        // Hash = SHA-256(blockNumber (8 bytes BE) + previous_hash + data_hash)
-        // This represents the block header hash that should match the next block's previousHash
+        // Compute current block hash the same way Fabric does: SHA-256 of the
+        // serialized BlockHeader protobuf. This must match what the orderer puts
+        // into the next block's header.previous_hash for chain integrity to hold.
         let currentHash = null;
         try {
-            const blockNumber = this.longToNumber(header.number);
-            const previousHashBuffer = header.previous_hash;
-            const dataHashBuffer = header.data_hash;
-            
-            if (blockNumber !== null && previousHashBuffer && dataHashBuffer) {
-                // Convert blockNumber to 8-byte big-endian buffer
-                const blockNumberBuffer = Buffer.allocUnsafe(8);
-                blockNumberBuffer.writeBigUInt64BE(BigInt(blockNumber), 0);
-                
-                // Ensure buffers are Buffer objects
-                const prevBuffer = Buffer.isBuffer(previousHashBuffer) 
-                    ? previousHashBuffer 
-                    : Buffer.from(previousHashBuffer);
-                const dataBuffer = Buffer.isBuffer(dataHashBuffer) 
-                    ? dataHashBuffer 
-                    : Buffer.from(dataHashBuffer);
-                
-                // Concatenate: blockNumber (8 bytes) + previous_hash + data_hash
-                const hashInput = Buffer.concat([blockNumberBuffer, prevBuffer, dataBuffer]);
-                
-                // Compute SHA-256 hash
-                const hash = crypto.createHash('sha256').update(hashInput).digest();
-                currentHash = '0x' + hash.toString('hex');
+            const fabricProtos = require('fabric-protos');
+            const BlockHeader = fabricProtos.common && fabricProtos.common.BlockHeader;
+            if (BlockHeader && typeof BlockHeader.encode === 'function' && block && block.header) {
+                const writer = BlockHeader.encode(block.header);
+                const encoded = writer && typeof writer.finish === 'function' ? writer.finish() : null;
+                if (encoded && encoded.length > 0) {
+                    const hash = crypto.createHash('sha256').update(Buffer.from(encoded)).digest('hex');
+                    currentHash = '0x' + hash;
+                }
             }
         } catch (error) {
-            console.warn('⚠️ Failed to compute block hash:', error.message);
+            console.warn('⚠️ Failed to compute block hash (Fabric BlockHeader.encode):', error.message);
         }
 
         return {

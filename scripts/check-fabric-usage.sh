@@ -45,13 +45,17 @@ fi
 
 echo ""
 echo "3️⃣  Checking vehicles in PostgreSQL..."
-VEHICLES_TOTAL=$(psql -U lto_user -d lto_blockchain -t -c "SELECT COUNT(*) FROM vehicles WHERE status='REGISTERED';" 2>/dev/null | tr -d ' ' || echo "0")
-VEHICLES_WITH_TXID=$(psql -U lto_user -d lto_blockchain -t -c "SELECT COUNT(*) FROM vehicles WHERE status='REGISTERED' AND blockchain_tx_id IS NOT NULL AND blockchain_tx_id != '';" 2>/dev/null | tr -d ' ' || echo "0")
+VEHICLES_TOTAL=$(psql -U lto_user -d lto_blockchain -t -c "SELECT COUNT(*) FROM vehicles WHERE status='REGISTERED';" 2>/dev/null | tr -d ' \n' || echo "0")
+VEHICLES_WITH_TXID=$(psql -U lto_user -d lto_blockchain -t -c "SELECT COUNT(*) FROM vehicles WHERE status='REGISTERED' AND blockchain_tx_id IS NOT NULL AND blockchain_tx_id != '';" 2>/dev/null | tr -d ' \n' || echo "0")
+
+# Ensure values are numeric
+VEHICLES_TOTAL=${VEHICLES_TOTAL:-0}
+VEHICLES_WITH_TXID=${VEHICLES_WITH_TXID:-0}
 
 echo "   Total REGISTERED vehicles: $VEHICLES_TOTAL"
 echo "   Vehicles with blockchain_tx_id: $VEHICLES_WITH_TXID"
 
-if [ "$VEHICLES_TOTAL" -gt 0 ]; then
+if [ "$VEHICLES_TOTAL" -gt 0 ] 2>/dev/null; then
     PERCENTAGE=$((VEHICLES_WITH_TXID * 100 / VEHICLES_TOTAL))
     echo "   Percentage with blockchain_tx_id: $PERCENTAGE%"
     
@@ -67,7 +71,8 @@ fi
 echo ""
 echo "4️⃣  Checking vehicles on Fabric blockchain..."
 if command -v node &> /dev/null; then
-    FABRIC_VEHICLES=$(node backend/scripts/show-fabric-vehicles.js 2>&1 | grep "Found.*vehicle" | grep -oE "[0-9]+" | head -1 || echo "0")
+    FABRIC_VEHICLES=$(node backend/scripts/show-fabric-vehicles.js 2>&1 | grep -oE "Found [0-9]+ vehicle" | grep -oE "[0-9]+" | head -1 || echo "0")
+    FABRIC_VEHICLES=${FABRIC_VEHICLES:-0}
     if [ "$FABRIC_VEHICLES" = "0" ]; then
         echo "   ❌ No vehicles found on Fabric blockchain"
         echo "   ⚠️  This suggests Fabric is NOT being used"
@@ -101,7 +106,7 @@ echo ""
 echo "=== 📊 SUMMARY ==="
 echo ""
 
-if [ "$VEHICLES_WITH_TXID" -eq 0 ] && [ "$VEHICLES_TOTAL" -gt 0 ]; then
+if [ "$VEHICLES_WITH_TXID" -eq 0 ] 2>/dev/null && [ "$VEHICLES_TOTAL" -gt 0 ] 2>/dev/null; then
     echo "❌ CRITICAL: You have $VEHICLES_TOTAL REGISTERED vehicles but NONE have blockchain_tx_id!"
     echo "   This means Fabric has NOT been used for vehicle registration."
     echo ""
@@ -115,7 +120,7 @@ if [ "$VEHICLES_WITH_TXID" -eq 0 ] && [ "$VEHICLES_TOTAL" -gt 0 ]; then
     echo "   2. Start Fabric network"
     echo "   3. Run: node backend/scripts/register-missing-vehicles-on-blockchain.js"
     echo "   OR delete vehicles and start fresh"
-elif [ "$VEHICLES_WITH_TXID" -gt 0 ]; then
+elif [ "$VEHICLES_WITH_TXID" -gt 0 ] 2>/dev/null; then
     echo "✅ Fabric IS being used (at least partially)"
     echo "   $VEHICLES_WITH_TXID out of $VEHICLES_TOTAL vehicles have blockchain_tx_id"
 else

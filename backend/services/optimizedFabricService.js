@@ -60,6 +60,7 @@ class OptimizedFabricService {
             // Connect to gateway
             // Note: asLocalhost setting - true for localhost access, false for Docker network names
             // Set FABRIC_AS_LOCALHOST=false in .env to use Docker network names instead of localhost
+            const asLocalhost = process.env.FABRIC_AS_LOCALHOST !== 'false';
             await this.gateway.connect(connectionProfile, {
                 wallet: this.wallet,
                 identity: 'admin',

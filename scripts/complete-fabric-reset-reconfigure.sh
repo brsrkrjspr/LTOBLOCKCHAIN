@@ -113,6 +113,24 @@ fi
 bash scripts/generate-crypto.sh
 echo "   ✅ Certificates regenerated"
 
+# Verify critical certificates exist
+if [ ! -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp/signcerts" ]; then
+    echo "❌ Admin certificate directory not found after generation!"
+    exit 1
+fi
+
+if [ ! -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls" ]; then
+    echo "❌ Peer TLS directory not found after generation!"
+    exit 1
+fi
+
+if [ ! -d "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/tls" ]; then
+    echo "❌ Orderer TLS directory not found after generation!"
+    exit 1
+fi
+
+echo "   ✅ Certificates verified"
+
 # ============================================
 # STEP 4: Fix MSP admincerts (CRITICAL - BEFORE containers start)
 # ============================================
@@ -177,6 +195,22 @@ fi
 bash scripts/generate-channel-artifacts.sh
 echo "   ✅ Channel artifacts regenerated"
 
+# Verify channel artifacts were created
+if [ ! -f "fabric-network/channel-artifacts/genesis.block" ]; then
+    echo "❌ Genesis block not found after generation!"
+    exit 1
+fi
+
+# Check for channel transaction (either name)
+if [ ! -f "fabric-network/channel-artifacts/ltochannel.tx" ] && [ ! -f "fabric-network/channel-artifacts/channel.tx" ]; then
+    echo "❌ Channel transaction file not found after generation!"
+    echo "   Expected: fabric-network/channel-artifacts/ltochannel.tx or channel.tx"
+    ls -la fabric-network/channel-artifacts/ 2>&1 || echo "   Directory does not exist"
+    exit 1
+fi
+
+echo "   ✅ Channel artifacts verified"
+
 # ============================================
 # STEP 6: Start Fabric Containers
 # ============================================
@@ -194,16 +228,28 @@ sleep 20
 
 # Wait for orderer to log "Beginning to serve requests"
 echo "   Waiting for orderer to be ready..."
+ORDERER_READY=false
 for i in {1..30}; do
     if docker logs orderer.lto.gov.ph 2>&1 | grep -q "Beginning to serve requests"; then
         echo "   ✅ Orderer is ready"
+        ORDERER_READY=true
         break
-    fi
-    if [ $i -eq 30 ]; then
-        echo "   ⚠️  Orderer may not be ready, but continuing..."
     fi
     sleep 2
 done
+
+if [ "$ORDERER_READY" = false ]; then
+    echo "   ⚠️  Orderer may not be ready, checking status..."
+    docker logs orderer.lto.gov.ph --tail 10
+    echo "   Continuing anyway..."
+fi
+
+# Verify couchdb is healthy
+if docker ps | grep -q "couchdb.*Up"; then
+    echo "   ✅ CouchDB is running"
+else
+    echo "   ⚠️  CouchDB may not be running"
+fi
 
 # Start peer
 docker compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph 2>/dev/null || \
@@ -215,19 +261,36 @@ docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph 2>/dev/null 
 echo "   ⏳ Waiting for peer to start (15 seconds)..."
 sleep 15
 
+# Verify peer is running
+if docker ps | grep -q "peer0.lto.gov.ph.*Up"; then
+    echo "   ✅ Peer is running"
+else
+    echo "   ⚠️  Peer may not be running, checking logs..."
+    docker logs peer0.lto.gov.ph --tail 10
+fi
+
 # ============================================
 # STEP 7: Create Channel
 # ============================================
 echo ""
 echo "7️⃣  Creating channel..."
 
-# Copy channel transaction to peer
-CHANNEL_TX="fabric-network/channel-artifacts/channel.tx"
+# Determine channel transaction file name (check both possible names)
+CHANNEL_TX="fabric-network/channel-artifacts/ltochannel.tx"
 if [ ! -f "$CHANNEL_TX" ]; then
-    echo "❌ Channel transaction file not found: $CHANNEL_TX"
+    CHANNEL_TX="fabric-network/channel-artifacts/channel.tx"
+fi
+
+if [ ! -f "$CHANNEL_TX" ]; then
+    echo "❌ Channel transaction file not found!"
+    echo "   Checked: fabric-network/channel-artifacts/ltochannel.tx"
+    echo "   Checked: fabric-network/channel-artifacts/channel.tx"
+    echo "   Listing channel-artifacts directory:"
+    ls -la fabric-network/channel-artifacts/ 2>&1 || echo "   Directory does not exist"
     exit 1
 fi
 
+echo "   Using channel transaction: $CHANNEL_TX"
 docker cp "$CHANNEL_TX" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel.tx
 
 # Copy orderer TLS CA cert to peer container

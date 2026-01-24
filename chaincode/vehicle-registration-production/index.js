@@ -44,6 +44,9 @@ class VehicleRegistrationContract extends Contract {
             const txId = ctx.stub.getTxID();
             const timestamp = new Date().toISOString();
 
+            // Extract officer information if provided (for traceability)
+            const officerInfo = vehicle.officerInfo || {};
+            
             // Create vehicle record (CR - Certificate of Registration - permanent identity)
             const vehicleRecord = {
                 docType: 'CR', // Certificate of Registration
@@ -63,7 +66,8 @@ class VehicleRegistrationContract extends Contract {
                 grossVehicleWeight: vehicle.grossVehicleWeight || 0,
                 netWeight: vehicle.netWeight || 0,
                 classification: vehicle.classification || vehicle.registrationType || 'Private',
-                owner: vehicle.owner,
+                owner: vehicle.owner, // Current owner
+                pastOwners: [], // Track all past owners for audit trail
                 status: 'REGISTERED',
                 verificationStatus: {
                     insurance: 'PENDING',
@@ -84,11 +88,18 @@ class VehicleRegistrationContract extends Contract {
                     action: 'REGISTERED',
                     timestamp: timestamp,
                     performedBy: ctx.clientIdentity.getMSPID(),
+                    officerInfo: {
+                        userId: officerInfo.userId || null,
+                        email: officerInfo.email || null,
+                        name: officerInfo.name || null,
+                        mspId: ctx.clientIdentity.getMSPID()
+                    },
                     details: 'Vehicle registration submitted',
                     transactionId: txId
                 }],
                 blockchainTxId: txId,
                 createdBy: ctx.clientIdentity.getMSPID(),
+                registeredByOfficer: officerInfo.userId || null, // Track registering officer
                 createdAt: timestamp,
                 // Backward compatibility
                 orCrNumber: vehicle.crNumber || vehicle.orCrNumber || ''
@@ -223,14 +234,35 @@ class VehicleRegistrationContract extends Contract {
             vehicle.notes[verifierType] = notes || '';
             vehicle.lastUpdated = timestamp;
 
-            // Add to history
+            // Extract officer information from notes if provided (for admin approvals)
+            // Notes can contain JSON with officerInfo: {userId, email, name}
+            let officerInfo = null;
+            try {
+                const notesObj = JSON.parse(notes || '{}');
+                if (notesObj.officerInfo) {
+                    officerInfo = notesObj.officerInfo;
+                }
+            } catch (e) {
+                // Notes is not JSON, use as-is
+            }
+
+            // Add to history with officer traceability (especially for admin approvals)
             vehicle.history.push({
                 action: `VERIFICATION_${status}`,
                 timestamp: timestamp,
                 performedBy: ctx.clientIdentity.getMSPID(),
+                officerInfo: officerInfo ? {
+                    userId: officerInfo.userId || null,
+                    email: officerInfo.email || null,
+                    name: officerInfo.name || null,
+                    mspId: ctx.clientIdentity.getMSPID()
+                } : {
+                    mspId: ctx.clientIdentity.getMSPID()
+                },
                 details: `${verifierType} verification ${status.toLowerCase()}`,
                 transactionId: txId,
-                notes: notes || ''
+                notes: notes || '',
+                verifierType: verifierType
             });
 
             // Check if all verifications are complete
@@ -301,16 +333,52 @@ class VehicleRegistrationContract extends Contract {
                 throw new Error('Current owner email does not match');
             }
 
-            // Update ownership
+            // Initialize pastOwners array if it doesn't exist (for backward compatibility)
+            if (!vehicle.pastOwners) {
+                vehicle.pastOwners = [];
+            }
+
+            // Update ownership - track past owner
             const previousOwner = vehicle.owner;
             vehicle.owner = newOwner;
             vehicle.lastUpdated = timestamp;
 
-            // Add to history
+            // Add previous owner to pastOwners array (for traceability)
+            vehicle.pastOwners.push({
+                owner: previousOwner,
+                transferDate: timestamp,
+                transferReason: transfer.reason || 'Ownership transfer',
+                transactionId: txId
+            });
+
+            // Extract officer information from transferData (LTO officer who approved)
+            const officerInfo = transfer.officerInfo || {
+                userId: transfer.approvedBy || null,
+                email: transfer.approvedByEmail || null,
+                name: transfer.approvedByName || null
+            };
+
+            // Add to history with full traceability
             vehicle.history.push({
                 action: 'OWNERSHIP_TRANSFERRED',
                 timestamp: timestamp,
                 performedBy: ctx.clientIdentity.getMSPID(),
+                officerInfo: {
+                    userId: officerInfo.userId || null,
+                    email: officerInfo.email || null,
+                    name: officerInfo.name || null,
+                    mspId: ctx.clientIdentity.getMSPID()
+                },
+                previousOwner: {
+                    email: previousOwner.email,
+                    firstName: previousOwner.firstName || previousOwner.first_name || null,
+                    lastName: previousOwner.lastName || previousOwner.last_name || null
+                },
+                newOwner: {
+                    email: newOwner.email,
+                    firstName: newOwner.firstName || newOwner.first_name || null,
+                    lastName: newOwner.lastName || newOwner.last_name || null
+                },
                 details: `Ownership transferred from ${previousOwner.email} to ${newOwner.email}`,
                 transactionId: txId,
                 transferData: transfer
@@ -393,6 +461,55 @@ class VehicleRegistrationContract extends Contract {
         } catch (error) {
             console.error('Error getting vehicle history:', error);
             throw new Error(`Failed to get vehicle history: ${error.message}`);
+        }
+    }
+
+    // Get ownership history (current owner + all past owners)
+    async GetOwnershipHistory(ctx, vin) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            
+            // Return comprehensive ownership history
+            return JSON.stringify({
+                currentOwner: vehicle.owner,
+                pastOwners: vehicle.pastOwners || [],
+                ownershipTransfers: vehicle.history.filter(h => h.action === 'OWNERSHIP_TRANSFERRED') || []
+            });
+
+        } catch (error) {
+            console.error('Error getting ownership history:', error);
+            throw new Error(`Failed to get ownership history: ${error.message}`);
+        }
+    }
+
+    // Get officer approvals (all actions performed by LTO officers)
+    async GetOfficerApprovals(ctx, vin) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            
+            // Filter history for entries with officer information
+            const officerActions = vehicle.history.filter(h => 
+                h.officerInfo && (h.officerInfo.userId || h.officerInfo.email || h.officerInfo.name)
+            );
+
+            return JSON.stringify({
+                registeredByOfficer: vehicle.registeredByOfficer || null,
+                officerActions: officerActions
+            });
+
+        } catch (error) {
+            console.error('Error getting officer approvals:', error);
+            throw new Error(`Failed to get officer approvals: ${error.message}`);
         }
     }
 

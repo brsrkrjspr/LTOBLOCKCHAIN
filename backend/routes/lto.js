@@ -741,7 +741,13 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     owner: ownerData, // Include owner as object (not just email)
                     orNumber: orNumber, // Include separate OR number in blockchain record
                     crNumber: crNumber, // Include separate CR number in blockchain record
-                    documents: documentCids // Include document CIDs
+                    documents: documentCids, // Include document CIDs
+                    // Include officer information for traceability
+                    officerInfo: {
+                        userId: req.user.userId,
+                        email: req.user.email,
+                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+                    }
                 };
 
                 // Check if vehicle already exists on blockchain (migration concern)

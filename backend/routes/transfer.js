@@ -3039,7 +3039,15 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                     reason: 'Ownership transfer approved',
                     transferDate: new Date().toISOString(),
                     approvedBy: req.user.email,
-                    currentOwnerEmail: vehicle.owner_email  // Include current owner email for validation
+                    currentOwnerEmail: vehicle.owner_email,  // Include current owner email for validation
+                    // Include officer information for traceability
+                    officerInfo: {
+                        userId: req.user.userId,
+                        email: req.user.email,
+                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+                    },
+                    approvedByEmail: req.user.email,
+                    approvedByName: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
                 };
                 
                 const result = await fabricService.transferOwnership(

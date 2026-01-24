@@ -1765,11 +1765,22 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
         if (vehicle.status === 'REGISTERED') {
             try {
                 const fabricService = require('../services/optimizedFabricService');
+                
+                // Include officer information in notes for traceability (chaincode will parse if JSON)
+                const notesWithOfficer = JSON.stringify({
+                    notes: notes || '',
+                    officerInfo: {
+                        userId: req.user.userId,
+                        email: req.user.email,
+                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+                    }
+                });
+                
                 const blockchainResult = await fabricService.updateVerificationStatus(
                     vin,
                     verificationType,
                     status,
-                    notes || ''
+                    notesWithOfficer
                 );
                 
                 if (blockchainResult && blockchainResult.transactionId) {

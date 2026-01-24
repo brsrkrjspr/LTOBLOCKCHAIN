@@ -80,7 +80,27 @@ ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS origin_type VARCHAR(20) DEFAULT 'N
 -- External issuers will have their own records in external_issuers table
 
 -- ============================================
--- STEP 6: Seed Default External Issuers (Optional)
+-- STEP 6: Add OR/CR Number Sequences and Columns
+-- ============================================
+-- These are used by the OR/CR number generation functions in services.js
+
+-- Create sequences for OR/CR numbers
+CREATE SEQUENCE IF NOT EXISTS or_number_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS cr_number_seq START WITH 1 INCREMENT BY 1;
+
+-- Add OR/CR columns to vehicles table (if not exists)
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS or_number VARCHAR(20);
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS cr_number VARCHAR(20);
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS or_issued_at TIMESTAMP;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS cr_issued_at TIMESTAMP;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS date_of_registration TIMESTAMP;
+
+-- Create indexes for OR/CR lookups
+CREATE INDEX IF NOT EXISTS idx_vehicles_or_number ON vehicles(or_number) WHERE or_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_vehicles_cr_number ON vehicles(cr_number) WHERE cr_number IS NOT NULL;
+
+-- ============================================
+-- STEP 7: Seed Default External Issuers (Optional)
 -- ============================================
 -- Only insert if they don't exist
 INSERT INTO external_issuers (issuer_type, company_name, license_number, api_key, contact_email, is_active)

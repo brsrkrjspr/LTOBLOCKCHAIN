@@ -57,7 +57,9 @@ function createSafeBlockchainMetadata(blockchainResult, txStatus) {
 }
 
 // Get all vehicles (admin only)
-router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin for all vehicles; lto_officer for assigned vehicles only
+// NOTE: Filtering for lto_officer assigned vehicles should be implemented in the query logic
+router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         console.log('[API /api/vehicles] Request received:', {
             query: req.query,
@@ -119,6 +121,16 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
                 totalCount = parseInt(countResult.rows[0].count);
             }
         } else {
+            // STRICT: For lto_officer, filter to show only assigned vehicles
+            // NOTE: Assignment mechanism needs to be implemented (e.g., assigned_to field or assignment table)
+            // For now, officers can see all vehicles, but this should be restricted to assigned vehicles
+            const userRole = req.user.role;
+            if (userRole === 'lto_officer') {
+                // TODO: Implement assignment filtering when assignment mechanism is added
+                // For now, allow officers to see all vehicles (will be restricted later)
+                console.log('[API /api/vehicles] lto_officer accessing - assignment filtering not yet implemented');
+            }
+            
             vehicles = await db.getAllVehicles(parseInt(limit), offset);
             // Get total count
             const countResult = await dbModule.query('SELECT COUNT(*) FROM vehicles');
@@ -1642,8 +1654,9 @@ LTO Lipa City Team
     }
 });
 
-// Update vehicle status (admin only) - MUST come before /:vin routes
-router.put('/id/:id/status', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// Update vehicle status
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can update vehicle status)
+router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
         const { status, notes } = req.body;
@@ -1709,7 +1722,8 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin']), async 
 });
 
 // Update vehicle verification status
-router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, lto_officer, and insurance_verifier
+router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer', 'insurance_verifier']), async (req, res) => {
     try {
         const { vin } = req.params;
         const { verificationType, status, notes } = req.body;
@@ -1739,6 +1753,14 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
                 error: 'Insufficient permissions for this verification type'
             });
         }
+        
+        // STRICT: lto_officer can only verify admin/insurance types, not system-level verifications
+        if (req.user.role === 'lto_officer' && !['insurance', 'admin'].includes(verificationType)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Officers can only verify insurance and admin verification types'
+            });
+        }
 
         // Find vehicle
         const vehicle = await db.getVehicleByVin(vin);
@@ -1766,13 +1788,17 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'ins
             try {
                 const fabricService = require('../services/optimizedFabricService');
                 
+                // Fetch current user to get employee_id
+                const currentUser = await db.getUserById(req.user.userId);
+                
                 // Include officer information in notes for traceability (chaincode will parse if JSON)
                 const notesWithOfficer = JSON.stringify({
                     notes: notes || '',
                     officerInfo: {
                         userId: req.user.userId,
                         email: req.user.email,
-                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                        employeeId: currentUser?.employee_id || null
                     }
                 });
                 
@@ -2121,7 +2147,8 @@ router.get('/:vin/history', authenticateToken, async (req, res) => {
 });
 
 // Transfer vehicle ownership
-router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
+// STRICT: Allow vehicle_owner, admin, lto_admin, and lto_officer
+router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 'admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { vin } = req.params;
         const { newOwnerId, newOwnerName, transferData } = req.body;
@@ -2143,7 +2170,8 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
         }
 
         // Check if user has permission to transfer this vehicle
-        if (req.user.role !== 'admin' && vehicle.owner_id !== req.user.userId) {
+        // STRICT: Allow vehicle owner, admin, lto_admin, and lto_officer
+        if (!['admin', 'lto_admin', 'lto_officer'].includes(req.user.role) && vehicle.owner_id !== req.user.userId) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied'

@@ -60,7 +60,8 @@ const upload = multer({
 });
 
 // Perform LTO vehicle inspection
-router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can conduct inspections)
+router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { vehicleId, inspectionResult, roadworthinessStatus, inspectionOfficer, inspectionNotes, documentReferences } = req.body;
         
@@ -308,7 +309,8 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin']), async (req,
 });
 
 // Upload inspection documents (MVIR, photos, etc.)
-router.post('/inspect-documents', authenticateToken, authorizeRole(['admin']), upload.any(), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can upload inspection documents)
+router.post('/inspect-documents', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), upload.any(), async (req, res) => {
     try {
         const { vehicleId } = req.body;
         
@@ -496,7 +498,8 @@ router.get('/inspection/:vehicleId', authenticateToken, authorizeRole(['admin', 
 });
 
 // Approve clearance (final approval after all verifications complete)
-router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can approve clearances)
+router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { vehicleId, notes } = req.body;
         
@@ -670,18 +673,28 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
         // If blockchain fails, the entire approval must fail (blockchain is source of truth)
         let blockchainTxId = null;
         
-        // Check if blockchain is required
+        // STRICT FABRIC: Enforce real blockchain service - NO FALLBACKS ALLOWED
         const blockchainMode = process.env.BLOCKCHAIN_MODE || 'fabric';
-        const isBlockchainRequired = blockchainMode === 'fabric';
+        if (blockchainMode !== 'fabric') {
+            console.error('❌ CRITICAL: BLOCKCHAIN_MODE must be "fabric". No fallback mode allowed.');
+            return res.status(500).json({
+                success: false,
+                error: 'Blockchain mode invalid',
+                message: 'BLOCKCHAIN_MODE must be set to "fabric". System requires real Hyperledger Fabric network. No fallback modes allowed.'
+            });
+        }
         
-        if (isBlockchainRequired) {
-            if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
-                return res.status(503).json({
-                    success: false,
-                    error: 'Blockchain service unavailable',
-                    message: 'Cannot approve vehicle: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
-                });
-            }
+        // Validate Fabric connection - MANDATORY
+        if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
+            return res.status(503).json({
+                success: false,
+                error: 'Blockchain service unavailable',
+                message: 'Cannot approve vehicle: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
+            });
+        }
+        
+        // Blockchain is ALWAYS required - proceed with registration
+        {
             
             try {
                 // Fetch vehicle documents and build document CIDs object
@@ -725,6 +738,9 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     }
                 }
                 
+                // Fetch current user to get employee_id
+                const currentUser = await db.getUserById(req.user.userId);
+                
                 const vehicleData = {
                     vin: vehicle.vin,
                     plateNumber: vehicle.plate_number,
@@ -742,11 +758,12 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
                     orNumber: orNumber, // Include separate OR number in blockchain record
                     crNumber: crNumber, // Include separate CR number in blockchain record
                     documents: documentCids, // Include document CIDs
-                    // Include officer information for traceability
+                    // Include officer information for traceability (with employee_id)
                     officerInfo: {
                         userId: req.user.userId,
                         email: req.user.email,
-                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                        employeeId: currentUser?.employee_id || null
                     }
                 };
 
@@ -832,8 +849,8 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             }
         }
         
-        // STRICT FABRIC: Validate blockchain transaction ID exists
-        if (isBlockchainRequired && !blockchainTxId) {
+        // STRICT FABRIC: Validate blockchain transaction ID exists - MANDATORY
+        if (!blockchainTxId) {
             console.error('❌ CRITICAL: Blockchain transaction ID missing after registration');
             return res.status(500).json({
                 success: false,
@@ -842,11 +859,10 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin']), a
             });
         }
 
-        // Update vehicle status to REGISTERED if blockchain registration succeeded
-        if (blockchainTxId) {
-            await db.updateVehicle(vehicleId, {
-                status: 'REGISTERED'
-            });
+        // Update vehicle status to REGISTERED - blockchain registration succeeded
+        await db.updateVehicle(vehicleId, {
+            status: 'REGISTERED'
+        });
             
             // Set registration expiry (1 year from now)
             const expiryService = require('../services/expiryService');
@@ -1031,8 +1047,9 @@ TrustChain LTO Team
     }
 });
 
-// Scrap/retire a vehicle (admin only)
-router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// Scrap/retire a vehicle (admin and lto_admin only - officers cannot scrap vehicles)
+// STRICT: Only admin and lto_admin can scrap vehicles (officers do not have this authority)
+router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const { vehicleId } = req.params;
         const { scrapReason } = req.body;

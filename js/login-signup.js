@@ -292,6 +292,14 @@
                                     window.location.href = 'admin-dashboard.html';
                                 }
                                 break;
+                            case 'lto_admin':
+                                // LTO Admin goes to admin dashboard (has full admin access)
+                                window.location.href = 'admin-dashboard.html';
+                                break;
+                            case 'lto_officer':
+                                // LTO Officer goes to officer dashboard
+                                window.location.href = 'lto-officer-dashboard.html';
+                                break;
                             case 'insurance_verifier':
                                 window.location.href = 'insurance-verifier-dashboard.html';
                                 break;

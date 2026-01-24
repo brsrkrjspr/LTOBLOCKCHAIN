@@ -1,0 +1,141 @@
+-- Create LTO Admin, LTO Officer, and HPG Admin Accounts
+-- Password hash for "admin123" (bcrypt cost 12): $2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG
+-- Password hash for "SecurePass123!" (bcrypt cost 12): $2a$12$8K1p/a0dL3YvEZrj8nH3hO5vJ5K5K5K5K5K5K5K5K5K5K5K5K5K5K
+
+-- ============================================
+-- LTO ADMIN Account
+-- ============================================
+INSERT INTO users (
+    email, 
+    password_hash, 
+    first_name, 
+    last_name, 
+    role, 
+    organization, 
+    phone, 
+    is_active, 
+    email_verified,
+    employee_id,
+    badge_number,
+    department,
+    branch_office,
+    position
+)
+VALUES (
+    'ltoadmin@lto.gov.ph',
+    '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', -- admin123
+    'LTO',
+    'Administrator',
+    'lto_admin',
+    'Land Transportation Office',
+    '+63 2 1234 5678',
+    true,
+    true,
+    'LTO-ADMIN-001',
+    'ADMIN-001',
+    'Administration',
+    'LTO Manila Central',
+    'LTO Administrator'
+)
+ON CONFLICT (email) DO UPDATE SET
+    role = 'lto_admin',
+    organization = 'Land Transportation Office',
+    is_active = true,
+    email_verified = true,
+    employee_id = 'LTO-ADMIN-001',
+    badge_number = 'ADMIN-001',
+    department = 'Administration',
+    branch_office = 'LTO Manila Central',
+    position = 'LTO Administrator';
+
+-- ============================================
+-- LTO OFFICER Account
+-- ============================================
+INSERT INTO users (
+    email, 
+    password_hash, 
+    first_name, 
+    last_name, 
+    role, 
+    organization, 
+    phone, 
+    is_active, 
+    email_verified,
+    employee_id,
+    badge_number,
+    department,
+    branch_office,
+    position
+)
+VALUES (
+    'ltofficer@lto.gov.ph',
+    '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', -- admin123
+    'Juan',
+    'Dela Cruz',
+    'lto_officer',
+    'Land Transportation Office',
+    '+63 917 123 4567',
+    true,
+    true,
+    'LTO-OFF-001',
+    'OFF-001',
+    'Vehicle Registration',
+    'LTO Manila Central',
+    'Registration Officer'
+)
+ON CONFLICT (email) DO UPDATE SET
+    role = 'lto_officer',
+    organization = 'Land Transportation Office',
+    is_active = true,
+    email_verified = true,
+    employee_id = 'LTO-OFF-001',
+    badge_number = 'OFF-001',
+    department = 'Vehicle Registration',
+    branch_office = 'LTO Manila Central',
+    position = 'Registration Officer';
+
+-- ============================================
+-- HPG ADMIN Account
+-- ============================================
+INSERT INTO users (
+    email, 
+    password_hash, 
+    first_name, 
+    last_name, 
+    role, 
+    organization, 
+    phone, 
+    is_active, 
+    email_verified
+)
+VALUES (
+    'hpgadmin@hpg.gov.ph',
+    '$2a$12$8K1p/a0dL3YvEZrj8nH3hO5vJ5K5K5K5K5K5K5K5K5K5K5K5K5K5K', -- SecurePass123!
+    'HPG',
+    'Administrator',
+    'admin', -- Using 'admin' role since 'hpg_admin' doesn't exist in enum
+    'Highway Patrol Group',
+    '+63 2 2345 6789',
+    true,
+    true
+)
+ON CONFLICT (email) DO UPDATE SET
+    role = 'admin',
+    organization = 'Highway Patrol Group',
+    is_active = true,
+    email_verified = true;
+
+-- Verify accounts were created
+SELECT 
+    email, 
+    first_name, 
+    last_name, 
+    role, 
+    organization, 
+    employee_id,
+    badge_number,
+    is_active,
+    email_verified
+FROM users 
+WHERE email IN ('ltoadmin@lto.gov.ph', 'ltofficer@lto.gov.ph', 'hpgadmin@hpg.gov.ph')
+ORDER BY role, email;

@@ -2509,7 +2509,8 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
 });
 
 // Get transfer request statistics (MUST BE BEFORE /requests/:id to avoid route conflict)
-router.get('/requests/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (officers should not see system-wide stats)
+router.get('/requests/stats', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const dbModule = require('../database/db');
         
@@ -2553,7 +2554,8 @@ router.get('/requests/stats', authenticateToken, authorizeRole(['admin']), async
 });
 
 // Expire stale transfer requests (admin-triggered)
-router.post('/requests/expire-stale', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (bulk operations are admin-level)
+router.post('/requests/expire-stale', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const dbModule = require('../database/db');
         const result = await dbModule.query(
@@ -2739,7 +2741,8 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
 });
 
 // Get transfer request verification history
-router.get('/requests/:id/verification-history', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can view verification history)
+router.get('/requests/:id/verification-history', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -2760,10 +2763,15 @@ router.get('/requests/:id/verification-history', authenticateToken, authorizeRol
 });
 
 // Approve transfer request
-router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (officers can approve transfers under limit - see value check below)
+router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
         const { notes } = req.body;
+        
+        // Get current user to check role for transfer value limits
+        const currentUser = await db.getUserById(req.user.userId);
+        const userRole = currentUser?.role || req.user.role;
         
         const request = await db.getTransferRequestById(id);
         if (!request) {
@@ -2772,6 +2780,17 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
                 error: 'Transfer request not found'
             });
         }
+        
+        // STRICT: lto_officer can only approve transfers under 500k PHP value
+        // NOTE: Transfer value is not currently stored in transfer_requests table
+        // If transfer value tracking is added, implement check here:
+        // if (userRole === 'lto_officer' && transferValue > 500000) {
+        //     return res.status(403).json({
+        //         success: false,
+        //         error: 'Transfer value exceeds officer approval limit',
+        //         message: 'Transfers over 500,000 PHP require lto_admin or admin approval'
+        //     });
+        // }
         
         // Allow approval from the normal review states AND from the forwarded-to-HPG state.
         // Rationale:
@@ -3020,74 +3039,75 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
         // If blockchain fails, the entire transfer must fail (blockchain is source of truth)
         let blockchainTxId = null;
         
-        // Check if blockchain is required
+        // STRICT FABRIC: Enforce real blockchain service - NO FALLBACKS ALLOWED
         const blockchainMode = process.env.BLOCKCHAIN_MODE || 'fabric';
-        const isBlockchainRequired = blockchainMode === 'fabric';
-        
-        if (isBlockchainRequired) {
-            if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
-                return res.status(503).json({
-                    success: false,
-                    error: 'Blockchain service unavailable',
-                    message: 'Cannot complete transfer: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
-                });
-            }
-            
-            try {
-                const buyer = await db.getUserById(buyerId);
-                const transferData = {
-                    reason: 'Ownership transfer approved',
-                    transferDate: new Date().toISOString(),
-                    approvedBy: req.user.email,
-                    currentOwnerEmail: vehicle.owner_email,  // Include current owner email for validation
-                    // Include officer information for traceability
-                    officerInfo: {
-                        userId: req.user.userId,
-                        email: req.user.email,
-                        name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
-                    },
-                    approvedByEmail: req.user.email,
-                    approvedByName: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
-                };
-                
-                const result = await fabricService.transferOwnership(
-                    vehicle.vin,
-                    {
-                        email: buyer.email,
-                        firstName: buyer.first_name,
-                        lastName: buyer.last_name
-                    },
-                    transferData
-                );
-                
-                blockchainTxId = result.transactionId;
-                
-                if (!blockchainTxId) {
-                    throw new Error('Blockchain transfer completed but no transaction ID returned');
-                }
-                
-                console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
-            } catch (blockchainError) {
-                console.error('❌ CRITICAL: Blockchain transfer failed:', blockchainError.message);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Blockchain transfer failed',
-                    message: `Cannot complete transfer: ${blockchainError.message}. The ownership transfer must be recorded on the blockchain. Please try again or contact support if the issue persists.`
-                });
-            }
-        }
-        
-        // STRICT FABRIC: Blockchain is always required - no fallback mode
-        if (!isBlockchainRequired) {
+        if (blockchainMode !== 'fabric') {
             console.error('❌ CRITICAL: BLOCKCHAIN_MODE must be "fabric". No fallback mode allowed.');
             return res.status(500).json({
                 success: false,
                 error: 'Blockchain mode invalid',
-                message: 'BLOCKCHAIN_MODE must be set to "fabric". System requires real Hyperledger Fabric network.'
+                message: 'BLOCKCHAIN_MODE must be set to "fabric". System requires real Hyperledger Fabric network. No fallback modes allowed.'
             });
         }
         
-        // Validate: Blockchain transaction ID must exist
+        // Validate Fabric connection - MANDATORY
+        if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
+            return res.status(503).json({
+                success: false,
+                error: 'Blockchain service unavailable',
+                message: 'Cannot complete transfer: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
+            });
+        }
+        
+        // Blockchain is ALWAYS required - proceed with transfer
+        try {
+            const buyer = await db.getUserById(buyerId);
+            // Fetch current user to get employee_id
+            const currentUser = await db.getUserById(req.user.userId);
+            
+            const transferData = {
+                reason: 'Ownership transfer approved',
+                transferDate: new Date().toISOString(),
+                approvedBy: req.user.email,
+                currentOwnerEmail: vehicle.owner_email,  // Include current owner email for validation
+                // Include officer information for traceability (with employee_id)
+                officerInfo: {
+                    userId: req.user.userId,
+                    email: req.user.email,
+                    name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                    employeeId: currentUser?.employee_id || null
+                },
+                approvedByEmail: req.user.email,
+                approvedByName: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+            };
+            
+            const result = await fabricService.transferOwnership(
+                vehicle.vin,
+                {
+                    email: buyer.email,
+                    firstName: buyer.first_name,
+                    lastName: buyer.last_name
+                },
+                transferData
+            );
+            
+            blockchainTxId = result.transactionId;
+            
+            if (!blockchainTxId) {
+                throw new Error('Blockchain transfer completed but no transaction ID returned');
+            }
+            
+            console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
+        } catch (blockchainError) {
+            console.error('❌ CRITICAL: Blockchain transfer failed:', blockchainError.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Blockchain transfer failed',
+                message: `Cannot complete transfer: ${blockchainError.message}. The ownership transfer must be recorded on the blockchain. Please try again or contact support if the issue persists.`
+            });
+        }
+        
+        // STRICT FABRIC: Validate blockchain transaction ID exists - MANDATORY
         if (!blockchainTxId) {
             console.error('❌ CRITICAL: Blockchain transaction ID missing after transfer');
             return res.status(500).json({
@@ -3102,7 +3122,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
             ownerId: buyerId, 
             originType: 'TRANSFER', 
             status: vehicleStatusAfterTransfer,
-            blockchainTxId: blockchainTxId || undefined  // Save blockchain transaction ID (required if blockchain mode is fabric)
+            blockchainTxId: blockchainTxId  // Save blockchain transaction ID (MANDATORY - always required)
         });
         
         // Update transfer request status
@@ -3274,7 +3294,8 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin'])
 });
 
 // Reject transfer request
-router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can reject transfers)
+router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
@@ -3541,7 +3562,8 @@ LTO Lipa City Team
 });
 
 // Forward transfer request to HPG
-router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can forward to HPG)
+router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
         const { purpose, notes } = req.body;
@@ -3579,7 +3601,8 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
 });
 
 // Re-run MVIR auto-verification (LTO-side) for a transfer request
-router.post('/requests/:id/verify-mvir', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can verify MVIR)
+router.post('/requests/:id/verify-mvir', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -3674,7 +3697,8 @@ router.post('/requests/:id/verify-mvir', authenticateToken, authorizeRole(['admi
 });
 
 // Verify document for transfer request
-router.post('/requests/:id/documents/:docId/verify', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can verify documents)
+router.post('/requests/:id/documents/:docId/verify', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id, docId } = req.params;
         const { status, notes, checklist, flagged } = req.body;
@@ -3767,7 +3791,8 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
 });
 
 // Bulk approve transfer requests
-router.post('/requests/bulk-approve', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (bulk operations are admin-level)
+router.post('/requests/bulk-approve', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const { requestIds } = req.body;
         
@@ -3827,7 +3852,8 @@ router.post('/requests/bulk-approve', authenticateToken, authorizeRole(['admin']
 });
 
 // Bulk reject transfer requests
-router.post('/requests/bulk-reject', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (bulk operations are admin-level)
+router.post('/requests/bulk-reject', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const { requestIds, reason } = req.body;
         
@@ -4000,7 +4026,8 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
 });
 
 // Forward transfer request to Insurance
-router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can forward to Insurance)
+router.post('/requests/:id/forward-insurance', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
         const { purpose, notes } = req.body;

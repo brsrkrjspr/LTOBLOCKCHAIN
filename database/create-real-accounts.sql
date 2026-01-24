@@ -68,27 +68,6 @@ ON CONFLICT (email) DO UPDATE SET
     email_verified = true;
 
 -- ============================================
--- EMISSION VERIFIER
--- ============================================
-INSERT INTO users (email, password_hash, first_name, last_name, role, organization, phone, is_active, email_verified)
-VALUES (
-    'emission@emission.gov.ph',
-    '$2a$12$8K1p/a0dL3YvEZrj8nH3hO5vJ5K5K5K5K5K5K5K5K5K5K5K5K5K5K', -- SecurePass123! (bcrypt)
-    'Emission',
-    'Verifier',
-    'emission_verifier',
-    'Emission Testing Center',
-    '+63 2 4567 8901',
-    true,
-    true
-)
-ON CONFLICT (email) DO UPDATE SET
-    role = 'emission_verifier',
-    organization = 'Emission Testing Center',
-    is_active = true,
-    email_verified = true;
-
--- ============================================
 -- VEHICLE OWNER (Sample account)
 -- ============================================
 INSERT INTO users (email, password_hash, first_name, last_name, role, organization, phone, is_active, email_verified)
@@ -123,7 +102,6 @@ WHERE email IN (
     'admin@lto.gov.ph',
     'hpgadmin@hpg.gov.ph',
     'insurance@insurance.gov.ph',
-    'emission@emission.gov.ph',
     'owner@example.com'
 )
 ORDER BY role, email;

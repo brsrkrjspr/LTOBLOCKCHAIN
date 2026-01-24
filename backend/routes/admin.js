@@ -10,7 +10,8 @@ const dbModule = require('../database/db');
 const { normalizeStatusLower } = require('../config/statusConstants');
 
 // Get enhanced admin statistics
-router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (system stats are admin-level)
+router.get('/stats', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const dbModule = require('../database/db');
         
@@ -157,7 +158,8 @@ router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, re
 });
 
 // Get all clearance requests (for verification tracker)
-router.get('/clearance-requests', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (viewing all clearance requests is admin-level)
+router.get('/clearance-requests', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const dbModule = require('../database/db');
         
@@ -222,7 +224,8 @@ router.get('/clearance-requests', authenticateToken, authorizeRole(['admin']), a
 });
 
 // Get notifications for admin
-router.get('/notifications', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all users can view their own notifications)
+router.get('/notifications', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const notifications = await db.getNotificationsByUser(req.user.userId);
         
@@ -349,7 +352,8 @@ function validateUserInput(data, isAdminCreation = false) {
 }
 
 // Admin-only endpoint: Create privileged user account
-router.post('/create-user', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (user management is admin-level)
+router.post('/create-user', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     const clientIp = req.ip || req.connection.remoteAddress;
     const adminUser = req.user; // Admin who is creating the account
     
@@ -491,7 +495,8 @@ router.post('/create-user', authenticateToken, authorizeRole(['admin']), async (
 });
 
 // Get all users (admin only)
-router.get('/users', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (viewing all users is admin-level)
+router.get('/users', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const users = await db.getAllUsers();
         
@@ -529,7 +534,8 @@ router.get('/users', authenticateToken, authorizeRole(['admin']), async (req, re
 });
 
 // Manual verification for insurance (admin only)
-router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (manual verification is admin-level)
+router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const { vehicleId, requestId, verificationType, decision, notes } = req.body;
         

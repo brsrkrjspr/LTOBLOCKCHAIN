@@ -255,6 +255,7 @@ class VehicleRegistrationContract extends Contract {
                     userId: officerInfo.userId || null,
                     email: officerInfo.email || null,
                     name: officerInfo.name || null,
+                    employeeId: officerInfo.employeeId || null,
                     mspId: ctx.clientIdentity.getMSPID()
                 } : {
                     mspId: ctx.clientIdentity.getMSPID()
@@ -367,6 +368,7 @@ class VehicleRegistrationContract extends Contract {
                     userId: officerInfo.userId || null,
                     email: officerInfo.email || null,
                     name: officerInfo.name || null,
+                    employeeId: officerInfo.employeeId || null,
                     mspId: ctx.clientIdentity.getMSPID()
                 },
                 previousOwner: {

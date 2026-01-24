@@ -297,7 +297,8 @@ router.get('/status', optionalAuth, (req, res) => {
 });
 
 // Get recent transactions from Fabric
-router.get('/transactions', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/transactions', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { limit = 10, offset = 0 } = req.query;
 

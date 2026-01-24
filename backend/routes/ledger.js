@@ -7,7 +7,8 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 
 // Get all transactions from Fabric (admin only)
-router.get('/transactions', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/transactions', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const transactions = await fabricService.getAllTransactions();
         res.json({
@@ -26,7 +27,8 @@ router.get('/transactions', authenticateToken, authorizeRole(['admin']), async (
 });
 
 // Get real Fabric transactions only (64-char hex IDs) - for blockchain viewer
-router.get('/transactions/fabric', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/transactions/fabric', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const allTransactions = await fabricService.getAllTransactions();
         
@@ -50,7 +52,8 @@ router.get('/transactions/fabric', authenticateToken, authorizeRole(['admin']), 
 });
 
 // Get synthetic history records only (non-64-char hex IDs) - for activity log
-router.get('/transactions/history', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/transactions/history', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         // Get history records from PostgreSQL vehicle_history table directly
         const db = require('../database/db');
@@ -181,7 +184,8 @@ router.get('/transactions/id/:transactionId', authenticateToken, async (req, res
 });
 
 // Get all blocks from Fabric (admin only)
-router.get('/blocks', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/blocks', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const blocks = await fabricService.getAllBlocks();
         res.json({
@@ -200,7 +204,8 @@ router.get('/blocks', authenticateToken, authorizeRole(['admin']), async (req, r
 });
 
 // Get block by number from Fabric (admin only)
-router.get('/blocks/:blockNumber', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/blocks/:blockNumber', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { blockNumber } = req.params;
         const allBlocks = await fabricService.getAllBlocks();
@@ -228,7 +233,8 @@ router.get('/blocks/:blockNumber', authenticateToken, authorizeRole(['admin']), 
 });
 
 // Get latest block from Fabric (admin only)
-router.get('/blocks/latest', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/blocks/latest', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const allBlocks = await fabricService.getAllBlocks();
         const latestBlock = allBlocks.length > 0 ? allBlocks[allBlocks.length - 1] : null;
@@ -255,7 +261,8 @@ router.get('/blocks/latest', authenticateToken, authorizeRole(['admin']), async 
 });
 
 // Get ledger statistics from Fabric (admin only)
-router.get('/stats', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin and lto_admin only (stats are admin-level)
+router.get('/stats', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const [transactions, blocks, chainInfo] = await Promise.all([
             fabricService.getAllTransactions(),
@@ -326,7 +333,8 @@ router.get('/search', authenticateToken, async (req, res) => {
 });
 
 // Chain-level proof (height, current/previous block hashes)
-router.get('/proof/chain', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/proof/chain', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const chainInfo = await fabricService.getChainInfo();
         res.json({ success: true, chain: chainInfo });
@@ -337,7 +345,8 @@ router.get('/proof/chain', authenticateToken, authorizeRole(['admin']), async (r
 });
 
 // Block-level proof
-router.get('/proof/block/:blockNumber', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/proof/block/:blockNumber', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { blockNumber } = req.params;
         
@@ -371,7 +380,8 @@ router.get('/proof/block/:blockNumber', authenticateToken, authorizeRole(['admin
 });
 
 // Transaction-level proof with endorsements and block placement
-router.get('/proof/tx/:txId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// STRICT: Allow admin, lto_admin, and lto_officer (all have blockchain.view permission)
+router.get('/proof/tx/:txId', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { txId } = req.params;
         

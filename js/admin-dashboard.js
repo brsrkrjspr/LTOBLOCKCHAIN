@@ -63,9 +63,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                         return;
                     }
                     
-                    // Check admin role
-                    if (payload.role !== 'admin') {
-                        console.warn('❌ Access denied: Admin role required');
+                    // Check admin or lto_admin role (lto_officer should use officer dashboard)
+                    if (!['admin', 'lto_admin'].includes(payload.role)) {
+                        console.warn('❌ Access denied: Admin or LTO Admin role required');
                         localStorage.clear();
                         window.location.href = 'login-signup.html?message=Admin access required';
                         return;
@@ -88,10 +88,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return; // Redirect to login page
             }
             
-            // Verify admin role
-            if (!AuthUtils.hasRole('admin')) {
-                console.warn('❌ Access denied: Admin role required');
-                showNotification('Access denied. Admin role required. Redirecting to login...', 'error');
+            // Verify admin or lto_admin role (lto_officer should use officer dashboard)
+            if (!AuthUtils.hasRole('admin') && !AuthUtils.hasRole('lto_admin')) {
+                console.warn('❌ Access denied: Admin or LTO Admin role required');
+                showNotification('Access denied. Admin or LTO Admin role required. Redirecting to login...', 'error');
                 setTimeout(() => {
                     window.location.href = 'login-signup.html?message=Admin access required';
                 }, 2000);

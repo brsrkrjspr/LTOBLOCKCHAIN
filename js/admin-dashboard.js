@@ -1209,7 +1209,8 @@ function checkAndClearDemoAccount() {
     if (currentUser) {
         try {
             const user = JSON.parse(currentUser);
-            if (!['admin', 'lto_admin'].includes(user.role)) {
+            // Allow both admin and lto_admin roles
+            if (user.role && !['admin', 'lto_admin'].includes(user.role)) {
                 console.warn('❌ Non-admin account detected - clearing credentials');
                 localStorage.clear();
                 showNotification(`Access denied. Admin or LTO Admin role required. Your role: ${user.role || 'none'}. Please login as admin.`, 'error');
@@ -1220,6 +1221,7 @@ function checkAndClearDemoAccount() {
             }
         } catch (e) {
             console.warn('Could not parse currentUser:', e);
+            // If parsing fails, don't block - let token check handle it
         }
     }
     

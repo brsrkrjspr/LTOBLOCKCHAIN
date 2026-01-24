@@ -183,7 +183,7 @@ INSERT INTO users (
 )
 VALUES (
     'hpgadmin@hpg.gov.ph',
-    '$2a$12$8K1p/a0dL3YvEZrj8nH3hO5vJ5K5K5K5K5K5K5K5K5K5K5K5K5K5K', -- SecurePass123!
+    '$2a$12$7r//ad4yFuGcjrhqlzbnCOJPiBLLH8eDNGr7/pmsKa7FByehFVFem', -- hpg123456 (bcrypt hash)
     'HPG',
     'Administrator',
     'admin', -- Using 'admin' role since 'hpg_admin' doesn't exist in enum

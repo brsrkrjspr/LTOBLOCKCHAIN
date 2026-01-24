@@ -2428,13 +2428,17 @@ router.get('/requests/preview-from-token', async (req, res) => {
 });
 
 // Get transfer requests (with filters)
-router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owner']), async (req, res) => {
+router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer', 'vehicle_owner']), async (req, res) => {
     try {
         const { status, sellerId, buyerId, vehicleId, dateFrom, dateTo, plateNumber, page = 1, limit = 50 } = req.query;
         
         // Build filters
         const filters = {};
-        if (status) filters.status = status;
+        if (status) {
+            // Handle comma-separated status values (e.g., "PENDING,UNDER_REVIEW")
+            const statusValues = status.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+            filters.status = statusValues.length === 1 ? statusValues[0] : statusValues;
+        }
         if (sellerId) filters.sellerId = sellerId;
         if (buyerId) filters.buyerId = buyerId;
         if (vehicleId) filters.vehicleId = vehicleId;
@@ -2487,7 +2491,8 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'vehicle_owne
         
         res.json({
             success: true,
-            requests,
+            transferRequests: requests, // Frontend expects 'transferRequests'
+            requests: requests, // Also include 'requests' for backward compatibility
             pagination: {
                 currentPage: parseInt(page),
                 totalPages: Math.ceil(totalCount / parseInt(limit)),

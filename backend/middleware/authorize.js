@@ -13,18 +13,28 @@ function authorizeRole(allowedRoles) {
             });
         }
 
+        let userRole = req.user.role;
+        const userEmail = req.user.email || '';
+
+        // Special handling for HPG accounts: if role is 'admin' but email contains 'hpg', treat as 'hpg_admin'
+        if (userRole === 'admin' && allowedRoles.includes('hpg_admin') && 
+            (userEmail.toLowerCase().includes('hpg') || userEmail.toLowerCase().includes('hpg.gov.ph'))) {
+            userRole = 'hpg_admin';
+        }
+
         // Debug logging in development
         if (process.env.NODE_ENV === 'development') {
             console.log('Authorization check:', {
                 userRole: req.user.role,
+                effectiveRole: userRole,
                 userId: req.user.userId,
                 email: req.user.email,
                 allowedRoles: allowedRoles,
-                hasPermission: allowedRoles.includes(req.user.role)
+                hasPermission: allowedRoles.includes(userRole)
             });
         }
 
-        if (!allowedRoles.includes(req.user.role)) {
+        if (!allowedRoles.includes(userRole)) {
             // Log unauthorized access attempt
             logOfficerActivity({
                 officerId: req.user.userId,

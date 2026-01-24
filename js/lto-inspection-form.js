@@ -12,13 +12,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    // Check if user is admin
+    // Check if user is admin, lto_admin, or lto_officer
     const currentUser = AuthUtils.getCurrentUser();
-    if (currentUser.role !== 'admin') {
+    if (!['admin', 'lto_admin', 'lto_officer'].includes(currentUser.role)) {
         if (typeof ToastNotification !== 'undefined') {
-            ToastNotification.show('Access denied. Admin privileges required.', 'error');
+            ToastNotification.show('Access denied. Admin or Officer privileges required.', 'error');
         } else {
-            alert('Access denied. Admin privileges required.');
+            alert('Access denied. Admin or Officer privileges required.');
         }
         setTimeout(() => {
             window.location.href = 'index.html';

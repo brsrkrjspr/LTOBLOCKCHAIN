@@ -12,9 +12,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    // Check if user is admin
+    // Check if user is admin or lto_admin
     const user = AuthUtils.getCurrentUser();
-    if (user && user.role !== 'admin') {
+    if (user && !['admin', 'lto_admin'].includes(user.role)) {
         // Redirect non-admin users to their appropriate dashboard
         AuthUtils.redirectByRole();
         return;

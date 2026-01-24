@@ -1169,7 +1169,7 @@ function checkAndClearDemoAccount() {
         if (currentUser) {
             try {
                 const user = JSON.parse(currentUser);
-                if (user.role !== 'admin') {
+                if (!['admin', 'lto_admin'].includes(user.role)) {
                     console.warn('❌ Non-admin account in dev mode - redirecting');
                     showNotification('Admin access required. Redirecting to login...', 'error');
                     setTimeout(() => {
@@ -1205,14 +1205,14 @@ function checkAndClearDemoAccount() {
         return false;
     }
     
-    // Check if currentUser has admin role
+    // Check if currentUser has admin or lto_admin role
     if (currentUser) {
         try {
             const user = JSON.parse(currentUser);
-            if (user.role !== 'admin') {
+            if (!['admin', 'lto_admin'].includes(user.role)) {
                 console.warn('❌ Non-admin account detected - clearing credentials');
                 localStorage.clear();
-                showNotification(`Access denied. Admin role required. Your role: ${user.role || 'none'}. Please login as admin.`, 'error');
+                showNotification(`Access denied. Admin or LTO Admin role required. Your role: ${user.role || 'none'}. Please login as admin.`, 'error');
                 setTimeout(() => {
                     window.location.href = 'login-signup.html?message=Admin access required';
                 }, 2000);
@@ -1241,11 +1241,11 @@ function checkAndClearDemoAccount() {
                     return false;
                 }
                 
-                // Check admin role
-                if (payload.role !== 'admin') {
-                    console.warn('❌ Token does not have admin role - clearing credentials');
+                // Check admin or lto_admin role
+                if (!['admin', 'lto_admin'].includes(payload.role)) {
+                    console.warn('❌ Token does not have admin or lto_admin role - clearing credentials');
                     localStorage.clear();
-                    showNotification(`Access denied. Admin role required. Your role: ${payload.role || 'none'}. Please login as admin.`, 'error');
+                    showNotification(`Access denied. Admin or LTO Admin role required. Your role: ${payload.role || 'none'}. Please login as admin.`, 'error');
                     setTimeout(() => {
                         window.location.href = 'login-signup.html?message=Admin access required';
                     }, 2000);

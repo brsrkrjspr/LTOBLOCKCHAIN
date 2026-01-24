@@ -1,8 +1,42 @@
 // Registration Wizard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
+    // Ensure we start on Step 1 (reset any saved step state)
+    currentStep = 1;
+    
     initializeRegistrationWizard();
     initializeKeyboardShortcuts();
     restoreFormData();
+    
+    // Final safeguard: ensure Step 1 is visible after all initialization
+    setTimeout(() => {
+        const step1Element = document.getElementById('step-1');
+        const step2Element = document.getElementById('step-2');
+        const step3Element = document.getElementById('step-3');
+        const step4Element = document.getElementById('step-4');
+        
+        if (step1Element) {
+            step1Element.classList.add('active');
+        }
+        if (step2Element) {
+            step2Element.classList.remove('active');
+        }
+        if (step3Element) {
+            step3Element.classList.remove('active');
+        }
+        if (step4Element) {
+            step4Element.classList.remove('active');
+        }
+        
+        // Final check: ensure document section is shown if carType is already selected
+        const carTypeSelect = document.getElementById('carType');
+        if (carTypeSelect && carTypeSelect.value) {
+            const documentSection = document.getElementById('document-upload-section');
+            if (documentSection && documentSection.style.display === 'none') {
+                console.log('[Registration Wizard] Final safeguard: Showing documents for car type:', carTypeSelect.value);
+                handleCarTypeChange(carTypeSelect.value);
+            }
+        }
+    }, 150);
 });
 
 // Track if form is submitting to prevent double submissions
@@ -72,9 +106,13 @@ function initializeRegistrationWizard() {
         });
         
         // Check if car type is already selected (from saved form data)
-        if (carTypeSelect.value) {
-            handleCarTypeChange(carTypeSelect.value);
-        }
+        // Use setTimeout to ensure this runs after restoreFormData has completed
+        setTimeout(() => {
+            if (carTypeSelect.value) {
+                console.log('[Registration Wizard] Initial car type found:', carTypeSelect.value);
+                handleCarTypeChange(carTypeSelect.value);
+            }
+        }, 100);
     }
     
     // Store vehicle type when it changes (for Step 2)
@@ -1473,16 +1511,17 @@ function restoreFormData() {
     const form = document.querySelector('.wizard-form');
     if (form && FormPersistence.restore('registration-wizard', form)) {
         ToastNotification.show('Previous form data restored', 'info', 3000);
-        
-        // FIX: After restoring form data, trigger car type change handler
-        // This ensures the document upload section becomes visible if a car type was previously selected
-        // Without this, the carType value is restored but the documents section stays hidden
+    }
+    
+    // Always check for car type value after restore (even if restore returned false)
+    // Use setTimeout to ensure DOM has been updated with restored values
+    setTimeout(() => {
         const carTypeSelect = document.getElementById('carType');
         if (carTypeSelect && carTypeSelect.value) {
             console.log('[Registration Wizard] Restoring document visibility for car type:', carTypeSelect.value);
             handleCarTypeChange(carTypeSelect.value);
         }
-    }
+    }, 50);
 }
 
 // Keyboard shortcuts

@@ -863,32 +863,32 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
         await db.updateVehicle(vehicleId, {
             status: 'REGISTERED'
         });
-            
-            // Set registration expiry (1 year from now)
-            const expiryService = require('../services/expiryService');
-            await expiryService.setRegistrationExpiry(vehicleId, new Date());
-            
-            // ✅ ADD: Create BLOCKCHAIN_REGISTERED history entry for certificate generator
-            await db.addVehicleHistory({
-                vehicleId,
-                action: 'BLOCKCHAIN_REGISTERED',
-                description: `Vehicle registered on Hyperledger Fabric. TX: ${blockchainTxId}`,
-                performedBy: req.user.userId,
-                transactionId: blockchainTxId,
-                metadata: {
-                    source: 'lto_final_approval',
-                    orNumber: orNumber,
-                    crNumber: crNumber,
-                    mvirNumber: mvirNumber,
-                    registeredAt: new Date().toISOString(),
-                    fabricNetwork: 'ltochannel',
-                    chaincode: 'vehicle-registration'
-                }
-            });
-            console.log(`✅ Created BLOCKCHAIN_REGISTERED history entry with txId: ${blockchainTxId}`);
+        
+        // Set registration expiry (1 year from now)
+        const expiryService = require('../services/expiryService');
+        await expiryService.setRegistrationExpiry(vehicleId, new Date());
+        
+        // ✅ ADD: Create BLOCKCHAIN_REGISTERED history entry for certificate generator
+        await db.addVehicleHistory({
+            vehicleId,
+            action: 'BLOCKCHAIN_REGISTERED',
+            description: `Vehicle registered on Hyperledger Fabric. TX: ${blockchainTxId}`,
+            performedBy: req.user.userId,
+            transactionId: blockchainTxId,
+            metadata: {
+                source: 'lto_final_approval',
+                orNumber: orNumber,
+                crNumber: crNumber,
+                mvirNumber: mvirNumber,
+                registeredAt: new Date().toISOString(),
+                fabricNetwork: 'ltochannel',
+                chaincode: 'vehicle-registration'
+            }
+        });
+        console.log(`✅ Created BLOCKCHAIN_REGISTERED history entry with txId: ${blockchainTxId}`);
 
-            // Send approval email to owner (only on successful blockchain registration)
-            try {
+        // Send approval email to owner (only on successful blockchain registration)
+        try {
                 if (vehicle.owner_id) {
                     const ownerUser = await db.getUserById(vehicle.owner_id);
                     const ownerEmail = ownerUser?.email || vehicle.owner_email;
@@ -976,9 +976,8 @@ TrustChain LTO Team
                         console.warn('⚠️ No owner email available, skipping approval email');
                     }
                 }
-            } catch (emailError) {
-                console.error('❌ Failed to send approval email:', emailError);
-            }
+        } catch (emailError) {
+            console.error('❌ Failed to send approval email:', emailError);
         }
 
         // Add to history (include separate OR/CR numbers in metadata)

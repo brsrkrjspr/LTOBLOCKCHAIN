@@ -64,6 +64,14 @@ run_migration "backend/migrations/add-inspection-columns.sql" "Inspection Column
 run_migration "backend/migrations/add-expiry-tracking.sql" "Expiry Tracking"
 run_migration "database/migrations/add-blockchain-tx-id-to-vehicles.sql" "Blockchain TX ID"
 
+# Phase 2.5: Transfer & Registration Workflow (Required before officer metrics view)
+echo "=========================================="
+echo "Phase 2.5: Transfer & Registration Workflow"
+echo "=========================================="
+echo ""
+
+run_migration "database/migrations/007_registration_workflow_and_transfer_ownership.sql" "Registration Workflow & Transfer Ownership"
+
 # Phase 3: LTO Roles (CRITICAL)
 echo "=========================================="
 echo "Phase 3: LTO Admin/Officer Roles (CRITICAL)"

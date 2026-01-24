@@ -85,11 +85,25 @@ COMMENT ON COLUMN officer_activity_log.metadata IS 'Additional context data in J
 -- STEP 4: Create officer_performance_metrics view
 -- ============================================
 
+-- Only create view if required tables exist (transfer_requests, clearance_requests)
+-- This view will be created after migration 007 runs, but we make it conditional for safety
+DO $$
+BEGIN
+    -- Check if required tables exist
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'transfer_requests'
+    ) AND EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'clearance_requests'
+    ) THEN
+        -- Create view only if tables exist
+        EXECUTE '
 CREATE OR REPLACE VIEW officer_performance_metrics AS
 SELECT 
     u.id as officer_id,
     u.email,
-    u.first_name || ' ' || u.last_name as officer_name,
+    u.first_name || '' '' || u.last_name as officer_name,
     u.employee_id,
     u.badge_number,
     u.department,
@@ -98,39 +112,20 @@ SELECT
     u.hire_date,
     u.role as officer_role,
     
-    -- Vehicle registration metrics
-    COUNT(CASE WHEN vh.action = 'APPROVED' AND vh.vehicle_id IS NOT NULL THEN 1 END) as vehicles_approved,
-    COUNT(CASE WHEN vh.action = 'REJECTED' AND vh.vehicle_id IS NOT NULL THEN 1 END) as vehicles_rejected,
-    
-    -- Transfer request metrics
-    COUNT(CASE WHEN tr.reviewed_by = u.id AND tr.status = 'APPROVED' THEN 1 END) as transfers_approved,
-    COUNT(CASE WHEN tr.reviewed_by = u.id AND tr.status = 'REJECTED' THEN 1 END) as transfers_rejected,
-    
-    -- Document verification metrics
+    COUNT(CASE WHEN vh.action = ''APPROVED'' AND vh.vehicle_id IS NOT NULL THEN 1 END) as vehicles_approved,
+    COUNT(CASE WHEN vh.action = ''REJECTED'' AND vh.vehicle_id IS NOT NULL THEN 1 END) as vehicles_rejected,
+    COUNT(CASE WHEN tr.reviewed_by = u.id AND tr.status = ''APPROVED'' THEN 1 END) as transfers_approved,
+    COUNT(CASE WHEN tr.reviewed_by = u.id AND tr.status = ''REJECTED'' THEN 1 END) as transfers_rejected,
     COUNT(CASE WHEN d.verified_by = u.id AND d.verified = true THEN 1 END) as documents_verified,
-    
-    -- Clearance request metrics
     COUNT(CASE WHEN cr.requested_by = u.id THEN 1 END) as clearances_requested,
-    
-    -- Activity counts from activity log
     COUNT(DISTINCT oal.id) as total_activities,
     AVG(oal.duration_seconds) as avg_activity_duration_seconds,
-    
-    -- Time-based metrics
     MIN(vh.performed_at) as first_action_date,
     MAX(vh.performed_at) as last_action_date,
-    
-    -- Current workload (pending items assigned to officer)
-    COUNT(CASE WHEN tr.status IN ('PENDING', 'REVIEWING') AND tr.reviewed_by = u.id THEN 1 END) as pending_transfers,
-    COUNT(CASE WHEN cr.status IN ('PENDING', 'IN_PROGRESS') AND cr.assigned_to = u.id THEN 1 END) as pending_clearances,
-    
-    -- Today's activities
+    COUNT(CASE WHEN tr.status IN (''PENDING'', ''REVIEWING'') AND tr.reviewed_by = u.id THEN 1 END) as pending_transfers,
+    COUNT(CASE WHEN cr.status IN (''PENDING'', ''IN_PROGRESS'') AND cr.assigned_to = u.id THEN 1 END) as pending_clearances,
     COUNT(CASE WHEN DATE(oal.created_at) = CURRENT_DATE THEN 1 END) as today_activities,
-    
-    -- This month's activities
-    COUNT(CASE WHEN DATE_TRUNC('month', oal.created_at) = DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as month_activities,
-    
-    -- Last activity timestamp
+    COUNT(CASE WHEN DATE_TRUNC(''month'', oal.created_at) = DATE_TRUNC(''month'', CURRENT_DATE) THEN 1 END) as month_activities,
     MAX(oal.created_at) as last_activity_at
     
 FROM users u
@@ -139,11 +134,15 @@ LEFT JOIN transfer_requests tr ON tr.reviewed_by = u.id
 LEFT JOIN documents d ON d.verified_by = u.id
 LEFT JOIN clearance_requests cr ON cr.requested_by = u.id OR cr.assigned_to = u.id
 LEFT JOIN officer_activity_log oal ON oal.officer_id = u.id
-WHERE u.role IN ('lto_officer', 'lto_supervisor', 'lto_admin', 'staff', 'admin')
+WHERE u.role IN (''lto_officer'', ''lto_supervisor'', ''lto_admin'', ''staff'', ''admin'')
 GROUP BY u.id, u.email, u.first_name, u.last_name, u.employee_id, u.badge_number, 
-         u.department, u.branch_office, u.position, u.hire_date, u.role;
-
-COMMENT ON VIEW officer_performance_metrics IS 'Performance metrics for LTO officers for management reporting and dashboards';
+         u.department, u.branch_office, u.position, u.hire_date, u.role';
+        
+        EXECUTE 'COMMENT ON VIEW officer_performance_metrics IS ''Performance metrics for LTO officers for management reporting and dashboards''';
+    ELSE
+        RAISE NOTICE 'Skipping officer_performance_metrics view creation - transfer_requests or clearance_requests table does not exist yet. Run migration 007 first.';
+    END IF;
+END $$;
 
 -- ============================================
 -- STEP 5: Update existing admin users to lto_admin role (optional)
@@ -225,8 +224,16 @@ COMMENT ON FUNCTION log_officer_vehicle_action() IS 'Automatically logs officer 
 -- STEP 7: Grant permissions
 -- ============================================
 
--- Grant SELECT on new view to all authenticated users
-GRANT SELECT ON officer_performance_metrics TO lto_user;
+-- Grant SELECT on new view to all authenticated users (only if view exists)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.views 
+        WHERE table_name = 'officer_performance_metrics'
+    ) THEN
+        EXECUTE 'GRANT SELECT ON officer_performance_metrics TO lto_user';
+    END IF;
+END $$;
 
 -- Grant necessary permissions on new table
 GRANT SELECT, INSERT ON officer_activity_log TO lto_user;

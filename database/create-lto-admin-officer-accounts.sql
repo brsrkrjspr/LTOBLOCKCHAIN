@@ -1,10 +1,6 @@
 -- Create LTO Admin, LTO Officer, and HPG Admin Accounts
--- Password hash for "admin123" (bcrypt cost 12): $2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG
--- Password hash for "SecurePass123!" (bcrypt cost 12): $2a$12$8K1p/a0dL3YvEZrj8nH3hO5vJ5K5K5K5K5K5K5K5K5K5K5K5K5K5K
-
--- Create LTO Admin, LTO Officer, and HPG Admin Accounts
--- Password hash for "admin123" (bcrypt cost 12): $2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG
--- Password hash for "SecurePass123!" (bcrypt cost 12): $2a$12$8K1p/a0dL3YvEZrj8nH3hO5vJ5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K
+-- Password hash for "admin123" (bcrypt cost 12): $2a$12$x58ZhXS8osrdmdZYTu108etBlEqQjpxLa7WwNqFESC809KnyN9Tx6
+-- All accounts use password: admin123
 
 -- ============================================
 -- LTO ADMIN Account
@@ -52,7 +48,7 @@ BEGIN
         )
         VALUES (
             'ltoadmin@lto.gov.ph',
-            '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG',
+            '$2a$12$x58ZhXS8osrdmdZYTu108etBlEqQjpxLa7WwNqFESC809KnyN9Tx6', -- admin123
             'LTO',
             'Administrator',
             'lto_admin',
@@ -99,8 +95,8 @@ INSERT INTO users (
     position
 )
 VALUES (
-    'ltofficer@lto.gov.ph',
-    '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', -- admin123
+    'ltoofficer@lto.gov.ph',
+    '$2a$12$x58ZhXS8osrdmdZYTu108etBlEqQjpxLa7WwNqFESC809KnyN9Tx6', -- admin123
     'Juan',
     'Dela Cruz',
     'lto_officer',
@@ -141,7 +137,7 @@ INSERT INTO users (
 )
 VALUES (
     'insurance@insurance.gov.ph',
-    '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', -- admin123 (same as LTO accounts for consistency)
+    '$2a$12$x58ZhXS8osrdmdZYTu108etBlEqQjpxLa7WwNqFESC809KnyN9Tx6', -- admin123
     'Insurance',
     'Verifier',
     'insurance_verifier',
@@ -182,8 +178,8 @@ INSERT INTO users (
     email_verified
 )
 VALUES (
-    'hpgadmin@hpg.gov.ph',
-    '$2a$12$7r//ad4yFuGcjrhqlzbnCOJPiBLLH8eDNGr7/pmsKa7FByehFVFem', -- hpg123456 (bcrypt hash)
+    'hpg@hpg.gov.ph',
+    '$2a$12$x58ZhXS8osrdmdZYTu108etBlEqQjpxLa7WwNqFESC809KnyN9Tx6', -- admin123
     'HPG',
     'Administrator',
     'admin', -- Using 'admin' role since 'hpg_admin' doesn't exist in enum
@@ -210,13 +206,14 @@ SELECT
     is_active,
     email_verified
 FROM users 
-WHERE email IN ('ltoadmin@lto.gov.ph', 'ltofficer@lto.gov.ph', 'hpgadmin@hpg.gov.ph', 'admin@lto.gov.ph', 'insurance@insurance.gov.ph')
+WHERE email IN ('ltoadmin@lto.gov.ph', 'ltoofficer@lto.gov.ph', 'hpg@hpg.gov.ph', 'admin@lto.gov.ph', 'insurance@insurance.gov.ph')
 ORDER BY 
     CASE 
         WHEN email = 'ltoadmin@lto.gov.ph' THEN 1
         WHEN email = 'admin@lto.gov.ph' THEN 2
-        WHEN email = 'ltofficer@lto.gov.ph' THEN 3
+        WHEN email = 'ltoofficer@lto.gov.ph' THEN 3
         WHEN email = 'insurance@insurance.gov.ph' THEN 4
-        ELSE 5
+        WHEN email = 'hpg@hpg.gov.ph' THEN 5
+        ELSE 6
     END,
     role, email;

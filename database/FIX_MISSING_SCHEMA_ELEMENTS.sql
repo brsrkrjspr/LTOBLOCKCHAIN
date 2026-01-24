@@ -192,7 +192,16 @@ ALTER TABLE clearance_requests ADD COLUMN IF NOT EXISTS verification_mode VARCHA
 CHECK (verification_mode IN ('MANUAL', 'AUTOMATIC', 'FAST_TRACK'));
 
 -- ============================================
--- STEP 13: Seed Default External Issuers (Optional)
+-- STEP 13: Add Missing transfer_requests Columns (CRITICAL)
+-- ============================================
+-- These columns are referenced in backend/database/services.js:createTransferRequest()
+-- Without them, transfer request creation will fail
+
+ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS remarks TEXT;
+
+-- ============================================
+-- STEP 14: Seed Default External Issuers (Optional)
 -- ============================================
 -- Only insert if they don't exist
 INSERT INTO external_issuers (issuer_type, company_name, license_number, api_key, contact_email, is_active)
@@ -258,3 +267,10 @@ WHERE NOT EXISTS (SELECT 1 FROM external_issuers WHERE issuer_type = 'hpg' AND l
 -- FROM information_schema.columns 
 -- WHERE table_name = 'clearance_requests' 
 -- AND column_name = 'verification_mode';
+
+-- Verify transfer_requests.expires_at and remarks columns exist:
+-- SELECT column_name, data_type 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'transfer_requests' 
+-- AND column_name IN ('expires_at', 'remarks')
+-- ORDER BY column_name;

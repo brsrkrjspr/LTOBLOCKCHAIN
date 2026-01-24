@@ -5,11 +5,11 @@
 -- ============================================
 -- LTO ADMIN Account
 -- ============================================
--- Check if admin@lto.gov.ph already has LTO-ADMIN-001, if so, update it to lto_admin role
+-- Check if admin@lto.gov.ph already has LTO-ADMIN-001, if so, update it to admin role
 -- Otherwise, create new ltoadmin account
 DO $$
 BEGIN
-    -- If admin@lto.gov.ph exists with LTO-ADMIN-001, update it to lto_admin
+    -- If admin@lto.gov.ph exists with LTO-ADMIN-001, update it to admin
     IF EXISTS (
         SELECT 1 FROM users 
         WHERE email = 'admin@lto.gov.ph' 
@@ -17,7 +17,7 @@ BEGIN
     ) THEN
         UPDATE users 
         SET 
-            role = 'lto_admin',
+            role = 'admin',
             organization = 'Land Transportation Office',
             is_active = true,
             email_verified = true,
@@ -27,7 +27,7 @@ BEGIN
             position = 'LTO Administrator'
         WHERE email = 'admin@lto.gov.ph';
         
-        RAISE NOTICE 'Updated admin@lto.gov.ph to lto_admin role';
+        RAISE NOTICE 'Updated admin@lto.gov.ph to admin role';
     ELSE
         -- Create new ltoadmin account
         INSERT INTO users (
@@ -51,7 +51,7 @@ BEGIN
             '$2a$12$x58ZhXS8osrdmdZYTu108etBlEqQjpxLa7WwNqFESC809KnyN9Tx6', -- admin123
             'LTO',
             'Administrator',
-            'lto_admin',
+            'admin',
             'Land Transportation Office',
             '+63 2 1234 5678',
             true,
@@ -63,7 +63,7 @@ BEGIN
             'LTO Administrator'
         )
         ON CONFLICT (email) DO UPDATE SET
-            role = 'lto_admin',
+            role = 'admin',
             organization = 'Land Transportation Office',
             is_active = true,
             email_verified = true,

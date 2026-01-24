@@ -126,6 +126,48 @@ ON CONFLICT (email) DO UPDATE SET
     position = 'Registration Officer';
 
 -- ============================================
+-- INSURANCE VERIFIER Account
+-- ============================================
+INSERT INTO users (
+    email, 
+    password_hash, 
+    first_name, 
+    last_name, 
+    role, 
+    organization, 
+    phone, 
+    is_active, 
+    email_verified
+)
+VALUES (
+    'insurance@insurance.gov.ph',
+    '$2a$12$0V4iR1vog9LRKdCxgKYQM.sH7QZWP2yMsu5i.80xLfH/imgycOGrG', -- admin123 (same as LTO accounts for consistency)
+    'Insurance',
+    'Verifier',
+    'insurance_verifier',
+    'Insurance Verification Office',
+    '+63 2 3456 7890',
+    true,
+    true
+)
+ON CONFLICT (email) DO UPDATE SET
+    role = 'insurance_verifier',
+    organization = 'Insurance Verification Office',
+    is_active = true,
+    email_verified = true;
+
+-- Also handle insurance@lto.gov.ph if it exists (legacy account)
+UPDATE users 
+SET 
+    email = 'insurance@insurance.gov.ph',
+    organization = 'Insurance Verification Office',
+    role = 'insurance_verifier',
+    is_active = true,
+    email_verified = true
+WHERE email = 'insurance@lto.gov.ph'
+AND NOT EXISTS (SELECT 1 FROM users WHERE email = 'insurance@insurance.gov.ph');
+
+-- ============================================
 -- HPG ADMIN Account
 -- ============================================
 INSERT INTO users (
@@ -168,12 +210,13 @@ SELECT
     is_active,
     email_verified
 FROM users 
-WHERE email IN ('ltoadmin@lto.gov.ph', 'ltofficer@lto.gov.ph', 'hpgadmin@hpg.gov.ph', 'admin@lto.gov.ph')
+WHERE email IN ('ltoadmin@lto.gov.ph', 'ltofficer@lto.gov.ph', 'hpgadmin@hpg.gov.ph', 'admin@lto.gov.ph', 'insurance@insurance.gov.ph')
 ORDER BY 
     CASE 
         WHEN email = 'ltoadmin@lto.gov.ph' THEN 1
         WHEN email = 'admin@lto.gov.ph' THEN 2
         WHEN email = 'ltofficer@lto.gov.ph' THEN 3
-        ELSE 4
+        WHEN email = 'insurance@insurance.gov.ph' THEN 4
+        ELSE 5
     END,
     role, email;

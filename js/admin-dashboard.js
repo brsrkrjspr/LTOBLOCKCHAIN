@@ -303,17 +303,25 @@ async function loadOrgVerificationStatus() {
         }
         
         // Calculate stats if not provided
+        // Normalize status to uppercase for consistent comparison (database stores uppercase)
         if (!stats) {
+            const normalizeStatus = (s) => (s || '').toUpperCase().trim();
             stats = {
                 hpg: {
-                    pending: hpgRequests.filter(r => r.status === 'PENDING').length,
-                    approved: hpgRequests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED').length,
-                    rejected: hpgRequests.filter(r => r.status === 'REJECTED').length
+                    pending: hpgRequests.filter(r => normalizeStatus(r.status) === 'PENDING').length,
+                    approved: hpgRequests.filter(r => {
+                        const status = normalizeStatus(r.status);
+                        return status === 'APPROVED' || status === 'COMPLETED';
+                    }).length,
+                    rejected: hpgRequests.filter(r => normalizeStatus(r.status) === 'REJECTED').length
                 },
                 insurance: {
-                    pending: insuranceRequests.filter(r => r.status === 'PENDING').length,
-                    approved: insuranceRequests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED').length,
-                    rejected: insuranceRequests.filter(r => r.status === 'REJECTED').length
+                    pending: insuranceRequests.filter(r => normalizeStatus(r.status) === 'PENDING').length,
+                    approved: insuranceRequests.filter(r => {
+                        const status = normalizeStatus(r.status);
+                        return status === 'APPROVED' || status === 'COMPLETED';
+                    }).length,
+                    rejected: insuranceRequests.filter(r => normalizeStatus(r.status) === 'REJECTED').length
                 }
             };
         }

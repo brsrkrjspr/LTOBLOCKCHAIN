@@ -11,7 +11,7 @@ const autoVerificationService = require('../services/autoVerificationService');
 const certificateBlockchain = require('../services/certificateBlockchainService');
 const crypto = require('crypto');
 const fs = require('fs').promises;
-const { CLEARANCE_STATUS, normalizeStatusLower } = require('../config/statusConstants');
+const { CLEARANCE_STATUS, normalizeStatusLower, normalizeStatus } = require('../config/statusConstants');
 
 // Get HPG dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
@@ -51,9 +51,12 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'hpg_admin'])
         
         let requests;
         if (status) {
-            // When status is provided, get by status then filter to HPG only
-            const allRequests = await db.getClearanceRequestsByStatus(status);
-            console.log(`[HPG API] Got ${allRequests.length} requests with status ${status}`);
+            // Normalize status to uppercase (database format) before querying
+            // This fixes case sensitivity issues (e.g., 'pending' vs 'PENDING')
+            const normalizedStatus = normalizeStatus(status);
+            console.log(`[HPG API] Normalized status: ${status} -> ${normalizedStatus}`);
+            const allRequests = await db.getClearanceRequestsByStatus(normalizedStatus);
+            console.log(`[HPG API] Got ${allRequests.length} requests with status ${normalizedStatus}`);
             requests = allRequests.filter(r => r.request_type === 'hpg');
             console.log(`[HPG API] Filtered to ${requests.length} HPG requests`);
         } else {

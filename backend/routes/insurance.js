@@ -6,6 +6,7 @@ const router = express.Router();
 const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
+const { normalizeStatus } = require('../config/statusConstants');
 
 // Get insurance dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
@@ -73,8 +74,11 @@ router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verif
 router.get('/requests', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {
         const { status } = req.query;
-        const requests = status 
-            ? await db.getClearanceRequestsByStatus(status)
+        // Normalize status to uppercase (database format) before querying
+        // This fixes case sensitivity issues (e.g., 'pending' vs 'PENDING')
+        const normalizedStatus = status ? normalizeStatus(status) : null;
+        const requests = normalizedStatus 
+            ? await db.getClearanceRequestsByStatus(normalizedStatus)
             : await db.getClearanceRequestsByType('insurance');
 
         res.json({

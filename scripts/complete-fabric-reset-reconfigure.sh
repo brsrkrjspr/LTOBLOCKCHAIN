@@ -63,22 +63,29 @@ echo "✅ .env configuration validated"
 echo ""
 echo "1️⃣  Stopping and removing ALL Fabric containers..."
 
-# First, remove ALL old chaincode containers (they're not in docker-compose)
+# First, explicitly stop existing containers (handles containers started manually)
+echo "   Stopping existing containers explicitly..."
+docker stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
+sleep 2
+
+# Remove ALL old chaincode containers (they're not in docker-compose)
 echo "   Removing old chaincode containers..."
-docker ps -a | grep "dev-peer0.lto.gov.ph-vehicle-registration" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+docker ps -a --filter "name=dev-peer" --format "{{.ID}}" | xargs -r docker rm -f 2>/dev/null || true
+docker ps -a --filter "name=vehicle-registration" --format "{{.ID}}" | xargs -r docker rm -f 2>/dev/null || true
 echo "   ✅ Old chaincode containers removed"
 
 # Use docker compose down to properly stop and remove containers AND volumes
-docker compose -f docker-compose.unified.yml down -v 2>/dev/null || \
-docker-compose -f docker-compose.unified.yml down -v 2>/dev/null || {
+# Note: This will preserve postgres and lto-app if they're in the compose file
+docker compose -f docker-compose.unified.yml down -v --remove-orphans 2>/dev/null || \
+docker-compose -f docker-compose.unified.yml down -v --remove-orphans 2>/dev/null || {
     echo "   ⚠️  docker compose down failed, trying manual cleanup..."
-    # Manual cleanup - stop all Fabric containers
-    docker stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli lto-app 2>/dev/null || true
+    # Manual cleanup - stop all Fabric containers (preserve postgres and lto-app)
+    docker stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
     sleep 2
     # Remove all Fabric containers
     docker rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
     # Remove any remaining chaincode containers
-    docker ps -a | grep "dev-peer" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+    docker ps -a --filter "name=dev-peer" --format "{{.ID}}" | xargs -r docker rm -f 2>/dev/null || true
 }
 
 sleep 3
@@ -106,14 +113,15 @@ PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-
 # List all volumes and remove Fabric-related ones (handles prefixes)
 echo "   Finding Fabric volumes..."
 # Find volumes with any prefix pattern (ltoblockchain_orderer-data, ltoblockchain-orderer-data, or just orderer-data)
-FABRIC_VOLUMES=$(docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)" || true)
+# Pattern matches volumes ending in orderer-data, peer-data, or couchdb-data (with or without prefix)
+FABRIC_VOLUMES=$(docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)$" || true)
 
 if [ -n "$FABRIC_VOLUMES" ]; then
     echo "   Found volumes:"
     echo "$FABRIC_VOLUMES" | sed 's/^/      - /'
     echo "   Removing volumes..."
-    # Remove all containers that might be using these volumes first
-    docker ps -aq | xargs -r docker rm -f 2>/dev/null || true
+    # Remove all containers that might be using these volumes first (only Fabric containers)
+    docker ps -a --format "{{.Names}}" | grep -E "(peer|orderer|couchdb|cli|dev-peer)" | xargs -r docker rm -f 2>/dev/null || true
     sleep 2
     echo "$FABRIC_VOLUMES" | xargs -r docker volume rm 2>/dev/null || {
         echo "   ⚠️  Some volumes may be in use, trying again..."
@@ -142,8 +150,8 @@ fi
 # Wait for volumes to be fully released
 sleep 3
 
-# Verify volumes are completely gone
-REMAINING_VOLUMES=$(docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)" || true)
+# Verify volumes are completely gone (match volumes ending in orderer-data, peer-data, or couchdb-data)
+REMAINING_VOLUMES=$(docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)$" || true)
 if [ -n "$REMAINING_VOLUMES" ]; then
     echo "   ❌ CRITICAL: Some volumes still exist after removal:"
     echo "$REMAINING_VOLUMES" | sed 's/^/      - /'
@@ -379,9 +387,28 @@ fi
 docker cp "$ORDERER_TLS_CA" peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt
 TLS_CA_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/orderer-tls-ca.crt"
 
-# Create channel with timeout
-echo "   Creating channel 'ltochannel'..."
-CHANNEL_CREATE_OUTPUT=$(timeout 90s docker exec peer0.lto.gov.ph peer channel create \
+# CRITICAL: Copy Admin MSP to peer container for channel creation (requires Admin identity)
+echo "   Copying Admin MSP to peer container..."
+ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
+if [ ! -d "$ADMIN_MSP" ]; then
+    echo "❌ Admin MSP directory not found: $ADMIN_MSP"
+    exit 1
+fi
+
+# Copy Admin MSP to a temporary location in peer container
+docker exec peer0.lto.gov.ph mkdir -p /tmp/admin-msp
+docker cp "$ADMIN_MSP" peer0.lto.gov.ph:/tmp/admin-msp/
+ADMIN_MSP_PATH="/tmp/admin-msp/msp"
+
+# Verify Admin cert exists
+if ! docker exec peer0.lto.gov.ph test -f "$ADMIN_MSP_PATH/signcerts/Admin@lto.gov.ph-cert.pem"; then
+    echo "❌ Admin certificate not found in MSP"
+    exit 1
+fi
+
+# Create channel with timeout - MUST use Admin identity
+echo "   Creating channel 'ltochannel' (using Admin identity)..."
+CHANNEL_CREATE_OUTPUT=$(timeout 90s docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer channel create \
     -o orderer.lto.gov.ph:7050 \
     -c ltochannel \
     -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel.tx \
@@ -402,8 +429,10 @@ if echo "$CHANNEL_CREATE_OUTPUT" | grep -qi "error\|failed\|FORBIDDEN"; then
     echo "❌ Channel creation failed:"
     echo "$CHANNEL_CREATE_OUTPUT" | tail -15
     echo ""
-    echo "💡 This usually means the orderer still has an old channel."
-    echo "   Ensure orderer-data volume was completely removed."
+    echo "💡 Common causes:"
+    echo "   - Admin MSP not properly configured (check admincerts)"
+    echo "   - Orderer still has old channel data (ensure volumes were removed)"
+    echo "   - Channel creation policy requires Admin identity (now using Admin MSP)"
     exit 1
 fi
 
@@ -442,7 +471,8 @@ if [ -f "fabric-network/channel-artifacts/LTOMSPanchors.tx" ]; then
     echo "8️⃣  Updating anchor peer..."
     docker cp fabric-network/channel-artifacts/LTOMSPanchors.tx peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/anchors.tx
     
-    ANCHOR_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel update \
+    # Use Admin identity for anchor peer update (requires Admin privileges)
+    ANCHOR_OUTPUT=$(docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer channel update \
         -o orderer.lto.gov.ph:7050 \
         -c ltochannel \
         -f /opt/gopath/src/github.com/hyperledger/fabric/peer/anchors.tx \

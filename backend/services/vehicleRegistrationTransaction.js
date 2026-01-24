@@ -1,7 +1,7 @@
 // TrustChain LTO - Vehicle Registration Transaction Helper
 // Handles atomic vehicle creation with document linking
 
-const db = require('./db');
+const db = require('../database/db');
 
 /**
  * Create vehicle with documents in a single transaction

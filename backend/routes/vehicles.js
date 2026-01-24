@@ -1141,235 +1141,81 @@ router.post('/register', optionalAuth, async (req, res) => {
             });
         }
 
-        // Create vehicle in database
-        const newVehicle = await db.createVehicle({
-            vin: vehicle.vin,
-            plateNumber: vehicle.plateNumber,
-            make: vehicle.make,
-            model: vehicle.model,
-            year: vehicle.year,
-            color: vehicle.color,
-            engineNumber: vehicle.engineNumber,
-            chassisNumber: vehicle.chassisNumber,
-            vehicleType: vehicle.vehicleType || 'Car',
-            vehicleCategory: vehicle.vehicleCategory,
-            passengerCapacity: parseInt(vehicle.passengerCapacity),
-            grossVehicleWeight: parseFloat(vehicle.grossVehicleWeight),
-            netWeight: parseFloat(vehicle.netWeight),
-            classification: vehicle.classification || 'Private',
-            ownerId: ownerUser.id,
-            status: 'SUBMITTED',
-            notes: registrationData.notes,
-            originType: 'NEW_REG'
-        });
-
-        // Validate vehicle was created successfully
-        if (!newVehicle || !newVehicle.id) {
-            console.error('❌ Vehicle creation failed: newVehicle is missing or invalid');
+        // Wrap vehicle creation, history, and document linking in a database transaction
+        // This ensures atomicity - all succeed or all fail
+        const vehicleRegistrationTransaction = require('../services/vehicleRegistrationTransaction');
+        const safeMetadata = createSafeRegistrationMetadata(registrationData, vehicle, owner);
+        
+        let newVehicle;
+        let documentCids = {};
+        let documentLinkingResults = {
+            total: 0,
+            linked: 0,
+            failed: 0,
+            failures: [],
+            linkedDocuments: []
+        };
+        
+        try {
+            const transactionResult = await vehicleRegistrationTransaction.createVehicleWithDocumentsTransaction({
+                vehicle,
+                ownerUser,
+                registrationData,
+                safeMetadata
+            });
+            
+            newVehicle = transactionResult.vehicle;
+            documentCids = transactionResult.documentCids;
+            documentLinkingResults = transactionResult.documentLinkingResults;
+        } catch (transactionError) {
+            // Transaction was rolled back automatically
+            console.error('❌ Transaction rolled back due to error:', transactionError);
+            console.error('   Error stack:', transactionError.stack);
             return res.status(500).json({
                 success: false,
-                error: 'Failed to create vehicle record'
+                error: 'Vehicle registration failed. Please try again.',
+                details: process.env.NODE_ENV === 'development' ? transactionError.message : undefined
             });
         }
-
-        // Add to history with safe metadata
-        try {
-            const safeMetadata = createSafeRegistrationMetadata(registrationData, vehicle, owner);
-            await db.addVehicleHistory({
-                vehicleId: newVehicle.id,
-                action: 'REGISTERED',
-                description: 'Vehicle registration submitted',
-                performedBy: ownerUser.id,
-                transactionId: null,
-                metadata: safeMetadata
+        
+        // After transaction commits successfully, continue with non-critical operations
+        
+        // Registration validation - check for critical documents (warn but allow)
+        const requiredDocuments = ['pnpHpgClearance', 'insuranceCert']; // Configurable per registration type
+        const docTypes = require('../config/documentTypes');
+        const hasCriticalDocs = requiredDocuments.some(docType => {
+            const logicalType = docTypes.mapLegacyType(docType);
+            return logicalType && documentCids[logicalType];
+        });
+        
+        if (linkedCount === 0) {
+            // Fail registration - no documents at all
+            console.error(`❌ Registration ${newVehicle.id} failed: No documents were linked`);
+            return res.status(400).json({
+                success: false,
+                error: 'No documents were linked to this vehicle. Registration cannot proceed without documents.',
+                documentLinking: {
+                    status: 'failed',
+                    summary: {
+                        total: documentLinkingResults.total,
+                        linked: 0,
+                        failed: documentLinkingResults.failed
+                    },
+                    failures: documentLinkingResults.failures,
+                    message: 'Please ensure documents were uploaded successfully before submitting registration.'
+                }
             });
-        } catch (historyError) {
-            console.error('❌ Failed to add vehicle history:', historyError);
-            // Don't fail registration if history fails - log and continue
         }
         
-        // Link uploaded documents to vehicle and collect CIDs for blockchain
-        const documentCids = {};
-        if (registrationData.documents && typeof registrationData.documents === 'object') {
-            // Use documentTypes config to map frontend keys to database types
-            const docTypes = require('../config/documentTypes');
-            
-            // Process all documents from registrationData
-            // Note: ownerUser is already validated at line 971, no need to check again
-            for (const [frontendKey, docData] of Object.entries(registrationData.documents)) {
-                // Validate docData is an object
-                if (!docData || typeof docData !== 'object') {
-                    console.warn(`⚠️ Invalid document data for ${frontendKey}, skipping`);
-                    continue;
-                }
-                
-                // Map frontend key to logical type, then to database type
-                const logicalType = docTypes.mapLegacyType(frontendKey);
-                const dbDocType = docTypes.mapToDbType(logicalType);
-                
-                // Validate mapping results
-                if (!logicalType || !dbDocType) {
-                    console.error(`❌ Unknown document type key: ${frontendKey} (mapped to: ${logicalType}, dbType: ${dbDocType})`);
-                    // Don't fail entire registration, but log error for admin review
-                    continue;
-                }
-                
-                // Explicitly reject 'other' type
-                if (dbDocType === 'other') {
-                    console.error(`❌ Document type mapped to 'other' for key: ${frontendKey}. This indicates a configuration error.`);
-                    // Log but continue - document exists, just wrong type
-                    // Admin will need to correct via admin interface
-                    continue;
-                }
-                
-                // Validate logicalType is a valid logical type before using as key
-                if (!docTypes.isValidLogicalType(logicalType)) {
-                    console.warn(`⚠️ Invalid logical type for ${frontendKey}: ${logicalType}, skipping`);
-                    continue;
-                }
-                
-                try {
-                    let documentRecord = null;
-                    const dbModule = require('../database/db');
-                    
-                    // Method 1: If document ID is provided (from upload response), update directly
-                    if (docData.id && typeof docData.id === 'string' && !docData.id.toString().startsWith('TEMP_')) {
-                        try {
-                            const docByIdResult = await dbModule.query(
-                                'SELECT * FROM documents WHERE id = $1',
-                                [docData.id]
-                            );
-                            if (docByIdResult.rows && docByIdResult.rows.length > 0) {
-                                documentRecord = docByIdResult.rows[0];
-                                // Update to link to vehicle
-                                await dbModule.query(
-                                    'UPDATE documents SET vehicle_id = $1, document_type = $2, uploaded_by = $3 WHERE id = $4',
-                                    [newVehicle.id, dbDocType, ownerUser.id, documentRecord.id]
-                                );
-                                console.log(`✅ Linked document ${frontendKey} by ID: ${documentRecord.id}`);
-                            }
-                        } catch (queryError) {
-                            console.error(`❌ Error querying document by ID ${docData.id}:`, queryError.message);
-                            // Continue to next method
-                        }
-                    }
-                    
-                    // Method 2: If not found by ID, try filename or CID (for unlinked documents)
-                    if (!documentRecord && (docData.filename || docData.cid)) {
-                        try {
-                            const docResult = await dbModule.query(
-                                'SELECT * FROM documents WHERE (filename = $1 OR ipfs_cid = $2) AND (vehicle_id IS NULL OR vehicle_id = $3) LIMIT 1',
-                                [docData.filename || null, docData.cid || null, newVehicle.id]
-                            );
-                            if (docResult.rows && docResult.rows.length > 0) {
-                                documentRecord = docResult.rows[0];
-                                // Update to link to vehicle
-                                await dbModule.query(
-                                    'UPDATE documents SET vehicle_id = $1, document_type = $2, uploaded_by = $3 WHERE id = $4',
-                                    [newVehicle.id, dbDocType, ownerUser.id, documentRecord.id]
-                                );
-                                console.log(`✅ Linked document ${frontendKey} by filename/CID: ${documentRecord.id}`);
-                            }
-                        } catch (queryError) {
-                            console.error(`❌ Error querying document by filename/CID:`, queryError.message);
-                            // Continue to next method
-                        }
-                    }
-                    
-                    // Method 3: Try to find any unlinked document for this owner (fallback)
-                    if (!documentRecord && ownerUser.id) {
-                        try {
-                            // Look for recent unlinked documents uploaded by this owner (within last hour)
-                            const recentUnlinkedResult = await dbModule.query(
-                                `SELECT * FROM documents 
-                                 WHERE vehicle_id IS NULL 
-                                 AND uploaded_by = $1 
-                                 AND document_type = $2
-                                 AND uploaded_at > NOW() - INTERVAL '1 hour'
-                                 ORDER BY uploaded_at DESC 
-                                 LIMIT 1`,
-                                [ownerUser.id, dbDocType]
-                            );
-                            if (recentUnlinkedResult.rows && recentUnlinkedResult.rows.length > 0) {
-                                documentRecord = recentUnlinkedResult.rows[0];
-                                // Update to link to vehicle
-                                await dbModule.query(
-                                    'UPDATE documents SET vehicle_id = $1, document_type = $2 WHERE id = $3',
-                                    [newVehicle.id, dbDocType, documentRecord.id]
-                                );
-                                console.log(`✅ Linked document ${frontendKey} by recent unlinked document: ${documentRecord.id}`);
-                            }
-                        } catch (queryError) {
-                            console.error(`❌ Error querying recent unlinked documents:`, queryError.message);
-                            // Continue to next method
-                        }
-                    }
-                    
-                    // Method 4: Create new document record if not found (with minimal data)
-                    if (!documentRecord) {
-                        // Only create if we have at least a filename or CID
-                        if (docData.filename || docData.cid) {
-                            try {
-                                documentRecord = await db.createDocument({
-                                    vehicleId: newVehicle.id,
-                                    documentType: dbDocType,
-                                    filename: docData.filename || `unknown_${frontendKey}_${Date.now()}`,
-                                    originalName: docData.filename || `unknown_${frontendKey}`,
-                                    filePath: docData.url || `/uploads/${docData.filename || 'unknown'}`,
-                                    fileSize: 0, // Size not available from upload
-                                    mimeType: docData.mimeType || 'application/pdf', // Use provided mimeType or default
-                                    fileHash: null,
-                                    uploadedBy: ownerUser.id, // Set owner as uploader
-                                    ipfsCid: docData.cid || null
-                                });
-                                console.log(`✅ Created new document record for ${frontendKey}: ${documentRecord.id}`);
-                            } catch (createError) {
-                                console.error(`❌ Error creating document record for ${frontendKey}:`, createError.message);
-                                // Continue without this document
-                            }
-                        } else {
-                            console.warn(`⚠️ Cannot link ${frontendKey} document: No ID, filename, CID, or unlinked document found`);
-                        }
-                    }
-                    
-                    // Collect CID for blockchain (only if we have a valid document record with CID and valid logicalType)
-                    if (documentRecord && (documentRecord.ipfs_cid || docData.cid) && logicalType && docTypes.isValidLogicalType(logicalType)) {
-                        try {
-                            documentCids[logicalType] = {
-                                cid: documentRecord.ipfs_cid || docData.cid,
-                                filename: documentRecord.filename || docData.filename || frontendKey,
-                                documentType: dbDocType
-                            };
-                            console.log(`✅ Collected CID for blockchain: ${logicalType} = ${documentCids[logicalType].cid}`);
-                        } catch (cidError) {
-                            console.error(`❌ Error collecting CID for ${frontendKey}:`, cidError.message);
-                        }
-                    } else {
-                        if (!documentRecord) {
-                            console.warn(`⚠️ No document record found for ${frontendKey} - will not be included in blockchain registration`);
-                        } else if (!documentRecord.ipfs_cid && !docData.cid) {
-                            console.warn(`⚠️ No CID available for ${frontendKey} document - will not be included in blockchain registration`);
-                        } else if (!logicalType || !docTypes.isValidLogicalType(logicalType)) {
-                            console.warn(`⚠️ Invalid logical type ${logicalType} for ${frontendKey} - will not be included in blockchain registration`);
-                        }
-                    }
-                } catch (docError) {
-                    console.error(`❌ Error linking ${frontendKey} document:`, docError);
-                    console.error(`   Error message:`, docError.message);
-                    console.error(`   Error stack:`, docError.stack);
-                    console.error(`   Document data:`, docData);
-                    // Continue even if document linking fails - vehicle registration can proceed without documents
-                }
-            }
-        } else {
-            console.warn('⚠️ No documents provided in registration data - vehicle will be registered without documents');
+        if (!hasCriticalDocs) {
+            // Warn but allow - log for admin review
+            const missingDocs = requiredDocuments.filter(docType => {
+                const logicalType = docTypes.mapLegacyType(docType);
+                return !logicalType || !documentCids[logicalType];
+            });
+            console.warn(`⚠️ Registration ${newVehicle.id} missing critical documents: ${missingDocs.join(', ')}`);
+            // Continue - frontend will show warning via documentLinking status
         }
-        
-        // Log document linking summary
-        const linkedCount = Object.keys(documentCids).length;
-        console.log(`📄 Document linking summary: ${linkedCount} document(s) linked`);
-        console.log(`📄 Document linking complete: ${linkedCount} documents linked`);
-        console.log(`✅ Vehicle registration submitted successfully. Status: SUBMITTED. Blockchain registration will occur during admin approval.`);
         
         // Note: Blockchain registration is now deferred until admin approval
         // This ensures OR/CR numbers are included in the blockchain record
@@ -1595,6 +1441,22 @@ LTO Lipa City Team
             message: 'Vehicle registration submitted successfully',
             vehicle: formatVehicleResponse(fullVehicle, req, res),
             blockchainStatus: 'PENDING', // Blockchain registration will occur during admin approval
+            documentLinking: {
+                status: linkedCount === 0 ? 'failed' : 
+                        linkedCount < documentLinkingResults.total ? 'partial' : 'success',
+                summary: {
+                    total: documentLinkingResults.total,
+                    linked: linkedCount,
+                    failed: documentLinkingResults.failed
+                },
+                linkedDocuments: documentLinkingResults.linkedDocuments,
+                failures: documentLinkingResults.failures,
+                warnings: linkedCount === 0 ? [
+                    'No documents were linked to this vehicle. Clearance requests cannot be created automatically. Please contact support.'
+                ] : linkedCount < documentLinkingResults.total ? [
+                    `${documentLinkingResults.failed} document(s) failed to link. Some features may be unavailable.`
+                ] : []
+            },
             clearanceRequests: autoSendResults ? {
                 hpg: autoSendResults.hpg.sent,
                 insurance: autoSendResults.insurance.sent

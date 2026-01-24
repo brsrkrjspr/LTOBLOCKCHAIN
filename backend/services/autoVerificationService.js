@@ -36,21 +36,72 @@ class AutoVerificationService {
             console.log(`[Auto-Verify] Starting insurance verification for vehicle ${vehicleId}`);
 
             // Get document file path (local or via storageService when IPFS/stale path)
+            // Enhanced file path resolution with multiple fallback methods
             let filePath = insuranceDoc.file_path || insuranceDoc.filePath;
-            if (!filePath || !(await this.fileExists(filePath))) {
-                if (insuranceDoc.id) {
-                    try {
-                        const doc = await storageService.getDocument(insuranceDoc.id);
-                        if (doc && doc.filePath && (await this.fileExists(doc.filePath))) {
-                            filePath = doc.filePath;
-                            if (doc.storageMode === 'ipfs') ipfsTempPath = doc.filePath;
+            let resolvedVia = null;
+            
+            // Method 1: Check if file_path exists and is accessible
+            if (filePath && await this.fileExists(filePath)) {
+                resolvedVia = 'file_path';
+                console.log(`[Auto-Verify] Using file_path: ${filePath}`);
+            } 
+            // Method 2: Try storageService.getDocument if file_path doesn't exist
+            else if (insuranceDoc.id) {
+                try {
+                    const doc = await storageService.getDocument(insuranceDoc.id);
+                    if (doc && doc.filePath && (await this.fileExists(doc.filePath))) {
+                        filePath = doc.filePath;
+                        resolvedVia = 'storageService';
+                        if (doc.storageMode === 'ipfs') {
+                            ipfsTempPath = doc.filePath;
                         }
-                    } catch (e) { console.warn('[Auto-Verify] storageService.getDocument for insurance failed:', e.message); }
-                }
-                if (!filePath || !(await this.fileExists(filePath))) {
-                    return { status: 'PENDING', automated: false, reason: 'Insurance document file not found', confidence: 0 };
+                        console.log(`[Auto-Verify] Resolved via storageService: ${filePath} (mode: ${doc.storageMode || 'local'})`);
+                    }
+                } catch (e) { 
+                    console.warn('[Auto-Verify] storageService.getDocument failed:', e.message);
                 }
             }
+            
+            // Method 3: Try constructing path from document ID if still not found
+            if (!filePath || !(await this.fileExists(filePath))) {
+                if (insuranceDoc.id) {
+                    // Try common upload paths
+                    const possiblePaths = [
+                        path.join(process.env.UPLOAD_DIR || './uploads', `${insuranceDoc.id}.pdf`),
+                        path.join(process.env.UPLOAD_DIR || './uploads', insuranceDoc.filename || insuranceDoc.original_name),
+                        path.join('./uploads', `${insuranceDoc.id}.pdf`),
+                        path.join('./uploads', insuranceDoc.filename || insuranceDoc.original_name)
+                    ];
+                    
+                    for (const possiblePath of possiblePaths) {
+                        if (await this.fileExists(possiblePath)) {
+                            filePath = possiblePath;
+                            resolvedVia = 'path_construction';
+                            console.log(`[Auto-Verify] Resolved via path construction: ${filePath}`);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Final check: if still no file, return error
+            if (!filePath || !(await this.fileExists(filePath))) {
+                const errorReason = `Insurance document file not found. Tried: ${resolvedVia || 'none'}. Document ID: ${insuranceDoc.id || 'N/A'}`;
+                console.error(`[Auto-Verify] ${errorReason}`);
+                return { 
+                    status: 'PENDING', 
+                    automated: false, 
+                    reason: errorReason, 
+                    confidence: 0,
+                    filePathAttempts: {
+                        file_path: insuranceDoc.file_path || insuranceDoc.filePath,
+                        storageService: insuranceDoc.id ? 'attempted' : 'skipped',
+                        pathConstruction: insuranceDoc.id ? 'attempted' : 'skipped'
+                    }
+                };
+            }
+            
+            console.log(`[Auto-Verify] File resolved successfully via: ${resolvedVia}, path: ${filePath}`);
 
             // Extract data via OCR
             const ocrData = await ocrService.extractInsuranceInfo(filePath, insuranceDoc.mime_type || insuranceDoc.mimeType);

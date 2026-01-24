@@ -37,6 +37,69 @@ This plan addresses **5 critical database schema issues**, **7 critical inconsis
 
 ---
 
+## Phase 0: Critical Bug Fixes (IMMEDIATE) 🔴
+
+**Priority:** CRITICAL - Must be fixed immediately  
+**Estimated Time:** 5 minutes  
+**Risk:** None (syntax fix)  
+**Status:** ✅ **FIXED**
+
+### 0.1. SQL Syntax Error in Certificate Authenticity Check
+
+**Location:** `backend/services/certificateBlockchainService.js:285`
+
+**Problem:**
+- JavaScript-style comment (`//`) inside SQL query string
+- PostgreSQL doesn't support `//` comments - only `--` or `/* */`
+- Causes `error: syntax error at or near "from"` during insurance auto-verification
+- **Impact:** Insurance auto-verification always fails authenticity check, even for valid certificates
+
+**Error from Logs:**
+```
+Database query error: error: syntax error at or near "from"
+    at CertificateBlockchainService.checkCertificateAuthenticity (/app/backend/services/certificateBlockchainService.js:278:31)
+    at AutoVerificationService.autoVerifyInsurance (/app/backend/services/autoVerificationService.js:157:39)
+```
+
+**Fix Applied:**
+```javascript
+// BEFORE (BROKEN):
+const certQuery = await dbRaw.query(
+    `SELECT id, file_hash, composite_hash, certificate_number, 
+            status, application_status, issued_at, expires_at,
+            blockchain_tx_id, vehicle_id, certificate_type
+     FROM certificates 
+     WHERE file_hash = $1 
+       AND certificate_type = $2 
+       AND status IN ('ACTIVE')  // Changed from ('ISSUED', 'ACTIVE') - 'ISSUED' not in constraint
+     ORDER BY issued_at DESC LIMIT 1`,
+    [fileHash, certificateType]
+);
+
+// AFTER (FIXED):
+const certQuery = await dbRaw.query(
+    `SELECT id, file_hash, composite_hash, certificate_number, 
+            status, application_status, issued_at, expires_at,
+            blockchain_tx_id, vehicle_id, certificate_type
+     FROM certificates 
+     WHERE file_hash = $1 
+       AND certificate_type = $2 
+       AND status IN ('ACTIVE')
+     ORDER BY issued_at DESC LIMIT 1`,
+    [fileHash, certificateType]
+);
+```
+
+**Status:** ✅ **FIXED** - Invalid comment removed from SQL query
+
+**Testing:**
+- [x] SQL query syntax validated
+- [ ] Test insurance auto-verification with valid certificate
+- [ ] Verify authenticity check passes when certificate exists
+- [ ] Verify verification status is `APPROVED` instead of `PENDING` when authenticity passes
+
+---
+
 ## Phase 1: Critical Database Schema Fixes (BLOCKING) 🔴
 
 **Priority:** CRITICAL - Must be done first  
@@ -1025,6 +1088,97 @@ function showRegistrationResult(response) {
 
 ---
 
+### 4.3. Fix Insurance Dashboard Auto-Verification UI
+
+**Location:** `insurance-lto-requests.html:1544-1551` (table row) and `insurance-lto-requests.html:1743-1752` (modal)
+
+**Problem:**
+- Shows approve/reject buttons for **all** `PENDING` requests
+- Does **not** check if request was auto-verified
+- Users can try to approve already auto-approved requests
+- Confusing UI - shows buttons even when auto-verification already completed
+
+**Current Code (Table Row):**
+```javascript
+${request.status === 'PENDING' ? `
+    <button class="btn-success btn-sm" onclick="approveInsurance('${request.id}')">
+        <i class="fas fa-check"></i> Approve
+    </button>
+    <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">
+        <i class="fas fa-times"></i> Reject
+    </button>
+` : ''}
+```
+
+**Fixed Code:**
+```javascript
+// Parse metadata to check auto-verification status
+const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+const autoVerified = metadata.autoVerified === true || 
+                    (metadata.autoVerificationResult && metadata.autoVerificationResult.automated === true);
+const autoVerificationStatus = metadata.autoVerificationResult?.status || null;
+
+// Only show buttons if NOT auto-verified AND status is PENDING
+${request.status === 'PENDING' && !(autoVerified && autoVerificationStatus === 'APPROVED') ? `
+    <button class="btn-success btn-sm" onclick="approveInsurance('${request.id}')">
+        <i class="fas fa-check"></i> Approve
+    </button>
+    <button class="btn-danger btn-sm" onclick="rejectInsurance('${request.id}')">
+        <i class="fas fa-times"></i> Reject
+    </button>
+` : autoVerified && autoVerificationStatus === 'APPROVED' ? `
+    <span class="status-badge status-approved" style="cursor: default; display: inline-flex; align-items: center; gap: 0.25rem;" title="${metadata.autoVerificationResult?.score ? `Auto-verified with score: ${metadata.autoVerificationResult.score}%` : 'Auto-verified'}">
+        <i class="fas fa-robot"></i> Auto-Verified
+    </span>
+` : autoVerified ? `
+    <span class="status-badge status-warning" style="font-size: 0.75rem;" title="Auto-verification completed. Result: ${autoVerificationStatus || 'PENDING'}. Score: ${metadata.autoVerificationResult?.score || 'N/A'}%">
+        <i class="fas fa-info-circle"></i> Auto-Verification Result
+    </span>
+` : ''}
+```
+
+**Same Fix Needed in Modal (around line 1743):**
+```javascript
+// Parse metadata
+const metadata = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : (request.metadata || {});
+const autoVerified = metadata.autoVerified === true || 
+                    (metadata.autoVerificationResult && metadata.autoVerificationResult.automated === true);
+const autoVerificationStatus = metadata.autoVerificationResult?.status || null;
+
+// Only show buttons if NOT auto-verified AND status is PENDING
+${request.status === 'PENDING' && !(autoVerified && autoVerificationStatus === 'APPROVED') ? `
+    <div class="action-buttons-container">
+        <button class="btn-success" onclick="approveInsurance('${request.id}'); closeModal('requestDetailsModal');">
+            <i class="fas fa-check"></i> Approve Verification
+        </button>
+        <button class="btn-danger" onclick="rejectInsurance('${request.id}'); closeModal('requestDetailsModal');">
+            <i class="fas fa-times"></i> Reject
+        </button>
+    </div>
+` : autoVerified && autoVerificationStatus === 'APPROVED' ? `
+    <div class="auto-verified-badge" style="padding: 1rem; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+        <span class="status-badge status-approved" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-robot"></i> Auto-Verified and Approved
+        </span>
+        ${metadata.autoVerificationResult?.score ? `
+            <div style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
+                Verification Score: <strong>${metadata.autoVerificationResult.score}%</strong>
+            </div>
+        ` : ''}
+    </div>
+` : ''}
+```
+
+**Benefits:**
+- ✅ No buttons shown for auto-verified requests
+- ✅ Clear visual indication of auto-verification status
+- ✅ Prevents confusion and duplicate approvals
+- ✅ Consistent with `insurance-verifier-dashboard.js` behavior
+
+**Note:** This matches the fix already implemented in `js/insurance-verifier-dashboard.js:174-201`
+
+---
+
 ## Phase 5: Auto-Verification Decoupling ⚠️
 
 **Priority:** MEDIUM - Improves reliability  
@@ -1127,7 +1281,19 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         }
     }
     
-    // Same pattern for insurance...
+    // Same pattern for insurance
+    if (hasInsuranceDocs) {
+        try {
+            await sendToInsurance(vehicleId, vehicle, insuranceDocuments, requestedBy);
+            insuranceSent = 'Yes';
+        } catch (error) {
+            console.error(`[Auto-Send→Insurance] Failed to send Insurance request:`, error);
+            // Don't fail entire registration - verification results are saved
+            insuranceSent = 'Failed';
+        }
+    }
+    
+    return results;
 }
 ```
 
@@ -1136,6 +1302,215 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
 - Results saved for later use
 - More resilient workflow
 - Admin can manually create requests with existing verification
+
+---
+
+### 5.2. Insurance Auto-Verification Implementation
+
+**Location:** `backend/services/clearanceService.js:568-712` (`sendToInsurance` function)
+
+**Current Flow:**
+1. Create clearance request FIRST
+2. If successful → Run auto-verification
+3. If request creation fails → No auto-verification
+4. If auto-verification fails → Error caught but results not saved
+
+**Improved Flow:**
+1. Run auto-verification FIRST (independent of request creation)
+2. Save verification results to `vehicle_verifications` table
+3. Create clearance request with verification results
+4. If request creation fails → Log error, but verification results saved
+
+**Implementation:**
+```javascript
+async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, existingVerificationResult = null) {
+    // Check if insurance request already exists
+    const existingRequests = await db.getClearanceRequestsByVehicle(vehicleId);
+    const existingInsuranceRequest = existingRequests.find(r => 
+        r.request_type === 'insurance' && 
+        r.status !== 'REJECTED' && 
+        r.status !== 'COMPLETED'
+    );
+    
+    if (existingInsuranceRequest) {
+        return {
+            sent: false,
+            requestId: existingInsuranceRequest.id,
+            error: 'Insurance verification request already exists'
+        };
+    }
+
+    // Find insurance verifier
+    const insuranceVerifiers = await dbModule.query(
+        "SELECT id FROM users WHERE role = 'insurance_verifier' AND is_active = true LIMIT 1"
+    );
+    const assignedTo = insuranceVerifiers.rows[0]?.id || null;
+
+    // Get insurance document using document type mapping
+    const insuranceDoc = allDocuments.find(d => {
+        const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
+        return logicalType === 'insuranceCert' ||
+               d.document_type === 'insurance_cert' ||
+               d.document_type === 'insurance' ||
+               (d.original_name && d.original_name.toLowerCase().includes('insurance'));
+    });
+
+    const insuranceDocuments = insuranceDoc ? [{
+        id: insuranceDoc.id,
+        type: insuranceDoc.document_type,
+        cid: insuranceDoc.ipfs_cid,
+        path: insuranceDoc.file_path,
+        filename: insuranceDoc.original_name
+    }] : [];
+
+    // Step 1: Run auto-verification FIRST (independent of request creation)
+    let verificationResult = existingVerificationResult;
+    
+    if (!verificationResult && insuranceDoc) {
+        try {
+            console.log(`[Auto-Send→Insurance] Running auto-verification before request creation...`);
+            const autoVerificationService = require('./autoVerificationService');
+            verificationResult = await autoVerificationService.autoVerifyInsurance(
+                vehicleId,
+                insuranceDoc,
+                vehicle
+            );
+            console.log(`[Auto-Send→Insurance] Auto-verification completed: ${verificationResult.status}`);
+        } catch (verifError) {
+            console.error(`[Auto-Send→Insurance] Auto-verification failed:`, verifError);
+            
+            // Save error to vehicle_verifications for admin review
+            try {
+                await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', 'system', 
+                    `Auto-verification failed: ${verifError.message}`, {
+                        automated: false,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            autoVerified: false,
+                            verificationResult: 'ERROR',
+                            error: verifError.message,
+                            errorStack: verifError.stack,
+                            verifiedAt: new Date().toISOString()
+                        }
+                    }
+                );
+            } catch (saveError) {
+                console.error(`[Auto-Send→Insurance] Failed to save error to database:`, saveError);
+            }
+            
+            // Continue - create request anyway, verification can be done manually
+            verificationResult = {
+                status: 'PENDING',
+                error: verifError.message,
+                automated: false
+            };
+        }
+    }
+    
+    // Step 2: Create clearance request (with verification results if available)
+    try {
+        const requestMetadata = {
+            vehicleVin: vehicle.vin,
+            vehiclePlate: vehicle.plate_number,
+            vehicleMake: vehicle.make,
+            vehicleModel: vehicle.model,
+            vehicleYear: vehicle.year,
+            ownerName: vehicle.owner_name,
+            ownerEmail: vehicle.owner_email,
+            documentId: insuranceDoc?.id || null,
+            documentCid: insuranceDoc?.ipfs_cid || null,
+            documentPath: insuranceDoc?.file_path || null,
+            documentType: insuranceDoc?.document_type || null,
+            documentFilename: insuranceDoc?.original_name || null,
+            documents: insuranceDocuments,
+            autoVerificationResult: verificationResult,  // Include verification results
+            verifiedAt: verificationResult?.verifiedAt || null,
+            verifiedBy: verificationResult?.verifiedBy || 'system'
+        };
+        
+        const clearanceRequest = await db.createClearanceRequest({
+            vehicleId,
+            requestType: 'insurance',
+            requestedBy,
+            purpose: 'Initial Vehicle Registration - Insurance Verification',
+            notes: 'Automatically sent upon vehicle registration submission',
+            metadata: requestMetadata,
+            assignedTo
+        });
+
+        // Update vehicle verification status
+        await db.updateVerificationStatus(vehicleId, 'insurance', 
+            verificationResult?.status || 'PENDING', 
+            verificationResult?.verifiedBy || null, 
+            verificationResult?.reason || null
+        );
+
+        // Add to history
+        await db.addVehicleHistory({
+            vehicleId,
+            action: 'INSURANCE_VERIFICATION_REQUESTED',
+            description: `Insurance verification automatically requested${verificationResult?.automated ? ` (auto-verified: ${verificationResult.status})` : ''}`,
+            performedBy: requestedBy,
+            transactionId: null,
+            metadata: { 
+                clearanceRequestId: clearanceRequest.id, 
+                documentId: insuranceDoc?.id,
+                autoVerificationResult: verificationResult
+            }
+        });
+
+        // Create notification
+        if (assignedTo) {
+            await db.createNotification({
+                userId: assignedTo,
+                title: verificationResult?.status === 'APPROVED' 
+                    ? 'Insurance Auto-Verified and Approved' 
+                    : 'New Insurance Verification Request',
+                message: verificationResult?.status === 'APPROVED'
+                    ? `Insurance certificate auto-verified and approved for vehicle ${vehicle.plate_number || vehicle.vin}. Score: ${verificationResult.score}%`
+                    : `New insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin}`,
+                type: verificationResult?.status === 'APPROVED' ? 'success' : 'info'
+            });
+        }
+
+        console.log(`[Auto-Send→Insurance] Request created: ${clearanceRequest.id} (with verification: ${verificationResult?.status || 'none'})`);
+        
+        // Step 3: If verification was successful, update request status
+        if (verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED') {
+            await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
+                verifiedBy: 'system',
+                verifiedAt: new Date().toISOString(),
+                notes: `Auto-verified and approved. Score: ${verificationResult.score}%`,
+                autoVerified: true,
+                autoVerificationResult: verificationResult
+            });
+            console.log(`[Auto-Send→Insurance] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+        }
+        
+        return {
+            sent: true,
+            requestId: clearanceRequest.id,
+            autoVerification: verificationResult
+        };
+        
+    } catch (requestError) {
+        console.error(`[Auto-Send→Insurance] Request creation failed:`, requestError);
+        
+        // Verification results are still saved in vehicle_verifications table
+        // Admin can manually create request later and it will use existing verification
+        console.log(`[Auto-Send→Insurance] Verification results saved. Admin can create request manually.`);
+        
+        throw requestError; // Re-throw to be caught by caller
+    }
+}
+```
+
+**Benefits:**
+- ✅ Insurance auto-verification runs independently of request creation
+- ✅ Verification results saved even if request creation fails
+- ✅ Error details saved to database for admin review
+- ✅ Admin can manually create requests with existing verification
+- ✅ Better error handling and logging
 
 ---
 

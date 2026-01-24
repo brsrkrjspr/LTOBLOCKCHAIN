@@ -27,23 +27,85 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
             throw new Error('Vehicle not found');
         }
 
-        // Small delay to ensure documents are committed to database
-        // This prevents race condition where documents are linked but not yet visible
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Get all documents for the vehicle (retry once if empty)
-        let allDocuments = await db.getDocumentsByVehicle(vehicleId);
+/**
+ * Wait for documents to be available with exponential backoff
+ * @param {string} vehicleId - Vehicle ID
+ * @param {number} maxRetries - Maximum retry attempts (default: 5)
+ * @param {number} initialDelay - Initial delay in ms (default: 100)
+ * @returns {Promise<Array>} Array of documents or empty array
+ */
+async function waitForDocuments(vehicleId, maxRetries = 5, initialDelay = 100) {
+    // Try immediate query first
+    let documents = await db.getDocumentsByVehicle(vehicleId);
+    if (documents && documents.length > 0) {
+        console.log(`[Auto-Send] Documents found immediately: ${documents.length}`);
+        return documents;
+    }
+    
+    // Retry with exponential backoff
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const delay = initialDelay * Math.pow(2, attempt); // Exponential: 100ms, 200ms, 400ms, 800ms, 1600ms
+        console.log(`[Auto-Send] Attempt ${attempt + 1}/${maxRetries}: No documents found, waiting ${delay}ms...`);
         
-        // If no documents found, wait a bit longer and retry (documents might still be committing)
-        if (allDocuments.length === 0) {
-            console.log(`[Auto-Send] No documents found on first attempt, retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            allDocuments = await db.getDocumentsByVehicle(vehicleId);
-            if (allDocuments.length === 0) {
-                console.warn(`[Auto-Send] ⚠️ Still no documents found after retry. Documents may not be linked yet.`);
-            } else {
-                console.log(`[Auto-Send] ✅ Documents found on retry: ${allDocuments.length} document(s)`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        documents = await db.getDocumentsByVehicle(vehicleId);
+        if (documents && documents.length > 0) {
+            console.log(`[Auto-Send] Documents found after ${attempt + 1} retry(ies): ${documents.length}`);
+            return documents;
+        }
+    }
+    
+    // Last attempt - query by uploaded_at window instead of vehicle_id
+    // This catches documents that were uploaded but not yet linked
+    console.log(`[Auto-Send] All retries exhausted. Trying time-window fallback...`);
+    
+    try {
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (vehicle && vehicle.created_at) {
+            // Query documents uploaded within 2 minutes of vehicle creation
+            const windowStart = new Date(vehicle.created_at.getTime() - 120000); // 2 minutes before
+            const windowEnd = new Date(vehicle.created_at.getTime() + 120000); // 2 minutes after
+            
+            const windowResult = await dbModule.query(`
+                SELECT d.* 
+                FROM documents d
+                WHERE d.uploaded_at BETWEEN $1 AND $2
+                AND (d.vehicle_id = $3 OR d.vehicle_id IS NULL)
+                ORDER BY d.uploaded_at DESC
+            `, [windowStart, windowEnd, vehicleId]);
+            
+            if (windowResult.rows && windowResult.rows.length > 0) {
+                console.log(`[Auto-Send] Found ${windowResult.rows.length} document(s) via time-window fallback`);
+                return windowResult.rows;
             }
+        }
+    } catch (windowError) {
+        console.error(`[Auto-Send] Time-window fallback failed:`, windowError);
+    }
+    
+    console.warn(`[Auto-Send] No documents found after all methods. Vehicle may not have documents yet.`);
+    return [];
+}
+
+async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
+    const results = {
+        hpg: { sent: false, requestId: null, error: null },
+        insurance: { sent: false, requestId: null, error: null }
+    };
+
+    try {
+        // Get vehicle data
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            throw new Error('Vehicle not found');
+        }
+
+        // Wait for documents with improved retry logic
+        let allDocuments = await waitForDocuments(vehicleId);
+        
+        if (allDocuments.length === 0) {
+            console.warn(`[Auto-Send] ⚠️ Still no documents found after retry. Documents may not be linked yet.`);
         }
         
         // Add detailed logging for debugging
@@ -565,7 +627,7 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
 /**
  * Send clearance request to Insurance
  */
-async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy) {
+async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, existingVerificationResult = null) {
     // Check if insurance request already exists
     const existingRequests = await db.getClearanceRequestsByVehicle(vehicleId);
     const existingInsuranceRequest = existingRequests.find(r => 
@@ -605,14 +667,61 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy) {
         filename: insuranceDoc.original_name
     }] : [];
 
-    // Create clearance request
-    const clearanceRequest = await db.createClearanceRequest({
-        vehicleId,
-        requestType: 'insurance',
-        requestedBy,
-        purpose: 'Initial Vehicle Registration - Insurance Verification',
-        notes: 'Automatically sent upon vehicle registration submission',
-        metadata: {
+    // Step 1: Run auto-verification FIRST (independent of request creation)
+    let verificationResult = existingVerificationResult;
+    
+    if (!verificationResult && insuranceDoc) {
+        try {
+            console.log(`[Auto-Send→Insurance] Running auto-verification before request creation...`);
+            const autoVerificationService = require('./autoVerificationService');
+            verificationResult = await autoVerificationService.autoVerifyInsurance(
+                vehicleId,
+                insuranceDoc,
+                vehicle
+            );
+            console.log(`[Auto-Send→Insurance] Auto-verification completed: ${verificationResult.status}, Automated: ${verificationResult.automated}`);
+            
+            // Verification results are automatically saved to vehicle_verifications table by autoVerifyInsurance
+            // No need to save separately here
+            
+        } catch (verifError) {
+            console.error(`[Auto-Send→Insurance] Auto-verification failed:`, verifError);
+            console.error(`[Auto-Send→Insurance] Error stack:`, verifError.stack);
+            
+            // Save error to vehicle_verifications for admin review
+            try {
+                await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', 'system', 
+                    `Auto-verification failed: ${verifError.message}`, {
+                        automated: false,
+                        verificationScore: 0,
+                        verificationMetadata: {
+                            autoVerified: false,
+                            verificationResult: 'ERROR',
+                            error: verifError.message,
+                            errorStack: verifError.stack,
+                            verifiedAt: new Date().toISOString()
+                        }
+                    }
+                );
+                console.log(`[Auto-Send→Insurance] Saved verification error to database for admin review`);
+            } catch (saveError) {
+                console.error(`[Auto-Send→Insurance] Failed to save error to database:`, saveError);
+            }
+            
+            // Continue - create request anyway, verification can be done manually
+            verificationResult = {
+                status: 'PENDING',
+                error: verifError.message,
+                automated: false,
+                verifiedAt: new Date().toISOString(),
+                verifiedBy: 'system'
+            };
+        }
+    }
+
+    // Step 2: Create clearance request (with verification results if available)
+    try {
+        const requestMetadata = {
             vehicleVin: vehicle.vin,
             vehiclePlate: vehicle.plate_number,
             vehicleMake: vehicle.make,
@@ -625,92 +734,121 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy) {
             documentPath: insuranceDoc?.file_path || null,
             documentType: insuranceDoc?.document_type || null,
             documentFilename: insuranceDoc?.original_name || null,
-            documents: insuranceDocuments
-        },
-        assignedTo
-    });
-
-    // Update vehicle verification status
-    await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', null, null);
-
-    // Add to history
-    await db.addVehicleHistory({
-        vehicleId,
-        action: 'INSURANCE_VERIFICATION_REQUESTED',
-        description: `Insurance verification automatically requested`,
-        performedBy: requestedBy,
-        transactionId: null,
-        metadata: { clearanceRequestId: clearanceRequest.id, documentId: insuranceDoc?.id }
-    });
-
-    // Create notification
-    if (assignedTo) {
-        await db.createNotification({
-            userId: assignedTo,
-            title: 'New Insurance Verification Request',
-            message: `New insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin}`,
-            type: 'info'
+            documents: insuranceDocuments,
+            autoVerificationResult: verificationResult,  // Include verification results
+            autoVerified: verificationResult?.automated || false,
+            verifiedAt: verificationResult?.verifiedAt || null,
+            verifiedBy: verificationResult?.verifiedBy || 'system'
+        };
+        
+        const clearanceRequest = await db.createClearanceRequest({
+            vehicleId,
+            requestType: 'insurance',
+            requestedBy,
+            purpose: 'Initial Vehicle Registration - Insurance Verification',
+            notes: 'Automatically sent upon vehicle registration submission',
+            metadata: requestMetadata,
+            assignedTo
         });
-    }
 
-    console.log(`[Auto-Send→Insurance] Request created: ${clearanceRequest.id}`);
+        console.log(`[Auto-Send→Insurance] Request created: ${clearanceRequest.id} (with verification: ${verificationResult?.status || 'none'})`);
 
-    // Trigger auto-verification if insurance document exists
-    let autoVerificationResult = null;
-    if (insuranceDoc) {
-        try {
-            const autoVerificationService = require('./autoVerificationService');
-            autoVerificationResult = await autoVerificationService.autoVerifyInsurance(
-                vehicleId,
-                insuranceDoc,
-                vehicle
-            );
-            
-            console.log(`[Auto-Verify→Insurance] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
-            
-            // Update clearance request status if auto-approved
-            if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
-                await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
-                    verifiedBy: 'system',
-                    verifiedAt: new Date().toISOString(),
-                    notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
-                    autoVerified: true,
-                    autoVerificationResult
-                });
-                console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
-            }
-            
-            // Add auto-verification result to history
-            if (autoVerificationResult.automated) {
-                await db.addVehicleHistory({
-                    vehicleId,
-                    action: autoVerificationResult.status === 'APPROVED' 
-                        ? 'INSURANCE_AUTO_VERIFIED_APPROVED' 
-                        : 'INSURANCE_AUTO_VERIFIED_PENDING',
-                    description: autoVerificationResult.status === 'APPROVED'
-                        ? `Insurance auto-verified and approved. Score: ${autoVerificationResult.score}%`
-                        : `Insurance auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
-                    performedBy: requestedBy,
-                    transactionId: null,
-                    metadata: {
-                        clearanceRequestId: clearanceRequest.id,
-                        autoVerificationResult
-                    }
-                });
-            }
-        } catch (autoVerifyError) {
-            console.error('[Auto-Verify→Insurance] Error:', autoVerifyError);
-            // Don't fail clearance request creation if auto-verification fails
+        // Step 3: Update clearance request status if verification was successful
+        if (verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED') {
+            await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
+                verifiedBy: 'system',
+                verifiedAt: verificationResult.verifiedAt || new Date().toISOString(),
+                notes: `Auto-verified and approved. Score: ${verificationResult.score || 0}%`,
+                autoVerified: true,
+                autoVerificationResult: verificationResult
+            });
+            console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
         }
-    }
 
-    return {
-        sent: true,
-        requestId: clearanceRequest.id,
-        autoVerification: autoVerificationResult
-    };
+        // Update vehicle verification status (if not already updated by autoVerifyInsurance)
+        if (verificationResult && verificationResult.status) {
+            try {
+                await db.updateVerificationStatus(
+                    vehicleId, 
+                    'insurance', 
+                    verificationResult.status, 
+                    verificationResult.verifiedBy || 'system', 
+                    verificationResult.reason || null,
+                    {
+                        automated: verificationResult.automated || false,
+                        verificationScore: verificationResult.score || 0,
+                        verificationMetadata: {
+                            autoVerified: verificationResult.automated || false,
+                            verificationResult: verificationResult.status,
+                            ...verificationResult
+                        }
+                    }
+                );
+            } catch (updateError) {
+                console.warn(`[Auto-Send→Insurance] Failed to update vehicle verification status:`, updateError.message);
+                // Don't fail - verification status may have been updated by autoVerifyInsurance
+            }
+        } else {
+            // Set to PENDING if no verification result
+            await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', null, null);
+        }
+
+        // Add to history
+        await db.addVehicleHistory({
+            vehicleId,
+            action: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+                ? 'INSURANCE_AUTO_VERIFIED_APPROVED'
+                : verificationResult && verificationResult.automated
+                ? 'INSURANCE_AUTO_VERIFIED_PENDING'
+                : 'INSURANCE_VERIFICATION_REQUESTED',
+            description: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+                ? `Insurance auto-verified and approved. Score: ${verificationResult.score || 0}%`
+                : verificationResult && verificationResult.automated
+                ? `Insurance auto-verified but flagged for manual review. Score: ${verificationResult.score || 0}%, Reason: ${verificationResult.reason || 'Unknown'}`
+                : `Insurance verification automatically requested`,
+            performedBy: requestedBy,
+            transactionId: null,
+            metadata: { 
+                clearanceRequestId: clearanceRequest.id, 
+                documentId: insuranceDoc?.id,
+                autoVerificationResult: verificationResult
+            }
+        });
+
+        // Create notification
+        if (assignedTo) {
+            await db.createNotification({
+                userId: assignedTo,
+                title: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+                    ? 'Insurance Auto-Verified and Approved'
+                    : 'New Insurance Verification Request',
+                message: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+                    ? `Insurance for vehicle ${vehicle.plate_number || vehicle.vin} was auto-verified and approved. Score: ${verificationResult.score || 0}%`
+                    : `New insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin}`,
+                type: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED' ? 'success' : 'info'
+            });
+        }
+
+        return {
+            sent: true,
+            requestId: clearanceRequest.id,
+            autoVerification: verificationResult
+        };
+        
+    } catch (requestError) {
+        console.error(`[Auto-Send→Insurance] Request creation failed:`, requestError);
+        console.error(`[Auto-Send→Insurance] Error stack:`, requestError.stack);
+        
+        // Verification results are still saved in vehicle_verifications table
+        // Admin can manually create request later and it will use existing verification
+        console.log(`[Auto-Send→Insurance] Verification results saved. Admin can create request manually.`);
+        
+        // Re-throw to be caught by caller
+        throw requestError;
+    }
 }
 
 module.exports = {
-    autoSendClearanceRequests
+    autoSendClearanceRequests,
+    waitForDocuments
 };

@@ -1293,6 +1293,99 @@ function updateUploadedDocumentsList() {
     console.log('[Review] Updated documents list with', documentInputs.length, 'document slots');
 }
 
+/**
+ * Validate document keys before submission
+ * Checks for invalid IDs, missing CIDs, and mapping issues
+ * @param {Object} documents - Document uploads object
+ * @returns {Object} - { errors: [], warnings: [] }
+ */
+function validateDocumentKeys(documents) {
+    const errors = [];
+    const warnings = [];
+    
+    // Try to get documentTypes - may not be available in browser
+    let docTypes = null;
+    try {
+        if (typeof window !== 'undefined' && window.documentTypes) {
+            docTypes = window.documentTypes;
+        } else if (typeof require !== 'undefined') {
+            docTypes = require('./documentTypes');
+        }
+    } catch (e) {
+        console.warn('DocumentTypes module not available, skipping type validation:', e);
+    }
+    
+    // UUID validation regex (RFC 4122 compliant)
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    
+    for (const [frontendKey, docData] of Object.entries(documents || {})) {
+        // Check if document data exists
+        if (!docData || typeof docData !== 'object') {
+            errors.push({
+                document: frontendKey,
+                error: 'Document data is missing or invalid'
+            });
+            continue;
+        }
+        
+        // Validate document type mapping (if docTypes available)
+        if (docTypes) {
+            try {
+                const logicalType = docTypes.mapLegacyType(frontendKey);
+                const dbType = docTypes.mapToDbType(logicalType);
+                
+                if (!logicalType || !dbType) {
+                    errors.push({
+                        document: frontendKey,
+                        error: `Unknown document type. Cannot map '${frontendKey}' to database type.`
+                    });
+                } else if (dbType === 'other') {
+                    warnings.push({
+                        document: frontendKey,
+                        warning: `Document type '${frontendKey}' maps to 'other' type. This may cause issues.`
+                    });
+                }
+            } catch (e) {
+                // If mapping fails, log warning but don't fail
+                warnings.push({
+                    document: frontendKey,
+                    warning: `Could not validate document type mapping: ${e.message}`
+                });
+            }
+        }
+        
+        // Validate document ID format if present
+        if (docData.id) {
+            if (typeof docData.id !== 'string') {
+                warnings.push({
+                    document: frontendKey,
+                    warning: `Document ID is not a string: ${typeof docData.id}`
+                });
+            } else if (docData.id.startsWith('TEMP_') || docData.id.startsWith('doc_')) {
+                warnings.push({
+                    document: frontendKey,
+                    warning: `Document has temporary ID (${docData.id}). Document may not have been saved to database. Please re-upload.`
+                });
+            } else if (!UUID_REGEX.test(docData.id)) {
+                warnings.push({
+                    document: frontendKey,
+                    warning: `Document ID format is invalid (${docData.id}). Expected UUID format.`
+                });
+            }
+        }
+        
+        // Validate CID if present
+        if (!docData.cid && !docData.id) {
+            warnings.push({
+                document: frontendKey,
+                warning: `Document has no CID or ID. It may not be linkable to vehicle.`
+            });
+        }
+    }
+    
+    return { errors, warnings };
+}
+
 async function submitApplication() {
     // Prevent double submission
     if (isSubmitting) {
@@ -1397,6 +1490,66 @@ async function submitApplication() {
             applicationData.documents = {};
         }
         
+        // Validate document keys before submission
+        const validation = validateDocumentKeys(documentUploads);
+        
+        if (validation.errors.length > 0) {
+            // Show error modal - prevent submission
+            const errorList = validation.errors.map(e => `<li><strong>${e.document}:</strong> ${e.error}</li>`).join('');
+            const proceed = await ConfirmationDialog.show({
+                title: '⚠️ Document Validation Failed',
+                message: `
+                    <div style="text-align: left;">
+                        <p>The following documents have errors and cannot be submitted:</p>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            ${errorList}
+                        </ul>
+                        <p><strong>Please fix these issues before submitting your registration.</strong></p>
+                    </div>
+                `,
+                confirmText: 'Go Back and Fix',
+                cancelText: 'Cancel',
+                confirmColor: '#e74c3c',
+                type: 'error'
+            });
+            
+            // Reset submission state
+            isSubmitting = false;
+            LoadingManager.hide(submitButton);
+            allButtons.forEach(btn => btn.disabled = false);
+            
+            return; // Don't submit
+        }
+        
+        if (validation.warnings.length > 0) {
+            // Show warning modal - allow user to proceed or cancel
+            const warningList = validation.warnings.map(w => `<li><strong>${w.document}:</strong> ${w.warning}</li>`).join('');
+            const proceed = await ConfirmationDialog.show({
+                title: '⚠️ Document Warnings',
+                message: `
+                    <div style="text-align: left;">
+                        <p>Some documents have warnings:</p>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            ${warningList}
+                        </ul>
+                        <p><strong>You can proceed, but these documents may not link correctly. Do you want to continue?</strong></p>
+                    </div>
+                `,
+                confirmText: 'Proceed Anyway',
+                cancelText: 'Go Back and Fix',
+                confirmColor: '#e67e22',
+                type: 'warning'
+            });
+            
+            if (!proceed) {
+                // Reset submission state
+                isSubmitting = false;
+                LoadingManager.hide(submitButton);
+                allButtons.forEach(btn => btn.disabled = false);
+                return; // User chose to go back
+            }
+        }
+        
         // Submit to backend API using apiClient
         const result = await apiClient.post('/api/vehicles/register', applicationData);
         
@@ -1412,7 +1565,78 @@ async function submitApplication() {
                 reviewSection.classList.add('success-animation');
             }
             
-            // Decide which modal to show based on OCR conflict status
+            // Handle document linking status if present
+            const { vehicle, documentLinking } = result;
+            
+            if (documentLinking) {
+                if (documentLinking.status === 'failed') {
+                    // Critical failure - show error modal
+                    const goToDashboard = await ConfirmationDialog.show({
+                        title: '⚠️ Registration Submitted with Critical Issues',
+                        message: `
+                            <div style="text-align: left;">
+                                <p><strong>Documents Not Linked</strong></p>
+                                <p>Your vehicle registration was submitted successfully, but <strong>no documents</strong> could be linked to your vehicle.</p>
+                                <p><strong>Impact:</strong></p>
+                                <ul>
+                                    <li>Clearance requests will not be created automatically</li>
+                                    <li>You may need to upload documents again</li>
+                                    <li>Registration may be delayed</li>
+                                </ul>
+                                ${vehicle ? `<p><strong>Vehicle ID:</strong> <code>${vehicle.id}</code></p>` : ''}
+                                <p><strong>Next Steps:</strong></p>
+                                <ol>
+                                    <li>Contact support with your Vehicle ID</li>
+                                    <li>Or try uploading documents again from your dashboard</li>
+                                </ol>
+                            </div>
+                        `,
+                        confirmText: 'Go to Dashboard',
+                        cancelText: 'Stay Here',
+                        confirmColor: '#e74c3c',
+                        type: 'error'
+                    });
+                    
+                    if (goToDashboard) {
+                        window.location.href = 'owner-dashboard.html';
+                    }
+                    return;
+                } else if (documentLinking.status === 'partial') {
+                    // Partial success - show warning
+                    const failureList = documentLinking.failures && documentLinking.failures.length > 0 
+                        ? `<p><strong>Failed Documents:</strong></p><ul>${documentLinking.failures.map(f => `<li><strong>${f.documentType}:</strong> ${f.reason}</li>`).join('')}</ul>`
+                        : '';
+                    const warningsList = documentLinking.warnings && documentLinking.warnings.length > 0
+                        ? `<p><strong>Warnings:</strong></p><ul>${documentLinking.warnings.map(w => `<li>${w}</li>`).join('')}</ul>`
+                        : '';
+                    
+                    const goToDashboard = await ConfirmationDialog.show({
+                        title: '✅ Registration Submitted',
+                        message: `
+                            <div style="text-align: left;">
+                                <p><strong>Some Documents Not Linked</strong></p>
+                                <p>Your vehicle registration was submitted successfully.</p>
+                                <p><strong>Documents:</strong> ${documentLinking.summary.linked} of ${documentLinking.summary.total} linked successfully.</p>
+                                ${failureList}
+                                ${warningsList}
+                                ${vehicle ? `<p><strong>Vehicle ID:</strong> ${vehicle.id}</p>` : ''}
+                                ${vehicle ? `<p><strong>Status:</strong> ${vehicle.status}</p>` : ''}
+                            </div>
+                        `,
+                        confirmText: 'Go to Dashboard',
+                        cancelText: 'Stay Here',
+                        confirmColor: '#e67e22',
+                        type: 'warning'
+                    });
+                    
+                    if (goToDashboard) {
+                        window.location.href = 'owner-dashboard.html';
+                    }
+                    return;
+                }
+            }
+            
+            // Decide which modal to show based on OCR conflict status (only if document linking succeeded)
             const hadConflicts = window._ocrHadConflicts === true;
             
             if (!hadConflicts) {

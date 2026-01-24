@@ -8,26 +8,6 @@ const hpgDatabaseService = require('./hpgDatabaseService');
 
 // Emission feature removed (no emission clearance workflow).
 /**
- * Automatically send clearance requests to all required organizations
- * @param {string} vehicleId - The vehicle ID
- * @param {Object} documents - Document references from registration
- * @param {string} requestedBy - User ID who submitted the registration
- * @returns {Promise<Object>} Results of auto-send operation
- */
-async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
-    const results = {
-        hpg: { sent: false, requestId: null, error: null },
-        insurance: { sent: false, requestId: null, error: null }
-    };
-
-    try {
-        // Get vehicle data
-        const vehicle = await db.getVehicleById(vehicleId);
-        if (!vehicle) {
-            throw new Error('Vehicle not found');
-        }
-
-/**
  * Wait for documents to be available with exponential backoff
  * @param {string} vehicleId - Vehicle ID
  * @param {number} maxRetries - Maximum retry attempts (default: 5)

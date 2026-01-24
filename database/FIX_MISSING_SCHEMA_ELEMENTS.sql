@@ -131,7 +131,66 @@ CREATE INDEX IF NOT EXISTS idx_request_logs_status_code ON request_logs(status_c
 CREATE INDEX IF NOT EXISTS idx_request_logs_path ON request_logs(path);
 
 -- ============================================
--- STEP 9: Seed Default External Issuers (Optional)
+-- STEP 9: Add Missing users Trusted Partner Columns (CRITICAL)
+-- ============================================
+-- These columns are referenced in backend/routes/hpg.js for trusted partner verification
+-- Without them, HPG clearance requests will fail when checking trusted partner status
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_trusted_partner BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS trusted_partner_type VARCHAR(50);
+
+CREATE INDEX IF NOT EXISTS idx_users_trusted_partner ON users(is_trusted_partner) WHERE is_trusted_partner = TRUE;
+
+-- ============================================
+-- STEP 10: Add Missing vehicles Scrapped Columns (CRITICAL)
+-- ============================================
+-- These columns are referenced in backend/routes/lto.js for vehicle scrapping
+-- Without them, vehicle scrapping functionality will fail
+
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS scrapped_at TIMESTAMP;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS scrap_reason TEXT;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS scrapped_by UUID REFERENCES users(id);
+
+CREATE INDEX IF NOT EXISTS idx_vehicles_scrapped ON vehicles(scrapped_at) WHERE status = 'SCRAPPED';
+
+-- ============================================
+-- STEP 11: Add Missing vehicle_status Enum Values (CRITICAL)
+-- ============================================
+-- These enum values are referenced in backend/routes/lto.js for vehicle status updates
+-- Without them, setting vehicle status to 'SCRAPPED' or 'FOR_TRANSFER' will fail
+
+DO $$ 
+BEGIN
+    -- Add 'SCRAPPED' enum value if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_enum 
+        WHERE enumlabel = 'SCRAPPED' 
+        AND enumtypid = 'vehicle_status'::regtype
+    ) THEN
+        ALTER TYPE vehicle_status ADD VALUE 'SCRAPPED';
+    END IF;
+    
+    -- Add 'FOR_TRANSFER' enum value if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_enum 
+        WHERE enumlabel = 'FOR_TRANSFER' 
+        AND enumtypid = 'vehicle_status'::regtype
+    ) THEN
+        ALTER TYPE vehicle_status ADD VALUE 'FOR_TRANSFER';
+    END IF;
+END $$;
+
+-- ============================================
+-- STEP 12: Add Missing clearance_requests.verification_mode Column (Optional)
+-- ============================================
+-- This column is referenced in backend/migrations/add-verification-mode.sql
+-- It's optional - add if verification mode tracking is needed
+
+ALTER TABLE clearance_requests ADD COLUMN IF NOT EXISTS verification_mode VARCHAR(20) DEFAULT 'MANUAL'
+CHECK (verification_mode IN ('MANUAL', 'AUTOMATIC', 'FAST_TRACK'));
+
+-- ============================================
+-- STEP 13: Seed Default External Issuers (Optional)
 -- ============================================
 -- Only insert if they don't exist
 INSERT INTO external_issuers (issuer_type, company_name, license_number, api_key, contact_email, is_active)
@@ -171,3 +230,29 @@ WHERE NOT EXISTS (SELECT 1 FROM external_issuers WHERE issuer_type = 'hpg' AND l
 
 -- Verify request_logs table exists (optional):
 -- SELECT table_name FROM information_schema.tables WHERE table_name = 'request_logs';
+
+-- Verify users trusted partner columns exist:
+-- SELECT column_name, data_type 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'users' 
+-- AND column_name IN ('is_trusted_partner', 'trusted_partner_type')
+-- ORDER BY column_name;
+
+-- Verify vehicles scrapped columns exist:
+-- SELECT column_name, data_type 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'vehicles' 
+-- AND column_name IN ('scrapped_at', 'scrap_reason', 'scrapped_by')
+-- ORDER BY column_name;
+
+-- Verify vehicle_status enum values exist:
+-- SELECT enumlabel 
+-- FROM pg_enum 
+-- WHERE enumtypid = 'vehicle_status'::regtype 
+-- ORDER BY enumsortorder;
+
+-- Verify clearance_requests.verification_mode column exists (optional):
+-- SELECT column_name, data_type 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'clearance_requests' 
+-- AND column_name = 'verification_mode';

@@ -143,20 +143,27 @@ async function loadStatistics() {
         });
         
         if (transferResponse.ok) {
-            const transferData = await transferResponse.json();
-            const pendingCount = transferData.transferRequests?.filter(tr => 
-                ['PENDING', 'UNDER_REVIEW', 'AWAITING_BUYER_DOCS'].includes(tr.status)
-            ).length || 0;
-            document.getElementById('pendingTransfers').textContent = pendingCount;
-            
-            // Update badge
-            const badge = document.getElementById('transferBadge');
-            if (pendingCount > 0) {
-                badge.textContent = pendingCount;
-                badge.style.display = 'inline-block';
+            const contentType = transferResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const transferData = await transferResponse.json();
+                const pendingCount = transferData.transferRequests?.filter(tr => 
+                    ['PENDING', 'UNDER_REVIEW', 'AWAITING_BUYER_DOCS'].includes(tr.status)
+                ).length || 0;
+                document.getElementById('pendingTransfers').textContent = pendingCount;
+                
+                // Update badge
+                const badge = document.getElementById('transferBadge');
+                if (pendingCount > 0) {
+                    badge.textContent = pendingCount;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
             } else {
-                badge.style.display = 'none';
+                console.warn('Transfer response is not JSON:', contentType);
             }
+        } else {
+            console.warn('Failed to load transfer statistics:', transferResponse.status, transferResponse.statusText);
         }
         
         // Load pending inspections (vehicles without MVIR)
@@ -167,9 +174,16 @@ async function loadStatistics() {
         });
         
         if (vehicleResponse.ok) {
-            const vehicleData = await vehicleResponse.json();
-            const pendingInspections = vehicleData.vehicles?.filter(v => !v.mvir_number).length || 0;
-            document.getElementById('pendingInspections').textContent = pendingInspections;
+            const contentType = vehicleResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const vehicleData = await vehicleResponse.json();
+                const pendingInspections = vehicleData.vehicles?.filter(v => !v.mvir_number).length || 0;
+                document.getElementById('pendingInspections').textContent = pendingInspections;
+            } else {
+                console.warn('Vehicle response is not JSON:', contentType);
+            }
+        } else {
+            console.warn('Failed to load vehicle statistics:', vehicleResponse.status, vehicleResponse.statusText);
         }
         
         // Load completed today (approximate - count recent approvals)
@@ -181,13 +195,20 @@ async function loadStatistics() {
         });
         
         if (completedResponse.ok) {
-            const completedData = await completedResponse.json();
-            const completedToday = completedData.transferRequests?.filter(tr => {
-                if (!tr.updated_at) return false;
-                const updatedDate = new Date(tr.updated_at).toISOString().split('T')[0];
-                return updatedDate === today;
-            }).length || 0;
-            document.getElementById('completedToday').textContent = completedToday;
+            const contentType = completedResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const completedData = await completedResponse.json();
+                const completedToday = completedData.transferRequests?.filter(tr => {
+                    if (!tr.updated_at) return false;
+                    const updatedDate = new Date(tr.updated_at).toISOString().split('T')[0];
+                    return updatedDate === today;
+                }).length || 0;
+                document.getElementById('completedToday').textContent = completedToday;
+            } else {
+                console.warn('Completed response is not JSON:', contentType);
+            }
+        } else {
+            console.warn('Failed to load completed statistics:', completedResponse.status, completedResponse.statusText);
         }
     } catch (error) {
         console.error('Failed to load statistics:', error);

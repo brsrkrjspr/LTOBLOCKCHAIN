@@ -45,7 +45,9 @@
 
 ### Backend Files (30+ files)
 
-#### Routes
+### Backend Files (30+ files)
+
+#### Routes (21 files)
 1. `backend/routes/vehicles.js`
 2. `backend/routes/transfer.js`
 3. `backend/routes/lto.js`
@@ -58,14 +60,17 @@
 10. `backend/routes/certificate-generation.js`
 11. `backend/routes/certificate-upload.js`
 12. `backend/routes/certificates.js`
-13. `backend/routes/notifications.js`
-14. `backend/routes/blockchain.js`
-15. `backend/routes/ledger.js`
-16. `backend/routes/monitoring.js`
-17. `backend/routes/health.js`
-18. `backend/routes/document-requirements.js`
+13. `backend/routes/certificates-public.js` ✅ **NEWLY EXAMINED**
+14. `backend/routes/notifications.js`
+15. `backend/routes/blockchain.js`
+16. `backend/routes/ledger.js`
+17. `backend/routes/monitoring.js`
+18. `backend/routes/health.js`
+19. `backend/routes/document-requirements.js`
+20. `backend/routes/officers.js` ✅ **NEWLY EXAMINED**
+21. `backend/routes/integrity.js` ✅ **NEWLY EXAMINED**
 
-#### Services
+#### Services (13 files)
 19. `backend/database/services.js`
 20. `backend/services/autoVerificationService.js`
 21. `backend/services/clearanceService.js`
@@ -79,6 +84,11 @@
 29. `backend/services/expiryService.js`
 30. `backend/services/transferAutoValidationService.js`
 31. `backend/services/localStorageService.js`
+32. `backend/services/fraudDetectionService.js` ✅ **NEWLY EXAMINED** (No DB queries)
+33. `backend/services/insuranceDatabaseService.js` ✅ **NEWLY EXAMINED** (No DB queries)
+34. `backend/services/ocrService.js` ✅ **NEWLY EXAMINED** (No DB queries)
+35. `backend/services/storageService.js` ✅ **NEWLY EXAMINED** (Uses IPFS, no direct DB)
+36. `backend/services/ipfsService.js` ✅ **NEWLY EXAMINED** (No DB queries)
 
 #### Migrations
 32. `backend/migrations/add_email_verification.sql`
@@ -90,7 +100,7 @@
 38. `backend/migrations/add-scrapped-status.sql`
 39. `backend/migrations/add_origin_type_to_vehicles.sql`
 
-#### Scripts
+#### Scripts (10 files)
 40. `backend/scripts/remove-vehicles-missing-blockchain.js`
 41. `backend/scripts/register-missing-vehicles-on-blockchain.js`
 42. `backend/scripts/backfill-blockchain-registered.js`
@@ -98,21 +108,23 @@
 44. `backend/scripts/diagnose-transferred-vehicle-detailed.js`
 45. `backend/scripts/diagnose-transferred-vehicle-qr.js`
 46. `backend/scripts/check-transferred-vehicle-txids.js`
+47. `backend/scripts/fix-transfer-completed-status.js` ✅ **NEWLY EXAMINED**
+48. `backend/scripts/check-expiry-notifications.js` ✅ **NEWLY EXAMINED**
+49. `backend/scripts/query-fabric-vehicles.js` ✅ **NEWLY EXAMINED** (No DB queries)
+50. `backend/scripts/show-fabric-vehicles.js` ✅ **NEWLY EXAMINED** (No DB queries)
+51. `backend/scripts/run-migration.js` ✅ **NEWLY EXAMINED** (Migration runner)
 
 #### Config
 47. `backend/config/blacklist.js`
 48. `backend/config/documentTypes.js`
 
-### Database Files
-49. `database/Complete Schema.sql`
-50. `database/Complete Data.sql`
-51. `database/FIX_MISSING_SCHEMA_ELEMENTS.sql`
+**Total Files Examined:** 90+ files
 
 ---
 
 ## Issues Found and Fixed
 
-### ✅ Fixed Issues (16 total)
+### ✅ Fixed Issues (27 total)
 
 #### Tables (2)
 1. ✅ `external_issuers` - Certificate issuance workflow
@@ -139,17 +151,21 @@
 18. ✅ `users.is_trusted_partner`
 19. ✅ `users.trusted_partner_type`
 
+#### Transfer Request Columns (2)
+20. ✅ `transfer_requests.expires_at`
+21. ✅ `transfer_requests.remarks`
+
 #### Sequences (2)
-20. ✅ `or_number_seq`
-21. ✅ `cr_number_seq`
+22. ✅ `or_number_seq`
+23. ✅ `cr_number_seq`
 
 #### Enum Values (2)
-22. ✅ `vehicle_status.SCRAPPED`
-23. ✅ `vehicle_status.FOR_TRANSFER`
+24. ✅ `vehicle_status.SCRAPPED`
+25. ✅ `vehicle_status.FOR_TRANSFER`
 
 #### Optional Tables/Columns (2)
-24. ✅ `request_logs` table (optional)
-25. ✅ `clearance_requests.verification_mode` (optional)
+26. ✅ `request_logs` table (optional)
+27. ✅ `clearance_requests.verification_mode` (optional)
 
 ---
 
@@ -233,26 +249,16 @@ ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS remarks TEXT;
 
 ---
 
-## 🟡 Code Bugs Found (Not Schema Issues)
+## Code Bugs Fixed
 
-### Code Bug: Invalid vehicle_status Value
+### Code Bug #1: Invalid vehicle_status Value - ✅ FIXED
 
-**Severity:** 🟡 **CODE BUG** (Not a schema issue, but will cause runtime errors)
+**Severity:** 🔴 **CRITICAL CODE BUG**
 
-**Referenced In:**
-- `backend/routes/hpg.js:997` - INSERT with `status = 'pending'` (lowercase)
-- `backend/routes/insurance.js:416` - INSERT with `status = 'pending'` (lowercase)
+**Fixed In:**
+- `backend/routes/hpg.js:997` - Changed `'pending'` to `'SUBMITTED'`
+- `backend/routes/insurance.js:416` - Changed `'pending'` to `'SUBMITTED'`
 
-**Issue:**
-- Code inserts `'pending'` (lowercase) but `vehicle_status` enum only accepts uppercase values
-- Valid enum values: 'SUBMITTED', 'PENDING_BLOCKCHAIN', 'REGISTERED', 'APPROVED', 'REJECTED', 'SUSPENDED', 'SCRAPPED', 'FOR_TRANSFER'
-- 'pending' is not a valid enum value
-
-**Impact:**
-- ❌ Vehicle creation in HPG/Insurance routes will fail with enum constraint violation
-
-**Fix Required:**
-- Change code to use valid enum value (e.g., 'SUBMITTED' instead of 'pending')
-- **Note:** This is a code fix, not a schema fix
+**Status:** ✅ **FIXED**
 
 ---

@@ -212,7 +212,7 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                     expiresAt: certType === 'insurance'
                         ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) 
                         : null,
-                    status: 'ISSUED',
+                    status: 'ACTIVE',  // Changed from 'ISSUED' to 'ACTIVE' to match schema constraint
                     fileHash: certificateResult.fileHash,
                     compositeHash: compositeHash,
                     documentId: document.id,

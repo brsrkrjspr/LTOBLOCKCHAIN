@@ -282,7 +282,7 @@ class CertificateBlockchainService {
                  FROM certificates 
                  WHERE file_hash = $1 
                    AND certificate_type = $2 
-                   AND status IN ('ISSUED', 'ACTIVE')
+                   AND status IN ('ACTIVE')  // Changed from ('ISSUED', 'ACTIVE') - 'ISSUED' not in constraint
                  ORDER BY issued_at DESC LIMIT 1`,
                 [fileHash, certificateType]
             );
@@ -376,7 +376,7 @@ class CertificateBlockchainService {
                          FROM certificates 
                          WHERE vehicle_id = $1 
                            AND certificate_type = $2 
-                           AND status IN ('ISSUED', 'ACTIVE')
+                           AND status IN ('ACTIVE')  // Changed from ('ISSUED', 'ACTIVE') - 'ISSUED' not in constraint
                          ORDER BY issued_at DESC LIMIT 1`,
                         [vehicleId, certificateType]
                     );
@@ -493,7 +493,7 @@ class CertificateBlockchainService {
                  FROM certificates 
                  WHERE vehicle_id = $1 
                    AND certificate_type = $2 
-                   AND status IN ('ISSUED', 'ACTIVE')
+                   AND status IN ('ACTIVE')  // Changed from ('ISSUED', 'ACTIVE') - 'ISSUED' not in constraint
                  ORDER BY issued_at DESC LIMIT 1`,
                 [vehicleId, certificateType]
             );

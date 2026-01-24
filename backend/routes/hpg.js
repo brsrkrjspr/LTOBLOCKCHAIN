@@ -994,7 +994,7 @@ router.post('/test-request', authenticateToken, authorizeRole(['admin', 'hpg_adm
         
         await dbModule.query(`
             INSERT INTO vehicles (id, vin, plate_number, engine_number, chassis_number, make, model, year, vehicle_type, status, owner_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'SUBMITTED', $10)
             ON CONFLICT (vin) DO UPDATE SET 
                 plate_number = EXCLUDED.plate_number,
                 engine_number = EXCLUDED.engine_number,

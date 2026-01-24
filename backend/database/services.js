@@ -725,7 +725,7 @@ async function createCertificate(certificateData) {
             blockchainTxId || null,
             documentId || null,
             applicationStatus || 'PENDING',
-            status || 'ISSUED'
+            status || 'ACTIVE'  // Changed from 'ISSUED' to 'ACTIVE' to match schema constraint
         ]
     );
     

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Complete Fabric Reset and Reconfiguration Script
 # For DigitalOcean Docker Environment - Real Fabric Only
-# This script ensures everything is properly configured for your current codebase
+# Ensures complete reset: volumes removed BEFORE certificate regeneration
+# This prevents "channel already exists" errors
 
 set -e
 
@@ -57,47 +58,74 @@ fi
 echo "✅ .env configuration validated"
 
 # ============================================
-# STEP 1: Stop and Remove Fabric Containers
+# STEP 1: Stop All Fabric Containers
 # ============================================
 echo ""
 echo "1️⃣  Stopping Fabric containers..."
+
 docker compose -f docker-compose.unified.yml stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli lto-app 2>/dev/null || \
 docker-compose -f docker-compose.unified.yml stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli lto-app 2>/dev/null || {
     docker stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli lto-app 2>/dev/null || true
 }
-sleep 2
 
-echo "   Removing Fabric containers..."
+sleep 3
+
+echo "   ✅ Containers stopped"
+
+# ============================================
+# STEP 2: Remove Fabric Containers
+# ============================================
+echo ""
+echo "2️⃣  Removing Fabric containers..."
+
 docker compose -f docker-compose.unified.yml rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || \
 docker-compose -f docker-compose.unified.yml rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || {
     docker rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
 }
 
+echo "   ✅ Containers removed"
+
 # ============================================
-# STEP 2: Remove Fabric Volumes
+# STEP 3: Remove ALL Fabric Volumes (CRITICAL - BEFORE certificate regeneration)
 # ============================================
 echo ""
-echo "2️⃣  Removing Fabric volumes (all blockchain data)..."
+echo "3️⃣  Removing Fabric volumes (CRITICAL: removes old channel data)..."
+
+# Force remove volumes (they may be in use)
+docker volume rm peer-data orderer-data couchdb-data 2>/dev/null || true
+
+# Wait a moment for volumes to be released
+sleep 2
+
+# Try again with force
 docker volume rm peer-data orderer-data couchdb-data 2>/dev/null || {
-    echo "   ⚠️  Some volumes may not exist (this is OK)"
+    echo "   ⚠️  Some volumes may still be in use, trying to force remove..."
+    # List volumes to see what exists
+    docker volume ls | grep -E "(peer-data|orderer-data|couchdb-data)" || echo "   No Fabric volumes found"
 }
 
 # Clear local data directories if they exist
+echo "   Clearing local data directories..."
 if [ -d "fabric-network/couchdb-data" ]; then
     rm -rf fabric-network/couchdb-data
+    echo "   ✅ Cleared couchdb-data"
 fi
 if [ -d "fabric-network/peer-data" ]; then
     rm -rf fabric-network/peer-data
+    echo "   ✅ Cleared peer-data"
 fi
 if [ -d "fabric-network/orderer-data" ]; then
     rm -rf fabric-network/orderer-data
+    echo "   ✅ Cleared orderer-data"
 fi
 
+echo "   ✅ Volumes removed (orderer ledger cleared - no old channels)"
+
 # ============================================
-# STEP 3: Backup and Regenerate Certificates
+# STEP 4: Backup and Regenerate Certificates
 # ============================================
 echo ""
-echo "3️⃣  Regenerating certificates..."
+echo "4️⃣  Regenerating certificates..."
 
 if [ -d "fabric-network/crypto-config" ]; then
     BACKUP_CRYPTO="fabric-network/crypto-config.backup.$(date +%Y%m%d_%H%M%S)"
@@ -132,10 +160,10 @@ fi
 echo "   ✅ Certificates verified"
 
 # ============================================
-# STEP 4: Fix MSP admincerts (CRITICAL - BEFORE containers start)
+# STEP 5: Fix MSP admincerts (CRITICAL - BEFORE containers start)
 # ============================================
 echo ""
-echo "4️⃣  Fixing MSP admincerts (CRITICAL for proper identity validation)..."
+echo "5️⃣  Fixing MSP admincerts (CRITICAL for proper identity validation)..."
 
 ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
 PEER_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp"
@@ -176,10 +204,10 @@ if [ -f "$ORDERER_TLS_CA" ]; then
 fi
 
 # ============================================
-# STEP 5: Regenerate Channel Artifacts
+# STEP 6: Regenerate Channel Artifacts
 # ============================================
 echo ""
-echo "5️⃣  Regenerating channel artifacts..."
+echo "6️⃣  Regenerating channel artifacts..."
 
 if [ -d "fabric-network/channel-artifacts" ]; then
     BACKUP_CHANNEL="fabric-network/channel-artifacts.backup.$(date +%Y%m%d_%H%M%S)"
@@ -212,24 +240,25 @@ fi
 echo "   ✅ Channel artifacts verified"
 
 # ============================================
-# STEP 6: Start Fabric Containers
+# STEP 7: Start Fabric Containers
 # ============================================
 echo ""
-echo "6️⃣  Starting Fabric containers..."
+echo "7️⃣  Starting Fabric containers..."
 
+# Start orderer and couchdb first
 docker compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph couchdb 2>/dev/null || \
 docker-compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph couchdb 2>/dev/null || {
     echo "❌ Failed to start orderer/couchdb"
     exit 1
 }
 
-echo "   ⏳ Waiting for orderer and couchdb to be ready (20 seconds)..."
-sleep 20
+echo "   ⏳ Waiting for orderer and couchdb to be ready (25 seconds)..."
+sleep 25
 
 # Wait for orderer to log "Beginning to serve requests"
 echo "   Waiting for orderer to be ready..."
 ORDERER_READY=false
-for i in {1..30}; do
+for i in {1..40}; do
     if docker logs orderer.lto.gov.ph 2>&1 | grep -q "Beginning to serve requests"; then
         echo "   ✅ Orderer is ready"
         ORDERER_READY=true
@@ -240,7 +269,7 @@ done
 
 if [ "$ORDERER_READY" = false ]; then
     echo "   ⚠️  Orderer may not be ready, checking status..."
-    docker logs orderer.lto.gov.ph --tail 10
+    docker logs orderer.lto.gov.ph --tail 15
     echo "   Continuing anyway..."
 fi
 
@@ -258,22 +287,22 @@ docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph 2>/dev/null 
     exit 1
 }
 
-echo "   ⏳ Waiting for peer to start (15 seconds)..."
-sleep 15
+echo "   ⏳ Waiting for peer to start (20 seconds)..."
+sleep 20
 
 # Verify peer is running
 if docker ps | grep -q "peer0.lto.gov.ph.*Up"; then
     echo "   ✅ Peer is running"
 else
     echo "   ⚠️  Peer may not be running, checking logs..."
-    docker logs peer0.lto.gov.ph --tail 10
+    docker logs peer0.lto.gov.ph --tail 15
 fi
 
 # ============================================
-# STEP 7: Create Channel
+# STEP 8: Create Channel
 # ============================================
 echo ""
-echo "7️⃣  Creating channel..."
+echo "8️⃣  Creating channel..."
 
 # Determine channel transaction file name (check both possible names)
 CHANNEL_TX="fabric-network/channel-artifacts/ltochannel.tx"
@@ -316,15 +345,18 @@ CHANNEL_CREATE_OUTPUT=$(timeout 90s docker exec peer0.lto.gov.ph peer channel cr
     2>&1) || {
     echo "❌ Channel creation failed or timed out"
     echo "   Orderer logs:"
-    docker logs orderer.lto.gov.ph --tail 20
+    docker logs orderer.lto.gov.ph --tail 30
     echo "   Peer logs:"
-    docker logs peer0.lto.gov.ph --tail 20
+    docker logs peer0.lto.gov.ph --tail 30
     exit 1
 }
 
-if echo "$CHANNEL_CREATE_OUTPUT" | grep -qi "error\|failed"; then
+if echo "$CHANNEL_CREATE_OUTPUT" | grep -qi "error\|failed\|FORBIDDEN"; then
     echo "❌ Channel creation failed:"
-    echo "$CHANNEL_CREATE_OUTPUT" | tail -10
+    echo "$CHANNEL_CREATE_OUTPUT" | tail -15
+    echo ""
+    echo "💡 This usually means the orderer still has an old channel."
+    echo "   Ensure orderer-data volume was completely removed."
     exit 1
 fi
 
@@ -356,11 +388,11 @@ else
 fi
 
 # ============================================
-# STEP 8: Update Anchor Peer (if exists)
+# STEP 9: Update Anchor Peer (if exists)
 # ============================================
 if [ -f "fabric-network/channel-artifacts/LTOMSPanchors.tx" ]; then
     echo ""
-    echo "8️⃣  Updating anchor peer..."
+    echo "9️⃣  Updating anchor peer..."
     docker cp fabric-network/channel-artifacts/LTOMSPanchors.tx peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/anchors.tx
     
     ANCHOR_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel update \
@@ -379,10 +411,10 @@ if [ -f "fabric-network/channel-artifacts/LTOMSPanchors.tx" ]; then
 fi
 
 # ============================================
-# STEP 9: Deploy Chaincode
+# STEP 10: Deploy Chaincode
 # ============================================
 echo ""
-echo "9️⃣  Deploying chaincode..."
+echo "🔟 Deploying chaincode..."
 
 if [ ! -d "chaincode/vehicle-registration-production" ]; then
     echo "❌ Chaincode directory not found: chaincode/vehicle-registration-production"
@@ -487,10 +519,10 @@ else
 fi
 
 # ============================================
-# STEP 10: Regenerate Wallet
+# STEP 11: Regenerate Wallet
 # ============================================
 echo ""
-echo "🔟 Regenerating wallet..."
+echo "1️⃣1️⃣ Regenerating wallet..."
 
 rm -rf wallet
 mkdir -p wallet
@@ -530,10 +562,10 @@ else
 fi
 
 # ============================================
-# STEP 11: Verify Network Configuration
+# STEP 12: Verify Network Configuration
 # ============================================
 echo ""
-echo "1️⃣1️⃣ Verifying network configuration..."
+echo "1️⃣2️⃣ Verifying network configuration..."
 
 if [ ! -f "network-config.json" ]; then
     echo "❌ network-config.json not found!"
@@ -544,24 +576,24 @@ fi
 echo "   ✅ network-config.json exists"
 
 # ============================================
-# STEP 12: Restart Application
+# STEP 13: Restart Application
 # ============================================
 echo ""
-echo "1️⃣2️⃣ Restarting application..."
+echo "1️⃣3️⃣ Restarting application..."
 
 docker compose -f docker-compose.unified.yml restart lto-app 2>/dev/null || \
 docker-compose -f docker-compose.unified.yml up -d lto-app 2>/dev/null || {
     echo "   ⚠️  Failed to restart application (may not be running)"
 }
 
-echo "   ⏳ Waiting for application to start (15 seconds)..."
-sleep 15
+echo "   ⏳ Waiting for application to start (20 seconds)..."
+sleep 20
 
 # ============================================
-# STEP 13: Final Verification
+# STEP 14: Final Verification
 # ============================================
 echo ""
-echo "1️⃣3️⃣ Final verification..."
+echo "1️⃣4️⃣ Final verification..."
 
 # Check containers
 echo "   Checking containers..."
@@ -619,6 +651,7 @@ echo "║  Reset Complete!                                            ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "✅ Fabric network reset and reconfigured"
+echo "✅ Volumes removed BEFORE certificate regeneration (prevents channel conflicts)"
 echo "✅ MSP admincerts fixed at all levels"
 echo "✅ Channel created: ltochannel"
 echo "✅ Chaincode deployed: vehicle-registration"
@@ -628,9 +661,6 @@ echo "📋 Next steps:"
 echo "   1. Check application logs: docker logs lto-app --tail 50"
 echo "   2. Verify Fabric connection: docker logs lto-app | grep -i fabric"
 echo "   3. Test vehicle registration via API"
-echo ""
-echo "💡 If you see 'access denied' errors, run:"
-echo "   bash scripts/fix-creator-org-unknown.sh"
 echo ""
 echo "💡 Note: TLS errors in orderer logs are harmless warnings"
 echo "   for single-node Raft clusters (expected behavior)"

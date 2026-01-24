@@ -487,9 +487,9 @@ if ! docker exec peer0.lto.gov.ph test -f /opt/gopath/src/github.com/hyperledger
 fi
 echo "   ✅ Channel block verified"
 
-# Join channel with timeout
-echo "   Joining peer to channel..."
-CHANNEL_JOIN_OUTPUT=$(timeout 60s docker exec peer0.lto.gov.ph peer channel join \
+# Join channel with timeout - MUST use Admin identity (same as channel create)
+echo "   Joining peer to channel (using Admin identity)..."
+CHANNEL_JOIN_OUTPUT=$(timeout 60s docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer channel join \
     -b /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
     --tls \
     --cafile "$TLS_CA_FILE" \

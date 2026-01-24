@@ -151,13 +151,12 @@ ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS scrapped_at TIMESTAMP;
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS scrap_reason TEXT;
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS scrapped_by UUID REFERENCES users(id);
 
-CREATE INDEX IF NOT EXISTS idx_vehicles_scrapped ON vehicles(scrapped_at) WHERE status = 'SCRAPPED';
-
 -- ============================================
 -- STEP 11: Add Missing vehicle_status Enum Values (CRITICAL)
 -- ============================================
 -- These enum values are referenced in backend/routes/lto.js for vehicle status updates
 -- Without them, setting vehicle status to 'SCRAPPED' or 'FOR_TRANSFER' will fail
+-- NOTE: Must be done BEFORE creating index with WHERE status = 'SCRAPPED'
 
 DO $$ 
 BEGIN
@@ -179,6 +178,9 @@ BEGIN
         ALTER TYPE vehicle_status ADD VALUE 'FOR_TRANSFER';
     END IF;
 END $$;
+
+-- Create index for scrapped vehicles (AFTER enum values are added)
+CREATE INDEX IF NOT EXISTS idx_vehicles_scrapped ON vehicles(scrapped_at) WHERE status = 'SCRAPPED';
 
 -- ============================================
 -- STEP 12: Add Missing clearance_requests.verification_mode Column (Optional)

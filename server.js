@@ -240,6 +240,7 @@ async function validateDatabaseSchema() {
     const db = require('./backend/database/db');
     const fs = require('fs');
     const path = require('path');
+    const schemaValidation = require('./backend/services/schemaValidationService');
     
     // Critical tables - server won't start without these
     const criticalTables = [
@@ -251,6 +252,37 @@ async function validateDatabaseSchema() {
     // Required tables that can be auto-created
     const autoMigrateTables = {
         'email_verification_tokens': 'backend/migrations/add_email_verification.sql'
+    };
+    
+    // Phase 1: Critical schema fixes (auto-migrate if needed)
+    const phase1Migrations = {
+        'documents.ipfs_cid': {
+            check: async () => {
+                const result = await db.query(`
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                        AND table_name = 'documents'
+                        AND column_name = 'ipfs_cid'
+                    ) AS exists
+                `);
+                return result.rows[0]?.exists || false;
+            },
+            migration: 'database/fix-missing-columns.sql',
+            description: 'Add ipfs_cid column to documents table'
+        },
+        'document_type enum values': {
+            check: async () => {
+                const result = await db.query(`
+                    SELECT COUNT(*) as count FROM pg_enum
+                    WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'document_type')
+                    AND enumlabel IN ('hpg_clearance', 'csr', 'sales_invoice')
+                `);
+                return result.rows[0]?.count === '3';
+            },
+            migration: 'database/add-vehicle-registration-document-types.sql',
+            description: 'Add missing enum values (hpg_clearance, csr, sales_invoice)'
+        }
     };
     
     try {
@@ -340,12 +372,55 @@ async function validateDatabaseSchema() {
             }
         }
         
-        console.log('✅ Database schema validation passed - all critical tables exist');
+        // Phase 1: Check and auto-apply critical schema fixes
+        console.log('🔍 Checking Phase 1 critical schema fixes...');
+        for (const [migrationName, migrationConfig] of Object.entries(phase1Migrations)) {
+            try {
+                const exists = await migrationConfig.check();
+                
+                if (!exists) {
+                    console.warn(`⚠️ Phase 1 migration needed: ${migrationConfig.description}`);
+                    console.warn(`   Attempting auto-migration: ${migrationConfig.migration}`);
+                    
+                    const migrationFilePath = path.join(__dirname, migrationConfig.migration);
+                    
+                    if (!fs.existsSync(migrationFilePath)) {
+                        console.error(`❌ Migration file not found: ${migrationFilePath}`);
+                        console.error(`   Please run manually: psql -U ${process.env.DB_USER || 'lto_user'} -d ${process.env.DB_NAME || 'lto_blockchain'} -f ${migrationConfig.migration}`);
+                        throw new Error(`Migration file not found: ${migrationConfig.migration}`);
+                    }
+                    
+                    const migrationSQL = fs.readFileSync(migrationFilePath, 'utf8');
+                    await db.query(migrationSQL);
+                    
+                    console.log(`✅ Phase 1 auto-migration successful: ${migrationConfig.description}`);
+                } else {
+                    console.log(`✅ Phase 1 check passed: ${migrationConfig.description}`);
+                }
+            } catch (migrationError) {
+                console.error(`❌ Phase 1 auto-migration failed for ${migrationName}:`, migrationError.message);
+                console.error(`   Error details:`, {
+                    name: migrationError.name,
+                    message: migrationError.message,
+                    code: migrationError.code,
+                    detail: migrationError.detail,
+                    hint: migrationError.hint
+                });
+                console.error(`   Please run manually: psql -U ${process.env.DB_USER || 'lto_user'} -d ${process.env.DB_NAME || 'lto_blockchain'} -f ${migrationConfig.migration}`);
+                // Continue - schema validation will catch this and fail if critical
+            }
+        }
+        
+        // Run comprehensive schema validation using schemaValidationService
+        await schemaValidation.validateSchema();
+        
+        console.log('✅ Database schema validation passed - all critical tables and schema elements exist');
         console.log(`📧 Email verification: ${global.EMAIL_VERIFICATION_ENABLED ? 'Enabled ✓' : 'Disabled (migration failed)'}`);
         return true;
     } catch (error) {
         console.error('❌ Database schema validation failed:', error.message);
         console.error('Please check database connection and run migrations');
+        console.error('See SCHEMA_CROSS_CHECK_REPORT.md and VEHICLE_REGISTRATION_FIX_PLAN.md for details');
         process.exit(1);
     }
 }

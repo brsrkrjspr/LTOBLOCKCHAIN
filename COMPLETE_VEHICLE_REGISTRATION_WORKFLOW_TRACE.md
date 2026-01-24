@@ -7,13 +7,23 @@
 
 ## Executive Summary
 
-This trace identifies **7 critical inconsistencies**, **5 missing error handling points**, and **3 workflow gaps** in the vehicle registration system. Key findings:
+This trace identifies **5 critical database schema issues (BLOCKING)**, **7 critical inconsistencies**, **5 missing error handling points**, and **3 workflow gaps** in the vehicle registration system. Key findings:
 
-1. **Document Key Mismatch:** Frontend uses camelCase keys (`insuranceCert`, `hpgClearance`) while backend expects database ENUMs (`insurance_cert`, `hpg_clearance`). Mapping layer exists but has edge cases.
-2. **Silent Failures:** Document linking failures don't block registration (by design), but errors are logged without user notification.
-3. **Race Condition:** Clearance requests are created immediately after vehicle creation, but documents may not be fully committed to DB (100ms delay added, but not foolproof).
-4. **Missing Auto-Verification Trigger:** Insurance auto-verification only triggers if clearance request creation succeeds. If it fails silently, auto-verification never runs.
-5. **Status Transition Gap:** Vehicle status goes `SUBMITTED` → (clearance approvals) → `APPROVED` → `REGISTERED`, but there's no intermediate status for "awaiting clearance" vs "clearance complete, awaiting LTO approval".
+**🔴 CRITICAL BLOCKING ISSUES (Must Fix Immediately):**
+1. **Missing `ipfs_cid` Column:** `documents` table lacks `ipfs_cid` column, causing ALL document inserts to fail. Documents uploaded to IPFS but not saved to database.
+2. **Missing Enum Values:** `document_type` enum missing `'hpg_clearance'`, `'csr'`, `'sales_invoice'`, causing document queries/inserts to fail for these types.
+3. **Invalid UUID Format:** Frontend sends document IDs like `"doc_1769269982792_yd72egzld"` (not UUIDs) when database save fails, causing document lookup failures.
+4. **All Fallback Methods Fail:** All 4 document linking fallback methods fail due to schema issues, leaving 0 documents linked.
+5. **Registration Succeeds Despite Failure:** Registration completes successfully even when 0 documents linked, with no user notification.
+
+**⚠️ CRITICAL INCONSISTENCIES:**
+4. **Document Key Mismatch:** Frontend uses camelCase keys (`insuranceCert`, `hpgClearance`) while backend expects database ENUMs (`insurance_cert`, `hpg_clearance`). Mapping layer exists but has edge cases.
+5. **Silent Failures:** Document linking failures don't block registration (by design), but errors are logged without user notification.
+6. **Race Condition:** Clearance requests are created immediately after vehicle creation, but documents may not be fully committed to DB (100ms delay added, but not foolproof).
+7. **Missing Auto-Verification Trigger:** Insurance auto-verification only triggers if clearance request creation succeeds. If it fails silently, auto-verification never runs.
+8. **Status Transition Gap:** Vehicle status goes `SUBMITTED` → (clearance approvals) → `APPROVED` → `REGISTERED`, but there's no intermediate status for "awaiting clearance" vs "clearance complete, awaiting LTO approval".
+9. **Email Mismatch Allowed:** Registration proceeds even if logged-in user email doesn't match registration email.
+10. **Missing Status:** No `AWAITING_CLEARANCE` status to track clearance request state.
 
 ---
 
@@ -53,6 +63,149 @@ This trace identifies **7 critical inconsistencies**, **5 missing error handling
 | **30. Verification Status Update** | N/A | Same | `autoVerificationService.js:66-88` | `vehicle_verifications` UPDATE | ✅ Stores full metadata | Status = APPROVED/PENDING/REJECTED based on score |
 | **31. Response Assembly** | N/A | `backend/routes/vehicles.js:1593-1603` | Returns JSON response | Includes `autoVerification` summary | ✅ Includes clearance request status | Returns vehicle, blockchain status, clearance requests, auto-verification |
 | **32. Frontend Success Handler** | `js/registration-wizard.js:1403-1458` | N/A | Handles API response | Shows success/warning dialog | ✅ Handles OCR conflicts | Redirects to dashboard or stays on page |
+
+---
+
+### 0.3. **All Document Linking Fallback Methods Fail** 🔴 **CRITICAL**
+
+**Location:** `backend/routes/vehicles.js:1236-1333`
+
+**Issue:**
+- **Method 1 (by ID):** Fails because frontend sends invalid UUID format (`"doc_1769269982792_yd72egzld"`)
+- **Method 2 (by filename/CID):** Fails because `ipfs_cid` column doesn't exist (query: `WHERE ipfs_cid = $2`)
+- **Method 3 (recent unlinked):** Fails because enum values missing (`invalid input value for enum document_type: "hpg_clearance"`)
+- **Method 4 (create new):** Fails because `ipfs_cid` column doesn't exist (INSERT statement)
+
+**Error Pattern:**
+```
+❌ Error querying document by ID doc_1769269982792_yd72egzld: invalid input syntax for type uuid
+❌ Error querying document by filename/CID: column "ipfs_cid" does not exist
+❌ Error querying recent unlinked documents: invalid input value for enum document_type: "hpg_clearance"
+❌ Error creating document record: column "ipfs_cid" of relation "documents" does not exist
+```
+
+**Impact:**
+- **ALL 4 fallback methods fail** - No documents can be linked regardless of fallback strategy
+- Registration proceeds with 0 documents linked
+- User sees "Registration Successful" but no documents are associated
+- Clearance requests cannot be created (no documents found)
+
+**Root Cause:** All fallback methods depend on schema fixes. Without `ipfs_cid` column and enum values, no method can succeed.
+
+**Recommendation:** 
+1. Apply schema migrations FIRST (blocks all methods)
+2. Add validation: Fail registration if 0 documents linked (or require explicit user confirmation)
+3. Return document linking status in API response so frontend can warn user
+
+---
+
+### 0.4. **Registration Succeeds Despite Complete Document Failure** ⚠️ **CRITICAL DESIGN ISSUE**
+
+**Location:** `backend/routes/vehicles.js:1368-1372`
+
+**Issue:**
+- Logs show: `📄 Document linking summary: 0 document(s) linked`
+- Registration continues: `✅ Vehicle registration submitted successfully. Status: SUBMITTED`
+- No user notification that documents failed to link
+- Frontend receives success response
+
+**Impact:**
+- User believes documents are uploaded and linked
+- Vehicle registered without any documents
+- Clearance requests cannot be created (no documents)
+- Blockchain registration will fail (no document CIDs)
+- User has no indication of failure until much later
+
+**Recommendation:**
+- Return `documentLinkingStatus` in API response with count of linked vs failed documents
+- Frontend should show warning if any documents failed to link
+- Consider failing registration if critical documents (HPG, Insurance) fail to link
+- At minimum, return partial success with clear warnings
+
+---
+
+## Critical Database Schema Issues (BLOCKING)
+
+### 0. **Missing `ipfs_cid` Column in `documents` Table** 🔴 **CRITICAL**
+
+**Location:** `backend/database/services.js:360`, `backend/routes/documents.js:487`
+
+**Issue:**
+- Code attempts to INSERT `ipfs_cid` column: `INSERT INTO documents (..., ipfs_cid) VALUES (..., $10)`
+- Database schema (`Complete Schema.sql:489-506`) shows `documents` table **does NOT have `ipfs_cid` column**
+- Only `certificates` table has `ipfs_cid` (line 399)
+- Migration script exists: `database/fix-missing-columns.sql` (not applied)
+
+**Error:**
+```
+Database query error: error: column "ipfs_cid" of relation "documents" does not exist
+```
+
+**Impact:** 
+- **ALL document inserts fail** - Documents uploaded to IPFS but not saved to database
+- Document linking fails (no records to link)
+- Auto-send clearance requests fails (no documents found)
+- Blockchain registration fails (no document CIDs)
+
+**Recommendation:** Apply migration `database/fix-missing-columns.sql` immediately.
+
+---
+
+### 0.1. **Missing `document_type` Enum Values** 🔴 **CRITICAL**
+
+**Location:** `backend/routes/vehicles.js:1283`, `backend/services/clearanceService.js:260`
+
+**Issue:**
+- Code attempts to use enum values: `'hpg_clearance'`, `'csr'`, `'sales_invoice'`
+- Database enum (`Complete Schema.sql:63-68`) only defines:
+  - `'registration_cert'`
+  - `'insurance_cert'`
+  - `'emission_cert'`
+  - `'owner_id'`
+- Migration script exists: `database/add-vehicle-registration-document-types.sql` (not applied)
+
+**Error:**
+```
+Database query error: error: invalid input value for enum document_type: "hpg_clearance"
+Database query error: error: invalid input value for enum document_type: "csr"
+Database query error: error: invalid input value for enum document_type: "sales_invoice"
+```
+
+**Impact:**
+- Document queries fail for HPG, CSR, and Sales Invoice documents
+- Document linking fails for these document types
+- Clearance request creation fails (can't find documents)
+
+**Recommendation:** Apply migration `database/add-vehicle-registration-document-types.sql` immediately.
+
+---
+
+### 0.2. **Invalid UUID Format for Document IDs** 🔴 **CRITICAL**
+
+**Location:** `backend/routes/vehicles.js:1236-1254`, `backend/routes/documents.js:501`
+
+**Issue:**
+- Frontend sends document IDs like `"doc_1769269982792_yd72egzld"` (not UUID format)
+- Code checks for `TEMP_` prefix (line 1236) but not `doc_` prefix
+- Database expects UUID format: `uuid DEFAULT uuid_generate_v4()`
+- When database save fails (due to missing `ipfs_cid`), response includes temporary ID
+- Frontend uses this temporary ID in registration submission
+- Backend tries to query: `SELECT * FROM documents WHERE id = $1` with invalid UUID
+
+**Error:**
+```
+Database query error: error: invalid input syntax for type uuid: "doc_1769269982792_yd72egzld"
+```
+
+**Impact:**
+- Document lookup by ID fails
+- Falls back to filename/CID lookup (which also fails due to missing `ipfs_cid` column)
+- Document linking fails completely
+
+**Recommendation:** 
+1. Add UUID validation before querying: Check if ID matches UUID format before querying
+2. Fix root cause: Apply `ipfs_cid` migration so database saves succeed and return valid UUIDs
+3. Add validation in frontend: Reject document IDs that aren't UUIDs
 
 ---
 
@@ -222,10 +375,13 @@ This trace identifies **7 critical inconsistencies**, **5 missing error handling
 
 ### High Priority
 
-1. **Fix Document Key Mapping:** Add frontend validation before submit. Show error if any document keys don't map to valid DB types.
-2. **Fix Race Condition:** Use database transaction for vehicle + document linking, or add retry loop with backoff.
-3. **Add User Feedback:** Return document linking status in API response. Show warnings in UI if documents failed to link.
-4. **Decouple Auto-Verification:** Run auto-verification independently of clearance request creation. Create request with results.
+1. **🔴 FIX DATABASE SCHEMA (BLOCKING):** Apply migrations `database/fix-missing-columns.sql` and `database/add-vehicle-registration-document-types.sql` immediately. These are blocking ALL document operations.
+2. **Fix Document ID Validation:** Add UUID format validation before querying documents. Reject non-UUID IDs or convert to proper lookup method.
+3. **Add Document Linking Validation:** Return document linking status in API response. Fail registration (or require explicit confirmation) if 0 documents linked.
+4. **Fix Document Key Mapping:** Add frontend validation before submit. Show error if any document keys don't map to valid DB types.
+5. **Fix Race Condition:** Use database transaction for vehicle + document linking, or add retry loop with backoff.
+6. **Add User Feedback:** Return document linking status in API response. Show warnings in UI if documents failed to link.
+7. **Decouple Auto-Verification:** Run auto-verification independently of clearance request creation. Create request with results.
 
 ### Medium Priority
 
@@ -300,5 +456,5 @@ Frontend Success Handler
 ---
 
 **Document Status:** Complete  
-**Last Updated:** 2026-01-23  
-**Next Review:** After implementing high-priority recommendations
+**Last Updated:** 2026-01-24 (Added Critical Database Schema Issues)  
+**Next Review:** After applying database migrations and implementing high-priority recommendations

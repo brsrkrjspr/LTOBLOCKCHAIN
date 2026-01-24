@@ -11,7 +11,7 @@ const autoVerificationService = require('../services/autoVerificationService');
 const certificateBlockchain = require('../services/certificateBlockchainService');
 const crypto = require('crypto');
 const fs = require('fs').promises;
-const { CLEARANCE_STATUS, normalizeStatusLower, normalizeStatus } = require('../config/statusConstants');
+const { CLEARANCE_STATUS, normalizeStatusLower, normalizeStatus, isValidClearanceStatus } = require('../config/statusConstants');
 
 // Get HPG dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
@@ -55,6 +55,15 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'hpg_admin'])
             // This fixes case sensitivity issues (e.g., 'pending' vs 'PENDING')
             const normalizedStatus = normalizeStatus(status);
             console.log(`[HPG API] Normalized status: ${status} -> ${normalizedStatus}`);
+            
+            // Validate that the normalized status is a valid clearance status
+            if (!normalizedStatus || !isValidClearanceStatus(normalizedStatus)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Invalid status: "${status}". Valid statuses are: ${Object.values(CLEARANCE_STATUS).join(', ')}`
+                });
+            }
+            
             const allRequests = await db.getClearanceRequestsByStatus(normalizedStatus);
             console.log(`[HPG API] Got ${allRequests.length} requests with status ${normalizedStatus}`);
             requests = allRequests.filter(r => r.request_type === 'hpg');

@@ -6,7 +6,7 @@ const router = express.Router();
 const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
-const { normalizeStatus } = require('../config/statusConstants');
+const { normalizeStatus, CLEARANCE_STATUS, isValidClearanceStatus } = require('../config/statusConstants');
 
 // Get insurance dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
@@ -76,15 +76,28 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'insurance_ve
         const { status } = req.query;
         // Normalize status to uppercase (database format) before querying
         // This fixes case sensitivity issues (e.g., 'pending' vs 'PENDING')
-        const normalizedStatus = status ? normalizeStatus(status) : null;
-        const requests = normalizedStatus 
-            ? await db.getClearanceRequestsByStatus(normalizedStatus)
-            : await db.getClearanceRequestsByType('insurance');
+        let requests;
+        if (status) {
+            const normalizedStatus = normalizeStatus(status);
+            
+            // Validate that the normalized status is a valid clearance status
+            if (!normalizedStatus || !isValidClearanceStatus(normalizedStatus)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Invalid status: "${status}". Valid statuses are: ${Object.values(CLEARANCE_STATUS).join(', ')}`
+                });
+            }
+            
+            const allRequests = await db.getClearanceRequestsByStatus(normalizedStatus);
+            requests = allRequests.filter(r => r.request_type === 'insurance');
+        } else {
+            requests = await db.getClearanceRequestsByType('insurance');
+        }
 
         res.json({
             success: true,
-            requests: requests.filter(r => r.request_type === 'insurance'),
-            total: requests.filter(r => r.request_type === 'insurance').length
+            requests: requests,
+            total: requests.length
         });
     } catch (error) {
         console.error('Error getting insurance requests:', error);

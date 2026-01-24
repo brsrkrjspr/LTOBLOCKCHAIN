@@ -1188,7 +1188,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             return logicalType && documentCids[logicalType];
         });
         
-        if (linkedCount === 0) {
+        if (documentLinkingResults.linked === 0) {
             // Fail registration - no documents at all
             console.error(`❌ Registration ${newVehicle.id} failed: No documents were linked`);
             return res.status(400).json({
@@ -1405,8 +1405,8 @@ LTO Lipa City Team
                 requestedBy
             );
             console.log('✅ Auto-sent clearance requests:', {
-                hpg: autoSendResults.hpg.sent ? 'Yes' : 'No',
-                insurance: autoSendResults.insurance.sent ? 'Yes' : 'No'
+                hpg: autoSendResults?.hpg?.sent ? 'Yes' : 'No',
+                insurance: autoSendResults?.insurance?.sent ? 'Yes' : 'No'
             });
         } catch (autoSendError) {
             console.error('❌ Failed to auto-send clearance requests:', autoSendError);
@@ -1417,7 +1417,7 @@ LTO Lipa City Team
         // Prepare auto-verification summary
         const autoVerificationSummary = {};
         if (autoSendResults) {
-            if (autoSendResults.insurance.autoVerification) {
+            if (autoSendResults.insurance && autoSendResults.insurance.autoVerification) {
                 autoVerificationSummary.insurance = {
                     status: autoSendResults.insurance.autoVerification.status,
                     automated: autoSendResults.insurance.autoVerification.automated,
@@ -1426,7 +1426,7 @@ LTO Lipa City Team
                     reason: autoSendResults.insurance.autoVerification.reason
                 };
             }
-            if (autoSendResults.hpg.autoVerification) {
+            if (autoSendResults.hpg && autoSendResults.hpg.autoVerification) {
                 autoVerificationSummary.hpg = {
                     status: autoSendResults.hpg.autoVerification.status,
                     automated: autoSendResults.hpg.autoVerification.automated,
@@ -1442,22 +1442,22 @@ LTO Lipa City Team
             vehicle: formatVehicleResponse(fullVehicle, req, res),
             blockchainStatus: 'PENDING', // Blockchain registration will occur during admin approval
             documentLinking: {
-                status: linkedCount === 0 ? 'failed' : 
-                        linkedCount < documentLinkingResults.total ? 'partial' : 'success',
+                status: documentLinkingResults.linked === 0 ? 'failed' : 
+                        documentLinkingResults.linked < documentLinkingResults.total ? 'partial' : 'success',
                 summary: {
                     total: documentLinkingResults.total,
-                    linked: linkedCount,
+                    linked: documentLinkingResults.linked,
                     failed: documentLinkingResults.failed
                 },
                 linkedDocuments: documentLinkingResults.linkedDocuments,
                 failures: documentLinkingResults.failures,
-                warnings: linkedCount === 0 ? [
+                warnings: documentLinkingResults.linked === 0 ? [
                     'No documents were linked to this vehicle. Clearance requests cannot be created automatically. Please contact support.'
-                ] : linkedCount < documentLinkingResults.total ? [
+                ] : documentLinkingResults.linked < documentLinkingResults.total ? [
                     `${documentLinkingResults.failed} document(s) failed to link. Some features may be unavailable.`
                 ] : []
             },
-            clearanceRequests: autoSendResults ? {
+            clearanceRequests: autoSendResults && autoSendResults.hpg && autoSendResults.insurance ? {
                 hpg: autoSendResults.hpg.sent,
                 insurance: autoSendResults.insurance.sent
             } : null,

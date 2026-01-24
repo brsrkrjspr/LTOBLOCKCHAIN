@@ -100,7 +100,38 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_or_number ON vehicles(or_number) WHERE o
 CREATE INDEX IF NOT EXISTS idx_vehicles_cr_number ON vehicles(cr_number) WHERE cr_number IS NOT NULL;
 
 -- ============================================
--- STEP 7: Seed Default External Issuers (Optional)
+-- STEP 7: Add Missing users.address Column (CRITICAL)
+-- ============================================
+-- This column is referenced in backend/database/services.js for user operations
+-- Without it, user creation and profile updates will fail
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS address VARCHAR(500);
+
+-- ============================================
+-- STEP 8: Create request_logs Table (Optional - for monitoring)
+-- ============================================
+-- This table is used by monitoringService.js for request analytics
+-- If monitoring is not needed, this can be skipped
+
+CREATE TABLE IF NOT EXISTS request_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    method VARCHAR(10) NOT NULL,
+    path VARCHAR(500) NOT NULL,
+    status_code INTEGER NOT NULL,
+    response_time_ms INTEGER,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_request_logs_created_at ON request_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_request_logs_user_id ON request_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_request_logs_status_code ON request_logs(status_code);
+CREATE INDEX IF NOT EXISTS idx_request_logs_path ON request_logs(path);
+
+-- ============================================
+-- STEP 9: Seed Default External Issuers (Optional)
 -- ============================================
 -- Only insert if they don't exist
 INSERT INTO external_issuers (issuer_type, company_name, license_number, api_key, contact_email, is_active)
@@ -130,4 +161,13 @@ WHERE NOT EXISTS (SELECT 1 FROM external_issuers WHERE issuer_type = 'hpg' AND l
 -- SELECT column_name, data_type 
 -- FROM information_schema.columns 
 -- WHERE table_name = 'vehicles' 
--- AND column_name IN ('vehicle_category', 'passenger_capacity', 'gross_vehicle_weight', 'net_weight', 'registration_type', 'origin_type');
+-- AND column_name IN ('vehicle_category', 'passenger_capacity', 'gross_vehicle_weight', 'net_weight', 'registration_type', 'origin_type', 'or_number', 'cr_number', 'or_issued_at', 'cr_issued_at', 'date_of_registration');
+
+-- Verify users.address column exists:
+-- SELECT column_name, data_type 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'users' 
+-- AND column_name = 'address';
+
+-- Verify request_logs table exists (optional):
+-- SELECT table_name FROM information_schema.tables WHERE table_name = 'request_logs';

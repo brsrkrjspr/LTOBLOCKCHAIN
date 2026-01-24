@@ -960,46 +960,18 @@ router.post('/register', optionalAuth, async (req, res) => {
             });
         }
         
-        // Check if vehicle already exists by VIN (only block active vehicles)
-        const existingVehicle = await db.getVehicleByVin(vehicle.vin);
-        if (existingVehicle) {
-            // Only block if vehicle is in an active state
-            const blockingStatuses = ['SUBMITTED', 'REGISTERED', 'APPROVED'];
-            
-            if (blockingStatuses.includes(existingVehicle.status)) {
-                return res.status(409).json({
-                    success: false,
-                    error: 'Vehicle with this VIN already exists and is currently registered or pending',
-                    duplicateField: 'vin',
-                    existingStatus: existingVehicle.status,
-                    canResubmit: false
-                });
-            } else {
-                // Vehicle exists but is REJECTED/SUSPENDED/SCRAPPED/FOR_TRANSFER - allow re-registration
-                console.log(`⚠️ VIN ${vehicle.vin} exists with status ${existingVehicle.status} - allowing re-registration`);
-            }
+        // Normalize VIN to uppercase (VINs are standardized as uppercase)
+        // This ensures consistent comparison and storage
+        const normalizedVin = vehicle.vin ? vehicle.vin.toUpperCase().trim() : vehicle.vin;
+        if (!normalizedVin || normalizedVin.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid VIN: VIN cannot be empty'
+            });
         }
-
-        // Check if vehicle already exists by plate number (only block active vehicles)
-        if (vehicle.plateNumber) {
-            const existingByPlate = await db.getVehicleByPlate(vehicle.plateNumber);
-            if (existingByPlate) {
-                const blockingStatuses = ['SUBMITTED', 'REGISTERED', 'APPROVED'];
-                
-                if (blockingStatuses.includes(existingByPlate.status)) {
-                    return res.status(409).json({
-                        success: false,
-                        error: 'Vehicle with this plate number already exists and is currently registered or pending',
-                        duplicateField: 'plateNumber',
-                        existingStatus: existingByPlate.status,
-                        canResubmit: false
-                    });
-                } else {
-                    // Plate exists but vehicle is REJECTED/SUSPENDED/SCRAPPED/FOR_TRANSFER - allow re-registration
-                    console.log(`⚠️ Plate ${vehicle.plateNumber} exists with status ${existingByPlate.status} - allowing re-registration`);
-                }
-            }
-        }
+        
+        // Update vehicle object with normalized VIN for use throughout registration
+        vehicle.vin = normalizedVin;
 
         // Determine owner user - prioritize logged-in user
         let ownerUser = null;
@@ -1171,6 +1143,44 @@ router.post('/register', optionalAuth, async (req, res) => {
             // Transaction was rolled back automatically
             console.error('❌ Transaction rolled back due to error:', transactionError);
             console.error('   Error stack:', transactionError.stack);
+            
+            // Handle duplicate VIN/plate errors from transaction
+            if (transactionError.code === 'DUPLICATE_VIN' || transactionError.code === 'DUPLICATE_PLATE') {
+                return res.status(409).json({
+                    success: false,
+                    error: transactionError.message,
+                    duplicateField: transactionError.duplicateField,
+                    existingStatus: transactionError.existingStatus,
+                    canResubmit: false
+                });
+            }
+            
+            // Handle PostgreSQL unique constraint violations (23505)
+            // This is a fallback in case the SELECT FOR UPDATE check missed something
+            if (transactionError.code === '23505') {
+                // Extract which field caused the duplicate
+                let fieldName = 'record';
+                let fieldValue = '';
+                
+                const constraintName = transactionError.constraint || '';
+                const errorDetail = transactionError.detail || '';
+                
+                if (constraintName === 'vehicles_plate_number_key' || constraintName === 'vehicles_plate_active_unique' || errorDetail.includes('plate_number')) {
+                    fieldName = 'plate number';
+                    fieldValue = errorDetail.match(/\(plate_number\)=\(([^)]+)\)/)?.[1] || '';
+                } else if (constraintName === 'vehicles_vin_key' || constraintName === 'vehicles_vin_active_unique' || errorDetail.includes('vin')) {
+                    fieldName = 'VIN';
+                    fieldValue = errorDetail.match(/\(vin\)=\(([^)]+)\)/)?.[1] || '';
+                }
+                
+                return res.status(409).json({
+                    success: false,
+                    error: `Vehicle with this ${fieldName}${fieldValue ? ` (${fieldValue})` : ''} already exists and is currently registered or pending`,
+                    duplicateField: fieldName === 'VIN' ? 'vin' : 'plateNumber',
+                    duplicateValue: fieldValue
+                });
+            }
+            
             return res.status(500).json({
                 success: false,
                 error: 'Vehicle registration failed. Please try again.',

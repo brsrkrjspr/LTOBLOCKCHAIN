@@ -24,8 +24,72 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
     
     let newVehicle;
     
+    // Normalize VIN to uppercase before transaction (VINs are standardized as uppercase)
+    const normalizedVin = vehicle.vin ? vehicle.vin.toUpperCase().trim() : vehicle.vin;
+    vehicle.vin = normalizedVin;
+    
     await db.transaction(async (client) => {
-        // 1. Create vehicle (within transaction)
+        // 1. Check for duplicate VIN WITHIN transaction using SELECT FOR UPDATE
+        // This prevents race conditions by locking the row during the check
+        // Only block if vehicle is in an active state
+        const statusConstants = require('../config/statusConstants');
+        const blockingStatuses = [
+            statusConstants.VEHICLE_STATUS.SUBMITTED,
+            statusConstants.VEHICLE_STATUS.REGISTERED,
+            statusConstants.VEHICLE_STATUS.APPROVED,
+            statusConstants.VEHICLE_STATUS.PENDING_BLOCKCHAIN,
+            statusConstants.VEHICLE_STATUS.PROCESSING
+        ];
+        
+        const existingVehicleCheck = await client.query(
+            `SELECT id, vin, plate_number, status 
+             FROM vehicles 
+             WHERE UPPER(TRIM(vin)) = $1 
+             FOR UPDATE`,
+            [normalizedVin]
+        );
+        
+        if (existingVehicleCheck.rows.length > 0) {
+            const existingVehicle = existingVehicleCheck.rows[0];
+            if (blockingStatuses.includes(existingVehicle.status)) {
+                // Create a custom error that will be caught by the caller
+                const duplicateError = new Error(`Vehicle with VIN ${normalizedVin} already exists with status ${existingVehicle.status}`);
+                duplicateError.code = 'DUPLICATE_VIN';
+                duplicateError.duplicateField = 'vin';
+                duplicateError.existingStatus = existingVehicle.status;
+                throw duplicateError;
+            } else {
+                // Vehicle exists but is REJECTED/SUSPENDED/etc - allow re-registration
+                console.log(`⚠️ VIN ${normalizedVin} exists with status ${existingVehicle.status} - allowing re-registration`);
+            }
+        }
+        
+        // 2. Check for duplicate plate number WITHIN transaction (if provided)
+        if (vehicle.plateNumber) {
+            const normalizedPlate = vehicle.plateNumber.trim();
+            const existingPlateCheck = await client.query(
+                `SELECT id, vin, plate_number, status 
+                 FROM vehicles 
+                 WHERE plate_number = $1 
+                 FOR UPDATE`,
+                [normalizedPlate]
+            );
+            
+            if (existingPlateCheck.rows.length > 0) {
+                const existingByPlate = existingPlateCheck.rows[0];
+                if (blockingStatuses.includes(existingByPlate.status)) {
+                    const duplicateError = new Error(`Vehicle with plate number ${normalizedPlate} already exists with status ${existingByPlate.status}`);
+                    duplicateError.code = 'DUPLICATE_PLATE';
+                    duplicateError.duplicateField = 'plateNumber';
+                    duplicateError.existingStatus = existingByPlate.status;
+                    throw duplicateError;
+                } else {
+                    console.log(`⚠️ Plate ${normalizedPlate} exists with status ${existingByPlate.status} - allowing re-registration`);
+                }
+            }
+        }
+        
+        // 3. Create vehicle (within transaction)
         const vehicleResult = await client.query(
             `INSERT INTO vehicles (
                 vin, plate_number, make, model, year, color, engine_number, chassis_number,
@@ -34,7 +98,9 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             RETURNING *`,
             [
-                vehicle.vin, vehicle.plateNumber, vehicle.make, vehicle.model, vehicle.year, vehicle.color,
+                normalizedVin, // Use normalized VIN
+                vehicle.plateNumber ? vehicle.plateNumber.trim() : null, // Normalize plate number
+                vehicle.make, vehicle.model, vehicle.year, vehicle.color,
                 vehicle.engineNumber, vehicle.chassisNumber,
                 vehicle.vehicleType || 'Car', vehicle.vehicleCategory,
                 parseInt(vehicle.passengerCapacity), parseFloat(vehicle.grossVehicleWeight), parseFloat(vehicle.netWeight),
@@ -48,7 +114,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             throw new Error('Vehicle creation failed: newVehicle is missing or invalid');
         }
         
-        // 2. Add to history (within transaction)
+        // 4. Add to history (within transaction)
         try {
             const truncatedDescription = 'Vehicle registration submitted';
             await client.query(
@@ -69,7 +135,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             // Don't fail registration for history errors - log and continue
         }
         
-        // 3. Link documents (all within transaction)
+        // 5. Link documents (all within transaction)
         if (registrationData.documents && typeof registrationData.documents === 'object') {
             documentLinkingResults.total = Object.keys(registrationData.documents).length;
             const docTypes = require('../config/documentTypes');

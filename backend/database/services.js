@@ -71,6 +71,9 @@ async function getAllUsers() {
 // ============================================
 
 async function getVehicleByVin(vin) {
+    // Normalize VIN to uppercase for case-insensitive comparison
+    // VINs are standardized as uppercase, but database may have mixed case
+    const normalizedVin = typeof vin === 'string' ? vin.toUpperCase().trim() : vin;
     const result = await db.query(
         `SELECT v.*, 
                 u.id as owner_id,
@@ -82,8 +85,8 @@ async function getVehicleByVin(vin) {
                 u.organization as owner_organization
          FROM vehicles v
          LEFT JOIN users u ON v.owner_id = u.id
-         WHERE v.vin = $1`,
-        [vin]
+         WHERE UPPER(TRIM(v.vin)) = $1`,
+        [normalizedVin]
     );
     return result.rows[0] || null;
 }

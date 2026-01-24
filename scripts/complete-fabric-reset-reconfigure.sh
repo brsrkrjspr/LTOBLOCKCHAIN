@@ -740,10 +740,59 @@ else
     fi
 fi
 
-if [ -f "wallet/admin/cert.pem" ] && [ -f "wallet/admin/key.pem" ]; then
-    echo "   ✅ Wallet regenerated successfully"
+# Verify wallet was created successfully
+# The SDK wallet stores identities as JSON files, not cert.pem/key.pem
+# Check if admin identity exists using Node.js if available, otherwise check for SDK wallet structure
+if command -v node > /dev/null 2>&1; then
+    # Use Node.js to verify wallet using SDK
+    WALLET_CHECK=$(node -e "
+        const { Wallets } = require('fabric-network');
+        const path = require('path');
+        (async () => {
+            try {
+                const walletPath = path.join(process.cwd(), 'wallet');
+                const wallet = await Wallets.newFileSystemWallet(walletPath);
+                const adminExists = await wallet.get('admin');
+                if (adminExists) {
+                    console.log('SUCCESS');
+                    process.exit(0);
+                } else {
+                    console.log('NOT_FOUND');
+                    process.exit(1);
+                }
+            } catch (error) {
+                console.log('ERROR: ' + error.message);
+                process.exit(1);
+            }
+        })();
+    " 2>&1)
+    
+    if echo "$WALLET_CHECK" | grep -q "SUCCESS"; then
+        echo "   ✅ Wallet regenerated successfully (SDK format verified)"
+    elif echo "$WALLET_CHECK" | grep -q "NOT_FOUND"; then
+        echo "   ⚠️  Wallet created but admin identity not found"
+        echo "   💡 This may indicate a wallet creation issue"
+    else
+        echo "   ⚠️  Could not verify wallet (checking file structure...)"
+        # Fallback: Check for SDK wallet directory structure
+        if [ -d "wallet/admin" ] && [ -f "wallet/admin"/*.json ] 2>/dev/null; then
+            echo "   ✅ Wallet directory structure found"
+        elif [ -f "wallet/admin/cert.pem" ] && [ -f "wallet/admin/key.pem" ]; then
+            echo "   ✅ Wallet regenerated successfully (manual format)"
+        else
+            echo "   ❌ Wallet files not found - application may fail to connect"
+        fi
+    fi
 else
-    echo "   ❌ Wallet files not found - application may fail to connect"
+    # No Node.js - check for manual fallback format or SDK structure
+    if [ -f "wallet/admin/cert.pem" ] && [ -f "wallet/admin/key.pem" ]; then
+        echo "   ✅ Wallet regenerated successfully (manual format)"
+    elif [ -d "wallet/admin" ] && [ "$(ls -A wallet/admin 2>/dev/null)" ]; then
+        echo "   ✅ Wallet directory exists (SDK format may be present)"
+        echo "   💡 Run 'node scripts/setup-fabric-wallet.js' to verify SDK wallet"
+    else
+        echo "   ❌ Wallet files not found - application may fail to connect"
+    fi
 fi
 
 # ============================================
@@ -808,11 +857,37 @@ else
     fi
 fi
 
-# Check wallet
-if [ -f "wallet/admin/cert.pem" ] && [ -f "wallet/admin/key.pem" ]; then
-    echo "   ✅ Wallet configured"
+# Check wallet - Use SDK verification if Node.js available
+if command -v node > /dev/null 2>&1; then
+    WALLET_CHECK=$(node -e "
+        const { Wallets } = require('fabric-network');
+        const path = require('path');
+        (async () => {
+            try {
+                const walletPath = path.join(process.cwd(), 'wallet');
+                const wallet = await Wallets.newFileSystemWallet(walletPath);
+                const adminExists = await wallet.get('admin');
+                console.log(adminExists ? 'EXISTS' : 'NOT_FOUND');
+            } catch (error) {
+                console.log('ERROR');
+            }
+        })();
+    " 2>&1)
+    
+    if echo "$WALLET_CHECK" | grep -q "EXISTS"; then
+        echo "   ✅ Wallet configured"
+    else
+        echo "   ❌ Wallet not configured"
+    fi
 else
-    echo "   ❌ Wallet not configured"
+    # Fallback check
+    if [ -f "wallet/admin/cert.pem" ] && [ -f "wallet/admin/key.pem" ]; then
+        echo "   ✅ Wallet configured"
+    elif [ -d "wallet/admin" ] && [ "$(ls -A wallet/admin 2>/dev/null)" ]; then
+        echo "   ⚠️  Wallet directory exists (verification requires Node.js)"
+    else
+        echo "   ❌ Wallet not configured"
+    fi
 fi
 
 # Check application logs

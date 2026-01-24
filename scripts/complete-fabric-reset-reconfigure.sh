@@ -58,51 +58,71 @@ fi
 echo "✅ .env configuration validated"
 
 # ============================================
-# STEP 1: Stop All Fabric Containers
+# STEP 1: Stop and Remove ALL Containers (Complete Cleanup)
 # ============================================
 echo ""
-echo "1️⃣  Stopping Fabric containers..."
+echo "1️⃣  Stopping and removing ALL Fabric containers..."
 
-docker compose -f docker-compose.unified.yml stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli lto-app 2>/dev/null || \
-docker-compose -f docker-compose.unified.yml stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli lto-app 2>/dev/null || {
+# First, remove ALL old chaincode containers (they're not in docker-compose)
+echo "   Removing old chaincode containers..."
+docker ps -a | grep "dev-peer0.lto.gov.ph-vehicle-registration" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+echo "   ✅ Old chaincode containers removed"
+
+# Use docker compose down to properly stop and remove containers AND volumes
+docker compose -f docker-compose.unified.yml down -v 2>/dev/null || \
+docker-compose -f docker-compose.unified.yml down -v 2>/dev/null || {
+    echo "   ⚠️  docker compose down failed, trying manual cleanup..."
+    # Manual cleanup - stop all Fabric containers
     docker stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli lto-app 2>/dev/null || true
+    sleep 2
+    # Remove all Fabric containers
+    docker rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
+    # Remove any remaining chaincode containers
+    docker ps -a | grep "dev-peer" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
 }
 
 sleep 3
 
-echo "   ✅ Containers stopped"
+# Verify all Fabric containers are gone
+REMAINING_CONTAINERS=$(docker ps -a --format "{{.Names}}" | grep -E "(peer|orderer|couchdb|cli|dev-peer)" || true)
+if [ -n "$REMAINING_CONTAINERS" ]; then
+    echo "   ⚠️  Warning: Some Fabric containers still exist:"
+    echo "$REMAINING_CONTAINERS" | sed 's/^/      - /'
+    echo "   Force removing..."
+    echo "$REMAINING_CONTAINERS" | xargs -r docker rm -f 2>/dev/null || true
+fi
+
+echo "   ✅ All Fabric containers stopped and removed"
 
 # ============================================
-# STEP 2: Remove Fabric Containers
-# ============================================
-echo ""
-echo "2️⃣  Removing Fabric containers..."
-
-docker compose -f docker-compose.unified.yml rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || \
-docker-compose -f docker-compose.unified.yml rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || {
-    docker rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
-}
-
-echo "   ✅ Containers removed"
-
-# ============================================
-# STEP 3: Remove ALL Fabric Volumes (CRITICAL - BEFORE certificate regeneration)
+# STEP 2: Remove ALL Fabric Volumes (CRITICAL - Handle prefixes)
 # ============================================
 echo ""
-echo "3️⃣  Removing Fabric volumes (CRITICAL: removes old channel data)..."
+echo "2️⃣  Removing Fabric volumes (CRITICAL: removes old channel data)..."
 
-# Force remove volumes (they may be in use)
-docker volume rm peer-data orderer-data couchdb-data 2>/dev/null || true
+# Get project name for volume prefix detection
+PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' || echo "ltoblockchain")
 
-# Wait a moment for volumes to be released
-sleep 2
+# List all volumes and remove Fabric-related ones (handles prefixes)
+echo "   Finding Fabric volumes..."
+# Find volumes with any prefix pattern (ltoblockchain_orderer-data, ltoblockchain-orderer-data, or just orderer-data)
+FABRIC_VOLUMES=$(docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)" || true)
 
-# Try again with force
-docker volume rm peer-data orderer-data couchdb-data 2>/dev/null || {
-    echo "   ⚠️  Some volumes may still be in use, trying to force remove..."
-    # List volumes to see what exists
-    docker volume ls | grep -E "(peer-data|orderer-data|couchdb-data)" || echo "   No Fabric volumes found"
-}
+if [ -n "$FABRIC_VOLUMES" ]; then
+    echo "   Found volumes:"
+    echo "$FABRIC_VOLUMES" | sed 's/^/      - /'
+    echo "   Removing volumes..."
+    # Remove all containers that might be using these volumes first
+    docker ps -aq | xargs -r docker rm -f 2>/dev/null || true
+    sleep 2
+    echo "$FABRIC_VOLUMES" | xargs -r docker volume rm 2>/dev/null || {
+        echo "   ⚠️  Some volumes may be in use, trying again..."
+        sleep 2
+        echo "$FABRIC_VOLUMES" | xargs -r docker volume rm 2>/dev/null || true
+    }
+else
+    echo "   ⚠️  No Fabric volumes found (may already be removed)"
+fi
 
 # Clear local data directories if they exist
 echo "   Clearing local data directories..."
@@ -119,13 +139,40 @@ if [ -d "fabric-network/orderer-data" ]; then
     echo "   ✅ Cleared orderer-data"
 fi
 
+# Wait for volumes to be fully released
+sleep 3
+
+# Verify volumes are completely gone
+REMAINING_VOLUMES=$(docker volume ls -q | grep -E "(orderer-data|peer-data|couchdb-data)" || true)
+if [ -n "$REMAINING_VOLUMES" ]; then
+    echo "   ❌ CRITICAL: Some volumes still exist after removal:"
+    echo "$REMAINING_VOLUMES" | sed 's/^/      - /'
+    echo "   This WILL cause 'channel already exists' errors!"
+    echo "   Attempting final force removal..."
+    # Stop ALL containers
+    docker ps -aq | xargs -r docker stop 2>/dev/null || true
+    sleep 2
+    # Remove ALL containers
+    docker ps -aq | xargs -r docker rm -f 2>/dev/null || true
+    sleep 2
+    # Try removing volumes again
+    echo "$REMAINING_VOLUMES" | xargs -r docker volume rm 2>/dev/null || {
+        echo "   ❌ CRITICAL: Could not remove volumes. Manual intervention required."
+        echo "   Run: docker volume rm $(echo "$REMAINING_VOLUMES" | tr '\n' ' ')"
+        exit 1
+    }
+    echo "   ✅ Volumes force-removed"
+else
+    echo "   ✅ All Fabric volumes verified removed"
+fi
+
 echo "   ✅ Volumes removed (orderer ledger cleared - no old channels)"
 
 # ============================================
-# STEP 4: Backup and Regenerate Certificates
+# STEP 3: Backup and Regenerate Certificates
 # ============================================
 echo ""
-echo "4️⃣  Regenerating certificates..."
+echo "3️⃣  Regenerating certificates..."
 
 if [ -d "fabric-network/crypto-config" ]; then
     BACKUP_CRYPTO="fabric-network/crypto-config.backup.$(date +%Y%m%d_%H%M%S)"
@@ -160,10 +207,10 @@ fi
 echo "   ✅ Certificates verified"
 
 # ============================================
-# STEP 5: Fix MSP admincerts (CRITICAL - BEFORE containers start)
+# STEP 4: Fix MSP admincerts (CRITICAL - BEFORE containers start)
 # ============================================
 echo ""
-echo "5️⃣  Fixing MSP admincerts (CRITICAL for proper identity validation)..."
+echo "4️⃣  Fixing MSP admincerts (CRITICAL for proper identity validation)..."
 
 ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
 PEER_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp"
@@ -204,10 +251,10 @@ if [ -f "$ORDERER_TLS_CA" ]; then
 fi
 
 # ============================================
-# STEP 6: Regenerate Channel Artifacts
+# STEP 5: Regenerate Channel Artifacts
 # ============================================
 echo ""
-echo "6️⃣  Regenerating channel artifacts..."
+echo "5️⃣  Regenerating channel artifacts..."
 
 if [ -d "fabric-network/channel-artifacts" ]; then
     BACKUP_CHANNEL="fabric-network/channel-artifacts.backup.$(date +%Y%m%d_%H%M%S)"
@@ -240,10 +287,10 @@ fi
 echo "   ✅ Channel artifacts verified"
 
 # ============================================
-# STEP 7: Start Fabric Containers
+# STEP 6: Start Fabric Containers (FRESH - Completely New)
 # ============================================
 echo ""
-echo "7️⃣  Starting Fabric containers..."
+echo "6️⃣  Starting Fabric containers (COMPLETELY NEW - not reused)..."
 
 # Start orderer and couchdb first
 docker compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph couchdb 2>/dev/null || \
@@ -299,10 +346,10 @@ else
 fi
 
 # ============================================
-# STEP 8: Create Channel
+# STEP 7: Create Channel
 # ============================================
 echo ""
-echo "8️⃣  Creating channel..."
+echo "7️⃣  Creating channel..."
 
 # Determine channel transaction file name (check both possible names)
 CHANNEL_TX="fabric-network/channel-artifacts/ltochannel.tx"
@@ -388,11 +435,11 @@ else
 fi
 
 # ============================================
-# STEP 9: Update Anchor Peer (if exists)
+# STEP 8: Update Anchor Peer (if exists)
 # ============================================
 if [ -f "fabric-network/channel-artifacts/LTOMSPanchors.tx" ]; then
     echo ""
-    echo "9️⃣  Updating anchor peer..."
+    echo "8️⃣  Updating anchor peer..."
     docker cp fabric-network/channel-artifacts/LTOMSPanchors.tx peer0.lto.gov.ph:/opt/gopath/src/github.com/hyperledger/fabric/peer/anchors.tx
     
     ANCHOR_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel update \
@@ -411,10 +458,10 @@ if [ -f "fabric-network/channel-artifacts/LTOMSPanchors.tx" ]; then
 fi
 
 # ============================================
-# STEP 10: Deploy Chaincode
+# STEP 9: Deploy Chaincode
 # ============================================
 echo ""
-echo "🔟 Deploying chaincode..."
+echo "9️⃣  Deploying chaincode..."
 
 if [ ! -d "chaincode/vehicle-registration-production" ]; then
     echo "❌ Chaincode directory not found: chaincode/vehicle-registration-production"
@@ -519,10 +566,10 @@ else
 fi
 
 # ============================================
-# STEP 11: Regenerate Wallet
+# STEP 10: Regenerate Wallet
 # ============================================
 echo ""
-echo "1️⃣1️⃣ Regenerating wallet..."
+echo "🔟 Regenerating wallet..."
 
 rm -rf wallet
 mkdir -p wallet
@@ -562,10 +609,10 @@ else
 fi
 
 # ============================================
-# STEP 12: Verify Network Configuration
+# STEP 11: Verify Network Configuration
 # ============================================
 echo ""
-echo "1️⃣2️⃣ Verifying network configuration..."
+echo "1️⃣1️⃣ Verifying network configuration..."
 
 if [ ! -f "network-config.json" ]; then
     echo "❌ network-config.json not found!"
@@ -576,10 +623,10 @@ fi
 echo "   ✅ network-config.json exists"
 
 # ============================================
-# STEP 13: Restart Application
+# STEP 12: Restart Application
 # ============================================
 echo ""
-echo "1️⃣3️⃣ Restarting application..."
+echo "1️⃣2️⃣ Restarting application..."
 
 docker compose -f docker-compose.unified.yml restart lto-app 2>/dev/null || \
 docker-compose -f docker-compose.unified.yml up -d lto-app 2>/dev/null || {
@@ -590,10 +637,10 @@ echo "   ⏳ Waiting for application to start (20 seconds)..."
 sleep 20
 
 # ============================================
-# STEP 14: Final Verification
+# STEP 13: Final Verification
 # ============================================
 echo ""
-echo "1️⃣4️⃣ Final verification..."
+echo "1️⃣3️⃣ Final verification..."
 
 # Check containers
 echo "   Checking containers..."

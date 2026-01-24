@@ -560,20 +560,40 @@ fi
 
 # Copy chaincode to peer
 echo "   Copying chaincode to peer..."
-docker cp chaincode/vehicle-registration-production peer0.lto.gov.ph:/opt/gopath/src/github.com/chaincode/ || {
-    echo "❌ Failed to copy chaincode"
+# Ensure parent directory exists in peer container
+docker exec peer0.lto.gov.ph mkdir -p /opt/gopath/src/github.com/chaincode || {
+    echo "❌ Failed to create chaincode directory in peer container"
     exit 1
 }
 
-# Verify chaincode copy
+# Copy chaincode directory
+docker cp chaincode/vehicle-registration-production peer0.lto.gov.ph:/opt/gopath/src/github.com/chaincode/ || {
+    echo "❌ Failed to copy chaincode"
+    echo "   Debugging: Checking if source exists..."
+    ls -la chaincode/vehicle-registration-production/ 2>&1 | head -10
+    echo "   Debugging: Checking peer container..."
+    docker exec peer0.lto.gov.ph ls -la /opt/gopath/src/github.com/chaincode/ 2>&1 || true
+    exit 1
+}
+
+# Verify chaincode copy with detailed error messages
 if ! docker exec peer0.lto.gov.ph test -d /opt/gopath/src/github.com/chaincode/vehicle-registration-production; then
     echo "❌ Chaincode directory not found in peer container"
+    echo "   Debugging: Listing chaincode directory contents..."
+    docker exec peer0.lto.gov.ph ls -la /opt/gopath/src/github.com/chaincode/ 2>&1 || true
+    echo "   Debugging: Checking if directory exists..."
+    docker exec peer0.lto.gov.ph test -d /opt/gopath/src/github.com/chaincode && echo "   ✅ Parent directory exists" || echo "   ❌ Parent directory missing"
     exit 1
 fi
+
 if ! docker exec peer0.lto.gov.ph test -f /opt/gopath/src/github.com/chaincode/vehicle-registration-production/index.js; then
     echo "❌ Chaincode index.js not found"
+    echo "   Debugging: Listing chaincode files..."
+    docker exec peer0.lto.gov.ph ls -la /opt/gopath/src/github.com/chaincode/vehicle-registration-production/ 2>&1 || true
     exit 1
 fi
+
+echo "   ✅ Chaincode copied and verified"
 
 # Package chaincode
 echo "   Packaging chaincode..."
@@ -610,9 +630,9 @@ fi
 
 echo "   Package ID: $PACKAGE_ID"
 
-# Approve chaincode
+# Approve chaincode - MUST use Admin identity
 echo "   Approving chaincode..."
-docker exec peer0.lto.gov.ph peer lifecycle chaincode approveformyorg \
+APPROVE_OUTPUT=$(docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer lifecycle chaincode approveformyorg \
     -o orderer.lto.gov.ph:7050 \
     --channelID ltochannel \
     --name vehicle-registration \
@@ -621,14 +641,23 @@ docker exec peer0.lto.gov.ph peer lifecycle chaincode approveformyorg \
     --sequence 1 \
     --tls \
     --cafile "$TLS_CA_FILE" \
-    2>&1 | tail -5 || {
+    2>&1) || {
     echo "❌ Failed to approve chaincode"
+    echo "$APPROVE_OUTPUT" | tail -10
     exit 1
 }
 
-# Commit chaincode
+if echo "$APPROVE_OUTPUT" | grep -qi "error\|failed"; then
+    echo "❌ Chaincode approval failed:"
+    echo "$APPROVE_OUTPUT" | tail -10
+    exit 1
+fi
+
+echo "$APPROVE_OUTPUT" | tail -3
+
+# Commit chaincode - MUST use Admin identity
 echo "   Committing chaincode..."
-docker exec peer0.lto.gov.ph peer lifecycle chaincode commit \
+COMMIT_OUTPUT=$(docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer lifecycle chaincode commit \
     -o orderer.lto.gov.ph:7050 \
     --channelID ltochannel \
     --name vehicle-registration \
@@ -638,10 +667,19 @@ docker exec peer0.lto.gov.ph peer lifecycle chaincode commit \
     --cafile "$TLS_CA_FILE" \
     --peerAddresses peer0.lto.gov.ph:7051 \
     --tlsRootCertFiles /etc/hyperledger/fabric/tls/ca.crt \
-    2>&1 | tail -5 || {
+    2>&1) || {
     echo "❌ Failed to commit chaincode"
+    echo "$COMMIT_OUTPUT" | tail -10
     exit 1
 }
+
+if echo "$COMMIT_OUTPUT" | grep -qi "error\|failed"; then
+    echo "❌ Chaincode commit failed:"
+    echo "$COMMIT_OUTPUT" | tail -10
+    exit 1
+fi
+
+echo "$COMMIT_OUTPUT" | tail -3
 
 echo "   ⏳ Waiting for commit (10s)..."
 sleep 10

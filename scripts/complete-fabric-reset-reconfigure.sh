@@ -608,18 +608,28 @@ if echo "$PACKAGE_OUTPUT" | grep -qi "error\|failed"; then
     exit 1
 fi
 
-# Install chaincode
+# Install chaincode - MUST use Admin identity
 echo "   Installing chaincode..."
-docker exec peer0.lto.gov.ph peer lifecycle chaincode install vehicle-registration.tar.gz 2>&1 | tail -5 || {
+INSTALL_OUTPUT=$(docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer lifecycle chaincode install vehicle-registration.tar.gz 2>&1) || {
     echo "❌ Failed to install chaincode"
+    echo "$INSTALL_OUTPUT" | tail -10
     exit 1
 }
+
+if echo "$INSTALL_OUTPUT" | grep -qi "error\|failed"; then
+    echo "❌ Chaincode installation failed:"
+    echo "$INSTALL_OUTPUT" | tail -10
+    exit 1
+fi
+
+echo "$INSTALL_OUTPUT" | tail -3
 
 echo "   ⏳ Waiting for installation (15s)..."
 sleep 15
 
-# Get package ID
-PACKAGE_ID=$(docker exec peer0.lto.gov.ph peer lifecycle chaincode queryinstalled 2>&1 | \
+# Get package ID - Use Admin identity for query
+echo "   Getting package ID..."
+PACKAGE_ID=$(docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer lifecycle chaincode queryinstalled 2>&1 | \
     grep "vehicle-registration_1.0:" | \
     sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
 
@@ -684,8 +694,8 @@ echo "$COMMIT_OUTPUT" | tail -3
 echo "   ⏳ Waiting for commit (10s)..."
 sleep 10
 
-# Verify chaincode
-CHAINCODE_LIST=$(docker exec peer0.lto.gov.ph peer lifecycle chaincode querycommitted --channelID ltochannel 2>&1)
+# Verify chaincode - Use Admin identity for consistency
+CHAINCODE_LIST=$(docker exec -e CORE_PEER_MSPCONFIGPATH="$ADMIN_MSP_PATH" -e CORE_PEER_LOCALMSPID=LTOMSP peer0.lto.gov.ph peer lifecycle chaincode querycommitted --channelID ltochannel 2>&1)
 if echo "$CHAINCODE_LIST" | grep -q "vehicle-registration"; then
     echo "   ✅ Chaincode deployed successfully"
 else

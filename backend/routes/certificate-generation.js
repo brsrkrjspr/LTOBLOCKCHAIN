@@ -186,30 +186,62 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
             if (issuerQuery.rows.length > 0) {
                 const issuerId = issuerQuery.rows[0].id;
 
-                await dbRaw.query(
-                    `INSERT INTO issued_certificates 
-                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, issued_at, expires_at, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                    [
-                        issuerId,
-                        'insurance',
-                        certificateNumber,
-                        vehicleVIN,
-                        owner.name,
-                        fileHash,
-                        compositeHash,
-                        effectiveDate,
-                        expiryDate,
-                        JSON.stringify({
-                            coverageType,
-                            coverageAmount,
-                            additionalCoverage
-                        })
-                    ]
-                );
+                try {
+                    await dbRaw.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            issuerId,
+                            'insurance',
+                            certificateNumber,
+                            vehicleVIN,
+                            owner.name,
+                            fileHash,
+                            compositeHash,
+                            effectiveDate,
+                            expiryDate,
+                            JSON.stringify({
+                                coverageType,
+                                coverageAmount,
+                                additionalCoverage
+                            })
+                        ]
+                    );
 
-                console.log(`[Insurance Certificate] Stored in database`);
+                    console.log(`[Insurance Certificate] Stored in database`);
+                } catch (insertError) {
+                    // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                    if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                        console.warn(`[Insurance Certificate] Foreign key constraint violation, saving with NULL issuer_id`);
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                null, // issuer_id = NULL as fallback
+                                'insurance',
+                                certificateNumber,
+                                vehicleVIN,
+                                owner.name,
+                                fileHash,
+                                compositeHash,
+                                effectiveDate,
+                                expiryDate,
+                                JSON.stringify({
+                                    coverageType,
+                                    coverageAmount,
+                                    additionalCoverage
+                                })
+                            ]
+                        );
+                        console.log(`[Insurance Certificate] Saved with NULL issuer_id (fallback)`);
+                    } else {
+                        throw insertError; // Re-throw if it's a different error
+                    }
+                }
             } else {
                 console.warn(`[Insurance Certificate] No active issuer found, skipping database storage`);
             }
@@ -336,24 +368,55 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
             );
 
             if (issuerQuery.rows.length > 0) {
-                await dbRaw.query(
-                    `INSERT INTO issued_certificates 
-                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, issued_at, expires_at, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                    [
-                        issuerQuery.rows[0].id,
-                        'hpg_clearance',
-                        finalClearanceNumber,
-                        finalVIN,
-                        owner.name,
-                        fileHash,
-                        compositeHash,
-                        finalIssueDate,
-                        null,
-                        JSON.stringify({ verificationDetails, vehiclePlate })
-                    ]
-                );
+                try {
+                    await dbRaw.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            issuerQuery.rows[0].id,
+                            'hpg_clearance',
+                            finalClearanceNumber,
+                            finalVIN,
+                            owner.name,
+                            fileHash,
+                            compositeHash,
+                            finalIssueDate,
+                            null,
+                            JSON.stringify({ verificationDetails, vehiclePlate })
+                        ]
+                    );
+                    console.log(`[HPG Clearance] Stored in database`);
+                } catch (insertError) {
+                    // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                    if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                        console.warn(`[HPG Clearance] Foreign key constraint violation, saving with NULL issuer_id`);
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                null, // issuer_id = NULL as fallback
+                                'hpg_clearance',
+                                finalClearanceNumber,
+                                finalVIN,
+                                owner.name,
+                                fileHash,
+                                compositeHash,
+                                finalIssueDate,
+                                null,
+                                JSON.stringify({ verificationDetails, vehiclePlate })
+                            ]
+                        );
+                        console.log(`[HPG Clearance] Saved with NULL issuer_id (fallback)`);
+                    } else {
+                        throw insertError; // Re-throw if it's a different error
+                    }
+                }
+            } else {
+                console.warn(`[HPG Clearance] No active issuer found, skipping database storage`);
             }
         } catch (dbError) {
             console.error(`[HPG Clearance] Database error:`, dbError);
@@ -547,33 +610,73 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             );
 
             if (issuerQuery.rows.length > 0) {
-                await dbRaw.query(
-                    `INSERT INTO issued_certificates 
-                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, issued_at, expires_at, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                    [
-                        issuerQuery.rows[0].id,
-                        'csr',
-                        certificateNumber,
-                        finalVIN,
-                        owner.name,
-                        fileHash,
-                        compositeHash,
-                        finalIssuanceDate.split('T')[0],
-                        null,
-                        JSON.stringify({ 
-                            vehicleMake: finalVehicleMake, 
-                            vehicleModel: finalVehicleModel || vehicleModel, 
-                            vehicleVariant, 
-                            vehicleYear: finalVehicleYear, 
-                            bodyType, 
-                            color, 
-                            fuelType, 
-                            engineNumber: finalEngineNumber 
-                        })
-                    ]
-                );
+                try {
+                    await dbRaw.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            issuerQuery.rows[0].id,
+                            'csr',
+                            certificateNumber,
+                            finalVIN,
+                            owner.name,
+                            fileHash,
+                            compositeHash,
+                            finalIssuanceDate.split('T')[0],
+                            null,
+                            JSON.stringify({ 
+                                vehicleMake: finalVehicleMake, 
+                                vehicleModel: finalVehicleModel || vehicleModel, 
+                                vehicleVariant, 
+                                vehicleYear: finalVehicleYear, 
+                                bodyType, 
+                                color, 
+                                fuelType, 
+                                engineNumber: finalEngineNumber 
+                            })
+                        ]
+                    );
+                    console.log(`[CSR Certificate] Stored in database`);
+                } catch (insertError) {
+                    // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                    if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                        console.warn(`[CSR Certificate] Foreign key constraint violation, saving with NULL issuer_id`);
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                null, // issuer_id = NULL as fallback
+                                'csr',
+                                certificateNumber,
+                                finalVIN,
+                                owner.name,
+                                fileHash,
+                                compositeHash,
+                                finalIssuanceDate.split('T')[0],
+                                null,
+                                JSON.stringify({ 
+                                    vehicleMake: finalVehicleMake, 
+                                    vehicleModel: finalVehicleModel || vehicleModel, 
+                                    vehicleVariant, 
+                                    vehicleYear: finalVehicleYear, 
+                                    bodyType, 
+                                    color, 
+                                    fuelType, 
+                                    engineNumber: finalEngineNumber 
+                                })
+                            ]
+                        );
+                        console.log(`[CSR Certificate] Saved with NULL issuer_id (fallback)`);
+                    } else {
+                        throw insertError; // Re-throw if it's a different error
+                    }
+                }
+            } else {
+                console.warn(`[CSR Certificate] No active issuer found, skipping database storage`);
             }
         } catch (dbError) {
             console.error(`[CSR Certificate] Database error:`, dbError);
@@ -731,33 +834,68 @@ router.post('/sales-invoice/generate-and-send', authenticateToken, authorizeRole
             );
 
             if (issuerQuery.rows.length > 0) {
-                await dbRaw.query(
-                    `INSERT INTO issued_certificates 
-                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                     file_hash, composite_hash, issued_at, expires_at, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                    [
-                        issuerQuery.rows[0].id,
-                        'sales_invoice',
-                        certificateNumber,
-                        finalVIN,
-                        owner.name,
-                        fileHash,
-                        compositeHash,
-                        finalDateOfSale.split('T')[0],
-                        null,
-                        JSON.stringify({
-                            purchasePrice,
-                            dealerName,
-                            dealerTin,
-                            dealerAccreditationNo,
-                            sellerName,
-                            sellerPosition
-                        })
-                    ]
-                );
+                try {
+                    await dbRaw.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            issuerQuery.rows[0].id,
+                            'sales_invoice',
+                            certificateNumber,
+                            finalVIN,
+                            owner.name,
+                            fileHash,
+                            compositeHash,
+                            finalDateOfSale.split('T')[0],
+                            null,
+                            JSON.stringify({
+                                purchasePrice,
+                                dealerName,
+                                dealerTin,
+                                dealerAccreditationNo,
+                                sellerName,
+                                sellerPosition
+                            })
+                        ]
+                    );
 
-                console.log(`[Sales Invoice] Stored in database`);
+                    console.log(`[Sales Invoice] Stored in database`);
+                } catch (insertError) {
+                    // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                    if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                        console.warn(`[Sales Invoice] Foreign key constraint violation, saving with NULL issuer_id`);
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                null, // issuer_id = NULL as fallback
+                                'sales_invoice',
+                                certificateNumber,
+                                finalVIN,
+                                owner.name,
+                                fileHash,
+                                compositeHash,
+                                finalDateOfSale.split('T')[0],
+                                null,
+                                JSON.stringify({
+                                    purchasePrice,
+                                    dealerName,
+                                    dealerTin,
+                                    dealerAccreditationNo,
+                                    sellerName,
+                                    sellerPosition
+                                })
+                            ]
+                        );
+                        console.log(`[Sales Invoice] Saved with NULL issuer_id (fallback)`);
+                    } else {
+                        throw insertError; // Re-throw if it's a different error
+                    }
+                }
             } else {
                 console.warn(`[Sales Invoice] No active issuer found, skipping database storage`);
             }
@@ -1041,27 +1179,59 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     `SELECT id FROM external_issuers WHERE issuer_type = 'insurance' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await dbRaw.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, issued_at, expires_at, metadata)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        [
-                            issuerQuery.rows[0].id,
-                            'insurance',
-                            certificateNumbers.insurance,
-                            sharedVehicleData.vin,
-                            sharedVehicleData.ownerName,
-                            insuranceResult.fileHash,
-                            insuranceCompositeHash,
-                            insuranceData.effectiveDate.split('T')[0],
-                            insuranceExpiryDate.split('T')[0],
-                            JSON.stringify({ coverageType: insuranceData.coverageType, coverageAmount: insuranceData.coverageAmount, additionalCoverage: insuranceData.additionalCoverage })
-                        ]
-                    );
+                    try {
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                issuerQuery.rows[0].id,
+                                'insurance',
+                                certificateNumbers.insurance,
+                                sharedVehicleData.vin,
+                                sharedVehicleData.ownerName,
+                                insuranceResult.fileHash,
+                                insuranceCompositeHash,
+                                insuranceData.effectiveDate.split('T')[0],
+                                insuranceExpiryDate.split('T')[0],
+                                JSON.stringify({ coverageType: insuranceData.coverageType, coverageAmount: insuranceData.coverageAmount, additionalCoverage: insuranceData.additionalCoverage })
+                            ]
+                        );
+                        console.log(`[Batch] Insurance Certificate saved to issued_certificates`);
+                    } catch (insertError) {
+                        // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                        if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                            console.warn(`[Batch] Insurance Certificate: Foreign key constraint violation, saving with NULL issuer_id`);
+                            await dbRaw.query(
+                                `INSERT INTO issued_certificates 
+                                (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                                 file_hash, composite_hash, issued_at, expires_at, metadata)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                                [
+                                    null, // issuer_id = NULL as fallback
+                                    'insurance',
+                                    certificateNumbers.insurance,
+                                    sharedVehicleData.vin,
+                                    sharedVehicleData.ownerName,
+                                    insuranceResult.fileHash,
+                                    insuranceCompositeHash,
+                                    insuranceData.effectiveDate.split('T')[0],
+                                    insuranceExpiryDate.split('T')[0],
+                                    JSON.stringify({ coverageType: insuranceData.coverageType, coverageAmount: insuranceData.coverageAmount, additionalCoverage: insuranceData.additionalCoverage })
+                                ]
+                            );
+                            console.log(`[Batch] Insurance Certificate saved with NULL issuer_id (fallback)`);
+                        } else {
+                            throw insertError; // Re-throw if it's a different error
+                        }
+                    }
+                } else {
+                    console.warn(`[Batch] Insurance Certificate: No active issuer found, skipping database storage`);
                 }
             } catch (dbError) {
                 console.error(`[Batch] Insurance database error:`, dbError);
+                console.error(`[Batch] Certificate will still be sent via email, but not saved to issued_certificates table`);
             }
 
             // Send email
@@ -1121,27 +1291,59 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     `SELECT id FROM external_issuers WHERE issuer_type = 'hpg' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await dbRaw.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, issued_at, expires_at, metadata)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        [
-                            issuerQuery.rows[0].id,
-                            'hpg_clearance',
-                            certificateNumbers.hpg,
-                            sharedVehicleData.vin,
-                            sharedVehicleData.ownerName,
-                            hpgResult.fileHash,
-                            hpgCompositeHash,
-                            hpgIssueDate.split('T')[0],
-                            null,
-                            JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
-                        ]
-                    );
+                    try {
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                issuerQuery.rows[0].id,
+                                'hpg_clearance',
+                                certificateNumbers.hpg,
+                                sharedVehicleData.vin,
+                                sharedVehicleData.ownerName,
+                                hpgResult.fileHash,
+                                hpgCompositeHash,
+                                hpgIssueDate.split('T')[0],
+                                null,
+                                JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
+                            ]
+                        );
+                        console.log(`[Batch] HPG Clearance saved to issued_certificates`);
+                    } catch (insertError) {
+                        // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                        if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                            console.warn(`[Batch] HPG Clearance: Foreign key constraint violation, saving with NULL issuer_id`);
+                            await dbRaw.query(
+                                `INSERT INTO issued_certificates 
+                                (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                                 file_hash, composite_hash, issued_at, expires_at, metadata)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                                [
+                                    null, // issuer_id = NULL as fallback
+                                    'hpg_clearance',
+                                    certificateNumbers.hpg,
+                                    sharedVehicleData.vin,
+                                    sharedVehicleData.ownerName,
+                                    hpgResult.fileHash,
+                                    hpgCompositeHash,
+                                    hpgIssueDate.split('T')[0],
+                                    null,
+                                    JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
+                                ]
+                            );
+                            console.log(`[Batch] HPG Clearance saved with NULL issuer_id (fallback)`);
+                        } else {
+                            throw insertError; // Re-throw if it's a different error
+                        }
+                    }
+                } else {
+                    console.warn(`[Batch] HPG Clearance: No active issuer found, skipping database storage`);
                 }
             } catch (dbError) {
                 console.error(`[Batch] HPG database error:`, dbError);
+                console.error(`[Batch] Certificate will still be sent via email, but not saved to issued_certificates table`);
             }
 
             // Send email
@@ -1198,36 +1400,77 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     `SELECT id FROM external_issuers WHERE issuer_type = 'csr' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await dbRaw.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, issued_at, expires_at, metadata)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        [
-                            issuerQuery.rows[0].id,
-                            'csr',
-                            certificateNumbers.csr,
-                            sharedVehicleData.vin,
-                            csrData.dealerName,
-                            csrResult.fileHash,
-                            csrCompositeHash,
-                            csrIssuanceDate.split('T')[0],
-                            null,
-                            JSON.stringify({
-                                vehicleMake: sharedVehicleData.make,
-                                vehicleModel: sharedVehicleData.model,
-                                vehicleVariant: csrData.vehicleVariant,
-                                vehicleYear: sharedVehicleData.year,
-                                bodyType: csrData.bodyType,
-                                color: csrData.color,
-                                fuelType: csrData.fuelType,
-                                engineNumber: sharedVehicleData.engineNumber
-                            })
-                        ]
-                    );
+                    try {
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                issuerQuery.rows[0].id,
+                                'csr',
+                                certificateNumbers.csr,
+                                sharedVehicleData.vin,
+                                csrData.dealerName,
+                                csrResult.fileHash,
+                                csrCompositeHash,
+                                csrIssuanceDate.split('T')[0],
+                                null,
+                                JSON.stringify({
+                                    vehicleMake: sharedVehicleData.make,
+                                    vehicleModel: sharedVehicleData.model,
+                                    vehicleVariant: csrData.vehicleVariant,
+                                    vehicleYear: sharedVehicleData.year,
+                                    bodyType: csrData.bodyType,
+                                    color: csrData.color,
+                                    fuelType: csrData.fuelType,
+                                    engineNumber: sharedVehicleData.engineNumber
+                                })
+                            ]
+                        );
+                        console.log(`[Batch] CSR Certificate saved to issued_certificates`);
+                    } catch (insertError) {
+                        // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                        if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                            console.warn(`[Batch] CSR Certificate: Foreign key constraint violation, saving with NULL issuer_id`);
+                            await dbRaw.query(
+                                `INSERT INTO issued_certificates 
+                                (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                                 file_hash, composite_hash, issued_at, expires_at, metadata)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                                [
+                                    null, // issuer_id = NULL as fallback
+                                    'csr',
+                                    certificateNumbers.csr,
+                                    sharedVehicleData.vin,
+                                    csrData.dealerName,
+                                    csrResult.fileHash,
+                                    csrCompositeHash,
+                                    csrIssuanceDate.split('T')[0],
+                                    null,
+                                    JSON.stringify({
+                                        vehicleMake: sharedVehicleData.make,
+                                        vehicleModel: sharedVehicleData.model,
+                                        vehicleVariant: csrData.vehicleVariant,
+                                        vehicleYear: sharedVehicleData.year,
+                                        bodyType: csrData.bodyType,
+                                        color: csrData.color,
+                                        fuelType: csrData.fuelType,
+                                        engineNumber: sharedVehicleData.engineNumber
+                                    })
+                                ]
+                            );
+                            console.log(`[Batch] CSR Certificate saved with NULL issuer_id (fallback)`);
+                        } else {
+                            throw insertError; // Re-throw if it's a different error
+                        }
+                    }
+                } else {
+                    console.warn(`[Batch] CSR Certificate: No active issuer found, skipping database storage`);
                 }
             } catch (dbError) {
                 console.error(`[Batch] CSR database error:`, dbError);
+                console.error(`[Batch] Certificate will still be sent via email, but not saved to issued_certificates table`);
             }
 
             // Send email
@@ -1292,34 +1535,73 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                     `SELECT id FROM external_issuers WHERE issuer_type = 'sales_invoice' AND is_active = true LIMIT 1`
                 );
                 if (issuerQuery.rows.length > 0) {
-                    await dbRaw.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, issued_at, expires_at, metadata)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        [
-                            issuerQuery.rows[0].id,
-                            'sales_invoice',
-                            certificateNumbers.salesInvoice,
-                            sharedVehicleData.vin,
-                            sharedVehicleData.ownerName,
-                            salesInvoiceResult.fileHash,
-                            salesInvoiceCompositeHash,
-                            salesInvoiceData.dateOfSale.split('T')[0],
-                            null,
-                            JSON.stringify({
-                                purchasePrice: salesInvoiceData.purchasePrice,
-                                dealerName: salesInvoiceData.dealerName,
-                                dealerTin: salesInvoiceData.dealerTin,
-                                dealerAccreditationNo: salesInvoiceData.dealerAccreditationNo,
-                                sellerName: salesInvoiceData.sellerName,
-                                sellerPosition: salesInvoiceData.sellerPosition
-                            })
-                        ]
-                    );
+                    try {
+                        await dbRaw.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                issuerQuery.rows[0].id,
+                                'sales_invoice',
+                                certificateNumbers.salesInvoice,
+                                sharedVehicleData.vin,
+                                sharedVehicleData.ownerName,
+                                salesInvoiceResult.fileHash,
+                                salesInvoiceCompositeHash,
+                                salesInvoiceData.dateOfSale.split('T')[0],
+                                null,
+                                JSON.stringify({
+                                    purchasePrice: salesInvoiceData.purchasePrice,
+                                    dealerName: salesInvoiceData.dealerName,
+                                    dealerTin: salesInvoiceData.dealerTin,
+                                    dealerAccreditationNo: salesInvoiceData.dealerAccreditationNo,
+                                    sellerName: salesInvoiceData.sellerName,
+                                    sellerPosition: salesInvoiceData.sellerPosition
+                                })
+                            ]
+                        );
+                        console.log(`[Batch] Sales Invoice saved to issued_certificates`);
+                    } catch (insertError) {
+                        // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                        if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                            console.warn(`[Batch] Sales Invoice: Foreign key constraint violation, saving with NULL issuer_id`);
+                            await dbRaw.query(
+                                `INSERT INTO issued_certificates 
+                                (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                                 file_hash, composite_hash, issued_at, expires_at, metadata)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                                [
+                                    null, // issuer_id = NULL as fallback
+                                    'sales_invoice',
+                                    certificateNumbers.salesInvoice,
+                                    sharedVehicleData.vin,
+                                    sharedVehicleData.ownerName,
+                                    salesInvoiceResult.fileHash,
+                                    salesInvoiceCompositeHash,
+                                    salesInvoiceData.dateOfSale.split('T')[0],
+                                    null,
+                                    JSON.stringify({
+                                        purchasePrice: salesInvoiceData.purchasePrice,
+                                        dealerName: salesInvoiceData.dealerName,
+                                        dealerTin: salesInvoiceData.dealerTin,
+                                        dealerAccreditationNo: salesInvoiceData.dealerAccreditationNo,
+                                        sellerName: salesInvoiceData.sellerName,
+                                        sellerPosition: salesInvoiceData.sellerPosition
+                                    })
+                                ]
+                            );
+                            console.log(`[Batch] Sales Invoice saved with NULL issuer_id (fallback)`);
+                        } else {
+                            throw insertError; // Re-throw if it's a different error
+                        }
+                    }
+                } else {
+                    console.warn(`[Batch] Sales Invoice: No active issuer found, skipping database storage`);
                 }
             } catch (dbError) {
                 console.error(`[Batch] Sales Invoice database error:`, dbError);
+                console.error(`[Batch] Certificate will still be sent via email, but not saved to issued_certificates table`);
             }
 
             // Send email
@@ -1890,26 +2172,55 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                         transferRequestId: transferRequestId
                     };
                     
-                    await dbModule.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, issued_at, expires_at, metadata)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        [
-                            issuerId,
-                            dbCertificateType, // Use mapped type that's allowed in DB
-                            certificateNumber,
-                            vehicleVIN,
-                            ownerName,
-                            fileHash,
-                            compositeHash,
-                            issuedAt,
-                            expiresAt,
-                            JSON.stringify(enrichedMetadata)
-                        ]
-                    );
-                    console.log(`[Transfer Certificates] ✅ Written to issued_certificates: ${dbCertificateType} (original: ${certificateType}) - ${certificateNumber}`);
-                    return true;
+                    try {
+                        await dbModule.query(
+                            `INSERT INTO issued_certificates 
+                            (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                             file_hash, composite_hash, issued_at, expires_at, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [
+                                issuerId,
+                                dbCertificateType, // Use mapped type that's allowed in DB
+                                certificateNumber,
+                                vehicleVIN,
+                                ownerName,
+                                fileHash,
+                                compositeHash,
+                                issuedAt,
+                                expiresAt,
+                                JSON.stringify(enrichedMetadata)
+                            ]
+                        );
+                        console.log(`[Transfer Certificates] ✅ Written to issued_certificates: ${dbCertificateType} (original: ${certificateType}) - ${certificateNumber}`);
+                        return true;
+                    } catch (insertError) {
+                        // If foreign key constraint fails, try saving with NULL issuer_id as fallback
+                        if (insertError.code === '23503' && insertError.constraint === 'issued_certificates_issuer_id_fkey') {
+                            console.warn(`[Transfer Certificates] Foreign key constraint violation, saving with NULL issuer_id`);
+                            await dbModule.query(
+                                `INSERT INTO issued_certificates 
+                                (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                                 file_hash, composite_hash, issued_at, expires_at, metadata)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                                [
+                                    null, // issuer_id = NULL as fallback
+                                    dbCertificateType,
+                                    certificateNumber,
+                                    vehicleVIN,
+                                    ownerName,
+                                    fileHash,
+                                    compositeHash,
+                                    issuedAt,
+                                    expiresAt,
+                                    JSON.stringify(enrichedMetadata)
+                                ]
+                            );
+                            console.log(`[Transfer Certificates] ✅ Written to issued_certificates with NULL issuer_id (fallback): ${dbCertificateType} - ${certificateNumber}`);
+                            return true;
+                        } else {
+                            throw insertError; // Re-throw if it's a different error
+                        }
+                    }
                 } else {
                     console.warn(`[Transfer Certificates] ⚠️ No active issuer found for type: ${issuerType}, skipping issued_certificates write`);
                     return false;

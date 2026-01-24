@@ -65,13 +65,31 @@ echo "1️⃣  Stopping and removing ALL Fabric containers..."
 
 # First, explicitly stop existing containers (handles containers started manually)
 echo "   Stopping existing containers explicitly..."
-docker stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
-sleep 2
+# Stop containers with explicit timeout (15s per container) - prevents hanging
+# If timeout fails, force kill the container
+timeout 15s docker stop peer0.lto.gov.ph 2>/dev/null || docker kill peer0.lto.gov.ph 2>/dev/null || true
+timeout 15s docker stop orderer.lto.gov.ph 2>/dev/null || docker kill orderer.lto.gov.ph 2>/dev/null || true
+timeout 15s docker stop couchdb 2>/dev/null || docker kill couchdb 2>/dev/null || true
+timeout 15s docker stop cli 2>/dev/null || docker kill cli 2>/dev/null || true
+
+# Wait for containers to fully stop before removal
+sleep 3
 
 # Remove ALL old chaincode containers (they're not in docker-compose)
+# Use timeout to prevent hanging (10s per container)
 echo "   Removing old chaincode containers..."
-docker ps -a --filter "name=dev-peer" --format "{{.ID}}" | xargs -r docker rm -f 2>/dev/null || true
-docker ps -a --filter "name=vehicle-registration" --format "{{.ID}}" | xargs -r docker rm -f 2>/dev/null || true
+CHAINCODE_IDS=$(docker ps -a --filter "name=dev-peer" --format "{{.ID}}" 2>/dev/null || true)
+if [ -n "$CHAINCODE_IDS" ]; then
+    echo "$CHAINCODE_IDS" | while read -r cid; do
+        timeout 10s docker rm -f "$cid" 2>/dev/null || true
+    done
+fi
+CHAINCODE_IDS2=$(docker ps -a --filter "name=vehicle-registration" --format "{{.ID}}" 2>/dev/null || true)
+if [ -n "$CHAINCODE_IDS2" ]; then
+    echo "$CHAINCODE_IDS2" | while read -r cid; do
+        timeout 10s docker rm -f "$cid" 2>/dev/null || true
+    done
+fi
 echo "   ✅ Old chaincode containers removed"
 
 # Use docker compose down to properly stop and remove containers AND volumes
@@ -80,12 +98,24 @@ docker compose -f docker-compose.unified.yml down -v --remove-orphans 2>/dev/nul
 docker-compose -f docker-compose.unified.yml down -v --remove-orphans 2>/dev/null || {
     echo "   ⚠️  docker compose down failed, trying manual cleanup..."
     # Manual cleanup - stop all Fabric containers (preserve postgres and lto-app)
-    docker stop peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
-    sleep 2
-    # Remove all Fabric containers
-    docker rm -f peer0.lto.gov.ph orderer.lto.gov.ph couchdb cli 2>/dev/null || true
-    # Remove any remaining chaincode containers
-    docker ps -a --filter "name=dev-peer" --format "{{.ID}}" | xargs -r docker rm -f 2>/dev/null || true
+    # Use timeout to prevent hanging (15s per container)
+    timeout 15s docker stop peer0.lto.gov.ph 2>/dev/null || docker kill peer0.lto.gov.ph 2>/dev/null || true
+    timeout 15s docker stop orderer.lto.gov.ph 2>/dev/null || docker kill orderer.lto.gov.ph 2>/dev/null || true
+    timeout 15s docker stop couchdb 2>/dev/null || docker kill couchdb 2>/dev/null || true
+    timeout 15s docker stop cli 2>/dev/null || docker kill cli 2>/dev/null || true
+    sleep 3
+    # Remove all Fabric containers with timeout (10s per container)
+    timeout 10s docker rm -f peer0.lto.gov.ph 2>/dev/null || true
+    timeout 10s docker rm -f orderer.lto.gov.ph 2>/dev/null || true
+    timeout 10s docker rm -f couchdb 2>/dev/null || true
+    timeout 10s docker rm -f cli 2>/dev/null || true
+    # Remove any remaining chaincode containers with timeout
+    CHAINCODE_IDS=$(docker ps -a --filter "name=dev-peer" --format "{{.ID}}" 2>/dev/null || true)
+    if [ -n "$CHAINCODE_IDS" ]; then
+        echo "$CHAINCODE_IDS" | while read -r cid; do
+            timeout 10s docker rm -f "$cid" 2>/dev/null || true
+        done
+    fi
 }
 
 sleep 3
@@ -95,8 +125,10 @@ REMAINING_CONTAINERS=$(docker ps -a --format "{{.Names}}" | grep -E "(peer|order
 if [ -n "$REMAINING_CONTAINERS" ]; then
     echo "   ⚠️  Warning: Some Fabric containers still exist:"
     echo "$REMAINING_CONTAINERS" | sed 's/^/      - /'
-    echo "   Force removing..."
-    echo "$REMAINING_CONTAINERS" | xargs -r docker rm -f 2>/dev/null || true
+    echo "   Force removing with timeout (10s per container)..."
+    echo "$REMAINING_CONTAINERS" | while read -r container; do
+        timeout 10s docker rm -f "$container" 2>/dev/null || true
+    done
 fi
 
 echo "   ✅ All Fabric containers stopped and removed"
@@ -121,8 +153,11 @@ if [ -n "$FABRIC_VOLUMES" ]; then
     echo "$FABRIC_VOLUMES" | sed 's/^/      - /'
     echo "   Removing volumes..."
     # Remove all containers that might be using these volumes first (only Fabric containers)
-    docker ps -a --format "{{.Names}}" | grep -E "(peer|orderer|couchdb|cli|dev-peer)" | xargs -r docker rm -f 2>/dev/null || true
-    sleep 2
+    # Use timeout to prevent hanging (10s per container)
+    docker ps -a --format "{{.Names}}" | grep -E "(peer|orderer|couchdb|cli|dev-peer)" | while read -r container; do
+        timeout 10s docker rm -f "$container" 2>/dev/null || true
+    done
+    sleep 3
     echo "$FABRIC_VOLUMES" | xargs -r docker volume rm 2>/dev/null || {
         echo "   ⚠️  Some volumes may be in use, trying again..."
         sleep 2
@@ -157,12 +192,16 @@ if [ -n "$REMAINING_VOLUMES" ]; then
     echo "$REMAINING_VOLUMES" | sed 's/^/      - /'
     echo "   This WILL cause 'channel already exists' errors!"
     echo "   Attempting final force removal..."
-    # Stop ALL containers
-    docker ps -aq | xargs -r docker stop 2>/dev/null || true
-    sleep 2
-    # Remove ALL containers
-    docker ps -aq | xargs -r docker rm -f 2>/dev/null || true
-    sleep 2
+    # Stop ALL containers with timeout (15s per container)
+    docker ps -aq | while read -r cid; do
+        timeout 15s docker stop "$cid" 2>/dev/null || docker kill "$cid" 2>/dev/null || true
+    done
+    sleep 3
+    # Remove ALL containers with timeout (10s per container)
+    docker ps -aq | while read -r cid; do
+        timeout 10s docker rm -f "$cid" 2>/dev/null || true
+    done
+    sleep 3
     # Try removing volumes again
     echo "$REMAINING_VOLUMES" | xargs -r docker volume rm 2>/dev/null || {
         echo "   ❌ CRITICAL: Could not remove volumes. Manual intervention required."

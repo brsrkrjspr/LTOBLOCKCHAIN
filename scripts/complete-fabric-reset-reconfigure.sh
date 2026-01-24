@@ -477,13 +477,34 @@ fi
 
 echo "   ✅ Channel created"
 
-# Join channel
+# Verify channel block exists before joining
+if ! docker exec peer0.lto.gov.ph test -f /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block; then
+    echo "❌ Channel block not found in peer container!"
+    echo "   Channel creation may have failed silently"
+    echo "   Orderer logs:"
+    docker logs orderer.lto.gov.ph --tail 30
+    exit 1
+fi
+echo "   ✅ Channel block verified"
+
+# Join channel with timeout
 echo "   Joining peer to channel..."
-CHANNEL_JOIN_OUTPUT=$(docker exec peer0.lto.gov.ph peer channel join \
+CHANNEL_JOIN_OUTPUT=$(timeout 60s docker exec peer0.lto.gov.ph peer channel join \
     -b /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block \
     --tls \
     --cafile "$TLS_CA_FILE" \
-    2>&1)
+    2>&1) || {
+    echo "❌ Channel join failed or timed out after 60s"
+    echo "   Checking channel block..."
+    docker exec peer0.lto.gov.ph test -f /opt/gopath/src/github.com/hyperledger/fabric/peer/ltochannel.block && \
+        echo "   ✅ Channel block exists" || \
+        echo "   ❌ Channel block missing!"
+    echo "   Peer logs:"
+    docker logs peer0.lto.gov.ph --tail 20
+    echo "   Orderer logs:"
+    docker logs orderer.lto.gov.ph --tail 20
+    exit 1
+}
 
 if echo "$CHANNEL_JOIN_OUTPUT" | grep -qi "error\|failed"; then
     echo "❌ Channel join failed:"

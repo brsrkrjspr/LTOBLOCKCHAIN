@@ -7,6 +7,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const db = require('../database/services');
 const fabricService = require('../services/optimizedFabricService');
+const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
 
 // ============================================
 // AUTHENTICATION MIDDLEWARE
@@ -97,18 +98,14 @@ function generateCompositeHash(certificateNumber, vehicleVIN, expiryDate, fileHa
 
 /**
  * Generate certificate number based on type
+ * Uses centralized certificate number generator utility
  */
 function generateCertificateNumber(issuerType) {
-    const year = new Date().getFullYear();
-    const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    const day = String(new Date().getDate()).padStart(2, '0');
-    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-
     switch (issuerType) {
         case 'insurance':
-            return `CTPL-${year}-${random}`;
+            return certificateNumberGenerator.generateInsuranceNumber();
         case 'hpg':
-            return `HPG-${year}-${random}`;
+            return certificateNumberGenerator.generateHpgNumber();
         default:
             throw new Error(`Unknown issuer type: ${issuerType}`);
     }

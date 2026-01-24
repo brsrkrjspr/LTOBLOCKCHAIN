@@ -14,6 +14,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const fs = require('fs');
 const path = require('path');
+const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
 
 /**
  * Helper function to lookup and validate owner from database
@@ -121,20 +122,7 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
         }
 
         // Auto-generate certificate number if not provided
-        const generateCertificateNumber = (type) => {
-            const year = new Date().getFullYear();
-            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-            switch (type) {
-                case 'insurance':
-                    return `CTPL-${year}-${random}`;
-                case 'hpg':
-                    return `HPG-${year}-${random}`;
-                default:
-                    return `CERT-${year}-${random}`;
-            }
-        };
-
-        const finalPolicyNumber = policyNumber || generateCertificateNumber('insurance');
+        const finalPolicyNumber = policyNumber || certificateNumberGenerator.generateInsuranceNumber();
         const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
         
         // Validate VIN format if provided (must be 17 characters)
@@ -318,20 +306,7 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
         }
 
         // Auto-generate certificate number if not provided
-        const generateCertificateNumber = (type) => {
-            const year = new Date().getFullYear();
-            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-            switch (type) {
-                case 'insurance':
-                    return `CTPL-${year}-${random}`;
-                case 'hpg':
-                    return `HPG-${year}-${random}`;
-                default:
-                    return `CERT-${year}-${random}`;
-            }
-        };
-
-        const finalClearanceNumber = clearanceNumber || generateCertificateNumber('hpg');
+        const finalClearanceNumber = clearanceNumber || certificateNumberGenerator.generateHpgNumber();
         const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
         const finalIssueDate = issueDate || new Date().toISOString();
 
@@ -517,12 +492,6 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
         }
 
         // Auto-generate values if not provided
-        const generateCertificateNumber = (type) => {
-            const year = new Date().getFullYear();
-            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-            return `CSR-${year}-${random}`;
-        };
-
         const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
         const finalEngineNumber = engineNumber || certificatePdfGenerator.generateRandomEngineNumber();
         const finalDealerLtoNumber = dealerLtoNumber || `LTO-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -541,6 +510,9 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
 
         console.log(`[CSR Certificate] Generating for owner: ${owner.name} (${owner.email}), VIN: ${finalVIN}, Make: ${finalVehicleMake}`);
 
+        // Generate CSR certificate number using utility
+        const csrCertificateNumber = certificateNumberGenerator.generateCsrNumber();
+
         // Generate PDF certificate (use owner name from database)
         const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
             dealerName: owner.name, // Use owner name from database
@@ -554,7 +526,8 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             fuelType,
             engineNumber: finalEngineNumber,
             vehicleVIN: finalVIN,
-            issuanceDate: finalIssuanceDate
+            issuanceDate: finalIssuanceDate,
+            csrNumber: csrCertificateNumber  // Pass generated number
         });
 
         console.log(`[CSR Certificate] PDF generated, hash: ${fileHash}`);
@@ -1020,13 +993,12 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
-        const randomSuffix = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
         const certificateNumbers = {
-            insurance: insurance?.policyNumber || `CTPL-${year}-${randomSuffix()}`,
-            hpg: hpg?.clearanceNumber || `HPG-${year}-${randomSuffix()}`,
-            csr: csr?.csrNumber || `CSR-${year}-${randomSuffix()}`,
-            salesInvoice: salesInvoice?.invoiceNumber || `INV-${year}${month}${day}-${randomSuffix()}`
+            insurance: insurance?.policyNumber || certificateNumberGenerator.generateInsuranceNumber(),
+            hpg: hpg?.clearanceNumber || certificateNumberGenerator.generateHpgNumber(),
+            csr: csr?.csrNumber || certificateNumberGenerator.generateCsrNumber(),
+            salesInvoice: salesInvoice?.invoiceNumber || certificateNumberGenerator.generateSalesInvoiceNumber()
         };
 
         const results = {
@@ -1208,7 +1180,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                 fuelType: sharedVehicleData.fuelType,
                 engineNumber: sharedVehicleData.engineNumber,
                 vehicleVIN: sharedVehicleData.vin,
-                issuanceDate: csrIssuanceDate
+                issuanceDate: csrIssuanceDate,
+                csrNumber: certificateNumbers.csr  // Pass generated certificate number
             };
 
             const csrResult = await certificatePdfGenerator.generateCsrCertificate(csrData);

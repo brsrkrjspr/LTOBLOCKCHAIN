@@ -53,18 +53,8 @@ class CertificateGeneratorService {
      * @returns {string} Certificate number
      */
     generateCertificateNumber(type, vehicleVIN, sequence = 1) {
-        const year = new Date().getFullYear();
-        const date = new Date();
-        const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-
-        switch (type) {
-            case 'insurance':
-                return `CTPL-${year}-${String(sequence).padStart(6, '0')}`;
-            case 'hpg':
-                return `HPG-${year}-${String(sequence).padStart(6, '0')}`;
-            default:
-                throw new Error(`Unknown certificate type: ${type}`);
-        }
+        const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
+        return certificateNumberGenerator.generateCertificateNumber(type, { sequence });
     }
 
     /**

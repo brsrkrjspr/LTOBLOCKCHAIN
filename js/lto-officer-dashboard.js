@@ -135,6 +135,46 @@ async function loadUserInfo() {
 
 async function loadStatistics() {
     try {
+        // Helper function to safely parse JSON response
+        async function safeJsonParse(response, source) {
+            if (!response.ok) {
+                try {
+                    const text = await response.text();
+                    console.warn(`Failed to load ${source}:`, response.status, response.statusText, text.substring(0, 200));
+                } catch (e) {
+                    console.warn(`Failed to load ${source}:`, response.status, response.statusText);
+                }
+                return null;
+            }
+            
+            const contentType = response.headers.get('content-type');
+            let text;
+            try {
+                text = await response.text();
+            } catch (e) {
+                console.error(`Failed to read ${source} response:`, e);
+                return null;
+            }
+            
+            // Check if response starts with HTML (common error page indicator)
+            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                console.warn(`${source} returned HTML instead of JSON. Content-Type:`, contentType, 'Response preview:', text.substring(0, 200));
+                return null;
+            }
+            
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn(`${source} response is not JSON. Content-Type:`, contentType, 'Response preview:', text.substring(0, 200));
+                return null;
+            }
+            
+            try {
+                return JSON.parse(text);
+            } catch (parseError) {
+                console.error(`Failed to parse ${source} JSON:`, parseError, 'Response preview:', text.substring(0, 200));
+                return null;
+            }
+        }
+        
         // Load pending transfers
         const transferResponse = await fetch('/api/transfer/requests?status=PENDING,UNDER_REVIEW', {
             headers: {
@@ -142,28 +182,25 @@ async function loadStatistics() {
             }
         });
         
-        if (transferResponse.ok) {
-            const contentType = transferResponse.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const transferData = await transferResponse.json();
-                const pendingCount = transferData.transferRequests?.filter(tr => 
-                    ['PENDING', 'UNDER_REVIEW', 'AWAITING_BUYER_DOCS'].includes(tr.status)
-                ).length || 0;
-                document.getElementById('pendingTransfers').textContent = pendingCount;
-                
-                // Update badge
-                const badge = document.getElementById('transferBadge');
+        const transferData = await safeJsonParse(transferResponse, 'transfer statistics');
+        if (transferData) {
+            const pendingCount = transferData.transferRequests?.filter(tr => 
+                ['PENDING', 'UNDER_REVIEW', 'AWAITING_BUYER_DOCS'].includes(tr.status)
+            ).length || 0;
+            document.getElementById('pendingTransfers').textContent = pendingCount;
+            
+            // Update badge
+            const badge = document.getElementById('transferBadge');
+            if (badge) {
                 if (pendingCount > 0) {
                     badge.textContent = pendingCount;
                     badge.style.display = 'inline-block';
                 } else {
                     badge.style.display = 'none';
                 }
-            } else {
-                console.warn('Transfer response is not JSON:', contentType);
             }
         } else {
-            console.warn('Failed to load transfer statistics:', transferResponse.status, transferResponse.statusText);
+            document.getElementById('pendingTransfers').textContent = '0';
         }
         
         // Load pending inspections (vehicles without MVIR)
@@ -173,17 +210,12 @@ async function loadStatistics() {
             }
         });
         
-        if (vehicleResponse.ok) {
-            const contentType = vehicleResponse.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const vehicleData = await vehicleResponse.json();
-                const pendingInspections = vehicleData.vehicles?.filter(v => !v.mvir_number).length || 0;
-                document.getElementById('pendingInspections').textContent = pendingInspections;
-            } else {
-                console.warn('Vehicle response is not JSON:', contentType);
-            }
+        const vehicleData = await safeJsonParse(vehicleResponse, 'vehicle statistics');
+        if (vehicleData) {
+            const pendingInspections = vehicleData.vehicles?.filter(v => !v.mvir_number).length || 0;
+            document.getElementById('pendingInspections').textContent = pendingInspections;
         } else {
-            console.warn('Failed to load vehicle statistics:', vehicleResponse.status, vehicleResponse.statusText);
+            document.getElementById('pendingInspections').textContent = '0';
         }
         
         // Load completed today (approximate - count recent approvals)
@@ -194,24 +226,26 @@ async function loadStatistics() {
             }
         });
         
-        if (completedResponse.ok) {
-            const contentType = completedResponse.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const completedData = await completedResponse.json();
-                const completedToday = completedData.transferRequests?.filter(tr => {
-                    if (!tr.updated_at) return false;
-                    const updatedDate = new Date(tr.updated_at).toISOString().split('T')[0];
-                    return updatedDate === today;
-                }).length || 0;
-                document.getElementById('completedToday').textContent = completedToday;
-            } else {
-                console.warn('Completed response is not JSON:', contentType);
-            }
+        const completedData = await safeJsonParse(completedResponse, 'completed statistics');
+        if (completedData) {
+            const completedToday = completedData.transferRequests?.filter(tr => {
+                if (!tr.updated_at) return false;
+                const updatedDate = new Date(tr.updated_at).toISOString().split('T')[0];
+                return updatedDate === today;
+            }).length || 0;
+            document.getElementById('completedToday').textContent = completedToday;
         } else {
-            console.warn('Failed to load completed statistics:', completedResponse.status, completedResponse.statusText);
+            document.getElementById('completedToday').textContent = '0';
         }
     } catch (error) {
         console.error('Failed to load statistics:', error);
+        // Set default values on error
+        const pendingEl = document.getElementById('pendingTransfers');
+        const inspectionsEl = document.getElementById('pendingInspections');
+        const completedEl = document.getElementById('completedToday');
+        if (pendingEl) pendingEl.textContent = '0';
+        if (inspectionsEl) inspectionsEl.textContent = '0';
+        if (completedEl) completedEl.textContent = '0';
     }
 }
 

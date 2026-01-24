@@ -638,13 +638,13 @@ class CertificatePdfGenerator {
             fuelType,
             engineNumber,
             vehicleVIN,
-            issuanceDate
+            issuanceDate,
+            csrNumber  // Optional: if provided, use it; otherwise generate
         } = data;
 
-        // Generate CSR number: CSR-YYYY-XXXXXX
-        const year = new Date().getFullYear();
-        const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const csrNumber = `CSR-${year}-${random}`;
+        // Generate CSR number: CSR-YYYY-XXXXXX (use provided or generate)
+        const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
+        const csrNumberFinal = csrNumber || certificateNumberGenerator.generateCsrNumber();
 
         // Load CSR template
         const templatePath = path.join(this.templatesPath, 'csr cert', 'csr-certificate.html');
@@ -677,7 +677,7 @@ class CertificatePdfGenerator {
         // CSR Number
         htmlTemplate = htmlTemplate.replace(
             /CSR No\.:.*?value="[^"]*"/,
-            `CSR No.: <input type="text" value="${csrNumber}"`
+            `CSR No.: <input type="text" value="${csrNumberFinal}"`
         );
         
         // Date Issued
@@ -796,7 +796,7 @@ class CertificatePdfGenerator {
             return {
                 pdfBuffer,
                 fileHash,
-                certificateNumber: csrNumber
+                certificateNumber: csrNumberFinal
             };
         } catch (error) {
             await browser.close();

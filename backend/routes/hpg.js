@@ -590,8 +590,11 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                         
                         // Generate composite hash
                         const issueDateISO = new Date().toISOString();
+                        const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
+                        const hpgCertificateNumber = certificateNumberGenerator.generateHpgNumber();
+                        
                         compositeHash = certificateBlockchain.generateCompositeHash(
-                            `HPG-${vehicle.vin}-${Date.now()}`,
+                            hpgCertificateNumber,
                             vehicle.vin,
                             issueDateISO,
                             fileHash
@@ -617,7 +620,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                                     certificateType: 'hpg',
                                     vehicleVIN: vehicle.vin,
                                     vehicleId: clearanceRequest.vehicle_id,
-                                    certificateNumber: `HPG-${vehicle.vin}-${Date.now()}`,
+                                    certificateNumber: hpgCertificateNumber,
                                     applicationStatus: 'APPROVED',
                                     issuedAt: new Date().toISOString(),
                                     issuedBy: req.user.userId,

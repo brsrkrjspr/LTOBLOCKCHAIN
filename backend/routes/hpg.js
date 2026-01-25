@@ -689,19 +689,37 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                 compositeHash: compositeHash || null
             });
             
-            // Call chaincode to update verification status on blockchain
-            const blockchainResult = await fabricService.updateVerificationStatus(
-                vehicle.vin,
-                'hpg',
-                'APPROVED',
-                notesWithOfficer
-            );
+            // PHASE 3 FIX: Check if vehicle exists on blockchain before updating verification status
+            // HPG verification can only be logged to blockchain if vehicle is already registered
+            let vehicleOnBlockchain = false;
+            try {
+                const blockchainVehicle = await fabricService.getVehicle(vehicle.vin);
+                if (blockchainVehicle && blockchainVehicle.success && blockchainVehicle.vehicle) {
+                    vehicleOnBlockchain = true;
+                }
+            } catch (checkError) {
+                // Vehicle not found on blockchain - this is expected if LTO hasn't registered it yet
+                vehicleOnBlockchain = false;
+            }
             
-            if (blockchainResult && blockchainResult.transactionId) {
-                blockchainTxId = blockchainResult.transactionId;
-                console.log(`✅ [Phase 2] HPG verification logged to blockchain. TX ID: ${blockchainTxId}`);
+            if (!vehicleOnBlockchain) {
+                console.warn(`[HPG Approval] Vehicle ${vehicle.vin} not yet registered on blockchain. Skipping blockchain verification update. Database update will proceed.`);
+                // Skip blockchain update but continue with database operations
             } else {
-                throw new Error('Blockchain update completed but no transaction ID returned');
+                // Call chaincode to update verification status on blockchain
+                const blockchainResult = await fabricService.updateVerificationStatus(
+                    vehicle.vin,
+                    'hpg',
+                    'APPROVED',
+                    notesWithOfficer
+                );
+                
+                if (blockchainResult && blockchainResult.transactionId) {
+                    blockchainTxId = blockchainResult.transactionId;
+                    console.log(`✅ [Phase 2] HPG verification logged to blockchain. TX ID: ${blockchainTxId}`);
+                } else {
+                    throw new Error('Blockchain update completed but no transaction ID returned');
+                }
             }
         } catch (blockchainErr) {
             // PHASE 2: Log blockchain error but don't fail the entire operation
@@ -928,19 +946,37 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                 }
             });
             
-            // Call chaincode to update verification status on blockchain
-            const blockchainResult = await fabricService.updateVerificationStatus(
-                vehicle.vin,
-                'hpg',
-                'REJECTED',
-                notesWithOfficer
-            );
+            // PHASE 3 FIX: Check if vehicle exists on blockchain before updating verification status
+            // HPG verification can only be logged to blockchain if vehicle is already registered
+            let vehicleOnBlockchain = false;
+            try {
+                const blockchainVehicle = await fabricService.getVehicle(vehicle.vin);
+                if (blockchainVehicle && blockchainVehicle.success && blockchainVehicle.vehicle) {
+                    vehicleOnBlockchain = true;
+                }
+            } catch (checkError) {
+                // Vehicle not found on blockchain - this is expected if LTO hasn't registered it yet
+                vehicleOnBlockchain = false;
+            }
             
-            if (blockchainResult && blockchainResult.transactionId) {
-                blockchainTxId = blockchainResult.transactionId;
-                console.log(`✅ [Phase 2] HPG verification rejection logged to blockchain. TX ID: ${blockchainTxId}`);
+            if (!vehicleOnBlockchain) {
+                console.warn(`[HPG Rejection] Vehicle ${vehicle.vin} not yet registered on blockchain. Skipping blockchain verification update. Database update will proceed.`);
+                // Skip blockchain update but continue with database operations
             } else {
-                throw new Error('Blockchain update completed but no transaction ID returned');
+                // Call chaincode to update verification status on blockchain
+                const blockchainResult = await fabricService.updateVerificationStatus(
+                    vehicle.vin,
+                    'hpg',
+                    'REJECTED',
+                    notesWithOfficer
+                );
+                
+                if (blockchainResult && blockchainResult.transactionId) {
+                    blockchainTxId = blockchainResult.transactionId;
+                    console.log(`✅ [Phase 2] HPG verification rejection logged to blockchain. TX ID: ${blockchainTxId}`);
+                } else {
+                    throw new Error('Blockchain update completed but no transaction ID returned');
+                }
             }
         } catch (blockchainErr) {
             // PHASE 2: Log blockchain error but don't fail the entire operation

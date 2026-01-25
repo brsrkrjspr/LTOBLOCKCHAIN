@@ -665,11 +665,6 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             inspectionDate = null;
         }
 
-        // Update vehicle status to APPROVED (with OR/CR number if generated)
-        await db.updateVehicle(vehicleId, {
-            status: 'APPROVED'
-        });
-
         // Register vehicle on blockchain (with OR/CR numbers and documents)
         // CRITICAL: Blockchain registration is MANDATORY for vehicle registration
         // If blockchain fails, the entire approval must fail (blockchain is source of truth)
@@ -694,7 +689,21 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 message: 'Cannot approve vehicle: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
             });
         }
-        
+
+        // PHASE 3 FIX: Validate vehicle status transition before blockchain registration
+        // Validate from original vehicle status (not after premature APPROVED update)
+        const statusValidation = validateVehicleStatusTransition(vehicle.status, 'REGISTERED');
+        if (!statusValidation.valid) {
+            console.error(`[Phase 3] Invalid status transition: ${vehicle.status} → REGISTERED`, statusValidation.error);
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid status transition',
+                message: statusValidation.error,
+                currentStatus: vehicle.status,
+                newStatus: 'REGISTERED'
+            });
+        }
+
         // Blockchain is ALWAYS required - proceed with registration
         {
             
@@ -885,21 +894,8 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             });
         }
 
-        // PHASE 3: Validate vehicle status transition before updating
-        const currentVehicle = await db.getVehicleById(vehicleId);
-        if (currentVehicle) {
-            const statusValidation = validateVehicleStatusTransition(currentVehicle.status, 'REGISTERED');
-            if (!statusValidation.valid) {
-                console.error(`[Phase 3] Invalid status transition: ${currentVehicle.status} → REGISTERED`, statusValidation.error);
-                return res.status(400).json({
-                    success: false,
-                    error: 'Invalid status transition',
-                    message: statusValidation.error,
-                    currentStatus: currentVehicle.status,
-                    newStatus: 'REGISTERED'
-                });
-            }
-        }
+        // PHASE 3: Status validation already performed before blockchain registration above
+        // Using original vehicle.status ensures consistency - no need to re-validate here
 
         // PHASE 1 FIX: Update vehicle status to REGISTERED and save blockchain transaction ID
         // This ensures consistency with transfer workflow and improves certificate generator performance

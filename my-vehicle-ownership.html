@@ -3433,11 +3433,20 @@
             const statusText = status === 'PENDING' ? 'Pending Your Response' : 
                               status === 'REVIEWING' ? 'Awaiting LTO Review' : status;
             
-            // Check if user is the seller (should not show reject button for seller's own requests)
-            // This function is used for incoming transfer requests (buyer side), so seller_id check is not needed here
-            // But we'll add both Accept and Reject buttons for buyers
-            const canAccept = status === 'PENDING' || status === 'AWAITING_BUYER_DOCS';
-            const canReject = status === 'PENDING' || status === 'AWAITING_BUYER_DOCS';
+            // Check if current user is the seller (should not show Accept/Reject buttons for seller's own requests)
+            let isSeller = false;
+            if (typeof AuthUtils !== 'undefined') {
+                const currentUser = AuthUtils.getCurrentUser();
+                if (currentUser) {
+                    const currentUserId = currentUser.id || currentUser.userId;
+                    const sellerId = request.seller_id || request.seller?.id || request.seller?.user_id;
+                    isSeller = currentUserId && sellerId && String(currentUserId) === String(sellerId);
+                }
+            }
+            
+            // Only show Accept/Reject buttons if user is NOT the seller (i.e., they are the buyer)
+            const canAccept = !isSeller && (status === 'PENDING' || status === 'AWAITING_BUYER_DOCS');
+            const canReject = !isSeller && (status === 'PENDING' || status === 'AWAITING_BUYER_DOCS');
             
             card.innerHTML = `
                 <div class="vehicle-info">

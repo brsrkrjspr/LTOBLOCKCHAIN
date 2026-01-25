@@ -27,29 +27,39 @@ const LOGICAL_TYPES = {
  * Database document_type enum values
  * These match the database schema
  * 
- * IMPORTANT CONVENTION:
+ * IMPORTANT CONVENTIONS:
  * - For vehicle registration, 'insurance_cert' always refers to CTPL 
  *   (Compulsory Third-Party Liability) insurance.
  * - The specific coverage type (CTPL, Comprehensive, etc.) is stored in 
  *   metadata.coverageType field (e.g., in issued_certificates.metadata JSONB).
  * - CTPL logical type maps to 'insurance_cert' DB type for consistency.
+ * 
+ * - MVIR (Motor Vehicle Inspection Report) is NOT stored in the documents table.
+ *   MVIR files are stored in inspection-documents/ directory and referenced via
+ *   vehicles.inspection_documents JSONB field. MVIR logical type is kept for
+ *   frontend/API use but has no DB type mapping (handled separately in mapToDbType).
+ * 
+ * MIGRATION REQUIREMENTS:
+ * - 'deed_of_sale', 'seller_id', 'buyer_id', 'other' require migration: 
+ *   database/add-new-document-types.sql
+ * - 'csr', 'hpg_clearance', 'sales_invoice' require migration:
+ *   database/add-vehicle-registration-document-types.sql
  */
 const DB_TYPES = {
     REGISTRATION_CERT: 'registration_cert',
     INSURANCE_CERT: 'insurance_cert',
     CTPL: 'insurance_cert', // CTPL uses 'insurance_cert' enum (distinguished via metadata.coverageType)
-    MVIR: 'mvir_cert',
     TIN_ID: 'tin_id',
     OWNER_ID: 'owner_id',
-    DEED_OF_SALE: 'deed_of_sale',
-    SELLER_ID: 'seller_id',
-    BUYER_ID: 'buyer_id',
-    CSR: 'csr',
-    HPG_CLEARANCE: 'hpg_clearance',
-    SALES_INVOICE: 'sales_invoice',
+    DEED_OF_SALE: 'deed_of_sale', // Requires migration: add-new-document-types.sql
+    SELLER_ID: 'seller_id', // Requires migration: add-new-document-types.sql
+    BUYER_ID: 'buyer_id', // Requires migration: add-new-document-types.sql
+    CSR: 'csr', // Requires migration: add-vehicle-registration-document-types.sql
+    HPG_CLEARANCE: 'hpg_clearance', // Requires migration: add-vehicle-registration-document-types.sql
+    SALES_INVOICE: 'sales_invoice', // Requires migration: add-vehicle-registration-document-types.sql
     TRANSFER_PACKAGE: 'transfer_package_pdf',
     TRANSFER_CERTIFICATE: 'transfer_certificate',
-    OTHER: 'other'
+    OTHER: 'other' // Requires migration: add-new-document-types.sql
 };
 
 /**
@@ -75,11 +85,15 @@ const TRANSFER_ROLES = {
  * @returns {string} Database document type (e.g., 'registration_cert')
  */
 function mapToDbType(logicalType) {
+    // MVIR is handled separately - not stored in documents table
+    if (logicalType === LOGICAL_TYPES.MVIR) {
+        throw new Error('MVIR documents are not stored in documents table. MVIR files are stored in inspection-documents/ directory and referenced via vehicles.inspection_documents JSONB field.');
+    }
+    
     const mapping = {
         [LOGICAL_TYPES.REGISTRATION_CERT]: DB_TYPES.REGISTRATION_CERT,
         [LOGICAL_TYPES.INSURANCE_CERT]: DB_TYPES.INSURANCE_CERT,
         [LOGICAL_TYPES.CTPL]: DB_TYPES.CTPL,
-        [LOGICAL_TYPES.MVIR]: DB_TYPES.MVIR,
         [LOGICAL_TYPES.TIN_ID]: DB_TYPES.TIN_ID,
         [LOGICAL_TYPES.OWNER_ID]: DB_TYPES.OWNER_ID,
         [LOGICAL_TYPES.DEED_OF_SALE]: DB_TYPES.DEED_OF_SALE,
@@ -106,19 +120,21 @@ function mapToLogicalType(dbType) {
         [DB_TYPES.REGISTRATION_CERT]: LOGICAL_TYPES.REGISTRATION_CERT,
         [DB_TYPES.INSURANCE_CERT]: LOGICAL_TYPES.INSURANCE_CERT, // Maps to 'insuranceCert' logical type
         // Note: CTPL logical type also maps to 'insurance_cert' DB type, so both map to INSURANCE_CERT
-        [DB_TYPES.MVIR]: LOGICAL_TYPES.MVIR,
+        [DB_TYPES.HPG_CLEARANCE]: LOGICAL_TYPES.HPG_CLEARANCE,
         [DB_TYPES.TIN_ID]: LOGICAL_TYPES.TIN_ID,
         [DB_TYPES.OWNER_ID]: LOGICAL_TYPES.OWNER_ID,
         [DB_TYPES.DEED_OF_SALE]: LOGICAL_TYPES.DEED_OF_SALE,
         [DB_TYPES.SELLER_ID]: LOGICAL_TYPES.SELLER_ID,
         [DB_TYPES.BUYER_ID]: LOGICAL_TYPES.BUYER_ID,
         [DB_TYPES.CSR]: LOGICAL_TYPES.CSR,
-        [DB_TYPES.HPG_CLEARANCE]: LOGICAL_TYPES.HPG_CLEARANCE,
         [DB_TYPES.SALES_INVOICE]: LOGICAL_TYPES.SALES_INVOICE,
         [DB_TYPES.TRANSFER_PACKAGE]: LOGICAL_TYPES.TRANSFER_PACKAGE,
         [DB_TYPES.TRANSFER_CERTIFICATE]: LOGICAL_TYPES.TRANSFER_CERTIFICATE,
         [DB_TYPES.OTHER]: LOGICAL_TYPES.OTHER
     };
+    
+    // Note: MVIR is NOT stored in documents table (stored as files), so 'other' maps to OTHER logical type
+    // MVIR logical type is kept for frontend/API use but never maps from DB type
     
     return mapping[dbType] || LOGICAL_TYPES.OTHER;
 }

@@ -1271,73 +1271,298 @@
             box-shadow: 0 4px 12px rgba(22, 160, 133, 0.3);
         }
 
-        /* Transfer Upload Styles (for buyer document upload modal) */
-        .transfer-upload-item {
+        /* Buyer Document Upload Modal Styles */
+        .buyer-document-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .buyer-document-modal.active {
+            display: flex;
+        }
+
+        .buyer-document-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .buyer-document-modal-content {
+            position: relative;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 10001;
+        }
+
+        .buyer-document-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .buyer-document-modal-header h3 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.25rem;
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.75rem;
+        }
+
+        .buyer-document-modal-header h3 i {
+            color: #3498db;
+        }
+
+        .buyer-document-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #7f8c8d;
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: color 0.3s;
+        }
+
+        .buyer-document-modal-close:hover {
+            color: #2c3e50;
+        }
+
+        .buyer-document-modal-body {
+            padding: 1.5rem;
+        }
+
+        .buyer-document-upload-item {
+            margin-bottom: 1.5rem;
             padding: 1rem;
             background: #f8f9fa;
             border: 2px solid #e9ecef;
-            border-radius: 12px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .buyer-document-upload-item:hover {
+            border-color: #3498db;
+        }
+
+        .buyer-document-upload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
             margin-bottom: 1rem;
         }
-        .transfer-upload-info {
-            flex: 1;
-        }
-        .transfer-upload-info h4 {
-            margin: 0 0 0.5rem 0;
+
+        .buyer-document-label {
+            font-weight: 600;
             color: #2c3e50;
             font-size: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+            display: block;
         }
-        .transfer-upload-info p {
+
+        .required-star {
+            color: #e74c3c;
+        }
+
+        .buyer-document-description {
             margin: 0;
             color: #7f8c8d;
             font-size: 0.875rem;
         }
-        .transfer-upload-area {
-            position: relative;
-            min-width: 150px;
+
+        .buyer-document-status {
+            flex-shrink: 0;
         }
-        .transfer-upload-area input[type="file"] {
-            display: none;
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
         }
-        .transfer-upload-label {
+
+        .status-badge.status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.status-uploading {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .status-badge.status-success {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-badge.status-error {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .buyer-document-upload-controls {
             display: flex;
             flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .buyer-document-file-input {
+            display: none;
+        }
+
+        .buyer-document-file-label {
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 1rem 2rem;
-            border: 2px dashed #3498db;
-            border-radius: 8px;
-            background: #f8f9fa;
+            padding: 0.75rem 1.5rem;
+            background: #3498db;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            width: fit-content;
+        }
+
+        .buyer-document-file-label:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .buyer-document-file-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #e8f5e9;
+            border-radius: 6px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .file-name {
+            flex: 1;
+            color: #0f5132;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .btn-remove-file {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-remove-file:hover {
+            background: #c0392b;
+        }
+
+        .buyer-document-progress {
+            margin-top: 0.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.3s;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+        }
+
+        .buyer-document-error {
+            padding: 0.75rem;
+            background: #f8d7da;
+            border-left: 4px solid #e74c3c;
+            border-radius: 4px;
+            color: #842029;
+            font-size: 0.875rem;
+        }
+
+        .buyer-document-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .buyer-document-modal-footer .btn-primary {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
         }
-        .transfer-upload-label:hover {
-            background: #e3f2fd;
-            border-color: #2980b9;
+
+        .buyer-document-modal-footer .btn-primary:hover:not(:disabled) {
+            background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
         }
-        .transfer-upload-label.uploaded {
-            border-color: #27ae60;
-            border-style: solid;
-            background: #d4edda;
+
+        .buyer-document-modal-footer .btn-primary:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
-        .transfer-upload-icon {
-            font-size: 1.5rem;
+
+        .buyer-document-modal-footer .btn-primary.btn-ready {
+            background: #27ae60;
+            opacity: 1;
         }
-        .transfer-upload-text {
-            font-size: 0.9rem;
-            color: #555;
+
+        .buyer-document-modal-footer .btn-secondary {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        .transfer-file-name {
-            margin-top: 0.5rem;
-            font-size: 0.85rem;
-            color: #27ae60;
-            font-weight: bold;
+
+        .buyer-document-modal-footer .btn-secondary:hover {
+            background: #7f8c8d;
         }
 
         /* Verification Modal Styles */
@@ -3208,6 +3433,12 @@
             const statusText = status === 'PENDING' ? 'Pending Your Response' : 
                               status === 'REVIEWING' ? 'Awaiting LTO Review' : status;
             
+            // Check if user is the seller (should not show reject button for seller's own requests)
+            // This function is used for incoming transfer requests (buyer side), so seller_id check is not needed here
+            // But we'll add both Accept and Reject buttons for buyers
+            const canAccept = status === 'PENDING' || status === 'AWAITING_BUYER_DOCS';
+            const canReject = status === 'PENDING' || status === 'AWAITING_BUYER_DOCS';
+            
             card.innerHTML = `
                 <div class="vehicle-info">
                     <div class="vehicle-plate">${vehicle.plate_number || vehicle.plateNumber || 'N/A'}</div>
@@ -3229,14 +3460,410 @@
                 <div class="vehicle-status">
                     <span class="status-badge ${statusBadgeClass}">${statusText}</span>
                     <div class="vehicle-actions">
+                        ${canAccept ? `
+                        <button class="btn-view-history" onclick="acceptTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
+                            <i class="fas fa-check"></i> Accept
+                        </button>
+                        ` : ''}
+                        ${canReject ? `
                         <button class="btn-view-history" onclick="rejectTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                             <i class="fas fa-times"></i> Reject
                         </button>
+                        ` : ''}
                     </div>
                 </div>
             `;
             
             return card;
+        }
+        
+        // Show buyer document upload modal
+        function showBuyerDocumentUploadModal(requestId) {
+            // Remove existing modal if any
+            const existingModal = document.getElementById('buyerDocumentUploadModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'buyerDocumentUploadModal';
+            modal.className = 'buyer-document-modal active';
+            
+            // Document configuration
+            const documentConfig = [
+                {
+                    key: 'buyer_id',
+                    label: 'Buyer Valid ID',
+                    description: 'Government-issued ID of the buyer (2 valid IDs with signatures)',
+                    logicalType: 'buyerId',
+                    required: true
+                },
+                {
+                    key: 'buyer_tin',
+                    label: 'Buyer TIN',
+                    description: 'Tax Identification Number document',
+                    logicalType: 'buyerTin',
+                    required: true
+                },
+                {
+                    key: 'buyer_ctpl',
+                    label: 'CTPL Insurance Certificate',
+                    description: 'Compulsory Third-Party Liability insurance certificate',
+                    logicalType: 'ctpl',
+                    required: true
+                },
+                {
+                    key: 'buyer_hpg_clearance',
+                    label: 'HPG Clearance Certificate',
+                    description: 'Highway Patrol Group clearance certificate',
+                    logicalType: 'hpgClearance',
+                    required: true
+                }
+            ];
+
+            modal.innerHTML = `
+                <div class="buyer-document-modal-overlay" onclick="closeBuyerDocumentUploadModal()"></div>
+                <div class="buyer-document-modal-content">
+                    <div class="buyer-document-modal-header">
+                        <h3><i class="fas fa-file-upload"></i> Upload Required Documents</h3>
+                        <button class="buyer-document-modal-close" onclick="closeBuyerDocumentUploadModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="buyer-document-modal-body">
+                        <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px; font-size: 0.875rem; color: #0c4a6e;">
+                            <strong><i class="fas fa-info-circle"></i> Note:</strong> Please upload all required documents to complete the transfer request acceptance. 
+                            <strong>MVIR (Motor Vehicle Inspection Report) will be completed by LTO during the inspection process</strong> and is not required from you.
+                        </div>
+                        <div id="buyerDocumentUploadList">
+                            ${documentConfig.map((doc, index) => `
+                                <div class="buyer-document-upload-item" data-doc-key="${doc.key}">
+                                    <div class="buyer-document-upload-header">
+                                        <div>
+                                            <label class="buyer-document-label">
+                                                ${doc.label} <span class="required-star">*</span>
+                                            </label>
+                                            <p class="buyer-document-description">${doc.description}</p>
+                                        </div>
+                                        <div class="buyer-document-status" id="status_${doc.key}">
+                                            <span class="status-badge status-pending">Pending</span>
+                                        </div>
+                                    </div>
+                                    <div class="buyer-document-upload-controls">
+                                        <input 
+                                            type="file" 
+                                            id="file_${doc.key}" 
+                                            class="buyer-document-file-input" 
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            data-logical-type="${doc.logicalType}"
+                                            data-doc-key="${doc.key}"
+                                            onchange="handleBuyerDocumentSelect('${doc.key}', '${doc.logicalType}')"
+                                        >
+                                        <label for="file_${doc.key}" class="buyer-document-file-label">
+                                            <i class="fas fa-cloud-upload-alt"></i> Choose File
+                                        </label>
+                                        <div class="buyer-document-file-info" id="fileInfo_${doc.key}" style="display: none;">
+                                            <span class="file-name" id="fileName_${doc.key}"></span>
+                                            <button class="btn-remove-file" onclick="removeBuyerDocument('${doc.key}')" title="Remove file">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <div class="buyer-document-progress" id="progress_${doc.key}" style="display: none;">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill" id="progressFill_${doc.key}"></div>
+                                            </div>
+                                            <span class="progress-text" id="progressText_${doc.key}">Uploading...</span>
+                                        </div>
+                                        <div class="buyer-document-error" id="error_${doc.key}" style="display: none;"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="buyer-document-modal-footer">
+                        <button class="btn-secondary" onclick="closeBuyerDocumentUploadModal()">Cancel</button>
+                        <button class="btn-primary" id="acceptTransferBtn" onclick="handleAcceptWithDocuments('${requestId}')" disabled>
+                            <i class="fas fa-check"></i> Accept Transfer Request
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden';
+            
+            // Store document config and uploaded documents
+            window.buyerDocumentConfig = documentConfig;
+            window.buyerUploadedDocuments = {};
+            window.buyerDocumentRequestId = requestId;
+        }
+
+        // Handle document file selection
+        async function handleBuyerDocumentSelect(docKey, logicalType) {
+            const fileInput = document.getElementById(`file_${docKey}`);
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+
+            // Validate file
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+            
+            if (file.size > maxSize) {
+                showBuyerDocumentError(docKey, 'File size exceeds 10MB limit. Please choose a smaller file.');
+                fileInput.value = '';
+                return;
+            }
+            
+            if (!allowedTypes.includes(file.type)) {
+                showBuyerDocumentError(docKey, 'Invalid file type. Please upload PDF, JPG, or PNG files only.');
+                fileInput.value = '';
+                return;
+            }
+
+            // Clear previous errors
+            clearBuyerDocumentError(docKey);
+            
+            // Show file info
+            document.getElementById(`fileInfo_${docKey}`).style.display = 'flex';
+            document.getElementById(`fileName_${docKey}`).textContent = file.name;
+            
+            // Show progress
+            document.getElementById(`progress_${docKey}`).style.display = 'block';
+            updateBuyerDocumentProgress(docKey, 0, 'Uploading...');
+            
+            // Update status
+            updateBuyerDocumentStatus(docKey, 'uploading');
+
+            try {
+                // Upload document using XMLHttpRequest for progress tracking
+                const formData = new FormData();
+                formData.append('document', file);
+                formData.append('type', logicalType);
+
+                const uploadResponse = await uploadDocumentWithProgress(formData, docKey);
+
+                if (!uploadResponse.success || !uploadResponse.document) {
+                    throw new Error(uploadResponse.error || 'Upload failed');
+                }
+
+                // Store document ID
+                window.buyerUploadedDocuments[docKey] = uploadResponse.document.id;
+                
+                // Update UI
+                updateBuyerDocumentProgress(docKey, 100, 'Upload complete');
+                updateBuyerDocumentStatus(docKey, 'success');
+                
+                // Hide progress after delay
+                setTimeout(() => {
+                    document.getElementById(`progress_${docKey}`).style.display = 'none';
+                }, 1000);
+
+                // Check if all documents uploaded
+                checkAllDocumentsUploaded();
+
+            } catch (error) {
+                console.error(`Error uploading ${docKey}:`, error);
+                showBuyerDocumentError(docKey, error.message || 'Upload failed. Please try again.');
+                updateBuyerDocumentStatus(docKey, 'error');
+                document.getElementById(`progress_${docKey}`).style.display = 'none';
+                delete window.buyerUploadedDocuments[docKey];
+            }
+        }
+
+        // Upload document with progress tracking
+        function uploadDocumentWithProgress(formData, docKey) {
+            return new Promise((resolve, reject) => {
+                const apiClient = window.apiClient || new APIClient();
+                const token = apiClient.getAuthToken();
+                const url = `${window.location.origin}/api/documents/upload`;
+
+                const xhr = new XMLHttpRequest();
+
+                // Track upload progress
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded * 100) / e.total);
+                        updateBuyerDocumentProgress(docKey, percentComplete, `Uploading... ${percentComplete}%`);
+                    }
+                });
+
+                // Handle completion
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 401) {
+                        apiClient.clearAuth();
+                        window.location.href = 'login-signup.html?expired=true';
+                        reject(new Error('Session expired. Please login again.'));
+                        return;
+                    }
+
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            resolve(response);
+                        } catch (e) {
+                            reject(new Error('Invalid response from server'));
+                        }
+                    } else {
+                        try {
+                            const error = JSON.parse(xhr.responseText);
+                            reject(new Error(error.error || error.message || 'Upload failed'));
+                        } catch (e) {
+                            reject(new Error(`Upload failed with status ${xhr.status}`));
+                        }
+                    }
+                });
+
+                // Handle errors
+                xhr.addEventListener('error', () => {
+                    reject(new Error('Network error. Please check your internet connection.'));
+                });
+
+                xhr.addEventListener('abort', () => {
+                    reject(new Error('Upload cancelled'));
+                });
+
+                // Start upload
+                xhr.open('POST', url);
+                
+                // Set headers
+                if (token) {
+                    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                }
+
+                // Add CSRF token if available
+                if (typeof window !== 'undefined' && window.authManager) {
+                    const csrfToken = window.authManager.getCsrfToken();
+                    if (csrfToken) {
+                        xhr.setRequestHeader('X-XSRF-TOKEN', csrfToken);
+                    }
+                }
+
+                // Send request
+                xhr.send(formData);
+            });
+        }
+
+        // Remove document
+        function removeBuyerDocument(docKey) {
+            const fileInput = document.getElementById(`file_${docKey}`);
+            fileInput.value = '';
+            document.getElementById(`fileInfo_${docKey}`).style.display = 'none';
+            document.getElementById(`progress_${docKey}`).style.display = 'none';
+            clearBuyerDocumentError(docKey);
+            updateBuyerDocumentStatus(docKey, 'pending');
+            delete window.buyerUploadedDocuments[docKey];
+            checkAllDocumentsUploaded();
+        }
+
+        // Update document status
+        function updateBuyerDocumentStatus(docKey, status) {
+            const statusEl = document.getElementById(`status_${docKey}`);
+            const statusMap = {
+                'pending': '<span class="status-badge status-pending">Pending</span>',
+                'uploading': '<span class="status-badge status-uploading"><i class="fas fa-spinner fa-spin"></i> Uploading</span>',
+                'success': '<span class="status-badge status-success"><i class="fas fa-check"></i> Uploaded</span>',
+                'error': '<span class="status-badge status-error"><i class="fas fa-exclamation-triangle"></i> Error</span>'
+            };
+            statusEl.innerHTML = statusMap[status] || statusMap.pending;
+        }
+
+        // Update progress
+        function updateBuyerDocumentProgress(docKey, percent, text) {
+            document.getElementById(`progressFill_${docKey}`).style.width = `${percent}%`;
+            document.getElementById(`progressText_${docKey}`).textContent = text;
+        }
+
+        // Show error
+        function showBuyerDocumentError(docKey, message) {
+            const errorEl = document.getElementById(`error_${docKey}`);
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        // Clear error
+        function clearBuyerDocumentError(docKey) {
+            const errorEl = document.getElementById(`error_${docKey}`);
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+        }
+
+        // Check if all documents uploaded
+        function checkAllDocumentsUploaded() {
+            const requiredDocs = ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'];
+            const allUploaded = requiredDocs.every(docKey => window.buyerUploadedDocuments[docKey]);
+            const acceptBtn = document.getElementById('acceptTransferBtn');
+            acceptBtn.disabled = !allUploaded;
+            
+            if (allUploaded) {
+                acceptBtn.classList.add('btn-ready');
+            } else {
+                acceptBtn.classList.remove('btn-ready');
+            }
+        }
+
+        // Handle accept with documents
+        async function handleAcceptWithDocuments(requestId) {
+            const acceptBtn = document.getElementById('acceptTransferBtn');
+            const requiredDocs = ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'];
+            
+            // Validate all documents uploaded
+            const missingDocs = requiredDocs.filter(docKey => !window.buyerUploadedDocuments[docKey]);
+            if (missingDocs.length > 0) {
+                showNotification('Please upload all required documents before accepting.', 'error');
+                return;
+            }
+
+            // Disable button
+            acceptBtn.disabled = true;
+            acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            try {
+                // Prepare documents object for accept request
+                const documents = {
+                    buyer_id: window.buyerUploadedDocuments.buyer_id,
+                    buyer_tin: window.buyerUploadedDocuments.buyer_tin,
+                    buyer_ctpl: window.buyerUploadedDocuments.buyer_ctpl,
+                    buyer_hpg_clearance: window.buyerUploadedDocuments.buyer_hpg_clearance
+                };
+
+                // Send accept request with documents
+                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
+                    documents: documents
+                });
+
+                if (response.success) {
+                    showNotification('Transfer request accepted successfully. Your documents have been submitted for review.', 'success');
+                    closeBuyerDocumentUploadModal();
+                    // Reload incoming requests
+                    loadIncomingTransferRequests();
+                } else {
+                    throw new Error(response.error || 'Failed to accept transfer request');
+                }
+            } catch (error) {
+                console.error('Error accepting transfer request:', error);
+                showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+                acceptBtn.disabled = false;
+                acceptBtn.innerHTML = '<i class="fas fa-check"></i> Accept Transfer Request';
+            }
+        }
+
+        // Close modal
+        function closeBuyerDocumentUploadModal() {
+            const modal = document.getElementById('buyerDocumentUploadModal');
+            if (modal) {
+                modal.remove();
+                document.body.style.overflow = '';
+            }
+            // Cleanup
+            window.buyerUploadedDocuments = {};
+            window.buyerDocumentConfig = null;
+            window.buyerDocumentRequestId = null;
+        }
+
+        // Modified accept function - now shows modal
+        async function acceptTransferRequest(requestId) {
+            showBuyerDocumentUploadModal(requestId);
         }
 
         // ...existing code...

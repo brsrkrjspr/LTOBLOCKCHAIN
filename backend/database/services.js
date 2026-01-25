@@ -1104,11 +1104,8 @@ async function updateTransferRequestStatus(
         params.push(JSON.stringify(metadata));
     }
 
-    if (buyerSubmittedAt) {
-        paramCount++;
-        query += `, buyer_submitted_at = $${paramCount}`;
-        params.push(buyerSubmittedAt);
-    }
+    // Note: buyerSubmittedAt is stored in metadata.buyerSubmittedAt (not as a separate column)
+    // This keeps it consistent with buyerAcceptedAt and buyerAcceptedBy which are also in metadata
 
     if (remarks !== undefined && remarks !== null) {
         paramCount++;

@@ -2111,10 +2111,11 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
 
 // Buyer accepts a transfer request (handshake step)
 router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_owner', 'admin']), async (req, res) => {
+    let request = null; // Declare outside try block for catch block access
     try {
         const { id } = req.params;
 
-        const request = await db.getTransferRequestById(id);
+        request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
                 success: false,

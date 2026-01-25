@@ -192,8 +192,12 @@ function renderTransferRequestDetails(request) {
     // Update vehicle information
     renderVehicleInfo(request);
 
-    // Update documents
-    renderDocuments(request.documents || []);
+    // Update documents - use categorized documents from backend
+    renderDocuments({
+        vehicleDocuments: request.vehicleDocuments || [],
+        sellerDocuments: request.sellerDocuments || [],
+        buyerDocuments: request.buyerDocuments || []
+    });
 
     // Update organization approval status display
     renderOrgApprovalStatus(request);
@@ -736,16 +740,47 @@ function renderVehicleInfo(request) {
     }
 }
 
-function renderDocuments(documents) {
+function renderDocuments(documentCategories) {
     const documentsContainer = document.querySelector('.documents-grid');
     if (!documentsContainer) {
         console.error('[renderDocuments] Container .documents-grid not found');
         return;
     }
     
-    console.log('[renderDocuments] Rendering documents:', documents);
+    // Handle legacy format (array of documents) for backward compatibility
+    if (Array.isArray(documentCategories)) {
+        console.warn('[renderDocuments] Legacy document format detected, converting...');
+        const vehicleDocuments = [];
+        const sellerDocuments = [];
+        const buyerDocuments = [];
+        
+        documentCategories.forEach(doc => {
+            const docType = (doc.document_type || doc.type || '').toLowerCase();
+            if (doc.is_vehicle_document || doc.source === 'vehicle' || doc.auto_included) {
+                vehicleDocuments.push(doc);
+            } else if (docType === 'deed_of_sale' || docType === 'seller_id') {
+                sellerDocuments.push(doc);
+            } else if (docType.startsWith('buyer_') || docType === 'buyer_id' || docType === 'buyer_tin' || 
+                       docType === 'buyer_ctpl' || docType === 'buyer_hpg_clearance') {
+                buyerDocuments.push(doc);
+            } else {
+                vehicleDocuments.push(doc); // Default to vehicle documents
+            }
+        });
+        
+        documentCategories = { vehicleDocuments, sellerDocuments, buyerDocuments };
+    }
+    
+    const { vehicleDocuments = [], sellerDocuments = [], buyerDocuments = [] } = documentCategories;
+    
+    console.log('[renderDocuments] Rendering categorized documents:', {
+        vehicle: vehicleDocuments.length,
+        seller: sellerDocuments.length,
+        buyer: buyerDocuments.length
+    });
 
-    if (!documents || documents.length === 0) {
+    const totalDocs = vehicleDocuments.length + sellerDocuments.length + buyerDocuments.length;
+    if (totalDocs === 0) {
         documentsContainer.innerHTML = `
             <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
                 <i class="fas fa-file-alt" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
@@ -755,39 +790,34 @@ function renderDocuments(documents) {
         return;
     }
 
-    // Categorize documents by seller vs buyer
-    const sellerDocuments = [];
-    const buyerDocuments = [];
-    const otherDocuments = [];
-
-    documents.forEach(doc => {
-        const docType = (doc.document_type || doc.type || '').toLowerCase();
-        
-        // Seller documents
-        if (docType === 'deed_of_sale' || docType === 'seller_id') {
-            sellerDocuments.push(doc);
-        }
-        // Buyer documents
-        else if (docType.startsWith('buyer_') || docType === 'buyer_id' || docType === 'buyer_tin' || 
-                 docType === 'buyer_ctpl' || docType === 'buyer_hpg_clearance') {
-            buyerDocuments.push(doc);
-        }
-        // Other documents (OR/CR, etc.)
-        else {
-            otherDocuments.push(doc);
-        }
-    });
-
     // Render categorized documents
     let html = '';
 
-    // Seller Documents Section
+    // Vehicle Original Documents Section (owned by seller while transfer is not approved)
+    if (vehicleDocuments.length > 0) {
+        html += `
+            <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
+                <h4 style="color: #7c3aed; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-car" style="color: #8b5cf6;"></i>
+                    Vehicle Original Documents
+                    <span style="font-size: 0.875rem; font-weight: 400; color: #6b7280; margin-left: auto;">
+                        (Owned by seller until transfer approved)
+                    </span>
+                </h4>
+                <div class="documents-grid" style="margin-top: 0;">
+                    ${vehicleDocuments.map(doc => renderDocumentCard(doc)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Seller Submitted Documents Section
     if (sellerDocuments.length > 0) {
         html += `
             <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
                 <h4 style="color: #1e40af; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fas fa-user-tie" style="color: #3b82f6;"></i>
-                    Seller Documents
+                    Seller Submitted Documents
                 </h4>
                 <div class="documents-grid" style="margin-top: 0;">
                     ${sellerDocuments.map(doc => renderDocumentCard(doc)).join('')}
@@ -796,31 +826,16 @@ function renderDocuments(documents) {
         `;
     }
 
-    // Buyer Documents Section
+    // Buyer Submitted Documents Section
     if (buyerDocuments.length > 0) {
         html += `
             <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
                 <h4 style="color: #059669; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fas fa-user-check" style="color: #10b981;"></i>
-                    Buyer Documents
+                    Buyer Submitted Documents
                 </h4>
                 <div class="documents-grid" style="margin-top: 0;">
                     ${buyerDocuments.map(doc => renderDocumentCard(doc)).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // Other Documents Section (OR/CR, etc.)
-    if (otherDocuments.length > 0) {
-        html += `
-            <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
-                <h4 style="color: #7c3aed; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fas fa-file-alt" style="color: #8b5cf6;"></i>
-                    Vehicle Documents
-                </h4>
-                <div class="documents-grid" style="margin-top: 0;">
-                    ${otherDocuments.map(doc => renderDocumentCard(doc)).join('')}
                 </div>
             </div>
         `;

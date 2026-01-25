@@ -2766,33 +2766,38 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
         // Get documents
         const documents = await db.getTransferRequestDocuments(id);
         
-        // Automatically include OR/CR from vehicle records (even though seller didn't upload it)
-        // OR/CR is linked to the vehicle, so it's automatically compiled with the transfer application
-        const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-        const orCrDoc = vehicleDocuments.find(d => 
-            d.document_type === 'or_cr' || 
-            d.document_type === 'registration_cert' || 
-            d.document_type === 'registrationCert' ||
-            d.document_type === 'registration' ||
-            (d.original_name && (
-                d.original_name.toLowerCase().includes('or_cr') ||
-                d.original_name.toLowerCase().includes('or-cr') ||
-                d.original_name.toLowerCase().includes('orcr') ||
-                d.original_name.toLowerCase().includes('registration')
-            ))
-        );
-        
-        // Add OR/CR to documents array if found (marked as auto-included from vehicle)
-        if (orCrDoc) {
-            documents.push({
-                ...orCrDoc,
-                document_type: 'or_cr',
-                auto_included: true, // Flag indicating this was pulled from vehicle, not uploaded by seller
-                source: 'vehicle_record'
-            });
+        // Get vehicle documents separately (original vehicle documents owned by seller)
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        let vehicleDocuments = [];
+        if (vehicle) {
+            vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+            // Mark vehicle documents with source indicator
+            vehicleDocuments = vehicleDocuments.map(doc => ({
+                ...doc,
+                source: 'vehicle',
+                is_vehicle_document: true
+            }));
         }
         
+        // Separate transfer documents into seller and buyer documents
+        const sellerTransferDocs = documents.filter(doc => {
+            const docType = (doc.document_type || '').toLowerCase();
+            return docType === 'deed_of_sale' || docType === 'seller_id';
+        });
+        
+        const buyerTransferDocs = documents.filter(doc => {
+            const docType = (doc.document_type || '').toLowerCase();
+            return docType.startsWith('buyer_') || 
+                   docType === 'buyer_id' || 
+                   docType === 'buyer_tin' || 
+                   docType === 'buyer_ctpl' || 
+                   docType === 'buyer_hpg_clearance';
+        });
+        
         request.documents = documents;
+        request.vehicleDocuments = vehicleDocuments;
+        request.sellerDocuments = sellerTransferDocs;
+        request.buyerDocuments = buyerTransferDocs;
         
         // Get verification history
         const verificationHistory = await db.getTransferVerificationHistory(id);
@@ -2841,38 +2846,40 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
         
         const documents = await db.getTransferRequestDocuments(id);
         
-        // Automatically include OR/CR from vehicle records (even though seller didn't upload it)
-        // OR/CR is linked to the vehicle, so it's automatically compiled with the transfer application
+        // Get vehicle documents separately (original vehicle documents owned by seller)
         const vehicle = await db.getVehicleById(request.vehicle_id);
+        let vehicleDocuments = [];
         if (vehicle) {
-            const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-            const orCrDoc = vehicleDocuments.find(d => 
-                d.document_type === 'or_cr' || 
-                d.document_type === 'registration_cert' || 
-                d.document_type === 'registrationCert' ||
-                d.document_type === 'registration' ||
-                (d.original_name && (
-                    d.original_name.toLowerCase().includes('or_cr') ||
-                    d.original_name.toLowerCase().includes('or-cr') ||
-                    d.original_name.toLowerCase().includes('orcr') ||
-                    d.original_name.toLowerCase().includes('registration')
-                ))
-            );
-            
-            // Add OR/CR to documents array if found (marked as auto-included from vehicle)
-            if (orCrDoc) {
-                documents.push({
-                    ...orCrDoc,
-                    document_type: 'or_cr',
-                    auto_included: true, // Flag indicating this was pulled from vehicle, not uploaded by seller
-                    source: 'vehicle_record'
-                });
-            }
+            vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
+            // Mark vehicle documents with source indicator
+            vehicleDocuments = vehicleDocuments.map(doc => ({
+                ...doc,
+                source: 'vehicle',
+                is_vehicle_document: true
+            }));
         }
+        
+        // Separate transfer documents into seller and buyer documents
+        const sellerTransferDocs = documents.filter(doc => {
+            const docType = (doc.document_type || '').toLowerCase();
+            return docType === 'deed_of_sale' || docType === 'seller_id';
+        });
+        
+        const buyerTransferDocs = documents.filter(doc => {
+            const docType = (doc.document_type || '').toLowerCase();
+            return docType.startsWith('buyer_') || 
+                   docType === 'buyer_id' || 
+                   docType === 'buyer_tin' || 
+                   docType === 'buyer_ctpl' || 
+                   docType === 'buyer_hpg_clearance';
+        });
         
         res.json({
             success: true,
-            documents
+            documents,
+            vehicleDocuments,
+            sellerDocuments: sellerTransferDocs,
+            buyerDocuments: buyerTransferDocs
         });
         
     } catch (error) {

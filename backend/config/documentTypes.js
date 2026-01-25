@@ -26,11 +26,18 @@ const LOGICAL_TYPES = {
 /**
  * Database document_type enum values
  * These match the database schema
+ * 
+ * IMPORTANT CONVENTION:
+ * - For vehicle registration, 'insurance_cert' always refers to CTPL 
+ *   (Compulsory Third-Party Liability) insurance.
+ * - The specific coverage type (CTPL, Comprehensive, etc.) is stored in 
+ *   metadata.coverageType field (e.g., in issued_certificates.metadata JSONB).
+ * - CTPL logical type maps to 'insurance_cert' DB type for consistency.
  */
 const DB_TYPES = {
     REGISTRATION_CERT: 'registration_cert',
     INSURANCE_CERT: 'insurance_cert',
-    CTPL: 'ctpl_cert',
+    CTPL: 'insurance_cert', // CTPL uses 'insurance_cert' enum (distinguished via metadata.coverageType)
     MVIR: 'mvir_cert',
     TIN_ID: 'tin_id',
     OWNER_ID: 'owner_id',
@@ -97,8 +104,8 @@ function mapToDbType(logicalType) {
 function mapToLogicalType(dbType) {
     const mapping = {
         [DB_TYPES.REGISTRATION_CERT]: LOGICAL_TYPES.REGISTRATION_CERT,
-        [DB_TYPES.INSURANCE_CERT]: LOGICAL_TYPES.INSURANCE_CERT,
-        [DB_TYPES.CTPL]: LOGICAL_TYPES.CTPL,
+        [DB_TYPES.INSURANCE_CERT]: LOGICAL_TYPES.INSURANCE_CERT, // Maps to 'insuranceCert' logical type
+        // Note: CTPL logical type also maps to 'insurance_cert' DB type, so both map to INSURANCE_CERT
         [DB_TYPES.MVIR]: LOGICAL_TYPES.MVIR,
         [DB_TYPES.TIN_ID]: LOGICAL_TYPES.TIN_ID,
         [DB_TYPES.OWNER_ID]: LOGICAL_TYPES.OWNER_ID,

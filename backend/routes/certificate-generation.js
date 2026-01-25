@@ -2094,11 +2094,13 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 });
 
                 // Store PDF document with correct enum type
+                // Note: CTPL is stored as 'insurance_cert' in documents table (CTPL is a type of insurance)
+                // The coverage type 'CTPL' is stored in metadata.coverageType field
                 const docId = await storePdfAndCreateDocument(
                     ctplResult.pdfBuffer,
                     ctplResult.fileHash,
                     `CTPL_Insurance_${transferRequestId || vehicle.id}.pdf`,
-                    docTypes.DB_TYPES.CTPL, // Use proper enum: 'ctpl_cert'
+                    docTypes.DB_TYPES.INSURANCE_CERT, // Use 'insurance_cert' enum - CTPL is distinguished via metadata
                     vehicle.id,
                     buyer.email
                 );

@@ -17,6 +17,7 @@ const certificateBlockchain = require('../services/certificateBlockchainService'
 const dbModule = require('../database/db');
 const { REGISTRATION_ACTIONS, normalizeAction } = require('../config/actionConstants');
 const { validateVehicleStatusTransition } = require('../middleware/statusValidation');
+const { VEHICLE_STATUS } = require('../config/statusConstants');
 
 // Configure multer for file uploads
 const inspectionDocsDir = path.join(__dirname, '../uploads/inspection-documents');
@@ -665,11 +666,6 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             inspectionDate = null;
         }
 
-        // Update vehicle status to APPROVED (with OR/CR number if generated)
-        await db.updateVehicle(vehicleId, {
-            status: 'APPROVED'
-        });
-
         // Register vehicle on blockchain (with OR/CR numbers and documents)
         // CRITICAL: Blockchain registration is MANDATORY for vehicle registration
         // If blockchain fails, the entire approval must fail (blockchain is source of truth)
@@ -694,7 +690,47 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 message: 'Cannot approve vehicle: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
             });
         }
+
+        // PHASE 3 FIX: Handle two-step status transition for blockchain registration
+        // Step 1: If vehicle is SUBMITTED, transition to PENDING_BLOCKCHAIN first
+        // Step 2: Then validate transition from PENDING_BLOCKCHAIN to REGISTERED
+        let currentStatus = vehicle.status;
         
+        if (currentStatus === VEHICLE_STATUS.SUBMITTED) {
+            // First transition: SUBMITTED → PENDING_BLOCKCHAIN
+            const step1Validation = validateVehicleStatusTransition(currentStatus, VEHICLE_STATUS.PENDING_BLOCKCHAIN);
+            if (!step1Validation.valid) {
+                console.error(`[Phase 3] Invalid status transition: ${currentStatus} → ${VEHICLE_STATUS.PENDING_BLOCKCHAIN}`, step1Validation.error);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid status transition',
+                    message: step1Validation.error,
+                    currentStatus,
+                    newStatus: VEHICLE_STATUS.PENDING_BLOCKCHAIN
+                });
+            }
+            
+            // Update to PENDING_BLOCKCHAIN before blockchain registration
+            await db.updateVehicle(vehicleId, {
+                status: VEHICLE_STATUS.PENDING_BLOCKCHAIN
+            });
+            console.log(`[LTO Approval] Vehicle status updated: ${currentStatus} → ${VEHICLE_STATUS.PENDING_BLOCKCHAIN}`);
+            currentStatus = VEHICLE_STATUS.PENDING_BLOCKCHAIN;
+        }
+        
+        // Step 2: Validate transition from current status (now PENDING_BLOCKCHAIN) to REGISTERED
+        const statusValidation = validateVehicleStatusTransition(currentStatus, VEHICLE_STATUS.REGISTERED);
+        if (!statusValidation.valid) {
+            console.error(`[Phase 3] Invalid status transition: ${currentStatus} → ${VEHICLE_STATUS.REGISTERED}`, statusValidation.error);
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid status transition',
+                message: statusValidation.error,
+                currentStatus,
+                newStatus: VEHICLE_STATUS.REGISTERED
+            });
+        }
+
         // Blockchain is ALWAYS required - proceed with registration
         {
             
@@ -885,21 +921,8 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             });
         }
 
-        // PHASE 3: Validate vehicle status transition before updating
-        const currentVehicle = await db.getVehicleById(vehicleId);
-        if (currentVehicle) {
-            const statusValidation = validateVehicleStatusTransition(currentVehicle.status, 'REGISTERED');
-            if (!statusValidation.valid) {
-                console.error(`[Phase 3] Invalid status transition: ${currentVehicle.status} → REGISTERED`, statusValidation.error);
-                return res.status(400).json({
-                    success: false,
-                    error: 'Invalid status transition',
-                    message: statusValidation.error,
-                    currentStatus: currentVehicle.status,
-                    newStatus: 'REGISTERED'
-                });
-            }
-        }
+        // PHASE 3: Status validation already performed before blockchain registration above
+        // Using original vehicle.status ensures consistency - no need to re-validate here
 
         // PHASE 1 FIX: Update vehicle status to REGISTERED and save blockchain transaction ID
         // This ensures consistency with transfer workflow and improves certificate generator performance

@@ -859,19 +859,86 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             });
         }
 
-        // Update vehicle status to REGISTERED - blockchain registration succeeded
-        await db.updateVehicle(vehicleId, {
-            status: 'REGISTERED'
-        });
+        // PHASE 1 FIX: Validate blockchain transaction ID format
+        // Fabric transaction IDs are 64-character hexadecimal strings (no hyphens)
+        // UUIDs contain hyphens and are NOT blockchain transaction IDs
+        const isValidBlockchainTxId = blockchainTxId && 
+                                     typeof blockchainTxId === 'string' &&
+                                     blockchainTxId.length >= 40 && 
+                                     blockchainTxId.length <= 255 &&
+                                     !blockchainTxId.includes('-') &&
+                                     /^[0-9a-fA-F]+$/.test(blockchainTxId);
+        
+        if (!isValidBlockchainTxId) {
+            console.error('❌ CRITICAL: Invalid blockchain transaction ID format:', {
+                blockchainTxId,
+                length: blockchainTxId?.length,
+                containsHyphens: blockchainTxId?.includes('-'),
+                type: typeof blockchainTxId
+            });
+            return res.status(500).json({
+                success: false,
+                error: 'Invalid blockchain transaction ID format',
+                message: 'Blockchain transaction ID does not match expected format. This indicates a system error. Please contact support.'
+            });
+        }
+
+        // PHASE 3: Validate vehicle status transition before updating
+        const currentVehicle = await db.getVehicleById(vehicleId);
+        if (currentVehicle) {
+            const statusValidation = validateVehicleStatusTransition(currentVehicle.status, 'REGISTERED');
+            if (!statusValidation.valid) {
+                console.error(`[Phase 3] Invalid status transition: ${currentVehicle.status} → REGISTERED`, statusValidation.error);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid status transition',
+                    message: statusValidation.error,
+                    currentStatus: currentVehicle.status,
+                    newStatus: 'REGISTERED'
+                });
+            }
+        }
+
+        // PHASE 1 FIX: Update vehicle status to REGISTERED and save blockchain transaction ID
+        // This ensures consistency with transfer workflow and improves certificate generator performance
+        // The blockchainTxId is saved to vehicles.blockchain_tx_id column for direct access
+        // (previously only saved to vehicle_history, requiring slower lookup)
+        try {
+            await db.updateVehicle(vehicleId, {
+                status: 'REGISTERED',
+                blockchainTxId: blockchainTxId  // Save blockchain transaction ID (MANDATORY - always required)
+            });
+            console.log(`✅ [Phase 1] Vehicle ${vehicleId} updated: status=REGISTERED, blockchainTxId=${blockchainTxId.substring(0, 20)}...`);
+        } catch (updateError) {
+            // CRITICAL: If vehicle update fails, we cannot proceed
+            // The blockchain registration succeeded, but database update failed
+            // This is a data consistency issue that must be resolved
+            console.error('❌ CRITICAL: Failed to update vehicle with blockchain transaction ID:', {
+                vehicleId,
+                blockchainTxId: blockchainTxId.substring(0, 20) + '...',
+                error: updateError.message,
+                stack: updateError.stack
+            });
+            return res.status(500).json({
+                success: false,
+                error: 'Database update failed',
+                message: 'Vehicle was registered on blockchain but failed to update database. This is a critical error. Please contact support immediately.',
+                details: {
+                    vehicleId,
+                    blockchainTxId: blockchainTxId.substring(0, 20) + '...',
+                    error: updateError.message
+                }
+            });
+        }
         
         // Set registration expiry (1 year from now)
         const expiryService = require('../services/expiryService');
         await expiryService.setRegistrationExpiry(vehicleId, new Date());
         
-        // ✅ ADD: Create BLOCKCHAIN_REGISTERED history entry for certificate generator
+        // PHASE 3: Create BLOCKCHAIN_REGISTERED history entry with standardized action name
         await db.addVehicleHistory({
             vehicleId,
-            action: 'BLOCKCHAIN_REGISTERED',
+            action: REGISTRATION_ACTIONS.BLOCKCHAIN_REGISTERED, // PHASE 3: Use standardized action constant
             description: `Vehicle registered on Hyperledger Fabric. TX: ${blockchainTxId}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId,
@@ -885,7 +952,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 chaincode: 'vehicle-registration'
             }
         });
-        console.log(`✅ Created BLOCKCHAIN_REGISTERED history entry with txId: ${blockchainTxId}`);
+        console.log(`✅ [Phase 3] Created BLOCKCHAIN_REGISTERED history entry with txId: ${blockchainTxId}`);
 
         // Send approval email to owner (only on successful blockchain registration)
         try {

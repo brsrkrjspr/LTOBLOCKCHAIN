@@ -12,6 +12,8 @@ const certificateBlockchain = require('../services/certificateBlockchainService'
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const { CLEARANCE_STATUS, normalizeStatusLower, normalizeStatus, isValidClearanceStatus } = require('../config/statusConstants');
+const { HPG_ACTIONS, normalizeAction } = require('../config/actionConstants');
+const { validateClearanceStatusTransition } = require('../middleware/statusValidation');
 
 // Get HPG dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
@@ -654,7 +656,62 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             }
         }
 
-        // Update vehicle verification status
+        // PHASE 2: Update vehicle verification status and log to blockchain atomically
+        let blockchainTxId = null;
+        let blockchainError = null;
+        
+        try {
+            // PHASE 2: Log verification status to blockchain for full traceability
+            // This ensures all verification events are recorded on-chain for audit purposes
+            const fabricService = require('../services/optimizedFabricService');
+            
+            // Ensure Fabric service is initialized
+            if (!fabricService.isConnected) {
+                await fabricService.initialize();
+            }
+            
+            // Prepare notes with officer information for blockchain traceability
+            const currentUser = await db.getUserById(req.user.userId);
+            const notesWithOfficer = JSON.stringify({
+                notes: remarks || '',
+                clearanceRequestId: requestId,
+                engineNumber: engineNumber || null,
+                chassisNumber: chassisNumber || null,
+                macroEtching: macroEtching || false,
+                officerInfo: {
+                    userId: req.user.userId,
+                    email: req.user.email,
+                    name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                    employeeId: currentUser?.employee_id || null
+                },
+                verificationMethod: metadata.autoVerify ? 'auto' : 'manual',
+                hashCheck: hashCheckResult || null,
+                compositeHash: compositeHash || null
+            });
+            
+            // Call chaincode to update verification status on blockchain
+            const blockchainResult = await fabricService.updateVerificationStatus(
+                vehicle.vin,
+                'hpg',
+                'APPROVED',
+                notesWithOfficer
+            );
+            
+            if (blockchainResult && blockchainResult.transactionId) {
+                blockchainTxId = blockchainResult.transactionId;
+                console.log(`✅ [Phase 2] HPG verification logged to blockchain. TX ID: ${blockchainTxId}`);
+            } else {
+                throw new Error('Blockchain update completed but no transaction ID returned');
+            }
+        } catch (blockchainErr) {
+            // PHASE 2: Log blockchain error but don't fail the entire operation
+            // Database is source of truth, blockchain is for audit trail
+            blockchainError = blockchainErr;
+            console.error('⚠️ [Phase 2] Failed to log HPG verification to blockchain:', blockchainErr.message);
+            // Continue with database operations - blockchain logging is for audit, not blocking
+        }
+
+        // Update vehicle verification status in database
         await db.updateVerificationStatus(
             clearanceRequest.vehicle_id,
             'hpg',
@@ -665,37 +722,61 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                 hashCheck: hashCheckResult,
                 compositeHash: compositeHash,
                 verificationMethod: metadata.autoVerify ? 'auto' : 'manual',
-                verifiedAt: new Date().toISOString()
+                verifiedAt: new Date().toISOString(),
+                blockchainTxId: blockchainTxId || null,
+                blockchainError: blockchainError ? blockchainError.message : null
             }
         );
 
-        // Add to vehicle history
+        // PHASE 3: Add to vehicle history with standardized action name
         await db.addVehicleHistory({
             vehicleId: clearanceRequest.vehicle_id,
-            action: 'HPG_VERIFICATION_APPROVED',
-            description: `HPG verification approved by ${req.user.email}. ${remarks || ''}`,
+            action: HPG_ACTIONS.APPROVED, // PHASE 3: Use standardized action constant
+            description: `HPG verification approved by ${req.user.email}. ${remarks || ''}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId}` : ''}`,
             performedBy: req.user.userId,
-            transactionId: null,
+            transactionId: blockchainTxId || null,  // PHASE 2: Include blockchain transaction ID
             metadata: {
                 clearanceRequestId: requestId,
                 engineNumber,
                 chassisNumber,
-                macroEtching
+                macroEtching,
+                blockchainTxId: blockchainTxId || null,
+                blockchainError: blockchainError ? blockchainError.message : null
             }
         });
 
-        // Create notification for LTO admin
-        // dbModule already declared at line 120, reuse it
-        const ltoAdmins = await dbModule.query(
-            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-        );
-        if (ltoAdmins.rows.length > 0) {
-            await db.createNotification({
-                userId: ltoAdmins.rows[0].id,
-                title: 'HPG Verification Approved',
-                message: `HPG verification approved for vehicle ${vehicle.plate_number || vehicle.vin}`,
-                type: 'success'
-            });
+        // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
+        try {
+            // Notify LTO admin
+            const ltoAdmins = await dbModule.query(
+                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+            );
+            if (ltoAdmins.rows.length > 0) {
+                await db.createNotification({
+                    userId: ltoAdmins.rows[0].id,
+                    title: 'HPG Verification Approved',
+                    message: `HPG verification approved for vehicle ${vehicle.plate_number || vehicle.vin}${blockchainTxId ? `. Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                    type: 'success'
+                });
+            }
+            
+            // PHASE 2: Notify vehicle owner about verification approval
+            if (vehicle.owner_id) {
+                try {
+                    await db.createNotification({
+                        userId: vehicle.owner_id,
+                        title: 'HPG Clearance Approved',
+                        message: `Your HPG clearance request for vehicle ${vehicle.plate_number || vehicle.vin} has been approved.${blockchainTxId ? ` Transaction ID: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                        type: 'success'
+                    });
+                } catch (ownerNotifyError) {
+                    console.warn('[Phase 2] Failed to notify vehicle owner:', ownerNotifyError.message);
+                    // Continue - owner notification failure shouldn't block approval
+                }
+            }
+        } catch (notificationError) {
+            console.warn('[Phase 2] Notification error (non-blocking):', notificationError.message);
+            // Continue - notification failures shouldn't block the approval
         }
 
         res.json({
@@ -811,41 +892,124 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
             console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with HPG rejection`);
         }
 
-        // Update vehicle verification status
+        // Get vehicle for blockchain logging and notifications
+        const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
+        // PHASE 2: Log rejection to blockchain for full traceability
+        let blockchainTxId = null;
+        let blockchainError = null;
+        
+        try {
+            // PHASE 2: Log verification rejection to blockchain for audit purposes
+            const fabricService = require('../services/optimizedFabricService');
+            
+            // Ensure Fabric service is initialized
+            if (!fabricService.isConnected) {
+                await fabricService.initialize();
+            }
+            
+            // Prepare notes with officer information and rejection reason
+            const currentUser = await db.getUserById(req.user.userId);
+            const notesWithOfficer = JSON.stringify({
+                notes: reason || '',
+                clearanceRequestId: requestId,
+                rejectionReason: reason,
+                officerInfo: {
+                    userId: req.user.userId,
+                    email: req.user.email,
+                    name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                    employeeId: currentUser?.employee_id || null
+                }
+            });
+            
+            // Call chaincode to update verification status on blockchain
+            const blockchainResult = await fabricService.updateVerificationStatus(
+                vehicle.vin,
+                'hpg',
+                'REJECTED',
+                notesWithOfficer
+            );
+            
+            if (blockchainResult && blockchainResult.transactionId) {
+                blockchainTxId = blockchainResult.transactionId;
+                console.log(`✅ [Phase 2] HPG verification rejection logged to blockchain. TX ID: ${blockchainTxId}`);
+            } else {
+                throw new Error('Blockchain update completed but no transaction ID returned');
+            }
+        } catch (blockchainErr) {
+            // PHASE 2: Log blockchain error but don't fail the entire operation
+            blockchainError = blockchainErr;
+            console.error('⚠️ [Phase 2] Failed to log HPG rejection to blockchain:', blockchainErr.message);
+            // Continue with database operations
+        }
+
+        // Update vehicle verification status in database
         await db.updateVerificationStatus(
             clearanceRequest.vehicle_id,
             'hpg',
             'REJECTED',
             req.user.userId,
-            reason
+            reason || null,
+            {
+                rejectionReason: reason,
+                blockchainTxId: blockchainTxId || null,
+                blockchainError: blockchainError ? blockchainError.message : null
+            }
         );
 
-        // Add to vehicle history
+        // PHASE 3: Add to vehicle history with standardized action name
         await db.addVehicleHistory({
             vehicleId: clearanceRequest.vehicle_id,
-            action: 'HPG_VERIFICATION_REJECTED',
-            description: `HPG verification rejected by ${req.user.email}. Reason: ${reason}`,
+            action: HPG_ACTIONS.REJECTED, // PHASE 3: Use standardized action constant
+            description: `HPG verification rejected by ${req.user.email}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId}` : ''}`,
             performedBy: req.user.userId,
-            transactionId: null,
+            transactionId: blockchainTxId || null,  // PHASE 2: Include blockchain transaction ID
             metadata: {
                 clearanceRequestId: requestId,
-                reason
+                reason,
+                blockchainTxId: blockchainTxId || null,
+                blockchainError: blockchainError ? blockchainError.message : null
             }
         });
 
-        // Create notification for LTO admin
-        const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
-        // dbModule already declared at line 233, reuse it
-        const ltoAdmins = await dbModule.query(
-            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-        );
-        if (ltoAdmins.rows.length > 0) {
-            await db.createNotification({
-                userId: ltoAdmins.rows[0].id,
-                title: 'HPG Verification Rejected',
-                message: `HPG verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}`,
-                type: 'warning'
-            });
+        // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
+        try {
+            // Notify LTO admin
+            const ltoAdmins = await dbModule.query(
+                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+            );
+            if (ltoAdmins.rows.length > 0) {
+                await db.createNotification({
+                    userId: ltoAdmins.rows[0].id,
+                    title: 'HPG Verification Rejected',
+                    message: `HPG verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                    type: 'warning'
+                });
+            }
+            
+            // PHASE 2: Notify vehicle owner about verification rejection
+            if (vehicle.owner_id) {
+                try {
+                    await db.createNotification({
+                        userId: vehicle.owner_id,
+                        title: 'HPG Clearance Rejected',
+                        message: `Your HPG clearance request for vehicle ${vehicle.plate_number || vehicle.vin} has been rejected. Reason: ${reason}${blockchainTxId ? ` Transaction ID: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                        type: 'warning'
+                    });
+                } catch (ownerNotifyError) {
+                    console.warn('[Phase 2] Failed to notify vehicle owner:', ownerNotifyError.message);
+                    // Continue - owner notification failure shouldn't block rejection
+                }
+            }
+        } catch (notificationError) {
+            console.warn('[Phase 2] Notification error (non-blocking):', notificationError.message);
+            // Continue - notification failures shouldn't block the rejection
         }
 
         res.json({

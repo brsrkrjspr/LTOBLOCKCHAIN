@@ -282,14 +282,34 @@ class VehicleRegistrationContract extends Contract {
             // Store updated vehicle
             await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
 
-            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
-            ctx.stub.setEvent('VerificationUpdated', Buffer.from(JSON.stringify({
+            // PHASE 3: Emit specific events based on status for better traceability
+            // Emit both generic VerificationUpdated and specific ClearanceApproved/ClearanceRejected events
+            const eventPayload = {
                 vin: vin,
                 verifierType: verifierType,
                 status: status,
                 timestamp: timestamp,
                 transactionId: txId
-            })));
+            };
+
+            // Emit generic event (for backward compatibility)
+            ctx.stub.setEvent('VerificationUpdated', Buffer.from(JSON.stringify(eventPayload)));
+
+            // PHASE 3: Emit specific event based on status for better filtering and traceability
+            if (status === 'APPROVED') {
+                ctx.stub.setEvent('ClearanceApproved', Buffer.from(JSON.stringify({
+                    ...eventPayload,
+                    clearanceType: verifierType, // hpg, insurance, emission
+                    approvedAt: timestamp
+                })));
+            } else if (status === 'REJECTED') {
+                ctx.stub.setEvent('ClearanceRejected', Buffer.from(JSON.stringify({
+                    ...eventPayload,
+                    clearanceType: verifierType, // hpg, insurance, emission
+                    rejectedAt: timestamp,
+                    rejectionReason: notes || ''
+                })));
+            }
 
             console.log(`Verification status updated for vehicle ${vin}: ${verifierType} = ${status}`);
             return JSON.stringify({

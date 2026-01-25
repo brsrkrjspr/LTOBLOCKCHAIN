@@ -7,6 +7,8 @@ const db = require('../database/services');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const { normalizeStatus, CLEARANCE_STATUS, isValidClearanceStatus } = require('../config/statusConstants');
+const { INSURANCE_ACTIONS, normalizeAction } = require('../config/actionConstants');
+const { validateClearanceStatusTransition } = require('../middleware/statusValidation');
 
 // Get insurance dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
@@ -271,26 +273,106 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
 
         await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'APPROVED', req.user.userId, notes);
 
+        // PHASE 2: Log approval to blockchain for full traceability
+        let blockchainTxId = null;
+        let blockchainError = null;
+        
+        // Get vehicle for blockchain logging and notifications
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({ success: false, error: 'Vehicle not found' });
+        }
+        
+        try {
+            // PHASE 2: Log verification approval to blockchain for audit purposes
+            const fabricService = require('../services/optimizedFabricService');
+            
+            // Ensure Fabric service is initialized
+            if (!fabricService.isConnected) {
+                await fabricService.initialize();
+            }
+            
+            // Prepare notes with officer information
+            const currentUser = await db.getUserById(req.user.userId);
+            const notesWithOfficer = JSON.stringify({
+                notes: notes || '',
+                clearanceRequestId: requestId,
+                officerInfo: {
+                    userId: req.user.userId,
+                    email: req.user.email,
+                    name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                    employeeId: currentUser?.employee_id || null
+                }
+            });
+            
+            // Call chaincode to update verification status on blockchain
+            const blockchainResult = await fabricService.updateVerificationStatus(
+                vehicle.vin,
+                'insurance',
+                'APPROVED',
+                notesWithOfficer
+            );
+            
+            if (blockchainResult && blockchainResult.transactionId) {
+                blockchainTxId = blockchainResult.transactionId;
+                console.log(`✅ [Phase 2] Insurance verification logged to blockchain. TX ID: ${blockchainTxId}`);
+            } else {
+                throw new Error('Blockchain update completed but no transaction ID returned');
+            }
+        } catch (blockchainErr) {
+            // PHASE 2: Log blockchain error but don't fail the entire operation
+            blockchainError = blockchainErr;
+            console.error('⚠️ [Phase 2] Failed to log insurance approval to blockchain:', blockchainErr.message);
+            // Continue with database operations
+        }
+
+        // PHASE 3: Add to vehicle history with standardized action name
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
-            action: 'INSURANCE_VERIFICATION_APPROVED',
-            description: `Insurance verification approved by ${req.user.email}`,
-            performedBy: req.user.userId
+            action: INSURANCE_ACTIONS.APPROVED, // PHASE 3: Use standardized action constant
+            description: `Insurance verification approved by ${req.user.email}. ${notes || ''}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId}` : ''}`,
+            performedBy: req.user.userId,
+            transactionId: blockchainTxId || null,  // PHASE 2: Include blockchain transaction ID
+            metadata: {
+                clearanceRequestId: requestId,
+                notes: notes || null,
+                blockchainTxId: blockchainTxId || null,
+                blockchainError: blockchainError ? blockchainError.message : null
+            }
         });
 
-        // Create notification for LTO admin
-        const vehicle = await db.getVehicleById(request.vehicle_id);
-        // dbModule already declared at line 95, reuse it
-        const ltoAdmins = await dbModule.query(
-            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-        );
-        if (ltoAdmins.rows.length > 0) {
-            await db.createNotification({
-                userId: ltoAdmins.rows[0].id,
-                title: 'Insurance Verification Approved',
-                message: `Insurance verification approved for vehicle ${vehicle.plate_number || vehicle.vin}`,
-                type: 'success'
-            });
+        // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
+        try {
+            // Notify LTO admin
+            const ltoAdmins = await dbModule.query(
+                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+            );
+            if (ltoAdmins.rows.length > 0) {
+                await db.createNotification({
+                    userId: ltoAdmins.rows[0].id,
+                    title: 'Insurance Verification Approved',
+                    message: `Insurance verification approved for vehicle ${vehicle.plate_number || vehicle.vin}${blockchainTxId ? `. Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                    type: 'success'
+                });
+            }
+            
+            // PHASE 2: Notify vehicle owner about verification approval
+            if (vehicle.owner_id) {
+                try {
+                    await db.createNotification({
+                        userId: vehicle.owner_id,
+                        title: 'Insurance Verification Approved',
+                        message: `Your insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin} has been approved.${blockchainTxId ? ` Transaction ID: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                        type: 'success'
+                    });
+                } catch (ownerNotifyError) {
+                    console.warn('[Phase 2] Failed to notify vehicle owner:', ownerNotifyError.message);
+                    // Continue - owner notification failure shouldn't block approval
+                }
+            }
+        } catch (notificationError) {
+            console.warn('[Phase 2] Notification error (non-blocking):', notificationError.message);
+            // Continue - notification failures shouldn't block the approval
         }
 
         res.json({ success: true, message: 'Insurance verification approved' });
@@ -373,26 +455,107 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
         
         await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'REJECTED', req.user.userId, reason);
 
+        // PHASE 2: Log rejection to blockchain for full traceability
+        let blockchainTxId = null;
+        let blockchainError = null;
+        
+        // Get vehicle for blockchain logging and notifications
+        const vehicle = await db.getVehicleById(request.vehicle_id);
+        if (!vehicle) {
+            return res.status(404).json({ success: false, error: 'Vehicle not found' });
+        }
+        
+        try {
+            // PHASE 2: Log verification rejection to blockchain for audit purposes
+            const fabricService = require('../services/optimizedFabricService');
+            
+            // Ensure Fabric service is initialized
+            if (!fabricService.isConnected) {
+                await fabricService.initialize();
+            }
+            
+            // Prepare notes with officer information and rejection reason
+            const currentUser = await db.getUserById(req.user.userId);
+            const notesWithOfficer = JSON.stringify({
+                notes: reason || '',
+                clearanceRequestId: requestId,
+                rejectionReason: reason,
+                officerInfo: {
+                    userId: req.user.userId,
+                    email: req.user.email,
+                    name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                    employeeId: currentUser?.employee_id || null
+                }
+            });
+            
+            // Call chaincode to update verification status on blockchain
+            const blockchainResult = await fabricService.updateVerificationStatus(
+                vehicle.vin,
+                'insurance',
+                'REJECTED',
+                notesWithOfficer
+            );
+            
+            if (blockchainResult && blockchainResult.transactionId) {
+                blockchainTxId = blockchainResult.transactionId;
+                console.log(`✅ [Phase 2] Insurance verification rejection logged to blockchain. TX ID: ${blockchainTxId}`);
+            } else {
+                throw new Error('Blockchain update completed but no transaction ID returned');
+            }
+        } catch (blockchainErr) {
+            // PHASE 2: Log blockchain error but don't fail the entire operation
+            blockchainError = blockchainErr;
+            console.error('⚠️ [Phase 2] Failed to log insurance rejection to blockchain:', blockchainErr.message);
+            // Continue with database operations
+        }
+
+        // PHASE 3: Add to vehicle history with standardized action name
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
-            action: 'INSURANCE_VERIFICATION_REJECTED',
-            description: `Insurance verification rejected: ${reason}`,
-            performedBy: req.user.userId
+            action: INSURANCE_ACTIONS.REJECTED, // PHASE 3: Use standardized action constant
+            description: `Insurance verification rejected by ${req.user.email}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId}` : ''}`,
+            performedBy: req.user.userId,
+            transactionId: blockchainTxId || null,  // PHASE 2: Include blockchain transaction ID
+            metadata: {
+                clearanceRequestId: requestId,
+                reason: reason || null,
+                blockchainTxId: blockchainTxId || null,
+                blockchainError: blockchainError ? blockchainError.message : null
+            }
         });
 
-        // Create notification for LTO admin
-        const vehicle = await db.getVehicleById(request.vehicle_id);
-        // dbModule already declared at line 180, reuse it
-        const ltoAdmins = await dbModule.query(
-            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-        );
-        if (ltoAdmins.rows.length > 0) {
-            await db.createNotification({
-                userId: ltoAdmins.rows[0].id,
-                title: 'Insurance Verification Rejected',
-                message: `Insurance verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}`,
-                type: 'warning'
-            });
+        // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
+        try {
+            // Notify LTO admin
+            const ltoAdmins = await dbModule.query(
+                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+            );
+            if (ltoAdmins.rows.length > 0) {
+                await db.createNotification({
+                    userId: ltoAdmins.rows[0].id,
+                    title: 'Insurance Verification Rejected',
+                    message: `Insurance verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                    type: 'warning'
+                });
+            }
+            
+            // PHASE 2: Notify vehicle owner about verification rejection
+            if (vehicle.owner_id) {
+                try {
+                    await db.createNotification({
+                        userId: vehicle.owner_id,
+                        title: 'Insurance Verification Rejected',
+                        message: `Your insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin} has been rejected. Reason: ${reason}${blockchainTxId ? ` Transaction ID: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                        type: 'warning'
+                    });
+                } catch (ownerNotifyError) {
+                    console.warn('[Phase 2] Failed to notify vehicle owner:', ownerNotifyError.message);
+                    // Continue - owner notification failure shouldn't block rejection
+                }
+            }
+        } catch (notificationError) {
+            console.warn('[Phase 2] Notification error (non-blocking):', notificationError.message);
+            // Continue - notification failures shouldn't block the rejection
         }
 
         res.json({ success: true, message: 'Insurance verification rejected' });

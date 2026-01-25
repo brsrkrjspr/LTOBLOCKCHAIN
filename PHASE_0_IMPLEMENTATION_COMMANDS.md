@@ -51,12 +51,38 @@ ls -lh backup_before_phase0_*.sql
 
 ## Step 3: Execute Backfill Script
 
-### Via Docker (Recommended - Server):
+### ⚠️ IMPORTANT: Script Not in Container Yet
+
+Since the script was just created, it's not in the Docker image. Use one of these methods:
+
+### Option A: Copy Script to Container (Quick Fix - Recommended):
 ```bash
-docker exec lto-app node backend/scripts/backfill-vehicles-blockchain-tx-id.js
+# Copy the script into the running container
+docker cp backend/scripts/backfill-vehicles-blockchain-tx-id.js lto-app:/app/backend/scripts/backfill-vehicles-blockchain-tx-id.js
+
+# Ensure the scripts directory exists
+docker exec lto-app mkdir -p /app/backend/scripts
+
+# Now execute the script
+docker exec lto-app node /app/backend/scripts/backfill-vehicles-blockchain-tx-id.js
 ```
 
-### Direct Node.js (Local):
+### Option B: Rebuild Container (Permanent Fix):
+```bash
+# Rebuild the container to include the new script
+docker compose -f docker-compose.unified.yml build lto-app
+
+# Restart the container
+docker compose -f docker-compose.unified.yml up -d lto-app
+
+# Wait for container to start
+sleep 10
+
+# Execute the script
+docker exec lto-app node /app/backend/scripts/backfill-vehicles-blockchain-tx-id.js
+```
+
+### Option C: Direct Node.js (If running locally without Docker):
 ```bash
 # Make sure you're in the project root
 cd /path/to/LTOBLOCKCHAIN

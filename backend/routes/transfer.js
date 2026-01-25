@@ -14,6 +14,8 @@ const jwt = require('jsonwebtoken');
 const { sendMail } = require('../services/gmailApiService');
 const dbModule = require('../database/db');
 const { TRANSFER_STATUS, VEHICLE_STATUS } = require('../config/statusConstants');
+const { TRANSFER_ACTIONS, REGISTRATION_ACTIONS, normalizeAction } = require('../config/actionConstants');
+const { validateTransferStatusTransition, validateVehicleStatusTransition } = require('../middleware/statusValidation');
 
 const TRANSFER_DEADLINE_DAYS = 3;
 
@@ -2797,6 +2799,19 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         //     });
         // }
         
+        // PHASE 3: Validate transfer status transition before updating
+        const statusValidation = validateTransferStatusTransition(request.status, TRANSFER_STATUS.COMPLETED);
+        if (!statusValidation.valid) {
+            console.error(`[Phase 3] Invalid status transition: ${request.status} → ${TRANSFER_STATUS.COMPLETED}`, statusValidation.error);
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid status transition',
+                message: statusValidation.error,
+                currentStatus: request.status,
+                newStatus: TRANSFER_STATUS.COMPLETED
+            });
+        }
+
         // Allow approval from the normal review states AND from the forwarded-to-HPG state.
         // Rationale:
         // - enum in DB includes FORWARDED_TO_HPG
@@ -3103,6 +3118,31 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             }
             
             console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
+            
+            // PHASE 3: Add BLOCKCHAIN_TRANSFERRED history entry immediately after successful blockchain transfer
+            // This mirrors the BLOCKCHAIN_REGISTERED pattern from registration workflow
+            // Get vehicle for metadata before updating it
+            const vehicleForHistory = await db.getVehicleById(request.vehicle_id);
+            const previousOwnerForHistory = vehicleForHistory.owner_id ? await db.getUserById(vehicleForHistory.owner_id) : null;
+            const buyerForHistory = await db.getUserById(buyerId);
+            
+            await db.addVehicleHistory({
+                vehicleId: request.vehicle_id,
+                action: TRANSFER_ACTIONS.BLOCKCHAIN_TRANSFERRED, // PHASE 3: Use standardized action constant
+                description: `Ownership transfer recorded on Hyperledger Fabric. TX: ${blockchainTxId}`,
+                performedBy: req.user.userId,
+                transactionId: blockchainTxId,
+                metadata: {
+                    source: 'transfer_approval',
+                    transferRequestId: id,
+                    previousOwner: previousOwnerForHistory?.email || vehicleForHistory.owner_email,
+                    newOwner: buyerForHistory?.email,
+                    fabricNetwork: 'ltochannel',
+                    chaincode: 'vehicle-registration',
+                    transferredAt: new Date().toISOString()
+                }
+            });
+            console.log(`✅ [Phase 3] Created BLOCKCHAIN_TRANSFERRED history entry with txId: ${blockchainTxId}`);
         } catch (blockchainError) {
             console.error('❌ CRITICAL: Blockchain transfer failed:', blockchainError.message);
             return res.status(500).json({
@@ -3216,18 +3256,19 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         }
         */
         
-        // Get full owner details for history
+        // Get full owner details for history (after vehicle update)
         const previousOwner = await db.getUserById(request.seller_id);
         const newOwner = await db.getUserById(buyerId);
         
-        // Add to vehicle history with enhanced metadata
+        // PHASE 3: Add TRANSFER_COMPLETED history entry with standardized action name
+        // This represents the completion of the transfer workflow (separate from blockchain entry)
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
-            action: 'OWNERSHIP_TRANSFERRED',
-            description: `Ownership transferred from ${previousOwner ? `${previousOwner.first_name} ${previousOwner.last_name}` : 'Unknown'} to ${newOwner ? `${newOwner.first_name} ${newOwner.last_name}` : 'Unknown'}`,
+            action: TRANSFER_ACTIONS.COMPLETED, // PHASE 3: Use standardized action constant
+            description: `Transfer completed: Ownership transferred from ${previousOwner ? `${previousOwner.first_name} ${previousOwner.last_name}` : 'Unknown'} to ${newOwner ? `${newOwner.first_name} ${newOwner.last_name}` : 'Unknown'}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId,
-            metadata: JSON.stringify({
+            metadata: {
                 transferRequestId: id,
                 previousOwnerId: request.seller_id,
                 previousOwnerName: previousOwner ? `${previousOwner.first_name} ${previousOwner.last_name}` : null,
@@ -3239,7 +3280,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 transferDate: new Date().toISOString(),
                 approvedBy: req.user.userId,
                 blockchainTxId: blockchainTxId
-            })
+            }
         });
         
         // Create notifications

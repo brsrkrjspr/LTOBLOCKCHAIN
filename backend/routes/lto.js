@@ -17,6 +17,7 @@ const certificateBlockchain = require('../services/certificateBlockchainService'
 const dbModule = require('../database/db');
 const { REGISTRATION_ACTIONS, normalizeAction } = require('../config/actionConstants');
 const { validateVehicleStatusTransition } = require('../middleware/statusValidation');
+const { VEHICLE_STATUS } = require('../config/statusConstants');
 
 // Configure multer for file uploads
 const inspectionDocsDir = path.join(__dirname, '../uploads/inspection-documents');
@@ -690,17 +691,43 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             });
         }
 
-        // PHASE 3 FIX: Validate vehicle status transition before blockchain registration
-        // Validate from original vehicle status (not after premature APPROVED update)
-        const statusValidation = validateVehicleStatusTransition(vehicle.status, 'REGISTERED');
+        // PHASE 3 FIX: Handle two-step status transition for blockchain registration
+        // Step 1: If vehicle is SUBMITTED, transition to PENDING_BLOCKCHAIN first
+        // Step 2: Then validate transition from PENDING_BLOCKCHAIN to REGISTERED
+        let currentStatus = vehicle.status;
+        
+        if (currentStatus === VEHICLE_STATUS.SUBMITTED) {
+            // First transition: SUBMITTED → PENDING_BLOCKCHAIN
+            const step1Validation = validateVehicleStatusTransition(currentStatus, VEHICLE_STATUS.PENDING_BLOCKCHAIN);
+            if (!step1Validation.valid) {
+                console.error(`[Phase 3] Invalid status transition: ${currentStatus} → ${VEHICLE_STATUS.PENDING_BLOCKCHAIN}`, step1Validation.error);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid status transition',
+                    message: step1Validation.error,
+                    currentStatus,
+                    newStatus: VEHICLE_STATUS.PENDING_BLOCKCHAIN
+                });
+            }
+            
+            // Update to PENDING_BLOCKCHAIN before blockchain registration
+            await db.updateVehicle(vehicleId, {
+                status: VEHICLE_STATUS.PENDING_BLOCKCHAIN
+            });
+            console.log(`[LTO Approval] Vehicle status updated: ${currentStatus} → ${VEHICLE_STATUS.PENDING_BLOCKCHAIN}`);
+            currentStatus = VEHICLE_STATUS.PENDING_BLOCKCHAIN;
+        }
+        
+        // Step 2: Validate transition from current status (now PENDING_BLOCKCHAIN) to REGISTERED
+        const statusValidation = validateVehicleStatusTransition(currentStatus, VEHICLE_STATUS.REGISTERED);
         if (!statusValidation.valid) {
-            console.error(`[Phase 3] Invalid status transition: ${vehicle.status} → REGISTERED`, statusValidation.error);
+            console.error(`[Phase 3] Invalid status transition: ${currentStatus} → ${VEHICLE_STATUS.REGISTERED}`, statusValidation.error);
             return res.status(400).json({
                 success: false,
                 error: 'Invalid status transition',
                 message: statusValidation.error,
-                currentStatus: vehicle.status,
-                newStatus: 'REGISTERED'
+                currentStatus,
+                newStatus: VEHICLE_STATUS.REGISTERED
             });
         }
 

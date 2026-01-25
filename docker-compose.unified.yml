@@ -96,6 +96,7 @@ services:
       - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.lto.gov.ph:7051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.lto.gov.ph:7051
       - CORE_PEER_LOCALMSPID=LTOMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
       - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key

@@ -7,8 +7,12 @@
 set -e  # Exit on error
 
 echo "=========================================="
-echo "Fixing Peer FABRIC_CFG_PATH Error"
+echo "Fixing Peer Container Errors"
 echo "=========================================="
+echo "This script fixes:"
+echo "  1. FABRIC_CFG_PATH error"
+echo "  2. MSP config path error"
+echo ""
 
 # Change to project directory
 cd ~/LTOBLOCKCHAIN || { echo "Error: Cannot find LTOBLOCKCHAIN directory"; exit 1; }
@@ -126,36 +130,47 @@ EOF
 
 echo "✓ core.yaml created successfully"
 
-# Step 3: Stop containers
+# Step 3: Verify docker-compose file has MSP path
 echo ""
-echo "Step 3: Stopping containers..."
+echo "Step 3: Verifying docker-compose configuration..."
+if grep -q "CORE_PEER_MSPCONFIGPATH" docker-compose.unified.yml; then
+    echo "✓ MSP config path is set in docker-compose.unified.yml"
+else
+    echo "⚠ WARNING: CORE_PEER_MSPCONFIGPATH not found in docker-compose.unified.yml"
+    echo "  You may need to add it manually:"
+    echo "  - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp"
+fi
+
+# Step 4: Stop containers
+echo ""
+echo "Step 4: Stopping containers..."
 docker-compose -f docker-compose.unified.yml down
 
-# Step 4: Start containers
+# Step 5: Start containers
 echo ""
-echo "Step 4: Starting containers..."
+echo "Step 5: Starting containers..."
 docker-compose -f docker-compose.unified.yml up -d
 
-# Step 5: Wait for containers to start
+# Step 6: Wait for containers to start
 echo ""
-echo "Step 5: Waiting for containers to start (30 seconds)..."
+echo "Step 6: Waiting for containers to start (30 seconds)..."
 sleep 30
 
-# Step 6: Check container status
+# Step 7: Check container status
 echo ""
 echo "=========================================="
 echo "Container Status:"
 echo "=========================================="
 docker ps
 
-# Step 7: Check peer logs
+# Step 8: Check peer logs
 echo ""
 echo "=========================================="
 echo "Peer Logs (last 30 lines):"
 echo "=========================================="
 docker logs peer0.lto.gov.ph 2>&1 | tail -30
 
-# Step 8: Verify peer is running
+# Step 9: Verify peer is running
 echo ""
 echo "=========================================="
 echo "Verification:"
@@ -163,13 +178,17 @@ echo "=========================================="
 if docker ps | grep -q "peer0.lto.gov.ph.*Up"; then
     echo "✓ Peer container is running!"
     
-    # Check for FABRIC_CFG_PATH errors
+    # Check for common errors
     if docker logs peer0.lto.gov.ph 2>&1 | grep -qi "FABRIC_CFG_PATH.*does not exist"; then
         echo "✗ ERROR: FABRIC_CFG_PATH error still present!"
         echo "Check logs above for details."
         exit 1
+    elif docker logs peer0.lto.gov.ph 2>&1 | grep -qi "cannot init crypto.*specified path.*does not exist"; then
+        echo "✗ ERROR: MSP config path error still present!"
+        echo "Make sure CORE_PEER_MSPCONFIGPATH is set in docker-compose.unified.yml"
+        exit 1
     else
-        echo "✓ No FABRIC_CFG_PATH errors found!"
+        echo "✓ No configuration errors found!"
     fi
 else
     echo "✗ ERROR: Peer container is not running!"

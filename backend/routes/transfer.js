@@ -1287,11 +1287,11 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     }
     
     // Fallback: check vehicle documents for insurance/CTPL
+    // Note: CTPL certificates are stored as 'insurance_cert' type (CTPL is distinguished via metadata)
     if (!insuranceDoc) {
         insuranceDoc = vehicleDocuments.find(d => 
             d.document_type === 'insurance_cert' || 
             d.document_type === 'insuranceCert' ||
-            d.document_type === 'ctpl_cert' ||
             d.document_type === 'insurance' ||
             (d.original_name && d.original_name.toLowerCase().includes('insurance')) ||
             (d.original_name && d.original_name.toLowerCase().includes('ctpl'))

@@ -8107,49 +8107,104 @@ input.invalid {
 /* Documents Grid */
 .documents-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.5rem;
     margin-top: 1rem;
 }
 
 .document-card {
-    background: #f8f9fa;
+    background: #ffffff;
     border: 1px solid #e9ecef;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
     transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .document-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
     border-color: #1e40af;
+    transform: translateY(-2px);
+}
+
+.document-card .document-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.document-category-section {
+    margin-bottom: 2rem;
+}
+
+.document-category-section h4 {
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1rem;
+}
+
+.document-category-section .documents-grid {
+    margin-top: 0;
 }
 
 .document-icon {
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     background: linear-gradient(135deg, #1e40af, #3b82f6);
-    border-radius: 8px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 1.5rem;
+    font-size: 1.75rem;
+    flex-shrink: 0;
+}
+
+.document-info {
+    flex: 1;
+    min-width: 0;
 }
 
 .document-info h4 {
     color: #2c3e50;
-    margin: 0 0 0.25rem 0;
-    font-size: 1rem;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .document-info .document-type {
     color: #7f8c8d;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     margin: 0;
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: #f1f5f9;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.document-actions {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
+    margin-top: auto;
+}
+
+.document-actions .btn-secondary {
+    flex: 1;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 /* Details Layout */

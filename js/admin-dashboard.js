@@ -3713,13 +3713,11 @@ function renderOrgStatusIndicators(vehicle) {
 function renderTransferOrgStatus(request) {
     const hpg = request.hpg_approval_status || 'NOT_FORWARDED';
     const insurance = request.insurance_approval_status || 'NOT_FORWARDED';
-    const emission = request.emission_approval_status || 'NOT_FORWARDED';
     
     return `
         <div class="org-status-indicators">
             <span class="org-indicator ${getOrgStatusClass(hpg)}" title="HPG: ${hpg}">H</span>
             <span class="org-indicator ${getOrgStatusClass(insurance)}" title="Insurance: ${insurance}">I</span>
-            <span class="org-indicator ${getOrgStatusClass(emission)}" title="Emission: ${emission}">E</span>
         </div>
     `;
 }

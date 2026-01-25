@@ -755,46 +755,152 @@ function renderDocuments(documents) {
         return;
     }
 
-    documentsContainer.innerHTML = documents.map(doc => {
-        const docId = doc.document_id || doc.id;
-        const docType = doc.document_type || doc.type || 'Document';
-        const docName = doc.original_name || doc.filename || doc.name || docType;
-        const docTypeLabel = getDocumentTypeLabel(docType);
-        
-        console.log('[renderDocuments] Document:', { id: docId, type: docType, name: docName });
+    // Categorize documents by seller vs buyer
+    const sellerDocuments = [];
+    const buyerDocuments = [];
+    const otherDocuments = [];
 
-        return `
-            <div class="document-card">
-                <div class="document-icon">
-                    <i class="fas fa-file-contract"></i>
-                </div>
-                <div class="document-info">
-                    <h4>${escapeHtml(docName)}</h4>
-                    <p class="document-type">${escapeHtml(docTypeLabel)}</p>
-                </div>
-                <div class="document-actions">
-                    <button class="btn-secondary btn-sm" onclick="viewDocument('${docId}')">
-                        <i class="fas fa-eye"></i> View
-                    </button>
-                    <button class="btn-secondary btn-sm" onclick="downloadDocument('${docId}')">
-                        <i class="fas fa-download"></i> Download
-                    </button>
+    documents.forEach(doc => {
+        const docType = (doc.document_type || doc.type || '').toLowerCase();
+        
+        // Seller documents
+        if (docType === 'deed_of_sale' || docType === 'seller_id') {
+            sellerDocuments.push(doc);
+        }
+        // Buyer documents
+        else if (docType.startsWith('buyer_') || docType === 'buyer_id' || docType === 'buyer_tin' || 
+                 docType === 'buyer_ctpl' || docType === 'buyer_hpg_clearance') {
+            buyerDocuments.push(doc);
+        }
+        // Other documents (OR/CR, etc.)
+        else {
+            otherDocuments.push(doc);
+        }
+    });
+
+    // Render categorized documents
+    let html = '';
+
+    // Seller Documents Section
+    if (sellerDocuments.length > 0) {
+        html += `
+            <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
+                <h4 style="color: #1e40af; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-user-tie" style="color: #3b82f6;"></i>
+                    Seller Documents
+                </h4>
+                <div class="documents-grid" style="margin-top: 0;">
+                    ${sellerDocuments.map(doc => renderDocumentCard(doc)).join('')}
                 </div>
             </div>
         `;
-    }).join('');
+    }
+
+    // Buyer Documents Section
+    if (buyerDocuments.length > 0) {
+        html += `
+            <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
+                <h4 style="color: #059669; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-user-check" style="color: #10b981;"></i>
+                    Buyer Documents
+                </h4>
+                <div class="documents-grid" style="margin-top: 0;">
+                    ${buyerDocuments.map(doc => renderDocumentCard(doc)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Other Documents Section (OR/CR, etc.)
+    if (otherDocuments.length > 0) {
+        html += `
+            <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
+                <h4 style="color: #7c3aed; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-file-alt" style="color: #8b5cf6;"></i>
+                    Vehicle Documents
+                </h4>
+                <div class="documents-grid" style="margin-top: 0;">
+                    ${otherDocuments.map(doc => renderDocumentCard(doc)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    documentsContainer.innerHTML = html;
+}
+
+function renderDocumentCard(doc) {
+    const docId = doc.document_id || doc.id;
+    const docType = doc.document_type || doc.type || 'Document';
+    const docName = doc.original_name || doc.filename || doc.name || docType;
+    const docTypeLabel = getDocumentTypeLabel(docType);
+    const docIcon = getDocumentIcon(docType);
+    
+    return `
+        <div class="document-card">
+            <div class="document-header">
+                <div class="document-icon">
+                    <i class="fas ${docIcon}"></i>
+                </div>
+                <div class="document-info">
+                    <h4>${escapeHtml(docName)}</h4>
+                    <span class="document-type">${escapeHtml(docTypeLabel)}</span>
+                </div>
+            </div>
+            <div class="document-actions">
+                <button class="btn-secondary btn-sm" onclick="viewDocument('${docId}')">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                <button class="btn-secondary btn-sm" onclick="downloadDocument('${docId}')">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+        </div>
+    `;
 }
 
 function getDocumentTypeLabel(type) {
     const labels = {
-        'DEED_OF_SALE': 'Legal Document',
-        'SELLER_ID': 'Identification',
-        'BUYER_ID': 'Identification',
-        'OR': 'Vehicle Registration',
-        'CR': 'Vehicle Registration',
-        'OR_CR': 'Vehicle Registration',
+        'deed_of_sale': 'Deed of Sale',
+        'seller_id': 'Seller ID',
+        'buyer_id': 'Buyer ID',
+        'buyer_tin': 'Buyer TIN',
+        'buyer_ctpl': 'Buyer CTPL',
+        'buyer_hpg_clearance': 'Buyer HPG Clearance',
+        'or': 'Vehicle Registration (OR)',
+        'cr': 'Vehicle Registration (CR)',
+        'or_cr': 'Vehicle Registration (OR/CR)',
+        'owner_id': 'Owner ID',
+        'insurance_cert': 'Insurance Certificate',
+        'registration_cert': 'Registration Certificate',
+        'hpg_clearance': 'HPG Clearance',
+        'DEED_OF_SALE': 'Deed of Sale',
+        'SELLER_ID': 'Seller ID',
+        'BUYER_ID': 'Buyer ID',
+        'OR': 'Vehicle Registration (OR)',
+        'CR': 'Vehicle Registration (CR)',
+        'OR_CR': 'Vehicle Registration (OR/CR)',
     };
-    return labels[type] || 'Document';
+    return labels[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getDocumentIcon(type) {
+    const icons = {
+        'deed_of_sale': 'fa-file-contract',
+        'seller_id': 'fa-id-card',
+        'buyer_id': 'fa-id-card',
+        'buyer_tin': 'fa-file-invoice',
+        'buyer_ctpl': 'fa-shield-alt',
+        'buyer_hpg_clearance': 'fa-shield-alt',
+        'or': 'fa-file-alt',
+        'cr': 'fa-file-alt',
+        'or_cr': 'fa-file-alt',
+        'owner_id': 'fa-id-card',
+        'insurance_cert': 'fa-shield-alt',
+        'registration_cert': 'fa-file-certificate',
+        'hpg_clearance': 'fa-shield-alt',
+    };
+    return icons[type?.toLowerCase()] || 'fa-file-contract';
 }
 
 function updateActionButtons(request) {

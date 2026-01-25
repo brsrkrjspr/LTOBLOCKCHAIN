@@ -790,10 +790,34 @@
     /* Document cards */
     .documents-grid {
         grid-template-columns: 1fr !important;
+        gap: 1rem;
     }
     
     .document-card {
-        padding: 1rem;
+        padding: 1.25rem;
+    }
+    
+    .document-header {
+        gap: 0.875rem;
+    }
+    
+    .document-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+    
+    .document-info h4 {
+        font-size: 0.95rem;
+    }
+    
+    .document-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .document-actions .btn-secondary {
+        width: 100%;
     }
     
     /* Action panel */

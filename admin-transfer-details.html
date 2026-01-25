@@ -170,16 +170,9 @@
                                         </p>
                                         <small id="insuranceApprovalDate" style="color: #7f8c8d;"></small>
                                     </div>
-                                    <div class="info-item">
-                                        <label>Emission Approval</label>
-                                        <p id="emissionApprovalStatus">
-                                            <span class="status-badge status-pending">Pending</span>
-                                        </p>
-                                        <small id="emissionApprovalDate" style="color: #7f8c8d;"></small>
-                                    </div>
                                 </div>
                                 <div id="orgApprovalMessage" style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #f39c12; display: none;">
-                                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> All organizations (HPG, Insurance, Emission) must approve before LTO can finalize this transfer request.
+                                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> All organizations (HPG, Insurance) must approve before LTO can finalize this transfer request.
                                 </div>
                             </div>
 
@@ -402,7 +395,6 @@
                 <div class="form-group">
                     <label>Select Required Documents:</label>
                     <select id="requiredDocs" class="form-control" multiple>
-                        <option value="emission">Emission Test Certificate</option>
                         <option value="insurance">Insurance Certificate</option>
                         <option value="clearance">HPG Clearance</option>
                         <option value="other">Other Documents</option>

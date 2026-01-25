@@ -418,6 +418,39 @@ function displayOwnershipTimeline(vehicleData) {
         return;
     }
 
+    // Add vehicle information header
+    if (timeline && vehicle) {
+        const vehicleInfo = document.createElement('div');
+        vehicleInfo.className = 'vehicle-info-header';
+        vehicleInfo.style.cssText = 'background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e9ecef;';
+        vehicleInfo.innerHTML = `
+            <h3 style="margin: 0 0 0.75rem 0; color: #1e293b; font-size: 1.1rem;">
+                <i class="fas fa-car" style="color: #3b82f6;"></i> Vehicle Information
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; font-size: 0.875rem;">
+                <div>
+                    <span style="color: #64748b; font-weight: 500;">VIN:</span>
+                    <div style="color: #1e293b; font-family: monospace; margin-top: 0.25rem;">${escapeHtml(vehicle.vin || 'N/A')}</div>
+                </div>
+                <div>
+                    <span style="color: #64748b; font-weight: 500;">Plate Number:</span>
+                    <div style="color: #1e293b; font-weight: 600; margin-top: 0.25rem;">${escapeHtml(vehicle.plateNumber || vehicle.plate_number || 'Pending')}</div>
+                </div>
+                <div>
+                    <span style="color: #64748b; font-weight: 500;">Vehicle:</span>
+                    <div style="color: #1e293b; margin-top: 0.25rem;">
+                        ${escapeHtml([vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'N/A')}
+                    </div>
+                </div>
+                <div>
+                    <span style="color: #64748b; font-weight: 500;">Vehicle Type:</span>
+                    <div style="color: #1e293b; margin-top: 0.25rem;">${escapeHtml(vehicle.vehicle_type || vehicle.vehicleType || 'N/A')}</div>
+                </div>
+            </div>
+        `;
+        timeline.appendChild(vehicleInfo);
+    }
+
     // Sort periods by date (newest first)
     const sortedPeriods = [...history].sort((a, b) => {
         const dateA = new Date(a.performed_at || a.timestamp || a.startDate);
@@ -444,7 +477,50 @@ function createLimitedTimelineNode(period, vehicle, isCurrent) {
     // Extract data from period
     const startDate = period.performed_at || period.timestamp || period.startDate || new Date().toISOString();
     const endDate = period.metadata?.endDate || period.endDate || (isCurrent ? null : startDate);
-    const transactionId = period.transaction_id || period.transactionId || period.metadata?.transactionId || 'N/A';
+    const transactionId = period.transaction_id || period.transactionId || period.metadata?.transactionId || null;
+    
+    // Calculate duration
+    const startDateObj = new Date(startDate);
+    const endDateObj = endDate ? new Date(endDate) : new Date();
+    const durationMs = endDateObj - startDateObj;
+    const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+    const durationYears = Math.floor(durationDays / 365);
+    const remainingDays = durationDays % 365;
+    const durationMonths = Math.floor(remainingDays / 30);
+    const finalDays = remainingDays % 30;
+    
+    let durationText = '';
+    if (durationYears > 0) {
+        durationText = `${durationYears} year${durationYears > 1 ? 's' : ''}`;
+        if (durationMonths > 0) {
+            durationText += `, ${durationMonths} month${durationMonths > 1 ? 's' : ''}`;
+        }
+    } else if (durationMonths > 0) {
+        durationText = `${durationMonths} month${durationMonths > 1 ? 's' : ''}`;
+        if (finalDays > 0) {
+            durationText += `, ${finalDays} day${finalDays > 1 ? 's' : ''}`;
+        }
+    } else {
+        durationText = `${durationDays} day${durationDays !== 1 ? 's' : ''}`;
+    }
+    
+    // Mask transaction ID (first 8 chars + "..." + last 4 chars)
+    const maskedTxId = transactionId && transactionId.length >= 12
+        ? `${transactionId.substring(0, 8)}...${transactionId.substring(transactionId.length - 4)}`
+        : null;
+    
+    // Determine action type
+    const actionType = period.action === 'OWNERSHIP_TRANSFERRED' 
+        ? 'Ownership Transfer' 
+        : period.action === 'REGISTERED' || period.action === 'BLOCKCHAIN_REGISTERED'
+        ? 'Initial Registration'
+        : period.action || 'Ownership Record';
+    
+    const actionDescription = period.action === 'OWNERSHIP_TRANSFERRED'
+        ? 'Vehicle ownership was transferred'
+        : period.action === 'REGISTERED' || period.action === 'BLOCKCHAIN_REGISTERED'
+        ? 'Vehicle was initially registered'
+        : 'Ownership record created';
 
     const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', { 
         year: 'numeric', 
@@ -469,6 +545,16 @@ function createLimitedTimelineNode(period, vehicle, isCurrent) {
                         <i class="fas fa-calendar-check"></i> ${startDateFormatted} - 
                         <i class="fas fa-calendar-times"></i> ${endDateFormatted}
                     </div>
+                    ${durationText ? `<div class="limited-node-duration" style="margin-top: 0.5rem; color: #64748b; font-size: 0.875rem;">
+                        <i class="fas fa-clock"></i> Duration: ${durationText}
+                    </div>` : ''}
+                    <div class="limited-node-action" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e9ecef;">
+                        <i class="fas fa-exchange-alt" style="color: #3b82f6;"></i> 
+                        <strong>${escapeHtml(actionType)}</strong>
+                        <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                            ${escapeHtml(actionDescription)}
+                        </div>
+                    </div>
                 </div>
                 <div class="limited-node-badges">
                     ${isCurrent ? '<span class="badge-current-limited"><i class="fas fa-star"></i> Current</span>' : ''}
@@ -487,6 +573,16 @@ function createLimitedTimelineNode(period, vehicle, isCurrent) {
                     <span>Tamper-Proof</span>
                 </div>
             </div>
+            ${maskedTxId ? `
+            <div class="limited-transaction-ref" style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #e9ecef;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+                    <span style="color: #64748b; font-weight: 500;">Transaction Reference:</span>
+                    <code style="background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px; font-family: 'Courier New', monospace; color: #1e293b;">
+                        ${escapeHtml(maskedTxId)}
+                    </code>
+                </div>
+            </div>
+            ` : ''}
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #e9ecef;">
                 <button 
                     class="btn-verify-ownership" 

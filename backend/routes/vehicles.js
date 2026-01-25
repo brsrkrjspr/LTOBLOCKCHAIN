@@ -1767,6 +1767,37 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
             });
         }
 
+        // Helper functions for privacy filtering
+        const isAdmin = req.user.role === 'admin';
+        const maskTransactionId = (txId) => {
+            if (!txId || typeof txId !== 'string' || txId.length < 12) return null;
+            return `${txId.substring(0, 8)}...${txId.substring(txId.length - 4)}`;
+        };
+        const filterMetadata = (metadata) => {
+            if (!metadata) return {};
+            const filtered = {};
+            if (metadata.transferType) filtered.transferType = metadata.transferType;
+            if (metadata.transferDate) filtered.transferDate = metadata.transferDate;
+            return filtered;
+        };
+        const filterHistoryForPrivacy = (history) => {
+            if (isAdmin) return history; // Admins see everything
+            return history.map(record => ({
+                ...record,
+                previousOwnerName: null,
+                previousOwnerEmail: null,
+                newOwnerName: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                    ? record.newOwnerName : null,
+                newOwnerEmail: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                    ? record.newOwnerEmail : null,
+                performerName: 'LTO Officer',
+                performerEmail: null,
+                transactionId: maskTransactionId(record.transactionId),
+                transaction_id: maskTransactionId(record.transaction_id),
+                metadata: filterMetadata(record.metadata)
+            }));
+        };
+
         const ownershipHistory = [];
         for (const vehicle of vehicles) {
             try {
@@ -1777,7 +1808,10 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                 }
                 
                 // Safely get ownership history for each vehicle
-                const history = await db.getOwnershipHistory(vehicle.id);
+                let history = await db.getOwnershipHistory(vehicle.id);
+                
+                // Apply privacy filtering for non-admin users
+                history = filterHistoryForPrivacy(history);
                 
                 // Include complete vehicle information
                 ownershipHistory.push({
@@ -1889,7 +1923,92 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
             });
         }
 
-        const ownershipHistory = await db.getOwnershipHistory(vehicle.id);
+        // CRITICAL: Get ownership history from Fabric blockchain (source of truth)
+        let ownershipHistory = [];
+        try {
+            const fabricService = require('../services/optimizedFabricService');
+            
+            // Ensure Fabric is connected
+            if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
+                console.warn('⚠️ Fabric not connected, falling back to database (not recommended)');
+                ownershipHistory = await db.getOwnershipHistory(vehicle.id);
+            } else {
+                // Query Fabric blockchain for ownership history
+                const fabricResult = await fabricService.getOwnershipHistory(vin);
+                
+                if (fabricResult.success) {
+                    // Get full vehicle history to find initial registration
+                    let fullHistory = [];
+                    try {
+                        const historyResult = await fabricService.getVehicleHistory(vin);
+                        if (historyResult.success) {
+                            fullHistory = historyResult.history || [];
+                        }
+                    } catch (historyError) {
+                        console.warn('Could not retrieve full vehicle history:', historyError);
+                    }
+                    
+                    // Transform Fabric data to frontend format
+                    ownershipHistory = transformFabricOwnershipHistory(
+                        fabricResult.currentOwner,
+                        fabricResult.pastOwners,
+                        fabricResult.ownershipTransfers,
+                        fullHistory,
+                        vehicle
+                    );
+                    console.log(`✅ Retrieved ownership history from Fabric for VIN ${vin}`);
+                } else {
+                    throw new Error('Failed to retrieve ownership history from Fabric');
+                }
+            }
+        } catch (fabricError) {
+            console.error('❌ Error querying Fabric for ownership history:', fabricError);
+            // Fallback to database if Fabric query fails
+            console.warn('⚠️ Falling back to database (not recommended for production)');
+            ownershipHistory = await db.getOwnershipHistory(vehicle.id);
+        }
+
+        // Helper function to mask transaction IDs
+        const maskTransactionId = (txId) => {
+            if (!txId || typeof txId !== 'string' || txId.length < 12) return null;
+            return `${txId.substring(0, 8)}...${txId.substring(txId.length - 4)}`;
+        };
+
+        // Helper function to filter metadata for privacy
+        const filterMetadata = (metadata) => {
+            if (!metadata) return {};
+            const filtered = {};
+            // Only allow generic transfer type and date
+            if (metadata.transferType) filtered.transferType = metadata.transferType;
+            if (metadata.transferDate) filtered.transferDate = metadata.transferDate;
+            return filtered;
+        };
+
+        // Filter ownership history for non-admin users (privacy protection)
+        if (!isAdmin && isOwner) {
+            ownershipHistory = ownershipHistory.map(record => {
+                const filtered = {
+                    ...record,
+                    // Remove sensitive information
+                    previousOwnerName: null,
+                    previousOwnerEmail: null,
+                    // Only show new owner info if it's the current user (for registration)
+                    newOwnerName: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                        ? record.newOwnerName : null,
+                    newOwnerEmail: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                        ? record.newOwnerEmail : null,
+                    // Generic officer name, hide email
+                    performerName: 'LTO Officer',
+                    performerEmail: null,
+                    // Mask transaction ID
+                    transactionId: maskTransactionId(record.transactionId),
+                    transaction_id: maskTransactionId(record.transaction_id),
+                    // Filter metadata
+                    metadata: filterMetadata(record.metadata)
+                };
+                return filtered;
+            });
+        }
 
         res.json({
             success: true,
@@ -1931,6 +2050,96 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
         });
     }
 });
+
+// Helper function to transform Fabric ownership history to frontend format
+function transformFabricOwnershipHistory(currentOwner, pastOwners, ownershipTransfers, fullHistory, vehicle) {
+    const history = [];
+    
+    // Find initial registration entry
+    const registrationEntry = fullHistory.find(h => 
+        h.action === 'REGISTERED' || h.action === 'BLOCKCHAIN_REGISTERED'
+    );
+    
+    // Add initial registration entry if found
+    if (registrationEntry) {
+        history.push({
+            id: null,
+            vehicleId: vehicle.id,
+            action: registrationEntry.action,
+            description: registrationEntry.details || 'Vehicle initially registered',
+            timestamp: registrationEntry.timestamp,
+            performed_at: registrationEntry.timestamp,
+            performedBy: registrationEntry.performedBy,
+            performerName: registrationEntry.officerInfo?.name || 'LTO Officer',
+            performerEmail: registrationEntry.officerInfo?.email || null,
+            transactionId: registrationEntry.transactionId,
+            transaction_id: registrationEntry.transactionId,
+            vin: vehicle.vin,
+            plateNumber: vehicle.plate_number,
+            currentOwnerName: currentOwner ? `${currentOwner.firstName || ''} ${currentOwner.lastName || ''}`.trim() : null,
+            currentOwnerEmail: currentOwner?.email || null,
+            newOwnerName: currentOwner ? `${currentOwner.firstName || ''} ${currentOwner.lastName || ''}`.trim() : null,
+            newOwnerEmail: currentOwner?.email || null,
+            metadata: {
+                is_initial: true,
+                owner_email: currentOwner?.email || null,
+                owner_name: currentOwner ? `${currentOwner.firstName || ''} ${currentOwner.lastName || ''}`.trim() : null
+            }
+        });
+    }
+    
+    // Transform ownership transfers from Fabric
+    ownershipTransfers.forEach((transfer, index) => {
+        const previousOwner = transfer.previousOwner || {};
+        const newOwner = transfer.newOwner || {};
+        
+        history.push({
+            id: null,
+            vehicleId: vehicle.id,
+            action: 'OWNERSHIP_TRANSFERRED',
+            description: transfer.details || `Ownership transferred from ${previousOwner.email || 'Unknown'} to ${newOwner.email || 'Unknown'}`,
+            timestamp: transfer.timestamp,
+            performed_at: transfer.timestamp,
+            performedBy: transfer.performedBy,
+            performerName: transfer.officerInfo?.name || 'LTO Officer',
+            performerEmail: transfer.officerInfo?.email || null,
+            transactionId: transfer.transactionId,
+            transaction_id: transfer.transactionId,
+            vin: vehicle.vin,
+            plateNumber: vehicle.plate_number,
+            previousOwnerName: previousOwner.firstName && previousOwner.lastName 
+                ? `${previousOwner.firstName} ${previousOwner.lastName}`.trim()
+                : previousOwner.email || null,
+            previousOwnerEmail: previousOwner.email || null,
+            newOwnerName: newOwner.firstName && newOwner.lastName 
+                ? `${newOwner.firstName} ${newOwner.lastName}`.trim()
+                : newOwner.email || null,
+            newOwnerEmail: newOwner.email || null,
+            currentOwnerName: newOwner.firstName && newOwner.lastName 
+                ? `${newOwner.firstName} ${newOwner.lastName}`.trim()
+                : newOwner.email || null,
+            currentOwnerEmail: newOwner.email || null,
+            transferReason: transfer.transferData?.reason || null,
+            transferDate: transfer.timestamp,
+            metadata: {
+                transferType: transfer.transferData?.transferType || null,
+                transferDate: transfer.timestamp,
+                transferReason: transfer.transferData?.reason || null,
+                previousOwnerId: previousOwner.email || null,
+                newOwnerId: newOwner.email || null
+            }
+        });
+    });
+    
+    // Sort by timestamp (oldest first)
+    history.sort((a, b) => {
+        const dateA = new Date(a.performed_at || a.timestamp);
+        const dateB = new Date(b.performed_at || b.timestamp);
+        return dateA - dateB;
+    });
+    
+    return history;
+}
 
 // Get registration progress for a vehicle
 router.get('/:vehicleId/registration-progress', authenticateToken, async (req, res) => {

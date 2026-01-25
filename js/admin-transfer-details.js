@@ -192,6 +192,11 @@ function renderTransferRequestDetails(request) {
     // Update vehicle information
     renderVehicleInfo(request);
 
+    // Load ownership history (but don't display until toggled)
+    if (request.vehicle_id || (request.vehicle && request.vehicle.id)) {
+        loadOwnershipHistory(request.vehicle_id || request.vehicle.id, false); // false = don't auto-expand
+    }
+
     // Update documents - use categorized documents from backend
     renderDocuments({
         vehicleDocuments: request.vehicleDocuments || [],
@@ -1286,11 +1291,152 @@ async function forwardToInsurance() {
     }
 }
 
-// Make functions globally available for inline onclick handlers
-window.viewDocument = viewDocument;
-window.downloadDocument = downloadDocument;
-window.approveTransfer = approveTransfer;
-window.rejectTransfer = rejectTransfer;
-window.forwardToHPG = forwardToHPG;
-window.forwardToInsurance = forwardToInsurance;
+// Ownership History Functions
+let ownershipHistoryExpanded = false;
+
+async function loadOwnershipHistory(vehicleId, autoExpand = false) {
+    if (!vehicleId) return;
+    
+    const contentEl = document.getElementById('ownershipHistoryContent');
+    if (!contentEl) return;
+    
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const vehicle = await apiClient.get(`/api/vehicles/${vehicleId}`);
+        
+        if (!vehicle || !vehicle.vehicle) {
+            throw new Error('Vehicle not found');
+        }
+        
+        const vin = vehicle.vehicle.vin || vehicleId;
+        const response = await apiClient.get(`/api/vehicles/${vin}/ownership-history`);
+        
+        if (response.success) {
+            const history = response.ownershipHistory || [];
+            renderOwnershipHistory(history, vehicle.vehicle);
+            
+            if (autoExpand && history.length > 0) {
+                toggleOwnershipHistory();
+            }
+        } else {
+            throw new Error(response.error || 'Failed to load ownership history');
+        }
+    } catch (error) {
+        console.error('Load ownership history error:', error);
+        const contentEl = document.getElementById('ownershipHistoryContent');
+        if (contentEl) {
+            contentEl.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Failed to load ownership history: ${escapeHtml(error.message)}</p>
+                </div>
+            `;
+        }
+    }
+}
+
+function renderOwnershipHistory(history, vehicle) {
+    const contentEl = document.getElementById('ownershipHistoryContent');
+    if (!contentEl) return;
+    
+    if (!history || history.length === 0) {
+        contentEl.innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                <i class="fas fa-info-circle"></i>
+                <h4>No Ownership History</h4>
+                <p>This vehicle has no ownership transfer records yet.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort by date (newest first)
+    const sortedHistory = [...history].sort((a, b) => {
+        const dateA = new Date(a.performed_at || a.timestamp || 0);
+        const dateB = new Date(b.performed_at || b.timestamp || 0);
+        return dateB - dateA;
+    });
+    
+    let html = '<div class="ownership-timeline" style="position: relative; padding-left: 2rem;">';
+    
+    sortedHistory.forEach((record, index) => {
+        const isCurrent = index === 0;
+        const date = new Date(record.performed_at || record.timestamp);
+        const dateFormatted = date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const action = record.action || 'UNKNOWN';
+        const previousOwner = record.previous_owner_name || record.metadata?.previousOwnerName || 'N/A';
+        const newOwner = record.new_owner_name || record.current_owner_name || record.metadata?.newOwnerName || 'N/A';
+        const performedBy = record.performed_by_name || 'System';
+        const transactionId = record.transaction_id || record.transactionId || 'N/A';
+        
+        html += `
+            <div class="timeline-item" style="position: relative; padding-bottom: 2rem; border-left: 2px solid ${isCurrent ? '#27ae60' : '#e9ecef'}; padding-left: 1.5rem; margin-left: -2rem;">
+                <div class="timeline-marker" style="position: absolute; left: -6px; top: 0; width: 12px; height: 12px; border-radius: 50%; background: ${isCurrent ? '#27ae60' : '#95a5a6'}; border: 2px solid white; box-shadow: 0 0 0 2px ${isCurrent ? '#27ae60' : '#95a5a6'};"></div>
+                <div class="timeline-content" style="background: ${isCurrent ? '#e8f5e9' : '#f8f9fa'}; padding: 1rem; border-radius: 8px; border-left: 3px solid ${isCurrent ? '#27ae60' : '#95a5a6'};">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                        <div>
+                            <h4 style="margin: 0; color: ${isCurrent ? '#27ae60' : '#2c3e50'}; font-size: 1rem;">
+                                ${isCurrent ? '<i class="fas fa-star" style="color: #f39c12;"></i> ' : ''}${escapeHtml(action.replace(/_/g, ' '))}
+                            </h4>
+                            <small style="color: #7f8c8d;"><i class="fas fa-calendar"></i> ${dateFormatted}</small>
+                        </div>
+                        ${isCurrent ? '<span class="status-badge status-success" style="font-size: 0.75rem;">Current</span>' : ''}
+                    </div>
+                    ${action === 'OWNERSHIP_TRANSFERRED' ? `
+                        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e9ecef;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.875rem;">
+                                <div>
+                                    <strong style="color: #e74c3c;">Previous Owner:</strong><br>
+                                    ${escapeHtml(previousOwner)}
+                                </div>
+                                <div>
+                                    <strong style="color: #27ae60;">New Owner:</strong><br>
+                                    ${escapeHtml(newOwner)}
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e9ecef; font-size: 0.875rem; color: #7f8c8d;">
+                        <div><i class="fas fa-user-cog"></i> Performed by: ${escapeHtml(performedBy)}</div>
+                        ${transactionId !== 'N/A' ? `<div style="margin-top: 0.25rem;"><i class="fas fa-link"></i> Transaction: <code style="font-size: 0.75rem;">${escapeHtml(transactionId.substring(0, 20))}...</code></div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    contentEl.innerHTML = html;
+}
+
+function toggleOwnershipHistory() {
+    const section = document.getElementById('ownershipHistorySection');
+    const icon = document.getElementById('ownershipHistoryIcon');
+    const toggleText = document.getElementById('ownershipHistoryToggleText');
+    
+    if (!section) return;
+    
+    ownershipHistoryExpanded = !ownershipHistoryExpanded;
+    
+    if (ownershipHistoryExpanded) {
+        section.style.display = 'block';
+        if (icon) icon.className = 'fas fa-chevron-up';
+        if (toggleText) toggleText.textContent = 'Hide History';
+    } else {
+        section.style.display = 'none';
+        if (icon) icon.className = 'fas fa-chevron-down';
+        if (toggleText) toggleText.textContent = 'Show History';
+    }
+}
+
+// Make functions globally available
+window.toggleOwnershipHistory = toggleOwnershipHistory;
+window.loadOwnershipHistory = loadOwnershipHistory;
 

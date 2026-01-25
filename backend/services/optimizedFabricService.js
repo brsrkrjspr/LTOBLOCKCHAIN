@@ -410,6 +410,29 @@ class OptimizedFabricService {
         }
     }
 
+    // Get ownership history from Fabric blockchain - CRITICAL: This is the source of truth
+    async getOwnershipHistory(vin) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query ownership history.');
+        }
+
+        try {
+            const result = await this.contract.evaluateTransaction('GetOwnershipHistory', vin);
+            const ownershipData = JSON.parse(result.toString());
+            
+            return {
+                success: true,
+                currentOwner: ownershipData.currentOwner,
+                pastOwners: ownershipData.pastOwners || [],
+                ownershipTransfers: ownershipData.ownershipTransfers || []
+            };
+
+        } catch (error) {
+            console.error('❌ Failed to get ownership history from Fabric:', error);
+            throw new Error(`Ownership history query failed: ${error.message}`);
+        }
+    }
+
     // Get system statistics - Fabric only
     async getSystemStats() {
         if (!this.isConnected || this.mode !== 'fabric') {

@@ -833,7 +833,14 @@ function addNotificationToUI(notification) {
 }
 
 function showNotification(message, type = 'info') {
-    ToastNotification.show(message, type);
+    // Use ToastNotification if available, otherwise fallback to alert
+    if (typeof ToastNotification !== 'undefined') {
+        ToastNotification.show(message, type);
+    } else {
+        // Fallback notification
+        console.warn('ToastNotification not available, using alert fallback:', message);
+        alert(message);
+    }
 }
 
 // Quick action handlers

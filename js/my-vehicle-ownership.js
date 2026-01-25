@@ -924,7 +924,7 @@ async function showTransferRequestDetails(requestId) {
             { key: 'buyer_tin', label: 'Buyer TIN', icon: 'fa-id-card', type: 'id' },
             { key: 'buyer_ctpl', label: 'Buyer CTPL', icon: 'fa-shield-alt', type: 'insurance' },
             { key: 'buyer_hpg_clearance', label: 'Buyer HPG Clearance', icon: 'fa-shield-alt', type: 'other' },
-            { key: 'buyer_mvir', label: 'Buyer MVIR', icon: 'fa-file-alt', type: 'other' },
+            // Note: MVIR is NOT uploaded by buyers - it comes from LTO inspection (vehicles.inspection_documents)
             { key: 'or_cr', label: 'OR/CR', icon: 'fa-car', type: 'registration' }
         ];
         
@@ -940,6 +940,11 @@ async function showTransferRequestDetails(requestId) {
         });
         
         documentTypes.forEach(docType => {
+            // Skip MVIR - it's handled by LTO inspection, not buyer uploads
+            if (docType.key === 'buyer_mvir') {
+                return;
+            }
+            
             const docData = documentsMap[docType.key];
             if (docData) {
                 documentListHTML += `
@@ -947,23 +952,46 @@ async function showTransferRequestDetails(requestId) {
                         <div class="doc-select-icon">
                             <i class="fas ${docType.icon}"></i>
                         </div>
+                    <div class="doc-select-info">
+                        <div class="doc-select-title">${docType.label}</div>
+                        <div class="doc-select-subtitle">${docData.filename}</div>
+                        <div class="doc-select-status">
+                            <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
+                        </div>
+                    </div>
+                    <div class="doc-select-actions" style="display: flex; gap: 0.5rem;">
+                        <button class="btn-icon" onclick="openTransferDocument('${docData.id}')" title="View Document">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${canUpdate ? `
+                        <button class="btn-icon btn-update-doc" onclick="updateTransferDocument('${docType.key}', '${docType.label}', '${docData.id || ''}', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Update Document" style="color: #3498db;">
+                            <i class="fas fa-upload"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            } else {
+                // Show placeholder for missing documents
+                documentListHTML += `
+                    <div class="doc-select-item" data-doc-key="${docType.key}">
+                        <div class="doc-select-icon">
+                            <i class="fas ${docType.icon}"></i>
+                        </div>
                         <div class="doc-select-info">
                             <div class="doc-select-title">${docType.label}</div>
-                            <div class="doc-select-subtitle">${docData.filename}</div>
+                            <div class="doc-select-subtitle">Not uploaded yet</div>
                             <div class="doc-select-status">
-                                <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
+                                <i class="fas fa-exclamation-circle" style="color: #e67e22;"></i> Required
                             </div>
                         </div>
-                        <div class="doc-select-actions" style="display: flex; gap: 0.5rem;">
-                            <button class="btn-icon" onclick="openTransferDocument('${docData.id}')" title="View Document">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            ${canUpdate ? `
-                            <button class="btn-icon btn-update-doc" onclick="updateTransferDocument('${docType.key}', '${docType.label}', '${docData.id || ''}', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Update Document" style="color: #3498db;">
+                        ${canUpdate ? `
+                        <div class="doc-select-actions">
+                            <button class="btn-icon btn-update-doc" onclick="updateTransferDocument('${docType.key}', '${docType.label}', '', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Upload Document" style="color: #3498db;">
                                 <i class="fas fa-upload"></i>
                             </button>
-                            ` : ''}
                         </div>
+                        ` : ''}
                     </div>
                 `;
             }
@@ -1033,6 +1061,9 @@ async function showTransferRequestDetails(requestId) {
                     <!-- Documents Section -->
                     <div class="detail-section">
                         <h4><i class="fas fa-folder-open"></i> Documents</h4>
+                        <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #0c4a6e;">
+                            <strong><i class="fas fa-info-circle"></i> Note:</strong> MVIR (Motor Vehicle Inspection Report) will be completed by LTO during the inspection process and is not required from buyers.
+                        </div>
                         ${documentListHTML ? `
                             <div class="doc-select-list">
                                 ${documentListHTML}

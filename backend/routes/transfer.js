@@ -327,7 +327,8 @@ async function sendTransferInviteEmail({ to, buyerName, sellerName, vehicle, inv
             
             <p>To review and accept this transfer request, please click the button below:</p>
 
-            <p style="font-weight: 600; color: #b45309;">Reminder: You must upload the required buyer documents (HPG clearance, MVIR, CTPL, IDs, TIN) within <strong>3 days</strong> of this invitation.</p>
+            <p style="font-weight: 600; color: #b45309;">Reminder: You must upload the required buyer documents (HPG clearance, CTPL insurance, IDs, TIN) within <strong>3 days</strong> of this invitation.</p>
+            <p style="font-size: 0.9rem; color: #64748b; margin-top: 0.5rem;">Note: MVIR (Motor Vehicle Inspection Report) will be completed by LTO during the inspection process and is not required from you.</p>
             
             <div class="button-container">
                 <a href="${confirmationUrl}" class="button">Review Transfer Request</a>
@@ -358,7 +359,9 @@ ${safeSellerName} has initiated a request to transfer ownership of ${vehicleLabe
 To review and accept this transfer request, please visit:
 ${confirmationUrl}
 
-Important: Upload the required buyer documents (HPG clearance, MVIR, CTPL, IDs, TIN) within 3 days of this invitation.
+Important: Upload the required buyer documents (HPG clearance, CTPL insurance, IDs, TIN) within 3 days of this invitation.
+
+Note: MVIR (Motor Vehicle Inspection Report) will be completed by LTO during the inspection process and is not required from you.
 
 If you did not expect this email, you can safely ignore it. No ownership change will happen unless you log in to your account and explicitly accept the transfer.
 
@@ -2079,57 +2082,14 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
                 documents: transferDocs
             });
 
-            // Auto-verify MVIR document if present
-            let mvirAutoVerificationResult = null;
-            const mvirTransferDoc = transferDocs.find(td => 
-                td.document_type === docTypes.TRANSFER_ROLES.BUYER_MVIR && td.document_id
-            );
-            if (mvirTransferDoc && mvirTransferDoc.document_id) {
-                try {
-                    const autoVerificationService = require('../services/autoVerificationService');
-                    const mvirDoc = await db.getDocumentById(mvirTransferDoc.document_id);
-                    if (mvirDoc && vehicle) {
-                        mvirAutoVerificationResult = await autoVerificationService.autoVerifyMVIR(
-                            request.vehicle_id,
-                            mvirDoc,
-                            vehicle
-                        );
-                        console.log(`[Transfer→MVIR Auto-Verify] Result: ${mvirAutoVerificationResult.status}, Automated: ${mvirAutoVerificationResult.automated}`);
-                        
-                        // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
-                        if (mvirAutoVerificationResult.status === 'PENDING' && mvirAutoVerificationResult.reason) {
-                            const buyerId = request.buyer_id || request.buyer_user_id || currentUserId;
-                            if (buyerId) {
-                                try {
-                                    await db.createNotification({
-                                        userId: buyerId,
-                                        title: 'MVIR Document Issue Detected',
-                                        message: `Your MVIR document was flagged during auto-verification. Issues: ${mvirAutoVerificationResult.reason}. Please review and update the document if needed.`,
-                                        type: 'warning'
-                                    });
-                                    console.log(`✅ Notification sent to buyer ${buyerId} for MVIR auto-verification failure`);
-                                } catch (notifError) {
-                                    console.error('[Transfer→MVIR Auto-Verify] Failed to create buyer notification:', notifError);
-                                }
-                            }
-                        }
-                    }
-                } catch (mvirVerifyError) {
-                    console.error('[Transfer→MVIR Auto-Verify] Error:', mvirVerifyError);
-                    // Don't fail the request if MVIR verification fails
-                }
-            }
+            // Note: MVIR auto-verification removed - MVIR comes from LTO inspection (vehicles.inspection_documents),
+            // not from buyer uploads. MVIR is verified during LTO inspection process, not during transfer acceptance.
 
         const metadataUpdate = {
                 buyerAcceptedAt: nowIso,
                 buyerAcceptedBy: currentUserId,
                 buyerSubmittedAt: nowIso,
-                validation: validationResult,
-                mvirAutoVerification: mvirAutoVerificationResult ? {
-                    status: mvirAutoVerificationResult.status,
-                    automated: mvirAutoVerificationResult.automated,
-                    reason: mvirAutoVerificationResult.reason
-                } : null
+                validation: validationResult
             };
 
             await db.updateTransferRequestStatus(
@@ -2945,14 +2905,8 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
 
 
 
-        // Check MVIR auto-verification status from metadata (if available)
-        const mvirAutoVerification = request.metadata?.mvirAutoVerification;
-        if (mvirAutoVerification && mvirAutoVerification.status === 'PENDING' && mvirAutoVerification.automated === false) {
-            console.warn(`[Transfer Approval] MVIR auto-verification failed: ${mvirAutoVerification.reason}`);
-            // Don't block approval, but log warning - LTO admin can manually verify
-        } else if (mvirAutoVerification && mvirAutoVerification.status === 'APPROVED' && mvirAutoVerification.automated === true) {
-            console.log(`[Transfer Approval] ✅ MVIR auto-verified successfully`);
-        }
+        // Note: MVIR verification is handled during LTO inspection process, not during transfer approval.
+        // MVIR comes from vehicles.inspection_documents (LTO inspection), not from buyer uploads.
         
         // Determine buyer ID (create user if buyer_info exists)
         let buyerId = request.buyer_id;
@@ -2991,8 +2945,8 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
 
         // Enforce required transfer documents before ownership can change.
         // Seller must have: deed of sale + seller ID.
-        // Buyer must have: valid ID, TIN, CTPL, MVIR, HPG clearance.
-        // Note: transferDocs was already loaded above for MVIR check, reuse it
+        // Buyer must have: valid ID, TIN, CTPL insurance, HPG clearance.
+        // Note: MVIR comes from LTO inspection (vehicles.inspection_documents), not from buyer uploads.
         if (!transferDocs) {
             try {
                 transferDocs = await db.getTransferRequestDocuments(id);
@@ -3213,7 +3167,8 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
 
         // Transfer package generation removed - not needed per requirements
         // Seller: Deed of Sale, ID
-        // Buyer: MVIR, HPG, Insurance (CTPL), ID, TIN
+        // Buyer: HPG Clearance, Insurance (CTPL), ID, TIN
+        // Note: MVIR comes from LTO inspection (vehicles.inspection_documents), not from buyer uploads
         // OR/CR is auto-linked to vehicle
         /*
         let generatedPackage = null;

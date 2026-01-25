@@ -3113,17 +3113,16 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         // Seller must have: deed of sale + seller ID.
         // Buyer must have: valid ID, TIN, CTPL insurance, HPG clearance.
         // Note: MVIR comes from LTO inspection (vehicles.inspection_documents), not from buyer uploads.
-        if (!transferDocs) {
-            try {
-                transferDocs = await db.getTransferRequestDocuments(id);
-            } catch (docError) {
-                console.error('Failed to load transfer documents before approval:', docError);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Failed to load transfer documents for approval',
-                    message: process.env.NODE_ENV === 'development' ? docError.message : undefined
-                });
-            }
+        let transferDocs;
+        try {
+            transferDocs = await db.getTransferRequestDocuments(id);
+        } catch (docError) {
+            console.error('Failed to load transfer documents before approval:', docError);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to load transfer documents for approval',
+                message: process.env.NODE_ENV === 'development' ? docError.message : undefined
+            });
         }
 
         const presentRoles = new Set(
@@ -4082,6 +4081,40 @@ router.post('/requests/:id/hpg-approve', authenticateToken, authorizeRole(['admi
             ]
         );
         
+        // Get updated request to check if all approvals are complete
+        const updatedRequest = await db.getTransferRequestById(id);
+        
+        // Check if all required organization approvals are complete
+        if (updatedRequest && updatedRequest.status === 'FORWARDED_TO_HPG') {
+            const pendingApprovals = [];
+            
+            // Check Insurance approval if it was forwarded
+            if (updatedRequest.insurance_clearance_request_id) {
+                if (!updatedRequest.insurance_approval_status || updatedRequest.insurance_approval_status === 'PENDING') {
+                    pendingApprovals.push('Insurance');
+                }
+            }
+            
+            // If all required approvals are complete, transition status back to UNDER_REVIEW
+            if (pendingApprovals.length === 0) {
+                const statusValidation = require('../middleware/statusValidation');
+                const validation = statusValidation.validateTransferStatusTransition('FORWARDED_TO_HPG', 'UNDER_REVIEW');
+                
+                if (validation.valid) {
+                    await db.updateTransferRequestStatus(id, 'UNDER_REVIEW', req.user.userId, null, {
+                        hpgApproved: true,
+                        returnedToLTO: true,
+                        returnedAt: new Date().toISOString()
+                    });
+                    console.log(`✅ Transitioned transfer request ${id} from FORWARDED_TO_HPG to UNDER_REVIEW (all org approvals complete)`);
+                } else {
+                    console.warn(`⚠️ Cannot transition transfer request ${id} to UNDER_REVIEW: ${validation.error}`);
+                }
+            } else {
+                console.log(`ℹ️ Transfer request ${id} still waiting for: ${pendingApprovals.join(', ')}`);
+            }
+        }
+        
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -4091,12 +4124,13 @@ router.post('/requests/:id/hpg-approve', authenticateToken, authorizeRole(['admi
             metadata: { transferRequestId: id, notes: notes || null }
         });
         
-        const updatedRequest = await db.getTransferRequestById(id);
+        // Get final updated request for response
+        const finalRequest = await db.getTransferRequestById(id);
         
         res.json({
             success: true,
             message: 'HPG approval recorded successfully',
-            transferRequest: updatedRequest
+            transferRequest: finalRequest
         });
         
     } catch (error) {
@@ -4139,6 +4173,40 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
             ]
         );
         
+        // Get updated request to check if all approvals are complete
+        const updatedRequest = await db.getTransferRequestById(id);
+        
+        // Check if all required organization approvals are complete
+        if (updatedRequest && (updatedRequest.status === 'FORWARDED_TO_HPG' || updatedRequest.hpg_clearance_request_id)) {
+            const pendingApprovals = [];
+            
+            // Check HPG approval if it was forwarded
+            if (updatedRequest.hpg_clearance_request_id) {
+                if (!updatedRequest.hpg_approval_status || updatedRequest.hpg_approval_status === 'PENDING') {
+                    pendingApprovals.push('HPG');
+                }
+            }
+            
+            // If all required approvals are complete, transition status back to UNDER_REVIEW
+            if (pendingApprovals.length === 0) {
+                const statusValidation = require('../middleware/statusValidation');
+                const validation = statusValidation.validateTransferStatusTransition(updatedRequest.status, 'UNDER_REVIEW');
+                
+                if (validation.valid) {
+                    await db.updateTransferRequestStatus(id, 'UNDER_REVIEW', req.user.userId, null, {
+                        insuranceApproved: true,
+                        returnedToLTO: true,
+                        returnedAt: new Date().toISOString()
+                    });
+                    console.log(`✅ Transitioned transfer request ${id} from ${updatedRequest.status} to UNDER_REVIEW (all org approvals complete)`);
+                } else {
+                    console.warn(`⚠️ Cannot transition transfer request ${id} to UNDER_REVIEW: ${validation.error}`);
+                }
+            } else {
+                console.log(`ℹ️ Transfer request ${id} still waiting for: ${pendingApprovals.join(', ')}`);
+            }
+        }
+        
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -4148,12 +4216,13 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
             metadata: { transferRequestId: id, notes: notes || null }
         });
         
-        const updatedRequest = await db.getTransferRequestById(id);
+        // Get final updated request for response
+        const finalRequest = await db.getTransferRequestById(id);
         
         res.json({
             success: true,
             message: 'Insurance approval recorded successfully',
-            transferRequest: updatedRequest
+            transferRequest: finalRequest
         });
         
     } catch (error) {

@@ -231,6 +231,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                     const hasApprovedBy = colCheck.rows.some(r => r.column_name === 'insurance_approved_by');
                     
                     if (hasApprovalStatus && hasApprovedAt && hasApprovedBy) {
+                        // Update Insurance approval status
                         await dbModule.query(
                             `UPDATE transfer_requests 
                              SET insurance_approval_status = 'APPROVED',
@@ -241,6 +242,44 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                             [req.user.userId, tr.id]
                         );
                         console.log(`✅ Updated transfer request ${tr.id} with Insurance approval`);
+                        
+                        // Get the updated transfer request to check all approvals
+                        const transferRequest = await db.getTransferRequestById(tr.id);
+                        if (transferRequest) {
+                            // Check if all required organization approvals are complete
+                            const pendingApprovals = [];
+                            
+                            // Check HPG approval if it was forwarded
+                            if (transferRequest.hpg_clearance_request_id) {
+                                if (!transferRequest.hpg_approval_status || transferRequest.hpg_approval_status === 'PENDING') {
+                                    pendingApprovals.push('HPG');
+                                }
+                            }
+                            // Insurance approval (just approved, so skip)
+                            
+                            // If all required approvals are complete, transition status back to UNDER_REVIEW
+                            // Check if status is FORWARDED_TO_HPG (HPG was forwarded first) or if it's in a forwarded state
+                            const isForwardedState = transferRequest.status === 'FORWARDED_TO_HPG' || 
+                                                     (transferRequest.hpg_clearance_request_id && transferRequest.status.includes('FORWARDED'));
+                            
+                            if (pendingApprovals.length === 0 && isForwardedState) {
+                                const statusValidation = require('../middleware/statusValidation');
+                                const validation = statusValidation.validateTransferStatusTransition(transferRequest.status, 'UNDER_REVIEW');
+                                
+                                if (validation.valid) {
+                                    await db.updateTransferRequestStatus(tr.id, 'UNDER_REVIEW', req.user.userId, null, {
+                                        insuranceApproved: true,
+                                        returnedToLTO: true,
+                                        returnedAt: new Date().toISOString()
+                                    });
+                                    console.log(`✅ Transitioned transfer request ${tr.id} from ${transferRequest.status} to UNDER_REVIEW (all org approvals complete)`);
+                                } else {
+                                    console.warn(`⚠️ Cannot transition transfer request ${tr.id} to UNDER_REVIEW: ${validation.error}`);
+                                }
+                            } else if (pendingApprovals.length > 0) {
+                                console.log(`ℹ️ Transfer request ${tr.id} still waiting for: ${pendingApprovals.join(', ')}`);
+                            }
+                        }
                     } else {
                         console.warn(`⚠️ Transfer request approval columns missing. Skipping transfer request ${tr.id} update. Run migration: database/verify-verification-columns.sql`);
                     }

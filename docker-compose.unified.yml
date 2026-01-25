@@ -108,10 +108,12 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - FABRIC_CFG_PATH=/var/hyperledger/fabric/config
     volumes:
       - /var/run/:/host/var/run/
       - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp:/etc/hyperledger/fabric/msp
       - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls:/etc/hyperledger/fabric/tls
+      - ./fabric-network/config:/var/hyperledger/fabric/config:ro
       - peer-data:/var/hyperledger/production
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
     command: peer node start

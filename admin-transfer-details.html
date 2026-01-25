@@ -170,9 +170,16 @@
                                         </p>
                                         <small id="insuranceApprovalDate" style="color: #7f8c8d;"></small>
                                     </div>
+                                    <div class="info-item">
+                                        <label>Emission Approval</label>
+                                        <p id="emissionApprovalStatus">
+                                            <span class="status-badge status-pending">Pending</span>
+                                        </p>
+                                        <small id="emissionApprovalDate" style="color: #7f8c8d;"></small>
+                                    </div>
                                 </div>
                                 <div id="orgApprovalMessage" style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #f39c12; display: none;">
-                                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> All organizations (HPG, Insurance) must approve before LTO can finalize this transfer request.
+                                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> All organizations (HPG, Insurance, Emission) must approve before LTO can finalize this transfer request.
                                 </div>
                             </div>
 
@@ -304,24 +311,6 @@
                                 </div>
                             </div>
 
-                            <!-- Section 4.5: Ownership History (Collapsible) -->
-                            <div class="dashboard-card">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                    <h3 style="margin: 0;"><span class="card-icon">📜</span> Ownership History</h3>
-                                    <button id="toggleOwnershipHistory" class="btn-secondary btn-sm" onclick="toggleOwnershipHistory()" style="display: flex; align-items: center; gap: 0.5rem;">
-                                        <i class="fas fa-chevron-down" id="ownershipHistoryIcon"></i>
-                                        <span id="ownershipHistoryToggleText">Show History</span>
-                                    </button>
-                                </div>
-                                <div id="ownershipHistorySection" style="display: none;">
-                                    <div id="ownershipHistoryContent" style="min-height: 200px;">
-                                        <div class="loading-placeholder" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                                            <i class="fas fa-spinner fa-spin"></i> Loading ownership history...
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Section 5: Uploaded Documents -->
                             <div class="dashboard-card">
                                 <h3><span class="card-icon">📄</span> Uploaded Documents</h3>
@@ -339,7 +328,7 @@
                             <div class="dashboard-card">
                                 <h3><span class="card-icon">⚙️</span> Admin Actions</h3>
                                 <div class="action-buttons">
-                                    <button class="btn-info btn-block" onclick="toggleOwnershipHistory(); if(!ownershipHistoryExpanded) { loadOwnershipHistory(currentTransferRequest?.vehicle_id || currentTransferRequest?.vehicle?.id, true); }" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); border: none;">
+                                    <button class="btn-info btn-block" onclick="viewOwnershipHistory()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); border: none;">
                                         <i class="fas fa-history"></i> View Ownership History
                                     </button>
                                     <button class="btn-success btn-block" onclick="approveRequest()">
@@ -413,6 +402,7 @@
                 <div class="form-group">
                     <label>Select Required Documents:</label>
                     <select id="requiredDocs" class="form-control" multiple>
+                        <option value="emission">Emission Test Certificate</option>
                         <option value="insurance">Insurance Certificate</option>
                         <option value="clearance">HPG Clearance</option>
                         <option value="other">Other Documents</option>

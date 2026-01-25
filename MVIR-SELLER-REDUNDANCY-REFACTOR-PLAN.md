@@ -9,31 +9,31 @@ This document outlines a phase-by-phase plan to refactor the vehicle transfer an
 - Remove all MVIR upload prompts and validation for buyers and sellers in both frontend UI and backend API.
 - Remove all references to buyerMvir in UI, JS, and backend logic.
 - Ensure only LTO inspectors can upload/associate MVIR, referenced only in `vehicles.inspection_documents`.
-- **Status:** ✅ Complete
+- **Status:** In Progress / Partially Complete
 
 ## Phase 2: Restrict MVIR Handling to LTO Inspectors
 - Enforce backend and UI checks so only LTO inspectors can upload or update MVIR.
 - Audit and clean up any legacy/invalid MVIR document links in the database.
-- **Status:** ⚠️ Partially Complete - Backend enforcement done, cleanup script created but not executed
+- **Status:** Not Started
 
 ## Phase 3: Update Seller Transfer Workflow
 - Remove prompts for sellers (initiators) to accept/upload documents for their own transfer requests.
 - Update UI and backend to ensure only buyers are prompted for required documents.
-- **Status:** ✅ Complete
+- **Status:** Not Started
 
 ## Phase 4: Prevent Seller Document Upload/Linking
 - Add backend validation to prevent sellers from uploading or linking documents to their own transfer requests.
-- **Status:** ✅ Complete
+- **Status:** Not Started
 
 ## Phase 5: Data Cleanup & Migration
 - Remove any buyer/seller-uploaded MVIRs and seller-uploaded documents from `transfer_documents` and `documents` tables.
 - Implement a migration/cleanup script if necessary.
-- **Status:** ⚠️ Script Created - Cleanup script created at `database/cleanup-legacy-buyer-mvir.sql`, ready to execute
+- **Status:** Not Started
 
 ## Phase 6: Update UI, API, and Messaging
 - Update UI, API, and user messaging to clarify roles and required actions.
 - Ensure all role checks and document associations are enforced at both UI and API layers.
-- **Status:** ✅ Complete
+- **Status:** Not Started
 
 ---
 

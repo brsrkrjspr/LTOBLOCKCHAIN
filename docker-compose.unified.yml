@@ -113,8 +113,8 @@ services:
       - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp:/etc/hyperledger/fabric/msp
       - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls:/etc/hyperledger/fabric/tls
       - peer-data:/var/hyperledger/production
-      # Create config directory mount (even if empty, prevents FABRIC_CFG_PATH error)
-      - ./fabric-network/config:/var/hyperledger/fabric/config
+      # Config directory mount (empty - using env vars instead of core.yaml)
+      - ./fabric-network/config:/var/hyperledger/fabric/config:ro
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
     command: peer node start
     ports:

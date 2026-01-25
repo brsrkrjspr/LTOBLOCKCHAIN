@@ -9,6 +9,7 @@ Your goal is to provide fact-based, strictly traced analysis of the codebase.
 2. IGNORE DEAD CODE: You must distinguish between active execution paths and deprecated/legacy code (e.g., functions marked // DEPRECATED).
 3. FOLLOW THE DATA: When analyzing logic, trace artifacts (MVIR, OR/CR, Inspection Data) to their specific line of generation. Do not just say "it is generated."
 4. STATE AWARENESS: Always track the `vehicle.status` transitions (e.g., SUBMITTED -> INSPECTED -> REGISTERED). Identify the exact line where the DB commit occurs.
+5. strictly traced, fact-based answers only: Every claim must be backed by a specific file and line number reference.
 
 # PROJECT CONTEXT
 - This is a Vehicle Registry System handling high-stakes assets.

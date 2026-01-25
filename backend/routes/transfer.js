@@ -64,12 +64,12 @@ function computeExpiresAt(days = TRANSFER_DEADLINE_DAYS) {
  * @param {Object} params.documents - key/value mapping of role -> documentId
  * @param {string} params.uploadedBy - userId performing the linkage
  */
-async function linkTransferDocuments({ transferRequestId, documents = {}, uploadedBy }) {
-    // Prevent sellers (initiators) from uploading/linking documents to their own transfer request
+async function linkTransferDocuments({ transferRequestId, documents = {}, uploadedBy, allowSellerDocuments = false }) {
+    // Prevent sellers from linking BUYER documents to their own transfer request
+    // Sellers CAN link their own documents (deedOfSale, sellerId) during transfer creation
     const transferRequest = await db.getTransferRequestById(transferRequestId);
-    if (transferRequest && String(transferRequest.seller_id || transferRequest.seller?.id) === String(uploadedBy)) {
-        throw new Error('Sellers (initiators) are not allowed to upload or link documents to their own transfer requests. Only buyers can upload documents.');
-    }
+    const isSeller = transferRequest && String(transferRequest.seller_id || transferRequest.seller?.id) === String(uploadedBy);
+    
     if (!documents || typeof documents !== 'object') return;
     
     if (!uploadedBy) {
@@ -118,6 +118,18 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
             if (!transferRole) {
                 console.warn('⚠️ Unknown document role key:', { roleKey, docId, transferRequestId });
                 continue;
+            }
+
+            // Prevent sellers from linking buyer documents (unless explicitly allowed)
+            const isBuyerDocument = [
+                docTypes.TRANSFER_ROLES.BUYER_ID,
+                docTypes.TRANSFER_ROLES.BUYER_TIN,
+                docTypes.TRANSFER_ROLES.BUYER_CTPL,
+                docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
+            ].includes(transferRole);
+            
+            if (isSeller && isBuyerDocument && !allowSellerDocuments) {
+                throw new Error(`Sellers cannot link buyer documents (${roleKey}). Only buyers can upload their own documents.`);
             }
 
             let document;
@@ -1859,11 +1871,13 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         }
         
         // Link documents - supports explicit roles and legacy array
+        // Allow seller documents (deedOfSale, sellerId) during creation
         try {
             await linkTransferDocuments({
-                    transferRequestId: transferRequest.id,
+                transferRequestId: transferRequest.id,
                 documents,
-                uploadedBy: req.user.userId
+                uploadedBy: req.user.userId,
+                allowSellerDocuments: true  // Allow seller to link their own documents during creation
             });
 
             if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
@@ -2692,11 +2706,11 @@ router.post('/requests/expire-stale', authenticateToken, authorizeRole(['admin',
             `UPDATE transfer_requests
              SET status = $1,
                  updated_at = CURRENT_TIMESTAMP
-             WHERE status IN ($2, $3)
+             WHERE status = ANY($2)
                AND expires_at IS NOT NULL
                AND expires_at < CURRENT_TIMESTAMP
              RETURNING id, vehicle_id`,
-            [TRANSFER_STATUS.EXPIRED, TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS]
+            [TRANSFER_STATUS.EXPIRED, [TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS]]
         );
 
         const expiredIds = result.rows.map(r => r.id);

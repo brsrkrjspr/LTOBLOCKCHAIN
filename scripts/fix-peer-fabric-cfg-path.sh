@@ -91,7 +91,7 @@ chaincode:
     runtime: $(BASE_DOCKER_NS)/fabric-nodeenv:$(ARCH)-$(BASE_VERSION)
   startuptimeout: 300s
   executetimeout: 30s
-  mode: net
+  mode: dev
   keepalive: 0
   system:
     cscc: enable

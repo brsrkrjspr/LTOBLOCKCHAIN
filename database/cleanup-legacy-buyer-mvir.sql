@@ -32,22 +32,26 @@ DELETE FROM transfer_documents
 WHERE document_type = 'buyer_mvir';
 
 -- ============================================
--- STEP 3: Audit - Find MVIR document links in documents table
+-- STEP 3: Audit - Check for MVIR documents in documents table (should be none)
 -- ============================================
 
--- Check if any documents are incorrectly linked as MVIR type
 -- Note: MVIR documents should NOT be in documents table - they're in vehicles.inspection_documents
+-- We check using a safe method that doesn't query invalid enum values
 DO $$
 DECLARE
     mvir_doc_count INTEGER;
 BEGIN
+    -- Use a safe query that checks if any documents might be MVIR-related
+    -- Since 'mvir' is not a valid enum value, we check by filename or other indicators
     SELECT COUNT(*) INTO mvir_doc_count
     FROM documents
-    WHERE document_type = 'mvir' OR document_type = 'mvir_cert';
+    WHERE LOWER(original_name) LIKE '%mvir%' 
+       OR LOWER(filename) LIKE '%mvir%'
+       OR LOWER(original_name) LIKE '%motor vehicle inspection%';
     
     IF mvir_doc_count > 0 THEN
         RAISE NOTICE '========================================';
-        RAISE NOTICE 'WARNING: Found % MVIR documents in documents table', mvir_doc_count;
+        RAISE NOTICE 'WARNING: Found % potential MVIR documents in documents table', mvir_doc_count;
         RAISE NOTICE 'These should be in vehicles.inspection_documents instead';
         RAISE NOTICE 'Review these documents manually before deletion';
         RAISE NOTICE '========================================';

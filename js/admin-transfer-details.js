@@ -1115,7 +1115,33 @@ async function approveTransfer() {
         }
     } catch (error) {
         console.error('Approve transfer error:', error);
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to approve transfer request';
+        
+        // Extract detailed error message
+        let errorMessage = 'Failed to approve transfer request';
+        if (error.response?.data) {
+            const errorData = error.response.data;
+            
+            // Show detailed missing documents if available
+            if (errorData.missingLabels) {
+                const missingList = [];
+                if (errorData.missingLabels.seller?.length > 0) {
+                    missingList.push(`Seller: ${errorData.missingLabels.seller.join(', ')}`);
+                }
+                if (errorData.missingLabels.buyer?.length > 0) {
+                    missingList.push(`Buyer: ${errorData.missingLabels.buyer.join(', ')}`);
+                }
+                if (missingList.length > 0) {
+                    errorMessage = `Missing required documents: ${missingList.join('; ')}`;
+                }
+            } else if (errorData.message) {
+                errorMessage = errorData.message;
+            } else if (errorData.error) {
+                errorMessage = errorData.error;
+            }
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
         showError(errorMessage);
     }
 }

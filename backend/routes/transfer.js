@@ -3131,6 +3131,17 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 .filter(Boolean)
         );
 
+        // Debug logging to help diagnose missing documents
+        console.log(`[Transfer Approval] Checking documents for transfer ${id}:`);
+        console.log(`[Transfer Approval] Total transfer documents: ${transferDocs.length}`);
+        console.log(`[Transfer Approval] Present document types:`, Array.from(presentRoles));
+        console.log(`[Transfer Approval] Transfer documents details:`, transferDocs.map(d => ({
+            id: d.id,
+            document_type: d.document_type,
+            document_id: d.document_id,
+            uploaded_by: d.uploaded_by
+        })));
+
         const sellerRequiredRoles = [
             docTypes.TRANSFER_ROLES.DEED_OF_SALE,
             docTypes.TRANSFER_ROLES.SELLER_ID
@@ -3143,16 +3154,144 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
         ];
 
+        console.log(`[Transfer Approval] Required seller roles:`, sellerRequiredRoles);
+        console.log(`[Transfer Approval] Required buyer roles:`, buyerRequiredRoles);
+
         const missingSellerRoles = sellerRequiredRoles.filter(role => !presentRoles.has(role));
         const missingBuyerRoles = buyerRequiredRoles.filter(role => !presentRoles.has(role));
 
+        console.log(`[Transfer Approval] Missing seller roles:`, missingSellerRoles);
+        console.log(`[Transfer Approval] Missing buyer roles:`, missingBuyerRoles);
+
+        // If documents are missing but org approvals are complete, check clearance requests for documents
+        // This handles cases where documents were verified by orgs but not linked to transfer_documents
+        if ((missingSellerRoles.length > 0 || missingBuyerRoles.length > 0) && 
+            request.hpg_approval_status === 'APPROVED' && 
+            (!request.insurance_clearance_request_id || request.insurance_approval_status === 'APPROVED')) {
+            
+            console.log(`[Transfer Approval] Documents missing but org approvals complete. Checking alternative sources for documents...`);
+            
+            // Check vehicle documents for seller documents (seller is current owner)
+            if (missingSellerRoles.length > 0) {
+                try {
+                    const vehicleDocs = await db.getDocumentsByVehicle(request.vehicle_id);
+                    if (vehicleDocs && vehicleDocs.length > 0) {
+                        const vehicleDocTypes = new Set(vehicleDocs.map(d => d.document_type || d.type).filter(Boolean));
+                        
+                        // Check for deed_of_sale
+                        if (missingSellerRoles.includes(docTypes.TRANSFER_ROLES.DEED_OF_SALE)) {
+                            const hasDeedOfSale = vehicleDocTypes.has('deed_of_sale') || 
+                                vehicleDocs.some(d => 
+                                    (d.document_type === 'deed_of_sale' || d.type === 'deed_of_sale') ||
+                                    (d.original_name && d.original_name.toLowerCase().includes('deed'))
+                                );
+                            if (hasDeedOfSale) {
+                                console.log(`[Transfer Approval] Found deed_of_sale in vehicle documents`);
+                                missingSellerRoles.splice(missingSellerRoles.indexOf(docTypes.TRANSFER_ROLES.DEED_OF_SALE), 1);
+                            }
+                        }
+                        
+                        // Check for seller_id (owner_id documents uploaded by seller)
+                        if (missingSellerRoles.includes(docTypes.TRANSFER_ROLES.SELLER_ID)) {
+                            const sellerIdDocs = vehicleDocs.filter(d => 
+                                (d.document_type === 'owner_id' || d.type === 'owner_id') &&
+                                String(d.uploaded_by) === String(request.seller_id)
+                            );
+                            if (sellerIdDocs.length > 0) {
+                                console.log(`[Transfer Approval] Found seller_id in vehicle documents`);
+                                missingSellerRoles.splice(missingSellerRoles.indexOf(docTypes.TRANSFER_ROLES.SELLER_ID), 1);
+                            }
+                        }
+                    }
+                } catch (vehicleDocError) {
+                    console.warn(`[Transfer Approval] Could not check vehicle documents:`, vehicleDocError.message);
+                }
+            }
+            
+            // Check HPG clearance request for buyer HPG clearance document
+            if (missingBuyerRoles.includes(docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE) && request.hpg_clearance_request_id) {
+                try {
+                    const hpgClearance = await db.getClearanceRequestById(request.hpg_clearance_request_id);
+                    if (hpgClearance && hpgClearance.metadata) {
+                        const metadata = typeof hpgClearance.metadata === 'string' ? JSON.parse(hpgClearance.metadata) : hpgClearance.metadata;
+                        const hpgDocs = metadata.documents || [];
+                        const hasBuyerHpgDoc = hpgDocs.some(d => 
+                            d.type === 'buyer_hpg_clearance' || 
+                            d.document_type === 'buyer_hpg_clearance' ||
+                            (d.original_name && d.original_name.toLowerCase().includes('hpg'))
+                        );
+                        if (hasBuyerHpgDoc) {
+                            console.log(`[Transfer Approval] Found buyer HPG clearance in clearance request metadata`);
+                            missingBuyerRoles.splice(missingBuyerRoles.indexOf(docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE), 1);
+                        }
+                    }
+                } catch (hpgCheckError) {
+                    console.warn(`[Transfer Approval] Could not check HPG clearance for documents:`, hpgCheckError.message);
+                }
+            }
+            
+            // Check Insurance clearance request for buyer CTPL document
+            if (missingBuyerRoles.includes(docTypes.TRANSFER_ROLES.BUYER_CTPL) && request.insurance_clearance_request_id) {
+                try {
+                    const insuranceClearance = await db.getClearanceRequestById(request.insurance_clearance_request_id);
+                    if (insuranceClearance && insuranceClearance.metadata) {
+                        const metadata = typeof insuranceClearance.metadata === 'string' ? JSON.parse(insuranceClearance.metadata) : insuranceClearance.metadata;
+                        const insuranceDocs = metadata.documents || [];
+                        const hasBuyerCtplDoc = insuranceDocs.some(d => 
+                            d.type === 'buyer_ctpl' || 
+                            d.document_type === 'buyer_ctpl' ||
+                            d.type === 'insurance_cert' ||
+                            d.document_type === 'insurance_cert' ||
+                            (d.original_name && d.original_name.toLowerCase().includes('ctpl')) ||
+                            (d.original_name && d.original_name.toLowerCase().includes('insurance'))
+                        );
+                        if (hasBuyerCtplDoc) {
+                            console.log(`[Transfer Approval] Found buyer CTPL in clearance request metadata`);
+                            missingBuyerRoles.splice(missingBuyerRoles.indexOf(docTypes.TRANSFER_ROLES.BUYER_CTPL), 1);
+                        }
+                    }
+                } catch (insuranceCheckError) {
+                    console.warn(`[Transfer Approval] Could not check Insurance clearance for documents:`, insuranceCheckError.message);
+                }
+            }
+            
+            console.log(`[Transfer Approval] After alternative source check - Missing seller roles:`, missingSellerRoles);
+            console.log(`[Transfer Approval] After alternative source check - Missing buyer roles:`, missingBuyerRoles);
+        }
+
         if (missingSellerRoles.length > 0 || missingBuyerRoles.length > 0) {
+            // Create human-readable document labels
+            const documentLabels = {
+                'deed_of_sale': 'Deed of Sale',
+                'seller_id': 'Seller ID',
+                'buyer_id': 'Buyer ID',
+                'buyer_tin': 'Buyer TIN',
+                'buyer_ctpl': 'Buyer CTPL Insurance',
+                'buyer_hpg_clearance': 'Buyer HPG Clearance'
+            };
+            
+            const missingSellerLabels = missingSellerRoles.map(role => documentLabels[role] || role);
+            const missingBuyerLabels = missingBuyerRoles.map(role => documentLabels[role] || role);
+            
+            const missingList = [];
+            if (missingSellerLabels.length > 0) {
+                missingList.push(`Seller: ${missingSellerLabels.join(', ')}`);
+            }
+            if (missingBuyerLabels.length > 0) {
+                missingList.push(`Buyer: ${missingBuyerLabels.join(', ')}`);
+            }
+            
             return res.status(400).json({
                 success: false,
                 error: 'Cannot approve transfer request. Required transfer documents are missing.',
+                message: `Missing documents: ${missingList.join('; ')}`,
                 missing: {
                     seller: missingSellerRoles,
                     buyer: missingBuyerRoles
+                },
+                missingLabels: {
+                    seller: missingSellerLabels,
+                    buyer: missingBuyerLabels
                 }
             });
         }

@@ -19,8 +19,7 @@ const LOGICAL_TYPES = {
     HPG_CLEARANCE: 'hpgClearance',
     SALES_INVOICE: 'salesInvoice',
     TRANSFER_PACKAGE: 'transferPackage',
-    TRANSFER_CERTIFICATE: 'transferCertificate',
-    OTHER: 'other'
+    TRANSFER_CERTIFICATE: 'transferCertificate'
 };
 
 /**
@@ -40,7 +39,7 @@ const LOGICAL_TYPES = {
  *   frontend/API use but has no DB type mapping (handled separately in mapToDbType).
  * 
  * MIGRATION REQUIREMENTS:
- * - 'deed_of_sale', 'seller_id', 'buyer_id', 'other' require migration: 
+ * - 'deed_of_sale', 'seller_id', 'buyer_id' require migration: 
  *   database/add-new-document-types.sql
  * - 'csr', 'hpg_clearance', 'sales_invoice' require migration:
  *   database/add-vehicle-registration-document-types.sql
@@ -58,8 +57,7 @@ const DB_TYPES = {
     HPG_CLEARANCE: 'hpg_clearance', // Requires migration: add-vehicle-registration-document-types.sql
     SALES_INVOICE: 'sales_invoice', // Requires migration: add-vehicle-registration-document-types.sql
     TRANSFER_PACKAGE: 'transfer_package_pdf',
-    TRANSFER_CERTIFICATE: 'transfer_certificate',
-    OTHER: 'other' // Requires migration: add-new-document-types.sql
+    TRANSFER_CERTIFICATE: 'transfer_certificate'
 };
 
 /**
@@ -103,11 +101,14 @@ function mapToDbType(logicalType) {
         [LOGICAL_TYPES.HPG_CLEARANCE]: DB_TYPES.HPG_CLEARANCE,
         [LOGICAL_TYPES.SALES_INVOICE]: DB_TYPES.SALES_INVOICE,
         [LOGICAL_TYPES.TRANSFER_PACKAGE]: DB_TYPES.TRANSFER_PACKAGE,
-        [LOGICAL_TYPES.TRANSFER_CERTIFICATE]: DB_TYPES.TRANSFER_CERTIFICATE,
-        [LOGICAL_TYPES.OTHER]: DB_TYPES.OTHER
+        [LOGICAL_TYPES.TRANSFER_CERTIFICATE]: DB_TYPES.TRANSFER_CERTIFICATE
     };
     
-    return mapping[logicalType] || DB_TYPES.OTHER;
+    if (!mapping[logicalType]) {
+        throw new Error(`Unknown logical document type: ${logicalType}. Valid types: ${Object.values(LOGICAL_TYPES).join(', ')}`);
+    }
+    
+    return mapping[logicalType];
 }
 
 /**
@@ -129,14 +130,17 @@ function mapToLogicalType(dbType) {
         [DB_TYPES.CSR]: LOGICAL_TYPES.CSR,
         [DB_TYPES.SALES_INVOICE]: LOGICAL_TYPES.SALES_INVOICE,
         [DB_TYPES.TRANSFER_PACKAGE]: LOGICAL_TYPES.TRANSFER_PACKAGE,
-        [DB_TYPES.TRANSFER_CERTIFICATE]: LOGICAL_TYPES.TRANSFER_CERTIFICATE,
-        [DB_TYPES.OTHER]: LOGICAL_TYPES.OTHER
+        [DB_TYPES.TRANSFER_CERTIFICATE]: LOGICAL_TYPES.TRANSFER_CERTIFICATE
     };
     
-    // Note: MVIR is NOT stored in documents table (stored as files), so 'other' maps to OTHER logical type
+    // Note: MVIR is NOT stored in documents table (stored as files)
     // MVIR logical type is kept for frontend/API use but never maps from DB type
     
-    return mapping[dbType] || LOGICAL_TYPES.OTHER;
+    if (!mapping[dbType]) {
+        throw new Error(`Unknown database document type: ${dbType}. Valid types: ${Object.values(DB_TYPES).join(', ')}`);
+    }
+    
+    return mapping[dbType];
 }
 
 /**
@@ -215,34 +219,15 @@ function isRequiredForAutoSend(logicalType) {
 /**
  * Validate document type with context awareness
  * @param {string} logicalType - Logical document type
- * @param {Object} options - Validation options
- * @param {boolean} options.allowOther - Allow 'other' type (default: false)
+ * @param {Object} options - Validation options (kept for backward compatibility, but no longer used)
  * @returns {{valid: boolean, error?: string}}
  */
 function validateDocumentTypeForUpload(logicalType, options = {}) {
-    const { allowOther = false } = options;
-    
     // Check if it's a valid logical type
     if (!isValidLogicalType(logicalType)) {
         return {
             valid: false,
             error: `Invalid document type: ${logicalType}. Valid types: ${getValidLogicalTypes().join(', ')}`
-        };
-    }
-    
-    // Reject 'other' type unless explicitly allowed
-    if (logicalType === LOGICAL_TYPES.OTHER && !allowOther) {
-        return {
-            valid: false,
-            error: 'Document type "other" is not allowed for uploads. Please specify the correct document type.'
-        };
-    }
-    
-    // Warn if required type is being set to 'other'
-    if (isRequiredForAutoSend(logicalType) && logicalType === LOGICAL_TYPES.OTHER) {
-        return {
-            valid: false,
-            error: 'Document type "other" cannot be used for required documents (insurance, HPG). Please specify the correct document type.'
         };
     }
     

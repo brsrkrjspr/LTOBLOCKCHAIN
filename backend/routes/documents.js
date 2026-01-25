@@ -306,9 +306,7 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
         docType = docTypes.mapLegacyType(docType);
 
         // Validate document type with context awareness
-        const validation = docTypes.validateDocumentTypeForUpload(docType, {
-            allowOther: false // Never allow 'other' for uploads
-        });
+        const validation = docTypes.validateDocumentTypeForUpload(docType);
 
         if (!validation.valid) {
             console.error('❌ Document type validation failed:', {
@@ -324,7 +322,7 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
                 success: false,
                 error: validation.error,
                 receivedType: type || documentType,
-                validTypes: docTypes.getValidLogicalTypes().filter(t => t !== 'other')
+                validTypes: docTypes.getValidLogicalTypes()
             });
         }
 
@@ -590,9 +588,7 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
         const mappedType = docTypes.mapLegacyType(documentType);
         
         // Validate document type with context awareness
-        const validation = docTypes.validateDocumentTypeForUpload(mappedType, {
-            allowOther: false // Never allow 'other' for uploads
-        });
+        const validation = docTypes.validateDocumentTypeForUpload(mappedType);
 
         if (!validation.valid) {
             console.error('❌ Document type validation failed in /upload-auth:', {
@@ -609,7 +605,7 @@ router.post('/upload-auth', authenticateToken, upload.single('document'), async 
                 success: false,
                 error: validation.error,
                 receivedType: documentType,
-                validTypes: docTypes.getValidLogicalTypes().filter(t => t !== 'other')
+                validTypes: docTypes.getValidLogicalTypes()
             });
         }
         
@@ -1867,9 +1863,7 @@ router.patch('/:documentId/type', authenticateToken, authorizeRole(['admin']), a
         const mappedType = docTypes.mapLegacyType(documentType);
         
         // Validate the new document type
-        const validation = docTypes.validateDocumentTypeForUpload(mappedType, {
-            allowOther: true // Allow 'other' to be corrected to other types, or vice versa
-        });
+        const validation = docTypes.validateDocumentTypeForUpload(mappedType);
 
         if (!validation.valid) {
             return res.status(400).json({

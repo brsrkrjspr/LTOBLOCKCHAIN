@@ -39,15 +39,6 @@ BEGIN
     ) THEN
         ALTER TYPE document_type ADD VALUE 'buyer_id';
     END IF;
-    
-    -- Add 'other' if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum 
-        WHERE enumlabel = 'other' 
-        AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'document_type')
-    ) THEN
-        ALTER TYPE document_type ADD VALUE 'other';
-    END IF;
 END $$;
 
 -- ============================================
@@ -91,7 +82,7 @@ BEGIN
         -- Add correct CHECK constraint
         ALTER TABLE transfer_documents 
         ADD CONSTRAINT check_transfer_document_type 
-        CHECK (document_type IN ('deed_of_sale', 'seller_id', 'buyer_id', 'or_cr', 'emission_cert', 'insurance_cert', 'other'));
+        CHECK (document_type IN ('deed_of_sale', 'seller_id', 'buyer_id', 'or_cr', 'emission_cert', 'insurance_cert'));
     END IF;
 END $$;
 
@@ -99,7 +90,7 @@ END $$;
 -- STEP 3: Add comments for documentation
 -- ============================================
 
-COMMENT ON TYPE document_type IS 'Document type enum: registration_cert, insurance_cert, emission_cert, owner_id, deed_of_sale, seller_id, buyer_id, other';
+COMMENT ON TYPE document_type IS 'Document type enum: registration_cert, insurance_cert, emission_cert, owner_id, deed_of_sale, seller_id, buyer_id';
 
 -- ============================================
 -- VERIFICATION QUERIES (Run these to verify)

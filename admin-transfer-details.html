@@ -194,29 +194,15 @@
                                         </p>
                                         <small id="mvirInspectionHint" style="color: #7f8c8d;"></small>
                                     </div>
-                                    <div class="info-item">
-                                        <label>Auto-Verification Status (Buyer MVIR Upload)</label>
-                                        <p id="mvirAutoVerifyStatus">
-                                            <span class="status-badge status-pending">Not checked</span>
-                                        </p>
-                                        <small id="mvirAutoVerifyCheckedAt" style="color: #7f8c8d;"></small>
-                                    </div>
-                                    <div class="info-item full-width">
-                                        <label>Auto-Verification Notes</label>
-                                        <p id="mvirAutoVerifyReason" style="margin-top: 0.25rem; color: #334155;">—</p>
-                                    </div>
                                 </div>
                                 <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem;">
-                                    <button id="rerunMvirVerifyBtn" class="btn-info btn-sm" onclick="rerunMvirVerification()">
-                                        <i class="fas fa-sync-alt"></i> Re-run MVIR Check
-                                    </button>
                                     <button id="openInspectionFormBtn" class="btn-secondary btn-sm" onclick="openLtoInspectionForm()">
                                         <i class="fas fa-clipboard-check"></i> Open LTO Inspection Form
                                     </button>
                                 </div>
                                 <div style="margin-top: 1rem; padding: 0.9rem; background: #ecfeff; border-radius: 8px; border-left: 4px solid #06b6d4;">
                                     <i class="fas fa-info-circle"></i>
-                                    <strong>How MVIR is validated:</strong> LTO validates MVIR by performing a physical inspection (creating the official MVIR record on the vehicle). The buyer-uploaded MVIR is then auto-checked against that inspection record.
+                                    <strong>How MVIR is validated:</strong> LTO validates MVIR by performing a physical inspection (creating the official MVIR record on the vehicle).
                                 </div>
                             </div>
 

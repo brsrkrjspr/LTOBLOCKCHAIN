@@ -71,7 +71,6 @@ const TRANSFER_ROLES = {
     OR_CR: 'or_cr', // Original Registration Certificate / Certificate of Registration
     BUYER_TIN: 'buyer_tin',
     BUYER_CTPL: 'buyer_ctpl',
-    BUYER_MVIR: 'buyer_mvir',
     BUYER_HPG_CLEARANCE: 'buyer_hpg_clearance',
     TRANSFER_PACKAGE: 'transfer_package_pdf',
     TRANSFER_CERTIFICATE: 'transfer_certificate'

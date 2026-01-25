@@ -65,6 +65,11 @@ function computeExpiresAt(days = TRANSFER_DEADLINE_DAYS) {
  * @param {string} params.uploadedBy - userId performing the linkage
  */
 async function linkTransferDocuments({ transferRequestId, documents = {}, uploadedBy }) {
+    // Prevent sellers (initiators) from uploading/linking documents to their own transfer request
+    const transferRequest = await db.getTransferRequestById(transferRequestId);
+    if (transferRequest && String(transferRequest.seller_id || transferRequest.seller?.id) === String(uploadedBy)) {
+        throw new Error('Sellers (initiators) are not allowed to upload or link documents to their own transfer requests. Only buyers can upload documents.');
+    }
     if (!documents || typeof documents !== 'object') return;
     
     if (!uploadedBy) {
@@ -89,8 +94,6 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         'buyer_tin': docTypes.TRANSFER_ROLES.BUYER_TIN,
         'buyerCtpl': docTypes.TRANSFER_ROLES.BUYER_CTPL,
         'buyer_ctpl': docTypes.TRANSFER_ROLES.BUYER_CTPL,
-        'buyerMvir': docTypes.TRANSFER_ROLES.BUYER_MVIR,
-        'buyer_mvir': docTypes.TRANSFER_ROLES.BUYER_MVIR,
         'buyerHpgClearance': docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE,
         'buyer_hpg_clearance': docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
         // transferPackage and transferCertificate removed: System-generated, not user-uploaded
@@ -104,6 +107,13 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         if (!docId) continue;
 
         try {
+            // Validate UUID format - skip temporary document IDs (e.g., doc_1769319713555_bzef0npcc)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(docId)) {
+                console.warn('⚠️ Skipping invalid UUID format document ID:', { docId, roleKey, transferRequestId });
+                continue;
+            }
+
             const transferRole = documentRoleMap[roleKey];
             if (!transferRole) {
                 console.warn('⚠️ Unknown document role key:', { roleKey, docId, transferRequestId });
@@ -1902,6 +1912,7 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
             JOIN users seller ON tr.seller_id = seller.id
             WHERE
                 (tr.buyer_id = $1 OR (tr.buyer_id IS NULL AND ((tr.buyer_info::jsonb)->>'email') = $2))
+                AND tr.seller_id != $1  -- Explicitly exclude requests where user is the seller
                 AND tr.status IN ('PENDING', 'AWAITING_BUYER_DOCS', 'UNDER_REVIEW')
             ORDER BY tr.created_at DESC
             `,
@@ -2932,18 +2943,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             });
         }
 
-        // Check MVIR document validation: buyer must have uploaded MVIR and it should be validated
-        const transferDocs = await db.getTransferRequestDocuments(id);
-        const mvirDoc = transferDocs.find(td => 
-            td.document_type === docTypes.TRANSFER_ROLES.BUYER_MVIR && td.document_id
-        );
-        if (!mvirDoc) {
-            return res.status(400).json({
-                success: false,
-                error: 'Cannot approve transfer request. Buyer MVIR document is required.',
-                code: 'MVIR_DOCUMENT_REQUIRED'
-            });
-        }
+
 
         // Check MVIR auto-verification status from metadata (if available)
         const mvirAutoVerification = request.metadata?.mvirAutoVerification;
@@ -3021,7 +3021,6 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             docTypes.TRANSFER_ROLES.BUYER_ID,
             docTypes.TRANSFER_ROLES.BUYER_TIN,
             docTypes.TRANSFER_ROLES.BUYER_CTPL,
-            docTypes.TRANSFER_ROLES.BUYER_MVIR,
             docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
         ];
 
@@ -3676,33 +3675,7 @@ router.post('/requests/:id/verify-mvir', authenticateToken, authorizeRole(['admi
             });
         }
 
-        // Find buyer MVIR transfer document
-        const transferDocs = await db.getTransferRequestDocuments(id);
-        const buyerMvirRow = (transferDocs || []).find(td =>
-            td.document_type === docTypes.TRANSFER_ROLES.BUYER_MVIR && td.document_id
-        );
 
-        if (!buyerMvirRow || !buyerMvirRow.document_id) {
-            return res.status(400).json({
-                success: false,
-                error: 'Buyer MVIR document not found for this transfer request'
-            });
-        }
-
-        const mvirDoc = await db.getDocumentById(buyerMvirRow.document_id);
-        if (!mvirDoc) {
-            return res.status(404).json({
-                success: false,
-                error: 'MVIR document record not found'
-            });
-        }
-
-        const autoVerificationService = require('../services/autoVerificationService');
-        const result = await autoVerificationService.autoVerifyMVIR(
-            request.vehicle_id,
-            mvirDoc,
-            vehicle
-        );
 
         // Persist to transfer_requests.metadata for UI display
         const dbModule = require('../database/db');

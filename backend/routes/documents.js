@@ -281,6 +281,17 @@ router.get('/ipfs/:cid', authenticateToken, async (req, res) => {
 
 // Upload document (requires authentication)
 router.post('/upload', authenticateToken, upload.single('document'), async (req, res) => {
+            // Restrict MVIR uploads to LTO inspectors/admins only
+            if (docType === docTypes.LOGICAL_TYPES.MVIR) {
+                const allowedRoles = ['admin', 'lto_inspector'];
+                if (!allowedRoles.includes(req.user.role)) {
+                    fs.unlinkSync(req.file.path);
+                    return res.status(403).json({
+                        success: false,
+                        error: 'Only LTO inspectors or admins can upload MVIR documents.'
+                    });
+                }
+            }
     try {
         console.log('📤 Document upload request received');
         console.log('File info:', req.file ? {

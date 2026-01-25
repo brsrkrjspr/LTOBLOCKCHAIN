@@ -15,6 +15,8 @@ const { sendMail } = require('../services/gmailApiService');
 const crypto = require('crypto');
 const certificateBlockchain = require('../services/certificateBlockchainService');
 const dbModule = require('../database/db');
+const { REGISTRATION_ACTIONS, normalizeAction } = require('../config/actionConstants');
+const { validateVehicleStatusTransition } = require('../middleware/statusValidation');
 
 // Configure multer for file uploads
 const inspectionDocsDir = path.join(__dirname, '../uploads/inspection-documents');

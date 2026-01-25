@@ -21,19 +21,22 @@ else
     echo "⚠ core.yaml not found (already removed?)"
 fi
 
-# Keep the directory but make it empty or create a placeholder
-mkdir -p fabric-network/config
+# Remove config directory mount from docker-compose (if needed)
+echo ""
+echo "Step 2: Updating docker-compose to remove config mount..."
+# Note: docker-compose.unified.yml should already have FABRIC_CFG_PATH= set
+# and config mount removed
 
 echo ""
-echo "Step 2: Restarting peer container..."
+echo "Step 3: Restarting peer container..."
 docker restart peer0.lto.gov.ph
 
 echo ""
-echo "Step 3: Waiting for peer to restart (20 seconds)..."
+echo "Step 4: Waiting for peer to restart (20 seconds)..."
 sleep 20
 
 echo ""
-echo "Step 4: Checking peer logs..."
+echo "Step 5: Checking peer logs..."
 docker logs peer0.lto.gov.ph 2>&1 | tail -30
 
 echo ""

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test Chaincode Query After Peer Fix
-# This script starts the CLI container and tests the chaincode query
+# This script ensures all containers are running and tests the chaincode query
 
 set -e
 
@@ -12,20 +12,27 @@ echo "=========================================="
 cd ~/LTOBLOCKCHAIN || { echo "Error: Cannot find LTOBLOCKCHAIN directory"; exit 1; }
 
 echo ""
-echo "Step 1: Starting CLI container..."
-docker-compose -f docker-compose.unified.yml up -d cli
+echo "Step 1: Ensuring all containers are running..."
+docker-compose -f docker-compose.unified.yml up -d
 
 echo ""
-echo "Step 2: Waiting for CLI container to be ready (10 seconds)..."
-sleep 10
+echo "Step 2: Waiting for containers to be ready (15 seconds)..."
+sleep 15
 
 echo ""
-echo "Step 3: Checking CLI container status..."
+echo "Step 3: Checking container status..."
 if docker ps | grep -q "cli.*Up"; then
     echo "✓ CLI container is running"
 else
     echo "✗ CLI container is not running!"
     docker logs cli 2>&1 | tail -20
+    exit 1
+fi
+
+if docker ps | grep -q "peer0.lto.gov.ph.*Up"; then
+    echo "✓ Peer container is running"
+else
+    echo "✗ Peer container is not running!"
     exit 1
 fi
 

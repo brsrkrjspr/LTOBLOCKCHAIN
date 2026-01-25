@@ -83,6 +83,13 @@ chaincode:
   logging:
     level: INFO
     shim: WARNING
+handlers:
+  endorsers:
+    escc:
+      name: DefaultEndorsement
+  validators:
+    vscc:
+      name: DefaultValidation
 ledger:
   state:
     stateDatabase: CouchDB
@@ -124,8 +131,8 @@ echo "Step 4: Stopping containers completely..."
 docker-compose -f docker-compose.unified.yml down
 
 echo ""
-echo "Step 5: Starting containers with new config..."
-docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph
+echo "Step 5: Starting all containers with new config..."
+docker-compose -f docker-compose.unified.yml up -d
 
 echo ""
 echo "Step 6: Waiting for peer to start (30 seconds)..."

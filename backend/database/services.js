@@ -838,6 +838,7 @@ async function getTransferRequestById(id) {
         `SELECT tr.*,
                 v.id as vehicle_id, v.vin, v.plate_number, v.make, v.model, v.year, v.color, 
                 v.engine_number, v.chassis_number, v.vehicle_type,
+                v.mvir_number, v.inspection_date, v.inspection_result, v.roadworthiness_status,
                 seller.id as seller_user_id, seller.first_name as seller_first_name, 
                 seller.last_name as seller_last_name, seller.email as seller_email, 
                 seller.phone as seller_phone,
@@ -894,7 +895,11 @@ async function getTransferRequestById(id) {
             color: row.color,
             engine_number: row.engine_number,
             chassis_number: row.chassis_number,
-            vehicle_type: row.vehicle_type
+            vehicle_type: row.vehicle_type,
+            mvir_number: row.mvir_number,
+            inspection_date: row.inspection_date,
+            inspection_result: row.inspection_result,
+            roadworthiness_status: row.roadworthiness_status
         },
         seller: {
             id: row.seller_user_id,
@@ -921,6 +926,7 @@ async function getTransferRequests(filters = {}) {
     let query = `
         SELECT tr.*,
                v.vin, v.plate_number, v.make, v.model, v.year,
+               v.mvir_number, v.inspection_date, v.inspection_result, v.roadworthiness_status,
                COALESCE(
                    NULLIF(TRIM(seller.first_name || ' ' || seller.last_name), ''),
                    seller.email,
@@ -1063,7 +1069,11 @@ async function getTransferRequests(filters = {}) {
                 plate_number: row.plate_number,
                 make: row.make,
                 model: row.model,
-                year: row.year
+                year: row.year,
+                mvir_number: row.mvir_number,
+                inspection_date: row.inspection_date,
+                inspection_result: row.inspection_result,
+                roadworthiness_status: row.roadworthiness_status
             }
         };
     });

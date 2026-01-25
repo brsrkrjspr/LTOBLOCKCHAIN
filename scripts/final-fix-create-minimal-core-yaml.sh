@@ -37,9 +37,16 @@ peer:
       timeout: 20s
   gossip:
     bootstrap: peer0.lto.gov.ph:7051
+    externalEndpoint: peer0.lto.gov.ph:7051
     useLeaderElection: true
     orgLeader: false
     membershipTrackerInterval: 5s
+  discovery:
+    enabled: true
+    authCacheEnabled: true
+    authCacheMaxSize: 1000
+    authCachePurgeRetentionRatio: 0.75
+    orgMembersAllowedAccess: false
   events:
     address: 0.0.0.0:7053
     buffersize: 100

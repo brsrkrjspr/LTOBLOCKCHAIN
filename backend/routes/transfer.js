@@ -1288,20 +1288,50 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     const transferDocuments = await db.getTransferRequestDocuments(request.id);
     const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
     
+    // FIX #1: Enhanced Document Detection Logging
+    console.log(`[Transfer→Insurance] 🔍 Document Detection - Transfer Request ID: ${request.id}`);
+    console.log(`[Transfer→Insurance] Transfer documents count: ${transferDocuments.length}`);
+    console.log(`[Transfer→Insurance] Transfer documents:`, transferDocuments.map(td => ({
+        document_type: td.document_type,
+        document_id: td.document_id,
+        uploaded_by: td.uploaded_by
+    })));
+    console.log(`[Transfer→Insurance] Vehicle documents count: ${vehicleDocuments.length}`);
+    console.log(`[Transfer→Insurance] Looking for BUYER_CTPL (${docTypes.TRANSFER_ROLES.BUYER_CTPL})`);
+    
     // Find CTPL from transfer documents (buyer uploads this)
     let insuranceDoc = null;
     const buyerCtplTransferDoc = transferDocuments.find(td => 
         td.document_type === docTypes.TRANSFER_ROLES.BUYER_CTPL && td.document_id
     );
     
+    console.log(`[Transfer→Insurance] Found buyerCtplTransferDoc:`, buyerCtplTransferDoc ? {
+        document_type: buyerCtplTransferDoc.document_type,
+        document_id: buyerCtplTransferDoc.document_id,
+        has_document_id: !!buyerCtplTransferDoc.document_id
+    } : 'NOT FOUND');
+    
     if (buyerCtplTransferDoc && buyerCtplTransferDoc.document_id) {
         // Get actual document record
-        insuranceDoc = await db.getDocumentById(buyerCtplTransferDoc.document_id);
+        try {
+            insuranceDoc = await db.getDocumentById(buyerCtplTransferDoc.document_id);
+            console.log(`[Transfer→Insurance] ✅ Retrieved insurance document from transfer_documents:`, {
+                id: insuranceDoc?.id,
+                document_type: insuranceDoc?.document_type,
+                file_path: insuranceDoc?.file_path,
+                ipfs_cid: insuranceDoc?.ipfs_cid
+            });
+        } catch (docError) {
+            console.error(`[Transfer→Insurance] ❌ Failed to retrieve document ${buyerCtplTransferDoc.document_id}:`, docError.message);
+        }
+    } else if (buyerCtplTransferDoc && !buyerCtplTransferDoc.document_id) {
+        console.warn(`[Transfer→Insurance] ⚠️ buyerCtplTransferDoc found but document_id is null! Entry:`, buyerCtplTransferDoc);
     }
     
     // Fallback: check vehicle documents for insurance/CTPL
     // Note: CTPL certificates are stored as 'insurance_cert' type (CTPL is distinguished via metadata)
     if (!insuranceDoc) {
+        console.log(`[Transfer→Insurance] 🔄 Falling back to vehicle documents search...`);
         insuranceDoc = vehicleDocuments.find(d => 
             d.document_type === 'insurance_cert' || 
             d.document_type === 'insuranceCert' ||
@@ -1309,6 +1339,15 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
             (d.original_name && d.original_name.toLowerCase().includes('insurance')) ||
             (d.original_name && d.original_name.toLowerCase().includes('ctpl'))
         );
+        if (insuranceDoc) {
+            console.log(`[Transfer→Insurance] ✅ Found insurance document in vehicle documents:`, {
+                id: insuranceDoc.id,
+                document_type: insuranceDoc.document_type,
+                original_name: insuranceDoc.original_name
+            });
+        } else {
+            console.warn(`[Transfer→Insurance] ⚠️ No insurance document found in vehicle documents either`);
+        }
     }
     
     const insuranceDocuments = insuranceDoc ? [{
@@ -1320,7 +1359,8 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     }] : [];
 
     if (!insuranceDoc) {
-        console.warn(`[Transfer→Insurance] Warning: No insurance/CTPL certificate found for vehicle ${request.vehicle_id}`);
+        console.warn(`[Transfer→Insurance] ⚠️ Warning: No insurance/CTPL certificate found for vehicle ${request.vehicle_id}`);
+        console.warn(`[Transfer→Insurance] ⚠️ Auto-verification will be skipped. Clearance request will be created but status will remain PENDING.`);
     }
 
     console.log(`[Transfer→Insurance] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${vehicleDocuments.length} total)`);
@@ -1376,90 +1416,201 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
     // Trigger auto-verification if insurance document exists
     let autoVerificationResult = null;
     if (insuranceDoc) {
-        try {
-            const autoVerificationService = require('../services/autoVerificationService');
-            const vehicle = await db.getVehicleById(request.vehicle_id);
-            autoVerificationResult = await autoVerificationService.autoVerifyInsurance(
-                request.vehicle_id,
-                insuranceDoc,
-                vehicle
-            );
-            
-            console.log(`[Transfer→Insurance Auto-Verify] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
-            
-            // Update clearance request status if auto-approved
-            if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
-                await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
-                    verifiedBy: 'system',
-                    verifiedAt: new Date().toISOString(),
-                    notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
-                    autoVerified: true,
-                    autoVerificationResult
-                });
-                console.log(`[Transfer→Insurance Auto-Verify] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+        // FIX #4: Pre-Verification Document Validation
+        const validationIssues = [];
+        if (!insuranceDoc.file_path && !insuranceDoc.ipfs_cid) {
+            validationIssues.push('No file_path or ipfs_cid');
+        }
+        if (!insuranceDoc.id) {
+            validationIssues.push('Document has no ID');
+        }
+        
+        if (validationIssues.length > 0) {
+            console.warn(`[Transfer→Insurance Auto-Verify] ⚠️ Pre-validation failed for document ${insuranceDoc.id || 'unknown'}:`, validationIssues);
+            console.warn(`[Transfer→Insurance Auto-Verify] ⚠️ Skipping auto-verification - document may be incomplete or corrupted`);
+        } else {
+            try {
+                const autoVerificationService = require('../services/autoVerificationService');
+                const vehicle = await db.getVehicleById(request.vehicle_id);
                 
-                // FIX 2: Update transfer request insurance approval status
-                try {
-                    await dbModule.query(
-                        `UPDATE transfer_requests 
-                         SET insurance_approval_status = 'APPROVED',
-                             insurance_approved_at = CURRENT_TIMESTAMP,
-                             -- approved_by has FK to users; auto-verify has no user row, so keep it NULL
-                             insurance_approved_by = NULL,
-                             updated_at = CURRENT_TIMESTAMP
-                         WHERE id = $1`,
-                        [request.id]
-                    );
-                    console.log(`[Transfer→Insurance Auto-Verify] Updated transfer request ${request.id} insurance_approval_status to APPROVED`);
-                } catch (statusUpdateError) {
-                    console.error(`[Transfer→Insurance Auto-Verify] Failed to update transfer request insurance status:`, statusUpdateError.message);
-                    // Don't fail the whole process if status update fails
+                console.log(`[Transfer→Insurance Auto-Verify] 🚀 Starting auto-verification for document ${insuranceDoc.id}...`);
+                autoVerificationResult = await autoVerificationService.autoVerifyInsurance(
+                    request.vehicle_id,
+                    insuranceDoc,
+                    vehicle
+                );
+                
+                console.log(`[Transfer→Insurance Auto-Verify] ✅ Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
+                if (autoVerificationResult.reason) {
+                    console.log(`[Transfer→Insurance Auto-Verify] Reason: ${autoVerificationResult.reason}`);
                 }
-            }
-            
-            // Add auto-verification result to history
-            if (autoVerificationResult.automated) {
-                await db.addVehicleHistory({
-                    vehicleId: request.vehicle_id,
-                    action: autoVerificationResult.status === 'APPROVED' 
-                        ? 'TRANSFER_INSURANCE_AUTO_VERIFIED_APPROVED' 
-                        : 'TRANSFER_INSURANCE_AUTO_VERIFIED_PENDING',
-                    description: autoVerificationResult.status === 'APPROVED'
-                        ? `Transfer Insurance auto-verified and approved. Score: ${autoVerificationResult.score}%`
-                        : `Transfer Insurance auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
-                    performedBy: requestedBy,
-                    transactionId: null,
-                    metadata: {
-                        transferRequestId: request.id,
-                        clearanceRequestId: clearanceRequest.id,
-                        autoVerificationResult
-                    }
-                });
                 
-                // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
-                if (autoVerificationResult.status === 'PENDING' && autoVerificationResult.reason) {
-                    const buyerId = request.buyer_id || request.buyer_user_id;
-                    const buyerEmail = request.buyer_email || (request.buyer_info && request.buyer_info.email);
+                // Update clearance request status if auto-approved
+                if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
+                    await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
+                        verifiedBy: 'system',
+                        verifiedAt: new Date().toISOString(),
+                        notes: `Auto-verified and approved. Score: ${autoVerificationResult.score}%`,
+                        autoVerified: true,
+                        autoVerificationResult
+                    });
+                    console.log(`[Transfer→Insurance Auto-Verify] ✅ Updated clearance request ${clearanceRequest.id} status to APPROVED`);
                     
-                    if (buyerId) {
+                    // FIX #2: Fail-Safe Status Update with Retry Logic
+                    let statusUpdateAttempts = 0;
+                    const maxAttempts = 3;
+                    let statusUpdateSuccess = false;
+                    
+                    while (!statusUpdateSuccess && statusUpdateAttempts < maxAttempts) {
                         try {
-                            await db.createNotification({
-                                userId: buyerId,
-                                title: 'CTPL Insurance Document Issue Detected',
-                                message: `Your CTPL Insurance document was flagged during auto-verification. Issues: ${autoVerificationResult.reason}. Please review and update the document if needed.`,
-                                type: 'warning'
+                            await dbModule.query(
+                                `UPDATE transfer_requests 
+                                 SET insurance_approval_status = 'APPROVED',
+                                     insurance_approved_at = CURRENT_TIMESTAMP,
+                                     -- approved_by has FK to users; auto-verify has no user row, so keep it NULL
+                                     insurance_approved_by = NULL,
+                                     updated_at = CURRENT_TIMESTAMP
+                                 WHERE id = $1`,
+                                [request.id]
+                            );
+                            statusUpdateSuccess = true;
+                            console.log(`[Transfer→Insurance Auto-Verify] ✅ Updated transfer request ${request.id} insurance_approval_status to APPROVED (attempt ${statusUpdateAttempts + 1}/${maxAttempts})`);
+                            
+                            // FIX #5: Status Verification After Update
+                            const verificationCheck = await dbModule.query(
+                                `SELECT insurance_approval_status, insurance_approved_at 
+                                 FROM transfer_requests 
+                                 WHERE id = $1`,
+                                [request.id]
+                            );
+                            
+                            if (verificationCheck.rows[0]?.insurance_approval_status === 'APPROVED') {
+                                console.log(`[Transfer→Insurance Auto-Verify] ✅ Status verification passed: ${verificationCheck.rows[0].insurance_approval_status}`);
+                            } else {
+                                console.error(`[Transfer→Insurance Auto-Verify] 🚨 VERIFICATION FAILED: Status is ${verificationCheck.rows[0]?.insurance_approval_status}, expected APPROVED`);
+                            }
+                        } catch (statusUpdateError) {
+                            statusUpdateAttempts++;
+                            console.error(`[Transfer→Insurance Auto-Verify] ❌ Failed to update transfer request insurance status (attempt ${statusUpdateAttempts}/${maxAttempts}):`, {
+                                error: statusUpdateError.message,
+                                stack: statusUpdateError.stack,
+                                transferRequestId: request.id,
+                                clearanceRequestId: clearanceRequest.id
                             });
-                            console.log(`✅ Notification sent to buyer ${buyerId} for Insurance auto-verification failure`);
-                        } catch (notifError) {
-                            console.error('[Transfer→Insurance Auto-Verify] Failed to create buyer notification:', notifError);
+                            
+                            if (statusUpdateAttempts >= maxAttempts) {
+                                // Log critical error - admin intervention required
+                                console.error(`[Transfer→Insurance Auto-Verify] 🚨 CRITICAL: Failed to update insurance_approval_status after ${maxAttempts} attempts. Transfer Request ID: ${request.id}, Clearance Request ID: ${clearanceRequest.id}`);
+                                
+                                // Update clearance request metadata with error for admin visibility
+                                try {
+                                    await dbModule.query(
+                                        `UPDATE clearance_requests 
+                                         SET metadata = metadata || $1::jsonb,
+                                             updated_at = CURRENT_TIMESTAMP
+                                         WHERE id = $2`,
+                                        [JSON.stringify({
+                                            statusUpdateError: {
+                                                message: statusUpdateError.message,
+                                                attempts: maxAttempts,
+                                                timestamp: new Date().toISOString(),
+                                                transferRequestId: request.id
+                                            }
+                                        }), clearanceRequest.id]
+                                    );
+                                } catch (metaError) {
+                                    console.error('[Transfer→Insurance Auto-Verify] Failed to update clearance request metadata:', metaError);
+                                }
+                            } else {
+                                // Wait before retry (exponential backoff)
+                                const delayMs = 1000 * statusUpdateAttempts;
+                                console.log(`[Transfer→Insurance Auto-Verify] ⏳ Retrying in ${delayMs}ms...`);
+                                await new Promise(resolve => setTimeout(resolve, delayMs));
+                            }
                         }
                     }
                 }
+                
+                // Add auto-verification result to history
+                if (autoVerificationResult.automated) {
+                    await db.addVehicleHistory({
+                        vehicleId: request.vehicle_id,
+                        action: autoVerificationResult.status === 'APPROVED' 
+                            ? 'TRANSFER_INSURANCE_AUTO_VERIFIED_APPROVED' 
+                            : 'TRANSFER_INSURANCE_AUTO_VERIFIED_PENDING',
+                        description: autoVerificationResult.status === 'APPROVED'
+                            ? `Transfer Insurance auto-verified and approved. Score: ${autoVerificationResult.score}%`
+                            : `Transfer Insurance auto-verified but flagged for manual review. Score: ${autoVerificationResult.score}%, Reason: ${autoVerificationResult.reason}`,
+                        performedBy: requestedBy,
+                        transactionId: null,
+                        metadata: {
+                            transferRequestId: request.id,
+                            clearanceRequestId: clearanceRequest.id,
+                            autoVerificationResult
+                        }
+                    });
+                    
+                    // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
+                    if (autoVerificationResult.status === 'PENDING' && autoVerificationResult.reason) {
+                        const buyerId = request.buyer_id || request.buyer_user_id;
+                        const buyerEmail = request.buyer_email || (request.buyer_info && request.buyer_info.email);
+                        
+                        if (buyerId) {
+                            try {
+                                await db.createNotification({
+                                    userId: buyerId,
+                                    title: 'CTPL Insurance Document Issue Detected',
+                                    message: `Your CTPL Insurance document was flagged during auto-verification. Issues: ${autoVerificationResult.reason}. Please review and update the document if needed.`,
+                                    type: 'warning'
+                                });
+                                console.log(`✅ Notification sent to buyer ${buyerId} for Insurance auto-verification failure`);
+                            } catch (notifError) {
+                                console.error('[Transfer→Insurance Auto-Verify] Failed to create buyer notification:', notifError);
+                            }
+                        }
+                    }
+                }
+            } catch (autoVerifyError) {
+                // FIX #3: Enhanced Error Reporting
+                console.error('[Transfer→Insurance Auto-Verify] ❌ Error:', {
+                    error: autoVerifyError.message,
+                    stack: autoVerifyError.stack,
+                    transferRequestId: request.id,
+                    clearanceRequestId: clearanceRequest.id,
+                    vehicleId: request.vehicle_id,
+                    insuranceDocId: insuranceDoc?.id,
+                    insuranceDocPath: insuranceDoc?.file_path,
+                    insuranceDocIpfsCid: insuranceDoc?.ipfs_cid,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Update clearance request metadata with error for admin visibility
+                try {
+                    await dbModule.query(
+                        `UPDATE clearance_requests 
+                         SET metadata = metadata || $1::jsonb,
+                             updated_at = CURRENT_TIMESTAMP
+                         WHERE id = $2`,
+                        [JSON.stringify({
+                            autoVerificationError: {
+                                message: autoVerifyError.message,
+                                timestamp: new Date().toISOString(),
+                                transferRequestId: request.id,
+                                vehicleId: request.vehicle_id,
+                                insuranceDocId: insuranceDoc?.id
+                            }
+                        }), clearanceRequest.id]
+                    );
+                    console.log(`[Transfer→Insurance Auto-Verify] ✅ Error details saved to clearance request metadata`);
+                } catch (metaError) {
+                    console.error('[Transfer→Insurance Auto-Verify] ❌ Failed to update clearance request metadata:', metaError.message);
+                }
+                
+                // Don't fail clearance request creation if auto-verification fails
             }
-        } catch (autoVerifyError) {
-            console.error('[Transfer→Insurance Auto-Verify] Error:', autoVerifyError);
-            // Don't fail clearance request creation if auto-verification fails
         }
+    } else {
+        console.warn(`[Transfer→Insurance Auto-Verify] ⚠️ No insurance document found - auto-verification skipped`);
     }
 
     const updatedRequest = await db.getTransferRequestById(request.id);

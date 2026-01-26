@@ -2978,17 +2978,16 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         // Seller must have: deed of sale + seller ID.
         // Buyer must have: valid ID, TIN, CTPL insurance, HPG clearance.
         // Note: MVIR comes from LTO inspection (vehicles.inspection_documents), not from buyer uploads.
-        if (!transferDocs) {
-            try {
-                transferDocs = await db.getTransferRequestDocuments(id);
-            } catch (docError) {
-                console.error('Failed to load transfer documents before approval:', docError);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Failed to load transfer documents for approval',
-                    message: process.env.NODE_ENV === 'development' ? docError.message : undefined
-                });
-            }
+        let transferDocs = null;
+        try {
+            transferDocs = await db.getTransferRequestDocuments(id);
+        } catch (docError) {
+            console.error('Failed to load transfer documents before approval:', docError);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to load transfer documents for approval',
+                message: process.env.NODE_ENV === 'development' ? docError.message : undefined
+            });
         }
 
         const presentRoles = new Set(

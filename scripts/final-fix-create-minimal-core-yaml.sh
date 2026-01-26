@@ -8,6 +8,9 @@
 # - chaincode.system.escc: enable - Enables the system chaincode
 # - handlers.endorsers.escc.name: DefaultEndorsement - Specifies handler implementation
 # Since handlers aren't being initialized properly, we're enabling system chaincodes as well
+#
+# CRITICAL: _lifecycle must be explicitly enabled for Fabric 2.5 to work properly
+# Without it, peer lifecycle chaincode commands will fail with "_lifecycle.syscc" errors
 
 set -e
 
@@ -87,6 +90,7 @@ chaincode:
   mode: dev
   keepalive: 0
   system:
+    _lifecycle: enable
     cscc: enable
     lscc: enable
     qscc: enable
@@ -185,6 +189,10 @@ echo ""
 echo "Step 10: Checking system chaincodes..."
 if docker logs peer0.lto.gov.ph 2>&1 | grep -q "Deployed system chaincodes"; then
     echo "✓ System chaincodes deployed successfully"
+    # Check specifically for _lifecycle
+    if docker logs peer0.lto.gov.ph 2>&1 | grep -qi "_lifecycle\|lifecycle"; then
+        echo "✓ _lifecycle system chaincode detected"
+    fi
 else
     echo "⚠ WARNING: System chaincodes might not be deployed"
 fi

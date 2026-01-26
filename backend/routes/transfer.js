@@ -2771,15 +2771,40 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         // }
         
         // PHASE 3: Validate transfer status transition before updating
-        const statusValidation = validateTransferStatusTransition(request.status, TRANSFER_STATUS.COMPLETED);
+        // Handle status transition properly: UNDER_REVIEW must go through APPROVED first
+        let currentStatus = request.status;
+        let needsApprovalTransition = false;
+        
+        // Check if we need to transition through APPROVED first
+        if (currentStatus === TRANSFER_STATUS.UNDER_REVIEW) {
+            // UNDER_REVIEW cannot directly transition to COMPLETED
+            // Must first transition to APPROVED, then to COMPLETED
+            const approvalValidation = validateTransferStatusTransition(currentStatus, TRANSFER_STATUS.APPROVED);
+            if (!approvalValidation.valid) {
+                console.error(`[Phase 3] Invalid status transition: ${currentStatus} → ${TRANSFER_STATUS.APPROVED}`, approvalValidation.error);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid status transition',
+                    message: approvalValidation.error,
+                    currentStatus: currentStatus,
+                    newStatus: TRANSFER_STATUS.APPROVED
+                });
+            }
+            needsApprovalTransition = true;
+        }
+        
+        // Validate final transition to COMPLETED
+        const targetStatus = TRANSFER_STATUS.COMPLETED;
+        const finalStatus = needsApprovalTransition ? TRANSFER_STATUS.APPROVED : currentStatus;
+        const statusValidation = validateTransferStatusTransition(finalStatus, targetStatus);
         if (!statusValidation.valid) {
-            console.error(`[Phase 3] Invalid status transition: ${request.status} → ${TRANSFER_STATUS.COMPLETED}`, statusValidation.error);
+            console.error(`[Phase 3] Invalid status transition: ${finalStatus} → ${targetStatus}`, statusValidation.error);
             return res.status(400).json({
                 success: false,
                 error: 'Invalid status transition',
                 message: statusValidation.error,
-                currentStatus: request.status,
-                newStatus: TRANSFER_STATUS.COMPLETED
+                currentStatus: finalStatus,
+                newStatus: targetStatus
             });
         }
 
@@ -3129,12 +3154,23 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             blockchainTxId: blockchainTxId  // Save blockchain transaction ID (MANDATORY - always required)
         });
         
-        // Update transfer request status
+        // Update transfer request status with proper transition
+        // If we need to transition through APPROVED first, do it now
+        if (needsApprovalTransition) {
+            await db.updateTransferRequestStatus(id, TRANSFER_STATUS.APPROVED, req.user.userId, null, {
+                approvedAt: new Date().toISOString(),
+                notes: notes || null
+            });
+            console.log(`✅ [Phase 3] Transitioned transfer status: ${currentStatus} → ${TRANSFER_STATUS.APPROVED}`);
+        }
+        
+        // Now transition to COMPLETED
         await db.updateTransferRequestStatus(id, TRANSFER_STATUS.COMPLETED, req.user.userId, null, {
             blockchainTxId,
             approvedAt: new Date().toISOString(),
             notes: notes || null
         });
+        console.log(`✅ [Phase 3] Transitioned transfer status: ${needsApprovalTransition ? TRANSFER_STATUS.APPROVED : currentStatus} → ${TRANSFER_STATUS.COMPLETED}`);
         try {
             const buyerDocs = await db.getTransferRequestDocuments(id);
             const buyerDocIds = buyerDocs

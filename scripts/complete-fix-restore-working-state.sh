@@ -185,9 +185,119 @@ if ! check_file_in_container "$ORDERER_CA"; then
 fi
 echo "✓ Orderer CA certificate found"
 
-# Step 7: Query current chaincode definition
+# Step 7: Check if chaincode is installed, install if needed
 echo ""
-echo "Step 7: Querying current chaincode definition..."
+echo "Step 7: Checking if chaincode package is installed..."
+INSTALLED_OUTPUT=$(run_docker_exec "
+export CORE_PEER_LOCALMSPID=LTOMSP
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
+export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+peer lifecycle chaincode queryinstalled 2>&1
+" 30)
+
+# Check if chaincode directory exists in CLI container
+CHAINCODE_DIR="/opt/gopath/src/github.com/chaincode/vehicle-registration-production"
+if ! docker exec cli test -d "$CHAINCODE_DIR" 2>/dev/null; then
+    echo "⚠ Chaincode directory not found in CLI container"
+    echo "  Checking if chaincode exists locally..."
+    if [ -d "chaincode/vehicle-registration-production" ]; then
+        echo "  Copying chaincode to CLI container..."
+        docker cp chaincode/vehicle-registration-production cli:"$CHAINCODE_DIR"
+        echo "✓ Chaincode copied to CLI container"
+    else
+        echo "❌ Chaincode directory not found locally: chaincode/vehicle-registration-production"
+        exit 1
+    fi
+fi
+
+# Check if chaincode is already installed
+if echo "$INSTALLED_OUTPUT" | grep -q "vehicle-registration"; then
+    echo "✓ Chaincode package is already installed"
+    PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | grep "vehicle-registration" | \
+        sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+    if [ -n "$PACKAGE_ID" ]; then
+        echo "  Package ID: ${PACKAGE_ID:0:30}..."
+    fi
+else
+    echo "⚠ Chaincode package not installed, installing now..."
+    
+    # Package chaincode
+    echo "  Packaging chaincode..."
+    PACKAGE_OUTPUT=$(run_docker_exec "
+export CORE_PEER_LOCALMSPID=LTOMSP
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
+export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+cd /opt/gopath/src/github.com/hyperledger/fabric/peer
+peer lifecycle chaincode package vehicle-registration.tar.gz \
+    --path $CHAINCODE_DIR \
+    --lang node \
+    --label vehicle-registration_1.0 2>&1
+" 60)
+    
+    if echo "$PACKAGE_OUTPUT" | grep -qi "error\|failed"; then
+        echo "❌ Failed to package chaincode:"
+        echo "$PACKAGE_OUTPUT" | tail -10
+        exit 1
+    fi
+    echo "✓ Chaincode packaged"
+    
+    # Install chaincode
+    echo "  Installing chaincode package..."
+    INSTALL_OUTPUT=$(run_docker_exec "
+export CORE_PEER_LOCALMSPID=LTOMSP
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
+export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+cd /opt/gopath/src/github.com/hyperledger/fabric/peer
+peer lifecycle chaincode install vehicle-registration.tar.gz 2>&1
+" 60)
+    
+    if echo "$INSTALL_OUTPUT" | grep -qi "error\|failed"; then
+        if echo "$INSTALL_OUTPUT" | grep -qi "already successfully installed"; then
+            echo "✓ Chaincode already installed (from previous attempt)"
+        else
+            echo "❌ Failed to install chaincode:"
+            echo "$INSTALL_OUTPUT" | tail -10
+            exit 1
+        fi
+    else
+        echo "✓ Chaincode installed successfully"
+    fi
+    
+    # Wait for installation to complete
+    echo "  Waiting for installation to complete (10 seconds)..."
+    sleep 10
+    
+    # Get package ID
+    INSTALLED_OUTPUT=$(run_docker_exec "
+export CORE_PEER_LOCALMSPID=LTOMSP
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
+export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+peer lifecycle chaincode queryinstalled 2>&1
+" 30)
+    
+    PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | grep "vehicle-registration" | \
+        sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+    
+    if [ -z "$PACKAGE_ID" ]; then
+        echo "⚠ WARNING: Could not get package ID, but installation may have succeeded"
+        echo "  Installed chaincodes:"
+        echo "$INSTALLED_OUTPUT" | grep -i "package\|installed" | head -5
+    else
+        echo "✓ Package ID: ${PACKAGE_ID:0:30}..."
+    fi
+fi
+
+# Step 8: Query current chaincode definition
+echo ""
+echo "Step 8: Querying current chaincode definition..."
 CURRENT_DEF_JSON=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -245,9 +355,9 @@ echo ""
 echo "Current sequence: $SEQUENCE"
 echo "Next sequence: $NEXT_SEQUENCE"
 
-# Step 8: Approve chaincode with empty plugin strings
+# Step 9: Approve chaincode with empty plugin strings
 echo ""
-echo "Step 8: Approving chaincode definition with built-in handlers..."
+echo "Step 9: Approving chaincode definition with built-in handlers..."
 APPROVE_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -294,9 +404,9 @@ else
     echo "✓ Chaincode approved"
 fi
 
-# Step 9: Commit chaincode with empty plugin strings
+# Step 10: Commit chaincode with empty plugin strings
 echo ""
-echo "Step 9: Committing chaincode definition with built-in handlers..."
+echo "Step 10: Committing chaincode definition with built-in handlers..."
 COMMIT_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -331,13 +441,13 @@ if [ $COMMIT_EXIT -ne 0 ] || echo "$COMMIT_OUTPUT" | grep -qi "error\|failed"; t
 fi
 echo "✓ Chaincode committed"
 
-# Step 10: Wait and test
+# Step 11: Wait and test
 echo ""
-echo "Step 10: Waiting for chaincode to be ready..."
+echo "Step 11: Waiting for chaincode to be ready..."
 sleep 5
 
 echo ""
-echo "Step 11: Testing chaincode query..."
+echo "Step 12: Testing chaincode query..."
 TEST_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -380,6 +490,7 @@ echo "Summary of changes:"
 echo "  ✅ Removed FABRIC_CFG_PATH from docker-compose.unified.yml"
 echo "  ✅ Removed config directory mount"
 echo "  ✅ Peer now uses Fabric 2.5 safe defaults"
+echo "  ✅ Chaincode package installed on peer"
 echo "  ✅ Chaincode definition updated (sequence $SEQUENCE → $NEXT_SEQUENCE)"
 echo "  ✅ Chaincode uses built-in handlers (no external plugins)"
 echo ""

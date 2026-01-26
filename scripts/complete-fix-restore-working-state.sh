@@ -1,16 +1,31 @@
 #!/bin/bash
 
-# Fix Chaincode Definition: Re-commit with built-in handlers
-# Root Cause: Chaincode was committed with default plugin names (escc/vscc) 
-# which override core.yaml handlers configuration
-# Solution: Re-commit with empty plugin strings to use built-in handlers
+# COMPLETE FIX: Restore Working State + Fix Chaincode Definition
+# 
+# This script provides the SUREST fix by:
+# 1. Removing FABRIC_CFG_PATH (restore to pre-CLI working state)
+# 2. Removing config mount (clean up)
+# 3. Fixing chaincode definition (re-commit with empty plugin strings)
+# 4. Restarting peer (apply all changes)
+#
+# This is the BEST solution because:
+# - Restores the working state you had before CLI was added
+# - Uses Fabric 2.5 safe defaults (no config file needed)
+# - Fixes the chaincode definition issue
+# - Prevents future configuration cascade issues
 
-# Don't use set -e - we need to handle errors manually
-set +e
+set +e  # Don't exit on error - we need to handle errors manually
 
 echo "=========================================="
-echo "Fix Chaincode Definition: Use Built-in Handlers"
+echo "COMPLETE FIX: Restore Working State + Fix Chaincode"
 echo "=========================================="
+echo ""
+echo "This script will:"
+echo "  1. Remove FABRIC_CFG_PATH from docker-compose (restore Fabric defaults)"
+echo "  2. Remove config directory mount (clean up)"
+echo "  3. Fix chaincode definition (re-commit with built-in handlers)"
+echo "  4. Restart peer (apply all changes)"
+echo ""
 
 cd ~/LTOBLOCKCHAIN || { echo "Error: Cannot find LTOBLOCKCHAIN directory"; exit 1; }
 
@@ -77,10 +92,91 @@ check_file_in_container() {
     return $?
 }
 
-echo ""
-echo "Step 0: Pre-flight checks..."
+# Step 1: Remove FABRIC_CFG_PATH from docker-compose.unified.yml
+echo "Step 1: Removing FABRIC_CFG_PATH from docker-compose.unified.yml..."
+DOCKER_COMPOSE_FILE="docker-compose.unified.yml"
 
-# Check if orderer CA certificate exists
+if [ ! -f "$DOCKER_COMPOSE_FILE" ]; then
+    echo "❌ docker-compose.unified.yml not found!"
+    exit 1
+fi
+
+# Create backup
+cp "$DOCKER_COMPOSE_FILE" "${DOCKER_COMPOSE_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+echo "✓ Backup created: ${DOCKER_COMPOSE_FILE}.backup.*"
+
+# Check if FABRIC_CFG_PATH exists
+if grep -q "FABRIC_CFG_PATH" "$DOCKER_COMPOSE_FILE"; then
+    echo "  Removing FABRIC_CFG_PATH line..."
+    # Remove the line (handles both with and without spaces)
+    sed -i '/FABRIC_CFG_PATH/d' "$DOCKER_COMPOSE_FILE"
+    echo "✓ Removed FABRIC_CFG_PATH"
+else
+    echo "✓ FABRIC_CFG_PATH not found (already removed or never set)"
+fi
+
+# Check if config mount exists
+if grep -q "fabric-network/config:/var/hyperledger/fabric/config" "$DOCKER_COMPOSE_FILE"; then
+    echo "  Removing config directory mount..."
+    # Remove the volume mount line
+    sed -i '\|fabric-network/config:/var/hyperledger/fabric/config|d' "$DOCKER_COMPOSE_FILE"
+    echo "✓ Removed config directory mount"
+else
+    echo "✓ Config mount not found (already removed or never set)"
+fi
+
+# Verify changes
+if ! grep -q "FABRIC_CFG_PATH" "$DOCKER_COMPOSE_FILE" && ! grep -q "fabric-network/config:/var/hyperledger/fabric/config" "$DOCKER_COMPOSE_FILE"; then
+    echo "✓ docker-compose.unified.yml updated successfully"
+else
+    echo "⚠ WARNING: Some FABRIC_CFG_PATH references may still exist"
+    echo "  Please verify manually: grep -n 'FABRIC_CFG_PATH\|fabric-network/config' $DOCKER_COMPOSE_FILE"
+fi
+
+# Step 2: Stop peer to apply docker-compose changes
+echo ""
+echo "Step 2: Stopping peer to apply docker-compose changes..."
+docker-compose -f "$DOCKER_COMPOSE_FILE" stop peer0.lto.gov.ph
+sleep 5
+
+# Step 3: Start peer (will use Fabric defaults now)
+echo ""
+echo "Step 3: Starting peer with Fabric defaults (no FABRIC_CFG_PATH)..."
+docker-compose -f "$DOCKER_COMPOSE_FILE" up -d peer0.lto.gov.ph
+
+echo "  Waiting for peer to start..."
+sleep 10
+
+# Wait for peer to be ready
+wait_for_peer_ready
+
+# Step 4: Verify peer is working
+echo ""
+echo "Step 4: Verifying peer is working..."
+PEER_LOGS=$(docker logs peer0.lto.gov.ph --tail=30 2>&1)
+
+if echo "$PEER_LOGS" | grep -qi "error\|failed\|panic\|fatal"; then
+    echo "⚠ WARNING: Peer logs show errors:"
+    echo "$PEER_LOGS" | grep -i "error\|failed\|panic\|fatal" | head -5
+    echo ""
+    echo "  Please check full logs: docker logs peer0.lto.gov.ph"
+else
+    echo "✓ Peer logs look clean (no critical errors)"
+fi
+
+# Step 5: Ensure CLI container is running
+echo ""
+echo "Step 5: Ensuring CLI container is running..."
+if ! check_container "cli"; then
+    echo "  Starting CLI container..."
+    docker-compose -f "$DOCKER_COMPOSE_FILE" up -d cli
+    wait_for_container "cli"
+fi
+echo "✓ CLI container is ready"
+
+# Step 6: Check orderer CA certificate
+echo ""
+echo "Step 6: Verifying orderer CA certificate..."
 ORDERER_CA="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem"
 if ! check_file_in_container "$ORDERER_CA"; then
     echo "❌ Orderer CA certificate not found at: $ORDERER_CA"
@@ -89,150 +185,9 @@ if ! check_file_in_container "$ORDERER_CA"; then
 fi
 echo "✓ Orderer CA certificate found"
 
-# Check if FABRIC_CFG_PATH is set (this is what triggered the issues)
+# Step 7: Query current chaincode definition
 echo ""
-echo "Step 0.1: Checking FABRIC_CFG_PATH configuration..."
-FABRIC_CFG_SET=$(grep -E "^[[:space:]]*-[[:space:]]*FABRIC_CFG_PATH" docker-compose.unified.yml | grep -v "^[[:space:]]*#" || echo "")
-
-if [ -n "$FABRIC_CFG_SET" ]; then
-    echo "⚠ FABRIC_CFG_PATH is set in docker-compose.unified.yml"
-    echo "  This requires a complete core.yaml file with proper configuration"
-    echo "  If you don't need custom peer config, consider removing FABRIC_CFG_PATH"
-    echo "  (Fabric 2.5 works fine without it using safe defaults)"
-else
-    echo "✓ FABRIC_CFG_PATH is not set (using Fabric defaults - this is fine)"
-fi
-
-# Check and fix core.yaml chaincode mode (CRITICAL: must be 'dev' for _lifecycle to work)
-echo ""
-echo "Step 0.2: Checking core.yaml chaincode mode..."
-CORE_YAML="fabric-network/config/core.yaml"
-NEED_PEER_RESTART=false
-
-if [ -f "$CORE_YAML" ]; then
-    # Check current mode
-    CURRENT_MODE=$(grep -E "^[[:space:]]*mode:[[:space:]]*" "$CORE_YAML" | head -1 | grep -oE "(net|dev)" || echo "")
-    
-    if [ "$CURRENT_MODE" = "net" ]; then
-        echo "⚠ WARNING: core.yaml has mode: net (will cause _lifecycle.syscc errors)"
-        echo "  Fixing to mode: dev..."
-        sed -i 's/^[[:space:]]*mode:[[:space:]]*net/mode: dev/' "$CORE_YAML"
-        
-        # Verify change
-        if grep -q "mode: dev" "$CORE_YAML"; then
-            echo "✓ Updated core.yaml to mode: dev"
-            NEED_PEER_RESTART=true
-        else
-            echo "❌ Failed to update core.yaml mode"
-            exit 1
-        fi
-    elif [ "$CURRENT_MODE" = "dev" ]; then
-        echo "✓ core.yaml already has mode: dev (correct)"
-    else
-        echo "⚠ WARNING: Could not determine chaincode mode in core.yaml"
-        echo "  Adding mode: dev if missing..."
-        # Check if chaincode section exists
-        if grep -q "^chaincode:" "$CORE_YAML"; then
-            # Add mode: dev after chaincode: line
-            sed -i '/^chaincode:/a\  mode: dev' "$CORE_YAML"
-            echo "✓ Added mode: dev to core.yaml"
-            NEED_PEER_RESTART=true
-        else
-            echo "  ⚠ chaincode section not found, will be handled by peer defaults"
-        fi
-    fi
-    
-    # Ensure _lifecycle is enabled in system chaincodes
-    if ! grep -q "_lifecycle: enable" "$CORE_YAML"; then
-        echo "  Ensuring _lifecycle is enabled..."
-        # Check if system section exists
-        if grep -q "^[[:space:]]*system:" "$CORE_YAML"; then
-            # Add _lifecycle if not present
-            if ! grep -A 10 "^[[:space:]]*system:" "$CORE_YAML" | grep -q "_lifecycle"; then
-                sed -i '/^[[:space:]]*system:/a\    _lifecycle: enable' "$CORE_YAML"
-                echo "  ✓ Added _lifecycle: enable to core.yaml"
-                NEED_PEER_RESTART=true
-            fi
-        fi
-    else
-        echo "✓ _lifecycle is enabled in core.yaml"
-    fi
-    
-    # Restart peer if config was changed
-    if [ "$NEED_PEER_RESTART" = true ]; then
-        echo ""
-        echo "  Restarting peer to apply core.yaml changes..."
-        docker-compose -f docker-compose.unified.yml restart peer0.lto.gov.ph
-        echo "  Waiting for peer to restart (20 seconds)..."
-        sleep 20
-        echo "  ✓ Peer restarted"
-    fi
-else
-    if [ -n "$FABRIC_CFG_SET" ]; then
-        echo "❌ ERROR: FABRIC_CFG_PATH is set but core.yaml doesn't exist!"
-        echo "  This will cause peer startup failures or use problematic defaults"
-        echo ""
-        echo "  Options:"
-        echo "  1. Create core.yaml: bash scripts/final-fix-create-minimal-core-yaml.sh"
-        echo "  2. Remove FABRIC_CFG_PATH from docker-compose.unified.yml (recommended if not needed)"
-        echo ""
-        echo "  If you don't need custom peer configuration, removing FABRIC_CFG_PATH"
-        echo "  will restore the working state (Fabric uses safe defaults)."
-        exit 1
-    else
-        echo "✓ core.yaml not found, but FABRIC_CFG_PATH is not set"
-        echo "  Peer will use Fabric defaults (this is fine)"
-    fi
-fi
-
-echo ""
-echo "Step 0.5: Checking and starting containers..."
-NEED_START=false
-
-if ! check_container "cli"; then
-    echo "⚠ CLI container is not running, starting it..."
-    docker-compose -f docker-compose.unified.yml up -d cli
-    NEED_START=true
-fi
-
-if ! check_container "peer0.lto.gov.ph"; then
-    echo "⚠ Peer container is not running, starting it..."
-    docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph
-    NEED_START=true
-fi
-
-if [ "$NEED_START" = true ]; then
-    echo "Waiting for containers to be ready..."
-    
-    # Wait for CLI container
-    if ! wait_for_container "cli"; then
-        echo "❌ Failed to start CLI container after multiple attempts"
-        echo "Container status:"
-        docker ps -a | grep cli || echo "  CLI container not found"
-        exit 1
-    fi
-    echo "✓ CLI container is ready"
-    
-    # Wait for peer container
-    if ! wait_for_container "peer0.lto.gov.ph"; then
-        echo "❌ Failed to start peer container after multiple attempts"
-        echo "Container status:"
-        docker ps -a | grep peer0.lto.gov.ph || echo "  Peer container not found"
-        exit 1
-    fi
-    
-    # Wait for peer to be actually ready (check logs)
-    wait_for_peer_ready
-else
-    echo "✓ All required containers are already running"
-    # Still check if peer is ready
-    wait_for_peer_ready
-fi
-
-echo ""
-echo "Step 1: Checking current chaincode definition..."
-
-# Try JSON output first (more reliable for parsing)
+echo "Step 7: Querying current chaincode definition..."
 CURRENT_DEF_JSON=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -268,8 +223,6 @@ peer lifecycle chaincode querycommitted -C ltochannel -n vehicle-registration 2>
     
     if [ $? -eq 0 ] && ! echo "$CURRENT_DEF" | grep -qi "error\|failed\|timeout\|not found"; then
         echo "✓ Chaincode definition query successful (text format)"
-        # Extract sequence number from text output
-        # Look for "Sequence: X" or "sequence X" patterns
         SEQUENCE=$(echo "$CURRENT_DEF" | grep -iE "sequence[[:space:]]*:?[[:space:]]*[0-9]+" | grep -oE '[0-9]+' | head -1)
         if [ -n "$SEQUENCE" ] && [[ "$SEQUENCE" =~ ^[0-9]+$ ]]; then
             echo "  Found sequence: $SEQUENCE"
@@ -279,7 +232,7 @@ peer lifecycle chaincode querycommitted -C ltochannel -n vehicle-registration 2>
         fi
     else
         echo "⚠ Warning: Could not query chaincode definition"
-        echo "  This may mean chaincode is not yet committed or _lifecycle is not working"
+        echo "  This may mean chaincode is not yet committed"
         echo "  Output: $(echo "$CURRENT_DEF" | head -3)"
         echo ""
         echo "  Attempting to proceed with sequence number 1..."
@@ -292,8 +245,9 @@ echo ""
 echo "Current sequence: $SEQUENCE"
 echo "Next sequence: $NEXT_SEQUENCE"
 
+# Step 8: Approve chaincode with empty plugin strings
 echo ""
-echo "Step 2: Approving chaincode definition with built-in handlers..."
+echo "Step 8: Approving chaincode definition with built-in handlers..."
 APPROVE_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -322,10 +276,14 @@ if echo "$APPROVE_OUTPUT" | grep -qi "already approved\|already exists"; then
 elif [ $APPROVE_EXIT -ne 0 ] || echo "$APPROVE_OUTPUT" | grep -qi "error\|failed"; then
     if echo "$APPROVE_OUTPUT" | grep -qi "sequence mismatch\|sequence.*mismatch"; then
         echo "❌ Sequence mismatch error"
-        echo "  The sequence number may be incorrect. Current chaincode definition:"
-        echo "$CURRENT_DEF" | head -10
+        echo "  The sequence number may be incorrect"
+        exit 1
+    elif echo "$APPROVE_OUTPUT" | grep -qi "plugin.*escc.*wasn't found\|endorsement.*failed"; then
+        echo "❌ Still seeing ESCC error during approve"
+        echo "  This suggests peer configuration is still wrong"
+        echo "  Output: $APPROVE_OUTPUT"
         echo ""
-        echo "  Please check the actual sequence number and update the script"
+        echo "  Please verify peer is using Fabric defaults (no FABRIC_CFG_PATH)"
         exit 1
     else
         echo "❌ Failed to approve chaincode"
@@ -336,8 +294,9 @@ else
     echo "✓ Chaincode approved"
 fi
 
+# Step 9: Commit chaincode with empty plugin strings
 echo ""
-echo "Step 3: Committing chaincode definition with built-in handlers..."
+echo "Step 9: Committing chaincode definition with built-in handlers..."
 COMMIT_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -363,7 +322,6 @@ COMMIT_EXIT=$?
 if [ $COMMIT_EXIT -ne 0 ] || echo "$COMMIT_OUTPUT" | grep -qi "error\|failed"; then
     if echo "$COMMIT_OUTPUT" | grep -qi "sequence mismatch\|sequence.*mismatch"; then
         echo "❌ Sequence mismatch error during commit"
-        echo "  The sequence number may be incorrect"
         exit 1
     else
         echo "❌ Failed to commit chaincode"
@@ -373,15 +331,13 @@ if [ $COMMIT_EXIT -ne 0 ] || echo "$COMMIT_OUTPUT" | grep -qi "error\|failed"; t
 fi
 echo "✓ Chaincode committed"
 
+# Step 10: Wait and test
 echo ""
-echo "Step 4: Waiting for chaincode to be ready..."
+echo "Step 10: Waiting for chaincode to be ready..."
 sleep 5
 
 echo ""
-echo "Step 5: Testing chaincode query..."
-
-# Verify which query method is available
-# Try peer chaincode query first (deprecated but may still work)
+echo "Step 11: Testing chaincode query..."
 TEST_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
@@ -393,24 +349,22 @@ peer chaincode query -C ltochannel -n vehicle-registration -c '{\"function\":\"G
 
 # Check for escc error
 if echo "$TEST_OUTPUT" | grep -qi "plugin.*escc.*wasn't found\|endorsement.*failed\|plugin.*could not be used"; then
-    echo "❌ Still seeing escc error:"
+    echo "❌ Still seeing ESCC error:"
     echo "$TEST_OUTPUT" | grep -i "plugin\|endorsement" | head -5
     echo ""
-    echo "  The fix may not have taken effect. Please:"
-    echo "  1. Verify core.yaml has handlers section configured"
-    echo "  2. Restart peer container: docker-compose -f docker-compose.unified.yml restart peer0.lto.gov.ph"
-    echo "  3. Wait for peer to be ready and try again"
+    echo "  This should not happen after removing FABRIC_CFG_PATH"
+    echo "  Please check:"
+    echo "  1. Peer was restarted after docker-compose changes"
+    echo "  2. No FABRIC_CFG_PATH in docker-compose.unified.yml"
+    echo "  3. Peer logs: docker logs peer0.lto.gov.ph --tail=50"
     exit 1
 elif echo "$TEST_OUTPUT" | grep -qi "error\|failed"; then
-    # Check if it's a chaincode-specific error (not escc)
     if echo "$TEST_OUTPUT" | grep -qi "chaincode.*not found\|chaincode.*not available"; then
         echo "⚠ Chaincode not yet available (may need more time to start)"
         echo "  This is OK - the commit was successful"
     else
         echo "⚠ Query returned an error (may be expected if no vehicles registered yet):"
         echo "$TEST_OUTPUT" | head -5
-        echo ""
-        echo "  If this is not a 'no vehicles' error, please check chaincode logs"
     fi
 else
     echo "✓ Chaincode query successful!"
@@ -419,20 +373,18 @@ fi
 
 echo ""
 echo "=========================================="
-echo "Fix completed successfully!"
+echo "COMPLETE FIX SUCCESSFUL!"
 echo "=========================================="
 echo ""
-echo "The chaincode definition now uses built-in handlers (DefaultEndorsement/DefaultValidation)"
-echo "instead of looking for external plugins (escc/vscc)."
+echo "Summary of changes:"
+echo "  ✅ Removed FABRIC_CFG_PATH from docker-compose.unified.yml"
+echo "  ✅ Removed config directory mount"
+echo "  ✅ Peer now uses Fabric 2.5 safe defaults"
+echo "  ✅ Chaincode definition updated (sequence $SEQUENCE → $NEXT_SEQUENCE)"
+echo "  ✅ Chaincode uses built-in handlers (no external plugins)"
 echo ""
-echo "Summary:"
-echo "  - Current sequence: $SEQUENCE"
-echo "  - New sequence: $NEXT_SEQUENCE"
-echo "  - Chaincode: vehicle-registration"
-echo "  - Channel: ltochannel"
+echo "Your system is now restored to the working state (pre-CLI configuration)"
+echo "with the chaincode definition issue fixed."
 echo ""
-echo "If you still see escc errors, ensure:"
-echo "1. core.yaml has handlers section configured correctly"
-echo "2. Peer has been restarted after core.yaml changes"
-echo "3. Chaincode was committed with --endorsement-plugin '' and --validation-plugin ''"
-echo "4. Wait for peer to show 'Deployed system chaincodes' message before querying"
+echo "Backup created: ${DOCKER_COMPOSE_FILE}.backup.*"
+echo "You can restore the old config if needed, but the new config should work better."

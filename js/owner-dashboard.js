@@ -1383,7 +1383,9 @@ function initializeKeyboardShortcuts() {
 function createBlockchainProofSection(vehicle) {
     const hasBlockchainTx = vehicle.blockchainTxId || vehicle.blockchain_tx_id;
     const txId = hasBlockchainTx || 'Pending...';
-    const isVerified = hasBlockchainTx && !['SUBMITTED', 'PENDING_BLOCKCHAIN'].includes(vehicle.status);
+    // Normalize status to uppercase for consistent comparison
+    const normalizedStatus = (vehicle.status || '').toUpperCase();
+    const isVerified = hasBlockchainTx && !['SUBMITTED', 'PENDING_BLOCKCHAIN'].includes(normalizedStatus);
     
     return `
         <div class="blockchain-proof-section ${isVerified ? 'verified' : 'pending'}">
@@ -1749,52 +1751,97 @@ async function viewUserApplication(applicationId) {
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(applicationId);
     console.log('📂 Is UUID:', isUUID);
     
-    // Try to load documents from API if it's a real vehicle
+    // Try to load full vehicle details and documents from API if it's a real vehicle
     if (isUUID) {
         try {
-            const token = (typeof window !== 'undefined' && window.authManager) 
-                ? window.authManager.getAccessToken() 
-                : (localStorage.getItem('authToken') || localStorage.getItem('token'));
-            console.log('📂 Fetching documents from API for vehicle:', applicationId);
+            const apiClient = window.apiClient || new APIClient();
+            console.log('📂 Fetching full vehicle details from API for vehicle:', applicationId);
             
-            const response = await fetch(`/api/documents/vehicle-id/${applicationId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            // Fetch full vehicle details (includes blockchain_tx_id)
+            const vehicleResponse = await apiClient.get(`/api/vehicles/id/${applicationId}`);
             
-            console.log('📂 API response status:', response.status);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('📂 API response data:', data);
+            if (vehicleResponse.success && vehicleResponse.vehicle) {
+                console.log('📂 Vehicle details fetched:', vehicleResponse.vehicle);
+                // Update application with full vehicle data including blockchain_tx_id
+                application.vehicle = {
+                    ...application.vehicle,
+                    ...vehicleResponse.vehicle,
+                    blockchain_tx_id: vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId,
+                    blockchainTxId: vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id
+                };
+                // Also update application-level blockchain fields
+                application.blockchain_tx_id = vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId;
+                application.blockchainTxId = vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id;
                 
-                if (data.documents && data.documents.length > 0) {
-                    console.log('📂 Found', data.documents.length, 'documents from API');
+                // Update documents if available
+                if (vehicleResponse.vehicle.documents && vehicleResponse.vehicle.documents.length > 0) {
+                    console.log('📂 Found', vehicleResponse.vehicle.documents.length, 'documents from vehicle API');
                     
                     // Convert array format to object format for the modal
                     const docsMap = {};
-                    data.documents.forEach(doc => {
-                        console.log('📂 Processing doc:', doc.document_type, doc.id);
-                        const key = mapDocTypeToKey(doc.document_type);
+                    vehicleResponse.vehicle.documents.forEach(doc => {
+                        console.log('📂 Processing doc:', doc.document_type || doc.type, doc.id);
+                        const key = mapDocTypeToKey(doc.document_type || doc.type);
                         console.log('📂 Mapped key:', key);
                         docsMap[key] = {
                             id: doc.id,
                             url: `/api/documents/${doc.id}/view`,
                             cid: doc.ipfs_cid || doc.cid,
                             filename: doc.original_name || doc.filename,
-                            type: doc.document_type
+                            type: doc.document_type || doc.type
                         };
                     });
                     console.log('📂 Final docsMap:', docsMap);
                     application.documents = docsMap;
-                } else {
-                    console.log('📂 No documents returned from API');
                 }
-            } else {
-                console.log('📂 API response not OK:', response.status, response.statusText);
+            }
+            
+            // Also try to fetch documents separately if vehicle API didn't return them
+            if (!application.documents || Object.keys(application.documents).length === 0) {
+                const token = (typeof window !== 'undefined' && window.authManager) 
+                    ? window.authManager.getAccessToken() 
+                    : (localStorage.getItem('authToken') || localStorage.getItem('token'));
+                console.log('📂 Fetching documents from API for vehicle:', applicationId);
+                
+                const response = await fetch(`/api/documents/vehicle-id/${applicationId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                console.log('📂 API response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📂 API response data:', data);
+                    
+                    if (data.documents && data.documents.length > 0) {
+                        console.log('📂 Found', data.documents.length, 'documents from API');
+                        
+                        // Convert array format to object format for the modal
+                        const docsMap = {};
+                        data.documents.forEach(doc => {
+                            console.log('📂 Processing doc:', doc.document_type, doc.id);
+                            const key = mapDocTypeToKey(doc.document_type);
+                            console.log('📂 Mapped key:', key);
+                            docsMap[key] = {
+                                id: doc.id,
+                                url: `/api/documents/${doc.id}/view`,
+                                cid: doc.ipfs_cid || doc.cid,
+                                filename: doc.original_name || doc.filename,
+                                type: doc.document_type
+                            };
+                        });
+                        console.log('📂 Final docsMap:', docsMap);
+                        application.documents = docsMap;
+                    } else {
+                        console.log('📂 No documents returned from API');
+                    }
+                } else {
+                    console.log('📂 API response not OK:', response.status, response.statusText);
+                }
             }
         } catch (apiError) {
-            console.error('📂 Error loading documents from API:', apiError);
-            // Continue with existing documents
+            console.error('📂 Error loading vehicle details from API:', apiError);
+            // Continue with existing data
         }
     }
     

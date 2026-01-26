@@ -24,10 +24,27 @@ run_docker_exec() {
 # Helper function to check container status
 check_container() {
     local container="$1"
-    if ! docker ps | grep -q "$container.*Up"; then
-        return 1
+    if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+        return 0
     fi
-    return 0
+    return 1
+}
+
+# Helper function to wait for container with retries
+wait_for_container() {
+    local container="$1"
+    local max_attempts=10
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if check_container "$container"; then
+            return 0
+        fi
+        echo "  Waiting for $container... (attempt $attempt/$max_attempts)"
+        sleep 3
+        attempt=$((attempt + 1))
+    done
+    return 1
 }
 
 echo ""
@@ -47,21 +64,28 @@ if ! check_container "peer0.lto.gov.ph"; then
 fi
 
 if [ "$NEED_START" = true ]; then
-    echo "Waiting for containers to be ready (15 seconds)..."
-    sleep 15
+    echo "Waiting for containers to be ready..."
     
-    # Verify containers are now running
-    if ! check_container "cli"; then
-        echo "❌ Failed to start CLI container"
+    # Wait for CLI container
+    if ! wait_for_container "cli"; then
+        echo "❌ Failed to start CLI container after multiple attempts"
+        echo "Container status:"
+        docker ps -a | grep cli || echo "  CLI container not found"
         exit 1
     fi
-    if ! check_container "peer0.lto.gov.ph"; then
-        echo "❌ Failed to start peer container"
+    echo "✓ CLI container is ready"
+    
+    # Wait for peer container
+    if ! wait_for_container "peer0.lto.gov.ph"; then
+        echo "❌ Failed to start peer container after multiple attempts"
+        echo "Container status:"
+        docker ps -a | grep peer0.lto.gov.ph || echo "  Peer container not found"
         exit 1
     fi
+    echo "✓ Peer container is ready"
+else
+    echo "✓ All required containers are already running"
 fi
-
-echo "✓ All required containers are running"
 
 echo ""
 echo "Step 1: Checking current chaincode definition (with timeout)..."

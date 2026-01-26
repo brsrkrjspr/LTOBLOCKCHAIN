@@ -770,6 +770,10 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
         vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
         vehicle.history = await db.getVehicleHistory(vehicle.id);
         
+        // CRITICAL: Verify blockchain transaction ID against Fabric
+        // This ensures the transaction ID from PostgreSQL actually exists on Fabric
+        await verifyBlockchainTransactionId(vehicle);
+        
         // Generate QR code server-side
         vehicle.qr_code_base64 = await generateVehicleQRCode(vehicle);
 
@@ -832,6 +836,10 @@ router.get('/:vin', authenticateToken, async (req, res) => {
         vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
         vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
         vehicle.history = await db.getVehicleHistory(vehicle.id);
+        
+        // CRITICAL: Verify blockchain transaction ID against Fabric
+        // This ensures the transaction ID from PostgreSQL actually exists on Fabric
+        await verifyBlockchainTransactionId(vehicle);
 
         res.json({
             success: true,
@@ -2324,6 +2332,49 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
     }
 });
 
+// Helper function to verify blockchain transaction ID against Fabric
+// This ensures the transaction ID from PostgreSQL actually exists on Fabric
+async function verifyBlockchainTransactionId(vehicle) {
+    // Only verify if we have a valid transaction ID format
+    if (!vehicle.blockchain_tx_id || 
+        vehicle.blockchain_tx_id.includes('-') || 
+        vehicle.blockchain_tx_id.length < 40) {
+        vehicle.blockchain_tx_verified = null;
+        vehicle.blockchain_tx_validation = null;
+        return;
+    }
+    
+    try {
+        const fabricService = require('../services/optimizedFabricService');
+        
+        // Ensure Fabric connection
+        if (!fabricService.isConnected) {
+            await fabricService.initialize();
+        }
+        
+        // Verify transaction exists on Fabric
+        const transactionProof = await fabricService.getTransactionProof(vehicle.blockchain_tx_id);
+        
+        if (transactionProof && transactionProof.validationCode === 0) {
+            // Transaction is valid on Fabric
+            vehicle.blockchain_tx_verified = true;
+            vehicle.blockchain_tx_validation = 'VALID';
+            console.log(`✅ Verified transaction ID ${vehicle.blockchain_tx_id.substring(0, 20)}... on Fabric`);
+        } else {
+            // Transaction ID exists but validation failed
+            vehicle.blockchain_tx_verified = false;
+            vehicle.blockchain_tx_validation = transactionProof?.validationCodeName || 'INVALID';
+            console.warn(`⚠️ Transaction ID ${vehicle.blockchain_tx_id.substring(0, 20)}... found on Fabric but validation code: ${transactionProof?.validationCode}`);
+        }
+    } catch (verifyError) {
+        // Transaction ID not found on Fabric or verification failed
+        vehicle.blockchain_tx_verified = false;
+        vehicle.blockchain_tx_validation = 'NOT_FOUND';
+        console.error(`❌ Transaction ID ${vehicle.blockchain_tx_id?.substring(0, 20)}... not found on Fabric:`, verifyError.message);
+        // Don't fail the request - just mark as unverified
+    }
+}
+
 // Helper function to generate QR code for vehicle
 async function generateVehicleQRCode(vehicle) {
     try {
@@ -2502,6 +2553,10 @@ function formatVehicleResponseV1(vehicle) {
         vehicleClassification: vehicle.vehicle_classification || null,
         blockchainTxId: vehicle.blockchain_tx_id || vehicle.blockchainTxId || null,
         blockchain_tx_id: vehicle.blockchain_tx_id || vehicle.blockchainTxId || null,
+        blockchainTxVerified: vehicle.blockchain_tx_verified !== undefined ? vehicle.blockchain_tx_verified : null,
+        blockchain_tx_verified: vehicle.blockchain_tx_verified !== undefined ? vehicle.blockchain_tx_verified : null,
+        blockchainTxValidation: vehicle.blockchain_tx_validation || null,
+        blockchain_tx_validation: vehicle.blockchain_tx_validation || null,
         verificationStatus: formatVerificationStatus(vehicle),
         verifications: vehicle.verifications || [],
         documents: formatDocuments(vehicle.documents),
@@ -2558,6 +2613,10 @@ function formatVehicleResponseV2(vehicle) {
         vehicleClassification: vehicle.vehicle_classification || null,
         blockchainTxId: vehicle.blockchain_tx_id || vehicle.blockchainTxId || null,
         blockchain_tx_id: vehicle.blockchain_tx_id || vehicle.blockchainTxId || null,
+        blockchainTxVerified: vehicle.blockchain_tx_verified !== undefined ? vehicle.blockchain_tx_verified : null,
+        blockchain_tx_verified: vehicle.blockchain_tx_verified !== undefined ? vehicle.blockchain_tx_verified : null,
+        blockchainTxValidation: vehicle.blockchain_tx_validation || null,
+        blockchain_tx_validation: vehicle.blockchain_tx_validation || null,
         verificationStatus: formatVerificationStatus(vehicle),
         verifications: vehicle.verifications || [],
         documents: formatDocuments(vehicle.documents),

@@ -1445,17 +1445,20 @@ function verifyOnBlockchain(vin) {
         return;
     }
     // Get transaction ID from vehicle data or query API
+    // Use /api/vehicles/:vin route which allows vehicle owners to view their own vehicles
     const apiClient = window.apiClient || new APIClient();
-    apiClient.get(`/api/vehicles?vin=${vin}`)
+    apiClient.get(`/api/vehicles/${vin}`)
         .then(response => {
-            if (response.success && response.vehicles && response.vehicles.length > 0) {
-                const vehicle = response.vehicles[0];
+            if (response.success && response.vehicle) {
+                const vehicle = response.vehicle;
                 const txId = vehicle.blockchain_tx_id || vehicle.blockchainTxId;
                 if (txId) {
                     window.open(`/verify/${txId}`, '_blank');
                 } else {
                     alert('Blockchain transaction ID not found for this vehicle.');
                 }
+            } else {
+                alert('Vehicle not found or you do not have permission to view it.');
             }
         })
         .catch(error => {

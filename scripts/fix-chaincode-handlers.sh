@@ -25,23 +25,43 @@ run_docker_exec() {
 check_container() {
     local container="$1"
     if ! docker ps | grep -q "$container.*Up"; then
-        echo "❌ Container $container is not running!"
         return 1
     fi
     return 0
 }
 
 echo ""
-echo "Step 0: Checking containers..."
+echo "Step 0: Checking and starting containers..."
+NEED_START=false
+
 if ! check_container "cli"; then
-    echo "Please ensure CLI container is running: docker-compose -f docker-compose.unified.yml up -d cli"
-    exit 1
+    echo "⚠ CLI container is not running, starting it..."
+    docker-compose -f docker-compose.unified.yml up -d cli
+    NEED_START=true
 fi
+
 if ! check_container "peer0.lto.gov.ph"; then
-    echo "Please ensure peer container is running: docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph"
-    exit 1
+    echo "⚠ Peer container is not running, starting it..."
+    docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph
+    NEED_START=true
 fi
-echo "✓ Containers are running"
+
+if [ "$NEED_START" = true ]; then
+    echo "Waiting for containers to be ready (15 seconds)..."
+    sleep 15
+    
+    # Verify containers are now running
+    if ! check_container "cli"; then
+        echo "❌ Failed to start CLI container"
+        exit 1
+    fi
+    if ! check_container "peer0.lto.gov.ph"; then
+        echo "❌ Failed to start peer container"
+        exit 1
+    fi
+fi
+
+echo "✓ All required containers are running"
 
 echo ""
 echo "Step 1: Checking current chaincode definition (with timeout)..."

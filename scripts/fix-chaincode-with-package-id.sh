@@ -33,19 +33,36 @@ export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
 peer lifecycle chaincode queryinstalled --output json 2>&1
 " 30)
 
-# Try to extract package ID from JSON
-PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | grep -o '"package_id":"[^"]*"' | head -1 | cut -d'"' -f4)
+# Try to extract package ID from JSON (handle whitespace variations)
+# Primary method: sed pattern matching
+PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | sed -n 's/.*"package_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
 if [ -z "$PACKAGE_ID" ]; then
-    # Try text format
+    # Alternative: grep and sed combination
+    PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | grep -o '"package_id"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"package_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
+fi
+
+if [ -z "$PACKAGE_ID" ]; then
+    # Try text format (fallback)
     PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | grep "vehicle-registration" | \
         sed -n 's/.*Package ID: \([^,]*\),.*/\1/p' | head -1)
+fi
+
+if [ -z "$PACKAGE_ID" ]; then
+    # Last resort: use jq if available
+    if command -v jq >/dev/null 2>&1; then
+        PACKAGE_ID=$(echo "$INSTALLED_OUTPUT" | jq -r '.installed_chaincodes[0].package_id' 2>/dev/null)
+    fi
 fi
 
 if [ -z "$PACKAGE_ID" ]; then
     echo "❌ Could not find installed package ID"
     echo "Installed chaincodes:"
     echo "$INSTALLED_OUTPUT"
+    echo ""
+    echo "Trying manual extraction..."
+    # Show the raw output for debugging
+    echo "$INSTALLED_OUTPUT" | grep -i "package_id" || echo "No package_id found in output"
     exit 1
 fi
 

@@ -98,6 +98,8 @@ handlers:
     vscc:
       name: DefaultValidation
 ledger:
+  snapshots:
+    rootDir: /var/hyperledger/production/snapshots
   state:
     stateDatabase: CouchDB
     couchDBConfig:
@@ -158,9 +160,9 @@ fi
 
 echo ""
 echo "Step 8: Checking peer logs for errors..."
-if docker logs peer0.lto.gov.ph 2>&1 | grep -qi "FABRIC_CFG_PATH\|config file.*not found\|fatal error"; then
-    echo "⚠ WARNING: Still seeing config file errors"
-    docker logs peer0.lto.gov.ph 2>&1 | grep -i "FABRIC_CFG_PATH\|config file.*not found\|fatal error" | tail -5
+if docker logs peer0.lto.gov.ph 2>&1 | grep -qi "FABRIC_CFG_PATH\|config file.*not found\|fatal error\|invalid path.*snapshots\|BCCSP configuration"; then
+    echo "⚠ WARNING: Still seeing config errors"
+    docker logs peer0.lto.gov.ph 2>&1 | grep -i "FABRIC_CFG_PATH\|config file.*not found\|fatal error\|invalid path.*snapshots\|BCCSP configuration" | tail -5
 else
     echo "✓ No config file errors found"
 fi

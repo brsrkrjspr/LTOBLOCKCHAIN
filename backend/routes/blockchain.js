@@ -370,6 +370,7 @@ function authorizeRole(allowedRoles) {
 }
 
 // GET /api/blockchain/transactions/:txId - Get transaction details by ID
+// STRICT FABRIC ENFORCEMENT: Transaction MUST exist on Fabric to be returned
 // Public endpoint - optional auth for enhanced details
 router.get('/transactions/:txId', optionalAuth, async (req, res) => {
     try {
@@ -384,57 +385,30 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
         
         const db = require('../database/db');
         
-        // Helper function to get transaction from database
-        const getTransactionFromDatabase = async (txId) => {
-            const historyResult = await db.query(
-                `SELECT vh.*, v.vin, v.plate_number, v.status as vehicle_status
-                 FROM vehicle_history vh
-                 JOIN vehicles v ON vh.vehicle_id = v.id
-                 WHERE vh.transaction_id = $1
-                 ORDER BY vh.performed_at DESC
-                 LIMIT 1`,
-                [txId]
-            );
-            
-            if (historyResult.rows.length > 0) {
-                const history = historyResult.rows[0];
-                const vehicleStatus = history.vehicle_status;
-                const isPending = vehicleStatus === 'SUBMITTED';
-                
-                return {
-                    success: true,
-                    transaction: {
-                        txId: history.transaction_id,
-                        timestamp: history.performed_at,
-                        vehicleVin: history.vin,
-                        vehiclePlate: history.plate_number,
-                        action: history.action,
-                        description: history.description || `${history.action} transaction`,
-                        validationCode: isPending ? 'PENDING' : 'VALID',
-                        source: 'database',
-                        vehicleStatus: vehicleStatus,
-                        isPending: isPending
-                    }
-                };
-            }
-            return null;
-        };
-        
-        // Try to get from database first (faster and more reliable)
-        const dbResult = await getTransactionFromDatabase(txId);
-        if (dbResult) {
-            // If transaction is pending, return 202 (Accepted) instead of 200
-            if (dbResult.transaction.isPending) {
-                return res.status(202).json({
-                    ...dbResult,
-                    message: 'Transaction is pending blockchain confirmation'
-                });
-            }
-            return res.json(dbResult);
+        // STRICT FABRIC: Ensure Fabric service is available
+        if (fabricService.mode !== 'fabric') {
+            return res.status(503).json({
+                success: false,
+                error: 'Blockchain service unavailable',
+                message: 'Real Hyperledger Fabric connection required for transaction verification'
+            });
         }
         
-        // If not in database, check if txId is a UUID (vehicle ID) - this means transaction hasn't been indexed yet
-        // UUIDs have format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (contains hyphens)
+        // Ensure Fabric connection
+        if (!fabricService.isConnected) {
+            try {
+                await fabricService.initialize();
+            } catch (initError) {
+                console.error('❌ Failed to initialize Fabric connection:', initError.message);
+                return res.status(503).json({
+                    success: false,
+                    error: 'Blockchain service unavailable',
+                    message: 'Failed to connect to Hyperledger Fabric network'
+                });
+            }
+        }
+        
+        // Check if txId is a UUID (vehicle ID) - handle differently
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(txId);
         if (isUuid) {
             console.log(`🔍 Received UUID ${txId}, attempting vehicle lookup...`);
@@ -442,47 +416,64 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             try {
                 const vehicle = await db.getVehicleById(txId);
                 if (vehicle && vehicle.vin) {
-                    const fabricService = require('../services/optimizedFabricService');
-                    
-                    // Ensure real Fabric service
-                    if (fabricService.mode !== 'fabric') {
-                        return res.status(503).json({
-                            success: false,
-                            error: 'Blockchain service unavailable',
-                            message: 'Real Hyperledger Fabric connection required for verification'
-                        });
-                    }
-                    
-                    // Query Fabric by VIN
+                    // Query Fabric by VIN to get actual transaction ID
                     const blockchainResult = await fabricService.getVehicle(vehicle.vin);
                     if (blockchainResult && blockchainResult.success && blockchainResult.vehicle) {
                         const blockchainVehicle = blockchainResult.vehicle;
-                        // Found on blockchain - return verification data
-                        return res.json({
-                            success: true,
-                            transaction: {
-                                txId: blockchainVehicle.lastTxId || blockchainVehicle.transactionId || blockchainVehicle.blockchainTxId || txId,
-                                timestamp: blockchainVehicle.lastUpdated || blockchainVehicle.registrationDate || blockchainVehicle.timestamp || vehicle.created_at,
-                                vehicleVin: vehicle.vin,
-                                vehiclePlate: vehicle.plate_number,
-                                action: 'VEHICLE_REGISTRATION',
-                                description: 'Vehicle registered on blockchain',
-                                validationCode: 'VALID',
-                                source: 'blockchain_ledger',
-                                vehicleStatus: vehicle.status,
-                                isPending: false,
-                                // Include blockchain proof data
-                                blockchainData: {
-                                    make: blockchainVehicle.make,
-                                    model: blockchainVehicle.model,
-                                    year: blockchainVehicle.year,
-                                    engineNumber: blockchainVehicle.engineNumber,
-                                    chassisNumber: blockchainVehicle.chassisNumber,
-                                    plateNumber: blockchainVehicle.plateNumber,
-                                    registrationDate: blockchainVehicle.registrationDate || blockchainVehicle.lastUpdated
+                        const actualTxId = blockchainVehicle.lastTxId || blockchainVehicle.transactionId || blockchainVehicle.blockchainTxId;
+                        
+                        if (actualTxId) {
+                            // Verify the actual transaction ID on Fabric
+                            try {
+                                const transactionProof = await fabricService.getTransactionProof(actualTxId);
+                                
+                                if (transactionProof && transactionProof.validationCode === 0) {
+                                    return res.json({
+                                        success: true,
+                                        transaction: {
+                                            txId: actualTxId,
+                                            timestamp: transactionProof.timestamp || blockchainVehicle.lastUpdated || blockchainVehicle.registrationDate || vehicle.created_at,
+                                            vehicleVin: vehicle.vin,
+                                            vehiclePlate: vehicle.plate_number,
+                                            action: 'VEHICLE_REGISTRATION',
+                                            description: 'Vehicle registered on blockchain',
+                                            validationCode: 'VALID',
+                                            validationCodeName: 'VALID',
+                                            source: 'fabric_verified',
+                                            vehicleStatus: vehicle.status,
+                                            isPending: false,
+                                            fabricVerified: true,
+                                            blockNumber: transactionProof.block?.number || null,
+                                            blockHash: transactionProof.block?.hash || null,
+                                            blockchainData: {
+                                                make: blockchainVehicle.make,
+                                                model: blockchainVehicle.model,
+                                                year: blockchainVehicle.year,
+                                                engineNumber: blockchainVehicle.engineNumber,
+                                                chassisNumber: blockchainVehicle.chassisNumber,
+                                                plateNumber: blockchainVehicle.plateNumber,
+                                                registrationDate: blockchainVehicle.registrationDate || blockchainVehicle.lastUpdated
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    return res.status(404).json({
+                                        success: false,
+                                        error: 'Transaction validation failed',
+                                        message: `Transaction ${actualTxId} found on Fabric but validation code is ${transactionProof?.validationCodeName || 'INVALID'}`,
+                                        validationCode: transactionProof?.validationCode,
+                                        validationCodeName: transactionProof?.validationCodeName
+                                    });
                                 }
+                            } catch (proofError) {
+                                console.error(`❌ Failed to verify transaction ${actualTxId} on Fabric:`, proofError.message);
+                                return res.status(404).json({
+                                    success: false,
+                                    error: 'Transaction verification failed',
+                                    message: `Transaction ID ${actualTxId} could not be verified on Fabric: ${proofError.message}`
+                                });
                             }
-                        });
+                        }
                     }
                 }
             } catch (lookupError) {
@@ -493,17 +484,119 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             return res.status(404).json({
                 success: false,
                 error: 'Transaction not found',
-                message: 'This appears to be a vehicle ID. The blockchain transaction could not be located. The vehicle may not yet be registered on the blockchain.',
+                message: 'This appears to be a vehicle ID. The blockchain transaction could not be located on Fabric. The vehicle may not yet be registered on the blockchain.',
                 isVehicleId: true
             });
         }
         
-        // Original 404 response for non-UUID transaction IDs not found
-        return res.status(404).json({
-            success: false,
-            error: 'Transaction not found',
-            message: 'The specified transaction ID was not found on the blockchain ledger.'
-        });
+        // STRICT FABRIC: For non-UUID transaction IDs, MUST verify on Fabric
+        // Validate transaction ID format (should be 64-char hex for Fabric)
+        const isValidFabricTxId = /^[a-f0-9]{64}$/i.test(txId);
+        if (!isValidFabricTxId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid transaction ID format',
+                message: 'Transaction ID must be a 64-character hexadecimal string (Fabric transaction ID format)',
+                providedFormat: txId.length < 50 ? 'short' : txId.includes('-') ? 'uuid' : 'unknown'
+            });
+        }
+        
+        // STRICT FABRIC: Verify transaction exists on Fabric FIRST
+        let transactionProof = null;
+        try {
+            console.log(`🔍 STRICT FABRIC: Verifying transaction ${txId.substring(0, 20)}... on Fabric...`);
+            transactionProof = await fabricService.getTransactionProof(txId);
+            
+            if (!transactionProof) {
+                throw new Error('Transaction proof returned null');
+            }
+            
+            if (transactionProof.validationCode !== 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Transaction validation failed',
+                    message: `Transaction found on Fabric but validation code is ${transactionProof.validationCodeName || 'INVALID'}`,
+                    validationCode: transactionProof.validationCode,
+                    validationCodeName: transactionProof.validationCodeName,
+                    fabricVerified: false
+                });
+            }
+            
+            console.log(`✅ STRICT FABRIC: Transaction ${txId.substring(0, 20)}... verified on Fabric (Block ${transactionProof.block?.number})`);
+        } catch (fabricError) {
+            console.error(`❌ STRICT FABRIC: Transaction ${txId.substring(0, 20)}... NOT FOUND on Fabric:`, fabricError.message);
+            
+            // Even if found in database, reject if not on Fabric
+            return res.status(404).json({
+                success: false,
+                error: 'Transaction not found on blockchain',
+                message: `Transaction ID ${txId} does not exist on Hyperledger Fabric ledger. This transaction may be invalid or the database record may be corrupted.`,
+                fabricError: fabricError.message,
+                fabricVerified: false,
+                strictEnforcement: true
+            });
+        }
+        
+        // Transaction verified on Fabric - now get additional details from database if available
+        let dbTransaction = null;
+        try {
+            const historyResult = await db.query(
+                `SELECT vh.*, v.vin, v.plate_number, v.status as vehicle_status, v.make, v.model, v.year, v.color
+                 FROM vehicle_history vh
+                 JOIN vehicles v ON vh.vehicle_id = v.id
+                 WHERE vh.transaction_id = $1
+                 ORDER BY vh.performed_at DESC
+                 LIMIT 1`,
+                [txId]
+            );
+            
+            if (historyResult.rows.length > 0) {
+                dbTransaction = historyResult.rows[0];
+            }
+        } catch (dbError) {
+            console.warn('Could not fetch transaction from database:', dbError.message);
+            // Continue without database data - Fabric verification is primary
+        }
+        
+        // Build response with Fabric-verified data
+        const response = {
+            success: true,
+            transaction: {
+                txId: txId,
+                timestamp: transactionProof.timestamp || (dbTransaction ? dbTransaction.performed_at : null),
+                vehicleVin: dbTransaction?.vin || null,
+                vehiclePlate: dbTransaction?.plate_number || null,
+                action: dbTransaction?.action || 'BLOCKCHAIN_TRANSACTION',
+                description: dbTransaction?.description || 'Blockchain transaction verified on Fabric',
+                validationCode: transactionProof.validationCode,
+                validationCodeName: transactionProof.validationCodeName,
+                source: 'fabric_verified',
+                vehicleStatus: dbTransaction?.vehicle_status || null,
+                isPending: false,
+                fabricVerified: true,
+                blockNumber: transactionProof.block?.number || null,
+                blockHash: transactionProof.block?.hash || null,
+                previousBlockHash: transactionProof.block?.previousHash || null,
+                txIndex: transactionProof.txIndex || null,
+                txCount: transactionProof.txCount || null,
+                channelId: transactionProof.channelId || null,
+                creatorMspId: transactionProof.creatorMspId || null,
+                endorsements: transactionProof.endorsements || []
+            }
+        };
+        
+        // Add vehicle details if available from database
+        if (dbTransaction) {
+            response.transaction.blockchainData = {
+                make: dbTransaction.make,
+                model: dbTransaction.model,
+                year: dbTransaction.year,
+                color: dbTransaction.color,
+                plateNumber: dbTransaction.plate_number
+            };
+        }
+        
+        return res.json(response);
         
     } catch (error) {
         console.error('Error getting transaction:', error);

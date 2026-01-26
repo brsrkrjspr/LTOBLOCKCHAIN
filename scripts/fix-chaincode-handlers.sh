@@ -89,6 +89,76 @@ if ! check_file_in_container "$ORDERER_CA"; then
 fi
 echo "✓ Orderer CA certificate found"
 
+# Check and fix core.yaml chaincode mode (CRITICAL: must be 'dev' for _lifecycle to work)
+echo ""
+echo "Step 0.1: Checking core.yaml chaincode mode..."
+CORE_YAML="fabric-network/config/core.yaml"
+NEED_PEER_RESTART=false
+
+if [ -f "$CORE_YAML" ]; then
+    # Check current mode
+    CURRENT_MODE=$(grep -E "^[[:space:]]*mode:[[:space:]]*" "$CORE_YAML" | head -1 | grep -oE "(net|dev)" || echo "")
+    
+    if [ "$CURRENT_MODE" = "net" ]; then
+        echo "⚠ WARNING: core.yaml has mode: net (will cause _lifecycle.syscc errors)"
+        echo "  Fixing to mode: dev..."
+        sed -i 's/^[[:space:]]*mode:[[:space:]]*net/mode: dev/' "$CORE_YAML"
+        
+        # Verify change
+        if grep -q "mode: dev" "$CORE_YAML"; then
+            echo "✓ Updated core.yaml to mode: dev"
+            NEED_PEER_RESTART=true
+        else
+            echo "❌ Failed to update core.yaml mode"
+            exit 1
+        fi
+    elif [ "$CURRENT_MODE" = "dev" ]; then
+        echo "✓ core.yaml already has mode: dev (correct)"
+    else
+        echo "⚠ WARNING: Could not determine chaincode mode in core.yaml"
+        echo "  Adding mode: dev if missing..."
+        # Check if chaincode section exists
+        if grep -q "^chaincode:" "$CORE_YAML"; then
+            # Add mode: dev after chaincode: line
+            sed -i '/^chaincode:/a\  mode: dev' "$CORE_YAML"
+            echo "✓ Added mode: dev to core.yaml"
+            NEED_PEER_RESTART=true
+        else
+            echo "  ⚠ chaincode section not found, will be handled by peer defaults"
+        fi
+    fi
+    
+    # Ensure _lifecycle is enabled in system chaincodes
+    if ! grep -q "_lifecycle: enable" "$CORE_YAML"; then
+        echo "  Ensuring _lifecycle is enabled..."
+        # Check if system section exists
+        if grep -q "^[[:space:]]*system:" "$CORE_YAML"; then
+            # Add _lifecycle if not present
+            if ! grep -A 10 "^[[:space:]]*system:" "$CORE_YAML" | grep -q "_lifecycle"; then
+                sed -i '/^[[:space:]]*system:/a\    _lifecycle: enable' "$CORE_YAML"
+                echo "  ✓ Added _lifecycle: enable to core.yaml"
+                NEED_PEER_RESTART=true
+            fi
+        fi
+    else
+        echo "✓ _lifecycle is enabled in core.yaml"
+    fi
+    
+    # Restart peer if config was changed
+    if [ "$NEED_PEER_RESTART" = true ]; then
+        echo ""
+        echo "  Restarting peer to apply core.yaml changes..."
+        docker-compose -f docker-compose.unified.yml restart peer0.lto.gov.ph
+        echo "  Waiting for peer to restart (20 seconds)..."
+        sleep 20
+        echo "  ✓ Peer restarted"
+    fi
+else
+    echo "⚠ WARNING: core.yaml not found at $CORE_YAML"
+    echo "  Peer may use defaults, but _lifecycle may not work properly"
+    echo "  Consider running: bash scripts/final-fix-create-minimal-core-yaml.sh"
+fi
+
 echo ""
 echo "Step 0.5: Checking and starting containers..."
 NEED_START=false

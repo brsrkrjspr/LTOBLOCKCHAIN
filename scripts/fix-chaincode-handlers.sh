@@ -5,7 +5,8 @@
 # which override core.yaml handlers configuration
 # Solution: Re-commit with empty plugin strings to use built-in handlers
 
-set -e
+# Don't use set -e - we need to handle errors manually
+set +e
 
 echo "=========================================="
 echo "Fix Chaincode Definition: Use Built-in Handlers"
@@ -13,41 +14,72 @@ echo "=========================================="
 
 cd ~/LTOBLOCKCHAIN || { echo "Error: Cannot find LTOBLOCKCHAIN directory"; exit 1; }
 
-# Set environment variables
-export CORE_PEER_LOCALMSPID=LTOMSP
-export CORE_PEER_TLS_ENABLED=true
-export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
-export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
-export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
+# Helper function to run docker exec with timeout
+run_docker_exec() {
+    local cmd="$1"
+    local timeout="${2:-30}"
+    timeout $timeout docker exec cli bash -c "$cmd" 2>&1
+}
+
+# Helper function to check container status
+check_container() {
+    local container="$1"
+    if ! docker ps | grep -q "$container.*Up"; then
+        echo "❌ Container $container is not running!"
+        return 1
+    fi
+    return 0
+}
 
 echo ""
-echo "Step 1: Checking current chaincode definition..."
-CURRENT_DEF=$(docker exec cli bash -c "
+echo "Step 0: Checking containers..."
+if ! check_container "cli"; then
+    echo "Please ensure CLI container is running: docker-compose -f docker-compose.unified.yml up -d cli"
+    exit 1
+fi
+if ! check_container "peer0.lto.gov.ph"; then
+    echo "Please ensure peer container is running: docker-compose -f docker-compose.unified.yml up -d peer0.lto.gov.ph"
+    exit 1
+fi
+echo "✓ Containers are running"
+
+echo ""
+echo "Step 1: Checking current chaincode definition (with timeout)..."
+# Use simpler query without --output json to avoid hanging
+CURRENT_DEF=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
 export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
 export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
 export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
-peer lifecycle chaincode querycommitted -C ltochannel -n vehicle-registration --output json 2>&1
-")
+peer lifecycle chaincode querycommitted -C ltochannel -n vehicle-registration 2>&1
+" 30)
 
-if echo "$CURRENT_DEF" | grep -q "endorsement_plugin\|validation_plugin"; then
-    echo "Current plugin settings:"
-    echo "$CURRENT_DEF" | grep -E "endorsement_plugin|validation_plugin" || echo "Using defaults (escc/vscc)"
+if [ $? -ne 0 ] || echo "$CURRENT_DEF" | grep -qi "error\|failed\|timeout"; then
+    echo "⚠ Warning: Could not query chaincode definition (this is expected if _lifecycle is not working)"
+    echo "Output: $CURRENT_DEF" | head -5
+    echo ""
+    echo "Attempting to proceed with sequence number 1 (will increment if needed)..."
+    SEQUENCE=1
 else
-    echo "✓ Chaincode definition found"
+    echo "✓ Chaincode definition query successful"
+    # Try to extract sequence number from output
+    SEQUENCE=$(echo "$CURRENT_DEF" | grep -i "sequence" | grep -oE '[0-9]+' | head -1)
+    if [ -z "$SEQUENCE" ]; then
+        SEQUENCE=1
+        echo "⚠ Could not extract sequence number, defaulting to 1"
+    else
+        echo "Found sequence: $SEQUENCE"
+    fi
 fi
 
-echo ""
-echo "Step 2: Getting current sequence number..."
-SEQUENCE=$(echo "$CURRENT_DEF" | grep -o '"sequence":"[0-9]*"' | grep -o '[0-9]*' || echo "1")
 NEXT_SEQUENCE=$((SEQUENCE + 1))
 echo "Current sequence: $SEQUENCE"
 echo "Next sequence: $NEXT_SEQUENCE"
 
 echo ""
-echo "Step 3: Approving chaincode definition with built-in handlers..."
-APPROVE_OUTPUT=$(docker exec cli bash -c "
+echo "Step 2: Approving chaincode definition with built-in handlers..."
+APPROVE_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
 export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
@@ -64,9 +96,10 @@ peer lifecycle chaincode approveformyorg \
     --tls \
     --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem \
     2>&1
-")
+" 60)
 
-if [ $? -ne 0 ]; then
+APPROVE_EXIT=$?
+if [ $APPROVE_EXIT -ne 0 ] || echo "$APPROVE_OUTPUT" | grep -qi "error\|failed"; then
     echo "❌ Failed to approve chaincode"
     echo "$APPROVE_OUTPUT"
     exit 1
@@ -74,8 +107,8 @@ fi
 echo "✓ Chaincode approved"
 
 echo ""
-echo "Step 4: Committing chaincode definition with built-in handlers..."
-COMMIT_OUTPUT=$(docker exec cli bash -c "
+echo "Step 3: Committing chaincode definition with built-in handlers..."
+COMMIT_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
 export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
@@ -94,9 +127,10 @@ peer lifecycle chaincode commit \
     --peerAddresses peer0.lto.gov.ph:7051 \
     --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt \
     2>&1
-")
+" 60)
 
-if [ $? -ne 0 ]; then
+COMMIT_EXIT=$?
+if [ $COMMIT_EXIT -ne 0 ] || echo "$COMMIT_OUTPUT" | grep -qi "error\|failed"; then
     echo "❌ Failed to commit chaincode"
     echo "$COMMIT_OUTPUT"
     exit 1
@@ -104,35 +138,27 @@ fi
 echo "✓ Chaincode committed"
 
 echo ""
-echo "Step 5: Verifying chaincode definition..."
-sleep 3
-VERIFY_OUTPUT=$(docker exec cli bash -c "
-export CORE_PEER_LOCALMSPID=LTOMSP
-export CORE_PEER_TLS_ENABLED=true
-export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
-export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
-export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
-peer lifecycle chaincode querycommitted -C ltochannel -n vehicle-registration --output json 2>&1
-")
-
-echo "$VERIFY_OUTPUT" | grep -E "endorsement_plugin|validation_plugin|sequence" || echo "$VERIFY_OUTPUT"
+echo "Step 4: Waiting for chaincode to be ready..."
+sleep 5
 
 echo ""
-echo "Step 6: Testing chaincode query..."
-sleep 2
-TEST_OUTPUT=$(docker exec cli bash -c "
+echo "Step 5: Testing chaincode query..."
+TEST_OUTPUT=$(run_docker_exec "
 export CORE_PEER_LOCALMSPID=LTOMSP
 export CORE_PEER_TLS_ENABLED=true
 export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
 export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
 export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
 peer chaincode query -C ltochannel -n vehicle-registration -c '{\"function\":\"GetAllVehicles\",\"Args\":[]}' 2>&1
-")
+" 30)
 
-if echo "$TEST_OUTPUT" | grep -qi "plugin.*escc.*wasn't found\|endorsement.*failed"; then
+if echo "$TEST_OUTPUT" | grep -qi "plugin.*escc.*wasn't found\|endorsement.*failed\|plugin.*could not be used"; then
     echo "❌ Still seeing escc error:"
-    echo "$TEST_OUTPUT" | grep -i "plugin\|endorsement" | head -3
+    echo "$TEST_OUTPUT" | grep -i "plugin\|endorsement" | head -5
     exit 1
+elif echo "$TEST_OUTPUT" | grep -qi "error\|failed"; then
+    echo "⚠ Query returned an error (may be expected if no vehicles registered yet):"
+    echo "$TEST_OUTPUT" | head -5
 else
     echo "✓ Chaincode query successful!"
     echo "Response: $TEST_OUTPUT"
@@ -145,3 +171,8 @@ echo "=========================================="
 echo ""
 echo "The chaincode definition now uses built-in handlers (DefaultEndorsement/DefaultValidation)"
 echo "instead of looking for external plugins (escc/vscc)."
+echo ""
+echo "If you still see escc errors, ensure:"
+echo "1. core.yaml has _lifecycle: enable in chaincode.system"
+echo "2. Peer has been restarted after core.yaml changes"
+echo "3. Chaincode was committed with --endorsement-plugin '' and --validation-plugin ''"

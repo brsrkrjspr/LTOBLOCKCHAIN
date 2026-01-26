@@ -118,6 +118,8 @@ docker exec cli peer lifecycle chaincode approveformyorg \
     --version 1.0 \
     --package-id "$PACKAGE_ID" \
     --sequence $NEXT_SEQUENCE \
+    --endorsement-plugin '' \
+    --validation-plugin '' \
     --tls \
     --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
 
@@ -128,6 +130,8 @@ fi
 print_success "Chaincode approved"
 
 # Step 5: Commit the new definition
+# IMPORTANT: Use empty plugin strings to use built-in handlers (DefaultEndorsement/DefaultValidation)
+# If not specified, Fabric defaults to "escc"/"vscc" plugin names which don't exist in Fabric 2.x
 print_status "Step 5/5: Committing chaincode to channel..."
 docker exec cli peer lifecycle chaincode commit \
     -o orderer.lto.gov.ph:7050 \
@@ -135,6 +139,8 @@ docker exec cli peer lifecycle chaincode commit \
     --name vehicle-registration \
     --version 1.0 \
     --sequence $NEXT_SEQUENCE \
+    --endorsement-plugin '' \
+    --validation-plugin '' \
     --tls \
     --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem
 

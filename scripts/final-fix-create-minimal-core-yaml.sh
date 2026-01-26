@@ -2,8 +2,12 @@
 
 # Final Fix: Create minimal core.yaml with mode: dev
 # Fabric 2.5 peer requires a config file, but we can use a minimal one with mode: dev
-# This uses built-in handlers for escc/vscc (not system chaincodes)
-# Note: escc and vscc are handled via handlers section, NOT as system chaincodes
+#
+# IMPORTANT: Both chaincode.system.escc: enable AND handlers.endorsers.escc.name can coexist
+# According to official Fabric 2.5 documentation, they serve different purposes:
+# - chaincode.system.escc: enable - Enables the system chaincode
+# - handlers.endorsers.escc.name: DefaultEndorsement - Specifies handler implementation
+# Since handlers aren't being initialized properly, we're enabling system chaincodes as well
 
 set -e
 
@@ -86,6 +90,8 @@ chaincode:
     cscc: enable
     lscc: enable
     qscc: enable
+    escc: enable
+    vscc: enable
   logging:
     level: INFO
     shim: WARNING

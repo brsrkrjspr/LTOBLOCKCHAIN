@@ -67,9 +67,16 @@ function computeExpiresAt(days = TRANSFER_DEADLINE_DAYS) {
 async function linkTransferDocuments({ transferRequestId, documents = {}, uploadedBy }) {
     // Prevent sellers (initiators) from uploading/linking documents to their own transfer request
     const transferRequest = await db.getTransferRequestById(transferRequestId);
-    if (transferRequest && String(transferRequest.seller_id || transferRequest.seller?.id) === String(uploadedBy)) {
+    if (!transferRequest) {
+        throw new Error('Transfer request not found');
+    }
+    
+    const isSeller = transferRequest && String(transferRequest.seller_id || transferRequest.seller?.id) === String(uploadedBy);
+    
+    if (isSeller) {
         throw new Error('Sellers (initiators) are not allowed to upload or link documents to their own transfer requests. Only buyers can upload documents.');
     }
+    
     if (!documents || typeof documents !== 'object') return;
     
     if (!uploadedBy) {
@@ -80,6 +87,7 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         throw new Error('transferRequestId is required for linking documents');
     }
 
+    // Define ALL document roles (for seller creation and admin operations)
     const documentRoleMap = {
         'deedOfSale': docTypes.TRANSFER_ROLES.DEED_OF_SALE,
         'deed_of_sale': docTypes.TRANSFER_ROLES.DEED_OF_SALE,
@@ -102,6 +110,20 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         // 'transferCertificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE, // DEPRECATED
         // 'transfer_certificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE // DEPRECATED
     };
+    
+    // Buyer-only allowed document types (when buyer is uploading)
+    const buyerAllowedRoles = [
+        docTypes.TRANSFER_ROLES.BUYER_ID,
+        docTypes.TRANSFER_ROLES.BUYER_TIN,
+        docTypes.TRANSFER_ROLES.BUYER_CTPL,
+        docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
+    ];
+    
+    // Seller-only allowed document types (when seller is creating the request - handled elsewhere)
+    const sellerOnlyRoles = [
+        docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+        docTypes.TRANSFER_ROLES.SELLER_ID
+    ];
 
     for (const [roleKey, docId] of Object.entries(documents)) {
         if (!docId) continue;
@@ -118,6 +140,13 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
             if (!transferRole) {
                 console.warn('⚠️ Unknown document role key:', { roleKey, docId, transferRequestId });
                 continue;
+            }
+
+            // Enforce buyer-only document restrictions: non-sellers (buyers) cannot upload seller documents
+            // Sellers upload seller docs when creating the request (handled in POST /requests), not via linkTransferDocuments
+            if (!isSeller && sellerOnlyRoles.includes(transferRole)) {
+                console.warn('⚠️ Non-seller attempted to upload seller-only document:', { roleKey, transferRole, transferRequestId, uploadedBy, isSeller });
+                throw new Error(`Only sellers can upload seller documents (${roleKey}). Buyers can only upload: Valid ID, TIN, HPG Clearance, and CTPL.`);
             }
 
             let document;

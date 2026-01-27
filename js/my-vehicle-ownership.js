@@ -1011,19 +1011,15 @@ async function showTransferRequestDetails(requestId) {
         modal.id = 'transferRequestDetailsModal';
         modal.className = 'modal active';
         
-        // Map transfer documents to display format
-        const documentTypes = [
-            { key: 'deed_of_sale', label: 'Deed of Sale', icon: 'fa-file-contract', type: 'other' },
-            { key: 'seller_id', label: 'Seller ID', icon: 'fa-user-tag', type: 'id' },
-            { key: 'buyer_id', label: 'Buyer ID', icon: 'fa-user-check', type: 'id' },
-            { key: 'buyer_tin', label: 'Buyer TIN', icon: 'fa-id-card', type: 'id' },
-            { key: 'buyer_ctpl', label: 'Buyer CTPL', icon: 'fa-shield-alt', type: 'insurance' },
-            { key: 'buyer_hpg_clearance', label: 'Buyer HPG Clearance', icon: 'fa-shield-alt', type: 'other' },
-            // Note: MVIR is NOT uploaded by buyers - it comes from LTO inspection (vehicles.inspection_documents)
-            { key: 'or_cr', label: 'OR/CR', icon: 'fa-car', type: 'registration' }
+        // Buyer-required documents only (seller already submitted Deed of Sale, Valid ID; OR/CR is bound to vehicle)
+        const buyerDocumentTypes = [
+            { key: 'buyer_id', label: 'Valid ID', icon: 'fa-id-card', type: 'id' },
+            { key: 'buyer_tin', label: 'TIN', icon: 'fa-file-invoice', type: 'id' },
+            { key: 'buyer_hpg_clearance', label: 'HPG Clearance', icon: 'fa-shield-alt', type: 'other' },
+            { key: 'buyer_ctpl', label: 'CTPL (Insurance)', icon: 'fa-shield-alt', type: 'insurance' }
         ];
         
-        let documentListHTML = '';
+        // Build documents map
         const documentsMap = {};
         documents.forEach(doc => {
             const key = doc.document_type || doc.type;
@@ -1034,41 +1030,70 @@ async function showTransferRequestDetails(requestId) {
             };
         });
         
-        documentTypes.forEach(docType => {
-            // Skip MVIR - it's handled by LTO inspection, not buyer uploads
-            if (docType.key === 'buyer_mvir') {
-                return;
-            }
-            
+        // Show seller documents as read-only (already submitted by seller)
+        const sellerDocumentsHTML = [];
+        const sellerDocTypes = [
+            { key: 'deed_of_sale', label: 'Deed of Sale', icon: 'fa-file-contract' },
+            { key: 'seller_id', label: 'Seller Valid ID', icon: 'fa-user-tag' }
+        ];
+        
+        sellerDocTypes.forEach(docType => {
             const docData = documentsMap[docType.key];
             if (docData) {
-                documentListHTML += `
+                sellerDocumentsHTML.push(`
+                    <div class="doc-select-item" style="opacity: 0.8; background: #f0f0f0;">
+                        <div class="doc-select-icon">
+                            <i class="fas ${docType.icon}"></i>
+                        </div>
+                        <div class="doc-select-info">
+                            <div class="doc-select-title">${docType.label} <span style="font-size: 0.75rem; color: #6c757d;">(Seller submitted)</span></div>
+                            <div class="doc-select-subtitle">${docData.filename}</div>
+                            <div class="doc-select-status">
+                                <i class="fas fa-check-circle" style="color: #27ae60;"></i> Submitted
+                            </div>
+                        </div>
+                        <div class="doc-select-actions">
+                            <button class="btn-icon" onclick="window.openTransferDocument && window.openTransferDocument('${docData.id}')" title="View Document">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                `);
+            }
+        });
+        
+        // Show buyer-required documents with upload capability
+        let buyerDocumentsHTML = '';
+        buyerDocumentTypes.forEach(docType => {
+            const docData = documentsMap[docType.key];
+            if (docData) {
+                buyerDocumentsHTML += `
                     <div class="doc-select-item" data-doc-key="${docType.key}" data-doc-id="${docData.id || ''}">
                         <div class="doc-select-icon">
                             <i class="fas ${docType.icon}"></i>
                         </div>
-                    <div class="doc-select-info">
-                        <div class="doc-select-title">${docType.label}</div>
-                        <div class="doc-select-subtitle">${docData.filename}</div>
-                        <div class="doc-select-status">
-                            <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
+                        <div class="doc-select-info">
+                            <div class="doc-select-title">${docType.label}</div>
+                            <div class="doc-select-subtitle">${docData.filename}</div>
+                            <div class="doc-select-status">
+                                <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
+                            </div>
+                        </div>
+                        <div class="doc-select-actions" style="display: flex; gap: 0.5rem;">
+                            <button class="btn-icon" onclick="window.openTransferDocument && window.openTransferDocument('${docData.id}')" title="View Document">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            ${canUpdate ? `
+                            <button class="btn-icon btn-update-doc" onclick="window.updateTransferDocument && window.updateTransferDocument('${docType.key}', '${docType.label}', '${docData.id || ''}', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Update Document" style="color: #3498db;">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                            ` : ''}
                         </div>
                     </div>
-                    <div class="doc-select-actions" style="display: flex; gap: 0.5rem;">
-                        <button class="btn-icon" onclick="openTransferDocument('${docData.id}')" title="View Document">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        ${canUpdate ? `
-                        <button class="btn-icon btn-update-doc" onclick="updateTransferDocument('${docType.key}', '${docType.label}', '${docData.id || ''}', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Update Document" style="color: #3498db;">
-                            <i class="fas fa-upload"></i>
-                        </button>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
+                `;
             } else {
-                // Show placeholder for missing documents
-                documentListHTML += `
+                // Show placeholder for missing buyer documents
+                buyerDocumentsHTML += `
                     <div class="doc-select-item" data-doc-key="${docType.key}">
                         <div class="doc-select-icon">
                             <i class="fas ${docType.icon}"></i>
@@ -1082,7 +1107,7 @@ async function showTransferRequestDetails(requestId) {
                         </div>
                         ${canUpdate ? `
                         <div class="doc-select-actions">
-                            <button class="btn-icon btn-update-doc" onclick="updateTransferDocument('${docType.key}', '${docType.label}', '', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Upload Document" style="color: #3498db;">
+                            <button class="btn-icon btn-update-doc" onclick="window.updateTransferDocument && window.updateTransferDocument('${docType.key}', '${docType.label}', '', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Upload Document" style="color: #3498db;">
                                 <i class="fas fa-upload"></i>
                             </button>
                         </div>
@@ -1091,6 +1116,8 @@ async function showTransferRequestDetails(requestId) {
                 `;
             }
         });
+        
+        const documentListHTML = sellerDocumentsHTML.join('') + buyerDocumentsHTML;
         
         modal.innerHTML = `
             <div class="modal-content modal-large">
@@ -1150,11 +1177,11 @@ async function showTransferRequestDetails(requestId) {
                         </div>
                     </div>
                     
-                    <!-- Buyer required documents (seller docs already submitted) -->
+                    <!-- Documents Section -->
                     <div class="detail-section">
-                        <h4><i class="fas fa-folder-open"></i> Your required documents</h4>
+                        <h4><i class="fas fa-folder-open"></i> Documents</h4>
                         <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #0c4a6e;">
-                            <strong><i class="fas fa-info-circle"></i> Upload:</strong> Valid ID, TIN, HPG Clearance, CTPL. Seller has already submitted Deed of Sale and Valid ID. MVIR is completed by LTO during inspection.
+                            <strong><i class="fas fa-info-circle"></i> Your required documents:</strong> Upload Valid ID, TIN, HPG Clearance, CTPL. Seller documents (Deed of Sale, Seller ID) are shown below for reference only. MVIR is completed by LTO during inspection.
                         </div>
                         ${documentListHTML ? `
                             <div class="doc-select-list">

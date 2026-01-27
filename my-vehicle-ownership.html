@@ -3265,7 +3265,7 @@
                             <i class="fas fa-check"></i> Accept
                         </button>
                         ` : status === 'AWAITING_BUYER_DOCS' ? `
-                        <button type="button" class="btn-view-history" onclick="window.showTransferRequestDetails && window.showTransferRequestDetails('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); margin-right: 0.5rem;">
+                        <button type="button" class="btn-view-history btn-continue-upload" data-request-id="${String(request.id || '').replace(/"/g, '&quot;')}" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); margin-right: 0.5rem;">
                             <i class="fas fa-upload"></i> Continue Upload
                         </button>
                         ` : ''}
@@ -3277,6 +3277,23 @@
                     </div>
                 </div>
             `;
+            
+            // Attach click handler for Continue Upload so it works even if window.showTransferRequestDetails loads later
+            if (status === 'AWAITING_BUYER_DOCS') {
+                const continueBtn = card.querySelector('.btn-continue-upload');
+                if (continueBtn) {
+                    const requestId = request.id || continueBtn.getAttribute('data-request-id') || '';
+                    continueBtn.addEventListener('click', function() {
+                        if (typeof window.showTransferRequestDetails === 'function') {
+                            window.showTransferRequestDetails(requestId);
+                        } else if (typeof window.acceptTransferRequest === 'function') {
+                            window.acceptTransferRequest(requestId);
+                        } else {
+                            (typeof showNotification === 'function' ? showNotification : alert)('Please refresh the page and try again.', 'error');
+                        }
+                    });
+                }
+            }
             
             return card;
         }

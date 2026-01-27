@@ -988,6 +988,9 @@ function createTransferRequestCard(request) {
 // Show transfer request details modal with documents
 async function showTransferRequestDetails(requestId) {
     try {
+        // Store request ID for refreshing after document upload
+        window.currentTransferRequestIdForDetails = requestId;
+        
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/vehicles/transfer/requests/${requestId}`);
         
@@ -1250,13 +1253,252 @@ function openTransferDocument(documentId) {
 
 // Update document for transfer request
 async function updateTransferDocument(docKey, docLabel, docId, transferRequestId, vehicleId) {
-    // Reuse the document update modal from owner-dashboard.js if available
+    // Try to use owner-dashboard modal if available
     if (typeof window.showDocumentUpdateModal === 'function') {
-        // Show modal with transfer request context
         window.showDocumentUpdateModal(docKey, docLabel, docId, transferRequestId, true, transferRequestId, vehicleId);
-    } else {
-        // Fallback: create our own modal
-        alert('Document update functionality is being initialized. Please try again in a moment.');
+        return;
+    }
+    
+    // Create our own modal for transfer requests
+    showTransferDocumentUploadModal(docKey, docLabel, docId, transferRequestId, vehicleId);
+}
+
+// Show document upload modal for transfer requests
+function showTransferDocumentUploadModal(docKey, docLabel, docId, transferRequestId, vehicleId) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('transferDocumentUploadModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'transferDocumentUploadModal';
+    modal.className = 'modal active';
+    
+    modal.innerHTML = `
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas fa-upload" style="font-size: 1.5rem; color: #3b82f6;"></i>
+                    <div>
+                        <h2 style="margin: 0;">Upload ${escapeHtml(docLabel)}</h2>
+                        <small style="color: #6b7280; font-size: 0.875rem;">Transfer Request Document</small>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeTransferDocumentUploadModal()" type="button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #0c4a6e;">
+                    <strong><i class="fas fa-info-circle"></i> File Requirements:</strong> PDF, JPG, PNG (max 10MB)
+                </div>
+                
+                <div class="transfer-upload-item" style="margin-bottom: 1rem;">
+                    <div class="transfer-upload-info">
+                        <h4><i class="fas fa-file"></i> Select Document</h4>
+                        <p>Choose a file to upload</p>
+                    </div>
+                    <div class="transfer-upload-area">
+                        <input type="file" id="transferDocumentFile" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                        <label for="transferDocumentFile" class="transfer-upload-label" id="label-transferDocumentFile">
+                            <span class="transfer-upload-icon">📄</span>
+                            <span class="transfer-upload-text">Choose File</span>
+                        </label>
+                        <div class="transfer-file-name" id="transferDocumentFileName"></div>
+                    </div>
+                </div>
+                
+                <div id="transferDocumentError" style="display: none; padding: 0.75rem; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c33; margin-top: 1rem;"></div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" type="button" onclick="closeTransferDocumentUploadModal()">Cancel</button>
+                <button class="btn-primary" type="button" id="submitTransferDocumentBtn" onclick="submitTransferDocument('${escapeHtml(docKey)}', '${escapeHtml(transferRequestId)}', '${escapeHtml(vehicleId || '')}')">
+                    <i class="fas fa-upload"></i> Upload Document
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+    
+    // Store context
+    window.currentTransferDocKey = docKey;
+    window.currentTransferDocId = docId;
+    window.currentTransferRequestId = transferRequestId;
+    window.currentTransferVehicleId = vehicleId;
+    
+    // Setup file input
+    const fileInput = document.getElementById('transferDocumentFile');
+    const fileNameDiv = document.getElementById('transferDocumentFileName');
+    const label = document.getElementById('label-transferDocumentFile');
+    
+    if (label && fileInput) {
+        label.onclick = function(e) {
+            e.preventDefault();
+            fileInput.click();
+        };
+    }
+    
+    if (fileInput) {
+        fileInput.onchange = function() {
+            if (this.files && this.files.length > 0) {
+                const fileName = this.files[0].name;
+                if (fileNameDiv) {
+                    fileNameDiv.innerHTML = `<span style="color: #27ae60;">✅ ${escapeHtml(fileName)}</span>`;
+                }
+                if (label) {
+                    label.classList.add('uploaded');
+                }
+            }
+        };
+    }
+}
+
+function closeTransferDocumentUploadModal() {
+    const modal = document.getElementById('transferDocumentUploadModal');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.remove();
+        }, 300);
+        document.body.style.overflow = '';
+    }
+    window.currentTransferDocKey = null;
+    window.currentTransferDocId = null;
+    window.currentTransferRequestId = null;
+    window.currentTransferVehicleId = null;
+}
+
+// Submit document upload for transfer request
+async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
+    const fileInput = document.getElementById('transferDocumentFile');
+    const errorDiv = document.getElementById('transferDocumentError');
+    const submitBtn = document.getElementById('submitTransferDocumentBtn');
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        if (errorDiv) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Please select a file to upload';
+        }
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // Disable submit button
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    }
+    
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+    }
+    
+    try {
+        // Use the existing DocumentUploadUtils for upload
+        if (!window.DocumentUploadUtils || !window.DocumentUploadUtils.uploadDocument) {
+            throw new Error('Document upload utility not available. Please refresh the page.');
+        }
+        
+        // Map document key to logical document type (for upload utility)
+        // Note: For buyer documents that aren't in DOCUMENT_TYPES, we'll use 'ownerId' as fallback
+        // The backend will handle the actual document type mapping
+        const docTypeMap = {
+            'buyer_id': window.DocumentUploadUtils.DOCUMENT_TYPES.BUYER_ID || 'buyerId',
+            'buyer_tin': window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId', // TIN uses ownerId type
+            'buyer_ctpl': window.DocumentUploadUtils.DOCUMENT_TYPES.INSURANCE_CERT || 'insuranceCert',
+            'buyer_hpg_clearance': window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId', // HPG uses ownerId type
+            'buyer_mvir': window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId', // MVIR uses ownerId type
+            'deed_of_sale': window.DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE || 'deedOfSale',
+            'seller_id': window.DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID || 'sellerId',
+            'or_cr': window.DocumentUploadUtils.DOCUMENT_TYPES.REGISTRATION_CERT || 'registrationCert'
+        };
+        
+        const logicalDocType = docTypeMap[docKey] || window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId';
+        
+        // Step 1: Upload document using unified utility
+        const uploadResult = await window.DocumentUploadUtils.uploadDocument(logicalDocType, file, {
+            vehicleId: vehicleId
+        });
+        
+        if (!uploadResult.success || !uploadResult.document) {
+            throw new Error(uploadResult.error || 'Failed to upload document');
+        }
+        
+        const documentId = uploadResult.document.id || uploadResult.document.document?.id;
+        if (!documentId) {
+            throw new Error('Document uploaded but no document ID returned');
+        }
+        
+        // Step 2: Map document key to transfer document role (for linking)
+        const transferDocRoleMap = {
+            'buyer_id': 'buyerId',
+            'buyer_tin': 'buyerTin',
+            'buyer_ctpl': 'buyerCtpl',
+            'buyer_hpg_clearance': 'buyerHpgClearance',
+            'buyer_mvir': 'buyerMvir',
+            'deed_of_sale': 'deedOfSale',
+            'seller_id': 'sellerId',
+            'or_cr': 'orCr'
+        };
+        
+        const transferDocRole = transferDocRoleMap[docKey] || docKey;
+        
+        // Step 3: Link document to transfer request
+        const apiClient = window.apiClient || new APIClient();
+        const linkResponse = await apiClient.post(`/api/vehicles/transfer/requests/${transferRequestId}/link-document`, {
+            documents: {
+                [transferDocRole]: documentId
+            }
+        });
+        
+        if (!linkResponse.success) {
+            throw new Error(linkResponse.error || 'Failed to link document to transfer request');
+        }
+        
+        // Success
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Document uploaded and linked successfully!', 'success');
+        } else {
+            alert('Document uploaded and linked successfully!');
+        }
+        
+        // Close modal
+        closeTransferDocumentUploadModal();
+        
+        // Refresh transfer request details modal if it's open
+        const detailsModal = document.getElementById('transferRequestDetailsModal');
+        if (detailsModal && transferRequestId) {
+            // Reload the details modal to show the newly uploaded document
+            if (typeof window.showTransferRequestDetails === 'function') {
+                setTimeout(() => {
+                    window.showTransferRequestDetails(transferRequestId);
+                }, 300);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error uploading transfer document:', error);
+        if (errorDiv) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = error.message || 'Failed to upload document. Please try again.';
+        }
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Error: ${error.message || 'Failed to upload document'}`, 'error');
+        }
+    } finally {
+        // Re-enable submit button
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Document';
+        }
     }
 }
 
@@ -1375,6 +1617,9 @@ window.closeTransferRequestDetailsModal = closeTransferRequestDetailsModal;
 window.updateTransferDocument = updateTransferDocument;
 window.openTransferDocument = openTransferDocument;
 window.submitTransferAcceptance = submitTransferAcceptance;
+window.showTransferDocumentUploadModal = showTransferDocumentUploadModal;
+window.closeTransferDocumentUploadModal = closeTransferDocumentUploadModal;
+window.submitTransferDocument = submitTransferDocument;
 
 // Make functions globally available for inline onclick handlers
 window.viewOwnershipHistory = viewOwnershipHistory;

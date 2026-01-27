@@ -1169,6 +1169,11 @@ async function showTransferRequestDetails(requestId) {
                 </div>
                 
                 <div class="owner-modal-footer">
+                    ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
+                    <button class="btn-primary" onclick="submitTransferAcceptance('${requestId}')" style="margin-right: 0.5rem;">
+                        <i class="fas fa-check"></i> Accept Transfer Request
+                    </button>
+                    ` : ''}
                     <button class="btn-secondary" onclick="closeTransferRequestDetailsModal()">Close</button>
                 </div>
             </div>
@@ -1229,12 +1234,75 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Submit transfer acceptance with uploaded documents
+async function submitTransferAcceptance(requestId) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        
+        // Get the current transfer request to check what documents are uploaded
+        const response = await apiClient.get(`/api/vehicles/transfer/requests/${requestId}`);
+        
+        if (!response.success || !response.transferRequest) {
+            throw new Error(response.error || 'Failed to load transfer request');
+        }
+        
+        const request = response.transferRequest;
+        const documents = request.documents || [];
+        
+        // Map uploaded documents to the format expected by the backend
+        const documentsMap = {};
+        documents.forEach(doc => {
+            const docType = doc.document_type || doc.type;
+            if (docType && doc.document_id) {
+                // Map document types to backend expected format
+                if (docType === 'buyer_id') documentsMap.buyer_id = doc.document_id;
+                else if (docType === 'buyer_tin') documentsMap.buyer_tin = doc.document_id;
+                else if (docType === 'buyer_ctpl') documentsMap.buyer_ctpl = doc.document_id;
+                else if (docType === 'buyer_hpg_clearance') documentsMap.buyer_hpg_clearance = doc.document_id;
+            }
+        });
+        
+        // Accept the transfer request with uploaded documents
+        const acceptResponse = await apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
+            documents: documentsMap
+        });
+        
+        if (acceptResponse.success) {
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Transfer request accepted successfully!', 'success');
+            } else {
+                alert('Transfer request accepted successfully!');
+            }
+            
+            // Close the modal
+            closeTransferRequestDetailsModal();
+            
+            // Reload incoming requests
+            if (typeof loadIncomingTransferRequests === 'function') {
+                loadIncomingTransferRequests();
+            } else if (typeof window.loadIncomingTransferRequests === 'function') {
+                window.loadIncomingTransferRequests();
+            }
+        } else {
+            throw new Error(acceptResponse.error || 'Failed to accept transfer request');
+        }
+    } catch (error) {
+        console.error('Error accepting transfer request:', error);
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+        } else {
+            alert(`Error: ${error.message || 'Failed to accept transfer request'}`);
+        }
+    }
+}
+
 // Make functions globally available
 window.loadMyTransferRequests = loadMyTransferRequests;
 window.showTransferRequestDetails = showTransferRequestDetails;
 window.closeTransferRequestDetailsModal = closeTransferRequestDetailsModal;
 window.updateTransferDocument = updateTransferDocument;
 window.openTransferDocument = openTransferDocument;
+window.submitTransferAcceptance = submitTransferAcceptance;
 
 // Make functions globally available for inline onclick handlers
 window.viewOwnershipHistory = viewOwnershipHistory;

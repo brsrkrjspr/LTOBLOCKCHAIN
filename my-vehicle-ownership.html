@@ -3144,6 +3144,24 @@
             // Load incoming transfer requests (buyer flow)
             loadIncomingTransferRequests();
             
+            // Event delegation for Accept/Reject buttons (avoids inline onclick scope issues)
+            const incomingTransfersContent = document.getElementById('incomingTransfersContent');
+            if (incomingTransfersContent) {
+                incomingTransfersContent.addEventListener('click', function(e) {
+                    var btn = e.target && (e.target.closest('.btn-accept-transfer') || e.target.closest('.btn-reject-transfer'));
+                    if (!btn) return;
+                    var requestId = btn.getAttribute('data-request-id');
+                    if (!requestId) return;
+                    if (btn.classList.contains('btn-accept-transfer') && typeof window.acceptTransferRequest === 'function') {
+                        e.preventDefault();
+                        window.acceptTransferRequest(requestId);
+                    } else if (btn.classList.contains('btn-reject-transfer') && typeof window.rejectTransferRequest === 'function') {
+                        e.preventDefault();
+                        window.rejectTransferRequest(requestId);
+                    }
+                });
+            }
+            
             // Check if user came from transfer confirmation page
             const transferToken = sessionStorage.getItem('transferToken');
             if (transferToken) {
@@ -3226,11 +3244,11 @@
                     <span class="status-badge ${statusBadgeClass}">${statusText}</span>
                     <div class="vehicle-actions">
                         ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
-                        <button class="btn-view-history" onclick="acceptTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
+                        <button type="button" class="btn-view-history btn-accept-transfer" data-request-id="${String(request.id || '').replace(/"/g, '&quot;')}" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
                             <i class="fas fa-check"></i> Accept
                         </button>
                         ` : ''}
-                        <button class="btn-view-history" onclick="rejectTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                        <button type="button" class="btn-view-history btn-reject-transfer" data-request-id="${String(request.id || '').replace(/"/g, '&quot;')}" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                             <i class="fas fa-times"></i> Reject
                         </button>
                     </div>
@@ -3288,6 +3306,10 @@
                 showNotification(`Error: ${error.message || 'Failed to reject transfer request'}`, 'error');
             }
         }
+
+        // Expose so delegated click and inline handlers can call them
+        window.acceptTransferRequest = acceptTransferRequest;
+        window.rejectTransferRequest = rejectTransferRequest;
 
         function showNotification(message, type = 'info') {
             if (typeof ToastNotification !== 'undefined') {

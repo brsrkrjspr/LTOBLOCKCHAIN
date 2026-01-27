@@ -1164,13 +1164,13 @@ async function showTransferRequestDetails(requestId) {
                     </div>
                 </div>
                 
-                <div class="owner-modal-footer">
+                <div class="modal-footer">
                     ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
-                    <button class="btn-primary" onclick="submitTransferAcceptance('${requestId}')" style="margin-right: 0.5rem;">
+                    <button class="btn-primary" type="button" onclick="window.submitTransferAcceptance && window.submitTransferAcceptance('${requestId}')" style="margin-right: 0.5rem;">
                         <i class="fas fa-check"></i> Accept Transfer Request
                     </button>
                     ` : ''}
-                    <button class="btn-secondary" onclick="closeTransferRequestDetailsModal()">Close</button>
+                    <button class="btn-secondary" type="button" onclick="window.closeTransferRequestDetailsModal && window.closeTransferRequestDetailsModal()">Close</button>
                 </div>
             </div>
         `;

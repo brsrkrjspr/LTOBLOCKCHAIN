@@ -3144,24 +3144,6 @@
             // Load incoming transfer requests (buyer flow)
             loadIncomingTransferRequests();
             
-            // Event delegation for Accept/Reject buttons (avoids inline onclick scope issues)
-            const incomingTransfersContent = document.getElementById('incomingTransfersContent');
-            if (incomingTransfersContent) {
-                incomingTransfersContent.addEventListener('click', function(e) {
-                    var btn = e.target && (e.target.closest('.btn-accept-transfer') || e.target.closest('.btn-reject-transfer'));
-                    if (!btn) return;
-                    var requestId = btn.getAttribute('data-request-id');
-                    if (!requestId) return;
-                    if (btn.classList.contains('btn-accept-transfer') && typeof window.acceptTransferRequest === 'function') {
-                        e.preventDefault();
-                        window.acceptTransferRequest(requestId);
-                    } else if (btn.classList.contains('btn-reject-transfer') && typeof window.rejectTransferRequest === 'function') {
-                        e.preventDefault();
-                        window.rejectTransferRequest(requestId);
-                    }
-                });
-            }
-            
             // Check if user came from transfer confirmation page
             const transferToken = sessionStorage.getItem('transferToken');
             if (transferToken) {
@@ -3179,7 +3161,62 @@
             const targets = [document.getElementById('myVehiclesContent'), document.getElementById('pendingVehiclesContent')];
             targets.forEach(t => { if (t) vehiclesObserver.observe(t, { childList: true, subtree: true }); });
         });
-        
+
+        // Define functions first, then expose on window immediately
+        async function acceptTransferRequest(requestId) {
+            console.log('acceptTransferRequest called with:', requestId);
+            // Open the transfer request details modal which includes document upload functionality
+            // The modal allows buyers to upload required documents before accepting
+            if (typeof window.showTransferRequestDetails === 'function') {
+                window.showTransferRequestDetails(requestId);
+            } else if (typeof showTransferRequestDetails === 'function') {
+                showTransferRequestDetails(requestId);
+            } else {
+                // Fallback: try to load the modal from my-vehicle-ownership.js
+                console.warn('showTransferRequestDetails function not found, attempting direct accept...');
+                try {
+                    const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
+                        documents: {} // Fallback: accept without documents, user can upload later
+                    });
+                    
+                    if (response.success) {
+                        showNotification('Transfer request accepted. Please upload required documents via the "View Details" button.', 'success');
+                        loadIncomingTransferRequests();
+                    } else {
+                        throw new Error(response.error || 'Failed to accept transfer request');
+                    }
+                } catch (error) {
+                    console.error('Error accepting transfer request:', error);
+                    showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+                }
+            }
+        }
+
+        async function rejectTransferRequest(requestId) {
+            console.log('rejectTransferRequest called with:', requestId);
+            if (!confirm('Are you sure you want to reject this transfer request? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/reject-by-buyer`);
+                
+                if (response.success) {
+                    showNotification('Transfer request rejected successfully.', 'success');
+                    // Reload incoming requests
+                    loadIncomingTransferRequests();
+                } else {
+                    throw new Error(response.error || 'Failed to reject transfer request');
+                }
+            } catch (error) {
+                console.error('Error rejecting transfer request:', error);
+                showNotification(`Error: ${error.message || 'Failed to reject transfer request'}`, 'error');
+            }
+        }
+
+        // Expose on window immediately so inline onclick handlers can use them
+        window.acceptTransferRequest = acceptTransferRequest;
+        window.rejectTransferRequest = rejectTransferRequest;
 
         async function loadIncomingTransferRequests() {
             try {
@@ -3244,11 +3281,11 @@
                     <span class="status-badge ${statusBadgeClass}">${statusText}</span>
                     <div class="vehicle-actions">
                         ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
-                        <button type="button" class="btn-view-history btn-accept-transfer" data-request-id="${String(request.id || '').replace(/"/g, '&quot;')}" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
+                        <button type="button" class="btn-view-history" onclick="window.acceptTransferRequest && window.acceptTransferRequest('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
                             <i class="fas fa-check"></i> Accept
                         </button>
                         ` : ''}
-                        <button type="button" class="btn-view-history btn-reject-transfer" data-request-id="${String(request.id || '').replace(/"/g, '&quot;')}" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                        <button type="button" class="btn-view-history" onclick="window.rejectTransferRequest && window.rejectTransferRequest('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                             <i class="fas fa-times"></i> Reject
                         </button>
                     </div>
@@ -3258,58 +3295,6 @@
             return card;
         }
 
-        async function acceptTransferRequest(requestId) {
-            // Open the transfer request details modal which includes document upload functionality
-            // The modal allows buyers to upload required documents before accepting
-            if (typeof showTransferRequestDetails === 'function') {
-                showTransferRequestDetails(requestId);
-            } else if (typeof window.showTransferRequestDetails === 'function') {
-                window.showTransferRequestDetails(requestId);
-            } else {
-                // Fallback: try to load the modal from my-vehicle-ownership.js
-                console.warn('showTransferRequestDetails function not found, attempting direct accept...');
-                try {
-                    const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
-                        documents: {} // Fallback: accept without documents, user can upload later
-                    });
-                    
-                    if (response.success) {
-                        showNotification('Transfer request accepted. Please upload required documents via the "View Details" button.', 'success');
-                        loadIncomingTransferRequests();
-                    } else {
-                        throw new Error(response.error || 'Failed to accept transfer request');
-                    }
-                } catch (error) {
-                    console.error('Error accepting transfer request:', error);
-                    showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
-                }
-            }
-        }
-
-        async function rejectTransferRequest(requestId) {
-            if (!confirm('Are you sure you want to reject this transfer request? This action cannot be undone.')) {
-                return;
-            }
-            
-            try {
-                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/reject-by-buyer`);
-                
-                if (response.success) {
-                    showNotification('Transfer request rejected successfully.', 'success');
-                    // Reload incoming requests
-                    loadIncomingTransferRequests();
-                } else {
-                    throw new Error(response.error || 'Failed to reject transfer request');
-                }
-            } catch (error) {
-                console.error('Error rejecting transfer request:', error);
-                showNotification(`Error: ${error.message || 'Failed to reject transfer request'}`, 'error');
-            }
-        }
-
-        // Expose so delegated click and inline handlers can call them
-        window.acceptTransferRequest = acceptTransferRequest;
-        window.rejectTransferRequest = rejectTransferRequest;
 
         function showNotification(message, type = 'info') {
             if (typeof ToastNotification !== 'undefined') {

@@ -1006,11 +1006,10 @@ async function showTransferRequestDetails(requestId) {
             ? window.StatusUtils.canUpdateDocuments(request.status)
             : ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
         
-        // Create modal (reuse structure from owner-dashboard.js)
+        // Create modal using existing CSS classes
         const modal = document.createElement('div');
         modal.id = 'transferRequestDetailsModal';
-        modal.className = 'owner-details-modal';
-        modal.style.display = 'flex';
+        modal.className = 'modal active';
         
         // Map transfer documents to display format
         const documentTypes = [
@@ -1094,24 +1093,21 @@ async function showTransferRequestDetails(requestId) {
         });
         
         modal.innerHTML = `
-            <div class="owner-modal-overlay" onclick="closeTransferRequestDetailsModal()"></div>
-            <div class="owner-modal-content">
-                <div class="owner-modal-header">
-                    <div class="owner-modal-title">
-                        <div class="owner-modal-icon">
-                            <i class="fas fa-exchange-alt"></i>
-                        </div>
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <i class="fas fa-exchange-alt" style="font-size: 1.5rem; color: #3b82f6;"></i>
                         <div>
-                            <h3>Transfer Request Details</h3>
-                            <small>ID: ${requestId.substring(0, 8)}...</small>
+                            <h2 style="margin: 0;">Transfer Request Details</h2>
+                            <small style="color: #6b7280; font-size: 0.875rem;">ID: ${requestId.substring(0, 8)}...</small>
                         </div>
                     </div>
-                    <button class="owner-modal-close" onclick="closeTransferRequestDetailsModal()">
+                    <button class="modal-close" onclick="closeTransferRequestDetailsModal()" type="button">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 
-                <div class="owner-modal-body">
+                <div class="modal-body">
                     <!-- Status Banner -->
                     <div class="status-banner status-banner-${normalizedStatus}">
                         <i class="fas ${getStatusIconForTransfer(status)}"></i>
@@ -1195,7 +1191,10 @@ async function showTransferRequestDetails(requestId) {
 function closeTransferRequestDetailsModal() {
     const modal = document.getElementById('transferRequestDetailsModal');
     if (modal) {
-        modal.remove();
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.remove();
+        }, 300); // Wait for fade out animation
         document.body.style.overflow = '';
     }
 }

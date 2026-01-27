@@ -3167,11 +3167,28 @@
             console.log('acceptTransferRequest called with:', requestId);
             // Open the transfer request details modal which includes document upload functionality
             // The modal allows buyers to upload required documents before accepting
+            console.log('Checking for showTransferRequestDetails...');
+            console.log('window.showTransferRequestDetails:', typeof window.showTransferRequestDetails);
+            console.log('showTransferRequestDetails (global):', typeof showTransferRequestDetails);
+            
             if (typeof window.showTransferRequestDetails === 'function') {
-                window.showTransferRequestDetails(requestId);
+                console.log('Calling window.showTransferRequestDetails with:', requestId);
+                try {
+                    await window.showTransferRequestDetails(requestId);
+                    console.log('showTransferRequestDetails completed');
+                } catch (error) {
+                    console.error('Error in showTransferRequestDetails:', error);
+                }
             } else if (typeof showTransferRequestDetails === 'function') {
-                showTransferRequestDetails(requestId);
+                console.log('Calling showTransferRequestDetails (global) with:', requestId);
+                try {
+                    await showTransferRequestDetails(requestId);
+                    console.log('showTransferRequestDetails completed');
+                } catch (error) {
+                    console.error('Error in showTransferRequestDetails:', error);
+                }
             } else {
+                console.warn('showTransferRequestDetails not found!');
                 // Fallback: try to load the modal from my-vehicle-ownership.js
                 console.warn('showTransferRequestDetails function not found, attempting direct accept...');
                 try {

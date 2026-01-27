@@ -1002,8 +1002,8 @@ async function showTransferRequestDetails(requestId) {
         const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
             ? window.StatusUtils.normalizeStatus(request.status)
             : status.toLowerCase();
-        // Only allow document uploads after acceptance (AWAITING_BUYER_DOCS) or for updates (UNDER_REVIEW)
-        const canUpdate = status === 'AWAITING_BUYER_DOCS' || status === 'UNDER_REVIEW' || normalizedStatus === 'under_review';
+        // Allow document uploads when PENDING (accepting), AWAITING_BUYER_DOCS, or UNDER_REVIEW (updates)
+        const canUpdate = status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' || status === 'UNDER_REVIEW' || normalizedStatus === 'under_review';
         
         // Create modal using existing CSS classes
         const modal = document.createElement('div');
@@ -1181,7 +1181,7 @@ async function showTransferRequestDetails(requestId) {
                         <h4><i class="fas fa-folder-open"></i> Documents</h4>
                         ${status === 'PENDING' ? `
                         <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #856404;">
-                            <strong><i class="fas fa-info-circle"></i> Please accept the transfer request first.</strong> After accepting, you will be able to upload your required documents (Valid ID, TIN, HPG Clearance, CTPL).
+                            <strong><i class="fas fa-exclamation-circle"></i> Action Required:</strong> Please upload all required documents (Valid ID, TIN, HPG Clearance, CTPL) and click "Accept & Submit Documents" to complete your acceptance.
                         </div>
                         ` : status === 'AWAITING_BUYER_DOCS' ? `
                         <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #856404;">
@@ -1200,9 +1200,9 @@ async function showTransferRequestDetails(requestId) {
                 </div>
                 
                 <div class="modal-footer">
-                    ${status === 'AWAITING_BUYER_DOCS' ? `
+                    ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
                     <button class="btn-primary" type="button" onclick="window.submitTransferAcceptance && window.submitTransferAcceptance('${requestId}')" style="margin-right: 0.5rem;">
-                        <i class="fas fa-paper-plane"></i> Submit Documents
+                        <i class="fas fa-check"></i> ${status === 'PENDING' ? 'Accept & Submit Documents' : 'Submit Documents'}
                     </button>
                     ` : ''}
                     <button class="btn-secondary" type="button" onclick="window.closeTransferRequestDetailsModal && window.closeTransferRequestDetailsModal()">Close</button>
@@ -1268,7 +1268,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Submit documents after acceptance
+// Accept and submit documents (one action)
 async function submitTransferAcceptance(requestId) {
     try {
         const apiClient = window.apiClient || new APIClient();
@@ -1282,6 +1282,7 @@ async function submitTransferAcceptance(requestId) {
         
         const request = response.transferRequest;
         const documents = request.documents || [];
+        const status = (request.status || '').toUpperCase();
         
         // Map uploaded documents to the format expected by the backend
         const documentsMap = {};
@@ -1311,7 +1312,7 @@ async function submitTransferAcceptance(requestId) {
             throw new Error(`Please upload all required documents: ${missingList}`);
         }
         
-        // Submit documents (accept endpoint handles linking, validation, and auto-forward)
+        // Accept and submit documents in one action (accept endpoint handles both PENDING and AWAITING_BUYER_DOCS)
         const acceptResponse = await apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
             documents: documentsMap
         });

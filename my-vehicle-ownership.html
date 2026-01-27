@@ -3164,30 +3164,11 @@
 
         // Define functions first, then expose on window immediately
         async function acceptTransferRequest(requestId) {
-            try {
-                // First, accept the transfer request (without documents)
-                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
-                    documents: {}
-                });
-                
-                if (response.success) {
-                    showNotification('Transfer request accepted. Please upload your required documents.', 'success');
-                    
-                    // Reload incoming requests to update status
-                    loadIncomingTransferRequests();
-                    
-                    // Open the details modal so buyer can upload documents
-                    if (typeof window.showTransferRequestDetails === 'function') {
-                        setTimeout(() => {
-                            window.showTransferRequestDetails(requestId);
-                        }, 500);
-                    }
-                } else {
-                    throw new Error(response.error || 'Failed to accept transfer request');
-                }
-            } catch (error) {
-                console.error('Error accepting transfer request:', error);
-                showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+            // Simply open the modal - acceptance happens when documents are submitted
+            if (typeof window.showTransferRequestDetails === 'function') {
+                window.showTransferRequestDetails(requestId);
+            } else {
+                showNotification('Please wait while the page loads...', 'info');
             }
         }
 
@@ -3285,7 +3266,7 @@
                         </button>
                         ` : status === 'AWAITING_BUYER_DOCS' ? `
                         <button type="button" class="btn-view-history" onclick="window.showTransferRequestDetails && window.showTransferRequestDetails('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); margin-right: 0.5rem;">
-                            <i class="fas fa-upload"></i> Upload Documents
+                            <i class="fas fa-upload"></i> Continue Upload
                         </button>
                         ` : ''}
                         ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `

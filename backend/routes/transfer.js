@@ -2207,6 +2207,27 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
                 if (autoForward?.transferRequest) {
                     updatedRequest = autoForward.transferRequest;
                 }
+                
+                // Notify buyer about auto-forward status
+                if (autoForward && !autoForward.skipped) {
+                    const forwardedOrgs = [];
+                    if (autoForward.results?.hpg?.success) forwardedOrgs.push('HPG');
+                    if (autoForward.results?.insurance?.success) forwardedOrgs.push('Insurance');
+                    
+                    if (forwardedOrgs.length > 0) {
+                        try {
+                            await db.createNotification({
+                                userId: currentUserId,
+                                title: 'Documents Auto-Forwarded',
+                                message: `Your documents have been automatically sent to ${forwardedOrgs.join(' and ')} for verification. The transfer request is now under review.`,
+                                type: 'info'
+                            });
+                            console.log('✅ Created notification for buyer about auto-forward');
+                        } catch (notifError) {
+                            console.warn('⚠️ Failed to create buyer auto-forward notification:', notifError.message);
+                        }
+                    }
+                }
             } catch (autoForwardError) {
                 console.error('Auto-forward after buyer acceptance failed:', autoForwardError);
                 autoForward = { success: false, error: autoForwardError.message };

@@ -1002,9 +1002,8 @@ async function showTransferRequestDetails(requestId) {
         const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
             ? window.StatusUtils.normalizeStatus(request.status)
             : status.toLowerCase();
-        const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
-            ? window.StatusUtils.canUpdateDocuments(request.status)
-            : ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
+        // Only allow document uploads after acceptance (AWAITING_BUYER_DOCS) or for updates (UNDER_REVIEW)
+        const canUpdate = status === 'AWAITING_BUYER_DOCS' || status === 'UNDER_REVIEW' || normalizedStatus === 'under_review';
         
         // Create modal using existing CSS classes
         const modal = document.createElement('div');
@@ -1180,6 +1179,15 @@ async function showTransferRequestDetails(requestId) {
                     <!-- Documents Section -->
                     <div class="detail-section">
                         <h4><i class="fas fa-folder-open"></i> Documents</h4>
+                        ${status === 'PENDING' ? `
+                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #856404;">
+                            <strong><i class="fas fa-info-circle"></i> Please accept the transfer request first.</strong> After accepting, you will be able to upload your required documents (Valid ID, TIN, HPG Clearance, CTPL).
+                        </div>
+                        ` : status === 'AWAITING_BUYER_DOCS' ? `
+                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #856404;">
+                            <strong><i class="fas fa-exclamation-circle"></i> Action Required:</strong> Please upload all required documents (Valid ID, TIN, HPG Clearance, CTPL) before submitting.
+                        </div>
+                        ` : ''}
                         <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #0c4a6e;">
                             <strong><i class="fas fa-info-circle"></i> Your required documents:</strong> Upload Valid ID, TIN, HPG Clearance, CTPL. Seller documents (Deed of Sale, Seller ID) are shown below for reference only. MVIR is completed by LTO during inspection.
                         </div>
@@ -1192,9 +1200,9 @@ async function showTransferRequestDetails(requestId) {
                 </div>
                 
                 <div class="modal-footer">
-                    ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
+                    ${status === 'AWAITING_BUYER_DOCS' ? `
                     <button class="btn-primary" type="button" onclick="window.submitTransferAcceptance && window.submitTransferAcceptance('${requestId}')" style="margin-right: 0.5rem;">
-                        <i class="fas fa-check"></i> Accept Transfer Request
+                        <i class="fas fa-paper-plane"></i> Submit Documents
                     </button>
                     ` : ''}
                     <button class="btn-secondary" type="button" onclick="window.closeTransferRequestDetailsModal && window.closeTransferRequestDetailsModal()">Close</button>
@@ -1260,7 +1268,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Submit transfer acceptance with uploaded documents
+// Submit documents after acceptance
 async function submitTransferAcceptance(requestId) {
     try {
         const apiClient = window.apiClient || new APIClient();
@@ -1288,16 +1296,53 @@ async function submitTransferAcceptance(requestId) {
             }
         });
         
-        // Accept the transfer request with uploaded documents
+        // Check if buyer has uploaded required documents
+        const requiredDocs = ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'];
+        const missingDocs = requiredDocs.filter(docKey => !documentsMap[docKey]);
+        
+        if (missingDocs.length > 0) {
+            const missingLabels = {
+                'buyer_id': 'Valid ID',
+                'buyer_tin': 'TIN',
+                'buyer_ctpl': 'CTPL',
+                'buyer_hpg_clearance': 'HPG Clearance'
+            };
+            const missingList = missingDocs.map(key => missingLabels[key] || key).join(', ');
+            throw new Error(`Please upload all required documents: ${missingList}`);
+        }
+        
+        // Submit documents (accept endpoint handles linking, validation, and auto-forward)
         const acceptResponse = await apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
             documents: documentsMap
         });
         
         if (acceptResponse.success) {
+            // Build success message with auto-forward information
+            let successMessage = 'Documents submitted successfully! Transfer request is now under review.';
+            
+            if (acceptResponse.autoForward) {
+                const autoForward = acceptResponse.autoForward;
+                const forwardedOrgs = [];
+                
+                if (autoForward.results?.hpg?.success) {
+                    forwardedOrgs.push('HPG');
+                }
+                if (autoForward.results?.insurance?.success) {
+                    forwardedOrgs.push('Insurance');
+                }
+                
+                if (forwardedOrgs.length > 0) {
+                    successMessage += ` Documents have been automatically sent to ${forwardedOrgs.join(' and ')} for verification.`;
+                } else if (autoForward.skipped) {
+                    // Auto-forward was skipped (already forwarded or not eligible)
+                    console.log('Auto-forward skipped:', autoForward.reason);
+                }
+            }
+            
             if (typeof ToastNotification !== 'undefined') {
-                ToastNotification.show('Transfer request accepted successfully!', 'success');
+                ToastNotification.show(successMessage, 'success', 5000);
             } else {
-                alert('Transfer request accepted successfully!');
+                alert(successMessage);
             }
             
             // Close the modal
@@ -1310,14 +1355,14 @@ async function submitTransferAcceptance(requestId) {
                 window.loadIncomingTransferRequests();
             }
         } else {
-            throw new Error(acceptResponse.error || 'Failed to accept transfer request');
+            throw new Error(acceptResponse.error || 'Failed to submit documents');
         }
     } catch (error) {
-        console.error('Error accepting transfer request:', error);
+        console.error('Error submitting documents:', error);
         if (typeof ToastNotification !== 'undefined') {
-            ToastNotification.show(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+            ToastNotification.show(`Error: ${error.message || 'Failed to submit documents'}`, 'error');
         } else {
-            alert(`Error: ${error.message || 'Failed to accept transfer request'}`);
+            alert(`Error: ${error.message || 'Failed to submit documents'}`);
         }
     }
 }

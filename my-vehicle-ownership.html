@@ -3164,48 +3164,30 @@
 
         // Define functions first, then expose on window immediately
         async function acceptTransferRequest(requestId) {
-            console.log('acceptTransferRequest called with:', requestId);
-            // Open the transfer request details modal which includes document upload functionality
-            // The modal allows buyers to upload required documents before accepting
-            console.log('Checking for showTransferRequestDetails...');
-            console.log('window.showTransferRequestDetails:', typeof window.showTransferRequestDetails);
-            console.log('showTransferRequestDetails (global):', typeof showTransferRequestDetails);
-            
-            if (typeof window.showTransferRequestDetails === 'function') {
-                console.log('Calling window.showTransferRequestDetails with:', requestId);
-                try {
-                    await window.showTransferRequestDetails(requestId);
-                    console.log('showTransferRequestDetails completed');
-                } catch (error) {
-                    console.error('Error in showTransferRequestDetails:', error);
-                }
-            } else if (typeof showTransferRequestDetails === 'function') {
-                console.log('Calling showTransferRequestDetails (global) with:', requestId);
-                try {
-                    await showTransferRequestDetails(requestId);
-                    console.log('showTransferRequestDetails completed');
-                } catch (error) {
-                    console.error('Error in showTransferRequestDetails:', error);
-                }
-            } else {
-                console.warn('showTransferRequestDetails not found!');
-                // Fallback: try to load the modal from my-vehicle-ownership.js
-                console.warn('showTransferRequestDetails function not found, attempting direct accept...');
-                try {
-                    const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
-                        documents: {} // Fallback: accept without documents, user can upload later
-                    });
+            try {
+                // First, accept the transfer request (without documents)
+                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
+                    documents: {}
+                });
+                
+                if (response.success) {
+                    showNotification('Transfer request accepted. Please upload your required documents.', 'success');
                     
-                    if (response.success) {
-                        showNotification('Transfer request accepted. Please upload required documents via the "View Details" button.', 'success');
-                        loadIncomingTransferRequests();
-                    } else {
-                        throw new Error(response.error || 'Failed to accept transfer request');
+                    // Reload incoming requests to update status
+                    loadIncomingTransferRequests();
+                    
+                    // Open the details modal so buyer can upload documents
+                    if (typeof window.showTransferRequestDetails === 'function') {
+                        setTimeout(() => {
+                            window.showTransferRequestDetails(requestId);
+                        }, 500);
                     }
-                } catch (error) {
-                    console.error('Error accepting transfer request:', error);
-                    showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+                } else {
+                    throw new Error(response.error || 'Failed to accept transfer request');
                 }
+            } catch (error) {
+                console.error('Error accepting transfer request:', error);
+                showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
             }
         }
 
@@ -3297,14 +3279,20 @@
                 <div class="vehicle-status">
                     <span class="status-badge ${statusBadgeClass}">${statusText}</span>
                     <div class="vehicle-actions">
-                        ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
+                        ${status === 'PENDING' ? `
                         <button type="button" class="btn-view-history" onclick="window.acceptTransferRequest && window.acceptTransferRequest('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
                             <i class="fas fa-check"></i> Accept
                         </button>
+                        ` : status === 'AWAITING_BUYER_DOCS' ? `
+                        <button type="button" class="btn-view-history" onclick="window.showTransferRequestDetails && window.showTransferRequestDetails('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); margin-right: 0.5rem;">
+                            <i class="fas fa-upload"></i> Upload Documents
+                        </button>
                         ` : ''}
+                        ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
                         <button type="button" class="btn-view-history" onclick="window.rejectTransferRequest && window.rejectTransferRequest('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                             <i class="fas fa-times"></i> Reject
                         </button>
+                        ` : ''}
                     </div>
                 </div>
             `;

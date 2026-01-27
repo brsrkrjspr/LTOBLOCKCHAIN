@@ -1150,17 +1150,17 @@ async function showTransferRequestDetails(requestId) {
                         </div>
                     </div>
                     
-                    <!-- Documents Section -->
+                    <!-- Buyer required documents (seller docs already submitted) -->
                     <div class="detail-section">
-                        <h4><i class="fas fa-folder-open"></i> Documents</h4>
+                        <h4><i class="fas fa-folder-open"></i> Your required documents</h4>
                         <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #0c4a6e;">
-                            <strong><i class="fas fa-info-circle"></i> Note:</strong> MVIR (Motor Vehicle Inspection Report) will be completed by LTO during the inspection process and is not required from buyers.
+                            <strong><i class="fas fa-info-circle"></i> Upload:</strong> Valid ID, TIN, HPG Clearance, CTPL. Seller has already submitted Deed of Sale and Valid ID. MVIR is completed by LTO during inspection.
                         </div>
                         ${documentListHTML ? `
                             <div class="doc-select-list">
                                 ${documentListHTML}
                             </div>
-                        ` : '<p style="color: #7f8c8d;">No documents uploaded yet.</p>'}
+                        ` : '<p style="color: #7f8c8d;">No documents uploaded yet. Upload Valid ID, TIN, HPG Clearance, and CTPL above.</p>'}
                     </div>
                 </div>
                 

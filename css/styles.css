@@ -2003,6 +2003,92 @@ textarea.valid {
     font-weight: 500;
 }
 
+/* Status banner (modals / transfer request details) */
+.status-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+.status-banner-submitted,
+.status-banner-pending,
+.status-banner-awaiting_buyer_docs {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+}
+.status-banner-approved,
+.status-banner-completed {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+}
+.status-banner-rejected {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+}
+.status-banner-processing,
+.status-banner-under_review {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+/* Doc select list (transfer / document modals) */
+.doc-select-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.doc-select-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+.doc-select-item:hover {
+    border-color: #3498db;
+    background: #e3f2fd;
+}
+.doc-select-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+.doc-select-info {
+    flex: 1;
+}
+.doc-select-title {
+    font-weight: 600;
+    color: #2c3e50;
+}
+.doc-select-subtitle {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+.doc-select-status {
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.doc-select-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
 .document-list {
     display: flex;
     flex-direction: column;

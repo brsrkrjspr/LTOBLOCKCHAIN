@@ -801,16 +801,16 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
         // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
         try {
             // Notify LTO admin
-            const ltoAdmins = await dbModule.query(
-                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-            );
-            if (ltoAdmins.rows.length > 0) {
-                await db.createNotification({
-                    userId: ltoAdmins.rows[0].id,
-                    title: 'HPG Verification Approved',
+        const ltoAdmins = await dbModule.query(
+            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+        );
+        if (ltoAdmins.rows.length > 0) {
+            await db.createNotification({
+                userId: ltoAdmins.rows[0].id,
+                title: 'HPG Verification Approved',
                     message: `HPG verification approved for vehicle ${vehicle.plate_number || vehicle.vin}${blockchainTxId ? `. Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
-                    type: 'success'
-                });
+                type: 'success'
+            });
             }
             
             // PHASE 2: Notify vehicle owner about verification approval
@@ -1052,16 +1052,16 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
         // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
         try {
             // Notify LTO admin
-            const ltoAdmins = await dbModule.query(
-                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-            );
-            if (ltoAdmins.rows.length > 0) {
-                await db.createNotification({
-                    userId: ltoAdmins.rows[0].id,
-                    title: 'HPG Verification Rejected',
+        const ltoAdmins = await dbModule.query(
+            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+        );
+        if (ltoAdmins.rows.length > 0) {
+            await db.createNotification({
+                userId: ltoAdmins.rows[0].id,
+                title: 'HPG Verification Rejected',
                     message: `HPG verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
-                    type: 'warning'
-                });
+                type: 'warning'
+            });
             }
             
             // PHASE 2: Notify vehicle owner about verification rejection

@@ -249,8 +249,22 @@ const CertificateGenerator = {
         console.log('createCertificateHtml called');
         
         // Use provided transaction ID - DO NOT fallback to vehicle.id (UUID)
-        const txId = blockchainTxId || vehicle.blockchain_tx_id || null;
-        const hasValidTxId = txId && txId !== 'N/A' && !txId.includes('-'); // UUIDs contain hyphens, blockchain tx IDs don't
+        // CRITICAL: Only use Fabric blockchain transaction ID (64-char hex), not UUIDs or other hashes
+        const txId = blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId || null;
+        // Validate: Must be 64-char hex (Fabric transaction ID), not UUID (which has hyphens)
+        const hasValidTxId = txId && txId !== 'N/A' && !txId.includes('-') && /^[a-f0-9]{64}$/i.test(txId);
+        
+        // Helper function to truncate Fabric transaction ID for display (show first 16 chars + last 8 chars)
+        // This ensures the hash is never shown completely for security
+        const truncateTxId = (id) => {
+            if (!id) return 'N/A';
+            // Fabric transaction IDs are 64 chars - show first 16 + last 8 for display (never show complete hash)
+            if (id.length > 24) {
+                return `${id.substring(0, 16)}...${id.substring(id.length - 8)}`;
+            }
+            // If shorter than 24 chars, just show first 16 + ...
+            return id.length > 16 ? `${id.substring(0, 16)}...` : id;
+        };
         // Enhanced - add view mode parameter for certificate download
         const verificationUrl = hasValidTxId 
             ? `${window.location.origin}/verify/${txId}?view=certificate` 
@@ -864,9 +878,9 @@ const CertificateGenerator = {
                         `}
                     </div>
                     <div class="hash-container">
-                        <span class="label">Blockchain Transaction ID</span>
+                        <span class="label">Blockchain Transaction ID (Fabric)</span>
                         ${hasValidTxId ? `
-                        <div class="hash-code">${this.escapeHtml(txId)}</div>
+                        <div class="hash-code">${this.escapeHtml(truncateTxId(txId))}</div>
                         <div style="margin-top: 15px; text-align: center;">
                             <a href="${verificationUrl}" 
                                target="_blank"
@@ -914,9 +928,9 @@ const CertificateGenerator = {
                     </div>
                 </div>
                 <div style="text-align: right;">
-                    <div style="font-size: 10px; opacity: 0.7; text-transform: uppercase;">Transaction Hash</div>
+                    <div style="font-size: 10px; opacity: 0.7; text-transform: uppercase;">Fabric Transaction ID</div>
                     <div style="font-family: 'Courier New', monospace; font-size: 9px; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 4px; margin-top: 3px;">
-                        ${txId.substring(0, 32)}...
+                        ${truncateTxId(txId)}
                     </div>
                 </div>
             </div>
@@ -941,7 +955,7 @@ const CertificateGenerator = {
                     ${hasValidTxId ? `
                     <div style="font-size: 8px; color: #27ae60; border-top: 1px solid #e0e0e0; padding-top: 8px; margin-top: 8px;">
                         <i class="fas fa-shield-alt" style="margin-right: 4px;"></i>
-                        Verified via Blockchain: ${txId.substring(0, 16)}...
+                        Verified via Fabric: ${truncateTxId(txId)}
                     </div>
                     ` : ''}
                 </div>
@@ -973,7 +987,7 @@ const CertificateGenerator = {
 
         <div class="footer">
             <h3>AUTHORIZED BY: LAND TRANSPORTATION OFFICE</h3>
-            <p>Digitally Signed: ${new Date().toLocaleString()}${hasValidTxId ? ` | Transaction ID: ${this.escapeHtml(txId)}` : ''}</p>
+            <p>Digitally Signed: ${new Date().toLocaleString()}${hasValidTxId ? ` | Fabric TX ID: ${this.escapeHtml(truncateTxId(txId))}` : ''}</p>
         </div>
 
     </div>

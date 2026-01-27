@@ -83,6 +83,27 @@ app.use(limiter);
 // Cookie parsing middleware
 app.use(cookieParser());
 
+// Request timeout middleware (prevent hanging requests)
+// Set timeout to 60 seconds (allows IPFS uploads up to 25s + buffer)
+app.use((req, res, next) => {
+    const timeout = parseInt(process.env.REQUEST_TIMEOUT) || 60000; // 60 seconds default
+    req.setTimeout(timeout, () => {
+        if (!res.headersSent) {
+            res.status(504).json({
+                success: false,
+                error: 'Request timeout',
+                message: `Request exceeded ${timeout}ms timeout. This may indicate IPFS service is slow or unresponsive.`,
+                troubleshooting: {
+                    checkIPFS: 'Verify IPFS container is running: docker ps | findstr ipfs',
+                    checkAPI: 'Test IPFS API: curl -X POST http://localhost:5001/api/v0/version',
+                    restartIPFS: 'Restart IPFS: docker restart ipfs'
+                }
+            });
+        }
+    });
+    next();
+});
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

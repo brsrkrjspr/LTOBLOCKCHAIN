@@ -431,6 +431,15 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
         } catch (storageError) {
             console.error('Storage service error:', storageError);
             console.error('Storage error stack:', storageError.stack);
+            console.error('Storage error name:', storageError.name);
+            console.error('Storage error code:', storageError.code);
+            
+            // Check for timeout errors specifically
+            const isTimeoutError = storageError.message && (
+                storageError.message.includes('timeout') || 
+                storageError.message.includes('TIMEDOUT') ||
+                storageError.code === 'ETIMEDOUT'
+            );
             
             // If STORAGE_MODE=ipfs is required, fail the upload instead of falling back
             if (requiredStorageMode === 'ipfs') {
@@ -443,16 +452,25 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
                     console.error('Error cleaning up file:', cleanupError);
                 }
                 
-                return res.status(503).json({
+                // Return appropriate status code based on error type
+                const statusCode = isTimeoutError ? 504 : 503;
+                const errorMessage = isTimeoutError 
+                    ? `IPFS upload timeout: The IPFS service took too long to respond. This may indicate IPFS is slow, overloaded, or unresponsive.`
+                    : `IPFS storage is required (STORAGE_MODE=ipfs) but IPFS service is unavailable. Please ensure IPFS is running and accessible.`;
+                
+                return res.status(statusCode).json({
                     success: false,
                     error: 'Document storage failed',
-                    message: `IPFS storage is required (STORAGE_MODE=ipfs) but IPFS service is unavailable. Please ensure IPFS is running and accessible.`,
+                    message: errorMessage,
                     details: storageError.message,
+                    errorType: isTimeoutError ? 'timeout' : 'connection',
                     troubleshooting: {
                         checkIPFS: 'Verify IPFS container is running: docker ps | findstr ipfs',
-                        checkAPI: 'Test IPFS API: Invoke-RestMethod -Uri "http://localhost:5001/api/v0/version" -Method POST',
+                        checkAPI: 'Test IPFS API: curl -X POST http://localhost:5001/api/v0/version',
                         checkConfig: 'Verify IPFS API address: docker exec ipfs ipfs config Addresses.API',
-                        restartIPFS: 'Restart IPFS: docker restart ipfs'
+                        checkLogs: 'Check IPFS logs: docker logs ipfs',
+                        restartIPFS: 'Restart IPFS: docker restart ipfs',
+                        increaseTimeout: isTimeoutError ? 'Consider increasing IPFS_UPLOAD_TIMEOUT in .env (default: 25000ms)' : undefined
                     }
                 });
             }

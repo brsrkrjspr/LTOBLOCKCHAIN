@@ -87,43 +87,62 @@ class IPFSService {
         }
     }
 
-    // Store document on IPFS
+    // Store document on IPFS with timeout protection
     async storeDocument(filePath, metadata = {}) {
         if (!this.isConnected) {
             throw new Error('IPFS is not connected');
         }
 
-        try {
-            // Read file
-            const fileBuffer = fs.readFileSync(filePath);
-            
-            // Add file to IPFS
-            const result = await this.ipfs.add({
-                path: metadata.originalName || path.basename(filePath),
-                content: fileBuffer
-            }, {
-                pin: true, // Pin the file to prevent garbage collection
-                cidVersion: 1 // Use CIDv1 for better compatibility
-            });
+        // Timeout wrapper to prevent hanging requests (25 seconds to allow proxy timeout buffer)
+        const uploadTimeout = parseInt(process.env.IPFS_UPLOAD_TIMEOUT) || 25000;
+        
+        return Promise.race([
+            // Actual upload operation
+            (async () => {
+                try {
+                    // Read file
+                    const fileBuffer = fs.readFileSync(filePath);
+                    const fileSizeMB = (fileBuffer.length / (1024 * 1024)).toFixed(2);
+                    console.log(`📤 Uploading to IPFS: ${fileSizeMB}MB file`);
+                    
+                    // Add file to IPFS
+                    const result = await this.ipfs.add({
+                        path: metadata.originalName || path.basename(filePath),
+                        content: fileBuffer
+                    }, {
+                        pin: true, // Pin the file to prevent garbage collection
+                        cidVersion: 1 // Use CIDv1 for better compatibility
+                    });
 
-            const cid = result.cid.toString();
-            const size = result.size || fileBuffer.length;
+                    const cid = result.cid.toString();
+                    const size = result.size || fileBuffer.length;
 
-            console.log(`✅ Document stored on IPFS: ${cid}`);
+                    console.log(`✅ Document stored on IPFS: ${cid}`);
 
-            return {
-                success: true,
-                cid: cid,
-                size: size,
-                ipfsUrl: `ipfs://${cid}`,
-                gatewayUrl: `${this.ipfsProtocol}://${this.ipfsHost}:8080/ipfs/${cid}`,
-                metadata: metadata
-            };
-
-        } catch (error) {
-            console.error('❌ Failed to store document on IPFS:', error);
-            throw new Error(`IPFS storage failed: ${error.message}`);
-        }
+                    return {
+                        success: true,
+                        cid: cid,
+                        size: size,
+                        ipfsUrl: `ipfs://${cid}`,
+                        gatewayUrl: `${this.ipfsProtocol}://${this.ipfsHost}:8080/ipfs/${cid}`,
+                        metadata: metadata
+                    };
+                } catch (error) {
+                    console.error('❌ Failed to store document on IPFS:', error);
+                    // Check for specific error types
+                    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+                        throw new Error(`IPFS connection failed: ${error.message}. Check if IPFS service is running at ${this.ipfsProtocol}://${this.ipfsHost}:${this.ipfsPort}`);
+                    }
+                    throw new Error(`IPFS storage failed: ${error.message}`);
+                }
+            })(),
+            // Timeout promise
+            new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error(`IPFS upload timeout after ${uploadTimeout}ms. IPFS service may be slow or unresponsive. Check IPFS status.`));
+                }, uploadTimeout);
+            })
+        ]);
     }
 
     // Retrieve document from IPFS

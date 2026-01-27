@@ -305,19 +305,6 @@ router.post('/upload', authenticateToken, upload.single('document'), async (req,
         // Map legacy types to canonical logical types
         docType = docTypes.mapLegacyType(docType);
 
-        // MVIR is not allowed via general document upload route
-        // MVIR is only used in transfer of ownership workflow and must be uploaded via LTO inspection route
-        // Initial registration does not require MVIR
-        if (docType === docTypes.LOGICAL_TYPES.MVIR) {
-            try { if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path); } catch (_) {}
-            return res.status(400).json({
-                success: false,
-                error: 'MVIR documents cannot be uploaded via this route',
-                message: 'MVIR (Motor Vehicle Inspection Report) is only used in transfer of ownership workflow and must be uploaded through the LTO inspection process. Initial registration does not require MVIR.',
-                alternativeRoute: 'Use POST /api/lto/inspect-documents for MVIR uploads during vehicle inspection'
-            });
-        }
-
         // Validate document type with context awareness
         const validation = docTypes.validateDocumentTypeForUpload(docType);
 

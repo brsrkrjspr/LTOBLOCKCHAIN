@@ -966,6 +966,53 @@ async function loadUserApplications(isSilent = false) {
                     
                     allApplications = response.vehicles.map(vehicle => mapper(vehicle));
                     
+                    // For vehicles with active transfer requests, use transfer request verification status
+                    // Transfer requests need buyer documents before auto-verification can run
+                    // Don't show original registration verification status for pending transfer requests
+                    try {
+                        const transferResponse = await apiClient.get('/api/vehicles/transfer/requests?limit=100');
+                        if (transferResponse.success && transferResponse.requests) {
+                            // Group transfer requests by vehicle_id
+                            const transferRequestsByVehicle = {};
+                            transferResponse.requests.forEach(tr => {
+                                const vehicleId = tr.vehicle_id || tr.vehicle?.id;
+                                if (vehicleId) {
+                                    if (!transferRequestsByVehicle[vehicleId]) {
+                                        transferRequestsByVehicle[vehicleId] = [];
+                                    }
+                                    transferRequestsByVehicle[vehicleId].push(tr);
+                                }
+                            });
+                            
+                            // Update verification status for vehicles with active transfer requests
+                            allApplications.forEach(app => {
+                                const vehicleId = app.id;
+                                const transferRequests = transferRequestsByVehicle[vehicleId] || [];
+                                
+                                // Find the most recent active transfer request
+                                const activeTransfer = transferRequests
+                                    .filter(tr => ['PENDING', 'AWAITING_BUYER_DOCS', 'UNDER_REVIEW'].includes(tr.status))
+                                    .sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt))[0];
+                                
+                                if (activeTransfer) {
+                                    // For PENDING or AWAITING_BUYER_DOCS: Clear verification status (buyer hasn't uploaded docs yet)
+                                    if (activeTransfer.status === 'PENDING' || activeTransfer.status === 'AWAITING_BUYER_DOCS') {
+                                        app.verificationStatus = {}; // Clear - buyer hasn't uploaded documents yet
+                                    } else if (activeTransfer.status === 'UNDER_REVIEW') {
+                                        // For UNDER_REVIEW: Use transfer request's approval status instead of vehicle's original verifications
+                                        app.verificationStatus = {
+                                            insurance: activeTransfer.insurance_approval_status?.toLowerCase() || 'pending',
+                                            hpg: activeTransfer.hpg_approval_status?.toLowerCase() || 'pending'
+                                        };
+                                    }
+                                }
+                            });
+                        }
+                    } catch (transferError) {
+                        console.warn('Could not load transfer requests for verification status check:', transferError);
+                        // Continue without transfer request check
+                    }
+                    
                     // Save to localStorage for offline access (v2 format)
                     localStorage.setItem('userApplications_v2', JSON.stringify(allApplications));
                     console.log(`💾 Saved ${allApplications.length} applications to localStorage (v2)`);

@@ -3225,6 +3225,11 @@
                 <div class="vehicle-status">
                     <span class="status-badge ${statusBadgeClass}">${statusText}</span>
                     <div class="vehicle-actions">
+                        ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
+                        <button class="btn-view-history" onclick="acceptTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
+                            <i class="fas fa-check"></i> Accept
+                        </button>
+                        ` : ''}
                         <button class="btn-view-history" onclick="rejectTransferRequest('${request.id}')" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                             <i class="fas fa-times"></i> Reject
                         </button>
@@ -3235,7 +3240,24 @@
             return card;
         }
 
-        // ...existing code...
+        async function acceptTransferRequest(requestId) {
+            try {
+                const response = await window.apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
+                    documents: {} // Buyer can upload documents later via the details modal
+                });
+                
+                if (response.success) {
+                    showNotification('Transfer request accepted successfully. You can now upload required documents.', 'success');
+                    // Reload incoming requests
+                    loadIncomingTransferRequests();
+                } else {
+                    throw new Error(response.error || 'Failed to accept transfer request');
+                }
+            } catch (error) {
+                console.error('Error accepting transfer request:', error);
+                showNotification(`Error: ${error.message || 'Failed to accept transfer request'}`, 'error');
+            }
+        }
 
         async function rejectTransferRequest(requestId) {
             if (!confirm('Are you sure you want to reject this transfer request? This action cannot be undone.')) {

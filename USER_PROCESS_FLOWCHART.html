@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User-Side Process Flowchart - Vehicle Registration & Transfer System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .flowchart-container {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 50px;
+            overflow-x: auto;
+            min-height: 800px;
+            position: relative;
+        }
+
+        .flowchart-title {
+            text-align: center;
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 40px;
+            font-weight: 700;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        /* Flowchart Symbols */
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            position: relative;
+        }
+
+        /* Start/End Symbol (Rounded Rectangle) */
+        .start-end {
+            width: 280px;
+            padding: 20px 30px;
+            background: linear-gradient(135deg, #00d084 0%, #00a366 100%);
+            color: white;
+            border-radius: 50px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1em;
+            box-shadow: 0 4px 15px rgba(0, 208, 132, 0.3);
+            position: relative;
+        }
+
+        /* Process Symbol (Rectangle) */
+        .process {
+            width: 320px;
+            padding: 20px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            font-size: 1em;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            position: relative;
+        }
+
+        /* Decision Symbol (Diamond) */
+        .decision {
+            width: 280px;
+            height: 280px;
+            background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);
+            color: white;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
+            position: relative;
+            margin: 30px 0;
+        }
+
+        .decision-text {
+            transform: rotate(-45deg);
+            font-weight: 600;
+            font-size: 0.95em;
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Input/Output Symbol (Parallelogram) */
+        .input-output {
+            width: 300px;
+            padding: 20px 30px;
+            background: linear-gradient(135deg, #00a8ff 0%, #0080cc 100%);
+            color: white;
+            text-align: center;
+            font-weight: 500;
+            font-size: 1em;
+            box-shadow: 0 4px 15px rgba(0, 168, 255, 0.3);
+            position: relative;
+            transform: skew(-15deg);
+        }
+
+        .input-output-text {
+            transform: skew(15deg);
+        }
+
+        /* Connector Arrow */
+        .arrow {
+            width: 4px;
+            height: 40px;
+            background: linear-gradient(180deg, #333 0%, #666 100%);
+            position: relative;
+            margin: 5px 0;
+        }
+
+        .arrow::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid #666;
+        }
+
+        /* Branch Connectors */
+        .branch-container {
+            display: flex;
+            gap: 60px;
+            align-items: flex-start;
+            margin: 20px 0;
+        }
+
+        .branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            flex: 1;
+        }
+
+        .branch-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 50px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .legend-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .legend-symbol {
+            width: 60px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .legend-start-end {
+            background: linear-gradient(135deg, #00d084 0%, #00a366 100%);
+            border-radius: 20px;
+        }
+
+        .legend-process {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .legend-decision {
+            background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);
+            transform: rotate(45deg);
+            width: 40px;
+            height: 40px;
+        }
+
+        .legend-decision-text {
+            transform: rotate(-45deg);
+            color: white;
+            font-size: 0.7em;
+        }
+
+        .legend-input-output {
+            background: linear-gradient(135deg, #00a8ff 0%, #0080cc 100%);
+            transform: skew(-15deg);
+        }
+
+        .legend-input-output-text {
+            transform: skew(15deg);
+            color: white;
+            font-size: 0.7em;
+        }
+
+        .legend-description {
+            flex: 1;
+        }
+
+        .legend-description h4 {
+            color: #333;
+            font-size: 1em;
+            margin-bottom: 5px;
+        }
+
+        .legend-description p {
+            color: #666;
+            font-size: 0.85em;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .flowchart-container {
+                padding: 20px;
+            }
+
+            .process, .start-end, .input-output {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .decision {
+                width: 200px;
+                height: 200px;
+            }
+
+            .branch-container {
+                flex-direction: column;
+                gap: 30px;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+
+            header {
+                background: #667eea;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>User-Side Process Flowchart</h1>
+            <p>Blockchain-Based Vehicle Registration and Transfer of Ownership System</p>
+        </header>
+
+        <div class="content">
+            <div class="flowchart-container">
+                <div class="flowchart-title">End User Process Flow</div>
+                
+                <div class="flowchart">
+                    <!-- START -->
+                    <div class="start-end">START</div>
+                    <div class="arrow"></div>
+
+                    <!-- Access System -->
+                    <div class="process">User Accesses System<br>(Opens Web Application)</div>
+                    <div class="arrow"></div>
+
+                    <!-- Login Decision -->
+                    <div class="decision">
+                        <div class="decision-text">User<br>Logged In?<br><br>No / Yes</div>
+                    </div>
+
+                    <!-- Branch: Not Logged In -->
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">No → Register/Login</div>
+                            <div class="arrow"></div>
+                            <div class="process">User Registration<br>(Create Account)</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Input: Email, Password,<br>Personal Information</div>
+                            </div>
+                            <div class="arrow"></div>
+                            <div class="process">User Login<br>(Authenticate)</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Input: Email, Password</div>
+                            </div>
+                        </div>
+
+                        <div class="branch">
+                            <div class="branch-label">Yes → Continue</div>
+                            <div class="arrow"></div>
+                            <div class="process" style="opacity: 0.3;">Skip Login</div>
+                        </div>
+                    </div>
+
+                    <!-- Merge Point -->
+                    <div class="arrow"></div>
+
+                    <!-- Dashboard -->
+                    <div class="process">Access Owner Dashboard</div>
+                    <div class="arrow"></div>
+
+                    <!-- Service Selection Decision -->
+                    <div class="decision">
+                        <div class="decision-text">Select Service Type<br><br>New Registration /<br>Transfer Ownership</div>
+                    </div>
+
+                    <!-- Branch: New Registration -->
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">New Vehicle Registration</div>
+                            <div class="arrow"></div>
+                            
+                            <!-- Step 1: Vehicle Information -->
+                            <div class="process">Step 1: Enter Vehicle Information</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Input: VIN, Make, Model, Year,<br>Plate Number, Color,<br>Engine/Chassis Numbers,<br>Vehicle Category, Weight</div>
+                            </div>
+                            <div class="arrow"></div>
+
+                            <!-- Step 2: Owner Details -->
+                            <div class="process">Step 2: Enter Owner Details</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Input: Name, Email, Phone,<br>Address, ID Type, ID Number,<br>Date of Birth, Nationality</div>
+                            </div>
+                            <div class="arrow"></div>
+
+                            <!-- Step 3: Document Upload -->
+                            <div class="process">Step 3: Upload Required Documents</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Upload: CSR Certificate,<br>Insurance Certificate,<br>Owner ID, HPG Clearance</div>
+                            </div>
+                            <div class="arrow"></div>
+
+                            <!-- Step 4: Review -->
+                            <div class="process">Step 4: Review & Confirm Information</div>
+                            <div class="arrow"></div>
+                            <div class="decision">
+                                <div class="decision-text">Information<br>Correct?<br><br>No / Yes</div>
+                            </div>
+
+                            <!-- Review Decision Branch -->
+                            <div class="branch-container">
+                                <div class="branch">
+                                    <div class="branch-label">No → Edit</div>
+                                    <div class="arrow"></div>
+                                    <div class="process">Return to Edit Form</div>
+                                </div>
+
+                                <div class="branch">
+                                    <div class="branch-label">Yes → Submit</div>
+                                    <div class="arrow"></div>
+                                    <div class="process">Submit Registration Application</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Branch: Transfer Ownership -->
+                        <div class="branch">
+                            <div class="branch-label">Transfer of Ownership</div>
+                            <div class="arrow"></div>
+                            
+                            <!-- Select Vehicle -->
+                            <div class="process">Select Vehicle to Transfer</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Select: Vehicle from<br>Owned Vehicles List</div>
+                            </div>
+                            <div class="arrow"></div>
+
+                            <!-- Enter Buyer Info -->
+                            <div class="process">Enter Buyer Information</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Input: Buyer Email, Name,<br>Phone, Address</div>
+                            </div>
+                            <div class="arrow"></div>
+
+                            <!-- Upload Transfer Documents -->
+                            <div class="process">Upload Transfer Documents</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Upload: Deed of Sale,<br>Buyer ID, Buyer TIN,<br>Buyer CTPL, Buyer HPG</div>
+                            </div>
+                            <div class="arrow"></div>
+
+                            <!-- Review Transfer -->
+                            <div class="process">Review Transfer Details</div>
+                            <div class="arrow"></div>
+                            <div class="decision">
+                                <div class="decision-text">Details<br>Correct?<br><br>No / Yes</div>
+                            </div>
+
+                            <!-- Transfer Review Decision Branch -->
+                            <div class="branch-container">
+                                <div class="branch">
+                                    <div class="branch-label">No → Edit</div>
+                                    <div class="arrow"></div>
+                                    <div class="process">Return to Edit Form</div>
+                                </div>
+
+                                <div class="branch">
+                                    <div class="branch-label">Yes → Submit</div>
+                                    <div class="arrow"></div>
+                                    <div class="process">Submit Transfer Request</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Merge Point After Submission -->
+                    <div class="arrow"></div>
+
+                    <!-- System Processing -->
+                    <div class="process">System Processes Application<br>(Backend Processing)</div>
+                    <div class="arrow"></div>
+
+                    <!-- Blockchain Recording -->
+                    <div class="process">Blockchain Recording<br>(Transaction Recorded on Ledger)</div>
+                    <div class="arrow"></div>
+                    <div class="input-output">
+                        <div class="input-output-text">Output: Transaction ID,<br>Blockchain Confirmation</div>
+                    </div>
+                    <div class="arrow"></div>
+
+                    <!-- View Status -->
+                    <div class="process">View Application Status</div>
+                    <div class="arrow"></div>
+                    <div class="input-output">
+                        <div class="input-output-text">View: Status Updates,<br>Verification Progress,<br>Approval Status</div>
+                    </div>
+                    <div class="arrow"></div>
+
+                    <!-- Confirmation Decision -->
+                    <div class="decision">
+                        <div class="decision-text">Application<br>Approved?<br><br>Pending / Approved</div>
+                    </div>
+
+                    <!-- Approval Branch -->
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">Pending</div>
+                            <div class="arrow"></div>
+                            <div class="process">Monitor Status<br>(Check Periodically)</div>
+                            <div class="arrow"></div>
+                            <div class="process">Return to View Status</div>
+                        </div>
+
+                        <div class="branch">
+                            <div class="branch-label">Approved</div>
+                            <div class="arrow"></div>
+                            <div class="process">Receive Confirmation</div>
+                            <div class="arrow"></div>
+                            <div class="input-output">
+                                <div class="input-output-text">Output: Certificate (OR/CR),<br>Email Notification,<br>Registration Complete</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Merge Point -->
+                    <div class="arrow"></div>
+
+                    <!-- END -->
+                    <div class="start-end">END</div>
+                </div>
+
+                <!-- Legend -->
+                <div class="legend">
+                    <div class="legend-title">Flowchart Symbols Legend</div>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="legend-symbol legend-start-end"></div>
+                            <div class="legend-description">
+                                <h4>Start/End</h4>
+                                <p>Indicates the beginning or end of the process</p>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol legend-process"></div>
+                            <div class="legend-description">
+                                <h4>Process</h4>
+                                <p>Represents an action or operation performed by the user</p>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol legend-decision">
+                                <div class="legend-decision-text">?</div>
+                            </div>
+                            <div class="legend-description">
+                                <h4>Decision</h4>
+                                <p>Represents a decision point with yes/no or multiple choice options</p>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol legend-input-output">
+                                <div class="legend-input-output-text">I/O</div>
+                            </div>
+                            <div class="legend-description">
+                                <h4>Input/Output</h4>
+                                <p>Represents data input by user or output received from system</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

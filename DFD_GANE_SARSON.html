@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustChain LTO - DFD Level 0 & Level 1 (Gane & Sarson)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab-button {
+            padding: 15px 30px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-button:hover {
+            color: #667eea;
+        }
+
+        .diagram-container {
+            display: none;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 40px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            min-height: 600px;
+        }
+
+        .diagram-container.active {
+            display: block;
+        }
+
+        .diagram-title {
+            text-align: center;
+            font-size: 2em;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+
+        /* Gane & Sarson Notation Styles */
+        .dfd-diagram {
+            position: relative;
+            width: 100%;
+            min-height: 500px;
+            background: #fafafa;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            padding: 40px;
+        }
+
+        /* Process (Rounded Rectangle) */
+        .process {
+            position: absolute;
+            background: #e3f2fd;
+            border: 3px solid #2196f3;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: #1565c0;
+            min-width: 120px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .process-number {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1976d2;
+            margin-bottom: 5px;
+        }
+
+        /* External Entity (Rectangle) */
+        .entity {
+            position: absolute;
+            background: #fff3e0;
+            border: 3px solid #ff9800;
+            padding: 15px 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            color: #e65100;
+            min-width: 100px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        /* Data Store (Open Rectangle - Two Parallel Lines) */
+        .data-store {
+            position: absolute;
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+            border-right: 3px solid #9c27b0;
+            padding: 15px 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            color: #6a1b9a;
+            min-width: 100px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .data-store::before,
+        .data-store::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #9c27b0;
+        }
+
+        .data-store::before {
+            top: 0;
+        }
+
+        .data-store::after {
+            bottom: 0;
+        }
+
+        /* Data Flow Arrow */
+        .data-flow {
+            position: absolute;
+            z-index: 5;
+        }
+
+        .arrow {
+            stroke: #333;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+
+        .flow-label {
+            font-size: 12px;
+            fill: #333;
+            font-weight: 600;
+            text-anchor: middle;
+        }
+
+        /* Text styling for SVG */
+        svg text {
+            fill: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 600;
+        }
+
+        /* Level 0 Specific Styles */
+        .level0 .process {
+            width: 300px;
+            height: 150px;
+            font-size: 16px;
+            padding: 30px;
+        }
+
+        .level0 .entity {
+            font-size: 14px;
+        }
+
+        /* Level 1 Specific Styles */
+        .level1 .process {
+            width: 140px;
+            height: 80px;
+            font-size: 12px;
+            padding: 15px;
+        }
+
+        .level1 .data-store {
+            width: 120px;
+            height: 60px;
+            font-size: 11px;
+            padding: 12px;
+        }
+
+        /* Legend */
+        .legend {
+            background: #f0f4ff;
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 5px;
+        }
+
+        .legend h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-symbol {
+            width: 60px;
+            height: 40px;
+            border: 2px solid;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .legend-symbol.process {
+            border-radius: 10px;
+            background: #e3f2fd;
+            border-color: #2196f3;
+            color: #1565c0;
+        }
+
+        .legend-symbol.entity {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #e65100;
+        }
+
+        .legend-symbol.data-store {
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+            border-right: 3px solid #9c27b0;
+            border-top: 2px solid #9c27b0;
+            border-bottom: 2px solid #9c27b0;
+            color: #6a1b9a;
+        }
+
+        .legend-text {
+            font-size: 14px;
+            color: #333;
+        }
+
+        /* SVG Arrow Marker */
+        .arrow-marker {
+            display: none;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+            .tabs {
+                display: none;
+            }
+            .diagram-container {
+                display: block !important;
+                page-break-after: always;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            .dfd-diagram {
+                transform: scale(0.8);
+                transform-origin: top left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>TrustChain LTO System</h1>
+            <p>Data Flow Diagrams (DFD) - Gane & Sarson Notation</p>
+        </header>
+
+        <div class="content">
+            <div class="tabs">
+                <button class="tab-button active" onclick="showDiagram('level0')">Level 0 (Context)</button>
+                <button class="tab-button" onclick="showDiagram('level1')">Level 1 (Decomposition)</button>
+            </div>
+
+            <!-- Level 0 DFD -->
+            <div id="level0" class="diagram-container active level0">
+                <h2 class="diagram-title">DFD Level 0 - Context Diagram</h2>
+                <div class="dfd-diagram" style="height: 900px; width: 1400px; margin: 0 auto;">
+                    <!-- SVG for arrows - positioned correctly -->
+                    <svg width="1400" height="900" style="position: absolute; top: 0; left: 0;">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <polygon points="0 0, 10 3, 0 6" fill="#333" />
+                            </marker>
+                        </defs>
+
+                        <!-- Vehicle Owner ↔ System -->
+                        <path class="arrow" d="M 150 250 L 450 250" marker-end="url(#arrowhead)" />
+                        <rect x="200" y="225" width="200" height="35" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="300" y="245" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="300" dy="0">Registration Request,</tspan>
+                            <tspan x="300" dy="14">Documents, Login Credentials</tspan>
+                        </text>
+                        
+                        <path class="arrow" d="M 450 300 L 150 300" marker-end="url(#arrowhead)" />
+                        <rect x="200" y="300" width="200" height="35" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="300" y="320" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="300" dy="0">Registration Confirmation,</tspan>
+                            <tspan x="300" dy="14">Vehicle Status, Certificates</tspan>
+                        </text>
+
+                        <!-- LTO Admin ↔ System -->
+                        <path class="arrow" d="M 950 150 L 650 200" marker-end="url(#arrowhead)" />
+                        <rect x="700" y="140" width="200" height="40" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="800" y="160" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="800" dy="0">Approval/Rejection,</tspan>
+                            <tspan x="800" dy="14">Verification Request</tspan>
+                        </text>
+                        
+                        <path class="arrow" d="M 650 250 L 950 200" marker-end="url(#arrowhead)" />
+                        <rect x="700" y="225" width="200" height="50" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="800" y="245" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="800" dy="0">Vehicle Applications,</tspan>
+                            <tspan x="800" dy="14">Verification Status,</tspan>
+                            <tspan x="800" dy="14">Blockchain Records</tspan>
+                        </text>
+
+                        <!-- HPG Admin ↔ System -->
+                        <path class="arrow" d="M 1150 250 L 750 300" marker-end="url(#arrowhead)" />
+                        <rect x="850" y="255" width="250" height="30" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="975" y="275" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="975" dy="0">Clearance Approval/Rejection</tspan>
+                        </text>
+                        
+                        <path class="arrow" d="M 750 350 L 1150 300" marker-end="url(#arrowhead)" />
+                        <rect x="850" y="295" width="250" height="30" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="975" y="315" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="975" dy="0">Clearance Requests</tspan>
+                        </text>
+
+                        <!-- Insurance Verifier ↔ System -->
+                        <path class="arrow" d="M 1150 450 L 750 500" marker-end="url(#arrowhead)" />
+                        <rect x="850" y="455" width="250" height="30" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="975" y="475" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="975" dy="0">Insurance Verification</tspan>
+                        </text>
+                        
+                        <path class="arrow" d="M 750 550 L 1150 500" marker-end="url(#arrowhead)" />
+                        <rect x="850" y="495" width="250" height="30" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="975" y="515" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="975" dy="0">Insurance Requests</tspan>
+                        </text>
+
+                        <!-- LTO Staff ↔ System -->
+                        <path class="arrow" d="M 1150 650 L 750 700" marker-end="url(#arrowhead)" />
+                        <rect x="850" y="655" width="250" height="50" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="975" y="675" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="975" dy="0">Inspection Results,</tspan>
+                            <tspan x="975" dy="14">Transfer Approvals,</tspan>
+                            <tspan x="975" dy="14">Document Verification</tspan>
+                        </text>
+                        
+                        <path class="arrow" d="M 750 750 L 1150 700" marker-end="url(#arrowhead)" />
+                        <rect x="850" y="695" width="250" height="50" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" />
+                        <text x="975" y="715" fill="#333" font-size="12" font-weight="600" text-anchor="middle">
+                            <tspan x="975" dy="0">Vehicle Inspection Requests,</tspan>
+                            <tspan x="975" dy="14">Transfer Requests,</tspan>
+                            <tspan x="975" dy="14">Verification Tasks</tspan>
+                        </text>
+
+                        <!-- System ↔ Hyperledger Fabric -->
+                        <path class="arrow" d="M 550 400 L 350 600" marker-end="url(#arrowhead)" />
+                        <rect x="380" y="470" width="180" height="50" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" transform="rotate(-45 470 495)" />
+                        <text x="470" y="490" fill="#333" font-size="11" font-weight="600" text-anchor="middle" transform="rotate(-45 470 490)">
+                            <tspan x="470" dy="0">Vehicle Registration</tspan>
+                            <tspan x="470" dy="12">Transaction, Ownership</tspan>
+                            <tspan x="470" dy="12">Transfer, Status Update</tspan>
+                        </text>
+                        
+                        <path class="arrow" d="M 350 650 L 550 450" marker-end="url(#arrowhead)" />
+                        <rect x="380" y="520" width="180" height="50" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" transform="rotate(45 470 545)" />
+                        <text x="470" y="545" fill="#333" font-size="11" font-weight="600" text-anchor="middle" transform="rotate(45 470 545)">
+                            <tspan x="470" dy="0">Transaction</tspan>
+                            <tspan x="470" dy="12">Confirmation,</tspan>
+                            <tspan x="470" dy="12">Blockchain Records</tspan>
+                        </text>
+
+                        <!-- System ↔ IPFS -->
+                        <path class="arrow" d="M 450 400 L 150 600" marker-end="url(#arrowhead)" />
+                        <rect x="220" y="470" width="120" height="30" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" transform="rotate(-45 280 485)" />
+                        <text x="280" y="485" fill="#333" font-size="12" font-weight="600" text-anchor="middle" transform="rotate(-45 280 485)">
+                            <tspan x="280" dy="0">Document Files</tspan>
+                        </text>
+                        
+                        <path class="arrow" d="M 150 650 L 450 450" marker-end="url(#arrowhead)" />
+                        <rect x="220" y="520" width="150" height="40" fill="white" fill-opacity="0.9" stroke="#ddd" stroke-width="1" rx="3" transform="rotate(45 295 540)" />
+                        <text x="295" y="540" fill="#333" font-size="11" font-weight="600" text-anchor="middle" transform="rotate(45 295 540)">
+                            <tspan x="295" dy="0">Document CID</tspan>
+                            <tspan x="295" dy="12">(Content Identifier)</tspan>
+                        </text>
+                    </svg>
+
+                    <!-- Central Process -->
+                    <div class="process" style="left: 450px; top: 200px; width: 300px; height: 150px;">
+                        <div class="process-number">0</div>
+                        <div style="font-size: 18px; line-height: 1.4;">
+                            TrustChain LTO<br/>Vehicle Registration<br/>System
+                        </div>
+                    </div>
+
+                    <!-- External Entities - Better positioned -->
+                    <div class="entity" style="left: 50px; top: 220px; width: 120px; height: 60px; font-size: 14px; padding: 15px;">
+                        Vehicle<br/>Owner
+                    </div>
+
+                    <div class="entity" style="left: 950px; top: 120px; width: 120px; height: 60px; font-size: 14px; padding: 15px;">
+                        LTO<br/>Admin
+                    </div>
+
+                    <div class="entity" style="left: 1150px; top: 220px; width: 120px; height: 60px; font-size: 14px; padding: 15px;">
+                        HPG<br/>Admin
+                    </div>
+
+                    <div class="entity" style="left: 1150px; top: 420px; width: 120px; height: 60px; font-size: 14px; padding: 15px;">
+                        Insurance<br/>Verifier
+                    </div>
+
+                    <div class="entity" style="left: 1150px; top: 620px; width: 120px; height: 60px; font-size: 14px; padding: 15px;">
+                        LTO<br/>Staff
+                    </div>
+
+                    <div class="entity" style="left: 250px; top: 570px; width: 140px; height: 80px; font-size: 13px; padding: 15px;">
+                        Hyperledger<br/>Fabric<br/>Network
+                    </div>
+
+                    <div class="entity" style="left: 50px; top: 570px; width: 120px; height: 60px; font-size: 14px; padding: 15px;">
+                        IPFS<br/>Network
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <h3>📋 Level 0 DFD Legend</h3>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="legend-symbol process">0</div>
+                            <div class="legend-text">Process (System)</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol entity">Entity</div>
+                            <div class="legend-text">External Entity</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol" style="border: 2px solid #333; background: white;">→</div>
+                            <div class="legend-text">Data Flow</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Level 1 DFD -->
+            <div id="level1" class="diagram-container level1">
+                <h2 class="diagram-title">DFD Level 1 - First-Level Decomposition</h2>
+                <div class="dfd-diagram" style="height: 1000px;">
+                    <!-- SVG for arrows -->
+                    <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0;">
+                        <defs>
+                            <marker id="arrowhead1" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <polygon points="0 0, 10 3, 0 6" fill="#333" />
+                            </marker>
+                        </defs>
+
+                        <!-- External Entity Flows -->
+                        <!-- Vehicle Owner -->
+                        <path class="arrow" d="M 50 150 L 200 150" />
+                        <text x="100" y="145" class="flow-label">Login Credentials</text>
+                        
+                        <path class="arrow" d="M 200 200 L 50 200" />
+                        <text x="100" y="195" class="flow-label">Auth Token</text>
+
+                        <path class="arrow" d="M 50 250 L 350 250" />
+                        <text x="150" y="245" class="flow-label">Vehicle Information</text>
+
+                        <path class="arrow" d="M 50 300 L 500 300" />
+                        <text x="200" y="295" class="flow-label">Document Files</text>
+
+                        <path class="arrow" d="M 50 350 L 800 350" />
+                        <text x="350" y="345" class="flow-label">Transfer Request</text>
+
+                        <!-- LTO Admin -->
+                        <path class="arrow" d="M 1100 150 L 950 150" />
+                        <text x="1000" y="145" class="flow-label">Approval Decision</text>
+
+                        <path class="arrow" d="M 1100 200 L 950 200" />
+                        <text x="1000" y="195" class="flow-label">Verification Request</text>
+
+                        <path class="arrow" d="M 950 250 L 1100 250" />
+                        <text x="1000" y="245" class="flow-label">Vehicle Applications</text>
+
+                        <!-- LTO Staff -->
+                        <path class="arrow" d="M 1100 400 L 350 400" />
+                        <text x="700" y="395" class="flow-label">Inspection Request</text>
+
+                        <path class="arrow" d="M 350 450 L 1100 450" />
+                        <text x="700" y="445" class="flow-label">Inspection Results</text>
+
+                        <path class="arrow" d="M 1100 500 L 500 500" />
+                        <text x="750" y="495" class="flow-label">Document Verification Request</text>
+
+                        <path class="arrow" d="M 500 550 L 1100 550" />
+                        <text x="750" y="545" class="flow-label">Verification Status</text>
+
+                        <path class="arrow" d="M 1100 600 L 800 600" />
+                        <text x="900" y="595" class="flow-label">Transfer Approval/Reject</text>
+
+                        <path class="arrow" d="M 800 650 L 1100 650" />
+                        <text x="900" y="645" class="flow-label">Transfer Requests</text>
+
+                        <path class="arrow" d="M 1100 700 L 800 700" />
+                        <text x="900" y="695" class="flow-label">Forward to HPG/Insurance</text>
+
+                        <!-- Process to Process Flows -->
+                        <path class="arrow" d="M 350 300 L 500 300" />
+                        <text x="400" y="295" class="flow-label">Document CID</text>
+
+                        <path class="arrow" d="M 500 350 L 350 350" />
+                        <text x="400" y="345" class="flow-label">Document IDs</text>
+
+                        <path class="arrow" d="M 350 400 L 650 400" />
+                        <text x="450" y="395" class="flow-label">Vehicle Data</text>
+
+                        <path class="arrow" d="M 800 400 L 650 400" />
+                        <text x="700" y="395" class="flow-label">Transfer Data</text>
+
+                        <path class="arrow" d="M 950 400 L 800 400" />
+                        <text x="850" y="395" class="flow-label">Verification Status</text>
+
+                        <path class="arrow" d="M 800 450 L 650 450" />
+                        <text x="700" y="445" class="flow-label">Approval Data</text>
+
+                        <!-- Process to Data Store Flows -->
+                        <!-- D1 Users -->
+                        <path class="arrow" d="M 200 200 L 150 500" />
+                        <text x="120" y="350" class="flow-label">User Data</text>
+
+                        <path class="arrow" d="M 150 550 L 200 250" />
+                        <text x="120" y="400" class="flow-label">User Info</text>
+
+                        <!-- D2 Vehicles -->
+                        <path class="arrow" d="M 350 400 L 400 600" />
+                        <text x="360" y="500" class="flow-label">Vehicle Data</text>
+
+                        <path class="arrow" d="M 400 650 L 350 450" />
+                        <text x="360" y="550" class="flow-label">Vehicle Info</text>
+
+                        <!-- D3 Documents -->
+                        <path class="arrow" d="M 500 350 L 600 600" />
+                        <text x="540" y="475" class="flow-label">Document Metadata</text>
+
+                        <path class="arrow" d="M 600 650 L 500 400" />
+                        <text x="540" y="525" class="flow-label">Document Info</text>
+
+                        <!-- D4 Verification -->
+                        <path class="arrow" d="M 800 450 L 750 700" />
+                        <text x="760" y="575" class="flow-label">Verification Data</text>
+
+                        <path class="arrow" d="M 750 750 L 800 500" />
+                        <text x="760" y="625" class="flow-label">Verification Status</text>
+
+                        <!-- D5 Transfer Requests -->
+                        <path class="arrow" d="M 800 400 L 900 600" />
+                        <text x="840" y="500" class="flow-label">Transfer Data</text>
+
+                        <path class="arrow" d="M 900 650 L 800 450" />
+                        <text x="840" y="550" class="flow-label">Transfer Info</text>
+
+                        <!-- D6 Blockchain -->
+                        <path class="arrow" d="M 650 500 L 600 750" />
+                        <text x="610" y="625" class="flow-label">Transaction Data</text>
+
+                        <path class="arrow" d="M 600 800 L 650 550" />
+                        <text x="610" y="675" class="flow-label">Transaction ID</text>
+
+                        <!-- D7 IPFS -->
+                        <path class="arrow" d="M 500 350 L 400 750" />
+                        <text x="430" y="550" class="flow-label">Document Files</text>
+
+                        <path class="arrow" d="M 400 800 L 500 400" />
+                        <text x="430" y="600" class="flow-label">Document CID</text>
+                    </svg>
+
+                    <!-- Processes -->
+                    <div class="process" style="left: 200px; top: 120px;">
+                        <div class="process-number">1.0</div>
+                        <div>Authenticate<br/>User</div>
+                    </div>
+
+                    <div class="process" style="left: 350px; top: 220px;">
+                        <div class="process-number">2.0</div>
+                        <div>Manage Vehicle<br/>Registration</div>
+                    </div>
+
+                    <div class="process" style="left: 500px; top: 270px;">
+                        <div class="process-number">3.0</div>
+                        <div>Manage<br/>Documents</div>
+                    </div>
+
+                    <div class="process" style="left: 800px; top: 320px;">
+                        <div class="process-number">4.0</div>
+                        <div>Process<br/>Verifications</div>
+                    </div>
+
+                    <div class="process" style="left: 950px; top: 120px;">
+                        <div class="process-number">5.0</div>
+                        <div>Approve/Reject<br/>Registration</div>
+                    </div>
+
+                    <div class="process" style="left: 650px; top: 420px;">
+                        <div class="process-number">6.0</div>
+                        <div>Record on<br/>Blockchain</div>
+                    </div>
+
+                    <div class="process" style="left: 800px; top: 220px;">
+                        <div class="process-number">7.0</div>
+                        <div>Transfer<br/>Ownership</div>
+                    </div>
+
+                    <!-- External Entities -->
+                    <div class="entity" style="left: 20px; top: 140px;">
+                        Vehicle<br/>Owner
+                    </div>
+
+                    <div class="entity" style="left: 1070px; top: 120px;">
+                        LTO<br/>Admin
+                    </div>
+
+                    <div class="entity" style="left: 1070px; top: 380px;">
+                        LTO<br/>Staff
+                    </div>
+
+                    <!-- Data Stores -->
+                    <div class="data-store" style="left: 120px; top: 480px;">
+                        D1<br/>Users<br/>Database
+                    </div>
+
+                    <div class="data-store" style="left: 370px; top: 580px;">
+                        D2<br/>Vehicles<br/>Database
+                    </div>
+
+                    <div class="data-store" style="left: 570px; top: 580px;">
+                        D3<br/>Documents<br/>Database
+                    </div>
+
+                    <div class="data-store" style="left: 720px; top: 680px;">
+                        D4<br/>Verification<br/>Database
+                    </div>
+
+                    <div class="data-store" style="left: 870px; top: 580px;">
+                        D5<br/>Transfer<br/>Requests<br/>Database
+                    </div>
+
+                    <div class="data-store" style="left: 570px; top: 730px;">
+                        D6<br/>Blockchain<br/>Ledger
+                    </div>
+
+                    <div class="data-store" style="left: 370px; top: 730px;">
+                        D7<br/>IPFS<br/>Storage
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <h3>📋 Level 1 DFD Legend</h3>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="legend-symbol process">1.0</div>
+                            <div class="legend-text">Process (Rounded Rectangle)</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol entity">Entity</div>
+                            <div class="legend-text">External Entity (Rectangle)</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol data-store">D1</div>
+                            <div class="legend-text">Data Store (Open Rectangle)</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-symbol" style="border: 2px solid #333; background: white;">→</div>
+                            <div class="legend-text">Data Flow (Arrow with Label)</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: #fff; border-radius: 5px;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">Process Descriptions:</h4>
+                        <ul style="list-style: none; padding-left: 0;">
+                            <li><strong>1.0 Authenticate User:</strong> Handles user login, registration, and JWT token generation</li>
+                            <li><strong>2.0 Manage Vehicle Registration:</strong> Processes vehicle registration submissions, conducts inspections, updates vehicle status, and links documents</li>
+                            <li><strong>3.0 Manage Documents:</strong> Handles document upload, IPFS storage, document verification, and document retrieval</li>
+                            <li><strong>4.0 Process Verifications:</strong> Manages HPG and Insurance verification workflows, forwards verification requests</li>
+                            <li><strong>5.0 Approve/Reject Registration:</strong> Handles admin approval/rejection and final clearance</li>
+                            <li><strong>6.0 Record on Blockchain:</strong> Records transactions on Hyperledger Fabric and tracks transaction status</li>
+                            <li><strong>7.0 Transfer Ownership:</strong> Processes ownership transfer requests, approvals, rejections, and forwards to HPG/Insurance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showDiagram(level) {
+            // Hide all diagrams
+            const diagrams = document.querySelectorAll('.diagram-container');
+            diagrams.forEach(diagram => {
+                diagram.classList.remove('active');
+            });
+
+            // Show selected diagram
+            document.getElementById(level).classList.add('active');
+
+            // Update tab buttons
+            const tabs = document.querySelectorAll('.tab-button');
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

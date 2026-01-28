@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPG Transfer Approval Process Flowchart - Vehicle Registration System</title>
+    <style>
+        /**
+         * HPG Transfer Approval Process Flowchart
+         * Pure HTML/CSS Implementation
+         * Flowchart Symbols: Oval (Start/End), Rectangle (Process), Diamond (Decision), Parallelogram (Input/Output)
+         */
+
+        /* ===== RESET & BASE STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #000000;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        /* ===== CONTENT SECTION ===== */
+        .content {
+            padding: 50px 40px;
+        }
+
+        .flowchart-title {
+            text-align: center;
+            font-size: 1.8em;
+            color: #000000;
+            margin-bottom: 50px;
+            font-weight: 600;
+            border-bottom: 3px solid #4a5568;
+            padding-bottom: 15px;
+        }
+
+        /* ===== FLOWCHART CONTAINER ===== */
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+            padding: 20px 0;
+        }
+
+        /* ===== FLOWCHART SYMBOLS ===== */
+
+        /* Oval: Start/End */
+        .oval {
+            width: 200px;
+            height: 80px;
+            background: #e2e8f0;
+            border: 3px solid #4a5568;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #000000;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Rectangle: Process */
+        .rectangle {
+            width: 320px;
+            min-height: 70px;
+            background: #edf2f7;
+            border: 3px solid #4a5568;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            font-size: 1em;
+            color: #000000;
+            text-align: center;
+            padding: 15px 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Diamond: Decision */
+        .diamond {
+            width: 240px;
+            height: 240px;
+            background: #fef5e7;
+            border: 3px solid #4a5568;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+            margin: 20px 0;
+        }
+
+        .diamond-content {
+            transform: rotate(-45deg);
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95em;
+            color: #000000;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Parallelogram: Input/Output */
+        .parallelogram {
+            width: 300px;
+            min-height: 70px;
+            background: #e6fffa;
+            border: 3px solid #4a5568;
+            transform: skew(-15deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .parallelogram-content {
+            transform: skew(15deg);
+            text-align: center;
+            font-weight: 500;
+            font-size: 1em;
+            color: #000000;
+            padding: 15px 20px;
+        }
+
+        /* ===== ARROWS / CONNECTORS ===== */
+        .arrow {
+            width: 4px;
+            height: 40px;
+            background: #4a5568;
+            position: relative;
+            margin: 0;
+            z-index: 1;
+        }
+
+        /* Arrow head using pseudo-element */
+        .arrow::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid #4a5568;
+        }
+
+        /* ===== BRANCH CONTAINERS ===== */
+        .branch-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 100px;
+            margin: 20px 0;
+            position: relative;
+            width: 100%;
+        }
+
+        .branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+        }
+
+        .branch-label {
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+            padding: 5px 15px;
+            background: #f7fafc;
+            border: 2px solid #cbd5e0;
+            border-radius: 4px;
+        }
+
+        /* Horizontal connector lines for branches */
+        .branch::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 30px;
+            background: #4a5568;
+            transform: translateX(-50%);
+        }
+
+        /* Merge connector */
+        .merge-connector {
+            width: 100%;
+            height: 40px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .merge-line {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: #4a5568;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .merge-line::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid #4a5568;
+        }
+
+        /* ===== LEGEND ===== */
+        .legend {
+            margin-top: 60px;
+            padding: 30px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .legend-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .legend-symbol {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .legend-oval {
+            width: 60px;
+            height: 30px;
+            background: #e2e8f0;
+            border: 2px solid #4a5568;
+            border-radius: 30px;
+        }
+
+        .legend-rectangle {
+            width: 70px;
+            height: 40px;
+            background: #edf2f7;
+            border: 2px solid #4a5568;
+            border-radius: 4px;
+        }
+
+        .legend-diamond {
+            width: 40px;
+            height: 40px;
+            background: #fef5e7;
+            border: 2px solid #4a5568;
+            transform: rotate(45deg);
+        }
+
+        .legend-parallelogram {
+            width: 70px;
+            height: 40px;
+            background: #e6fffa;
+            border: 2px solid #4a5568;
+            transform: skew(-15deg);
+        }
+
+        .legend-description {
+            flex: 1;
+        }
+
+        .legend-description h4 {
+            color: #000000;
+            font-size: 1em;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .legend-description p {
+            color: #000000;
+            font-size: 0.9em;
+        }
+
+        /* ===== RESPONSIVE DESIGN ===== */
+        @media (max-width: 768px) {
+            .content {
+                padding: 30px 20px;
+            }
+
+            .rectangle, .parallelogram {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .diamond {
+                width: 200px;
+                height: 200px;
+            }
+
+            .branch-container {
+                flex-direction: column;
+                gap: 40px;
+            }
+
+            .legend-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===== PRINT STYLES ===== */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+
+            header {
+                background: #4a5568 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header>
+            <h1>HPG Transfer Approval Process Flowchart</h1>
+            <p>Highway Patrol Group - Transfer of Ownership Verification System</p>
+        </header>
+
+        <!-- Main Content -->
+        <section class="content">
+            <h2 class="flowchart-title">HPG Officer Transfer Verification Process Flow</h2>
+
+            <!-- Flowchart -->
+            <div class="flowchart">
+                <!-- START -->
+                <div class="oval">START</div>
+                <div class="arrow"></div>
+
+                <!-- HPG Officer Login -->
+                <div class="rectangle">HPG Officer Logs into System<br>(Authenticate Credentials)</div>
+                <div class="arrow"></div>
+
+                <!-- Access Transfer Verification Module -->
+                <div class="rectangle">Access "Transfer of Ownership<br>Verification" Module</div>
+                <div class="arrow"></div>
+
+                <!-- View Pending Transfers -->
+                <div class="rectangle">View Pending Transfer Applications<br>for Verification</div>
+                <div class="arrow"></div>
+
+                <!-- Select Transfer Request -->
+                <div class="parallelogram">
+                    <div class="parallelogram-content">Select Transfer Request<br>to Verify</div>
+                </div>
+                <div class="arrow"></div>
+
+                <!-- Retrieve Blockchain Records -->
+                <div class="rectangle">Retrieve Vehicle and Ownership<br>Records from Blockchain</div>
+                <div class="arrow"></div>
+
+                <!-- Display Records -->
+                <div class="parallelogram">
+                    <div class="parallelogram-content">Display Vehicle Registration<br>and Ownership History</div>
+                </div>
+                <div class="arrow"></div>
+
+                <!-- Verify Vehicle Identity -->
+                <div class="rectangle">Verify Vehicle Identity<br>(Plate Number, Engine Number,<br>Chassis Number)</div>
+                <div class="arrow"></div>
+
+                <!-- Verify Ownership History -->
+                <div class="rectangle">Verify Ownership History<br>and Transfer Details</div>
+                <div class="arrow"></div>
+
+                <!-- Decision: Details Match? -->
+                <div class="diamond">
+                    <div class="diamond-content">
+                        Vehicle Details and<br>Ownership Records<br>Match?<br><br>No / Yes
+                    </div>
+                </div>
+
+                <!-- Branch Container for Decision -->
+                <div class="branch-container">
+                    <!-- NO Branch -->
+                    <div class="branch">
+                        <div class="branch-label">No</div>
+                        <div class="arrow"></div>
+                        <div class="rectangle">Flag Transfer as Invalid</div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Generate Incident Report<br>(Document Discrepancies)</div>
+                        </div>
+                        <div class="arrow"></div>
+                        <div class="rectangle">Log Incident in System</div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Notify Admin<br>(Email Alert)</div>
+                        </div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Notify Applicant<br>(Rejection Notice)</div>
+                        </div>
+                        <div class="arrow"></div>
+                        <div class="rectangle">Update Transfer Status<br>to "HPG_REJECTED"</div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Output: Report ID,<br>Rejection Reason</div>
+                        </div>
+                    </div>
+
+                    <!-- YES Branch -->
+                    <div class="branch">
+                        <div class="branch-label">Yes</div>
+                        <div class="arrow"></div>
+                        <div class="rectangle">Approve HPG Verification</div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Record HPG Approval<br>Transaction on Blockchain</div>
+                        </div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Output: Transaction ID,<br>Blockchain Confirmation</div>
+                        </div>
+                        <div class="arrow"></div>
+                        <div class="rectangle">Update Transfer Verification Status<br>to "HPG_APPROVED"</div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Notify Admin<br>(HPG Approval Notification)</div>
+                        </div>
+                        <div class="arrow"></div>
+                        <div class="parallelogram">
+                            <div class="parallelogram-content">Notify Applicant<br>(Verification Status Update)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Merge Point -->
+                <div class="merge-connector">
+                    <div class="merge-line"></div>
+                </div>
+
+                <!-- Log Activity -->
+                <div class="arrow"></div>
+                <div class="rectangle">Log Activity in Audit Trail</div>
+                <div class="arrow"></div>
+
+                <!-- Decision: More Transfers to Verify? -->
+                <div class="diamond">
+                    <div class="diamond-content">
+                        More Transfer Requests<br>to Verify?<br><br>Yes / No
+                    </div>
+                </div>
+
+                <!-- Branch for More Transfers -->
+                <div class="branch-container">
+                    <div class="branch">
+                        <div class="branch-label">Yes</div>
+                        <div class="arrow"></div>
+                        <div class="rectangle">Return to View<br>Pending Transfer Applications</div>
+                    </div>
+
+                    <div class="branch">
+                        <div class="branch-label">No</div>
+                        <div class="arrow"></div>
+                        <div class="rectangle">Logout from System</div>
+                    </div>
+                </div>
+
+                <!-- Merge Point -->
+                <div class="merge-connector">
+                    <div class="merge-line"></div>
+                </div>
+
+                <!-- END -->
+                <div class="arrow"></div>
+                <div class="oval">END</div>
+            </div>
+
+            <!-- Legend Section -->
+            <div class="legend">
+                <h3 class="legend-title">Flowchart Symbols Legend</h3>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <div class="legend-symbol">
+                            <div class="legend-oval"></div>
+                        </div>
+                        <div class="legend-description">
+                            <h4>Oval (Start/End)</h4>
+                            <p>Indicates the beginning or termination point of the process flow</p>
+                        </div>
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="legend-symbol">
+                            <div class="legend-rectangle"></div>
+                        </div>
+                        <div class="legend-description">
+                            <h4>Rectangle (Process)</h4>
+                            <p>Represents an action, operation, or process performed by the HPG officer</p>
+                        </div>
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="legend-symbol">
+                            <div class="legend-diamond"></div>
+                        </div>
+                        <div class="legend-description">
+                            <h4>Diamond (Decision)</h4>
+                            <p>Represents a decision point requiring a yes/no or multiple choice response</p>
+                        </div>
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="legend-symbol">
+                            <div class="legend-parallelogram"></div>
+                        </div>
+                        <div class="legend-description">
+                            <h4>Parallelogram (Input/Output)</h4>
+                            <p>Represents data input received or output generated during the process</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

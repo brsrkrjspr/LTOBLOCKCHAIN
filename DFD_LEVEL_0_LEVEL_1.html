@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Flow Diagrams - Level 0 & Level 1</title>
+    <style>
+        /**
+         * Data Flow Diagrams (DFD) - Level 0 & Level 1
+         * Pure HTML/CSS Implementation - Gane & Sarson Notation
+         * No JavaScript Required
+         */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #000000;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 50px 40px;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2em;
+            color: #000000;
+            margin: 50px 0 30px 0;
+            font-weight: 700;
+            border-bottom: 3px solid #4a5568;
+            padding-bottom: 15px;
+        }
+
+        /* DFD Diagram Container – fixed grid for alignment */
+        .dfd-container {
+            position: relative;
+            background: #fafafa;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            margin-bottom: 50px;
+            overflow: visible;
+        }
+
+        .dfd-container.level0 {
+            width: 1100px;
+            height: 720px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .dfd-container.level1 {
+            width: 1500px;
+            height: 1000px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Process - Gane & Sarson: Rounded rectangle with vertical bar, number | name */
+        .process {
+            position: absolute;
+            display: flex;
+            align-items: stretch;
+            background: #e3f2fd;
+            border: 3px solid #2196f3;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1em;
+            color: #000000;
+            min-width: 140px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+            overflow: visible;
+        }
+
+        .process-number {
+            flex-shrink: 0;
+            width: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #1565c0;
+            background: rgba(33, 150, 243, 0.15);
+            border-right: 3px solid #2196f3;
+            padding: 8px 4px;
+        }
+
+        .process-name {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 14px;
+            text-align: center;
+            line-height: 1.4;
+            font-size: 0.95em;
+        }
+
+        /* External Entity - Gane & Sarson: Rectangle (no rounded corners) */
+        .entity {
+            position: absolute;
+            background: #fff3e0;
+            border: 3px solid #ff9800;
+            border-radius: 0;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95em;
+            color: #000000;
+            min-width: 110px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+            line-height: 1.4;
+            overflow: visible;
+        }
+
+        /* Data Store (Open Rectangle - Parallel Lines) */
+        .data-store {
+            position: absolute;
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+            border-right: 4px solid #9c27b0;
+            padding: 12px 18px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95em;
+            color: #000000;
+            min-width: 130px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+            line-height: 1.4;
+            overflow: visible;
+        }
+
+        .data-store::before,
+        .data-store::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #9c27b0;
+        }
+
+        .data-store::before {
+            top: 0;
+        }
+
+        .data-store::after {
+            bottom: 0;
+        }
+
+        .data-store-label {
+            font-weight: 700;
+            color: #000000;
+            font-size: 0.9em;
+        }
+
+        /* SVG arrows – drawn inside diagram SVG */
+        .dfd-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .dfd-svg path.arrow {
+            stroke: #1a1a1a;
+            stroke-width: 2.5;
+            fill: none;
+        }
+
+        .dfd-svg .flow-label {
+            font-size: 13px;
+            fill: #000;
+            font-weight: 700;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            pointer-events: none;
+        }
+
+        .dfd-svg .flow-label-bg {
+            fill: white;
+            stroke: #333;
+            stroke-width: 2;
+            opacity: 1;
+        }
+
+        /* Labels layer - render after boxes */
+        .labels-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* HTML label containers - positioned absolutely, above all boxes */
+        .flow-label-html {
+            position: absolute;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            pointer-events: none;
+            z-index: 25;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 40px;
+            padding: 30px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .legend-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .legend-symbol {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 80px;
+            min-height: 50px;
+        }
+
+        .legend-process {
+            display: flex;
+            align-items: stretch;
+            background: #e3f2fd;
+            border: 3px solid #2196f3;
+            border-radius: 12px;
+            color: #000000;
+            font-weight: 600;
+            overflow: hidden;
+        }
+
+        .legend-process .num {
+            width: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 3px solid #2196f3;
+            font-weight: 700;
+        }
+
+        .legend-entity {
+            background: #fff3e0;
+            border: 3px solid #ff9800;
+            color: #000000;
+            font-weight: 600;
+        }
+
+        .legend-data-store {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+            border-right: 4px solid #9c27b0;
+            color: #000000;
+            font-weight: 600;
+            position: relative;
+        }
+
+        .legend-data-store::before,
+        .legend-data-store::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #9c27b0;
+        }
+
+        .legend-data-store::before {
+            top: 0;
+        }
+
+        .legend-data-store::after {
+            bottom: 0;
+        }
+
+        .legend-description {
+            flex: 1;
+        }
+
+        .legend-description h4 {
+            color: #000000;
+            font-size: 1em;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .legend-description p {
+            color: #000000;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 1024px) {
+            .dfd-container {
+                transform: scale(0.85);
+                transform-origin: top left;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+
+            header {
+                background: #4a5568 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Data Flow Diagrams</h1>
+            <p>Blockchain-Based Vehicle Registration and Transfer of Ownership System</p>
+        </header>
+
+        <section class="content">
+            <!-- Level 0 DFD - Gane & Sarson, grid-aligned -->
+            <h2 class="section-title">Level 0 DFD - Context Diagram (Gane &amp; Sarson)</h2>
+            <div class="dfd-container level0">
+                <svg class="dfd-svg" viewBox="0 0 1100 720" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <marker id="arr0" markerWidth="12" markerHeight="12" refX="10" refY="3.5" orient="auto">
+                            <polygon points="0 0, 12 3.5, 0 7" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.5" />
+                        </marker>
+                    </defs>
+                    <!-- Owner → Process -->
+                    <path class="arrow" d="M 180 320 L 395 355" marker-end="url(#arr0)" />
+                    <!-- Process → Owner -->
+                    <path class="arrow" d="M 395 365 L 180 330" marker-end="url(#arr0)" />
+                    <!-- LTO Admin → Process -->
+                    <path class="arrow" d="M 920 90 L 920 210 L 705 210" marker-end="url(#arr0)" />
+                    <!-- Process → LTO Admin -->
+                    <path class="arrow" d="M 705 200 L 920 200 L 920 100" marker-end="url(#arr0)" />
+                    <!-- LTO Officer → Process -->
+                    <path class="arrow" d="M 920 362 L 705 362 L 705 355" marker-end="url(#arr0)" />
+                    <!-- Process → LTO Officer -->
+                    <path class="arrow" d="M 705 365 L 920 365 L 920 350" marker-end="url(#arr0)" />
+                    <!-- HPG → Process -->
+                    <path class="arrow" d="M 180 575 L 395 575 L 395 420" marker-end="url(#arr0)" />
+                    <!-- Process → HPG -->
+                    <path class="arrow" d="M 395 430 L 395 575 L 180 575" marker-end="url(#arr0)" />
+                    <!-- Insurance → Process -->
+                    <path class="arrow" d="M 920 575 L 705 575 L 705 420" marker-end="url(#arr0)" />
+                    <!-- Process → Insurance -->
+                    <path class="arrow" d="M 705 430 L 705 575 L 920 575" marker-end="url(#arr0)" />
+                    <!-- Process → D1 -->
+                    <path class="arrow" d="M 540 455 L 540 470" marker-end="url(#arr0)" />
+                    <!-- D1 → Process -->
+                    <path class="arrow" d="M 540 470 L 540 455" marker-end="url(#arr0)" />
+                    <!-- Process → D2 -->
+                    <path class="arrow" d="M 550 455 L 550 528" marker-end="url(#arr0)" />
+                    <!-- D2 → Process -->
+                    <path class="arrow" d="M 550 528 L 550 455" marker-end="url(#arr0)" />
+                    <!-- Process → D3 -->
+                    <path class="arrow" d="M 560 455 L 560 586" marker-end="url(#arr0)" />
+                    <!-- D3 → Process -->
+                    <path class="arrow" d="M 560 586 L 560 455" marker-end="url(#arr0)" />
+                </svg>
+                <!-- HTML Labels Layer - Above all boxes (z-index 25) -->
+                <div class="flow-label-html" style="left: 230px; top: 305px;">Registration, Documents, Transfer Request</div>
+                <div class="flow-label-html" style="left: 230px; top: 338px;">Status, Notifications, Certificates</div>
+                <div class="flow-label-html" style="left: 760px; top: 125px;">Approval, OR/CR Numbers</div>
+                <div class="flow-label-html" style="left: 760px; top: 168px;">Applications, Records</div>
+                <div class="flow-label-html" style="left: 760px; top: 332px;">Inspection Results, Verification</div>
+                <div class="flow-label-html" style="left: 760px; top: 372px;">Inspection Requests, Tasks</div>
+                <div class="flow-label-html" style="left: 250px; top: 465px;">Verification Request</div>
+                <div class="flow-label-html" style="left: 250px; top: 500px;">Verification Result</div>
+                <div class="flow-label-html" style="left: 720px; top: 465px;">Verification Request</div>
+                <div class="flow-label-html" style="left: 720px; top: 500px;">Verification Result</div>
+                <div class="flow-label-html" style="left: 560px; top: 448px;">Vehicle Record, Tx ID</div>
+                <div class="flow-label-html" style="left: 560px; top: 456px;">Vehicle History</div>
+                <div class="flow-label-html" style="left: 560px; top: 485px;">Application Data</div>
+                <div class="flow-label-html" style="left: 560px; top: 505px;">User Data, Status</div>
+                <div class="flow-label-html" style="left: 570px; top: 515px;">Document Files, CIDs</div>
+                <div class="flow-label-html" style="left: 570px; top: 535px;">Document Metadata</div>
+                <!-- External entities – grid positions -->
+                <div class="entity" style="left: 50px; top: 290px; width: 130px; height: 60px;">Vehicle Owner</div>
+                <div class="entity" style="left: 920px; top: 60px; width: 130px; height: 60px;">LTO Admin</div>
+                <div class="entity" style="left: 920px; top: 320px; width: 130px; height: 60px;">LTO Officer</div>
+                <div class="entity" style="left: 50px; top: 545px; width: 130px; height: 60px;">HPG Officer</div>
+                <div class="entity" style="left: 920px; top: 545px; width: 130px; height: 60px;">Insurance Verifier</div>
+                <!-- Central process – Gane & Sarson -->
+                <div class="process" style="left: 395px; top: 255px; width: 310px; height: 200px;">
+                    <span class="process-number">0</span>
+                    <span class="process-name">Vehicle Registration<br>&amp;<br>Transfer System</span>
+                </div>
+                <!-- Data stores – open rectangle, aligned -->
+                <div class="data-store" style="left: 455px; top: 470px; width: 190px; height: 52px;">
+                    <div class="data-store-label">D1 Blockchain Ledger</div>
+                </div>
+                <div class="data-store" style="left: 455px; top: 528px; width: 190px; height: 52px;">
+                    <div class="data-store-label">D2 Application Database</div>
+                </div>
+                <div class="data-store" style="left: 455px; top: 586px; width: 190px; height: 52px;">
+                    <div class="data-store-label">D3 Document Storage (IPFS)</div>
+                </div>
+            </div>
+
+            <!-- Level 1 DFD - Gane & Sarson, redesigned with better layout -->
+            <h2 class="section-title">Level 1 DFD - System Decomposition (Gane &amp; Sarson)</h2>
+            <div class="dfd-container level1">
+                <svg class="dfd-svg" viewBox="0 0 1500 1000" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <marker id="arr1" markerWidth="12" markerHeight="12" refX="10" refY="3.5" orient="auto">
+                            <polygon points="0 0, 12 3.5, 0 7" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.5" />
+                        </marker>
+                    </defs>
+                    <!-- Vehicle Owner → 1.0: Owner right(190) to Process 1.0 left(50) -->
+                    <path class="arrow" d="M 190 75 L 50 75 L 50 200" marker-end="url(#arr1)" />
+                    <!-- 1.0 → 2.0: Process 1.0 right(250) to Process 2.0 left(350) -->
+                    <path class="arrow" d="M 250 245 L 350 245" marker-end="url(#arr1)" />
+                    <!-- 2.0 → 3.0: Process 2.0 right(550) to Process 3.0 left(650) -->
+                    <path class="arrow" d="M 550 245 L 650 245" marker-end="url(#arr1)" />
+                    <!-- 3.0 → 4.0: Process 3.0 right(850) to Process 4.0 left(950) -->
+                    <path class="arrow" d="M 850 245 L 950 245" marker-end="url(#arr1)" />
+                    <!-- LTO Admin → 2.0: Admin right(490) to Process 2.0 left(350) -->
+                    <path class="arrow" d="M 490 75 L 350 75 L 350 200" marker-end="url(#arr1)" />
+                    <!-- 2.0 → LTO Admin: Process 2.0 left(350) to Admin right(490) -->
+                    <path class="arrow" d="M 350 245 L 350 75 L 490 75" marker-end="url(#arr1)" />
+                    <!-- HPG Officer → 3.0: Officer right(790) to Process 3.0 left(650) -->
+                    <path class="arrow" d="M 790 75 L 650 75 L 650 200" marker-end="url(#arr1)" />
+                    <!-- Insurance Verifier → 4.0: Verifier right(1090) to Process 4.0 left(950) -->
+                    <path class="arrow" d="M 1090 75 L 950 75 L 950 200" marker-end="url(#arr1)" />
+                    <!-- 4.0 → Insurance Verifier: Process 4.0 left(950) to Verifier right(1090) -->
+                    <path class="arrow" d="M 950 245 L 950 75 L 1090 75" marker-end="url(#arr1)" />
+                    <!-- LTO Officer → 4.0: Officer right(1320) to Process 4.0 left(950) -->
+                    <path class="arrow" d="M 1180 75 L 1150 75 L 1150 200" marker-end="url(#arr1)" />
+                    <!-- 4.0 → LTO Officer: Process 4.0 left(950) to Officer right(1320) -->
+                    <path class="arrow" d="M 950 245 L 950 75 L 1180 75" marker-end="url(#arr1)" />
+                    <!-- 2.0 → 5.0: Process 2.0 bottom(290) to Process 5.0 top(400) -->
+                    <path class="arrow" d="M 450 290 L 450 400 L 500 400" marker-end="url(#arr1)" />
+                    <!-- 3.0 → 5.0: Process 3.0 bottom(290) to Process 5.0 top(400) -->
+                    <path class="arrow" d="M 750 290 L 750 400 L 600 400" marker-end="url(#arr1)" />
+                    <!-- 4.0 → 5.0: Process 4.0 bottom(290) to Process 5.0 top(400) -->
+                    <path class="arrow" d="M 1050 290 L 1050 400 L 600 400" marker-end="url(#arr1)" />
+                    <!-- 5.0 → 6.0: Process 5.0 right(600) to Process 6.0 left(700) -->
+                    <path class="arrow" d="M 600 445 L 700 445" marker-end="url(#arr1)" />
+                    <!-- 6.0 → 7.0: Process 6.0 bottom(490) to Process 7.0 top(600) -->
+                    <path class="arrow" d="M 800 490 L 800 600 L 650 600" marker-end="url(#arr1)" />
+                    <!-- 7.0 → Vehicle Owner: Process 7.0 left(550) to Owner right(190) -->
+                    <path class="arrow" d="M 550 645 L 550 75 L 190 75" marker-end="url(#arr1)" />
+                    <!-- 1.0 → D2: Process 1.0 bottom(290) to D2 top(800) -->
+                    <path class="arrow" d="M 150 290 L 150 800 L 440 800" marker-end="url(#arr1)" />
+                    <!-- D2 → 4.0: D2 top(800) to Process 4.0 bottom(290) -->
+                    <path class="arrow" d="M 440 800 L 440 290 L 950 290" marker-end="url(#arr1)" />
+                    <!-- 1.0 → D1: Process 1.0 left(50) to D1 top(800) -->
+                    <path class="arrow" d="M 50 245 L 50 800 L 140 800" marker-end="url(#arr1)" />
+                    <!-- D1 → 4.0: D1 top(800) to Process 4.0 bottom(290) -->
+                    <path class="arrow" d="M 140 800 L 140 290 L 950 290" marker-end="url(#arr1)" />
+                    <!-- 2.0 → D3: Process 2.0 bottom(290) to D3 top(800) -->
+                    <path class="arrow" d="M 450 290 L 450 800 L 740 800" marker-end="url(#arr1)" />
+                    <!-- D3 → 2.0: D3 top(800) to Process 2.0 bottom(290) -->
+                    <path class="arrow" d="M 740 800 L 740 290 L 450 290" marker-end="url(#arr1)" />
+                    <!-- 5.0 → D1: Process 5.0 left(400) to D1 top(800) -->
+                    <path class="arrow" d="M 400 445 L 140 445 L 140 800" marker-end="url(#arr1)" />
+                    <!-- 6.0 → D2: Process 6.0 bottom(490) to D2 top(800) -->
+                    <path class="arrow" d="M 800 490 L 800 800 L 440 800" marker-end="url(#arr1)" />
+                    <!-- 6.0 → D3: Process 6.0 bottom(490) to D3 top(800) -->
+                    <path class="arrow" d="M 800 490 L 800 800 L 740 800" marker-end="url(#arr1)" />
+                    <!-- 4.0 → D4: Process 4.0 bottom(290) to D4 top(800) -->
+                    <path class="arrow" d="M 1050 290 L 1050 800 L 1040 800" marker-end="url(#arr1)" />
+                    <!-- D4 → 4.0: D4 top(800) to Process 4.0 bottom(290) -->
+                    <path class="arrow" d="M 1130 800 L 1130 290" marker-end="url(#arr1)" />
+                </svg>
+                <!-- HTML Labels Layer - Above all boxes (z-index 25) -->
+                <div class="flow-label-html" style="left: 80px; top: 120px;">Registration, Documents</div>
+                <div class="flow-label-html" style="left: 280px; top: 230px;">Document Request</div>
+                <div class="flow-label-html" style="left: 580px; top: 230px;">Uploaded Documents</div>
+                <div class="flow-label-html" style="left: 880px; top: 230px;">Transfer Request</div>
+                <div class="flow-label-html" style="left: 380px; top: 120px;">Review Request</div>
+                <div class="flow-label-html" style="left: 380px; top: 85px;">Document Status</div>
+                <div class="flow-label-html" style="left: 680px; top: 120px;">Approval, Review</div>
+                <div class="flow-label-html" style="left: 1000px; top: 120px;">Verification Request</div>
+                <div class="flow-label-html" style="left: 1000px; top: 85px;">Verification Result</div>
+                <div class="flow-label-html" style="left: 1110px; top: 120px;">Inspection Results, Verification</div>
+                <div class="flow-label-html" style="left: 1110px; top: 85px;">Inspection Requests, Tasks</div>
+                <div class="flow-label-html" style="left: 460px; top: 330px;">OR/CR Certificate</div>
+                <div class="flow-label-html" style="left: 760px; top: 330px;">Approved Vehicle Data</div>
+                <div class="flow-label-html" style="left: 850px; top: 330px;">Verified Application</div>
+                <div class="flow-label-html" style="left: 620px; top: 430px;">Transaction Confirmation</div>
+                <div class="flow-label-html" style="left: 720px; top: 535px;">Updated Data</div>
+                <div class="flow-label-html" style="left: 200px; top: 350px;">OR/CR Certificate</div>
+                <div class="flow-label-html" style="left: 260px; top: 530px;">Application Data</div>
+                <div class="flow-label-html" style="left: 600px; top: 530px;">Application Status</div>
+                <div class="flow-label-html" style="left: 50px; top: 510px;">Vehicle Record, Tx</div>
+                <div class="flow-label-html" style="left: 400px; top: 530px;">Vehicle History</div>
+                <div class="flow-label-html" style="left: 550px; top: 530px;">Document Files, IPFS CIDs</div>
+                <div class="flow-label-html" style="left: 550px; top: 555px;">IPFS CIDs</div>
+                <div class="flow-label-html" style="left: 200px; top: 620px;">Vehicle Record, Tx</div>
+                <div class="flow-label-html" style="left: 600px; top: 630px;">Updated Records</div>
+                <div class="flow-label-html" style="left: 720px; top: 630px;">Document Files, IPFS CIDs</div>
+                <div class="flow-label-html" style="left: 1060px; top: 530px;">Vehicle Information</div>
+                <div class="flow-label-html" style="left: 1060px; top: 555px;">Vehicle Records</div>
+                <!-- External entities – top row, evenly spaced -->
+                <div class="entity" style="left: 50px; top: 50px; width: 140px; height: 50px;">Vehicle Owner</div>
+                <div class="entity" style="left: 350px; top: 50px; width: 140px; height: 50px;">LTO Admin</div>
+                <div class="entity" style="left: 650px; top: 50px; width: 140px; height: 50px;">HPG Officer</div>
+                <div class="entity" style="left: 950px; top: 50px; width: 140px; height: 50px;">Insurance Verifier</div>
+                <div class="entity" style="left: 1180px; top: 50px; width: 140px; height: 50px;">LTO Officer</div>
+                <!-- Processes – Top row: 1.0, 2.0, 3.0, 4.0 -->
+                <div class="process" style="left: 50px; top: 200px; width: 200px; height: 90px;">
+                    <span class="process-number">1.0</span>
+                    <span class="process-name">Handle Vehicle<br>Registration</span>
+                </div>
+                <div class="process" style="left: 350px; top: 200px; width: 200px; height: 90px;">
+                    <span class="process-number">2.0</span>
+                    <span class="process-name">Manage<br>Documents</span>
+                </div>
+                <div class="process" style="left: 650px; top: 200px; width: 200px; height: 90px;">
+                    <span class="process-number">3.0</span>
+                    <span class="process-name">Process Transfer<br>of Ownership</span>
+                </div>
+                <div class="process" style="left: 950px; top: 200px; width: 200px; height: 90px;">
+                    <span class="process-number">4.0</span>
+                    <span class="process-name">Verify<br>Applications</span>
+                </div>
+                <!-- Processes – Middle row: 5.0, 6.0 -->
+                <div class="process" style="left: 400px; top: 400px; width: 200px; height: 90px;">
+                    <span class="process-number">5.0</span>
+                    <span class="process-name">Record to<br>Blockchain</span>
+                </div>
+                <div class="process" style="left: 700px; top: 400px; width: 200px; height: 90px;">
+                    <span class="process-number">6.0</span>
+                    <span class="process-name">Update<br>Records</span>
+                </div>
+                <!-- Processes – Bottom row: 7.0 -->
+                <div class="process" style="left: 550px; top: 600px; width: 200px; height: 90px;">
+                    <span class="process-number">7.0</span>
+                    <span class="process-name">Generate<br>Certificates</span>
+                </div>
+                <!-- Data stores – bottom row, aligned with processes above -->
+                <div class="data-store" style="left: 50px; top: 800px; width: 180px; height: 60px;">
+                    <div class="data-store-label">D1 Blockchain Ledger</div>
+                </div>
+                <div class="data-store" style="left: 350px; top: 800px; width: 180px; height: 60px;">
+                    <div class="data-store-label">D2 Application Database</div>
+                </div>
+                <div class="data-store" style="left: 650px; top: 800px; width: 180px; height: 60px;">
+                    <div class="data-store-label">D3 Document Storage</div>
+                </div>
+                <div class="data-store" style="left: 950px; top: 800px; width: 180px; height: 60px;">
+                    <div class="data-store-label">D4 Vehicle Records</div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend">
+                <h3 class="legend-title">DFD Symbols Legend</h3>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <div class="legend-symbol legend-process">
+                            <span class="num">1.0</span>
+                            <span style="padding: 8px 12px; display: flex; align-items: center;">Process</span>
+                        </div>
+                        <div class="legend-description">
+                            <h4>Process (Gane &amp; Sarson)</h4>
+                            <p>Rounded rectangle with vertical bar; left = number, right = name. A function or transformation of data.</p>
+                        </div>
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="legend-symbol legend-entity">
+                            External Entity
+                        </div>
+                        <div class="legend-description">
+                            <h4>External Entity (Gane &amp; Sarson)</h4>
+                            <p>Rectangle, no rounded corners. An external person, organization, or system.</p>
+                        </div>
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="legend-symbol legend-data-store">
+                            <div class="data-store-label">D1<br>Data Store</div>
+                        </div>
+                        <div class="legend-description">
+                            <h4>Data Store (Gane &amp; Sarson)</h4>
+                            <p>Open rectangle (parallel lines). A repository where data is stored (D1, D2, …).</p>
+                        </div>
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="legend-symbol" style="display: flex; align-items: center; justify-content: center;">
+                            <div style="width: 60px; height: 3px; background: #4a5568; position: relative;">
+                                <div style="position: absolute; right: -8px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 10px solid #4a5568; border-top: 6px solid transparent; border-bottom: 6px solid transparent;"></div>
+                            </div>
+                        </div>
+                        <div class="legend-description">
+                            <h4>Data Flow (Arrow)</h4>
+                            <p>Represents the movement of data between processes, entities, and data stores</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

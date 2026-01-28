@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conceptual Framework - Blockchain Vehicle Registration System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #000000;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 50px 40px;
+            background: #f8f9fa;
+        }
+
+        .framework-title {
+            text-align: center;
+            font-size: 2em;
+            color: #000000;
+            margin-bottom: 50px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .framework {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 40px;
+            position: relative;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-bottom: 100px;
+        }
+
+        .framework-box {
+            background: white;
+            border: 3px solid #4a5568;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .framework-box h2 {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #000000;
+            margin-bottom: 20px;
+            text-align: center;
+            text-transform: uppercase;
+            border-bottom: 3px solid #4a5568;
+            padding-bottom: 10px;
+        }
+
+        .input-box {
+            grid-column: 1;
+            grid-row: 1 / 3;
+            background: #e3f2fd;
+        }
+
+        .process-box {
+            grid-column: 2;
+            grid-row: 1;
+            background: #fff3e0;
+        }
+
+        .output-box {
+            grid-column: 3;
+            grid-row: 1 / 3;
+            background: #e8f5e9;
+        }
+
+        .evaluation-box {
+            grid-column: 2;
+            grid-row: 2;
+            background: #fce4ec;
+        }
+
+        .framework-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .framework-box li {
+            padding: 8px 0;
+            color: #000000;
+            font-size: 0.95em;
+            border-bottom: 1px solid rgba(74, 85, 104, 0.2);
+        }
+
+        .framework-box li:last-child {
+            border-bottom: none;
+        }
+
+        .framework-box li::before {
+            content: 'â€¢ ';
+            color: #4a5568;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+
+        .category-title {
+            font-weight: 700;
+            color: #000000;
+            font-size: 1.05em;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .category-title:first-child {
+            margin-top: 0;
+        }
+
+        .output-box .system-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #000000;
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 6px;
+            margin-top: 10px;
+            border: 2px solid #4a5568;
+        }
+
+        /* Downward arrows from boxes */
+        .input-box::after {
+            content: '';
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 40px;
+            background: #4a5568;
+            z-index: 10;
+        }
+
+        .input-box::before {
+            content: '';
+            position: absolute;
+            bottom: -48px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-top: 10px solid #4a5568;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            z-index: 10;
+        }
+
+        .process-box::after {
+            content: '';
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 40px;
+            background: #4a5568;
+            z-index: 10;
+        }
+
+        .process-box::before {
+            content: '';
+            position: absolute;
+            bottom: -48px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-top: 10px solid #4a5568;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            z-index: 10;
+        }
+
+        .evaluation-box::after {
+            content: '';
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 40px;
+            background: #4a5568;
+            z-index: 10;
+        }
+
+        .evaluation-box::before {
+            content: '';
+            position: absolute;
+            bottom: -48px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-top: 10px solid #4a5568;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            z-index: 10;
+        }
+
+        /* Horizontal connectors positioned in framework */
+        /* Connector from INPUT (center at ~16.66%) to PROCESS (center at ~50%) */
+        .connector-input-process {
+            position: absolute;
+            bottom: -40px;
+            left: calc(16.66% + 20px);
+            width: calc(33.33% - 40px);
+            height: 3px;
+            background: #4a5568;
+            z-index: 10;
+        }
+
+        /* Connector from EVALUATION (center at ~50%) to OUTPUT (lower connection at ~83.33%) */
+        .connector-evaluation-output {
+            position: absolute;
+            bottom: -40px;
+            left: calc(50% + 20px);
+            width: calc(33.33% - 40px);
+            height: 3px;
+            background: #4a5568;
+            z-index: 10;
+        }
+
+        .connector-evaluation-output::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid #4a5568;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        /* OUTPUT box: Upper outgoing arrow */
+        .output-box .arrow-upper {
+            position: absolute;
+            top: 33%;
+            right: -40px;
+            width: 40px;
+            height: 3px;
+            background: #4a5568;
+            z-index: 10;
+        }
+
+        .output-box .arrow-upper::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid #4a5568;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        /* OUTPUT box: Lower outgoing arrow */
+        .output-box .arrow-lower {
+            position: absolute;
+            bottom: 33%;
+            right: -40px;
+            width: 40px;
+            height: 3px;
+            background: #4a5568;
+            z-index: 10;
+        }
+
+        .output-box .arrow-lower::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid #4a5568;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        /* Feedback loops from OUTPUT back to PROCESS (upper) */
+        .feedback-upper {
+            position: absolute;
+            top: 33%;
+            right: calc(33.33% - 40px);
+            width: calc(66.66% + 80px);
+            height: 3px;
+            background: #4a5568;
+            z-index: 5;
+        }
+
+        .feedback-upper::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-right: 10px solid #4a5568;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        .feedback-upper::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid #4a5568;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        /* Feedback loops from OUTPUT back to INPUT (lower) */
+        .feedback-lower {
+            position: absolute;
+            bottom: calc(33% + 40px);
+            right: calc(33.33% - 40px);
+            width: calc(66.66% + 80px);
+            height: 3px;
+            background: #4a5568;
+            z-index: 5;
+        }
+
+        .feedback-lower::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-right: 10px solid #4a5568;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        .feedback-lower::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid #4a5568;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+
+        @media (max-width: 1024px) {
+            .framework {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+            }
+
+            .input-box, .process-box, .output-box, .evaluation-box {
+                grid-column: 1;
+            }
+
+            .connector-input-process,
+            .connector-evaluation-output,
+            .arrow-upper,
+            .arrow-lower,
+            .feedback-upper,
+            .feedback-lower {
+                display: none;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+
+            header {
+                background: #4a5568 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Conceptual Framework</h1>
+            <p>Blockchain-Based Vehicle Registration and Transfer of Ownership System</p>
+        </header>
+
+        <section class="content">
+            <h2 class="framework-title">Conceptual Framework</h2>
+
+            <div class="framework">
+                <div class="framework-box input-box">
+                    <h2>Input</h2>
+                    <ul>
+                        <li class="category-title">Knowledge Requirements:</li>
+                        <li>Blockchain Technology (Hyperledger Fabric)</li>
+                        <li>Smart Contract Development</li>
+                        <li>Web Application Development</li>
+                        <li>Database Design (PostgreSQL)</li>
+                        <li>API Integration</li>
+                        <li>IPFS (InterPlanetary File System)</li>
+                        <li>Cryptography & Security</li>
+                        <li>UI/UX Design</li>
+                        <li>System Architecture</li>
+                        <li>Vehicle Registration Processes</li>
+                        
+                        <li class="category-title">Software Requirements:</li>
+                        <li>Operating System (Linux/Windows)</li>
+                        <li>Node.js & Express.js</li>
+                        <li>Hyperledger Fabric Network</li>
+                        <li>PostgreSQL Database</li>
+                        <li>IPFS Node</li>
+                        <li>IDE (VS Code / Cursor)</li>
+                        <li>Docker & Docker Compose</li>
+                        <li>Git Version Control</li>
+                        
+                        <li class="category-title">Hardware Requirements:</li>
+                        <li>Server/Computer (Multi-core CPU)</li>
+                        <li>RAM (Minimum 8GB, Recommended 16GB+)</li>
+                        <li>Storage Space (SSD Recommended)</li>
+                        <li>Network Connectivity</li>
+                        <li>Blockchain Network Infrastructure</li>
+                    </ul>
+                </div>
+
+                <div class="framework-box input-box">
+                    <h2>Input</h2>
+                    <ul>
+                        <li class="category-title">Knowledge Requirements:</li>
+                        <li>Blockchain Technology (Hyperledger Fabric)</li>
+                        <li>Smart Contract Development</li>
+                        <li>Web Application Development</li>
+                        <li>Database Design (PostgreSQL)</li>
+                        <li>API Integration</li>
+                        <li>IPFS (InterPlanetary File System)</li>
+                        <li>Cryptography & Security</li>
+                        <li>UI/UX Design</li>
+                        <li>System Architecture</li>
+                        <li>Vehicle Registration Processes</li>
+                        
+                        <li class="category-title">Software Requirements:</li>
+                        <li>Operating System (Linux/Windows)</li>
+                        <li>Node.js & Express.js</li>
+                        <li>Hyperledger Fabric Network</li>
+                        <li>PostgreSQL Database</li>
+                        <li>IPFS Node</li>
+                        <li>IDE (VS Code / Cursor)</li>
+                        <li>Docker & Docker Compose</li>
+                        <li>Git Version Control</li>
+                        
+                        <li class="category-title">Hardware Requirements:</li>
+                        <li>Server/Computer (Multi-core CPU)</li>
+                        <li>RAM (Minimum 8GB, Recommended 16GB+)</li>
+                        <li>Storage Space (SSD Recommended)</li>
+                        <li>Network Connectivity</li>
+                        <li>Blockchain Network Infrastructure</li>
+                    </ul>
+                </div>
+
+                <div class="framework-box process-box">
+                    <h2>Process</h2>
+                    <ul>
+                        <li>System Analysis & Design</li>
+                        <li>Blockchain Network Setup</li>
+                        <li>Smart Contract Development</li>
+                        <li>Database Schema Design</li>
+                        <li>Backend API Development</li>
+                        <li>Frontend Development</li>
+                        <li>IPFS Integration</li>
+                        <li>Document Management System</li>
+                        <li>User Authentication & Authorization</li>
+                        <li>Multi-Organization Workflow</li>
+                        <li>Testing & Quality Assurance</li>
+                        <li>System Integration</li>
+                        <li>Deployment & Configuration</li>
+                    </ul>
+                </div>
+
+                <div class="framework-box evaluation-box">
+                    <h2>Evaluation</h2>
+                    <ul>
+                        <li>System Functionality Testing</li>
+                        <li>Blockchain Transaction Verification</li>
+                        <li>Security Assessment</li>
+                        <li>Performance Testing</li>
+                        <li>User Acceptance Testing</li>
+                        <li>Document Integrity Validation</li>
+                        <li>Multi-Organization Workflow Testing</li>
+                        <li>Data Accuracy Verification</li>
+                        <li>System Reliability Assessment</li>
+                        <li>Compliance Checking</li>
+                        <li>User Feedback Collection</li>
+                        <li>System Optimization</li>
+                    </ul>
+                </div>
+
+                <div class="framework-box output-box">
+                    <div class="arrow-upper"></div>
+                    <div class="arrow-lower"></div>
+                    <h2>Output</h2>
+                    <div class="system-name">
+                        Blockchain-Based Vehicle Registration<br>
+                        and Transfer of Ownership System
+                    </div>
+                    <ul>
+                        <li class="category-title">Core Features:</li>
+                        <li>Vehicle Registration Module</li>
+                        <li>Transfer of Ownership Module</li>
+                        <li>Document Management (IPFS)</li>
+                        <li>Blockchain Ledger Integration</li>
+                        <li>Multi-Organization Verification</li>
+                        <li>HPG Clearance System</li>
+                        <li>Insurance Verification</li>
+                        <li>Admin Dashboard</li>
+                        <li>Owner Dashboard</li>
+                        <li>Certificate Generation (OR/CR)</li>
+                        <li>MVIR (Motor Vehicle Inspection Report)</li>
+                        <li>Audit Trail & History</li>
+                        <li>Email Notifications</li>
+                        <li>Public Vehicle Search</li>
+                    </ul>
+                </div>
+
+                <!-- Horizontal connectors -->
+                <div class="connector-input-process"></div>
+                <div class="connector-evaluation-output"></div>
+
+                <!-- Feedback loops from OUTPUT -->
+                <div class="feedback-upper"></div>
+                <div class="feedback-lower"></div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

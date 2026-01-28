@@ -183,53 +183,57 @@
                         <div class="card-header">
                             <h3><i class="fas fa-clipboard-check"></i> Inspection Details</h3>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body inspection-card-body">
                             <form id="inspectionForm">
-                                <div class="form-group">
-                                    <label>Inspection Result <span class="required">*</span></label>
-                                    <div class="radio-group">
-                                        <label class="radio-label">
-                                            <input type="radio" name="inspectionResult" value="PASS" required>
-                                            <span>PASS</span>
-                                        </label>
-                                        <label class="radio-label">
-                                            <input type="radio" name="inspectionResult" value="FAIL" required>
-                                            <span>FAIL</span>
-                                        </label>
+                                <!-- Primary inspection decisions -->
+                                <div class="inspection-grid-2col">
+                                    <div class="form-group">
+                                        <label>Inspection Result <span class="required">*</span></label>
+                                        <div class="radio-group">
+                                            <label class="radio-label">
+                                                <input type="radio" name="inspectionResult" value="PASS" required>
+                                                <span>PASS</span>
+                                            </label>
+                                            <label class="radio-label">
+                                                <input type="radio" name="inspectionResult" value="FAIL" required>
+                                                <span>FAIL</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Roadworthiness Status <span class="required">*</span></label>
+                                        <div class="radio-group">
+                                            <label class="radio-label">
+                                                <input type="radio" name="roadworthinessStatus" value="ROADWORTHY" required>
+                                                <span>ROADWORTHY</span>
+                                            </label>
+                                            <label class="radio-label">
+                                                <input type="radio" name="roadworthinessStatus" value="NOT_ROADWORTHY" required>
+                                                <span>NOT ROADWORTHY</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group inspection-full-width">
+                                        <label>Emission Compliance <span class="required">*</span></label>
+                                        <div class="radio-group">
+                                            <label class="radio-label">
+                                                <input type="radio" name="emissionCompliance" value="COMPLIANT" required>
+                                                <span>COMPLIANT</span>
+                                            </label>
+                                            <label class="radio-label">
+                                                <input type="radio" name="emissionCompliance" value="NON_COMPLIANT" required>
+                                                <span>NON-COMPLIANT</span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label>Roadworthiness Status <span class="required">*</span></label>
-                                    <div class="radio-group">
-                                        <label class="radio-label">
-                                            <input type="radio" name="roadworthinessStatus" value="ROADWORTHY" required>
-                                            <span>ROADWORTHY</span>
-                                        </label>
-                                        <label class="radio-label">
-                                            <input type="radio" name="roadworthinessStatus" value="NOT_ROADWORTHY" required>
-                                            <span>NOT ROADWORTHY</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Emission Compliance <span class="required">*</span></label>
-                                    <div class="radio-group">
-                                        <label class="radio-label">
-                                            <input type="radio" name="emissionCompliance" value="COMPLIANT" required>
-                                            <span>COMPLIANT</span>
-                                        </label>
-                                        <label class="radio-label">
-                                            <input type="radio" name="emissionCompliance" value="NON_COMPLIANT" required>
-                                            <span>NON-COMPLIANT</span>
-                                        </label>
-                                    </div>
-                                </div>
-
+                                <!-- Officer + notes -->
                                 <div class="form-group">
                                     <label for="inspectionOfficer">Inspection Officer <span class="required">*</span></label>
-                                    <input type="text" id="inspectionOfficer" class="form-control" required>
+                                    <input type="text" id="inspectionOfficer" class="form-control" required placeholder="Enter inspecting officer's full name">
                                     <small class="form-text text-muted">Name of the LTO officer performing the inspection</small>
                                 </div>
 
@@ -240,17 +244,20 @@
 
                                 <hr style="margin: 2rem 0; border-color: #e0e0e0;">
 
-                                <div class="form-group">
-                                    <label for="mvirDocument"><i class="fas fa-file-pdf"></i> MVIR Document <span class="required">*</span></label>
-                                    <input type="file" id="mvirDocument" name="mvirDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
-                                    <small class="form-text text-muted">Upload MVIR/Roadworthiness certificate (PDF or image)</small>
-                                </div>
+                                <!-- Uploads -->
+                                <div class="inspection-upload-grid">
+                                    <div class="form-group">
+                                        <label for="mvirDocument"><i class="fas fa-file-pdf"></i> MVIR Document <span class="required">*</span></label>
+                                        <input type="file" id="mvirDocument" name="mvirDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+                                        <small class="form-text text-muted">Upload MVIR/Roadworthiness certificate (PDF or image)</small>
+                                    </div>
 
-                                <div class="form-group">
-                                    <label for="vehiclePhotos"><i class="fas fa-images"></i> Vehicle Photos <span class="required">*</span></label>
-                                    <input type="file" id="vehiclePhotos" name="vehiclePhotos" class="form-control" accept=".jpg,.jpeg,.png,.gif" multiple required>
-                                    <small class="form-text text-muted">Upload photos of the vehicle (at least 1 photo required)</small>
-                                    <div id="photoPreview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem;"></div>
+                                    <div class="form-group">
+                                        <label for="vehiclePhotos"><i class="fas fa-images"></i> Vehicle Photos <span class="required">*</span></label>
+                                        <input type="file" id="vehiclePhotos" name="vehiclePhotos" class="form-control" accept=".jpg,.jpeg,.png,.gif" multiple required>
+                                        <small class="form-text text-muted">Upload photos of the vehicle (at least 1 photo required)</small>
+                                        <div id="photoPreview"></div>
+                                    </div>
                                 </div>
 
                                 <div class="form-group">
@@ -527,6 +534,97 @@
             gap: 1rem;
             justify-content: flex-end;
             margin-top: 2rem;
+        }
+
+        /* Modern HTML5-style inspection layout */
+        .inspection-card-body {
+            background: radial-gradient(circle at top left, rgba(224, 242, 254, 0.35) 0, #ffffff 55%);
+            border-radius: 0 0 1rem 1rem;
+        }
+
+        .inspection-grid-2col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .inspection-grid-2col .inspection-full-width {
+            grid-column: 1 / -1;
+        }
+
+        .inspection-upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem 1.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        #inspectionForm .form-control,
+        #inspectionForm textarea {
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            padding: 0.75rem 0.9rem;
+            font-size: 0.95rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+        }
+
+        #inspectionForm .form-control:focus,
+        #inspectionForm textarea:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            background-color: #f0f9ff;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.18);
+        }
+
+        #inspectionForm .form-group label {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        #inspectionForm .form-text {
+            font-size: 0.8rem;
+        }
+
+        /* More touch-friendly radio layout */
+        #inspectionForm .radio-group {
+            flex-wrap: wrap;
+        }
+
+        #inspectionForm .radio-label span {
+            font-size: 0.9rem;
+        }
+
+        /* Buttons */
+        #inspectionForm .form-actions .btn-primary,
+        #inspectionForm .form-actions .btn-secondary {
+            min-width: 150px;
+            min-height: 44px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        #inspectionForm .form-actions .btn-primary {
+            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+            border: none;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+        }
+
+        #inspectionForm .form-actions .btn-primary:hover {
+            background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+        }
+
+        #inspectionForm .form-actions .btn-secondary {
+            background: #e5e7eb;
+            border: none;
+            color: #111827;
         }
 
         /* File upload styling */

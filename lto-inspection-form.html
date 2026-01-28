@@ -197,15 +197,21 @@
 
                     <!-- Inspection Form -->
                     <div class="dashboard-card" id="inspectionFormCard" style="display: none;">
-                        <div class="card-header">
-                            <h3><i class="fas fa-clipboard-check"></i> Inspection Details</h3>
+                        <div class="card-header inspection-header">
+                            <div class="inspection-header-main">
+                                <h3><i class="fas fa-clipboard-check"></i> Inspection Details</h3>
+                                <p class="inspection-header-subtitle">Record the official on-site findings for this vehicle.</p>
+                            </div>
                         </div>
                         <div class="card-body inspection-card-body">
                             <form id="inspectionForm">
                                 <!-- Primary inspection decisions -->
                                 <div class="inspection-grid-2col">
-                                    <div class="form-group">
-                                        <label>Inspection Result <span class="required">*</span></label>
+                                    <div class="form-group inspection-field">
+                                        <div class="inspection-field-header">
+                                            <label>Inspection Result <span class="required">*</span></label>
+                                            <span class="inspection-field-hint">Overall outcome of the physical inspection</span>
+                                        </div>
                                         <div class="radio-group">
                                             <label class="radio-label">
                                                 <input type="radio" name="inspectionResult" value="PASS" required>
@@ -218,8 +224,11 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label>Roadworthiness Status <span class="required">*</span></label>
+                                    <div class="form-group inspection-field">
+                                        <div class="inspection-field-header">
+                                            <label>Roadworthiness Status <span class="required">*</span></label>
+                                            <span class="inspection-field-hint">Is the vehicle safe and fit for road use?</span>
+                                        </div>
                                         <div class="radio-group">
                                             <label class="radio-label">
                                                 <input type="radio" name="roadworthinessStatus" value="ROADWORTHY" required>
@@ -232,8 +241,11 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group inspection-full-width">
-                                        <label>Emission Compliance <span class="required">*</span></label>
+                                    <div class="form-group inspection-full-width inspection-field">
+                                        <div class="inspection-field-header">
+                                            <label>Emission Compliance <span class="required">*</span></label>
+                                            <span class="inspection-field-hint">Verify that the vehicle meets emission standards.</span>
+                                        </div>
                                         <div class="radio-group">
                                             <label class="radio-label">
                                                 <input type="radio" name="emissionCompliance" value="COMPLIANT" required>
@@ -617,17 +629,28 @@
         }
         .radio-group {
             display: flex;
-            gap: 1.5rem;
+            gap: 0.75rem;
             margin-top: 0.5rem;
         }
         .radio-label {
-            display: flex;
+            position: relative;
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
             cursor: pointer;
+            padding: 0.4rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+            font-size: 0.9rem;
+            color: #111827;
+            transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
         }
         .radio-label input[type="radio"] {
             cursor: pointer;
+            position: absolute;
+            opacity: 0;
+            inset: 0;
         }
         .form-actions {
             display: flex;
@@ -687,13 +710,91 @@
             font-size: 0.8rem;
         }
 
-        /* More touch-friendly radio layout */
+        /* More touch-friendly, modern radio layout */
         #inspectionForm .radio-group {
             flex-wrap: wrap;
         }
 
         #inspectionForm .radio-label span {
             font-size: 0.9rem;
+        }
+
+        #inspectionForm .radio-label:hover {
+            border-color: #0ea5e9;
+            background-color: #f0f9ff;
+        }
+
+        #inspectionForm .radio-label input[type="radio"]:checked + span {
+            color: #0b1120;
+        }
+
+        #inspectionForm .radio-label input[type="radio"]:checked ~ span,
+        #inspectionForm .radio-label input[type="radio"]:checked ~ span + span {
+            /* fallback selector; main visual state is on container */
+        }
+
+        #inspectionForm .radio-label input[type="radio"]:checked {
+            /* styling applied via container using :has in supporting browsers */
+        }
+
+        /* Use :has where supported to highlight selected pill while remaining graceful elsewhere */
+        @supports(selector(.radio-label:has(input[type="radio"]:checked))) {
+            #inspectionForm .radio-label:has(input[type="radio"]:checked) {
+                border-color: #0ea5e9;
+                background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 60%);
+                box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.35);
+                color: #0b1120;
+            }
+        }
+
+        .inspection-header {
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .inspection-header-main h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .inspection-header-subtitle {
+            margin: 0.25rem 0 0;
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .inspection-field {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 0.75rem;
+            padding: 0.75rem 0.85rem 0.85rem;
+            border: 1px solid transparent;
+            transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+        }
+
+        .inspection-field:hover {
+            border-color: #e5e7eb;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+        }
+
+        .inspection-field-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .inspection-field-header label {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .inspection-field-hint {
+            font-size: 0.75rem;
+            color: #6b7280;
         }
 
         /* Buttons */

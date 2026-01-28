@@ -140,11 +140,28 @@
                     </div>
 
                     <!-- Vehicle Information (Read-only) -->
-                    <div class="dashboard-card" id="vehicleInfoCard" style="display: none;">
+                    <div class="dashboard-card vehicle-info-card" id="vehicleInfoCard" style="display: none;">
                         <div class="card-header">
-                            <h3><i class="fas fa-info-circle"></i> Vehicle Information</h3>
+                            <h3>
+                                <i class="fas fa-info-circle"></i>
+                                Vehicle Information
+                                <span class="vehicle-tag">Linked from registration</span>
+                            </h3>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body vehicle-info-body">
+                            <div class="vehicle-summary">
+                                <div class="vehicle-summary-main">
+                                    <div class="vehicle-plate" id="vehiclePlateDisplay">—</div>
+                                    <div class="vehicle-meta">
+                                        <span id="vehicleMakeModelDisplay">Make / Model</span>
+                                        <span id="vehicleYearDisplay">Year</span>
+                                    </div>
+                                </div>
+                                <div class="vehicle-owner">
+                                    <span class="owner-label">Owner</span>
+                                    <span class="owner-name" id="ownerNameDisplay">—</span>
+                                </div>
+                            </div>
                             <div class="vehicle-details-grid">
                                 <div class="detail-item">
                                     <label>Owner Name</label>
@@ -498,22 +515,105 @@
             padding: 0;
         }
         
+        .vehicle-info-card .card-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .vehicle-info-card .vehicle-tag {
+            margin-left: auto;
+            font-size: 0.75rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            background: #e0f2fe;
+            color: #0369a1;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .vehicle-info-body {
+            background: radial-gradient(circle at top left, rgba(224, 242, 254, 0.45) 0, #ffffff 55%);
+            border-radius: 0 0 1rem 1rem;
+        }
+
+        .vehicle-summary {
+            display: flex;
+            justify-content: space-between;
+            gap: 1.5rem;
+            padding: 0.75rem 1rem 1rem;
+            border-radius: 0.75rem;
+            background: rgba(15, 23, 42, 0.03);
+            margin-bottom: 1rem;
+        }
+
+        .vehicle-summary-main {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .vehicle-plate {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.5rem;
+            background: #111827;
+            color: #f9fafb;
+            display: inline-block;
+        }
+
+        .vehicle-meta span {
+            display: block;
+            font-size: 0.85rem;
+            color: #4b5563;
+        }
+
+        .vehicle-owner {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 0.1rem;
+        }
+
+        .vehicle-owner .owner-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+        }
+
+        .vehicle-owner .owner-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
         .vehicle-details-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
             gap: 1rem;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
         }
+
         .detail-item label {
             display: block;
             font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: #2c3e50;
+            margin-bottom: 0.25rem;
+            color: #1f2933;
+            font-size: 0.85rem;
         }
+
         .readonly-field {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            color: #495057;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            color: #111827;
+            border-radius: 0.5rem;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.9rem;
         }
         .radio-group {
             display: flex;

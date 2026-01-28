@@ -213,11 +213,11 @@
                                             <span class="inspection-field-hint">Overall outcome of the physical inspection</span>
                                         </div>
                                         <div class="radio-group">
-                                            <label class="radio-label">
+                                            <label class="radio-label radio-positive">
                                                 <input type="radio" name="inspectionResult" value="PASS" required>
                                                 <span>PASS</span>
                                             </label>
-                                            <label class="radio-label">
+                                            <label class="radio-label radio-negative">
                                                 <input type="radio" name="inspectionResult" value="FAIL" required>
                                                 <span>FAIL</span>
                                             </label>
@@ -230,11 +230,11 @@
                                             <span class="inspection-field-hint">Is the vehicle safe and fit for road use?</span>
                                         </div>
                                         <div class="radio-group">
-                                            <label class="radio-label">
+                                            <label class="radio-label radio-positive">
                                                 <input type="radio" name="roadworthinessStatus" value="ROADWORTHY" required>
                                                 <span>ROADWORTHY</span>
                                             </label>
-                                            <label class="radio-label">
+                                            <label class="radio-label radio-negative">
                                                 <input type="radio" name="roadworthinessStatus" value="NOT_ROADWORTHY" required>
                                                 <span>NOT ROADWORTHY</span>
                                             </label>
@@ -247,11 +247,11 @@
                                             <span class="inspection-field-hint">Verify that the vehicle meets emission standards.</span>
                                         </div>
                                         <div class="radio-group">
-                                            <label class="radio-label">
+                                            <label class="radio-label radio-positive">
                                                 <input type="radio" name="emissionCompliance" value="COMPLIANT" required>
                                                 <span>COMPLIANT</span>
                                             </label>
-                                            <label class="radio-label">
+                                            <label class="radio-label radio-negative">
                                                 <input type="radio" name="emissionCompliance" value="NON_COMPLIANT" required>
                                                 <span>NON-COMPLIANT</span>
                                             </label>
@@ -667,13 +667,13 @@
 
         .inspection-grid-2col {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 1.25rem 1.5rem;
             margin-bottom: 1.5rem;
         }
 
         .inspection-grid-2col .inspection-full-width {
-            grid-column: 1 / -1;
+            grid-column: 3 span;
         }
 
         .inspection-upload-grid {
@@ -720,30 +720,51 @@
         }
 
         #inspectionForm .radio-label:hover {
-            border-color: #0ea5e9;
-            background-color: #f0f9ff;
+            border-color: #9ca3af;
+            background-color: #f9fafb;
         }
 
+        /* Default neutral state */
+        #inspectionForm .radio-label {
+            border-color: #d1d5db;
+            background-color: #ffffff;
+            color: #374151;
+        }
+
+        /* Fallback: slight emphasis when checked (without color semantics) */
         #inspectionForm .radio-label input[type="radio"]:checked + span {
             color: #0b1120;
+            font-weight: 600;
         }
 
-        #inspectionForm .radio-label input[type="radio"]:checked ~ span,
-        #inspectionForm .radio-label input[type="radio"]:checked ~ span + span {
-            /* fallback selector; main visual state is on container */
-        }
-
-        #inspectionForm .radio-label input[type="radio"]:checked {
-            /* styling applied via container using :has in supporting browsers */
-        }
-
-        /* Use :has where supported to highlight selected pill while remaining graceful elsewhere */
+        /* Use :has where supported to highlight selected pill with semantic colors */
         @supports(selector(.radio-label:has(input[type="radio"]:checked))) {
-            #inspectionForm .radio-label:has(input[type="radio"]:checked) {
-                border-color: #0ea5e9;
-                background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 60%);
-                box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.35);
-                color: #0b1120;
+            /* Positive selections */
+            #inspectionForm .radio-label.radio-positive:has(input[type="radio"]:checked) {
+                border-color: #22c55e;
+                background: #ecfdf3;
+                color: #166534;
+                box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35);
+            }
+
+            /* Negative selections */
+            #inspectionForm .radio-label.radio-negative:has(input[type="radio"]:checked) {
+                border-color: #ef4444;
+                background: #fef2f2;
+                color: #b91c1c;
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+            }
+
+            /* Maintain neutral for unselected */
+            #inspectionForm .radio-label.radio-positive:not(:has(input[type="radio"]:checked)),
+            #inspectionForm .radio-label.radio-negative:not(:has(input[type="radio"]:checked)) {
+                box-shadow: none;
+            }
+
+            /* Focus-visible outline for accessibility */
+            #inspectionForm .radio-label:has(input[type="radio"]:focus-visible) {
+                outline: 2px solid #0ea5e9;
+                outline-offset: 2px;
             }
         }
 
@@ -875,6 +896,17 @@
         .required {
             color: #dc2626;
             font-weight: bold;
+        }
+
+        /* Responsive stacking for inspection grid */
+        @media (max-width: 768px) {
+            .inspection-grid-2col {
+                grid-template-columns: 1fr;
+            }
+
+            .inspection-grid-2col .inspection-full-width {
+                grid-column: 1 / -1;
+            }
         }
     </style>
     <script>

@@ -5,7 +5,405 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Verification Workspace - Admin Dashboard</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ============================================
+           LIGHT THEME ADMIN DASHBOARD (Matches transfer-details/dashboard)
+           ============================================ */
+
+        /* Light Sidebar - White with Subtle Blue Gradient */
+        .dashboard-sidebar {
+            background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 40%, #ffffff 100%) !important;
+            border-right: 1px solid #e0f2fe;
+            transition: width 0.3s ease-in-out;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+        }
+
+        .dashboard-sidebar .sidebar-header {
+            border-bottom: 1px solid #e0f2fe;
+        }
+
+        .dashboard-sidebar .logo-icon {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: #ffffff;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .dashboard-sidebar .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .dashboard-sidebar .logo-icon:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        }
+
+        .dashboard-sidebar .logo-icon:hover img {
+            opacity: 0.95;
+            transform: scale(1.05);
+        }
+
+        .dashboard-sidebar .logo-icon:active {
+            transform: scale(0.95);
+        }
+
+        .dashboard-sidebar .logo-icon:active img {
+            transform: scale(0.95);
+        }
+
+        .dashboard-sidebar .logo-text h2 {
+            color: #0c4a6e;
+        }
+
+        .dashboard-sidebar .logo-text p {
+            color: #64748b;
+        }
+
+        .dashboard-sidebar .nav-item {
+            color: #475569;
+            transition: all 0.2s ease;
+        }
+
+        .dashboard-sidebar .nav-item:hover {
+            background: #f0f9ff;
+            color: #0284c7;
+        }
+
+        .dashboard-sidebar .nav-item.active {
+            background: #87ceeb;
+            color: #0284c7;
+            border-left: 3px solid #0ea5e9;
+        }
+
+        .dashboard-sidebar .nav-item.active i {
+            color: #0284c7;
+        }
+
+        .dashboard-sidebar .nav-item i {
+            color: #64748b;
+        }
+
+        .dashboard-sidebar .nav-item:hover i {
+            color: #0284c7;
+        }
+
+        .dashboard-sidebar .sidebar-footer {
+            border-top: 1px solid #e0f2fe;
+        }
+
+        .dashboard-sidebar .sidebar-user-profile {
+            color: #1e293b;
+        }
+
+        .dashboard-sidebar .sidebar-user-name {
+            color: #000000 !important;
+            font-weight: 600;
+        }
+
+        .dashboard-sidebar .sidebar-user-avatar {
+            color: #000000 !important;
+        }
+
+        .dashboard-sidebar .sidebar-user-role {
+            color: #000000 !important;
+        }
+
+        .dashboard-sidebar .sidebar-nav .nav-item span {
+            color: inherit;
+        }
+
+        .dashboard-sidebar .sidebar-action-item {
+            color: #000000;
+        }
+
+        .dashboard-sidebar .sidebar-action-item span {
+            color: inherit;
+        }
+
+        .dashboard-sidebar .sidebar-action-item:hover {
+            background: #f0f9ff;
+            color: #0284c7;
+        }
+
+        .dashboard-sidebar .sidebar-action-item:hover span {
+            color: #0284c7;
+        }
+
+        /* Logout button - solid red */
+        .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn {
+            color: #ff0000 !important;
+        }
+
+        .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn span,
+        .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn i {
+            color: #ff0000 !important;
+        }
+
+        .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover {
+            background: #fee2e2;
+            color: #dc2626 !important;
+        }
+
+        .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover span,
+        .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover i {
+            color: #dc2626 !important;
+        }
+
+        /* Main Content Area - Light Background */
+        .dashboard-main {
+            background: #f8fafc;
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        .dashboard-content {
+            padding: 2rem;
+            max-width: 100%;
+        }
+
+        .dashboard-content .container {
+            max-width: 100%;
+            padding: 0;
+        }
+
+        /* Ensure all dashboard text is dark and readable on white background */
+        .dashboard-content,
+        .dashboard-content h1,
+        .dashboard-content h2,
+        .dashboard-content h3,
+        .dashboard-content h4,
+        .dashboard-content h5,
+        .dashboard-content p,
+        .dashboard-content span,
+        .dashboard-content label,
+        .dashboard-content td,
+        .dashboard-content th {
+            color: #0f172a;
+        }
+
+        /* White Header with Subtle Shadow */
+        .dashboard-header {
+            background: #ffffff;
+            border-bottom: 1px solid #e0f2fe;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+
+        .dashboard-header .logo h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0c4a6e;
+            letter-spacing: -0.01em;
+        }
+
+        /* Verification layout (similar to transfer details layout) */
+        .verification-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 2.2fr) minmax(320px, 1fr);
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+
+        .verification-viewer .dashboard-card,
+        .verification-tools .dashboard-card {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            padding: 1.5rem 1.75rem;
+        }
+
+        .verification-viewer .dashboard-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .verification-viewer .viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 1rem;
+        }
+
+        .verification-viewer .viewer-header h3 {
+            margin: 0 0 0.25rem 0;
+        }
+
+        .verification-viewer .viewer-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .verification-viewer .viewer-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .verification-viewer #zoomLevel {
+            min-width: 3.5rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .verification-viewer .document-viewer {
+            flex: 1;
+            border-radius: 10px;
+            border: 1px dashed #cbd5f5;
+            background: radial-gradient(circle at top left, #e0f2fe 0, #ffffff 50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .verification-tools .dashboard-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .verification-tools .card-icon {
+            font-size: 1.25rem;
+        }
+
+        .verification-tools .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .verification-tools .verification-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Modern button styling just for Verification Tools */
+        .verification-tools .verification-actions .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(16, 185, 129, 0.35);
+        }
+
+        .verification-tools .verification-actions .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border: none;
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(239, 68, 68, 0.35);
+        }
+
+        .verification-tools .verification-actions .btn-success:hover {
+            filter: brightness(0.98);
+        }
+
+        .verification-tools .verification-actions .btn-danger:hover {
+            filter: brightness(0.98);
+        }
+
+        .verification-tools .btn-primary.btn-block {
+            margin-top: 0.75rem;
+            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+            border: none;
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(2, 132, 199, 0.35);
+        }
+
+        .verification-tools .btn-primary.btn-block:hover {
+            background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+        }
+
+        .verification-history {
+            margin-top: 1.5rem;
+        }
+
+        .verification-history h4 {
+            margin-bottom: 0.75rem;
+        }
+
+        /* Breadcrumb + page header spacing */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 1rem;
+        }
+
+        .breadcrumb a {
+            color: #0284c7;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-current {
+            color: #0f172a;
+            font-weight: 500;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h2 {
+            margin: 0 0 0.25rem 0;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+            .verification-layout {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .dashboard-content {
+                padding: 1.25rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-content {
+                padding: 1rem;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+
+            .verification-viewer .viewer-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
     <script>
         (function() {
             function initSidebar() {
@@ -37,7 +435,9 @@
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">AD</div>
+                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">
+                        <img src="css/logo.png" alt="LTO Logo">
+                    </div>
                     <div class="logo-text">
                         <h2>Admin</h2>
                         <p>Dashboard</p>
@@ -49,21 +449,25 @@
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="user-management.html" class="nav-item">
-                    <i class="fas fa-users"></i>
-                    <span>User Management</span>
-                </a>
                 <a href="admin-blockchain-viewer.html" class="nav-item">
                     <i class="fas fa-link"></i>
                     <span>Blockchain Ledger</span>
+                </a>
+                <a href="vehicle-ownership-trace.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Ownership Trace</span>
                 </a>
                 <a href="admin-transfer-requests.html" class="nav-item active">
                     <i class="fas fa-exchange-alt"></i>
                     <span>Transfer of Ownership</span>
                 </a>
-                <a href="vehicle-ownership-trace.html" class="nav-item">
-                    <i class="fas fa-history"></i>
-                    <span>Ownership Trace</span>
+                <a href="user-management.html" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="lto-inspection-form.html" class="nav-item">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Vehicle Inspection</span>
                 </a>
                 <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
             </nav>
@@ -95,9 +499,6 @@
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
-                        <button class="sidebar-toggle" id="sidebarToggle">
-                            <i class="fas fa-bars"></i>
-                        </button>
                         <div class="logo">
                             <h1>LTO MANAGEMENT SYSTEM</h1>
                         </div>
@@ -289,7 +690,7 @@
     <script src="js/utils.js"></script>
     <script src="js/admin-transfer-verification.js"></script>
     <script>
-        // Authentication and sidebar initialization only
+        // Authentication + shared admin sidebar behavior (match transfer-details/dashboard)
         document.addEventListener('DOMContentLoaded', function() {
             // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
@@ -301,18 +702,69 @@
                 }
                 // ================================================
                 
-                // User info is now only in sidebar footer (handled by sidebar initialization)
+                // User info is now only in sidebar footer (handled elsewhere)
             } else {
                 window.location.href = 'login-signup.html';
                 return;
             }
 
+            // Load sidebar state from localStorage
             const sidebar = document.querySelector('.dashboard-sidebar');
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function() {
+            const savedSidebarState = localStorage.getItem('adminSidebarCollapsed');
+            if (sidebar && savedSidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Sidebar toggle via logo icon
+            const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
+            if (sidebarToggleIcon && sidebar) {
+                const toggleSidebar = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
-                    localStorage.setItem('adminSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
+                };
+
+                sidebarToggleIcon.addEventListener('click', toggleSidebar);
+                sidebarToggleIcon.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleSidebar(e);
+                    }
+                });
+            }
+
+            // Handle sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.confirm === 'function') {
+                        await ToastNotification.confirm(
+                            'Are you sure you want to logout?',
+                            () => {
+                                if (typeof window.authManager !== 'undefined') {
+                                    window.authManager.logout();
+                                } else if (typeof AuthUtils !== 'undefined') {
+                                    AuthUtils.logout();
+                                } else {
+                                    // Fallback: Clear all auth and session data
+                                    localStorage.removeItem('currentUser');
+                                    localStorage.removeItem('authToken');
+                                    localStorage.removeItem('token');
+                                    localStorage.removeItem('activeSessionId');
+                                    localStorage.removeItem('sessionHeartbeat');
+                                    sessionStorage.removeItem('tabSessionId');
+                                    window.location.href = 'index.html';
+                                }
+                            }
+                        );
+                    } else if (typeof AuthUtils !== 'undefined') {
+                        AuthUtils.logout();
+                    } else {
+                        window.location.href = 'index.html';
+                    }
                 });
             }
         });

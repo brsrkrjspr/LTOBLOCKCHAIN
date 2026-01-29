@@ -670,17 +670,20 @@
                 justify-content: center;
             }
             
-            /* Document Frame Container - Single Page, Centered */
+            /* Document Frame Container - Single Page, Centered, Large Display */
             .doc-frame-container {
                 width: 100%;
                 height: 100%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 2rem;
-                overflow: hidden;
+                padding: 1rem;
+                overflow: auto;
                 position: relative;
                 box-sizing: border-box;
+                /* Ensure scrolling works when document is larger than container */
+                overflow-x: auto;
+                overflow-y: auto;
             }
             
             .doc-frame-wrapper {
@@ -688,26 +691,28 @@
                 background: #ffffff;
                 border-radius: 4px;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-                overflow: hidden;
+                overflow: visible;
                 margin: auto;
-                max-width: 100%;
-                max-height: 100%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 width: fit-content;
                 height: fit-content;
+                min-width: 0;
+                min-height: 0;
+                /* Prevent thumbnail rendering - ensure full-size display */
+                flex-shrink: 0;
             }
             
             .doc-frame-wrapper img {
                 display: block;
                 width: auto;
                 height: auto;
-                max-width: calc(100vw - 600px);
-                max-height: calc(100vh - 200px);
                 object-fit: contain;
                 margin: 0;
                 border-radius: 4px;
+                max-width: none;
+                max-height: none;
             }
             
             .doc-frame-wrapper iframe,
@@ -715,19 +720,19 @@
                 display: block;
                 width: auto;
                 height: auto;
-                max-width: calc(100vw - 600px);
-                max-height: calc(100vh - 200px);
                 border: none;
                 background: #ffffff;
                 border-radius: 4px;
+                max-width: none;
+                max-height: none;
             }
             
             /* Ensure PDFs are properly sized */
             .doc-frame-wrapper iframe[type="application/pdf"] {
                 width: auto !important;
                 height: auto !important;
-                max-width: calc(100vw - 600px) !important;
-                max-height: calc(100vh - 200px) !important;
+                max-width: none !important;
+                max-height: none !important;
             }
             
             /* Custom Scrollbar */
@@ -805,10 +810,8 @@
                     min-height: 400px;
                 }
                 
-                .doc-frame-wrapper img,
-                .doc-frame-wrapper iframe {
-                    max-width: calc(100vw - 300px);
-                    max-height: calc(100vh - 150px);
+                .doc-frame-container {
+                    padding: 1rem;
                 }
             }
             
@@ -831,10 +834,8 @@
                     font-size: 0.7rem;
                 }
                 
-                .doc-frame-wrapper img,
-                .doc-frame-wrapper iframe {
-                    max-width: calc(100vw - 200px);
-                    max-height: calc(100vh - 100px);
+                .doc-frame-container {
+                    padding: 0.5rem;
                 }
             }
         `;
@@ -1055,7 +1056,7 @@
         return scale;
     }
     
-    // Auto-fit document to container - Single page, centered
+    // Auto-fit document to container - Fit to width, large and readable
     function autoFitDocument() {
         const wrapper = document.getElementById('docFrameWrapper');
         const container = document.getElementById('docFrameContainer');
@@ -1066,29 +1067,43 @@
         const img = wrapper.querySelector('img');
         const iframe = wrapper.querySelector('iframe');
         
-        // Get available space (accounting for padding)
-        const availableWidth = pdfContainer.clientWidth - 80; // 40px padding on each side
-        const availableHeight = pdfContainer.clientHeight - 80; // 40px padding on each side
+        // Get available space - use 85% of container for optimal readability
+        const containerWidth = pdfContainer.clientWidth;
+        const containerHeight = pdfContainer.clientHeight;
+        const availableWidth = Math.floor(containerWidth * 0.85); // 85% of width
+        const availableHeight = Math.floor(containerHeight * 0.85); // 85% of height
         
         if (img) {
-            // For images, scale to fit while maintaining aspect ratio
+            // For images, scale to fit width (fit-to-width), allow vertical scrolling if needed
             if (img.complete && img.naturalWidth) {
                 const imgWidth = img.naturalWidth;
                 const imgHeight = img.naturalHeight;
                 
-                // Calculate scale to fit
-                const scaleX = availableWidth / imgWidth;
-                const scaleY = availableHeight / imgHeight;
-                const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
-                
-                // Apply sizing
-                img.style.width = (imgWidth * scale) + 'px';
-                img.style.height = (imgHeight * scale) + 'px';
-                img.style.maxWidth = '100%';
-                img.style.maxHeight = '100%';
-                
-                wrapper.style.width = 'auto';
-                wrapper.style.height = 'auto';
+                if (imgWidth > 0 && imgHeight > 0) {
+                    // Fit to width - scale based on width, maintain aspect ratio
+                    // Use 85% of available width for optimal readability
+                    const scale = availableWidth / imgWidth;
+                    const scaledWidth = imgWidth * scale;
+                    const scaledHeight = imgHeight * scale;
+                    
+                    // Ensure minimum readable size - never render as thumbnail
+                    const minReadableWidth = Math.min(600, availableWidth * 0.7);
+                    const finalWidth = Math.max(scaledWidth, minReadableWidth);
+                    const finalHeight = (finalWidth / imgWidth) * imgHeight;
+                    
+                    // Apply sizing - ensure document is large and readable
+                    img.style.width = finalWidth + 'px';
+                    img.style.height = finalHeight + 'px';
+                    img.style.maxWidth = 'none';
+                    img.style.maxHeight = 'none';
+                    img.style.objectFit = 'contain';
+                    
+                    // Set wrapper to match image size
+                    wrapper.style.width = finalWidth + 'px';
+                    wrapper.style.height = finalHeight + 'px';
+                    wrapper.style.maxWidth = 'none';
+                    wrapper.style.maxHeight = 'none';
+                }
             } else {
                 // Wait for image to load
                 const originalOnload = img.onload;
@@ -1098,23 +1113,27 @@
                 };
             }
         } else if (iframe) {
-            // For PDFs, calculate size to fit container while maintaining aspect ratio
-            // Standard PDF aspect ratio is approximately 8.5:11 (portrait) or 11:8.5 (landscape)
-            // We'll use a reasonable default and let the PDF renderer handle it
-            const pdfWidth = Math.min(availableWidth, 1200);
-            const pdfHeight = Math.min(availableHeight, 1600);
+            // For PDFs, use fit-to-width approach
+            // Calculate width to fill 85% of container width for optimal readability
+            const pdfWidth = Math.max(availableWidth, 800); // Minimum 800px width
+            // Calculate height based on standard PDF aspect ratio (8.5:11 for portrait)
+            // Use the larger of: available height or calculated height from aspect ratio
+            const aspectRatioHeight = Math.floor(pdfWidth * 1.294); // 11/8.5 ratio
+            const pdfHeight = Math.max(availableHeight, aspectRatioHeight, 1000); // Minimum 1000px height
             
-            // Set wrapper to fit content
-            wrapper.style.width = 'auto';
-            wrapper.style.height = 'auto';
-            wrapper.style.maxWidth = availableWidth + 'px';
-            wrapper.style.maxHeight = availableHeight + 'px';
+            // Set wrapper to match PDF size - ensure large display
+            wrapper.style.width = pdfWidth + 'px';
+            wrapper.style.height = pdfHeight + 'px';
+            wrapper.style.maxWidth = 'none';
+            wrapper.style.maxHeight = 'none';
             
-            // Set iframe size
+            // Set iframe size - make it large and readable, never thumbnail
             iframe.style.width = pdfWidth + 'px';
             iframe.style.height = pdfHeight + 'px';
-            iframe.style.maxWidth = '100%';
-            iframe.style.maxHeight = '100%';
+            iframe.style.maxWidth = 'none';
+            iframe.style.maxHeight = 'none';
+            iframe.style.minWidth = '800px'; // Enforce minimum readable size
+            iframe.style.minHeight = '1000px';
         }
     }
     
@@ -1146,12 +1165,12 @@
         currentPage = 1;
         totalPages = 1;
         
-        // Reset wrapper styles for single-page display
+        // Reset wrapper styles for large single-page display
         if (wrapper) {
             wrapper.style.width = 'auto';
             wrapper.style.height = 'auto';
-            wrapper.style.maxWidth = '100%';
-            wrapper.style.maxHeight = '100%';
+            wrapper.style.maxWidth = 'none';
+            wrapper.style.maxHeight = 'none';
             wrapper.style.transform = 'none';
         }
         
@@ -1230,8 +1249,8 @@
             if (url.startsWith('data:')) {
                 if (isImage) {
                     if (wrapper) {
-                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain;" />`;
-                        // Auto-fit after image loads
+                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; object-fit: contain;" />`;
+                        // Auto-fit after image loads - ensure large display
                         setTimeout(() => {
                             const img = wrapper.querySelector('img');
                             if (img) {
@@ -1246,11 +1265,11 @@
                     }
                 } else {
                     if (wrapper) {
-                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>`;
-                        // Auto-fit after iframe loads
+                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none;"></iframe>`;
+                        // Auto-fit after iframe loads - ensure large display
                         setTimeout(() => {
                             autoFitDocument();
-                        }, 100);
+                        }, 200);
                     }
                 }
             }
@@ -1285,18 +1304,18 @@
                     const iframeUrl = `/api/documents/${docId}/view?token=${viewToken}`;
                     
                     if (wrapper) {
-                        // Load directly via iframe URL with token - single page, centered
+                        // Load directly via iframe URL with token - large, readable display
                         wrapper.innerHTML = `
                             <iframe src="${iframeUrl}" 
                                     type="application/pdf" 
                                     title="${escapeHtml(docName)}"
-                                    style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>
+                                    style="display: block; border: none;"></iframe>
                         `;
                         
-                        // Auto-fit after iframe loads
+                        // Auto-fit after iframe loads - ensure large display
                         setTimeout(() => {
                             autoFitDocument();
-                        }, 100);
+                        }, 200);
                     }
                     
                     // PDF loaded successfully
@@ -1325,8 +1344,8 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             if (wrapper) {
-                                wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain;" />`;
-                                // Auto-fit after image loads
+                                wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; object-fit: contain;" />`;
+                                // Auto-fit after image loads - ensure large display
                                 setTimeout(() => {
                                     const img = wrapper.querySelector('img');
                                     if (img) {
@@ -1345,7 +1364,7 @@
                         };
                         reader.readAsDataURL(blob);
                     } else if (isPdf || blob.type === 'application/pdf') {
-                        // Use blob URL for PDFs - single page, centered
+                        // Use blob URL for PDFs - large, readable display
                         const blobUrl = URL.createObjectURL(blob);
                         activeBlobUrls.push(blobUrl);
                         
@@ -1354,13 +1373,13 @@
                                 <iframe src="${blobUrl}" 
                                         type="application/pdf" 
                                         title="${escapeHtml(docName)}"
-                                        style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>
+                                        style="display: block; border: none;"></iframe>
                             `;
                             
-                            // Auto-fit after iframe loads
+                            // Auto-fit after iframe loads - ensure large display
                             setTimeout(() => {
                                 autoFitDocument();
-                            }, 100);
+                            }, 200);
                         }
                         
                         // PDF loaded successfully
@@ -1392,11 +1411,11 @@
                     return; // Exit early on fetch error
                 }
             } else {
-                // Direct external URL - single page, centered
+                // Direct external URL - large, readable display
                 if (isImage) {
                     if (wrapper) {
-                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'text-align:center;padding:2rem;color:#ef4444;\\'><i class=\\'fas fa-exclamation-triangle\\' style=\\'font-size:2rem;margin-bottom:0.5rem;\\'></i><p>Image failed to load</p></div>';" />`;
-                        // Auto-fit after image loads
+                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; object-fit: contain;" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'text-align:center;padding:2rem;color:#ef4444;\\'><i class=\\'fas fa-exclamation-triangle\\' style=\\'font-size:2rem;margin-bottom:0.5rem;\\'></i><p>Image failed to load</p></div>';" />`;
+                        // Auto-fit after image loads - ensure large display
                         setTimeout(() => {
                             const img = wrapper.querySelector('img');
                             if (img) {
@@ -1411,11 +1430,11 @@
                     }
                 } else {
                     if (wrapper) {
-                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>`;
-                        // Auto-fit after iframe loads
+                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none;"></iframe>`;
+                        // Auto-fit after iframe loads - ensure large display
                         setTimeout(() => {
                             autoFitDocument();
-                        }, 100);
+                        }, 200);
                     }
                 }
             }
@@ -1425,10 +1444,14 @@
             if (frame) frame.style.display = 'flex';
             
             // Auto-fit document after container is fully rendered
-            // Use requestAnimationFrame for better timing
+            // Use requestAnimationFrame for better timing - ensure large display
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     autoFitDocument();
+                    // Retry after a short delay to ensure iframe/content is fully loaded
+                    setTimeout(() => {
+                        autoFitDocument();
+                    }, 500);
                 }, 200);
             });
             

@@ -31,14 +31,11 @@
                 <!-- Header -->
                 <header class="doc-modal-header">
                     <div class="doc-header-content">
-                        <div class="doc-logo">DocuView</div>
+                        <div class="doc-logo">◆ DocuView</div>
                         <div class="doc-toolbar">
-                            <button class="doc-btn" id="docDownloadBtn" onclick="DocumentModal.download()">
-                                <i class="fas fa-download"></i> Download
-                            </button>
-                            <button class="doc-btn doc-btn-primary" onclick="window.print()">
-                                <i class="fas fa-print"></i> Print
-                            </button>
+                            <button class="doc-btn" id="docDownloadBtn" onclick="DocumentModal.download()">Download</button>
+                            <button class="doc-btn" onclick="window.print()">Print</button>
+                            <button class="doc-btn doc-btn-primary" onclick="DocumentModal.share()">Share</button>
                             <button class="doc-close-modal" onclick="DocumentModal.close()" title="Close (ESC)">×</button>
                         </div>
                     </div>
@@ -65,8 +62,8 @@
                                     <span class="doc-info-value" id="docInfoPages">-</span>
                                 </div>
                                 <div class="doc-info-item">
-                                    <span class="doc-info-label">Type</span>
-                                    <span class="doc-info-value" id="docInfoType">-</span>
+                                    <span class="doc-info-label">Last Modified</span>
+                                    <span class="doc-info-value" id="docInfoLastModified">-</span>
                                 </div>
                             </div>
 
@@ -103,12 +100,6 @@
                                     <button class="doc-zoom-btn" onclick="DocumentModal.zoomOut()" title="Zoom Out (-)">−</button>
                                     <span class="doc-zoom-level" id="docZoomLevel">100%</span>
                                     <button class="doc-zoom-btn" onclick="DocumentModal.zoomIn()" title="Zoom In (+)">+</button>
-                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomFit()" title="Fit to Width">
-                                        <i class="fas fa-expand-arrows-alt"></i>
-                                    </button>
-                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomReset()" title="Reset Zoom">
-                                        <i class="fas fa-undo"></i>
-                                    </button>
                                 </div>
                             </div>
 
@@ -161,9 +152,21 @@
         styles.id = 'doc-modal-styles';
         styles.textContent = `
             /* ============================================
-               DOCUMENT MODAL - BLUE THEME
-               Matches System Design
+               DOCUMENT MODAL - RUST/GOLD/CHARCOAL THEME
+               Matches Provided Design
                ============================================ */
+            
+            @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+            
+            :root {
+                --cream: #FBF9F4;
+                --charcoal: #2B2D31;
+                --slate: #5A5D63;
+                --rust: #C7492A;
+                --gold: #D4A574;
+                --shadow: rgba(43, 45, 49, 0.08);
+                --shadow-heavy: rgba(43, 45, 49, 0.15);
+            }
             
             .doc-modal {
                 display: none;
@@ -173,7 +176,9 @@
                 width: 100%;
                 height: 100%;
                 z-index: 20000;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'Crimson Pro', serif;
+                align-items: center;
+                justify-content: center;
             }
             
             .doc-modal.active {
@@ -244,15 +249,9 @@
             .doc-logo {
                 font-size: 1.5rem;
                 font-weight: 600;
-                color: #0c4a6e;
+                color: var(--charcoal);
                 letter-spacing: -0.02em;
-            }
-            
-            .doc-logo::before {
-                content: '◆';
-                color: #0284c7;
-                margin-right: 0.5rem;
-                font-size: 0.8em;
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-toolbar {
@@ -265,8 +264,8 @@
                 padding: 0.6rem 1.2rem;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: #0c4a6e;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: var(--charcoal);
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.75rem;
                 text-transform: uppercase;
                 letter-spacing: 0.08em;
@@ -274,9 +273,6 @@
                 transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                 position: relative;
                 overflow: hidden;
-                display: inline-flex;
-                align-items: center;
-                gap: 0.5rem;
             }
             
             .doc-btn::before {
@@ -286,7 +282,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: #0284c7;
+                background: var(--rust);
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -297,19 +293,19 @@
             
             .doc-btn:hover {
                 color: white;
-                border-color: #0284c7;
+                border-color: var(--rust);
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+                box-shadow: 0 4px 12px var(--shadow-heavy);
             }
             
             .doc-btn-primary {
-                background: #0284c7;
+                background: var(--rust);
                 color: white;
-                border-color: #0284c7;
+                border-color: var(--rust);
             }
             
             .doc-btn-primary::before {
-                background: #0369a1;
+                background: var(--charcoal);
             }
             
             .doc-close-modal {
@@ -317,7 +313,7 @@
                 height: 40px;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: #0284c7;
+                color: var(--rust);
                 font-size: 1.5rem;
                 cursor: pointer;
                 transition: all 0.3s ease;
@@ -335,7 +331,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: #0284c7;
+                background: var(--rust);
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -346,9 +342,9 @@
             
             .doc-close-modal:hover {
                 color: white;
-                border-color: #0284c7;
+                border-color: var(--rust);
                 transform: translateY(-2px) rotate(90deg);
-                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+                box-shadow: 0 4px 12px var(--shadow-heavy);
             }
             
             /* ============================================
@@ -359,7 +355,7 @@
                 flex: 1;
                 padding: 2rem;
                 overflow: auto;
-                background: linear-gradient(135deg, #FBF9F4 0%, #F5F1E8 100%);
+                background: linear-gradient(135deg, #E8E4DC 0%, #D4CFC4 100%);
             }
             
             .doc-container {
@@ -383,9 +379,9 @@
                 font-size: 0.75rem;
                 text-transform: uppercase;
                 letter-spacing: 0.12em;
-                color: #64748b;
+                color: var(--slate);
                 margin-bottom: 1rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-weight: 500;
             }
             
@@ -393,13 +389,14 @@
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
+                box-shadow: 0 2px 8px var(--shadow);
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
+                margin-bottom: 2rem;
             }
             
             .doc-info:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
+                box-shadow: 0 4px 16px var(--shadow-heavy);
             }
             
             .doc-info-item {
@@ -420,15 +417,15 @@
                 font-size: 0.7rem;
                 text-transform: uppercase;
                 letter-spacing: 0.08em;
-                color: #64748b;
+                color: var(--slate);
                 margin-bottom: 0.3rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
             }
             
             .doc-info-value {
                 font-size: 0.95rem;
-                color: #0c4a6e;
-                font-weight: 500;
+                color: var(--charcoal);
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-list-section {
@@ -451,21 +448,21 @@
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s ease;
-                color: #475569;
+                color: var(--charcoal);
                 margin-bottom: 0.5rem;
                 border: 2px solid transparent;
             }
             
             .doc-sidebar-item:hover {
-                background: #f0f9ff;
-                color: #0284c7;
-                border-color: rgba(2, 132, 199, 0.2);
+                background: var(--cream);
+                color: var(--charcoal);
+                border-color: rgba(199, 73, 42, 0.2);
             }
             
             .doc-sidebar-item.active {
-                background: rgba(2, 132, 199, 0.1);
-                border-color: #0284c7;
-                color: #0284c7;
+                background: rgba(199, 73, 42, 0.1);
+                border-color: var(--rust);
+                color: var(--charcoal);
             }
             
             .doc-sidebar-item-icon {
@@ -475,14 +472,14 @@
                 align-items: center;
                 justify-content: center;
                 border-radius: 8px;
-                background: rgba(2, 132, 199, 0.1);
+                background: rgba(199, 73, 42, 0.1);
                 font-size: 1.125rem;
                 flex-shrink: 0;
-                color: #0284c7;
+                color: var(--rust);
             }
             
             .doc-sidebar-item.active .doc-sidebar-item-icon {
-                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+                background: var(--rust);
                 color: white;
             }
             
@@ -498,18 +495,20 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 margin-bottom: 0.25rem;
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-sidebar-item-type {
                 font-size: 0.75rem;
-                color: #64748b;
+                color: var(--slate);
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-page-nav {
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
+                box-shadow: 0 2px 8px var(--shadow);
             }
             
             .doc-nav-controls {
@@ -527,14 +526,12 @@
                 cursor: pointer;
                 transition: all 0.2s ease;
                 font-size: 1rem;
-                color: #0c4a6e;
+                color: var(--charcoal);
             }
             
             .doc-nav-btn:hover:not(:disabled) {
-                background: #f0f9ff;
+                background: var(--cream);
                 transform: scale(1.05);
-                border-color: #0284c7;
-                color: #0284c7;
             }
             
             .doc-nav-btn:disabled {
@@ -543,19 +540,18 @@
             }
             
             .doc-counter {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.85rem;
-                color: #64748b;
+                color: var(--slate);
                 min-width: 60px;
                 text-align: center;
-                font-weight: 500;
             }
             
             .doc-page-indicator {
                 text-align: center;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.85rem;
-                color: #64748b;
+                color: var(--slate);
             }
             
             /* ============================================
@@ -577,7 +573,7 @@
                 position: absolute;
                 width: 40px;
                 height: 40px;
-                border: 2px solid #0284c7;
+                border: 2px solid var(--gold);
                 z-index: 1;
             }
             
@@ -596,13 +592,13 @@
             }
             
             .doc-viewer-header {
-                background: linear-gradient(135deg, #0c4a6e 0%, #0369a1 100%);
+                background: linear-gradient(135deg, var(--charcoal) 0%, var(--slate) 100%);
                 color: white;
                 padding: 1.5rem 2rem;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                border-bottom: 3px solid #0284c7;
+                border-bottom: 3px solid var(--rust);
             }
             
             .doc-title {
@@ -611,6 +607,7 @@
                 letter-spacing: -0.01em;
                 margin: 0;
                 color: white;
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-zoom-controls {
@@ -640,16 +637,15 @@
             }
             
             .doc-zoom-level {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.85rem;
                 min-width: 50px;
                 text-align: center;
-                font-weight: 500;
             }
             
             .doc-pdf-container {
                 flex: 1;
-                background: #FBF9F4;
+                background: var(--cream);
                 position: relative;
                 overflow: auto;
                 min-height: 500px;
@@ -673,8 +669,8 @@
             .doc-spinner {
                 width: 50px;
                 height: 50px;
-                border: 3px solid rgba(2, 132, 199, 0.1);
-                border-top-color: #0284c7;
+                border: 3px solid rgba(199, 73, 42, 0.1);
+                border-top-color: var(--rust);
                 border-radius: 50%;
                 animation: docSpin 1s linear infinite;
             }
@@ -685,9 +681,9 @@
             
             .doc-loading-text {
                 margin-top: 1rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.85rem;
-                color: #64748b;
+                color: var(--slate);
                 text-transform: uppercase;
                 letter-spacing: 0.12em;
             }
@@ -699,13 +695,13 @@
                 left: 50%;
                 transform: translate(-50%, -50%);
                 text-align: center;
-                color: #0c4a6e;
+                color: var(--charcoal);
                 z-index: 5;
                 max-width: 400px;
                 padding: 2rem;
                 background: white;
                 border-radius: 8px;
-                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
+                box-shadow: 0 4px 16px var(--shadow-heavy);
             }
             
             .doc-error-icon {
@@ -717,13 +713,15 @@
             .doc-error h3 {
                 margin: 0 0 0.5rem 0;
                 font-size: 1.25rem;
-                color: #0c4a6e;
+                color: var(--charcoal);
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-error p {
                 margin: 0 0 1.5rem 0;
-                color: #64748b;
+                color: var(--slate);
                 font-size: 0.9375rem;
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-error-actions {
@@ -797,18 +795,18 @@
             
             .doc-sidebar-list::-webkit-scrollbar-track,
             .doc-pdf-container::-webkit-scrollbar-track {
-                background: rgba(2, 132, 199, 0.05);
+                background: rgba(199, 73, 42, 0.05);
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb,
             .doc-pdf-container::-webkit-scrollbar-thumb {
-                background: rgba(2, 132, 199, 0.2);
+                background: rgba(199, 73, 42, 0.2);
                 border-radius: 3px;
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb:hover,
             .doc-pdf-container::-webkit-scrollbar-thumb:hover {
-                background: rgba(2, 132, 199, 0.3);
+                background: rgba(199, 73, 42, 0.3);
             }
             
             /* ============================================
@@ -880,7 +878,7 @@
             }
             
             @media (max-width: 640px) {
-                .doc-modal-overlay {
+                .doc-modal {
                     padding: 1rem;
                 }
                 
@@ -979,17 +977,24 @@
         const fileNameEl = document.getElementById('docInfoFileName');
         const fileSizeEl = document.getElementById('docInfoFileSize');
         const pagesEl = document.getElementById('docInfoPages');
-        const typeEl = document.getElementById('docInfoType');
+        const lastModifiedEl = document.getElementById('docInfoLastModified');
         
         const docName = doc.filename || doc.original_name || doc.name || 'Unknown';
-        const docType = doc.type || doc.document_type || 'document';
         const docSize = doc.file_size || doc.size || '-';
         const docPages = doc.pages || doc.page_count || '-';
+        const docModified = doc.updated_at || doc.created_at || doc.last_modified || null;
         
         if (fileNameEl) fileNameEl.textContent = docName.length > 30 ? docName.substring(0, 30) + '...' : docName;
         if (fileSizeEl) fileSizeEl.textContent = docSize !== '-' ? formatFileSize(docSize) : '-';
         if (pagesEl) pagesEl.textContent = docPages !== '-' ? `${docPages} page${docPages !== 1 ? 's' : ''}` : '-';
-        if (typeEl) typeEl.textContent = getDocTypeLabel(docType);
+        if (lastModifiedEl) {
+            if (docModified) {
+                const date = new Date(docModified);
+                lastModifiedEl.textContent = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            } else {
+                lastModifiedEl.textContent = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            }
+        }
     }
     
     // Format file size
@@ -1484,10 +1489,10 @@
                         // Other file types - show download option
                         if (wrapper) {
                             wrapper.innerHTML = `
-                                <div style="text-align: center; padding: 3rem; color: #0c4a6e; background: white; border-radius: 8px; box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);">
-                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: #0284c7; margin-bottom: 1rem;"></i>
-                                    <h3 style="margin: 0 0 0.5rem 0; color: #0c4a6e;">Preview Not Available</h3>
-                                    <p style="color: #64748b; margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
+                                <div style="text-align: center; padding: 3rem; color: var(--charcoal); background: white; border-radius: 8px; box-shadow: 0 4px 16px var(--shadow-heavy);">
+                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: var(--rust); margin-bottom: 1rem;"></i>
+                                    <h3 style="margin: 0 0 0.5rem 0; color: var(--charcoal); font-family: 'Crimson Pro', serif;">Preview Not Available</h3>
+                                    <p style="color: var(--slate); margin: 0 0 1.5rem 0; font-family: 'Crimson Pro', serif;">This file type cannot be previewed in the browser.</p>
                                     <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">
                                         <i class="fas fa-download"></i> Download Document
                                     </button>
@@ -1588,6 +1593,46 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    // Copy to clipboard helper
+    function copyToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Link copied to clipboard!', 'success');
+                } else {
+                    alert('Link copied to clipboard!');
+                }
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                fallbackCopyToClipboard(text);
+            });
+        } else {
+            fallbackCopyToClipboard(text);
+        }
+    }
+    
+    function fallbackCopyToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show('Link copied to clipboard!', 'success');
+            } else {
+                alert('Link copied to clipboard!');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert('Failed to copy link. Please copy manually: ' + text);
+        }
+        document.body.removeChild(textArea);
     }
     
     // Public API
@@ -1732,6 +1777,29 @@
         retry: function() {
             if (currentDocuments[currentDocIndex]) {
                 loadDocument(currentDocuments[currentDocIndex]);
+            }
+        },
+        
+        // Share document
+        share: function() {
+            const doc = currentDocuments[currentDocIndex];
+            if (!doc) return;
+            
+            const docName = doc.filename || doc.original_name || doc.name || 'Document';
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: docName,
+                    text: `Check out this document: ${docName}`,
+                    url: window.location.href
+                }).catch(err => {
+                    console.log('Error sharing:', err);
+                    // Fallback to clipboard
+                    copyToClipboard(window.location.href);
+                });
+            } else {
+                // Fallback: copy link to clipboard
+                copyToClipboard(window.location.href);
             }
         },
         

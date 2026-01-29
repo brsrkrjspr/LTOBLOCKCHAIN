@@ -131,6 +131,54 @@
 
 ---
 
+## 🔧 502 and "access denied" troubleshooting
+
+**Why you see 502 in the browser**
+
+| Step | What happens |
+|------|----------------|
+| 1 | Nginx proxies requests to `lto-app`. |
+| 2 | `lto-app` starts and runs Fabric init (`optimizedFabricService.initialize()` with identity `admin`). |
+| 3 | Fabric SDK does **service discovery** on channel `ltochannel`. |
+| 4 | Peers respond with **"access denied"** → init throws → `backend/routes/blockchain.js` catches and calls **`process.exit(1)`**. |
+| 5 | Container exits → Nginx gets no backend → **502 Bad Gateway**. |
+
+**Why "access denied" happens**
+
+- **Channel `ltochannel` does not exist yet** (most common), or
+- The wallet identity (`admin` / `admin-lto`) is not in the channel (e.g. channel was created with different orgs/MSPs), or
+- Crypto or MSP mismatch (wrong cert for LTOMSP).
+
+**Fix on the server (in order)**
+
+1. **Use only the unified stack:**  
+   `docker-compose -f docker-compose.unified.yml up -d`  
+   (Do **not** use `docker-compose.fabric.yml`.)
+
+2. **Create channel and join peers:**  
+   Run the full Fabric setup so `ltochannel` exists and all three peers have joined:
+   ```bash
+   ./scripts/unified-setup.sh
+   ```
+   Or follow `scripts/complete-fabric-reset-reconfigure.sh` (generate configtx, create channel, join LTO/HPG/Insurance peers, install and commit chaincode).
+
+3. **Ensure wallet has LTO admin:**  
+   After crypto is generated, run:
+   ```bash
+   node scripts/setup-fabric-wallet.js
+   ```
+   This populates `wallet/` with `admin` and `admin-lto` from `fabric-network/crypto-config/.../Admin@lto.gov.ph`.
+
+4. **Deploy latest code** so the app’s error message says `docker-compose.unified.yml` (and so any other fixes are present):
+   ```bash
+   git pull origin main
+   docker-compose -f docker-compose.unified.yml up -d --build lto-app
+   ```
+
+**Browser message:** `Unchecked runtime.lastError: The message port closed...` is usually from a **browser extension** (e.g. password manager, ad blocker), not from your app. You can ignore it or test in an incognito window with extensions disabled.
+
+---
+
 ## 🔍 Critical Verification Points
 
 ### Fabric as Source of Truth ✅

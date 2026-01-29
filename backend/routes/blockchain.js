@@ -20,7 +20,7 @@ fabricService.initialize().then(result => {
     console.error('❌ CRITICAL: Fabric initialization failed:', err.message);
     console.error('⚠️  System requires real Hyperledger Fabric network. Please ensure:');
     console.error('   1. BLOCKCHAIN_MODE=fabric in .env file');
-    console.error('   2. Fabric network is running (docker-compose -f docker-compose.fabric.yml up -d)');
+    console.error('   2. Fabric network is running (docker-compose -f docker-compose.unified.yml up -d)');
     console.error('   3. network-config.json exists and is properly configured');
     console.error('   4. Admin user is enrolled in wallet');
     process.exit(1); // Exit if Fabric connection fails

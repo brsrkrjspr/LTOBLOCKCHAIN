@@ -74,7 +74,8 @@
 
 4. **Start Fabric Network**:
    ```bash
-   # Start all services
+   # Use ONLY docker-compose.unified.yml (3 orgs: LTO, HPG, Insurance).
+   # Do NOT use docker-compose.fabric.yml — it is legacy and includes Emission org + wrong topology.
    docker-compose -f docker-compose.unified.yml up -d
    
    # Wait for services to be healthy

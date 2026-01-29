@@ -29,9 +29,9 @@ cd "$(dirname "$0")/.."
 
 print_header "Fixing Fabric Cryptographic Materials"
 
-# Step 1: Stop containers
+# Step 1: Stop Fabric containers (all peers and orderer)
 print_info "Step 1: Stopping Fabric containers..."
-docker-compose -f docker-compose.unified.yml stop orderer.lto.gov.ph peer0.lto.gov.ph cli 2>/dev/null || true
+docker-compose -f docker-compose.unified.yml stop orderer.lto.gov.ph peer0.lto.gov.ph peer0.hpg.gov.ph peer0.insurance.gov.ph cli 2>/dev/null || true
 print_success "Containers stopped"
 
 # Step 2: Backup and remove old crypto materials
@@ -45,22 +45,27 @@ fi
 
 # Step 3: Regenerate crypto materials
 print_info "Step 3: Regenerating cryptographic materials..."
-if [ ! -f "crypto-config.yaml" ]; then
-    print_error "crypto-config.yaml not found!"
+
+# Resolve crypto-config.yaml path (config/ takes precedence)
+CRYPTO_CONFIG=""
+if [ -f "config/crypto-config.yaml" ]; then
+    CRYPTO_CONFIG="config/crypto-config.yaml"
+    print_info "Using config/crypto-config.yaml"
+elif [ -f "crypto-config.yaml" ]; then
+    CRYPTO_CONFIG="crypto-config.yaml"
+    print_info "Using crypto-config.yaml from root"
+else
+    print_error "crypto-config.yaml not found in config/ or project root!"
     exit 1
 fi
 
-# Copy config to fabric-network
-cp crypto-config.yaml fabric-network/crypto-config.yaml 2>/dev/null || true
-
-# Generate using Docker with user mapping to avoid permission issues
-WORKSPACE_PATH=$(pwd)/fabric-network
+# Generate using Docker: mount config and fabric-network, use canonical path
 docker run --rm \
-    -v "$WORKSPACE_PATH:/workspace" \
-    -w /workspace \
+    -v "$(pwd)/config:/config" \
+    -v "$(pwd)/fabric-network:/fabric-network" \
     -u $(id -u):$(id -g) \
     hyperledger/fabric-tools:2.5 \
-    cryptogen generate --config=./crypto-config.yaml --output=./crypto-config
+    cryptogen generate --config=/config/crypto-config.yaml --output=/fabric-network/crypto-config
 
 if [ $? -eq 0 ]; then
     print_success "Crypto materials generated"
@@ -73,9 +78,6 @@ fi
 print_info "Fixing file permissions..."
 chmod -R 755 fabric-network/crypto-config 2>/dev/null || true
 chown -R $(whoami):$(whoami) fabric-network/crypto-config 2>/dev/null || true
-
-# Clean up
-rm -f fabric-network/crypto-config.yaml
 
 # Step 4: Setup admincerts for NodeOUs (required for all organizations)
 print_info "Step 4: Setting up admin certificates for all organizations..."
@@ -114,10 +116,10 @@ if [ -d "wallet" ]; then
     print_success "Old wallet removed"
 fi
 
-# Step 6: Restart containers
+# Step 6: Restart Fabric containers (all peers, orderer, and full stack)
 print_info "Step 6: Restarting Fabric containers..."
-docker-compose -f docker-compose.unified.yml up -d orderer.lto.gov.ph peer0.lto.gov.ph cli
-sleep 10
+docker-compose -f docker-compose.unified.yml up -d
+sleep 15
 print_success "Containers restarted"
 
 # Step 7: Recreate wallet

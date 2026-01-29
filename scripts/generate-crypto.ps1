@@ -24,7 +24,17 @@ Write-Host "✅ Created crypto-config directory" -ForegroundColor Green
 Write-Host "🔧 Generating certificates using Docker..." -ForegroundColor Cyan
 
 # Copy crypto-config.yaml to a location Docker can access
-Copy-Item "crypto-config.yaml" "fabric-network\crypto-config.yaml"
+# Check multiple possible locations
+if (Test-Path "config\crypto-config.yaml") {
+    Copy-Item "config\crypto-config.yaml" "fabric-network\crypto-config.yaml"
+    Write-Host "✅ Copied crypto-config.yaml from config/" -ForegroundColor Green
+} elseif (Test-Path "crypto-config.yaml") {
+    Copy-Item "crypto-config.yaml" "fabric-network\crypto-config.yaml"
+    Write-Host "✅ Copied crypto-config.yaml from root" -ForegroundColor Green
+} else {
+    Write-Host "❌ crypto-config.yaml not found in config/ or root directory" -ForegroundColor Red
+    exit 1
+}
 
 # Run cryptogen in Docker container
 docker run --rm `

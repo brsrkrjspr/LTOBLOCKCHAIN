@@ -77,28 +77,35 @@ chown -R $(whoami):$(whoami) fabric-network/crypto-config 2>/dev/null || true
 # Clean up
 rm -f fabric-network/crypto-config.yaml
 
-# Step 4: Setup admincerts for NodeOUs (required)
-print_info "Step 4: Setting up admin certificates..."
-ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
-if [ -d "$ADMIN_MSP" ]; then
-    mkdir -p "${ADMIN_MSP}/admincerts"
-    if [ -f "${ADMIN_MSP}/signcerts/Admin@lto.gov.ph-cert.pem" ]; then
-        cp "${ADMIN_MSP}/signcerts/Admin@lto.gov.ph-cert.pem" "${ADMIN_MSP}/admincerts/"
-        print_success "Admin certificates configured"
-    else
+# Step 4: Setup admincerts for NodeOUs (required for all organizations)
+print_info "Step 4: Setting up admin certificates for all organizations..."
+
+# Function to setup admincerts for an organization
+setup_admincerts() {
+    local ORG_DOMAIN=$1
+    local ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/${ORG_DOMAIN}/users/Admin@${ORG_DOMAIN}/msp"
+    
+    if [ -d "$ADMIN_MSP" ]; then
+        mkdir -p "${ADMIN_MSP}/admincerts"
         # Try to find any .pem file in signcerts
         CERT_FILE=$(find "${ADMIN_MSP}/signcerts" -name "*.pem" | head -1)
         if [ -n "$CERT_FILE" ]; then
             cp "$CERT_FILE" "${ADMIN_MSP}/admincerts/"
-            print_success "Admin certificates configured (using found cert)"
+            print_success "Admin certificates configured for ${ORG_DOMAIN}"
         else
-            print_error "No certificate file found in signcerts"
+            print_error "No certificate file found in signcerts for ${ORG_DOMAIN}"
         fi
+    else
+        print_error "Admin MSP directory not found for ${ORG_DOMAIN}"
     fi
-else
-    print_error "Admin MSP directory not found"
-    exit 1
-fi
+}
+
+# Setup admincerts for all organizations
+setup_admincerts "lto.gov.ph"
+setup_admincerts "hpg.gov.ph"
+setup_admincerts "insurance.gov.ph"
+
+print_success "Admin certificates configured for all organizations"
 
 # Step 5: Remove old wallet (will be recreated)
 print_info "Step 5: Removing old wallet..."

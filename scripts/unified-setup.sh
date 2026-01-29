@@ -66,10 +66,12 @@ log_success "Cleanup complete"
 # ============================================
 log_info "Phase 2: Generating cryptographic materials..."
 
-# Skip crypto generation if already exists
+# Skip crypto generation if already exists (check all 3 organizations)
 if [ -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph" ] && \
+   [ -d "fabric-network/crypto-config/peerOrganizations/hpg.gov.ph" ] && \
+   [ -d "fabric-network/crypto-config/peerOrganizations/insurance.gov.ph" ] && \
    [ -d "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph" ]; then
-    log_info "Crypto materials already exist, skipping generation..."
+    log_info "Crypto materials already exist for all organizations, skipping generation..."
     log_info "Set FORCE_CLEANUP=true to regenerate crypto materials"
 else
     # Run cryptogen with proper user mapping to avoid permission issues
@@ -80,9 +82,19 @@ else
         hyperledger/fabric-tools:2.5 \
         cryptogen generate --config=/config/crypto-config.yaml --output=/fabric-network/crypto-config
 
-    # Verify generation
+    # Verify generation for all organizations
     if [ ! -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph" ]; then
-        log_error "Failed to generate peer crypto materials"
+        log_error "Failed to generate LTO peer crypto materials"
+        exit 1
+    fi
+
+    if [ ! -d "fabric-network/crypto-config/peerOrganizations/hpg.gov.ph" ]; then
+        log_error "Failed to generate HPG peer crypto materials"
+        exit 1
+    fi
+
+    if [ ! -d "fabric-network/crypto-config/peerOrganizations/insurance.gov.ph" ]; then
+        log_error "Failed to generate Insurance peer crypto materials"
         exit 1
     fi
 
@@ -91,12 +103,23 @@ else
         exit 1
     fi
 
-    # Setup admincerts for NodeOUs
-    ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
-    mkdir -p "${ADMIN_MSP}/admincerts"
-    cp "${ADMIN_MSP}/signcerts/"*.pem "${ADMIN_MSP}/admincerts/"
+    # Setup admincerts for NodeOUs for all organizations
+    # LTO
+    ADMIN_MSP_LTO="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
+    mkdir -p "${ADMIN_MSP_LTO}/admincerts"
+    cp "${ADMIN_MSP_LTO}/signcerts/"*.pem "${ADMIN_MSP_LTO}/admincerts/" 2>/dev/null || true
 
-    log_success "Crypto materials generated"
+    # HPG
+    ADMIN_MSP_HPG="fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/users/Admin@hpg.gov.ph/msp"
+    mkdir -p "${ADMIN_MSP_HPG}/admincerts"
+    cp "${ADMIN_MSP_HPG}/signcerts/"*.pem "${ADMIN_MSP_HPG}/admincerts/" 2>/dev/null || true
+
+    # Insurance
+    ADMIN_MSP_INSURANCE="fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/users/Admin@insurance.gov.ph/msp"
+    mkdir -p "${ADMIN_MSP_INSURANCE}/admincerts"
+    cp "${ADMIN_MSP_INSURANCE}/signcerts/"*.pem "${ADMIN_MSP_INSURANCE}/admincerts/" 2>/dev/null || true
+
+    log_success "Crypto materials generated for all organizations (LTO, HPG, Insurance)"
 fi
 
 # ============================================

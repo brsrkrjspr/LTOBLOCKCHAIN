@@ -48,42 +48,66 @@ docker run --rm \
     hyperledger/fabric-tools:2.5 \
     cryptogen generate --config=/config/crypto-config.yaml --output=/fabric-network/crypto-config
 
+# Verify all organizations' crypto materials exist
 if [ ! -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph" ] || \
+   [ ! -d "fabric-network/crypto-config/peerOrganizations/hpg.gov.ph" ] || \
+   [ ! -d "fabric-network/crypto-config/peerOrganizations/insurance.gov.ph" ] || \
    [ ! -d "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph" ]; then
-    echo "❌ Failed to generate crypto materials"
+    echo "❌ Failed to generate crypto materials for all organizations"
+    echo "   Missing:"
+    [ ! -d "fabric-network/crypto-config/peerOrganizations/lto.gov.ph" ] && echo "     - LTO peer organization"
+    [ ! -d "fabric-network/crypto-config/peerOrganizations/hpg.gov.ph" ] && echo "     - HPG peer organization"
+    [ ! -d "fabric-network/crypto-config/peerOrganizations/insurance.gov.ph" ] && echo "     - Insurance peer organization"
+    [ ! -d "fabric-network/crypto-config/ordererOrganizations/lto.gov.ph" ] && echo "     - Orderer organization"
     exit 1
 fi
 
-echo "✅ Crypto materials generated"
+echo "✅ Crypto materials generated for all organizations"
 echo ""
 
 # ============================================
 # STEP 3: SETUP ADMINCERTS (User, Peer, and Organization Level)
 # ============================================
-echo "Step 3: Setting up admin certificates at all levels..."
+echo "Step 3: Setting up admin certificates at all levels for all organizations..."
 
-ADMIN_CERT="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp/signcerts/Admin@lto.gov.ph-cert.pem"
+# Function to setup admincerts for an organization
+setup_org_admincerts() {
+    local ORG_DOMAIN=$1
+    local ADMIN_CERT_FILE=$(find "fabric-network/crypto-config/peerOrganizations/${ORG_DOMAIN}/users/Admin@${ORG_DOMAIN}/msp/signcerts" -name "*.pem" | head -1)
+    
+    if [ -z "$ADMIN_CERT_FILE" ] || [ ! -f "$ADMIN_CERT_FILE" ]; then
+        echo "⚠️  Warning: Admin certificate not found for ${ORG_DOMAIN}, skipping..."
+        return
+    fi
+    
+    # User-level admincerts
+    ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/${ORG_DOMAIN}/users/Admin@${ORG_DOMAIN}/msp"
+    mkdir -p "${ADMIN_MSP}/admincerts"
+    cp "$ADMIN_CERT_FILE" "${ADMIN_MSP}/admincerts/" 2>/dev/null || true
+    
+    # Peer-level admincerts
+    PEER_ADMINCERTS="fabric-network/crypto-config/peerOrganizations/${ORG_DOMAIN}/peers/peer0.${ORG_DOMAIN}/msp/admincerts"
+    mkdir -p "$PEER_ADMINCERTS"
+    cp "$ADMIN_CERT_FILE" "$PEER_ADMINCERTS/" 2>/dev/null || true
+    
+    # Organization-level admincerts (CRITICAL for orderer validation)
+    ORG_MSP="fabric-network/crypto-config/peerOrganizations/${ORG_DOMAIN}/msp"
+    mkdir -p "${ORG_MSP}/admincerts"
+    cp "$ADMIN_CERT_FILE" "${ORG_MSP}/admincerts/" 2>/dev/null || true
+    
+    # Also ensure organization MSP has signcerts (some Fabric versions need this)
+    mkdir -p "${ORG_MSP}/signcerts"
+    cp "$ADMIN_CERT_FILE" "${ORG_MSP}/signcerts/" 2>/dev/null || true
+    
+    echo "✅ Admin certificates configured for ${ORG_DOMAIN}"
+}
 
-# User-level admincerts
-ADMIN_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp"
-mkdir -p "${ADMIN_MSP}/admincerts"
-cp "${ADMIN_CERT}" "${ADMIN_MSP}/admincerts/"
+# Setup admincerts for all organizations
+setup_org_admincerts "lto.gov.ph"
+setup_org_admincerts "hpg.gov.ph"
+setup_org_admincerts "insurance.gov.ph"
 
-# Peer-level admincerts
-PEER_ADMINCERTS="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp/admincerts"
-mkdir -p "$PEER_ADMINCERTS"
-cp "${ADMIN_CERT}" "$PEER_ADMINCERTS/"
-
-# Organization-level admincerts (CRITICAL for orderer validation)
-ORG_MSP="fabric-network/crypto-config/peerOrganizations/lto.gov.ph/msp"
-mkdir -p "${ORG_MSP}/admincerts"
-cp "${ADMIN_CERT}" "${ORG_MSP}/admincerts/"
-
-# Also ensure organization MSP has signcerts (some Fabric versions need this)
-mkdir -p "${ORG_MSP}/signcerts"
-cp "${ADMIN_CERT}" "${ORG_MSP}/signcerts/"
-
-echo "✅ Admin certificates configured at all levels"
+echo "✅ Admin certificates configured at all levels for all organizations"
 echo ""
 
 # ============================================

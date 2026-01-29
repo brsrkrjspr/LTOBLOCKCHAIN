@@ -1,5 +1,6 @@
 # TrustChain LTO - Crypto Configuration
-# Single orderer + LTO organization
+# 3 Organizations: LTO, HPG, Insurance
+# Single orderer with multi-org peer network
 
 OrdererOrgs:
   - Name: Orderer
@@ -24,6 +25,36 @@ PeerOrgs:
       - Hostname: peer0
         SANS:
           - "peer0.lto.gov.ph"
+          - "localhost"
+          - "127.0.0.1"
+          - "::1"
+
+  - Name: HPG
+    Domain: hpg.gov.ph
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+    Specs:
+      - Hostname: peer0
+        SANS:
+          - "peer0.hpg.gov.ph"
+          - "localhost"
+          - "127.0.0.1"
+          - "::1"
+
+  - Name: Insurance
+    Domain: insurance.gov.ph
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+    Specs:
+      - Hostname: peer0
+        SANS:
+          - "peer0.insurance.gov.ph"
           - "localhost"
           - "127.0.0.1"
           - "::1"

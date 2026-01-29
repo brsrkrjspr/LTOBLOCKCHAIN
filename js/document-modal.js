@@ -1005,6 +1005,7 @@
         frame.classList.toggle('doc-frame-scroll', canvas.height > Math.floor(viewer.clientHeight * 0.9));
 
         await page.render({ canvasContext: ctx, viewport }).promise;
+        updateZoomDisplay();
     }
     
     // Get authentication token
@@ -1436,13 +1437,41 @@
                     
                     // Construct iframe URL with token parameter
                     const iframeUrl = `/api/documents/${docId}/view?token=${viewToken}`;
-                    
-                    // Fetch and render PDF without toolbar
-                    const pdfRes = await fetch(iframeUrl, { headers: { 'Accept': 'application/pdf' } });
-                    if (!pdfRes.ok) throw new Error(`Failed to fetch PDF: ${pdfRes.status} ${pdfRes.statusText}`);
-                    const buf = await pdfRes.arrayBuffer();
-                    lastPdfRenderState = { data: buf, pageNumber: 1 };
-                    await renderPdfFirstPage(buf);
+
+                    // IMPORTANT: this endpoint can return PDF OR image. Detect and render accordingly.
+                    const res = await fetch(iframeUrl, { headers: { 'Accept': 'image/*,application/pdf,*/*' } });
+                    if (!res.ok) throw new Error(`Failed to fetch document: ${res.status} ${res.statusText}`);
+
+                    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+                    // Reset last render state
+                    lastPdfRenderState = null;
+
+                    if (contentType.includes('application/pdf') || isPdf) {
+                        const buf = await res.arrayBuffer();
+                        lastPdfRenderState = { data: buf, pageNumber: 1 };
+                        await renderPdfFirstPage(buf);
+                    } else if (contentType.startsWith('image/') || isImage) {
+                        const blob = await res.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        activeBlobUrls.push(blobUrl);
+
+                        if (wrapper) {
+                            wrapper.innerHTML = `<img src="${blobUrl}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; object-fit: contain;" />`;
+                        }
+                    } else {
+                        // Unsupported preview type from /view
+                        if (wrapper) {
+                            wrapper.innerHTML = `
+                                <div style="text-align: center; padding: 3rem; color: var(--dv-blue-deep); background: white; border-radius: 8px; box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: var(--dv-blue); margin-bottom: 1rem;"></i>
+                                    <h3 style="margin: 0 0 0.5rem 0; color: var(--dv-blue-deep); font-weight: 700;">Preview Not Available</h3>
+                                    <p style="color: var(--dv-slate); margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
+                                    <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">Download Document</button>
+                                </div>
+                            `;
+                        }
+                    }
                     
                     // PDF loaded successfully
                 } catch (error) {

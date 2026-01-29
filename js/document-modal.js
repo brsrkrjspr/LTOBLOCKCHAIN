@@ -99,6 +99,16 @@
                             <div class="doc-corner-accent doc-corner-top-left"></div>
                             <div class="doc-corner-accent doc-corner-bottom-right"></div>
                             
+                            <!-- Viewer header (title + zoom like screenshot) -->
+                            <div class="doc-viewer-header">
+                                <h2 class="doc-viewer-title" id="docModalTitle">Document Viewer</h2>
+                                <div class="doc-viewer-zoom">
+                                    <button class="doc-zoom-btn" type="button" onclick="DocumentModal.zoomOut()" title="Zoom out">−</button>
+                                    <span class="doc-zoom-level" id="docZoomLevel">100%</span>
+                                    <button class="doc-zoom-btn" type="button" onclick="DocumentModal.zoomIn()" title="Zoom in">+</button>
+                                </div>
+                            </div>
+                            
                             <!-- Document Display Area - Single Page, Centered -->
                             <div class="doc-pdf-container" id="docPdfContainer">
                                 <!-- Loading State -->
@@ -149,20 +159,19 @@
         styles.id = 'doc-modal-styles';
         styles.textContent = `
             /* ============================================
-               DOCUMENT MODAL - SCREENSHOT THEME
-               Matches requested DocuView screenshot styling
+               DOCUMENT MODAL - SYSTEM THEME
+               Align fonts/colors with system UI
                ============================================ */
 
-            @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
             :root {
-                --dv-cream: #FBF9F4;
-                --dv-charcoal: #2B2D31;
-                --dv-slate: #5A5D63;
-                --dv-rust: #C7492A;
-                --dv-gold: #D4A574;
-                --dv-shadow: rgba(43, 45, 49, 0.08);
-                --dv-shadow-heavy: rgba(43, 45, 49, 0.15);
+                --dv-blue: #0284c7;
+                --dv-blue-dark: #0369a1;
+                --dv-blue-deep: #0c4a6e;
+                --dv-slate: #64748b;
+                --dv-text: #0f172a;
+                --dv-bg: #f8fafc;
+                --dv-panel: #ffffff;
+                --dv-viewer-bg: #0f172a;
             }
             
             .doc-modal {
@@ -173,7 +182,7 @@
                 width: 100%;
                 height: 100%;
                 z-index: 20000;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 align-items: center;
                 justify-content: center;
             }
@@ -246,9 +255,9 @@
             .doc-logo {
                 font-size: 1.5rem;
                 font-weight: 600;
-                color: var(--dv-charcoal);
+                color: var(--dv-blue-deep);
                 letter-spacing: -0.02em;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-toolbar {
@@ -261,11 +270,10 @@
                 padding: 0.6rem 1.2rem;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: var(--dv-charcoal);
-                font-family: 'IBM Plex Mono', monospace;
-                font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
+                color: var(--dv-blue-deep);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.875rem;
+                font-weight: 600;
                 cursor: pointer;
                 transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                 position: relative;
@@ -279,7 +287,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: var(--dv-rust);
+                background: var(--dv-blue);
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -290,19 +298,19 @@
             
             .doc-btn:hover {
                 color: white;
-                border-color: var(--dv-rust);
+                border-color: var(--dv-blue);
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px var(--dv-shadow-heavy);
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
             }
             
             .doc-btn-primary {
-                background: var(--dv-rust);
+                background: var(--dv-blue);
                 color: white;
-                border-color: var(--dv-rust);
+                border-color: var(--dv-blue);
             }
             
             .doc-btn-primary::before {
-                background: var(--dv-charcoal);
+                background: var(--dv-blue-dark);
             }
             
             .doc-close-modal {
@@ -310,7 +318,7 @@
                 height: 40px;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: var(--dv-rust);
+                color: var(--dv-blue);
                 font-size: 1.5rem;
                 cursor: pointer;
                 transition: all 0.3s ease;
@@ -328,7 +336,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: var(--dv-rust);
+                background: var(--dv-blue);
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -339,9 +347,9 @@
             
             .doc-close-modal:hover {
                 color: white;
-                border-color: var(--dv-rust);
+                border-color: var(--dv-blue);
                 transform: translateY(-2px) rotate(90deg);
-                box-shadow: 0 4px 12px var(--dv-shadow-heavy);
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
             }
             
             /* ============================================
@@ -352,7 +360,7 @@
                 flex: 1;
                 padding: 2rem;
                 overflow: auto;
-                background: linear-gradient(135deg, #E8E4DC 0%, #D4CFC4 100%);
+                background: var(--dv-bg);
             }
             
             .doc-container {
@@ -373,27 +381,26 @@
             }
             
             .doc-sidebar h3 {
-                font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 0.12em;
+                font-size: 0.85rem;
+                letter-spacing: 0.02em;
                 color: var(--dv-slate);
                 margin-bottom: 1rem;
-                font-family: 'IBM Plex Mono', monospace;
-                font-weight: 500;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-weight: 700;
             }
             
             .doc-info {
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px var(--dv-shadow);
+                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
                 margin-bottom: 2rem;
             }
             
             .doc-info:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 4px 16px var(--dv-shadow-heavy);
+                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
             }
             
             .doc-info-item {
@@ -411,18 +418,19 @@
             }
             
             .doc-info-label {
-                font-size: 0.7rem;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
+                font-size: 0.75rem;
+                letter-spacing: 0.02em;
                 color: var(--dv-slate);
                 margin-bottom: 0.3rem;
-                font-family: 'IBM Plex Mono', monospace;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-weight: 600;
             }
             
             .doc-info-value {
                 font-size: 0.95rem;
-                color: var(--dv-charcoal);
-                font-family: 'Crimson Pro', serif;
+                color: var(--dv-text);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-weight: 600;
             }
             
             .doc-list-section {
@@ -451,15 +459,15 @@
             }
             
             .doc-sidebar-item:hover {
-                background: var(--dv-cream);
-                color: var(--dv-charcoal);
-                border-color: rgba(199, 73, 42, 0.2);
+                background: #f0f9ff;
+                color: var(--dv-blue);
+                border-color: rgba(2, 132, 199, 0.2);
             }
             
             .doc-sidebar-item.active {
-                background: rgba(199, 73, 42, 0.1);
-                border-color: var(--dv-rust);
-                color: var(--dv-charcoal);
+                background: rgba(2, 132, 199, 0.12);
+                border-color: var(--dv-blue);
+                color: var(--dv-blue);
             }
             
             .doc-sidebar-item-icon {
@@ -469,14 +477,14 @@
                 align-items: center;
                 justify-content: center;
                 border-radius: 8px;
-                background: rgba(199, 73, 42, 0.1);
+                background: rgba(2, 132, 199, 0.1);
                 font-size: 1.125rem;
                 flex-shrink: 0;
-                color: var(--dv-rust);
+                color: var(--dv-blue);
             }
             
             .doc-sidebar-item.active .doc-sidebar-item-icon {
-                background: var(--dv-rust);
+                background: linear-gradient(135deg, var(--dv-blue) 0%, var(--dv-blue-dark) 100%);
                 color: white;
             }
             
@@ -492,20 +500,20 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 margin-bottom: 0.25rem;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-sidebar-item-type {
                 font-size: 0.75rem;
                 color: var(--dv-slate);
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-page-nav {
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px var(--dv-shadow);
+                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
             }
             
             .doc-nav-controls {
@@ -523,13 +531,16 @@
                 cursor: pointer;
                 transition: all 0.2s ease;
                 font-size: 1rem;
-                color: var(--dv-charcoal);
-                font-family: 'IBM Plex Mono', monospace;
+                color: var(--dv-blue-deep);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-weight: 700;
             }
             
             .doc-nav-btn:hover:not(:disabled) {
-                background: var(--dv-cream);
+                background: #f0f9ff;
                 transform: scale(1.05);
+                border-color: var(--dv-blue);
+                color: var(--dv-blue);
             }
             
             .doc-nav-btn:disabled {
@@ -538,7 +549,7 @@
             }
             
             .doc-counter {
-                font-family: 'IBM Plex Mono', monospace;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 font-size: 0.85rem;
                 color: var(--dv-slate);
                 min-width: 60px;
@@ -547,7 +558,7 @@
             
             .doc-page-indicator {
                 text-align: center;
-                font-family: 'IBM Plex Mono', monospace;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 font-size: 0.85rem;
                 color: var(--dv-slate);
             }
@@ -571,7 +582,7 @@
                 position: absolute;
                 width: 40px;
                 height: 40px;
-                border: 2px solid var(--dv-gold);
+                border: 2px solid rgba(2, 132, 199, 0.55);
                 z-index: 1;
             }
             
@@ -591,7 +602,7 @@
             
             .doc-pdf-container {
                 flex: 1;
-                background: #e5e7eb;
+                background: var(--dv-viewer-bg);
                 position: relative;
                 overflow: hidden;
                 min-height: 500px;
@@ -600,7 +611,65 @@
                 justify-content: center;
             }
 
-            /* No in-viewer header/toolbars (distraction-free) */
+            /* Viewer header (title + zoom like screenshot) */
+            .doc-viewer-header {
+                background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+                color: #ffffff;
+                padding: 1.25rem 1.75rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 3px solid var(--dv-blue);
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .doc-viewer-title {
+                margin: 0;
+                font-size: 1.25rem;
+                font-weight: 700;
+                letter-spacing: -0.01em;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                padding-right: 1rem;
+            }
+
+            .doc-viewer-zoom {
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.9rem;
+                flex-shrink: 0;
+            }
+
+            .doc-zoom-btn {
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                background: rgba(255, 255, 255, 0.08);
+                color: #ffffff;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .doc-zoom-btn:hover {
+                background: rgba(255, 255, 255, 0.16);
+                transform: translateY(-1px);
+            }
+
+            .doc-zoom-level {
+                min-width: 56px;
+                text-align: center;
+                font-weight: 700;
+            }
             
             /* Loading Overlay */
             .doc-loading-overlay {
@@ -620,8 +689,8 @@
             .doc-spinner {
                 width: 50px;
                 height: 50px;
-                border: 3px solid rgba(199, 73, 42, 0.1);
-                border-top-color: var(--dv-rust);
+                border: 3px solid rgba(2, 132, 199, 0.15);
+                border-top-color: var(--dv-blue);
                 border-radius: 50%;
                 animation: docSpin 1s linear infinite;
             }
@@ -632,12 +701,10 @@
             
             .doc-loading-text {
                 margin-top: 1rem;
-                font-family: 'IBM Plex Mono', monospace;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 font-size: 0.875rem;
-                color: var(--dv-slate);
+                color: #cbd5e1;
                 font-weight: 500;
-                text-transform: uppercase;
-                letter-spacing: 0.12em;
             }
             
             /* Error State */
@@ -647,13 +714,13 @@
                 left: 50%;
                 transform: translate(-50%, -50%);
                 text-align: center;
-                color: var(--dv-charcoal);
+                color: var(--dv-blue-deep);
                 z-index: 5;
                 max-width: 400px;
                 padding: 2rem;
                 background: white;
                 border-radius: 8px;
-                box-shadow: 0 4px 16px var(--dv-shadow-heavy);
+                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
             }
             
             .doc-error-icon {
@@ -665,8 +732,8 @@
             .doc-error h3 {
                 margin: 0 0 0.5rem 0;
                 font-size: 1.25rem;
-                color: var(--dv-charcoal);
-                font-family: 'Crimson Pro', serif;
+                color: var(--dv-blue-deep);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 font-weight: 600;
             }
             
@@ -674,7 +741,7 @@
                 margin: 0 0 1.5rem 0;
                 color: var(--dv-slate);
                 font-size: 0.9375rem;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-error-actions {
@@ -766,18 +833,18 @@
             
             .doc-sidebar-list::-webkit-scrollbar-track,
             .doc-pdf-container::-webkit-scrollbar-track {
-                background: rgba(199, 73, 42, 0.05);
+                background: rgba(2, 132, 199, 0.08);
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb,
             .doc-pdf-container::-webkit-scrollbar-thumb {
-                background: rgba(199, 73, 42, 0.2);
+                background: rgba(2, 132, 199, 0.35);
                 border-radius: 3px;
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb:hover,
             .doc-pdf-container::-webkit-scrollbar-thumb:hover {
-                background: rgba(199, 73, 42, 0.3);
+                background: rgba(2, 132, 199, 0.5);
             }
             
             /* ============================================
@@ -916,10 +983,11 @@
         const pageNumber = 1;
         const page = await pdf.getPage(pageNumber);
 
-        // Fit-to-width target (90% of viewer width), allow vertical scroll if needed
+        // Fit-to-width target (90% of viewer width), apply zoom multiplier
         const targetWidth = Math.max(600, Math.floor(viewer.clientWidth * 0.9));
         const viewportAt1 = page.getViewport({ scale: 1 });
-        const scale = targetWidth / viewportAt1.width;
+        const baseScale = targetWidth / viewportAt1.width;
+        const scale = baseScale * (currentZoom / 100);
         const viewport = page.getViewport({ scale });
 
         const canvas = document.createElement('canvas');
@@ -1121,11 +1189,10 @@
         }
     }
     
-    // Apply zoom to document (disabled for single-page view)
+    // Apply zoom to document (canvas/images)
     function applyZoom() {
-        // Zoom functionality disabled - using auto-fit single-page view instead
-        // Keep function for compatibility but don't apply transforms
         updateZoomDisplay();
+        autoFitDocument();
     }
     
     // Calculate auto-fit scale for images
@@ -1164,13 +1231,14 @@
         const canvas = wrapper.querySelector('canvas.doc-pdf-canvas');
         
         if (img) {
-            // Images: fit to container (90% width), allow vertical scroll if needed
+            // Images: fit to container (90% width), apply zoom multiplier
             if (img.complete && img.naturalWidth) {
                 const imgWidth = img.naturalWidth;
                 const imgHeight = img.naturalHeight;
                 
                 const targetWidth = Math.max(600, Math.floor(pdfContainer.clientWidth * 0.9));
-                const scale = targetWidth / imgWidth;
+                const baseScale = targetWidth / imgWidth;
+                const scale = baseScale * (currentZoom / 100);
                 const finalWidth = imgWidth * scale;
                 const finalHeight = imgHeight * scale;
 
@@ -1754,12 +1822,12 @@
         
         // Zoom controls
         zoomIn: function() {
-            currentZoom = Math.min(currentZoom + 25, 300);
+            currentZoom = Math.min(currentZoom + 10, 200);
             applyZoom();
         },
         
         zoomOut: function() {
-            currentZoom = Math.max(currentZoom - 25, 50);
+            currentZoom = Math.max(currentZoom - 10, 50);
             applyZoom();
         },
         
@@ -1776,28 +1844,9 @@
         },
         
         zoomFit: function() {
-            const wrapper = document.getElementById('docFrameWrapper');
-            const container = document.getElementById('docFrameContainer');
-            
-            if (wrapper && container) {
-                const img = wrapper.querySelector('img');
-                if (img && img.naturalWidth) {
-                    const scale = calculateAutoFitScale(img, container);
-                    currentZoom = scale;
-                    applyZoom();
-                } else {
-                    // For PDFs, reset zoom to 100% and let iframe handle sizing
-                    currentZoom = 100;
-                    applyZoom();
-                    const iframe = wrapper.querySelector('iframe');
-                    if (iframe) {
-                        const containerWidth = Math.max(container.clientWidth - 40, 800);
-                        const containerHeight = Math.max(container.clientHeight - 40, 600);
-                        iframe.style.width = containerWidth + 'px';
-                        iframe.style.height = containerHeight + 'px';
-                    }
-                }
-            }
+            // Fit-to-width baseline
+            currentZoom = 100;
+            applyZoom();
         },
         
         zoomReset: function() {

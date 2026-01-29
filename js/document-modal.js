@@ -41,6 +41,12 @@
                             <button class="doc-btn" id="docDownloadBtn" onclick="DocumentModal.download()">Download</button>
                             <button class="doc-btn" onclick="window.print()">Print</button>
                             <button class="doc-btn doc-btn-primary" onclick="DocumentModal.share()">Share</button>
+                            <!-- Top navigation (shown only when multiple docs) -->
+                            <div class="doc-top-nav" id="docTopNav" style="display: none;">
+                                <button class="doc-top-nav-btn" id="docPrevTopBtn" onclick="DocumentModal.prev()" title="Previous document">‹</button>
+                                <span class="doc-top-nav-counter" id="docTopCounter">1 / 1</span>
+                                <button class="doc-top-nav-btn" id="docNextTopBtn" onclick="DocumentModal.next()" title="Next document">›</button>
+                            </div>
                             <button class="doc-close-modal" onclick="DocumentModal.close()" title="Close (ESC)">×</button>
                         </div>
                     </div>
@@ -266,6 +272,52 @@
                 align-items: center;
             }
             
+            /* Header navigation beside Share */
+            .doc-top-nav {
+                display: flex;
+                align-items: center;
+                gap: 0.45rem;
+                padding-left: 0.25rem;
+            }
+
+            .doc-top-nav-btn {
+                width: 44px;
+                height: 40px;
+                border-radius: 10px;
+                border: 1px solid rgba(43, 45, 49, 0.12);
+                background: #ffffff;
+                color: var(--dv-blue-deep);
+                cursor: pointer;
+                transition: all 0.15s ease;
+                font-size: 1.1rem;
+                font-weight: 800;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .doc-top-nav-btn:hover:not(:disabled) {
+                background: #f0f9ff;
+                border-color: var(--dv-blue);
+                color: var(--dv-blue);
+                transform: translateY(-1px);
+            }
+
+            .doc-top-nav-btn:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .doc-top-nav-counter {
+                min-width: 64px;
+                text-align: center;
+                font-size: 0.9rem;
+                font-weight: 700;
+                color: var(--dv-slate);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+
             .doc-btn {
                 padding: 0.6rem 1.2rem;
                 border: 1px solid rgba(43, 45, 49, 0.12);
@@ -1120,17 +1172,21 @@
         const list = document.getElementById('docSidebarList');
         const listSection = document.getElementById('docListSection');
         const pageNav = document.getElementById('docPageNav');
+        const topNav = document.getElementById('docTopNav');
         
         if (!list || !listSection) return;
         
         if (currentDocuments.length <= 1) {
             listSection.style.display = 'none';
             if (pageNav) pageNav.style.display = 'none';
+            if (topNav) topNav.style.display = 'none';
             return;
         }
         
         listSection.style.display = 'block';
-        if (pageNav) pageNav.style.display = 'block';
+        // Navigation controls are now in the header beside Share
+        if (pageNav) pageNav.style.display = 'none';
+        if (topNav) topNav.style.display = 'flex';
         
         list.innerHTML = currentDocuments.map((doc, index) => {
             const docType = doc.type || doc.document_type || 'document';
@@ -1160,9 +1216,15 @@
         const totalPagesEl = document.getElementById('docTotalPages');
         const prevBtn = document.getElementById('docPrevBtn');
         const nextBtn = document.getElementById('docNextBtn');
+        const topCounter = document.getElementById('docTopCounter');
+        const topPrevBtn = document.getElementById('docPrevTopBtn');
+        const topNextBtn = document.getElementById('docNextTopBtn');
         
         if (counter) {
             counter.textContent = `${currentDocIndex + 1} / ${currentDocuments.length}`;
+        }
+        if (topCounter) {
+            topCounter.textContent = `${currentDocIndex + 1} / ${currentDocuments.length}`;
         }
         
         if (currentPageEl) {
@@ -1176,9 +1238,15 @@
         if (prevBtn) {
             prevBtn.disabled = currentDocuments.length <= 1 || currentDocIndex === 0;
         }
+        if (topPrevBtn) {
+            topPrevBtn.disabled = currentDocuments.length <= 1 || currentDocIndex === 0;
+        }
         
         if (nextBtn) {
             nextBtn.disabled = currentDocuments.length <= 1 || currentDocIndex === currentDocuments.length - 1;
+        }
+        if (topNextBtn) {
+            topNextBtn.disabled = currentDocuments.length <= 1 || currentDocIndex === currentDocuments.length - 1;
         }
     }
     

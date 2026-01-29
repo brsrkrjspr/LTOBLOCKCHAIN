@@ -23,130 +23,127 @@
         modalContainer.id = 'documentViewerModal';
         modalContainer.className = 'doc-modal';
         modalContainer.innerHTML = `
-            <!-- Dark Overlay Backdrop -->
+            <!-- Modal Overlay -->
             <div class="doc-modal-overlay" onclick="DocumentModal.close()"></div>
             
             <!-- Main Modal Container -->
             <div class="doc-modal-container">
-                <!-- Header Section (Sticky) -->
-                <div class="doc-modal-header">
-                    <div class="doc-header-left">
-                        <div class="doc-title-section">
-                            <h2 class="doc-title" id="docModalTitle">Document Viewer</h2>
-                            <span class="doc-page-indicator" id="docPageIndicator" style="display: none;">Page 1 of 1</span>
+                <!-- Header -->
+                <header class="doc-modal-header">
+                    <div class="doc-header-content">
+                        <div class="doc-logo">DocuView</div>
+                        <div class="doc-toolbar">
+                            <button class="doc-btn" id="docDownloadBtn" onclick="DocumentModal.download()">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                            <button class="doc-btn doc-btn-primary" onclick="window.print()">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+                            <button class="doc-close-modal" onclick="DocumentModal.close()" title="Close (ESC)">×</button>
                         </div>
                     </div>
-                    
-                    <div class="doc-header-center">
-                        <div class="doc-nav-controls" id="docNavControls" style="display: none;">
-                            <button class="doc-nav-btn" id="docPrevBtn" onclick="DocumentModal.prev()" title="Previous Document (←)">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <span class="doc-counter" id="docCounter">1 / 1</span>
-                            <button class="doc-nav-btn" id="docNextBtn" onclick="DocumentModal.next()" title="Next Document (→)">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="doc-header-right">
-                        <button class="doc-header-btn" id="docDownloadBtn" onclick="DocumentModal.download()" title="Download Document">
-                            <i class="fas fa-download"></i>
-                            <span class="btn-label">Download</span>
-                        </button>
-                        <button class="doc-header-btn doc-close-btn" onclick="DocumentModal.close()" title="Close (ESC)">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Main Content Area -->
-                <div class="doc-modal-body">
-                    <!-- Left Sidebar (Document List) -->
-                    <aside class="doc-sidebar" id="docSidebar">
-                        <div class="doc-sidebar-header">
-                            <h3><i class="fas fa-list"></i> Documents</h3>
-                            <button class="doc-sidebar-toggle" id="docSidebarToggle" onclick="DocumentModal.toggleSidebar()" title="Toggle Sidebar">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                        </div>
-                        <div class="doc-sidebar-list" id="docSidebarList">
-                            <!-- Document list will be populated here -->
-                        </div>
-                    </aside>
-                    
-                    <!-- Main Viewer Area -->
-                    <div class="doc-viewer-area" id="docViewerArea">
-                        <!-- Loading State -->
-                        <div class="doc-loading" id="docLoading">
-                            <div class="doc-loading-spinner">
-                                <i class="fas fa-spinner fa-spin"></i>
+                </header>
+
+                <!-- Main Content -->
+                <div class="doc-modal-content">
+                    <div class="doc-container">
+                        <!-- Sidebar -->
+                        <aside class="doc-sidebar" id="docSidebar">
+                            <!-- Document Info -->
+                            <div class="doc-info">
+                                <h3>Document Info</h3>
+                                <div class="doc-info-item">
+                                    <span class="doc-info-label">File Name</span>
+                                    <span class="doc-info-value" id="docInfoFileName">-</span>
+                                </div>
+                                <div class="doc-info-item">
+                                    <span class="doc-info-label">File Size</span>
+                                    <span class="doc-info-value" id="docInfoFileSize">-</span>
+                                </div>
+                                <div class="doc-info-item">
+                                    <span class="doc-info-label">Pages</span>
+                                    <span class="doc-info-value" id="docInfoPages">-</span>
+                                </div>
+                                <div class="doc-info-item">
+                                    <span class="doc-info-label">Type</span>
+                                    <span class="doc-info-value" id="docInfoType">-</span>
+                                </div>
                             </div>
-                            <p>Loading document...</p>
-                        </div>
-                        
-                        <!-- Error State -->
-                        <div class="doc-error" id="docError" style="display: none;">
-                            <div class="doc-error-icon">
-                                <i class="fas fa-exclamation-triangle"></i>
+
+                            <!-- Document List (if multiple) -->
+                            <div class="doc-list-section" id="docListSection" style="display: none;">
+                                <h3>Documents</h3>
+                                <div class="doc-sidebar-list" id="docSidebarList">
+                                    <!-- Document list will be populated here -->
+                                </div>
                             </div>
-                            <h3>Failed to Load Document</h3>
-                            <p id="docErrorMessage">An error occurred while loading the document.</p>
-                            <div class="doc-error-actions">
-                                <button class="doc-btn doc-btn-primary" onclick="DocumentModal.retry()">
-                                    <i class="fas fa-redo"></i> Retry
-                                </button>
-                                <button class="doc-btn doc-btn-secondary" onclick="DocumentModal.download()">
-                                    <i class="fas fa-download"></i> Download Instead
-                                </button>
+
+                            <!-- Page Navigation -->
+                            <div class="doc-page-nav" id="docPageNav" style="display: none;">
+                                <h3>Navigation</h3>
+                                <div class="doc-nav-controls">
+                                    <button class="doc-nav-btn" id="docPrevBtn" onclick="DocumentModal.prev()" title="Previous Document">‹</button>
+                                    <span class="doc-counter" id="docCounter">1 / 1</span>
+                                    <button class="doc-nav-btn" id="docNextBtn" onclick="DocumentModal.next()" title="Next Document">›</button>
+                                </div>
+                                <div class="doc-page-indicator">
+                                    Page <span id="docCurrentPage">1</span> of <span id="docTotalPages">1</span>
+                                </div>
+                            </div>
+                        </aside>
+
+                        <!-- Viewer Container -->
+                        <div class="doc-viewer-container">
+                            <div class="doc-corner-accent doc-corner-top-left"></div>
+                            <div class="doc-corner-accent doc-corner-bottom-right"></div>
+                            
+                            <div class="doc-viewer-header">
+                                <h2 class="doc-title" id="docModalTitle">Document Viewer</h2>
+                                <div class="doc-zoom-controls">
+                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomOut()" title="Zoom Out (-)">−</button>
+                                    <span class="doc-zoom-level" id="docZoomLevel">100%</span>
+                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomIn()" title="Zoom In (+)">+</button>
+                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomFit()" title="Fit to Width">
+                                        <i class="fas fa-expand-arrows-alt"></i>
+                                    </button>
+                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomReset()" title="Reset Zoom">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="doc-pdf-container" id="docPdfContainer">
+                                <!-- Loading State -->
+                                <div class="doc-loading-overlay" id="docLoading">
+                                    <div class="doc-spinner"></div>
+                                    <div class="doc-loading-text">Loading Document...</div>
+                                </div>
+                                
+                                <!-- Error State -->
+                                <div class="doc-error" id="docError" style="display: none;">
+                                    <div class="doc-error-icon">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </div>
+                                    <h3>Failed to Load Document</h3>
+                                    <p id="docErrorMessage">An error occurred while loading the document.</p>
+                                    <div class="doc-error-actions">
+                                        <button class="doc-btn doc-btn-primary" onclick="DocumentModal.retry()">
+                                            <i class="fas fa-redo"></i> Retry
+                                        </button>
+                                        <button class="doc-btn" onclick="DocumentModal.download()">
+                                            <i class="fas fa-download"></i> Download Instead
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Document Frame -->
+                                <div class="doc-frame-container" id="docFrameContainer" style="display: none;">
+                                    <div class="doc-frame-wrapper" id="docFrameWrapper">
+                                        <!-- PDF or Image will be rendered here -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        
-                        <!-- Document Frame -->
-                        <div class="doc-frame-container" id="docFrameContainer" style="display: none;">
-                            <div class="doc-frame-wrapper" id="docFrameWrapper">
-                                <!-- PDF or Image will be rendered here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Footer Section (Optional Controls) -->
-                <div class="doc-modal-footer" id="docModalFooter" style="display: none;">
-                    <div class="doc-footer-left">
-                        <div class="doc-zoom-controls">
-                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomOut()" title="Zoom Out (-)">
-                                <i class="fas fa-search-minus"></i>
-                            </button>
-                            <span class="doc-zoom-level" id="docZoomLevel">100%</span>
-                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomIn()" title="Zoom In (+)">
-                                <i class="fas fa-search-plus"></i>
-                            </button>
-                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomFit()" title="Fit to Width">
-                                <i class="fas fa-expand-arrows-alt"></i>
-                            </button>
-                            <button class="doc-zoom-btn" onclick="DocumentModal.zoomReset()" title="Reset Zoom">
-                                <i class="fas fa-undo"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="doc-footer-center" id="docPdfControls" style="display: none;">
-                        <div class="doc-pdf-nav">
-                            <button class="doc-pdf-btn" id="docPdfPrevBtn" onclick="DocumentModal.prevPage()" title="Previous Page">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <input type="number" class="doc-page-input" id="docPageInput" min="1" value="1" onchange="DocumentModal.goToPage(parseInt(this.value))">
-                            <span class="doc-page-separator">of</span>
-                            <span class="doc-total-pages" id="docTotalPages">1</span>
-                            <button class="doc-pdf-btn" id="docPdfNextBtn" onclick="DocumentModal.nextPage()" title="Next Page">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="doc-footer-right">
-                        <!-- Reserved for future controls -->
                     </div>
                 </div>
             </div>
@@ -164,8 +161,8 @@
         styles.id = 'doc-modal-styles';
         styles.textContent = `
             /* ============================================
-               DOCUMENT MODAL - PROFESSIONAL ADMIN THEME
-               Dark Navy/Charcoal Government System UI
+               DOCUMENT MODAL - BLUE THEME
+               Matches System Design
                ============================================ */
             
             .doc-modal {
@@ -176,289 +173,276 @@
                 width: 100%;
                 height: 100%;
                 z-index: 20000;
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-modal.active {
                 display: flex;
-                animation: docFadeIn 0.2s ease;
+                opacity: 0;
+                pointer-events: none;
+                animation: docFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             }
             
             @keyframes docFadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
+                to {
+                    opacity: 1;
+                    pointer-events: all;
+                }
             }
             
-            /* Dark Overlay Backdrop */
+            /* Modal Overlay Backdrop */
             .doc-modal-overlay {
                 position: absolute;
                 top: 0;
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.85);
-                backdrop-filter: blur(4px);
-                -webkit-backdrop-filter: blur(4px);
+                background: rgba(43, 45, 49, 0.85);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
             }
             
             /* Main Modal Container */
             .doc-modal-container {
                 position: relative;
-                width: 95%;
-                max-width: 1600px;
-                height: 90vh;
-                max-height: 900px;
+                width: 100%;
+                max-width: 1400px;
+                max-height: 90vh;
                 margin: auto;
-                background: #1a1d29;
-                border-radius: 12px;
+                background: white;
+                border: 1px solid rgba(43, 45, 49, 0.08);
+                box-shadow: 0 20px 60px rgba(43, 45, 49, 0.3);
+                transform: scale(0.9) translateY(30px);
+                transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
-                animation: docSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
             
-            @keyframes docSlideUp {
-                from {
-                    transform: translateY(30px);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
+            .doc-modal.active .doc-modal-container {
+                transform: scale(1) translateY(0);
             }
             
             /* ============================================
-               HEADER SECTION (Sticky)
+               HEADER SECTION
                ============================================ */
             
             .doc-modal-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 1rem 1.5rem;
-                background: #0f1117;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(12px);
+                border-bottom: 1px solid rgba(43, 45, 49, 0.08);
+                padding: 1.5rem 2rem;
                 flex-shrink: 0;
-                position: sticky;
-                top: 0;
-                z-index: 10;
             }
             
-            .doc-header-left {
-                flex: 1;
-                min-width: 0;
-            }
-            
-            .doc-title-section {
+            .doc-header-content {
                 display: flex;
-                flex-direction: column;
-                gap: 0.25rem;
+                justify-content: space-between;
+                align-items: center;
             }
             
-            .doc-title {
-                margin: 0;
-                font-size: 1.25rem;
+            .doc-logo {
+                font-size: 1.5rem;
                 font-weight: 600;
-                color: #ffffff;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                max-width: 400px;
+                color: #0c4a6e;
+                letter-spacing: -0.02em;
             }
             
-            .doc-page-indicator {
-                font-size: 0.875rem;
-                color: #9ca3af;
-                font-weight: 500;
+            .doc-logo::before {
+                content: '◆';
+                color: #0284c7;
+                margin-right: 0.5rem;
+                font-size: 0.8em;
             }
             
-            .doc-header-center {
-                flex: 0 0 auto;
+            .doc-toolbar {
                 display: flex;
-                align-items: center;
-            }
-            
-            .doc-nav-controls {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                background: rgba(255, 255, 255, 0.05);
-                padding: 0.5rem 1rem;
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            
-            .doc-nav-btn {
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                color: #ffffff;
-                width: 36px;
-                height: 36px;
-                border-radius: 6px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s ease;
-                font-size: 0.875rem;
-            }
-            
-            .doc-nav-btn:hover:not(:disabled) {
-                background: rgba(255, 255, 255, 0.2);
-                border-color: rgba(255, 255, 255, 0.3);
-                transform: scale(1.05);
-            }
-            
-            .doc-nav-btn:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
-            
-            .doc-counter {
-                font-weight: 600;
-                font-size: 0.9375rem;
-                color: #ffffff;
-                min-width: 60px;
-                text-align: center;
-            }
-            
-            .doc-header-right {
-                flex: 0 0 auto;
-                display: flex;
-                align-items: center;
                 gap: 0.5rem;
+                align-items: center;
             }
             
-            .doc-header-btn {
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                color: #ffffff;
-                padding: 0.625rem 1rem;
-                border-radius: 8px;
+            .doc-btn {
+                padding: 0.6rem 1.2rem;
+                border: 1px solid rgba(43, 45, 49, 0.12);
+                background: white;
+                color: #0c4a6e;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
                 cursor: pointer;
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                position: relative;
+                overflow: hidden;
                 display: inline-flex;
                 align-items: center;
                 gap: 0.5rem;
-                transition: all 0.2s ease;
-                font-size: 0.9375rem;
-                font-weight: 500;
             }
             
-            .doc-header-btn:hover {
-                background: rgba(255, 255, 255, 0.2);
-                border-color: rgba(255, 255, 255, 0.3);
+            .doc-btn::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: #0284c7;
+                transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                z-index: -1;
             }
             
-            .doc-header-btn .btn-label {
-                display: inline;
+            .doc-btn:hover::before {
+                left: 0;
             }
             
-            .doc-close-btn:hover {
-                background: rgba(239, 68, 68, 0.2);
-                border-color: rgba(239, 68, 68, 0.4);
-                color: #fca5a5;
+            .doc-btn:hover {
+                color: white;
+                border-color: #0284c7;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
             }
             
-            /* ============================================
-               BODY SECTION (Sidebar + Viewer)
-               ============================================ */
-            
-            .doc-modal-body {
-                flex: 1;
-                display: flex;
-                min-height: 0;
-                background: #0f1117;
-                overflow: hidden;
+            .doc-btn-primary {
+                background: #0284c7;
+                color: white;
+                border-color: #0284c7;
             }
             
-            /* Left Sidebar */
-            .doc-sidebar {
-                width: 280px;
-                background: #151821;
-                border-right: 1px solid rgba(255, 255, 255, 0.1);
-                display: flex;
-                flex-direction: column;
-                flex-shrink: 0;
-                transition: transform 0.3s ease, width 0.3s ease;
+            .doc-btn-primary::before {
+                background: #0369a1;
             }
             
-            .doc-sidebar.collapsed {
-                width: 0;
-                transform: translateX(-100%);
-                border-right: none;
-            }
-            
-            .doc-sidebar-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 1rem 1.25rem;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            
-            .doc-sidebar-header h3 {
-                margin: 0;
-                font-size: 0.9375rem;
-                font-weight: 600;
-                color: #ffffff;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-            }
-            
-            .doc-sidebar-header h3 i {
-                color: #60a5fa;
-            }
-            
-            .doc-sidebar-toggle {
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                color: #ffffff;
-                width: 32px;
-                height: 32px;
-                border-radius: 6px;
+            .doc-close-modal {
+                width: 40px;
+                height: 40px;
+                border: 1px solid rgba(43, 45, 49, 0.12);
+                background: white;
+                color: #0284c7;
+                font-size: 1.5rem;
                 cursor: pointer;
+                transition: all 0.3s ease;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                transition: all 0.2s ease;
+                position: relative;
+                overflow: hidden;
             }
             
-            .doc-sidebar-toggle:hover {
-                background: rgba(255, 255, 255, 0.2);
+            .doc-close-modal::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: #0284c7;
+                transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                z-index: -1;
             }
             
-            .doc-sidebar.collapsed .doc-sidebar-toggle i {
-                transform: rotate(180deg);
+            .doc-close-modal:hover::before {
+                left: 0;
+            }
+            
+            .doc-close-modal:hover {
+                color: white;
+                border-color: #0284c7;
+                transform: translateY(-2px) rotate(90deg);
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+            }
+            
+            /* ============================================
+               MAIN CONTENT SECTION
+               ============================================ */
+            
+            .doc-modal-content {
+                flex: 1;
+                padding: 2rem;
+                overflow: auto;
+                background: linear-gradient(135deg, #FBF9F4 0%, #F5F1E8 100%);
+            }
+            
+            .doc-container {
+                display: grid;
+                grid-template-columns: 250px 1fr;
+                gap: 2rem;
+                height: 100%;
+            }
+            
+            /* ============================================
+               SIDEBAR SECTION
+               ============================================ */
+            
+            .doc-sidebar {
+                display: flex;
+                flex-direction: column;
+                gap: 2rem;
+            }
+            
+            .doc-sidebar h3 {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                color: #64748b;
+                margin-bottom: 1rem;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-weight: 500;
+            }
+            
+            .doc-info {
+                background: white;
+                border: 1px solid rgba(43, 45, 49, 0.08);
+                padding: 1.5rem;
+                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+            
+            .doc-info:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
+            }
+            
+            .doc-info-item {
+                display: flex;
+                flex-direction: column;
+                margin-bottom: 1rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid rgba(43, 45, 49, 0.06);
+            }
+            
+            .doc-info-item:last-child {
+                margin-bottom: 0;
+                padding-bottom: 0;
+                border-bottom: none;
+            }
+            
+            .doc-info-label {
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: #64748b;
+                margin-bottom: 0.3rem;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            
+            .doc-info-value {
+                font-size: 0.95rem;
+                color: #0c4a6e;
+                font-weight: 500;
+            }
+            
+            .doc-list-section {
+                background: white;
+                border: 1px solid rgba(43, 45, 49, 0.08);
+                padding: 1.5rem;
+                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
             }
             
             .doc-sidebar-list {
-                flex: 1;
+                max-height: 300px;
                 overflow-y: auto;
-                padding: 0.75rem;
             }
             
-            /* Custom Scrollbar */
-            .doc-sidebar-list::-webkit-scrollbar {
-                width: 6px;
-            }
-            
-            .doc-sidebar-list::-webkit-scrollbar-track {
-                background: rgba(255, 255, 255, 0.05);
-            }
-            
-            .doc-sidebar-list::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 3px;
-            }
-            
-            .doc-sidebar-list::-webkit-scrollbar-thumb:hover {
-                background: rgba(255, 255, 255, 0.3);
-            }
-            
-            /* Sidebar Document Item */
             .doc-sidebar-item {
                 display: flex;
                 align-items: center;
@@ -467,21 +451,21 @@
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s ease;
-                color: #d1d5db;
+                color: #475569;
                 margin-bottom: 0.5rem;
                 border: 2px solid transparent;
             }
             
             .doc-sidebar-item:hover {
-                background: rgba(96, 165, 250, 0.1);
-                color: #ffffff;
-                border-color: rgba(96, 165, 250, 0.2);
+                background: #f0f9ff;
+                color: #0284c7;
+                border-color: rgba(2, 132, 199, 0.2);
             }
             
             .doc-sidebar-item.active {
-                background: rgba(96, 165, 250, 0.2);
-                border-color: #60a5fa;
-                color: #ffffff;
+                background: rgba(2, 132, 199, 0.1);
+                border-color: #0284c7;
+                color: #0284c7;
             }
             
             .doc-sidebar-item-icon {
@@ -491,13 +475,15 @@
                 align-items: center;
                 justify-content: center;
                 border-radius: 8px;
-                background: rgba(255, 255, 255, 0.1);
+                background: rgba(2, 132, 199, 0.1);
                 font-size: 1.125rem;
                 flex-shrink: 0;
+                color: #0284c7;
             }
             
             .doc-sidebar-item.active .doc-sidebar-item-icon {
-                background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+                color: white;
             }
             
             .doc-sidebar-item-info {
@@ -516,43 +502,194 @@
             
             .doc-sidebar-item-type {
                 font-size: 0.75rem;
-                color: #9ca3af;
+                color: #64748b;
             }
             
-            /* Main Viewer Area */
-            .doc-viewer-area {
+            .doc-page-nav {
+                background: white;
+                border: 1px solid rgba(43, 45, 49, 0.08);
+                padding: 1.5rem;
+                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
+            }
+            
+            .doc-nav-controls {
+                display: flex;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+                align-items: center;
+            }
+            
+            .doc-nav-btn {
                 flex: 1;
+                padding: 0.5rem;
+                border: 1px solid rgba(43, 45, 49, 0.12);
+                background: white;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 1rem;
+                color: #0c4a6e;
+            }
+            
+            .doc-nav-btn:hover:not(:disabled) {
+                background: #f0f9ff;
+                transform: scale(1.05);
+                border-color: #0284c7;
+                color: #0284c7;
+            }
+            
+            .doc-nav-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            
+            .doc-counter {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.85rem;
+                color: #64748b;
+                min-width: 60px;
+                text-align: center;
+                font-weight: 500;
+            }
+            
+            .doc-page-indicator {
+                text-align: center;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.85rem;
+                color: #64748b;
+            }
+            
+            /* ============================================
+               VIEWER CONTAINER
+               ============================================ */
+            
+            .doc-viewer-container {
+                background: white;
+                border: 1px solid rgba(43, 45, 49, 0.08);
+                box-shadow: 0 8px 32px rgba(43, 45, 49, 0.15);
+                position: relative;
+                overflow: hidden;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .doc-corner-accent {
+                position: absolute;
+                width: 40px;
+                height: 40px;
+                border: 2px solid #0284c7;
+                z-index: 1;
+            }
+            
+            .doc-corner-top-left {
+                top: 10px;
+                left: 10px;
+                border-right: none;
+                border-bottom: none;
+            }
+            
+            .doc-corner-bottom-right {
+                bottom: 10px;
+                right: 10px;
+                border-left: none;
+                border-top: none;
+            }
+            
+            .doc-viewer-header {
+                background: linear-gradient(135deg, #0c4a6e 0%, #0369a1 100%);
+                color: white;
+                padding: 1.5rem 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 3px solid #0284c7;
+            }
+            
+            .doc-title {
+                font-size: 1.5rem;
+                font-weight: 600;
+                letter-spacing: -0.01em;
+                margin: 0;
+                color: white;
+            }
+            
+            .doc-zoom-controls {
+                display: flex;
+                gap: 0.5rem;
+                align-items: center;
+            }
+            
+            .doc-zoom-btn {
+                width: 36px;
+                height: 36px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                background: rgba(255, 255, 255, 0.1);
+                color: white;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 1.2rem;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                position: relative;
-                background: #0a0c10;
-                min-width: 0;
-                min-height: 0;
-                overflow: hidden;
+                backdrop-filter: blur(8px);
             }
             
-            /* Loading State */
-            .doc-loading {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
+            .doc-zoom-btn:hover {
+                background: rgba(255, 255, 255, 0.2);
+                transform: scale(1.1);
+            }
+            
+            .doc-zoom-level {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.85rem;
+                min-width: 50px;
                 text-align: center;
-                color: #ffffff;
-                z-index: 5;
+                font-weight: 500;
             }
             
-            .doc-loading-spinner {
-                font-size: 3rem;
-                color: #60a5fa;
-                margin-bottom: 1rem;
+            .doc-pdf-container {
+                flex: 1;
+                background: #FBF9F4;
+                position: relative;
+                overflow: auto;
+                min-height: 500px;
             }
             
-            .doc-loading p {
-                font-size: 1rem;
-                color: #9ca3af;
-                margin: 0;
+            /* Loading Overlay */
+            .doc-loading-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(251, 249, 244, 0.95);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+            }
+            
+            .doc-spinner {
+                width: 50px;
+                height: 50px;
+                border: 3px solid rgba(2, 132, 199, 0.1);
+                border-top-color: #0284c7;
+                border-radius: 50%;
+                animation: docSpin 1s linear infinite;
+            }
+            
+            @keyframes docSpin {
+                to { transform: rotate(360deg); }
+            }
+            
+            .doc-loading-text {
+                margin-top: 1rem;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.85rem;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
             }
             
             /* Error State */
@@ -562,10 +699,13 @@
                 left: 50%;
                 transform: translate(-50%, -50%);
                 text-align: center;
-                color: #ffffff;
+                color: #0c4a6e;
                 z-index: 5;
                 max-width: 400px;
                 padding: 2rem;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
             }
             
             .doc-error-icon {
@@ -577,12 +717,12 @@
             .doc-error h3 {
                 margin: 0 0 0.5rem 0;
                 font-size: 1.25rem;
-                color: #ffffff;
+                color: #0c4a6e;
             }
             
             .doc-error p {
                 margin: 0 0 1.5rem 0;
-                color: #9ca3af;
+                color: #64748b;
                 font-size: 0.9375rem;
             }
             
@@ -590,40 +730,6 @@
                 display: flex;
                 gap: 0.75rem;
                 justify-content: center;
-            }
-            
-            .doc-btn {
-                padding: 0.75rem 1.5rem;
-                border-radius: 8px;
-                border: none;
-                cursor: pointer;
-                font-size: 0.9375rem;
-                font-weight: 500;
-                display: inline-flex;
-                align-items: center;
-                gap: 0.5rem;
-                transition: all 0.2s ease;
-            }
-            
-            .doc-btn-primary {
-                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                color: #ffffff;
-            }
-            
-            .doc-btn-primary:hover {
-                background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-            }
-            
-            .doc-btn-secondary {
-                background: rgba(255, 255, 255, 0.1);
-                color: #ffffff;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-            }
-            
-            .doc-btn-secondary:hover {
-                background: rgba(255, 255, 255, 0.2);
             }
             
             /* Document Frame Container */
@@ -683,142 +789,26 @@
                 height: 100% !important;
             }
             
-            /* PDF Auto-fit Container */
-            .doc-pdf-container {
-                width: 100%;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                overflow: auto;
+            /* Custom Scrollbar */
+            .doc-sidebar-list::-webkit-scrollbar,
+            .doc-pdf-container::-webkit-scrollbar {
+                width: 6px;
             }
             
-            .doc-pdf-iframe-wrapper {
-                position: relative;
-                background: #ffffff;
-                border-radius: 8px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                overflow: hidden;
-                margin: auto;
+            .doc-sidebar-list::-webkit-scrollbar-track,
+            .doc-pdf-container::-webkit-scrollbar-track {
+                background: rgba(2, 132, 199, 0.05);
             }
             
-            /* ============================================
-               FOOTER SECTION (Controls)
-               ============================================ */
-            
-            .doc-modal-footer {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0.875rem 1.5rem;
-                background: #0f1117;
-                border-top: 1px solid rgba(255, 255, 255, 0.1);
-                flex-shrink: 0;
+            .doc-sidebar-list::-webkit-scrollbar-thumb,
+            .doc-pdf-container::-webkit-scrollbar-thumb {
+                background: rgba(2, 132, 199, 0.2);
+                border-radius: 3px;
             }
             
-            .doc-footer-left,
-            .doc-footer-center,
-            .doc-footer-right {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-            }
-            
-            .doc-zoom-controls {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                background: rgba(255, 255, 255, 0.05);
-                padding: 0.5rem 1rem;
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            
-            .doc-zoom-btn {
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                color: #ffffff;
-                width: 32px;
-                height: 32px;
-                border-radius: 6px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s ease;
-                font-size: 0.875rem;
-            }
-            
-            .doc-zoom-btn:hover {
-                background: rgba(255, 255, 255, 0.2);
-                border-color: rgba(255, 255, 255, 0.3);
-            }
-            
-            .doc-zoom-level {
-                font-weight: 600;
-                font-size: 0.875rem;
-                color: #ffffff;
-                min-width: 50px;
-                text-align: center;
-            }
-            
-            .doc-pdf-nav {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                background: rgba(255, 255, 255, 0.05);
-                padding: 0.5rem 1rem;
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            
-            .doc-pdf-btn {
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                color: #ffffff;
-                width: 32px;
-                height: 32px;
-                border-radius: 6px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s ease;
-                font-size: 0.875rem;
-            }
-            
-            .doc-pdf-btn:hover:not(:disabled) {
-                background: rgba(255, 255, 255, 0.2);
-                border-color: rgba(255, 255, 255, 0.3);
-            }
-            
-            .doc-pdf-btn:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
-            
-            .doc-page-input {
-                width: 60px;
-                padding: 0.375rem 0.5rem;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 6px;
-                color: #ffffff;
-                font-size: 0.875rem;
-                text-align: center;
-            }
-            
-            .doc-page-input:focus {
-                outline: none;
-                border-color: #60a5fa;
-                background: rgba(255, 255, 255, 0.15);
-            }
-            
-            .doc-page-separator,
-            .doc-total-pages {
-                font-size: 0.875rem;
-                color: #9ca3af;
-                font-weight: 500;
+            .doc-sidebar-list::-webkit-scrollbar-thumb:hover,
+            .doc-pdf-container::-webkit-scrollbar-thumb:hover {
+                background: rgba(2, 132, 199, 0.3);
             }
             
             /* ============================================
@@ -826,82 +816,90 @@
                ============================================ */
             
             @media (max-width: 1024px) {
-                .doc-modal-container {
-                    width: 100%;
-                    height: 100vh;
-                    max-height: 100vh;
-                    border-radius: 0;
+                .doc-container {
+                    grid-template-columns: 1fr;
+                    gap: 1.5rem;
                 }
                 
                 .doc-sidebar {
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    bottom: 0;
-                    z-index: 20;
-                    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1.5rem;
                 }
                 
-                .doc-sidebar:not(.collapsed) {
-                    transform: translateX(0);
+                .doc-modal-container {
+                    max-height: 95vh;
                 }
                 
-                .doc-header-btn .btn-label {
-                    display: none;
+                .doc-modal-content {
+                    padding: 1.5rem;
                 }
             }
             
             @media (max-width: 768px) {
                 .doc-modal-header {
-                    padding: 0.875rem 1rem;
-                    flex-wrap: wrap;
-                    gap: 0.75rem;
+                    padding: 1rem 1.5rem;
                 }
                 
-                .doc-title {
-                    font-size: 1.125rem;
-                    max-width: 200px;
+                .doc-header-content {
+                    flex-direction: column;
+                    gap: 1rem;
+                    align-items: flex-start;
                 }
                 
-                .doc-nav-controls {
-                    order: 3;
+                .doc-toolbar {
                     width: 100%;
-                    justify-content: center;
+                    flex-wrap: wrap;
                 }
                 
-                .doc-header-right {
-                    order: 2;
-                }
-                
-                .doc-frame-container {
+                .doc-modal-content {
                     padding: 1rem;
                 }
                 
-                .doc-modal-footer {
-                    padding: 0.75rem 1rem;
-                    flex-wrap: wrap;
-                    gap: 0.5rem;
-                }
-                
-                .doc-footer-center {
-                    order: 3;
-                    width: 100%;
-                    justify-content: center;
-                }
-            }
-            
-            @media (max-width: 480px) {
-                .doc-title {
-                    font-size: 1rem;
-                    max-width: 150px;
-                }
-                
                 .doc-sidebar {
-                    width: 100%;
+                    grid-template-columns: 1fr;
+                }
+                
+                .doc-title {
+                    font-size: 1.25rem;
+                }
+                
+                .doc-viewer-header {
+                    padding: 1rem 1.5rem;
+                    flex-wrap: wrap;
+                    gap: 1rem;
                 }
                 
                 .doc-zoom-controls {
                     flex-wrap: wrap;
+                }
+                
+                .doc-pdf-container {
+                    min-height: 400px;
+                }
+            }
+            
+            @media (max-width: 640px) {
+                .doc-modal-overlay {
+                    padding: 1rem;
+                }
+                
+                .doc-modal-container {
+                    max-height: 100vh;
+                    border-radius: 0;
+                }
+                
+                .doc-logo {
+                    font-size: 1.25rem;
+                }
+                
+                .doc-btn {
+                    padding: 0.5rem 1rem;
+                    font-size: 0.7rem;
+                }
+                
+                .doc-title {
+                    font-size: 1.125rem;
                 }
             }
         `;
@@ -976,22 +974,55 @@
         return icons[type] || 'fa-file-alt';
     }
     
+    // Update document info in sidebar
+    function updateDocumentInfo(doc) {
+        const fileNameEl = document.getElementById('docInfoFileName');
+        const fileSizeEl = document.getElementById('docInfoFileSize');
+        const pagesEl = document.getElementById('docInfoPages');
+        const typeEl = document.getElementById('docInfoType');
+        
+        const docName = doc.filename || doc.original_name || doc.name || 'Unknown';
+        const docType = doc.type || doc.document_type || 'document';
+        const docSize = doc.file_size || doc.size || '-';
+        const docPages = doc.pages || doc.page_count || '-';
+        
+        if (fileNameEl) fileNameEl.textContent = docName.length > 30 ? docName.substring(0, 30) + '...' : docName;
+        if (fileSizeEl) fileSizeEl.textContent = docSize !== '-' ? formatFileSize(docSize) : '-';
+        if (pagesEl) pagesEl.textContent = docPages !== '-' ? `${docPages} page${docPages !== 1 ? 's' : ''}` : '-';
+        if (typeEl) typeEl.textContent = getDocTypeLabel(docType);
+    }
+    
+    // Format file size
+    function formatFileSize(bytes) {
+        if (!bytes || bytes === '-') return '-';
+        if (typeof bytes === 'string') {
+            // If already formatted, return as is
+            if (bytes.includes('KB') || bytes.includes('MB') || bytes.includes('GB')) return bytes;
+            bytes = parseInt(bytes);
+        }
+        if (isNaN(bytes)) return '-';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+    }
+    
     // Render sidebar document list
     function renderSidebar() {
         const list = document.getElementById('docSidebarList');
-        const sidebar = document.getElementById('docSidebar');
-        const navControls = document.getElementById('docNavControls');
+        const listSection = document.getElementById('docListSection');
+        const pageNav = document.getElementById('docPageNav');
         
-        if (!list || !sidebar) return;
+        if (!list || !listSection) return;
         
         if (currentDocuments.length <= 1) {
-            sidebar.classList.add('collapsed');
-            if (navControls) navControls.style.display = 'none';
+            listSection.style.display = 'none';
+            if (pageNav) pageNav.style.display = 'none';
             return;
         }
         
-        sidebar.classList.remove('collapsed');
-        if (navControls) navControls.style.display = 'flex';
+        listSection.style.display = 'block';
+        if (pageNav) pageNav.style.display = 'block';
         
         list.innerHTML = currentDocuments.map((doc, index) => {
             const docType = doc.type || doc.document_type || 'document';
@@ -1006,7 +1037,7 @@
                         <i class="fas ${getDocIcon(docType)}"></i>
                     </div>
                     <div class="doc-sidebar-item-info">
-                        <div class="doc-sidebar-item-title">${escapeHtml(docName)}</div>
+                        <div class="doc-sidebar-item-title">${escapeHtml(docName.length > 25 ? docName.substring(0, 25) + '...' : docName)}</div>
                         <div class="doc-sidebar-item-type">${escapeHtml(docLabel)}</div>
                     </div>
                 </div>
@@ -1017,6 +1048,8 @@
     // Update navigation counter
     function updateCounter() {
         const counter = document.getElementById('docCounter');
+        const currentPageEl = document.getElementById('docCurrentPage');
+        const totalPagesEl = document.getElementById('docTotalPages');
         const prevBtn = document.getElementById('docPrevBtn');
         const nextBtn = document.getElementById('docNextBtn');
         
@@ -1024,12 +1057,20 @@
             counter.textContent = `${currentDocIndex + 1} / ${currentDocuments.length}`;
         }
         
+        if (currentPageEl) {
+            currentPageEl.textContent = currentDocIndex + 1;
+        }
+        
+        if (totalPagesEl) {
+            totalPagesEl.textContent = currentDocuments.length;
+        }
+        
         if (prevBtn) {
-            prevBtn.disabled = currentDocuments.length <= 1;
+            prevBtn.disabled = currentDocuments.length <= 1 || currentDocIndex === 0;
         }
         
         if (nextBtn) {
-            nextBtn.disabled = currentDocuments.length <= 1;
+            nextBtn.disabled = currentDocuments.length <= 1 || currentDocIndex === currentDocuments.length - 1;
         }
     }
     
@@ -1146,8 +1187,6 @@
         const errorMsg = document.getElementById('docErrorMessage');
         const title = document.getElementById('docModalTitle');
         const pageIndicator = document.getElementById('docPageIndicator');
-        const footer = document.getElementById('docModalFooter');
-        const pdfControls = document.getElementById('docPdfControls');
         
         // Reset state
         currentZoom = 100;
@@ -1165,16 +1204,18 @@
         applyZoom();
         
         // Show loading
-        if (loading) loading.style.display = 'block';
+        if (loading) loading.style.display = 'flex';
         if (frame) frame.style.display = 'none';
         if (error) error.style.display = 'none';
-        if (pdfControls) pdfControls.style.display = 'none';
         
-        // Update title
+        // Update title and document info
         const docName = doc.filename || doc.original_name || doc.name || getDocTypeLabel(doc.type || doc.document_type);
         if (title) {
             title.textContent = docName;
         }
+        
+        // Update document info in sidebar
+        updateDocumentInfo(doc);
         
         if (pageIndicator) {
             pageIndicator.style.display = 'none';
@@ -1344,9 +1385,7 @@
                         }, 100);
                     }
                     
-                    // Show PDF controls
-                    if (pdfControls) pdfControls.style.display = 'flex';
-                    if (footer) footer.style.display = 'flex';
+                    // PDF loaded successfully
                 } catch (error) {
                     throw new Error(`Failed to load document: ${error.message}`);
                 }
@@ -1440,17 +1479,15 @@
                             }, 100);
                         }
                         
-                        // Show PDF controls
-                        if (pdfControls) pdfControls.style.display = 'flex';
-                        if (footer) footer.style.display = 'flex';
+                        // PDF loaded successfully
                     } else {
                         // Other file types - show download option
                         if (wrapper) {
                             wrapper.innerHTML = `
-                                <div style="text-align: center; padding: 3rem; color: #ffffff;">
-                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: #60a5fa; margin-bottom: 1rem;"></i>
-                                    <h3 style="margin: 0 0 0.5rem 0; color: #ffffff;">Preview Not Available</h3>
-                                    <p style="color: #9ca3af; margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
+                                <div style="text-align: center; padding: 3rem; color: #0c4a6e; background: white; border-radius: 8px; box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);">
+                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: #0284c7; margin-bottom: 1rem;"></i>
+                                    <h3 style="margin: 0 0 0.5rem 0; color: #0c4a6e;">Preview Not Available</h3>
+                                    <p style="color: #64748b; margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
                                     <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">
                                         <i class="fas fa-download"></i> Download Document
                                     </button>
@@ -1519,7 +1556,6 @@
             // Show frame
             if (loading) loading.style.display = 'none';
             if (frame) frame.style.display = 'flex';
-            if (footer) footer.style.display = 'flex';
             
             // Auto-fit document after container is fully rendered
             // Use requestAnimationFrame for better timing
@@ -1776,14 +1812,13 @@
         goToPage: function(page) {
             if (page >= 1 && page <= totalPages) {
                 currentPage = page;
-                const pageInput = document.getElementById('docPageInput');
-                if (pageInput) {
-                    pageInput.value = page;
+                const currentPageEl = document.getElementById('docCurrentPage');
+                const totalPagesEl = document.getElementById('docTotalPages');
+                if (currentPageEl) {
+                    currentPageEl.textContent = page;
                 }
-                const pageIndicator = document.getElementById('docPageIndicator');
-                if (pageIndicator) {
-                    pageIndicator.textContent = `Page ${page} of ${totalPages}`;
-                    pageIndicator.style.display = 'inline';
+                if (totalPagesEl) {
+                    totalPagesEl.textContent = totalPages;
                 }
                 // Note: PDF page navigation would require PDF.js library for full implementation
                 // This is a placeholder for the UI
@@ -1795,20 +1830,18 @@
     window.documentModalUpdatePages = function(index, pages) {
         totalPages = pages;
         currentPage = 1;
-        const pageInput = document.getElementById('docPageInput');
+        const currentPageEl = document.getElementById('docCurrentPage');
         const totalPagesEl = document.getElementById('docTotalPages');
-        const pageIndicator = document.getElementById('docPageIndicator');
+        const pagesEl = document.getElementById('docInfoPages');
         
-        if (pageInput) {
-            pageInput.max = pages;
-            pageInput.value = 1;
+        if (currentPageEl) {
+            currentPageEl.textContent = 1;
         }
         if (totalPagesEl) {
             totalPagesEl.textContent = pages;
         }
-        if (pageIndicator) {
-            pageIndicator.textContent = `Page 1 of ${pages}`;
-            pageIndicator.style.display = 'inline';
+        if (pagesEl) {
+            pagesEl.textContent = `${pages} page${pages !== 1 ? 's' : ''}`;
         }
     };
     

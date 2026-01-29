@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict vEBCFnANf5zpdvGXyrrMwb4yRKlfVAR7wU0dnVCDQzN1cyovyXN7Gc36AFyEWHn
+\restrict iZ1mLiTx6tb7TZuJeEZAAdqqPgPunc95XAJeliScXtqWlvvfpOPrrsG9dNFpCIV
 
 -- Dumped from database version 15.15
 -- Dumped by pg_dump version 18.1
 
--- Started on 2026-01-26 22:08:33
+-- Started on 2026-01-29 12:19:16
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -22,22 +22,37 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 6 (class 2615 OID 2200)
--- Name: public; Type: SCHEMA; Schema: -; Owner: pg_database_owner
+-- TOC entry 3 (class 3079 OID 16396)
+-- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
 --
 
-CREATE SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 
-
-ALTER SCHEMA public OWNER TO pg_database_owner;
 
 --
 -- TOC entry 3969 (class 0 OID 0)
--- Dependencies: 6
--- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: pg_database_owner
+-- Dependencies: 3
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: 
 --
 
-COMMENT ON SCHEMA public IS 'standard public schema';
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
+
+
+--
+-- TOC entry 2 (class 3079 OID 16385)
+-- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+
+--
+-- TOC entry 3970 (class 0 OID 0)
+-- Dependencies: 2
+-- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
 
 
 --
@@ -64,7 +79,7 @@ CREATE TYPE public.document_type AS ENUM (
 ALTER TYPE public.document_type OWNER TO lto_user;
 
 --
--- TOC entry 3970 (class 0 OID 0)
+-- TOC entry 3971 (class 0 OID 0)
 -- Dependencies: 929
 -- Name: TYPE document_type; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -114,7 +129,7 @@ CREATE TYPE public.vehicle_status AS ENUM (
 ALTER TYPE public.vehicle_status OWNER TO lto_user;
 
 --
--- TOC entry 3971 (class 0 OID 0)
+-- TOC entry 3972 (class 0 OID 0)
 -- Dependencies: 926
 -- Name: TYPE vehicle_status; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -272,7 +287,7 @@ $$;
 ALTER FUNCTION public.log_officer_vehicle_action() OWNER TO lto_user;
 
 --
--- TOC entry 3972 (class 0 OID 0)
+-- TOC entry 3973 (class 0 OID 0)
 -- Dependencies: 305
 -- Name: FUNCTION log_officer_vehicle_action(); Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -434,7 +449,7 @@ CREATE TABLE public.certificates (
 ALTER TABLE public.certificates OWNER TO lto_user;
 
 --
--- TOC entry 3973 (class 0 OID 0)
+-- TOC entry 3974 (class 0 OID 0)
 -- Dependencies: 234
 -- Name: TABLE certificates; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -472,7 +487,7 @@ CREATE TABLE public.clearance_requests (
 ALTER TABLE public.clearance_requests OWNER TO lto_user;
 
 --
--- TOC entry 3974 (class 0 OID 0)
+-- TOC entry 3975 (class 0 OID 0)
 -- Dependencies: 233
 -- Name: TABLE clearance_requests; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -524,7 +539,7 @@ CREATE TABLE public.documents (
 ALTER TABLE public.documents OWNER TO lto_user;
 
 --
--- TOC entry 3975 (class 0 OID 0)
+-- TOC entry 3976 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: TABLE documents; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -655,7 +670,7 @@ CREATE TABLE public.notifications (
 ALTER TABLE public.notifications OWNER TO lto_user;
 
 --
--- TOC entry 3976 (class 0 OID 0)
+-- TOC entry 3977 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: TABLE notifications; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -688,7 +703,7 @@ CREATE TABLE public.officer_activity_log (
 ALTER TABLE public.officer_activity_log OWNER TO lto_user;
 
 --
--- TOC entry 3977 (class 0 OID 0)
+-- TOC entry 3978 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: TABLE officer_activity_log; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -697,7 +712,7 @@ COMMENT ON TABLE public.officer_activity_log IS 'Detailed activity log for LTO o
 
 
 --
--- TOC entry 3978 (class 0 OID 0)
+-- TOC entry 3979 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: COLUMN officer_activity_log.officer_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -706,7 +721,7 @@ COMMENT ON COLUMN public.officer_activity_log.officer_id IS 'User ID of the offi
 
 
 --
--- TOC entry 3979 (class 0 OID 0)
+-- TOC entry 3980 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: COLUMN officer_activity_log.activity_type; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -715,7 +730,7 @@ COMMENT ON COLUMN public.officer_activity_log.activity_type IS 'Type of activity
 
 
 --
--- TOC entry 3980 (class 0 OID 0)
+-- TOC entry 3981 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: COLUMN officer_activity_log.entity_type; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -724,7 +739,7 @@ COMMENT ON COLUMN public.officer_activity_log.entity_type IS 'Type of entity bei
 
 
 --
--- TOC entry 3981 (class 0 OID 0)
+-- TOC entry 3982 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: COLUMN officer_activity_log.entity_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -733,7 +748,7 @@ COMMENT ON COLUMN public.officer_activity_log.entity_id IS 'ID of the entity bei
 
 
 --
--- TOC entry 3982 (class 0 OID 0)
+-- TOC entry 3983 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: COLUMN officer_activity_log.action; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -742,7 +757,7 @@ COMMENT ON COLUMN public.officer_activity_log.action IS 'Specific action perform
 
 
 --
--- TOC entry 3983 (class 0 OID 0)
+-- TOC entry 3984 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: COLUMN officer_activity_log.duration_seconds; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -751,7 +766,7 @@ COMMENT ON COLUMN public.officer_activity_log.duration_seconds IS 'Time taken to
 
 
 --
--- TOC entry 3984 (class 0 OID 0)
+-- TOC entry 3985 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: COLUMN officer_activity_log.metadata; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -803,7 +818,7 @@ CREATE TABLE public.transfer_requests (
 ALTER TABLE public.transfer_requests OWNER TO lto_user;
 
 --
--- TOC entry 3985 (class 0 OID 0)
+-- TOC entry 3986 (class 0 OID 0)
 -- Dependencies: 236
 -- Name: TABLE transfer_requests; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -812,7 +827,7 @@ COMMENT ON TABLE public.transfer_requests IS 'Tracks vehicle ownership transfer 
 
 
 --
--- TOC entry 3986 (class 0 OID 0)
+-- TOC entry 3987 (class 0 OID 0)
 -- Dependencies: 236
 -- Name: CONSTRAINT transfer_requests_status_check ON transfer_requests; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -858,7 +873,7 @@ CREATE TABLE public.users (
 ALTER TABLE public.users OWNER TO lto_user;
 
 --
--- TOC entry 3987 (class 0 OID 0)
+-- TOC entry 3988 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: TABLE users; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -867,7 +882,7 @@ COMMENT ON TABLE public.users IS 'System users with role-based access control';
 
 
 --
--- TOC entry 3988 (class 0 OID 0)
+-- TOC entry 3989 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.employee_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -876,7 +891,7 @@ COMMENT ON COLUMN public.users.employee_id IS 'Unique employee identifier for LT
 
 
 --
--- TOC entry 3989 (class 0 OID 0)
+-- TOC entry 3990 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.badge_number; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -885,7 +900,7 @@ COMMENT ON COLUMN public.users.badge_number IS 'Physical badge number for LTO of
 
 
 --
--- TOC entry 3990 (class 0 OID 0)
+-- TOC entry 3991 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.department; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -894,7 +909,7 @@ COMMENT ON COLUMN public.users.department IS 'Department within LTO (e.g., Regis
 
 
 --
--- TOC entry 3991 (class 0 OID 0)
+-- TOC entry 3992 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.branch_office; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -903,7 +918,7 @@ COMMENT ON COLUMN public.users.branch_office IS 'LTO branch office location';
 
 
 --
--- TOC entry 3992 (class 0 OID 0)
+-- TOC entry 3993 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.supervisor_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -912,7 +927,7 @@ COMMENT ON COLUMN public.users.supervisor_id IS 'Reference to supervising office
 
 
 --
--- TOC entry 3993 (class 0 OID 0)
+-- TOC entry 3994 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.hire_date; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -921,7 +936,7 @@ COMMENT ON COLUMN public.users.hire_date IS 'Date officer was hired';
 
 
 --
--- TOC entry 3994 (class 0 OID 0)
+-- TOC entry 3995 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users."position"; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -930,7 +945,7 @@ COMMENT ON COLUMN public.users."position" IS 'Job position/title';
 
 
 --
--- TOC entry 3995 (class 0 OID 0)
+-- TOC entry 3996 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.signature_file_path; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -939,7 +954,7 @@ COMMENT ON COLUMN public.users.signature_file_path IS 'Path to officer digital s
 
 
 --
--- TOC entry 3996 (class 0 OID 0)
+-- TOC entry 3997 (class 0 OID 0)
 -- Dependencies: 216
 -- Name: COLUMN users.digital_signature_hash; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -967,7 +982,7 @@ CREATE TABLE public.vehicle_history (
 ALTER TABLE public.vehicle_history OWNER TO lto_user;
 
 --
--- TOC entry 3997 (class 0 OID 0)
+-- TOC entry 3998 (class 0 OID 0)
 -- Dependencies: 220
 -- Name: TABLE vehicle_history; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1059,7 +1074,7 @@ CREATE VIEW public.officer_performance_metrics AS
 ALTER VIEW public.officer_performance_metrics OWNER TO lto_user;
 
 --
--- TOC entry 3998 (class 0 OID 0)
+-- TOC entry 3999 (class 0 OID 0)
 -- Dependencies: 239
 -- Name: VIEW officer_performance_metrics; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1123,7 +1138,7 @@ CREATE TABLE public.registration_document_requirements (
 ALTER TABLE public.registration_document_requirements OWNER TO lto_user;
 
 --
--- TOC entry 3999 (class 0 OID 0)
+-- TOC entry 4000 (class 0 OID 0)
 -- Dependencies: 232
 -- Name: TABLE registration_document_requirements; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1187,7 +1202,7 @@ CREATE TABLE public.system_settings (
 ALTER TABLE public.system_settings OWNER TO lto_user;
 
 --
--- TOC entry 4000 (class 0 OID 0)
+-- TOC entry 4001 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: TABLE system_settings; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1231,7 +1246,7 @@ CREATE TABLE public.transfer_documents (
 ALTER TABLE public.transfer_documents OWNER TO lto_user;
 
 --
--- TOC entry 4001 (class 0 OID 0)
+-- TOC entry 4002 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: TABLE transfer_documents; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1261,7 +1276,7 @@ CREATE TABLE public.transfer_verifications (
 ALTER TABLE public.transfer_verifications OWNER TO lto_user;
 
 --
--- TOC entry 4002 (class 0 OID 0)
+-- TOC entry 4003 (class 0 OID 0)
 -- Dependencies: 238
 -- Name: TABLE transfer_verifications; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1329,7 +1344,7 @@ CREATE TABLE public.vehicles (
 ALTER TABLE public.vehicles OWNER TO lto_user;
 
 --
--- TOC entry 4003 (class 0 OID 0)
+-- TOC entry 4004 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: TABLE vehicles; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1338,7 +1353,7 @@ COMMENT ON TABLE public.vehicles IS 'Vehicle registration data with blockchain i
 
 
 --
--- TOC entry 4004 (class 0 OID 0)
+-- TOC entry 4005 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: COLUMN vehicles.blockchain_tx_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -1403,7 +1418,7 @@ CREATE TABLE public.vehicle_verifications (
 ALTER TABLE public.vehicle_verifications OWNER TO lto_user;
 
 --
--- TOC entry 4005 (class 0 OID 0)
+-- TOC entry 4006 (class 0 OID 0)
 -- Dependencies: 218
 -- Name: TABLE vehicle_verifications; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -2988,7 +3003,7 @@ ALTER TABLE ONLY public.issued_certificates
 
 
 --
--- TOC entry 4006 (class 0 OID 0)
+-- TOC entry 4007 (class 0 OID 0)
 -- Dependencies: 3789
 -- Name: CONSTRAINT issued_certificates_issuer_id_fkey ON issued_certificates; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -3284,11 +3299,11 @@ ALTER TABLE ONLY public.vehicles
     ADD CONSTRAINT vehicles_scrapped_by_fkey FOREIGN KEY (scrapped_by) REFERENCES public.users(id);
 
 
--- Completed on 2026-01-26 22:08:38
+-- Completed on 2026-01-29 12:19:26
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict vEBCFnANf5zpdvGXyrrMwb4yRKlfVAR7wU0dnVCDQzN1cyovyXN7Gc36AFyEWHn
+\unrestrict iZ1mLiTx6tb7TZuJeEZAAdqqPgPunc95XAJeliScXtqWlvvfpOPrrsG9dNFpCIV
 

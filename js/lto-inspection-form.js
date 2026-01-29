@@ -43,20 +43,78 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Setup event listeners
     setupEventListeners();
 
-    // Load vehicles
-    await loadVehicles();
+    // Setup tab switching
+    setupTabs();
+
+    // Load pre-minted vehicles if on that tab
+    const currentTab = localStorage.getItem('inspectionTab') || 'pre-minted';
+    switchTab(currentTab);
+    
+    if (currentTab === 'pre-minted') {
+        await loadPreMintedVehicles();
+    } else {
+        // Load vehicles for inspection tab
+        await loadVehicles();
+    }
 });
+
+function setupTabs() {
+    // Tab button click handlers
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            switchTab(tabName);
+            localStorage.setItem('inspectionTab', tabName);
+        });
+    });
+
+    // Mint vehicle form submission
+    const mintForm = document.getElementById('mintVehicleForm');
+    if (mintForm) {
+        mintForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitMintVehicle();
+        });
+    }
+}
+
+function switchTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+        tab.style.display = 'none';
+    });
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    const selectedTab = document.getElementById(`${tabName}Tab`);
+    const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
+    
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+        selectedTab.style.display = 'block';
+    }
+    
+    if (selectedButton) {
+        selectedButton.classList.add('active');
+    }
+}
 
 function setupEventListeners() {
     // Vehicle selection
-    document.getElementById('vehicleSelect').addEventListener('change', async function(e) {
-        const vehicleId = e.target.value;
-        if (vehicleId) {
-            await loadVehicleDetails(vehicleId);
-        } else {
-            hideVehicleInfo();
-        }
-    });
+    const vehicleSelect = document.getElementById('vehicleSelect');
+    if (vehicleSelect) {
+        vehicleSelect.addEventListener('change', async function(e) {
+            const vehicleId = e.target.value;
+            if (vehicleId) {
+                await loadVehicleDetails(vehicleId);
+            } else {
+                hideVehicleInfo();
+            }
+        });
+    }
 
     // Form submission
     document.getElementById('inspectionForm').addEventListener('submit', async function(e) {
@@ -409,6 +467,190 @@ function showError(message) {
         ToastNotification.show(message, 'error');
     } else {
         alert(message);
+    }
+}
+
+// ============================================
+// Pre-Minted Vehicles Functions
+// ============================================
+
+async function loadPreMintedVehicles() {
+    try {
+        const loadingEl = document.getElementById('preMintedVehiclesLoading');
+        const containerEl = document.getElementById('preMintedVehiclesTableContainer');
+        const emptyEl = document.getElementById('preMintedVehiclesEmpty');
+        const tbodyEl = document.getElementById('preMintedVehiclesTableBody');
+        
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (containerEl) containerEl.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'none';
+        
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/blockchain/vehicles?status=MINTED');
+        
+        if (loadingEl) loadingEl.style.display = 'none';
+        
+        if (response.success && response.vehicles) {
+            if (response.vehicles.length === 0) {
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (containerEl) containerEl.style.display = 'none';
+            } else {
+                if (containerEl) containerEl.style.display = 'block';
+                if (emptyEl) emptyEl.style.display = 'none';
+                displayPreMintedVehicles(response.vehicles);
+            }
+        } else {
+            throw new Error(response.error || 'Failed to load pre-minted vehicles');
+        }
+    } catch (error) {
+        console.error('Error loading pre-minted vehicles:', error);
+        showError('Failed to load pre-minted vehicles: ' + error.message);
+        
+        const loadingEl = document.getElementById('preMintedVehiclesLoading');
+        const containerEl = document.getElementById('preMintedVehiclesTableContainer');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (containerEl) containerEl.style.display = 'none';
+    }
+}
+
+function displayPreMintedVehicles(vehicles) {
+    const tbodyEl = document.getElementById('preMintedVehiclesTableBody');
+    if (!tbodyEl) return;
+    
+    tbodyEl.innerHTML = '';
+    
+    vehicles.forEach(vehicle => {
+        const row = document.createElement('tr');
+        
+        const mintedDate = vehicle.mintedAt || vehicle.createdAt || vehicle.lastUpdated || 'N/A';
+        const formattedDate = mintedDate !== 'N/A' ? new Date(mintedDate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }) : 'N/A';
+        
+        row.innerHTML = `
+            <td><strong>${vehicle.vin || 'N/A'}</strong></td>
+            <td>${vehicle.make || ''} ${vehicle.model || ''}</td>
+            <td>${vehicle.year || 'N/A'}</td>
+            <td>${vehicle.plateNumber || '<span style="color: #94a3b8;">Pending</span>'}</td>
+            <td><span class="vehicle-status-badge status-minted">${vehicle.status || 'MINTED'}</span></td>
+            <td>${formattedDate}</td>
+            <td>
+                <button class="btn-secondary" onclick="viewPreMintedVehicle('${vehicle.vin}')" style="padding: 0.4rem 0.8rem; font-size: 0.875rem;">
+                    <i class="fas fa-eye"></i> View
+                </button>
+            </td>
+        `;
+        
+        tbodyEl.appendChild(row);
+    });
+}
+
+async function viewPreMintedVehicle(vin) {
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/blockchain/vehicles/${vin}`);
+        
+        if (response.success && response.vehicle) {
+            const vehicle = response.vehicle;
+            
+            // Show vehicle details in a modal or alert
+            const details = `
+VIN: ${vehicle.vin}
+Make/Model: ${vehicle.make} ${vehicle.model}
+Year: ${vehicle.year}
+Color: ${vehicle.color || 'N/A'}
+Plate Number: ${vehicle.plateNumber || 'Pending'}
+CR Number: ${vehicle.crNumber || 'N/A'}
+Engine Number: ${vehicle.engineNumber || 'N/A'}
+Chassis Number: ${vehicle.chassisNumber || 'N/A'}
+Status: ${vehicle.status}
+Minted Date: ${vehicle.mintedAt ? new Date(vehicle.mintedAt).toLocaleString() : 'N/A'}
+            `;
+            
+            alert(details);
+        } else {
+            throw new Error(response.error || 'Vehicle not found');
+        }
+    } catch (error) {
+        console.error('Error viewing pre-minted vehicle:', error);
+        showError('Failed to load vehicle details: ' + error.message);
+    }
+}
+
+async function submitMintVehicle() {
+    const form = document.getElementById('mintVehicleForm');
+    if (!form) return;
+    
+    // Get form values
+    const vehicleData = {
+        vin: document.getElementById('mintVin').value.trim(),
+        make: document.getElementById('mintMake').value.trim(),
+        model: document.getElementById('mintModel').value.trim(),
+        year: parseInt(document.getElementById('mintYear').value),
+        color: document.getElementById('mintColor').value.trim() || '',
+        plateNumber: document.getElementById('mintPlateNumber').value.trim() || '',
+        crNumber: document.getElementById('mintCrNumber').value.trim() || '',
+        engineNumber: document.getElementById('mintEngineNumber').value.trim() || '',
+        chassisNumber: document.getElementById('mintChassisNumber').value.trim() || '',
+        vehicleType: document.getElementById('mintVehicleType').value || 'Car',
+        vehicleCategory: document.getElementById('mintVehicleCategory').value.trim() || '',
+        classification: document.getElementById('mintClassification').value || 'Private'
+    };
+    
+    // Validate required fields
+    if (!vehicleData.vin || !vehicleData.make || !vehicleData.model || !vehicleData.year) {
+        showError('Please fill in all required fields: VIN, Make, Model, Year');
+        return;
+    }
+    
+    // Validate year
+    if (vehicleData.year < 1900 || vehicleData.year > 2100) {
+        showError('Please enter a valid year');
+        return;
+    }
+    
+    // Show loading
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Minting on Blockchain...';
+    
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.post('/api/blockchain/vehicles/mint', vehicleData);
+        
+        if (response.success) {
+            if (window.ToastNotification) {
+                ToastNotification.show(`Vehicle ${vehicleData.vin} minted successfully on Fabric!`, 'success');
+            } else {
+                alert(`Vehicle ${vehicleData.vin} minted successfully!`);
+            }
+            
+            // Reset form
+            resetMintForm();
+            
+            // Reload pre-minted vehicles list
+            await loadPreMintedVehicles();
+        } else {
+            throw new Error(response.error || 'Failed to mint vehicle');
+        }
+    } catch (error) {
+        console.error('Error minting vehicle:', error);
+        showError('Failed to mint vehicle: ' + error.message);
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    }
+}
+
+function resetMintForm() {
+    const form = document.getElementById('mintVehicleForm');
+    if (form) {
+        form.reset();
+        // Reset vehicle type and classification to defaults
+        document.getElementById('mintVehicleType').value = 'Car';
+        document.getElementById('mintClassification').value = 'Private';
     }
 }
 

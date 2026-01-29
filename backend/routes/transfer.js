@@ -3118,6 +3118,12 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             // Fetch current user to get employee_id
             const currentUser = await db.getUserById(req.user.userId);
             
+            // Initialize Fabric service with current user context for dynamic identity selection
+            await fabricService.initialize({
+                role: req.user.role,
+                email: req.user.email
+            });
+            
             const transferData = {
                 reason: 'Ownership transfer approved',
                 transferDate: new Date().toISOString(),

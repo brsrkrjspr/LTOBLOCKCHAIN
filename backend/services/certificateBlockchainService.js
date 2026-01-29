@@ -27,12 +27,11 @@ class CertificateBlockchainService {
      * @param {Object} metadata - Certificate metadata
      * @returns {Promise<Object>} Transaction result
      */
-    async storeCertificateHashOnBlockchain(compositeHash, metadata) {
+    async storeCertificateHashOnBlockchain(compositeHash, metadata, userContext = null) {
         try {
-            // Ensure Fabric is connected
-            if (!fabricService.isConnected) {
-                await fabricService.initialize();
-            }
+            // Initialize Fabric service with user context (if provided) for dynamic identity selection
+            // userContext should be { role, email } from req.user
+            await fabricService.initialize(userContext || {});
 
             // Check vehicle status - only store on blockchain if vehicle is REGISTERED
             // Vehicles in SUBMITTED/APPROVED status are not yet on blockchain
@@ -79,28 +78,28 @@ class CertificateBlockchainService {
                 fileHash: metadata.fileHash
             };
 
-            // Store via chaincode using UpdateVerificationStatus
-            // Store hash metadata in notes field (can be enhanced later with dedicated chaincode function)
-            const notes = JSON.stringify({
-                type: 'certificate_hash',
-                hash: compositeHash,
-                certificateNumber: metadata.certificateNumber,
-                applicationStatus: metadata.applicationStatus,
-                issuedAt: metadata.issuedAt,
-                fileHash: metadata.fileHash
-            });
+            // Use dedicated UpdateCertificateHash chaincode function (NEW - per IMPLEMENTATION_PHASES.md)
+            // This stores PDF hash and IPFS CID directly on-chain, separate from verification status
+            const certificateType = metadata.certificateType || 'ORCR'; // Default to ORCR for OR/CR certificates
+            const ipfsCid = metadata.ipfsCid || metadata.ipfs_cid || null; // IPFS CID if available
             
-            const result = await fabricService.updateVerificationStatus(
+            // Extract PDF hash from composite hash or use fileHash directly
+            // For OR/CR certificates, we store the PDF hash (SHA256 of PDF buffer)
+            const pdfHash = metadata.fileHash || compositeHash; // Use fileHash if available, otherwise compositeHash
+            
+            const result = await fabricService.updateCertificateHash(
                 metadata.vehicleVIN,
-                metadata.certificateType,
-                'APPROVED',
-                notes
+                certificateType,
+                pdfHash,
+                ipfsCid
             );
 
             return {
                 success: true,
                 transactionId: result.transactionId,
                 hash: compositeHash,
+                pdfHash: pdfHash,
+                ipfsCid: ipfsCid,
                 metadata: blockchainMetadata
             };
         } catch (error) {

@@ -231,8 +231,13 @@ router.post('/generate', authenticateToken, authorizeRole(['admin']), async (req
                             certificateNumber: certificateResult.certificateNumber,
                             applicationStatus: 'PENDING',
                             issuedAt: new Date().toISOString(),
-                            issuedBy: req.user.userId,
-                            fileHash: certificateResult.fileHash
+                            issuedBy: req.user.email,
+                            fileHash: certificateResult.fileHash,
+                            ipfsCid: null // May not have IPFS CID for all certificate types
+                        },
+                        {
+                            role: req.user.role,
+                            email: req.user.email
                         }
                     );
                     blockchainTxId = blockchainResult.transactionId;

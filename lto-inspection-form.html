@@ -123,21 +123,152 @@
 
             <main class="dashboard-content">
                 <div class="container">
-                    <!-- Vehicle Selection -->
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3><i class="fas fa-car"></i> Select Vehicle</h3>
+                    <!-- Tab Navigation -->
+                    <div class="tabs-container" style="margin-bottom: 2rem; border-bottom: 2px solid #e0f2fe;">
+                        <button class="tab-button active" data-tab="pre-minted" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 3px solid #0284c7; color: #0284c7; font-weight: 600; cursor: pointer; font-size: 1rem;">
+                            <i class="fas fa-coins"></i> Pre-Minted Vehicles
+                        </button>
+                        <button class="tab-button" data-tab="inspection" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 3px solid transparent; color: #64748b; font-weight: 500; cursor: pointer; font-size: 1rem;">
+                            <i class="fas fa-clipboard-check"></i> Vehicle Inspection
+                        </button>
+                    </div>
+
+                    <!-- Pre-Minted Vehicles Tab -->
+                    <div id="preMintedTab" class="tab-content active">
+                        <!-- Create New Vehicle Form -->
+                        <div class="dashboard-card" style="margin-bottom: 1.5rem;">
+                            <div class="card-header">
+                                <h3><i class="fas fa-plus-circle"></i> Create Pre-Minted Vehicle (CSR-Verified)</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="mintVehicleForm">
+                                    <div class="vehicle-details-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                                        <div class="detail-item">
+                                            <label>VIN <span class="required">*</span></label>
+                                            <input type="text" id="mintVin" class="form-control" required placeholder="Vehicle Identification Number">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Make <span class="required">*</span></label>
+                                            <input type="text" id="mintMake" class="form-control" required placeholder="e.g., Toyota">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Model <span class="required">*</span></label>
+                                            <input type="text" id="mintModel" class="form-control" required placeholder="e.g., Vios">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Year <span class="required">*</span></label>
+                                            <input type="number" id="mintYear" class="form-control" required placeholder="e.g., 2024" min="1900" max="2100">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Color</label>
+                                            <input type="text" id="mintColor" class="form-control" placeholder="e.g., White">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Plate Number</label>
+                                            <input type="text" id="mintPlateNumber" class="form-control" placeholder="Optional">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>CR Number</label>
+                                            <input type="text" id="mintCrNumber" class="form-control" placeholder="Certificate of Registration Number">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Engine Number</label>
+                                            <input type="text" id="mintEngineNumber" class="form-control" placeholder="Engine Serial Number">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Chassis Number</label>
+                                            <input type="text" id="mintChassisNumber" class="form-control" placeholder="Chassis Serial Number">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Vehicle Type</label>
+                                            <select id="mintVehicleType" class="form-control">
+                                                <option value="Car">Car</option>
+                                                <option value="Motorcycle">Motorcycle</option>
+                                                <option value="Truck">Truck</option>
+                                                <option value="SUV">SUV</option>
+                                                <option value="Van">Van</option>
+                                            </select>
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Vehicle Category</label>
+                                            <input type="text" id="mintVehicleCategory" class="form-control" placeholder="e.g., Private, Commercial">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Classification</label>
+                                            <select id="mintClassification" class="form-control">
+                                                <option value="Private">Private</option>
+                                                <option value="Commercial">Commercial</option>
+                                                <option value="Government">Government</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-actions" style="margin-top: 1.5rem;">
+                                        <button type="button" class="btn-secondary" onclick="resetMintForm()">Clear</button>
+                                        <button type="submit" class="btn-primary">
+                                            <i class="fas fa-coins"></i> Mint Vehicle on Blockchain
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label for="vehicleSelect">Vehicle <span class="required">*</span></label>
-                                <select id="vehicleSelect" class="form-control">
-                                    <option value="">-- Select a vehicle --</option>
-                                </select>
-                                <small class="form-text text-muted">Select a vehicle that needs inspection</small>
+
+                        <!-- Pre-Minted Vehicles List -->
+                        <div class="dashboard-card">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3><i class="fas fa-list"></i> Pre-Minted Vehicles (CSR-Verified, Ownerless)</h3>
+                                <button class="btn-secondary" onclick="loadPreMintedVehicles()" style="padding: 0.5rem 1rem;">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="preMintedVehiclesLoading" style="text-align: center; padding: 2rem;">
+                                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #0284c7;"></i>
+                                    <p>Loading pre-minted vehicles from Fabric...</p>
+                                </div>
+                                <div id="preMintedVehiclesTableContainer" style="display: none;">
+                                    <table id="preMintedVehiclesTable" style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f0f9ff; border-bottom: 2px solid #e0f2fe;">
+                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">VIN</th>
+                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Make/Model</th>
+                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Year</th>
+                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Plate Number</th>
+                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Status</th>
+                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Minted Date</th>
+                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="preMintedVehiclesTableBody">
+                                            <!-- Vehicle rows will be inserted here -->
+                                        </tbody>
+                                    </table>
+                                    <div id="preMintedVehiclesEmpty" style="text-align: center; padding: 3rem; color: #64748b; display: none;">
+                                        <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                                        <p style="font-size: 1.1rem;">No pre-minted vehicles found</p>
+                                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Create a new pre-minted vehicle using the form above</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Vehicle Inspection Tab -->
+                    <div id="inspectionTab" class="tab-content" style="display: none;">
+                        <!-- Vehicle Selection -->
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-car"></i> Select Vehicle</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label for="vehicleSelect">Vehicle <span class="required">*</span></label>
+                                    <select id="vehicleSelect" class="form-control">
+                                        <option value="">-- Select a vehicle --</option>
+                                    </select>
+                                    <small class="form-text text-muted">Select a vehicle that needs inspection</small>
+                                </div>
+                            </div>
+                        </div>
 
                     <!-- Vehicle Information (Read-only) -->
                     <div class="dashboard-card vehicle-info-card" id="vehicleInfoCard" style="display: none;">
@@ -305,18 +436,19 @@
                         </div>
                     </div>
 
-                    <!-- Success Message -->
-                    <div class="dashboard-card" id="successCard" style="display: none;">
-                        <div class="card-body" style="text-align: center; padding: 2rem;">
-                            <div class="success-icon" style="font-size: 4rem; color: #27ae60; margin-bottom: 1rem;">
-                                <i class="fas fa-check-circle"></i>
+                        <!-- Success Message -->
+                        <div class="dashboard-card" id="successCard" style="display: none;">
+                            <div class="card-body" style="text-align: center; padding: 2rem;">
+                                <div class="success-icon" style="font-size: 4rem; color: #27ae60; margin-bottom: 1rem;">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <h3 style="color: #27ae60; margin-bottom: 1rem;">Inspection Completed Successfully!</h3>
+                                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;"><strong>MVIR Number:</strong></p>
+                                <p style="font-size: 1.5rem; font-weight: bold; color: #2c3e50; margin-bottom: 2rem;" id="mvirNumberDisplay">-</p>
+                                <button type="button" class="btn-primary" onclick="resetForm()">
+                                    <i class="fas fa-plus"></i> Inspect Another Vehicle
+                                </button>
                             </div>
-                            <h3 style="color: #27ae60; margin-bottom: 1rem;">Inspection Completed Successfully!</h3>
-                            <p style="font-size: 1.1rem; margin-bottom: 0.5rem;"><strong>MVIR Number:</strong></p>
-                            <p style="font-size: 1.5rem; font-weight: bold; color: #2c3e50; margin-bottom: 2rem;" id="mvirNumberDisplay">-</p>
-                            <button type="button" class="btn-primary" onclick="resetForm()">
-                                <i class="fas fa-plus"></i> Inspect Another Vehicle
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -907,6 +1039,90 @@
             .inspection-grid-2col .inspection-full-width {
                 grid-column: 1 / -1;
             }
+        }
+
+        /* Tab Styles */
+        .tabs-container {
+            display: flex;
+            gap: 0;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e0f2fe;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-button:hover {
+            color: #0284c7;
+            background: #f0f9ff;
+        }
+
+        .tab-button.active {
+            color: #0284c7;
+            font-weight: 600;
+            border-bottom-color: #0284c7;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Pre-Minted Vehicles Table Styles */
+        #preMintedVehiclesTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        #preMintedVehiclesTable thead {
+            background: #f0f9ff;
+        }
+
+        #preMintedVehiclesTable th {
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #0c4a6e;
+            border-bottom: 2px solid #e0f2fe;
+        }
+
+        #preMintedVehiclesTable td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #1e293b;
+        }
+
+        #preMintedVehiclesTable tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .vehicle-status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-minted {
+            background: #dbeafe;
+            color: #1e40af;
         }
     </style>
     <script>

@@ -413,8 +413,11 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                     });
                 }
                 
-                // Query Fabric by VIN
-                const blockchainResult = await fabricService.getVehicle(vehicle.vin);
+                // Initialize with user context for MSP-based filtering
+                await fabricService.initialize(req.user ? { role: req.user.role, email: req.user.email } : {});
+                
+                // Query Fabric by VIN with user context for filtering
+                const blockchainResult = await fabricService.getVehicle(vehicle.vin, req.user ? { role: req.user.role, email: req.user.email } : null);
                 if (blockchainResult && blockchainResult.success && blockchainResult.vehicle) {
                     // Try to get transaction ID from vehicle data
                     // Chaincode may store it in different fields
@@ -840,10 +843,67 @@ router.get('/:vin', authenticateToken, async (req, res) => {
         // CRITICAL: Verify blockchain transaction ID against Fabric
         // This ensures the transaction ID from PostgreSQL actually exists on Fabric
         await verifyBlockchainTransactionId(vehicle);
+        
+        // Apply additional filtering based on role (application-level privacy)
+        let responseVehicle = vehicle;
+        
+        // HPG sees minimal data
+        const isHPG = ['hpg_admin', 'hpg_officer'].includes(req.user.role) || 
+                      (req.user.role === 'admin' && req.user.email?.toLowerCase().includes('hpg'));
+        
+        // Insurance sees minimal data
+        const isInsurance = ['insurance_verifier', 'insurance_admin'].includes(req.user.role);
+        
+        if (isHPG) {
+            // Filter documents - only HPG-relevant
+            if (responseVehicle.documents) {
+                responseVehicle.documents = responseVehicle.documents.filter(d => 
+                    ['or_cr', 'hpg_clearance', 'owner_id'].includes(d.document_type)
+                );
+            }
+            // Filter history - only HPG-related actions
+            if (responseVehicle.history) {
+                responseVehicle.history = responseVehicle.history.filter(h => 
+                    h.action?.includes('HPG') || h.action?.includes('VERIFICATION')
+                );
+            }
+            // Remove sensitive owner info (keep only name/email)
+            if (responseVehicle.owner) {
+                responseVehicle.owner = {
+                    name: responseVehicle.owner_name || responseVehicle.owner?.name,
+                    email: responseVehicle.owner_email || responseVehicle.owner?.email
+                };
+            }
+        }
+        
+        if (isInsurance) {
+            // Filter documents - only insurance-relevant
+            if (responseVehicle.documents) {
+                responseVehicle.documents = responseVehicle.documents.filter(d => 
+                    ['insurance_cert', 'or_cr'].includes(d.document_type)
+                );
+            }
+            // Filter history - only insurance-related actions
+            if (responseVehicle.history) {
+                responseVehicle.history = responseVehicle.history.filter(h => 
+                    h.action?.includes('INSURANCE') || h.action?.includes('VERIFICATION')
+                );
+            }
+            // Remove sensitive owner info and engine/chassis (not needed for insurance)
+            if (responseVehicle.owner) {
+                responseVehicle.owner = {
+                    name: responseVehicle.owner_name || responseVehicle.owner?.name,
+                    email: responseVehicle.owner_email || responseVehicle.owner?.email
+                };
+            }
+            // Remove engine/chassis numbers (not needed for insurance verification)
+            delete responseVehicle.engine_number;
+            delete responseVehicle.chassis_number;
+        }
 
         res.json({
             success: true,
-            vehicle: formatVehicleResponse(vehicle, req, res)
+            vehicle: formatVehicleResponse(responseVehicle, req, res)
         });
 
     } catch (error) {
@@ -1682,6 +1742,12 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'lto
                     }
                 });
                 
+                // Initialize Fabric service with current user context for dynamic identity selection
+                await fabricService.initialize({
+                    role: req.user.role,
+                    email: req.user.email
+                });
+                
                 const blockchainResult = await fabricService.updateVerificationStatus(
                     vin,
                     verificationType,
@@ -1941,6 +2007,9 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
                 console.warn('⚠️ Fabric not connected, falling back to database (not recommended)');
                 ownershipHistory = await db.getOwnershipHistory(vehicle.id);
             } else {
+                // Initialize with user context for MSP-based filtering
+                await fabricService.initialize(req.user ? { role: req.user.role, email: req.user.email } : {});
+                
                 // Query Fabric blockchain for ownership history
                 const fabricResult = await fabricService.getOwnershipHistory(vin);
                 
@@ -2347,10 +2416,11 @@ async function verifyBlockchainTransactionId(vehicle) {
     try {
         const fabricService = require('../services/optimizedFabricService');
         
-        // Ensure Fabric connection
-        if (!fabricService.isConnected) {
-            await fabricService.initialize();
-        }
+        // Initialize Fabric service with current user context (if available) for dynamic identity selection
+        await fabricService.initialize(req.user ? {
+            role: req.user.role,
+            email: req.user.email
+        } : {});
         
         // Verify transaction exists on Fabric
         const transactionProof = await fabricService.getTransactionProof(vehicle.blockchain_tx_id);

@@ -43,6 +43,48 @@ Organizations:
       - Host: peer0.lto.gov.ph
         Port: 7051
 
+  - &HPG
+    Name: HPGMSP
+    ID: HPGMSP
+    MSPDir: crypto-config/peerOrganizations/hpg.gov.ph/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('HPGMSP.admin', 'HPGMSP.peer', 'HPGMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('HPGMSP.admin', 'HPGMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('HPGMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('HPGMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.hpg.gov.ph
+        Port: 7051
+
+  - &Insurance
+    Name: InsuranceMSP
+    ID: InsuranceMSP
+    MSPDir: crypto-config/peerOrganizations/insurance.gov.ph/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('InsuranceMSP.admin', 'InsuranceMSP.peer', 'InsuranceMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('InsuranceMSP.admin', 'InsuranceMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('InsuranceMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('InsuranceMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.insurance.gov.ph
+        Port: 7051
+
 Capabilities:
   Channel: &ChannelCapabilities
     V2_0: true
@@ -129,6 +171,8 @@ Profiles:
       TrustChainConsortium:
         Organizations:
           - *LTO
+          - *HPG
+          - *Insurance
   
   Channel:
     Consortium: TrustChainConsortium
@@ -143,6 +187,8 @@ Profiles:
       <<: *ApplicationDefaults
       Organizations:
         - *LTO
+        - *HPG
+        - *Insurance
       Capabilities:
         <<: *ApplicationCapabilities
 

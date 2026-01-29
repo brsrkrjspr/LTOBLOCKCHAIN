@@ -15,10 +15,30 @@ class OptimizedFabricService {
         this.channel = null;
         this.isConnected = false;
         this.mode = 'fabric'; // Always Fabric mode - no fallbacks
+        this.currentIdentity = null; // Track current identity being used
+    }
+
+    // Map application role to Fabric identity
+    getFabricIdentityForUser(userRole, userEmail) {
+        // Map application role to Fabric identity
+        if (['lto_admin', 'lto_supervisor', 'lto_officer', 'admin'].includes(userRole)) {
+            // Check if userEmail is enrolled, otherwise use admin-lto
+            return userEmail || 'admin-lto';
+        }
+        if (['hpg_admin', 'hpg_officer'].includes(userRole) || 
+            (userRole === 'admin' && userEmail && userEmail.toLowerCase().includes('hpg'))) {
+            return userEmail || 'admin-hpg';
+        }
+        if (['insurance_verifier', 'insurance_admin'].includes(userRole)) {
+            return userEmail || 'admin-insurance';
+        }
+        // Default: use userEmail (if enrolled) or admin-lto
+        return userEmail || 'admin-lto';
     }
 
     // Initialize connection - MANDATORY Fabric connection (no fallbacks)
-    async initialize() {
+    // Accepts optional userContext: { role, email } for dynamic identity selection
+    async initialize(userContext = null) {
         // Enforce Fabric mode from environment
         if (process.env.BLOCKCHAIN_MODE !== 'fabric') {
             throw new Error('BLOCKCHAIN_MODE must be set to "fabric" in .env file. No fallbacks allowed.');
@@ -50,20 +70,46 @@ class OptimizedFabricService {
         const walletPath = path.join(__dirname, '../../wallet');
         this.wallet = await Wallets.newFileSystemWallet(walletPath);
         
-        // Check if admin user exists in wallet
-        const userExists = await this.wallet.get('admin');
-        if (!userExists) {
-            throw new Error('Admin user not found in wallet. Please enroll admin user first.');
+        // Determine identity to use based on user context
+        let identityToUse = 'admin'; // default fallback
+        
+        if (userContext) {
+            identityToUse = this.getFabricIdentityForUser(
+                userContext.role, 
+                userContext.email
+            );
+        }
+        
+        // Check if identity exists in wallet
+        const identityExists = await this.wallet.get(identityToUse);
+        if (!identityExists) {
+            // Fallback to admin
+            console.warn(`⚠️ Identity ${identityToUse} not found in wallet, falling back to 'admin'`);
+            identityToUse = 'admin';
+            const adminExists = await this.wallet.get(identityToUse);
+            if (!adminExists) {
+                throw new Error(`Identity ${identityToUse} not found in wallet. Please enroll admin user first.`);
+            }
         }
 
         try {
-            // Connect to gateway
+            // Connect to gateway with selected identity
             // Note: asLocalhost setting - true for localhost access, false for Docker network names
             // Set FABRIC_AS_LOCALHOST=false in .env to use Docker network names instead of localhost
             const asLocalhost = process.env.FABRIC_AS_LOCALHOST !== 'false';
+            
+            // Disconnect existing connection if any
+            if (this.isConnected) {
+                try {
+                    await this.gateway.disconnect();
+                } catch (disconnectError) {
+                    // Ignore disconnect errors
+                }
+            }
+            
             await this.gateway.connect(connectionProfile, {
                 wallet: this.wallet,
-                identity: 'admin',
+                identity: identityToUse, // Dynamic identity selection
                 discovery: { enabled: true, asLocalhost: asLocalhost },
                 eventHandlerOptions: {
                     commitTimeout: 300,
@@ -77,12 +123,14 @@ class OptimizedFabricService {
             this.contract = this.network.getContract('vehicle-registration');
 
             this.isConnected = true;
-            console.log('✅ Connected to Hyperledger Fabric network successfully');
+            this.currentIdentity = identityToUse;
+            console.log(`✅ Connected to Hyperledger Fabric network successfully (identity: ${identityToUse})`);
 
-            return { success: true, mode: 'fabric' };
+            return { success: true, mode: 'fabric', identity: identityToUse };
 
         } catch (error) {
             this.isConnected = false;
+            this.currentIdentity = null;
             console.error('❌ Failed to connect to Fabric network:', error.message);
             throw new Error(`Fabric connection failed: ${error.message}. Ensure Fabric network is running and properly configured.`);
         }
@@ -216,7 +264,8 @@ class OptimizedFabricService {
     }
 
     // Get vehicle - Fabric only
-    async getVehicle(vin) {
+    // Accepts optional userContext for MSP-based filtering
+    async getVehicle(vin, userContext = null) {
         // CRITICAL: Enforce real Fabric service - no mock fallbacks
         if (this.mode !== 'fabric') {
             throw new Error('CRITICAL: Mock blockchain service is not allowed. Real Hyperledger Fabric connection required.');
@@ -227,12 +276,32 @@ class OptimizedFabricService {
         }
 
         try {
-            const result = await this.contract.evaluateTransaction('GetVehicle', vin);
+            // Use filtered query for HPG/Insurance if user context is provided
+            let useFilteredQuery = false;
+            if (userContext) {
+                const userRole = userContext.role;
+                const userEmail = userContext.email;
+                
+                // HPG and Insurance should use filtered query
+                if (['hpg_admin', 'hpg_officer'].includes(userRole) || 
+                    (userRole === 'admin' && userEmail && userEmail.toLowerCase().includes('hpg'))) {
+                    useFilteredQuery = true;
+                }
+                
+                if (['insurance_verifier', 'insurance_admin'].includes(userRole)) {
+                    useFilteredQuery = true;
+                }
+            }
+            
+            // Use appropriate query function
+            const queryFunction = useFilteredQuery ? 'GetVehicleForVerification' : 'GetVehicle';
+            const result = await this.contract.evaluateTransaction(queryFunction, vin);
             const vehicle = JSON.parse(result.toString());
             
             return {
                 success: true,
-                vehicle: vehicle
+                vehicle: vehicle,
+                filtered: useFilteredQuery
             };
 
         } catch (error) {
@@ -1091,14 +1160,33 @@ class OptimizedFabricService {
     }
 
     // Get all transactions from Fabric (using chaincode queries)
-    async getAllTransactions() {
+    // Accepts optional userContext for MSP-based filtering
+    async getAllTransactions(userContext = null) {
         if (!this.isConnected || this.mode !== 'fabric') {
             throw new Error('Not connected to Fabric network. Cannot query transactions.');
         }
 
         try {
+            // Determine if we should use filtered query based on user context
+            let useFilteredQuery = false;
+            if (userContext) {
+                const userRole = userContext.role;
+                const userEmail = userContext.email;
+                
+                // HPG and Insurance should use filtered query
+                if (['hpg_admin', 'hpg_officer'].includes(userRole) || 
+                    (userRole === 'admin' && userEmail && userEmail.toLowerCase().includes('hpg'))) {
+                    useFilteredQuery = true;
+                }
+                
+                if (['insurance_verifier', 'insurance_admin'].includes(userRole)) {
+                    useFilteredQuery = true;
+                }
+            }
+            
             // Query all vehicles from chaincode
-            const vehiclesResult = await this.contract.evaluateTransaction('GetAllVehicles');
+            const queryFunction = useFilteredQuery ? 'QueryVehiclesForVerification' : 'GetAllVehicles';
+            const vehiclesResult = await this.contract.evaluateTransaction(queryFunction);
             
             if (!vehiclesResult || vehiclesResult.length === 0) {
                 console.log('⚠️  GetAllVehicles returned empty result');
@@ -1346,6 +1434,99 @@ class OptimizedFabricService {
         } catch (error) {
             console.error('Error getting transaction by VIN from Fabric:', error);
             throw new Error(`Failed to get transaction by VIN: ${error.message}`);
+        }
+    }
+
+    // Mint vehicle (pre-minted, ownerless vehicle - CSR verified)
+    async mintVehicle(vehicleData) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot mint vehicle.');
+        }
+
+        try {
+            const vehicleJson = JSON.stringify(vehicleData);
+            const transaction = this.contract.createTransaction('MintVehicle');
+            const fabricResult = await transaction.submit(vehicleJson);
+            const transactionId = transaction.getTransactionId();
+            
+            return {
+                success: true,
+                message: 'Vehicle minted successfully on Fabric',
+                transactionId: transactionId,
+                vin: vehicleData.vin,
+                status: 'MINTED'
+            };
+
+        } catch (error) {
+            console.error('❌ Failed to mint vehicle on Fabric:', error);
+            throw new Error(`Vehicle minting failed: ${error.message}`);
+        }
+    }
+
+    // Attach owner to minted vehicle
+    async attachOwnerToMintedVehicle(vin, ownerData, registrationData) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot attach owner.');
+        }
+
+        try {
+            const ownerJson = JSON.stringify(ownerData);
+            const registrationJson = JSON.stringify(registrationData || {});
+            
+            const transaction = this.contract.createTransaction('AttachOwnerToMintedVehicle');
+            const fabricResult = await transaction.submit(vin, ownerJson, registrationJson);
+            const transactionId = transaction.getTransactionId();
+            
+            return {
+                success: true,
+                message: 'Owner attached to minted vehicle successfully on Fabric',
+                transactionId: transactionId,
+                vin: vin,
+                owner: ownerData.email
+            };
+
+        } catch (error) {
+            console.error('❌ Failed to attach owner to minted vehicle on Fabric:', error);
+            throw new Error(`Owner attachment failed: ${error.message}`);
+        }
+    }
+
+    // Update certificate hash on-chain
+    async updateCertificateHash(vin, certificateType, pdfHash, ipfsCid) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network');
+        }
+
+        try {
+            const transaction = this.contract.createTransaction('UpdateCertificateHash');
+            const result = await transaction.submit(vin, certificateType, pdfHash, ipfsCid);
+            const transactionId = transaction.getTransactionId();
+            
+            return {
+                success: true,
+                message: 'Certificate hash updated on Fabric',
+                transactionId: transactionId,
+                vin: vin,
+                certificateType: certificateType
+            };
+        } catch (error) {
+            console.error('❌ Failed to update certificate hash:', error);
+            throw new Error(`Certificate hash update failed: ${error.message}`);
+        }
+    }
+
+    // Get certificate hash from chain
+    async getCertificateHash(vin, certificateType) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network');
+        }
+
+        try {
+            const result = await this.contract.evaluateTransaction('GetCertificateHash', vin, certificateType);
+            return JSON.parse(result.toString());
+        } catch (error) {
+            console.error('❌ Failed to get certificate hash:', error);
+            throw new Error(`Certificate hash query failed: ${error.message}`);
         }
     }
 }

@@ -666,6 +666,22 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                             await certificateBlockchain.storeCertificateHashOnBlockchain(
                                 compositeHash,
                                 {
+                                    vehicleVIN: vehicle.vin,
+                                    vehicleId: vehicle.id,
+                                    certificateType: 'hpg_clearance',
+                                    certificateNumber: hpgCertificateNumber,
+                                    fileHash: fileHash,
+                                    ipfsCid: null, // HPG clearance may not have IPFS CID
+                                    issuedAt: issueDateISO,
+                                    issuedBy: req.user.email
+                                },
+                                {
+                                    role: req.user.role,
+                                    email: req.user.email
+                                }
+                            );
+                                compositeHash,
+                                {
                                     certificateType: 'hpg',
                                     vehicleVIN: vehicle.vin,
                                     vehicleId: clearanceRequest.vehicle_id,
@@ -700,10 +716,11 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             // This ensures all verification events are recorded on-chain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
             
-            // Ensure Fabric service is initialized
-            if (!fabricService.isConnected) {
-                await fabricService.initialize();
-            }
+            // Initialize Fabric service with current user context for dynamic identity selection
+            await fabricService.initialize({
+                role: req.user.role,
+                email: req.user.email
+            });
             
             // Prepare notes with officer information for blockchain traceability
             const currentUser = await db.getUserById(req.user.userId);
@@ -962,10 +979,11 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
             // PHASE 2: Log verification rejection to blockchain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
             
-            // Ensure Fabric service is initialized
-            if (!fabricService.isConnected) {
-                await fabricService.initialize();
-            }
+            // Initialize Fabric service with current user context for dynamic identity selection
+            await fabricService.initialize({
+                role: req.user.role,
+                email: req.user.email
+            });
             
             // Prepare notes with officer information and rejection reason
             const currentUser = await db.getUserById(req.user.userId);

@@ -1064,62 +1064,64 @@ async function showTransferRequestDetails(requestId) {
             }
         });
         
-        // Show buyer-required documents with upload capability
+        // Show buyer-required documents with inline upload capability (mirroring seller wizard pattern)
         let buyerDocumentsHTML = '';
         buyerDocumentTypes.forEach(docType => {
             const docData = documentsMap[docType.key];
-            if (docData) {
+            const uniqueId = `buyer-${docType.key}-${requestId}`;
+            const isUploaded = !!docData;
+            
+            if (isUploaded) {
+                // Document already uploaded - show with view option and update capability
                 buyerDocumentsHTML += `
-                    <div class="doc-select-item" data-doc-key="${docType.key}" data-doc-id="${docData.id || ''}">
-                        <div class="doc-select-icon">
-                            <i class="fas ${docType.icon}"></i>
+                    <div class="transfer-upload-item uploaded" id="upload-item-${uniqueId}">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas ${docType.icon}"></i> ${docType.label} <span style="color: #27ae60;">✓</span></h4>
+                            <p>${docData.filename}</p>
                         </div>
-                        <div class="doc-select-info">
-                            <div class="doc-select-title">${docType.label}</div>
-                            <div class="doc-select-subtitle">${docData.filename}</div>
-                            <div class="doc-select-status">
-                                <i class="fas fa-check-circle" style="color: #27ae60;"></i> Uploaded
+                        <div class="transfer-upload-area" style="display: flex; gap: 0.5rem; align-items: center;">
+                            ${canUpdate ? `
+                            <div class="transfer-upload-area">
+                                <input type="file" id="${uniqueId}" accept=".pdf,.jpg,.jpeg,.png" onchange="handleBuyerDocumentUpload(this, '${docType.key}', '${requestId}', '${vehicle.id || request.vehicle_id}')">
+                                <label for="${uniqueId}" class="transfer-upload-label" id="label-${uniqueId}" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                                    <span class="transfer-upload-icon">🔄</span>
+                                    <span class="transfer-upload-text">Update</span>
+                                </label>
+                                <div class="transfer-file-name" id="filename-${uniqueId}"></div>
                             </div>
-                        </div>
-                        <div class="doc-select-actions" style="display: flex; gap: 0.5rem;">
-                            <button class="btn-icon" onclick="window.openTransferDocument && window.openTransferDocument('${docData.id}')" title="View Document">
+                            ` : ''}
+                            <button class="btn-icon" onclick="window.openTransferDocument && window.openTransferDocument('${docData.id}')" title="View Document" style="background: #f0f0f0; border: 1px solid #ddd; padding: 0.5rem; border-radius: 4px;">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            ${canUpdate ? `
-                            <button class="btn-icon btn-update-doc" onclick="window.updateTransferDocument && window.updateTransferDocument('${docType.key}', '${docType.label}', '${docData.id || ''}', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Update Document" style="color: #3498db;">
-                                <i class="fas fa-upload"></i>
-                            </button>
-                            ` : ''}
                         </div>
                     </div>
                 `;
             } else {
-                // Show placeholder for missing buyer documents
+                // Document not uploaded yet - show inline upload area
                 buyerDocumentsHTML += `
-                    <div class="doc-select-item" data-doc-key="${docType.key}">
-                        <div class="doc-select-icon">
-                            <i class="fas ${docType.icon}"></i>
-                        </div>
-                        <div class="doc-select-info">
-                            <div class="doc-select-title">${docType.label}</div>
-                            <div class="doc-select-subtitle">Not uploaded yet</div>
-                            <div class="doc-select-status">
-                                <i class="fas fa-exclamation-circle" style="color: #e67e22;"></i> Required
-                            </div>
+                    <div class="transfer-upload-item" id="upload-item-${uniqueId}">
+                        <div class="transfer-upload-info">
+                            <h4><i class="fas ${docType.icon}"></i> ${docType.label} <span style="color: #e74c3c;">*</span></h4>
+                            <p>Required document - please upload</p>
                         </div>
                         ${canUpdate ? `
-                        <div class="doc-select-actions">
-                            <button class="btn-icon btn-update-doc" onclick="window.updateTransferDocument && window.updateTransferDocument('${docType.key}', '${docType.label}', '', '${requestId}', '${vehicle.id || request.vehicle_id}')" title="Upload Document" style="color: #3498db;">
-                                <i class="fas fa-upload"></i>
-                            </button>
+                        <div class="transfer-upload-area">
+                            <input type="file" id="${uniqueId}" accept=".pdf,.jpg,.jpeg,.png" onchange="handleBuyerDocumentUpload(this, '${docType.key}', '${requestId}', '${vehicle.id || request.vehicle_id}')">
+                            <label for="${uniqueId}" class="transfer-upload-label" id="label-${uniqueId}">
+                                <span class="transfer-upload-icon">📄</span>
+                                <span class="transfer-upload-text">Choose File</span>
+                            </label>
+                            <div class="transfer-file-name" id="filename-${uniqueId}"></div>
                         </div>
-                        ` : ''}
+                        ` : '<div style="color: #7f8c8d; font-size: 0.875rem;">Upload not available</div>'}
                     </div>
                 `;
             }
         });
         
-        const documentListHTML = sellerDocumentsHTML.join('') + buyerDocumentsHTML;
+        // Keep seller and buyer HTML separate for rendering with section headers
+        const sellerDocumentsSectionHTML = sellerDocumentsHTML.join('');
+        const buyerDocumentsSectionHTML = buyerDocumentsHTML;
         
         modal.innerHTML = `
             <div class="modal-content modal-large">
@@ -1194,10 +1196,23 @@ async function showTransferRequestDetails(requestId) {
                         <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.875rem; color: #0c4a6e;">
                             <strong><i class="fas fa-info-circle"></i> Your required documents:</strong> Upload Valid ID, TIN, HPG Clearance, CTPL. Seller documents (Deed of Sale, Seller ID) are shown below for reference only. MVIR is completed by LTO during inspection.
                         </div>
-                        ${documentListHTML ? `
-                            <div class="doc-select-list">
-                                ${documentListHTML}
+                        ${sellerDocumentsSectionHTML || buyerDocumentsSectionHTML ? `
+                            ${sellerDocumentsSectionHTML ? `
+                            <div style="margin-bottom: 1.5rem;">
+                                <h5 style="margin-bottom: 0.75rem; color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Seller Documents (Reference Only)</h5>
+                                <div class="doc-select-list">
+                                    ${sellerDocumentsSectionHTML}
+                                </div>
                             </div>
+                            ` : ''}
+                            ${buyerDocumentsSectionHTML ? `
+                            <div>
+                                <h5 style="margin-bottom: 0.75rem; color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Your Documents (Upload Required)</h5>
+                                <div class="transfer-upload-section" style="margin-top: 0;">
+                                    ${buyerDocumentsSectionHTML}
+                                </div>
+                            </div>
+                            ` : ''}
                         ` : '<p style="color: #7f8c8d;">No documents uploaded yet. Upload Valid ID, TIN, HPG Clearance, and CTPL above.</p>'}
                     </div>
                 </div>
@@ -1502,6 +1517,159 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
     }
 }
 
+// Handle buyer document upload inline (mirrors seller wizard pattern but uses buyer API flow)
+async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehicleId) {
+    console.log(`📤 handleBuyerDocumentUpload called for: ${docKey}`);
+    
+    if (!input.files || input.files.length === 0) {
+        console.log(`⚠️ No files selected for ${docKey}`);
+        return;
+    }
+    
+    const file = input.files[0];
+    const uniqueId = input.id;
+    const label = document.getElementById(`label-${uniqueId}`);
+    const filenameDiv = document.getElementById(`filename-${uniqueId}`);
+    const uploadItem = document.getElementById(`upload-item-${uniqueId}`);
+    
+    // Map buyer document keys to logical document types (for DocumentUploadUtils)
+    const docTypeMap = {
+        'buyer_id': window.DocumentUploadUtils?.DOCUMENT_TYPES?.BUYER_ID || 'buyerId',
+        'buyer_tin': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId', // TIN uses ownerId type
+        'buyer_ctpl': window.DocumentUploadUtils?.DOCUMENT_TYPES?.INSURANCE_CERT || 'insuranceCert',
+        'buyer_hpg_clearance': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId', // HPG uses ownerId type
+        'buyer_mvir': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId' // MVIR uses ownerId type
+    };
+    
+    const logicalDocType = docTypeMap[docKey];
+    if (!logicalDocType) {
+        console.error('[BUG] Buyer document key missing from docTypeMap:', docKey);
+        if (label) {
+            label.innerHTML = `
+                <span class="transfer-upload-icon" style="color: #e74c3c;">❌</span>
+                <span class="transfer-upload-text" style="color: #e74c3c;">Configuration Error</span>
+            `;
+        }
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`System error: Document type '${docKey}' is not configured. Please contact support.`, 'error');
+        }
+        input.value = '';
+        return;
+    }
+    
+    // Show uploading state
+    if (label) {
+        label.innerHTML = `
+            <span class="transfer-upload-icon">⏳</span>
+            <span class="transfer-upload-text">Uploading...</span>
+        `;
+    }
+    
+    try {
+        // Step 1: Upload document using unified utility (same as seller wizard)
+        if (!window.DocumentUploadUtils || !window.DocumentUploadUtils.uploadDocument) {
+            throw new Error('Document upload utility not available. Please refresh the page.');
+        }
+        
+        const uploadResult = await window.DocumentUploadUtils.uploadDocument(logicalDocType, file, {
+            vehicleId: vehicleId,
+            onProgress: (progress) => {
+                console.log(`Upload progress for ${docKey}:`, progress);
+            }
+        });
+        
+        if (!uploadResult.success || !uploadResult.document) {
+            throw new Error(uploadResult.error || 'Failed to upload document');
+        }
+        
+        const documentId = uploadResult.document.id || uploadResult.document.document?.id;
+        if (!documentId) {
+            throw new Error('Document uploaded but no document ID returned');
+        }
+        
+        // Step 2: Map document key to transfer document role (for linking API)
+        const transferDocRoleMap = {
+            'buyer_id': 'buyerId',
+            'buyer_tin': 'buyerTin',
+            'buyer_ctpl': 'buyerCtpl',
+            'buyer_hpg_clearance': 'buyerHpgClearance',
+            'buyer_mvir': 'buyerMvir'
+        };
+        
+        const transferDocRole = transferDocRoleMap[docKey] || docKey;
+        
+        // Step 3: Link document to transfer request (buyer-specific API flow)
+        const apiClient = window.apiClient || new APIClient();
+        const linkResponse = await apiClient.post(`/api/vehicles/transfer/requests/${transferRequestId}/link-document`, {
+            documents: {
+                [transferDocRole]: documentId
+            }
+        });
+        
+        if (!linkResponse.success) {
+            throw new Error(linkResponse.error || 'Failed to link document to transfer request');
+        }
+        
+        // Success - update UI inline (no modal closing)
+        if (label) {
+            label.classList.add('uploaded');
+            label.innerHTML = `
+                <span class="transfer-upload-icon">✅</span>
+                <span class="transfer-upload-text">Uploaded</span>
+            `;
+        }
+        if (uploadItem) {
+            uploadItem.classList.add('uploaded');
+        }
+        if (filenameDiv) {
+            filenameDiv.textContent = file.name;
+            filenameDiv.style.color = '#27ae60';
+        }
+        
+        // Show success notification
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`${file.name} uploaded and linked successfully!`, 'success');
+        } else {
+            alert(`${file.name} uploaded successfully!`);
+        }
+        
+        console.log(`✅ Buyer document uploaded and linked successfully:`, {
+            docKey,
+            logicalType: logicalDocType,
+            documentId,
+            transferRequestId
+        });
+        
+    } catch (error) {
+        console.error('Error uploading buyer document:', error);
+        
+        // Reset label on error
+        if (label) {
+            label.classList.remove('uploaded');
+            label.innerHTML = `
+                <span class="transfer-upload-icon">📄</span>
+                <span class="transfer-upload-text">Choose File</span>
+            `;
+        }
+        if (filenameDiv) {
+            filenameDiv.innerHTML = `<span style="color: #e74c3c;">❌ ${error.message || 'Upload failed'}</span>`;
+        }
+        if (uploadItem) {
+            uploadItem.classList.remove('uploaded');
+        }
+        
+        // Show error notification
+        if (typeof ToastNotification !== 'undefined') {
+            ToastNotification.show(`Upload failed: ${error.message || 'Unknown error'}`, 'error');
+        } else {
+            alert(`Upload failed: ${error.message || 'Unknown error'}`);
+        }
+        
+        // Reset file input
+        input.value = '';
+    }
+}
+
 // Helper function to escape HTML (if not already defined)
 function escapeHtml(text) {
     if (typeof text !== 'string') return text;
@@ -1620,6 +1788,7 @@ window.submitTransferAcceptance = submitTransferAcceptance;
 window.showTransferDocumentUploadModal = showTransferDocumentUploadModal;
 window.closeTransferDocumentUploadModal = closeTransferDocumentUploadModal;
 window.submitTransferDocument = submitTransferDocument;
+window.handleBuyerDocumentUpload = handleBuyerDocumentUpload;
 
 // Make functions globally available for inline onclick handlers
 window.viewOwnershipHistory = viewOwnershipHistory;

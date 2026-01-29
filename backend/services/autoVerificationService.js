@@ -290,6 +290,8 @@ class AutoVerificationService {
 
             if (shouldApprove) {
                 // Store hash on blockchain
+                // Note: Auto-verification runs server-side, no user context available
+                // Use system account or default LTO admin identity
                 let blockchainTxId = null;
                 try {
                     const blockchainResult = await certificateBlockchain.storeCertificateHashOnBlockchain(
@@ -302,8 +304,10 @@ class AutoVerificationService {
                             applicationStatus: 'PENDING', // Will update when application approved
                             issuedAt: new Date().toISOString(),
                             issuedBy: 'system',
-                            fileHash: fileHash
-                        }
+                            fileHash: fileHash,
+                            ipfsCid: null // Auto-verification may not have IPFS CID
+                        },
+                        null // No user context - will use default admin identity
                     );
                     blockchainTxId = blockchainResult.transactionId;
                     console.log(`[Auto-Verify] Hash stored on blockchain: ${blockchainTxId}`);

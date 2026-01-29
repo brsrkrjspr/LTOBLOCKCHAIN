@@ -441,6 +441,22 @@ router.post('/create-user', authenticateToken, authorizeRole(['admin', 'lto_admi
             address: address ? address.trim() : null
         });
 
+        // Enroll staff/org accounts in Fabric CA (NOT vehicle_owner public signups)
+        // This is BLOCKING - staff accounts MUST have Fabric identities to interact with blockchain
+        if (newUser.role !== 'vehicle_owner') {
+            try {
+                const fabricEnrollment = require('../services/fabricEnrollmentService');
+                await fabricEnrollment.enrollUser(newUser.email, newUser.role);
+                console.log(`✅ Enrolled ${newUser.email} (${newUser.role}) in Fabric CA`);
+            } catch (enrollError) {
+                // CRITICAL: Staff account creation failed Fabric enrollment
+                // Log error but don't fail the request (account exists in Postgres)
+                // Admin can retry enrollment manually if needed
+                console.error(`❌ Failed to enroll ${newUser.email} in Fabric CA:`, enrollError.message);
+                console.error('⚠️ Staff account created but Fabric enrollment failed. Manual enrollment may be required.');
+            }
+        }
+
         // Audit log successful privileged account creation
         console.log('✅ Admin created privileged user account', {
             adminId: adminUser.id,

@@ -137,6 +137,209 @@ services:
           cpus: '1.0'
 
   # ============================================
+  # HYPERLEDGER FABRIC - HPG PEER
+  # ============================================
+  peer0.hpg.gov.ph:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.hpg.gov.ph
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=trustchain
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.hpg.gov.ph
+      - CORE_PEER_ADDRESS=peer0.hpg.gov.ph:8051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.hpg.gov.ph:8052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:8052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.hpg.gov.ph:8051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.hpg.gov.ph:8051
+      - CORE_PEER_LOCALMSPID=HPGMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - GODEBUG=x509sha1=1
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - FABRIC_CFG_PATH=/var/hyperledger/fabric/config
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/peers/peer0.hpg.gov.ph/msp:/etc/hyperledger/fabric/msp
+      - ./fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/peers/peer0.hpg.gov.ph/tls:/etc/hyperledger/fabric/tls
+      - ./fabric-network/config:/var/hyperledger/fabric/config:ro
+      - peer-hpg-data:/var/hyperledger/production
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - "8051:8051"
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      orderer.lto.gov.ph:
+        condition: service_started
+    networks:
+      - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.5'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # ============================================
+  # HYPERLEDGER FABRIC - INSURANCE PEER
+  # ============================================
+  peer0.insurance.gov.ph:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.insurance.gov.ph
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=trustchain
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.insurance.gov.ph
+      - CORE_PEER_ADDRESS=peer0.insurance.gov.ph:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.insurance.gov.ph:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.insurance.gov.ph:9051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.insurance.gov.ph:9051
+      - CORE_PEER_LOCALMSPID=InsuranceMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - GODEBUG=x509sha1=1
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - FABRIC_CFG_PATH=/var/hyperledger/fabric/config
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/peers/peer0.insurance.gov.ph/msp:/etc/hyperledger/fabric/msp
+      - ./fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/peers/peer0.insurance.gov.ph/tls:/etc/hyperledger/fabric/tls
+      - ./fabric-network/config:/var/hyperledger/fabric/config:ro
+      - peer-insurance-data:/var/hyperledger/production
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - "9051:9051"
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      orderer.lto.gov.ph:
+        condition: service_started
+    networks:
+      - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.5'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # ============================================
+  # HYPERLEDGER FABRIC - FABRIC CA (LTO)
+  # ============================================
+  ca-lto:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca-lto
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-lto
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=7054
+    ports:
+      - "7054:7054"
+    volumes:
+      # Persist CA state (registry DB, issued certs, keys)
+      - ca-lto-data:/etc/hyperledger/fabric-ca-server
+      # CA server config (fabric-ca-server-config.yaml, TLS cert/key) - keep under source control or provisioned securely
+      - ./fabric-network/fabric-ca/lto:/etc/hyperledger/fabric-ca-server-config:ro
+    command: sh -c 'fabric-ca-server start -b admin:adminpw'
+    networks:
+      - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # ============================================
+  # HYPERLEDGER FABRIC - FABRIC CA (HPG)
+  # ============================================
+  ca-hpg:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca-hpg
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-hpg
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=8054
+    ports:
+      - "8054:7054"
+    volumes:
+      - ca-hpg-data:/etc/hyperledger/fabric-ca-server
+      - ./fabric-network/fabric-ca/hpg:/etc/hyperledger/fabric-ca-server-config:ro
+    command: sh -c 'fabric-ca-server start -b admin:adminpw'
+    networks:
+      - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # ============================================
+  # HYPERLEDGER FABRIC - FABRIC CA (INSURANCE)
+  # ============================================
+  ca-insurance:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca-insurance
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-insurance
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=9054
+    ports:
+      - "9054:7054"
+    volumes:
+      - ca-insurance-data:/etc/hyperledger/fabric-ca-server
+      - ./fabric-network/fabric-ca/insurance:/etc/hyperledger/fabric-ca-server-config:ro
+    command: sh -c 'fabric-ca-server start -b admin:adminpw'
+    networks:
+      - trustchain
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # ============================================
   # HYPERLEDGER FABRIC - CLI (REQUIRED for unified-setup.sh)
   # ============================================
   cli:
@@ -193,7 +396,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./database/init-laptop.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # REMOVED: init-laptop.sql mount - use database/all schema.sql manually instead
     networks:
       - trustchain
     restart: unless-stopped
@@ -386,6 +589,11 @@ volumes:
   orderer-data:
   couchdb-data:
   peer-data:
+  peer-hpg-data:
+  peer-insurance-data:
+  ca-lto-data:
+  ca-hpg-data:
+  ca-insurance-data:
   postgres-data:
   ipfs-data:
   app-uploads:

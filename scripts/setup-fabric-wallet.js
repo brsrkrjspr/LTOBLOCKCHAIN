@@ -126,6 +126,7 @@ async function setupWallet() {
         };
 
         await wallet.put('admin', identity);
+        await wallet.put('admin-lto', identity); // Multi-org support: admin-lto identity
         console.log('✅ Admin identity added to wallet successfully');
         
         // Ensure admincerts directory exists and has the certificate
@@ -173,6 +174,13 @@ async function setupWallet() {
             fs.copyFileSync(certPath, peerAdmincertsFile);
             console.log('✅ Admin certificate copied to peer admincerts directory');
         }
+        
+        // Multi-org support: Setup HPG and Insurance admin identities
+        // Note: These will be populated via Fabric CA enrollment scripts
+        // For now, we just ensure the wallet structure supports them
+        console.log('💡 Note: HPG and Insurance admin identities (admin-hpg, admin-insurance)');
+        console.log('   will be created via Fabric CA enrollment scripts (scripts/fabric-ca/)');
+        console.log('   after Fabric CA services are running.');
         
         console.log('🎉 Wallet setup complete!');
 

@@ -326,10 +326,11 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
             // PHASE 2: Log verification approval to blockchain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
             
-            // Ensure Fabric service is initialized
-            if (!fabricService.isConnected) {
-                await fabricService.initialize();
-            }
+            // Initialize Fabric service with current user context for dynamic identity selection
+            await fabricService.initialize({
+                role: req.user.role,
+                email: req.user.email
+            });
             
             // Prepare notes with officer information
             const currentUser = await db.getUserById(req.user.userId);
@@ -508,10 +509,11 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
             // PHASE 2: Log verification rejection to blockchain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
             
-            // Ensure Fabric service is initialized
-            if (!fabricService.isConnected) {
-                await fabricService.initialize();
-            }
+            // Initialize Fabric service with current user context for dynamic identity selection
+            await fabricService.initialize({
+                role: req.user.role,
+                email: req.user.email
+            });
             
             // Prepare notes with officer information and rejection reason
             const currentUser = await db.getUserById(req.user.userId);

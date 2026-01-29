@@ -113,12 +113,12 @@ function generateCertificateNumber(issuerType) {
 
 /**
  * Store certificate hash on blockchain
+ * Updated to use dedicated UpdateCertificateHash chaincode function
  */
-async function storeCertificateHashOnBlockchain(compositeHash, metadata) {
+async function storeCertificateHashOnBlockchain(compositeHash, metadata, userContext = null) {
     try {
-        if (!fabricService.isConnected) {
-            await fabricService.initialize();
-        }
+        // Initialize Fabric service with user context (if provided) for dynamic identity selection
+        await fabricService.initialize(userContext || {});
 
         // Check vehicle status - only store on blockchain if vehicle is REGISTERED
         // Vehicles in SUBMITTED/APPROVED status are not yet on blockchain
@@ -141,20 +141,16 @@ async function storeCertificateHashOnBlockchain(compositeHash, metadata) {
             }
         }
 
-        const notes = JSON.stringify({
-            type: 'certificate_hash',
-            hash: compositeHash,
-            certificateNumber: metadata.certificateNumber,
-            issuer: metadata.issuer,
-            issuedAt: metadata.issuedAt,
-            fileHash: metadata.fileHash
-        });
+        // Use dedicated UpdateCertificateHash chaincode function (NEW - per IMPLEMENTATION_PHASES.md)
+        const certificateType = metadata.certificateType || 'ORCR';
+        const pdfHash = metadata.fileHash || compositeHash;
+        const ipfsCid = metadata.ipfsCid || metadata.ipfs_cid || null;
 
-        const result = await fabricService.updateVerificationStatus(
+        const result = await fabricService.updateCertificateHash(
             metadata.vehicleVIN,
-            metadata.certificateType,
-            'APPROVED',
-            notes
+            certificateType,
+            pdfHash,
+            ipfsCid
         );
 
         return {
@@ -383,14 +379,25 @@ router.post('/hpg/issue-clearance',
             // Store on blockchain
             let blockchainTxId = null;
             try {
-                const blockchainResult = await storeCertificateHashOnBlockchain(compositeHash, {
-                    certificateNumber,
-                    vehicleVIN,
-                    certificateType: 'hpg_clearance',
-                    issuer: req.issuer.name,
-                    issuedAt: new Date().toISOString(),
-                    fileHash
-                });
+                // Get user context from issuer (issuer is authenticated via middleware)
+                const userContext = req.user ? {
+                    role: req.user.role,
+                    email: req.user.email
+                } : null;
+                
+                const blockchainResult = await storeCertificateHashOnBlockchain(
+                    compositeHash,
+                    {
+                        certificateNumber,
+                        vehicleVIN,
+                        certificateType: 'hpg_clearance',
+                        issuer: req.issuer.name,
+                        issuedAt: new Date().toISOString(),
+                        fileHash: fileHash,
+                        ipfsCid: null // HPG clearance may not have IPFS CID
+                    },
+                    userContext
+                );
                 blockchainTxId = blockchainResult.transactionId;
             } catch (blockchainError) {
                 console.error('Blockchain storage failed:', blockchainError);

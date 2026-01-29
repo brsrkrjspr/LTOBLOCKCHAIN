@@ -831,6 +831,11 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 
                 // Only register if vehicle doesn't exist
                 if (!vehicleExists) {
+                    // Initialize Fabric service with current user context for dynamic identity selection
+                    await fabricService.initialize({
+                        role: req.user.role,
+                        email: req.user.email
+                    });
                     const result = await fabricService.registerVehicle(vehicleData);
                     blockchainTxId = result.transactionId;
                     

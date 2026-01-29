@@ -71,14 +71,14 @@ class VehicleRegistrationContract extends Contract {
                 status: 'REGISTERED',
                 verificationStatus: {
                     insurance: 'PENDING',
-                    emission: 'PENDING',
+                    hpg: 'PENDING',
                     admin: 'PENDING'
                 },
                 documents: vehicle.documents || {},
                 notes: {
                     admin: '',
                     insurance: '',
-                    emission: ''
+                    hpg: ''
                 },
                 registrationDate: timestamp,
                 dateOfRegistration: vehicle.dateOfRegistration || timestamp,
@@ -183,12 +183,117 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const vehicle = JSON.parse(vehicleBytes.toString());
+            
+            // Apply MSP-based filtering for non-LTO organizations
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            
+            if (clientMSPID === 'HPGMSP' || clientMSPID === 'InsuranceMSP') {
+                // Return filtered view for HPG/Insurance
+                return JSON.stringify(this.filterVehicleForVerification(vehicle, clientMSPID));
+            }
+            
+            // LTO sees full record
             return JSON.stringify(vehicle);
 
         } catch (error) {
             console.error('Error getting vehicle:', error);
             throw new Error(`Failed to get vehicle: ${error.message}`);
         }
+    }
+
+    // Get vehicle with filtered view for verification purposes (HPG/Insurance)
+    async GetVehicleForVerification(ctx, vin) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            
+            // Apply filtering based on MSP
+            const filteredVehicle = this.filterVehicleForVerification(vehicle, clientMSPID);
+            return JSON.stringify(filteredVehicle);
+
+        } catch (error) {
+            console.error('Error getting vehicle for verification:', error);
+            throw new Error(`Failed to get vehicle for verification: ${error.message}`);
+        }
+    }
+
+    // Helper function to filter vehicle data based on MSP
+    filterVehicleForVerification(vehicle, mspId) {
+        if (mspId === 'LTOMSP') {
+            // LTO sees full record
+            return vehicle;
+        }
+        
+        if (mspId === 'HPGMSP') {
+            // HPG needs: vehicle details, engine/chassis, owner name/email (minimal), HPG verification status
+            return {
+                vin: vehicle.vin,
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year,
+                color: vehicle.color || '',
+                engineNumber: vehicle.engineNumber || '',
+                chassisNumber: vehicle.chassisNumber || '',
+                plateNumber: vehicle.plateNumber || '',
+                crNumber: vehicle.crNumber || '',
+                owner: vehicle.owner ? {
+                    name: vehicle.owner.name || `${vehicle.owner.firstName || ''} ${vehicle.owner.lastName || ''}`.trim(),
+                    email: vehicle.owner.email || ''
+                    // NO phone, address, detailed personal info
+                } : null,
+                verificationStatus: {
+                    hpg: vehicle.verificationStatus?.hpg || 'PENDING'
+                },
+                certificates: (vehicle.certificates || []).filter(c => 
+                    c.type === 'or_cr' || c.type === 'hpg_clearance'
+                ),
+                status: vehicle.status,
+                registrationDate: vehicle.registrationDate,
+                lastUpdated: vehicle.lastUpdated
+                // NO pastOwners, NO full history, NO admin notes, NO officer info
+            };
+        }
+        
+        if (mspId === 'InsuranceMSP') {
+            // Insurance needs: vehicle details, owner name/email (minimal), insurance verification status
+            return {
+                vin: vehicle.vin,
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year,
+                color: vehicle.color || '',
+                plateNumber: vehicle.plateNumber || '',
+                owner: vehicle.owner ? {
+                    name: vehicle.owner.name || `${vehicle.owner.firstName || ''} ${vehicle.owner.lastName || ''}`.trim(),
+                    email: vehicle.owner.email || ''
+                    // NO phone, address, detailed personal info
+                } : null,
+                verificationStatus: {
+                    insurance: vehicle.verificationStatus?.insurance || 'PENDING'
+                },
+                certificates: (vehicle.certificates || []).filter(c => 
+                    c.type === 'insurance' || c.type === 'or_cr'
+                ),
+                status: vehicle.status,
+                registrationDate: vehicle.registrationDate,
+                lastUpdated: vehicle.lastUpdated
+                // NO engine/chassis (not needed for insurance), NO pastOwners, NO full history
+            };
+        }
+        
+        // Unknown MSP - return minimal data
+        return {
+            vin: vehicle.vin,
+            make: vehicle.make,
+            model: vehicle.model,
+            year: vehicle.year,
+            status: vehicle.status
+        };
     }
 
     // Update verification status
@@ -203,10 +308,10 @@ class VehicleRegistrationContract extends Contract {
             const txId = ctx.stub.getTxID();
             const timestamp = new Date().toISOString();
 
-            // Validate verifier type
-            const validVerifiers = ['insurance', 'emission', 'admin'];
+            // Validate verifier type (FIXED: removed 'emission', added 'hpg')
+            const validVerifiers = ['insurance', 'hpg', 'admin'];
             if (!validVerifiers.includes(verifierType)) {
-                throw new Error(`Invalid verifier type: ${verifierType}`);
+                throw new Error(`Invalid verifier type: ${verifierType}. Valid types: ${validVerifiers.join(', ')}`);
             }
 
             // Validate status
@@ -216,17 +321,18 @@ class VehicleRegistrationContract extends Contract {
             }
 
             // Organization-based authorization (Permissioned Network)
-            // Only authorized organizations can perform specific verifications
+            // CRITICAL FIX: Each MSP can ONLY set its own verification type to prevent LTO from forging external approvals
             const clientMSPID = ctx.clientIdentity.getMSPID();
-            const authorizedMSPs = {
-                'insurance': ['InsuranceMSP', 'LTOMSP'], // Insurance companies or LTO can verify insurance
-                'emission': ['EmissionMSP', 'LTOMSP'],  // Emission centers or LTO can verify emission
-                'admin': ['LTOMSP'],                      // Only LTO can perform admin verification
-                'hpg': ['HPGMSP', 'LTOMSP']              // HPG can report violations/stolen vehicles
-            };
-
-            if (!authorizedMSPs[verifierType] || !authorizedMSPs[verifierType].includes(clientMSPID)) {
-                throw new Error(`Unauthorized: ${clientMSPID} cannot perform ${verifierType} verification. Authorized MSPs: ${authorizedMSPs[verifierType].join(', ')}`);
+            
+            // Enforce strict MSP-to-verifier mapping: each MSP can only set its corresponding verification
+            if (verifierType === 'insurance' && clientMSPID !== 'InsuranceMSP') {
+                throw new Error(`Unauthorized: Only InsuranceMSP can set insurance verification. Current MSP: ${clientMSPID}`);
+            }
+            if (verifierType === 'hpg' && clientMSPID !== 'HPGMSP') {
+                throw new Error(`Unauthorized: Only HPGMSP can set hpg verification. Current MSP: ${clientMSPID}`);
+            }
+            if (verifierType === 'admin' && clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTOMSP can set admin verification. Current MSP: ${clientMSPID}`);
             }
 
             // Update verification status
@@ -598,6 +704,7 @@ class VehicleRegistrationContract extends Contract {
             
             const resultsIterator = await ctx.stub.getStateByRange(startKey, endKey);
             const vehicles = [];
+            const clientMSPID = ctx.clientIdentity.getMSPID();
 
             // Iterate through all results
             while (true) {
@@ -606,7 +713,13 @@ class VehicleRegistrationContract extends Contract {
                 if (result.value) {
                     try {
                         const vehicle = JSON.parse(result.value.value.toString());
-                        vehicles.push(vehicle);
+                        
+                        // Only include vehicles with docType 'CR' (skip composite keys, OR records, etc.)
+                        if (vehicle.docType === 'CR' || vehicle.vin) {
+                            // Apply MSP-based filtering
+                            const filteredVehicle = this.filterVehicleForVerification(vehicle, clientMSPID);
+                            vehicles.push(filteredVehicle);
+                        }
                     } catch (parseError) {
                         // Skip non-vehicle entries (like composite keys)
                         console.warn('Skipping non-vehicle entry:', result.value.key);
@@ -626,6 +739,53 @@ class VehicleRegistrationContract extends Contract {
         } catch (error) {
             console.error('Error getting all vehicles:', error);
             throw new Error(`Failed to get all vehicles: ${error.message}`);
+        }
+    }
+
+    // Query vehicles with filtered view for verification purposes
+    async QueryVehiclesForVerification(ctx, status) {
+        try {
+            const startKey = '';
+            const endKey = '\uffff';
+            const resultsIterator = await ctx.stub.getStateByRange(startKey, endKey);
+            const vehicles = [];
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+
+            while (true) {
+                const result = await resultsIterator.next();
+                
+                if (result.value) {
+                    try {
+                        const vehicle = JSON.parse(result.value.value.toString());
+                        
+                        // Only include vehicles with docType 'CR'
+                        if (vehicle.docType === 'CR' || vehicle.vin) {
+                            // Filter by status if provided
+                            if (status && vehicle.status !== status) {
+                                continue;
+                            }
+                            
+                            // Apply MSP-based filtering
+                            const filteredVehicle = this.filterVehicleForVerification(vehicle, clientMSPID);
+                            vehicles.push(filteredVehicle);
+                        }
+                    } catch (parseError) {
+                        // Skip non-vehicle entries
+                        console.warn('Skipping non-vehicle entry:', result.value.key);
+                    }
+                }
+                
+                if (result.done) {
+                    break;
+                }
+            }
+
+            await resultsIterator.close();
+            return JSON.stringify(vehicles);
+
+        } catch (error) {
+            console.error('Error querying vehicles for verification:', error);
+            throw new Error(`Failed to query vehicles for verification: ${error.message}`);
         }
     }
 
@@ -1049,6 +1209,331 @@ class VehicleRegistrationContract extends Contract {
         } catch (error) {
             console.error('Error marking vehicle as recovered:', error);
             throw new Error(`Failed to mark vehicle as recovered: ${error.message}`);
+        }
+    }
+
+    // Mint vehicle (pre-minted, ownerless vehicle - CSR verified)
+    async MintVehicle(ctx, vehicleData) {
+        try {
+            const vehicle = JSON.parse(vehicleData);
+            
+            // Validate required fields (no owner required for minting)
+            if (!vehicle.vin || !vehicle.make || !vehicle.model || !vehicle.year) {
+                throw new Error('Missing required vehicle information (VIN, make, model, year)');
+            }
+
+            // Check if vehicle already exists
+            const existingVehicle = await ctx.stub.getState(vehicle.vin);
+            if (existingVehicle && existingVehicle.length > 0) {
+                const existing = JSON.parse(existingVehicle.toString());
+                if (existing.status !== 'MINTED' || existing.owner) {
+                    throw new Error(`Vehicle with VIN ${vehicle.vin} already exists and is not available for minting`);
+                }
+                // Already minted, return success
+                return JSON.stringify({
+                    success: true,
+                    message: 'Vehicle already minted',
+                    vin: vehicle.vin,
+                    status: 'MINTED'
+                });
+            }
+
+            // Only LTO can mint vehicles
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTO organization (LTOMSP) can mint vehicles. Current MSP: ${clientMSPID}`);
+            }
+
+            const txId = ctx.stub.getTxID();
+            const timestamp = new Date().toISOString();
+
+            // Create minted vehicle record (ownerless, CSR-verified state)
+            const vehicleRecord = {
+                docType: 'CR',
+                vin: vehicle.vin,
+                crNumber: vehicle.crNumber || '',
+                plateNumber: vehicle.plateNumber || '',
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year,
+                color: vehicle.color || '',
+                engineNumber: vehicle.engineNumber || '',
+                chassisNumber: vehicle.chassisNumber || '',
+                vehicleType: vehicle.vehicleType || 'Car',
+                vehicleCategory: vehicle.vehicleCategory || '',
+                passengerCapacity: vehicle.passengerCapacity || 0,
+                grossVehicleWeight: vehicle.grossVehicleWeight || 0,
+                netWeight: vehicle.netWeight || 0,
+                classification: vehicle.classification || vehicle.registrationType || 'Private',
+                owner: null, // No owner yet - this is pre-minted
+                pastOwners: [],
+                status: 'MINTED', // Pre-minted, unassigned status
+                verificationStatus: {
+                    insurance: 'PENDING',
+                    hpg: 'PENDING',
+                    admin: 'PENDING'
+                },
+                documents: vehicle.documents || {},
+                notes: {
+                    admin: '',
+                    insurance: '',
+                    hpg: ''
+                },
+                registrationDate: null, // Not registered yet
+                dateOfRegistration: null,
+                lastUpdated: timestamp,
+                priority: vehicle.priority || 'MEDIUM',
+                history: [{
+                    action: 'MINTED',
+                    timestamp: timestamp,
+                    performedBy: ctx.clientIdentity.getMSPID(),
+                    details: 'Vehicle pre-minted (CSR verified, ownerless)',
+                    transactionId: txId
+                }],
+                blockchainTxId: txId,
+                createdBy: ctx.clientIdentity.getMSPID(),
+                createdAt: timestamp,
+                mintedAt: timestamp
+            };
+
+            // Store minted vehicle
+            await ctx.stub.putState(vehicle.vin, Buffer.from(JSON.stringify(vehicleRecord)));
+
+            // Create composite key for plate number lookup (if provided)
+            if (vehicle.plateNumber) {
+                const plateKey = ctx.stub.createCompositeKey('plate~vin', [vehicle.plateNumber, vehicle.vin]);
+                await ctx.stub.putState(plateKey, Buffer.from(vehicle.vin));
+            }
+            
+            // Create composite key for CR number lookup (if provided)
+            if (vehicle.crNumber) {
+                const crKey = ctx.stub.createCompositeKey('cr~vin', [vehicle.crNumber, vehicle.vin]);
+                await ctx.stub.putState(crKey, Buffer.from(vehicle.vin));
+            }
+
+            // Emit event
+            ctx.stub.setEvent('VehicleMinted', Buffer.from(JSON.stringify({
+                vin: vehicle.vin,
+                timestamp: timestamp,
+                transactionId: txId
+            })));
+
+            console.log(`Vehicle ${vehicle.vin} minted successfully (pre-minted, ownerless)`);
+            return JSON.stringify({
+                success: true,
+                message: 'Vehicle minted successfully',
+                vin: vehicle.vin,
+                status: 'MINTED',
+                transactionId: txId,
+                timestamp: timestamp
+            });
+
+        } catch (error) {
+            console.error('Error minting vehicle:', error);
+            throw new Error(`Failed to mint vehicle: ${error.message}`);
+        }
+    }
+
+    // Attach owner to minted vehicle
+    async AttachOwnerToMintedVehicle(ctx, vin, ownerData, registrationData) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            
+            // Validate vehicle is in MINTED state and has no owner
+            if (vehicle.status !== 'MINTED') {
+                throw new Error(`Vehicle with VIN ${vin} is not in MINTED state. Current status: ${vehicle.status}`);
+            }
+            if (vehicle.owner) {
+                throw new Error(`Vehicle with VIN ${vin} already has an owner: ${vehicle.owner.email || 'unknown'}`);
+            }
+
+            const newOwner = JSON.parse(ownerData);
+            const registration = JSON.parse(registrationData || '{}');
+            
+            // Only LTO can attach owners
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTO organization can attach owners to minted vehicles. Current MSP: ${clientMSPID}`);
+            }
+
+            // Validate that external verifications are approved (per requirement: LTO can't approve unless verified by orgs)
+            if (vehicle.verificationStatus.hpg !== 'APPROVED' || vehicle.verificationStatus.insurance !== 'APPROVED') {
+                throw new Error(`Cannot attach owner: External verifications not complete. HPG: ${vehicle.verificationStatus.hpg}, Insurance: ${vehicle.verificationStatus.insurance}`);
+            }
+
+            const txId = ctx.stub.getTxID();
+            const timestamp = new Date().toISOString();
+
+            // Attach owner and transition status
+            vehicle.owner = newOwner;
+            vehicle.status = 'REGISTERED';
+            vehicle.registrationDate = timestamp;
+            vehicle.dateOfRegistration = registration.dateOfRegistration || timestamp;
+            vehicle.lastUpdated = timestamp;
+
+            // Update OR number if provided
+            if (registration.orNumber) {
+                vehicle.orNumber = registration.orNumber;
+            }
+
+            // Create composite key for owner lookup
+            const ownerKey = ctx.stub.createCompositeKey('owner~vin', [newOwner.email, vehicle.vin]);
+            await ctx.stub.putState(ownerKey, Buffer.from(vehicle.vin));
+
+            // Add to history
+            vehicle.history.push({
+                action: 'OWNER_ATTACHED',
+                timestamp: timestamp,
+                performedBy: clientMSPID,
+                details: `Owner attached to minted vehicle: ${newOwner.email}`,
+                transactionId: txId,
+                owner: newOwner.email
+            });
+
+            // Store updated vehicle
+            await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
+
+            // Emit event
+            ctx.stub.setEvent('OwnerAttachedToMintedVehicle', Buffer.from(JSON.stringify({
+                vin: vin,
+                owner: newOwner.email,
+                timestamp: timestamp,
+                transactionId: txId
+            })));
+
+            console.log(`Owner attached to minted vehicle ${vin}: ${newOwner.email}`);
+            return JSON.stringify({
+                success: true,
+                message: 'Owner attached to minted vehicle successfully',
+                vin: vin,
+                owner: newOwner.email,
+                status: 'REGISTERED',
+                transactionId: txId,
+                timestamp: timestamp
+            });
+
+        } catch (error) {
+            console.error('Error attaching owner to minted vehicle:', error);
+            throw new Error(`Failed to attach owner to minted vehicle: ${error.message}`);
+        }
+    }
+
+    // Update certificate hash (for OR/CR PDFs)
+    async UpdateCertificateHash(ctx, vin, certificateType, pdfHash, ipfsCid) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            const txId = ctx.stub.getTxID();
+            const timestamp = new Date().toISOString();
+
+            // Only LTO can update certificate hashes
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTO can update certificate hashes. Current MSP: ${clientMSPID}`);
+            }
+
+            // Initialize certificates array if it doesn't exist
+            if (!vehicle.certificates) {
+                vehicle.certificates = [];
+            }
+
+            // Add or update certificate hash
+            const certIndex = vehicle.certificates.findIndex(c => c.type === certificateType);
+            const certRecord = {
+                type: certificateType, // 'OR', 'CR', or 'ORCR'
+                pdfHash: pdfHash,
+                ipfsCid: ipfsCid,
+                issuedAt: timestamp,
+                transactionId: txId,
+                issuedBy: clientMSPID
+            };
+
+            if (certIndex >= 0) {
+                vehicle.certificates[certIndex] = certRecord;
+            } else {
+                vehicle.certificates.push(certRecord);
+            }
+
+            vehicle.lastUpdated = timestamp;
+
+            // Add to history
+            vehicle.history.push({
+                action: 'CERTIFICATE_HASH_UPDATED',
+                timestamp: timestamp,
+                performedBy: clientMSPID,
+                details: `${certificateType} certificate hash updated`,
+                transactionId: txId,
+                certificateType: certificateType,
+                pdfHash: pdfHash,
+                ipfsCid: ipfsCid
+            });
+
+            await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
+
+            // Emit event
+            ctx.stub.setEvent('CertificateHashUpdated', Buffer.from(JSON.stringify({
+                vin: vin,
+                certificateType: certificateType,
+                pdfHash: pdfHash,
+                ipfsCid: ipfsCid,
+                timestamp: timestamp,
+                transactionId: txId
+            })));
+
+            return JSON.stringify({
+                success: true,
+                message: 'Certificate hash updated successfully',
+                vin: vin,
+                certificateType: certificateType,
+                transactionId: txId
+            });
+
+        } catch (error) {
+            console.error('Error updating certificate hash:', error);
+            throw new Error(`Failed to update certificate hash: ${error.message}`);
+        }
+    }
+
+    // Get certificate hash for verification
+    async GetCertificateHash(ctx, vin, certificateType) {
+        try {
+            const vehicleBytes = await ctx.stub.getState(vin);
+            if (!vehicleBytes || vehicleBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${vin} not found`);
+            }
+
+            const vehicle = JSON.parse(vehicleBytes.toString());
+            
+            if (!vehicle.certificates || vehicle.certificates.length === 0) {
+                return JSON.stringify({ found: false });
+            }
+
+            const cert = vehicle.certificates.find(c => c.type === certificateType);
+            if (!cert) {
+                return JSON.stringify({ found: false });
+            }
+
+            return JSON.stringify({
+                found: true,
+                certificateType: cert.type,
+                pdfHash: cert.pdfHash,
+                ipfsCid: cert.ipfsCid,
+                issuedAt: cert.issuedAt,
+                transactionId: cert.transactionId
+            });
+
+        } catch (error) {
+            console.error('Error getting certificate hash:', error);
+            throw new Error(`Failed to get certificate hash: ${error.message}`);
         }
     }
 }

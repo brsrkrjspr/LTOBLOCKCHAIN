@@ -248,6 +248,97 @@ router.put('/vehicles/:vin/transfer', authenticateToken, async (req, res) => {
     }
 });
 
+// POST /api/blockchain/vehicles/mint - Mint new pre-minted vehicle
+// STRICT: Only LTO admin can mint vehicles
+router.post('/vehicles/mint', authenticateToken, async (req, res) => {
+    try {
+        // Only LTO admin can mint
+        if (!['admin', 'lto_admin'].includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Unauthorized: Only LTO admin can mint vehicles' 
+            });
+        }
+        
+        const vehicleData = req.body;
+        
+        // Validate required fields
+        if (!vehicleData.vin || !vehicleData.make || !vehicleData.model || !vehicleData.year) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: VIN, make, model, year'
+            });
+        }
+        
+        // Initialize Fabric service with user context
+        await fabricService.initialize({ role: req.user.role, email: req.user.email });
+        
+        // Mint vehicle on Fabric
+        const result = await fabricService.mintVehicle(vehicleData);
+        
+        res.json({
+            success: true,
+            message: 'Vehicle minted successfully on Fabric',
+            transactionId: result.transactionId,
+            vin: result.vin,
+            status: result.status
+        });
+        
+    } catch (error) {
+        console.error('Mint vehicle error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to mint vehicle'
+        });
+    }
+});
+
+// GET /api/blockchain/vehicles - Get all vehicles from Fabric
+// STRICT: Only LTO staff can query
+router.get('/vehicles', authenticateToken, async (req, res) => {
+    try {
+        // Only LTO staff can query
+        if (!['admin', 'lto_admin', 'lto_officer'].includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Unauthorized' 
+            });
+        }
+        
+        const { status } = req.query;
+        
+        // Initialize Fabric service with user context
+        await fabricService.initialize({ role: req.user.role, email: req.user.email });
+        
+        // Get all vehicles from Fabric
+        const allVehicles = await fabricService.getAllTransactions({ 
+            role: req.user.role, 
+            email: req.user.email 
+        });
+        
+        // Filter by status if provided
+        let vehicles = allVehicles;
+        if (status) {
+            const statusUpper = status.toUpperCase();
+            vehicles = allVehicles.filter(v => v.status === statusUpper);
+        }
+        
+        res.json({
+            success: true,
+            vehicles: vehicles,
+            count: vehicles.length,
+            source: 'Hyperledger Fabric'
+        });
+        
+    } catch (error) {
+        console.error('Get vehicles from Fabric error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to get vehicles from Fabric'
+        });
+    }
+});
+
 // Get blockchain network status
 router.get('/status', optionalAuth, (req, res) => {
     try {

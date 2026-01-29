@@ -644,6 +644,69 @@ async function submitMintVehicle() {
     }
 }
 
+/**
+ * Auto-fill Create Pre-Minted Vehicle form with random CSR-verified values.
+ * Uses same character rules as LTO (VIN 17 chars, excludes I, O, Q).
+ */
+function autoFillMintFormRandom() {
+    const VIN_CHARS = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
+    const randomVIN = () => Array.from({ length: 17 }, () => VIN_CHARS[Math.floor(Math.random() * VIN_CHARS.length)]).join('');
+    const randomPlate = () => {
+        const L = 'ABCDEFGHJKLMNPRSTUVWXYZ';
+        const letters = Array.from({ length: 3 }, () => L[Math.floor(Math.random() * L.length)]).join('');
+        return letters + '-' + (1000 + Math.floor(Math.random() * 9000));
+    };
+    const randomEngine = () => {
+        const pre = ['2NR', '1GR', '3UR', '4GR', '5VZ'][Math.floor(Math.random() * 5)];
+        const mid = ['FE', 'GE', 'DE', 'CE', 'BE'][Math.floor(Math.random() * 5)];
+        return pre + '-' + mid + (100000 + Math.floor(Math.random() * 900000));
+    };
+    const randomChassis = () => {
+        const len = 10 + Math.floor(Math.random() * 8);
+        return Array.from({ length: len }, () => VIN_CHARS[Math.floor(Math.random() * VIN_CHARS.length)]).join('');
+    };
+
+    const VEHICLE_CATALOG = [
+        { make: 'Toyota', model: 'Vios', vehicleType: 'Car' },
+        { make: 'Toyota', model: 'Corolla Altis', vehicleType: 'Car' },
+        { make: 'Honda', model: 'Civic', vehicleType: 'Car' },
+        { make: 'Honda', model: 'City', vehicleType: 'Car' },
+        { make: 'Toyota', model: 'Fortuner', vehicleType: 'SUV' },
+        { make: 'Toyota', model: 'Hilux', vehicleType: 'Truck' },
+        { make: 'Honda', model: 'Click 125', vehicleType: 'Motorcycle' },
+        { make: 'Mitsubishi', model: 'Mirage G4', vehicleType: 'Car' },
+        { make: 'Hyundai', model: 'Accent', vehicleType: 'Car' }
+    ];
+    const COLORS = ['White', 'Black', 'Silver', 'Gray', 'Red', 'Blue', 'Pearl White', 'Brown', 'Beige'];
+    const CLASSIFICATIONS = ['Private', 'Commercial', 'Government'];
+    const CATEGORIES = ['Private', 'Commercial', 'For Hire'];
+
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const vehicle = pick(VEHICLE_CATALOG);
+    const year = 2022 + Math.floor(Math.random() * 4); // 2022–2025
+
+    const vin = randomVIN();
+    const el = (id) => document.getElementById(id);
+    if (el('mintVin')) el('mintVin').value = vin;
+    if (el('mintMake')) el('mintMake').value = vehicle.make;
+    if (el('mintModel')) el('mintModel').value = vehicle.model;
+    if (el('mintYear')) el('mintYear').value = year;
+    if (el('mintColor')) el('mintColor').value = pick(COLORS);
+    if (el('mintPlateNumber')) el('mintPlateNumber').value = randomPlate();
+    if (el('mintCrNumber')) el('mintCrNumber').value = 'CR-' + (1000000 + Math.floor(Math.random() * 8999999));
+    if (el('mintEngineNumber')) el('mintEngineNumber').value = randomEngine();
+    if (el('mintChassisNumber')) el('mintChassisNumber').value = randomChassis();
+    if (el('mintVehicleType')) el('mintVehicleType').value = vehicle.vehicleType;
+    if (el('mintVehicleCategory')) el('mintVehicleCategory').value = pick(CATEGORIES);
+    if (el('mintClassification')) el('mintClassification').value = pick(CLASSIFICATIONS);
+
+    if (typeof ToastNotification !== 'undefined') {
+        ToastNotification.show('Form filled with random CSR-verified vehicle data.', 'success');
+    } else {
+        alert('Form filled with random data.');
+    }
+}
+
 function resetMintForm() {
     const form = document.getElementById('mintVehicleForm');
     if (form) {

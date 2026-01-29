@@ -145,6 +145,42 @@ class IPFSService {
         ]);
     }
 
+    /**
+     * Store a buffer (e.g. in-memory PDF) on IPFS. Used for LTO-issued certs (CSR, Sales Invoice) bound to minted vehicles.
+     * @param {Buffer} buffer - PDF or document buffer
+     * @param {Object} metadata - { originalName } for filename
+     * @returns {Promise<{ success, cid, size, ipfsUrl, gatewayUrl }>}
+     */
+    async storeBuffer(buffer, metadata = {}) {
+        if (!this.isConnected) {
+            throw new Error('IPFS is not connected');
+        }
+        const uploadTimeout = parseInt(process.env.IPFS_UPLOAD_TIMEOUT) || 25000;
+        const filename = metadata.originalName || 'document.pdf';
+        return Promise.race([
+            (async () => {
+                const result = await this.ipfs.add(
+                    { path: filename, content: Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer) },
+                    { pin: true, cidVersion: 1 }
+                );
+                const cid = result.cid.toString();
+                const size = result.size || buffer.length;
+                console.log(`✅ Document stored on IPFS (buffer): ${cid}`);
+                return {
+                    success: true,
+                    cid,
+                    size,
+                    ipfsUrl: `ipfs://${cid}`,
+                    gatewayUrl: `${this.ipfsProtocol}://${this.ipfsHost}:8080/ipfs/${cid}`,
+                    metadata
+                };
+            })(),
+            new Promise((_, reject) => {
+                setTimeout(() => reject(new Error(`IPFS upload timeout after ${uploadTimeout}ms`)), uploadTimeout);
+            })
+        ]);
+    }
+
     // Retrieve document from IPFS
     async getDocument(cid) {
         if (!this.isConnected) {

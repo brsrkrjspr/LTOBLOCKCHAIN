@@ -4,6 +4,18 @@ const router = express.Router();
 const fabricService = require('../services/optimizedFabricService');
 const { optionalAuth } = require('../middleware/auth');
 
+// CSR certificate generation and email for pre-minted vehicles (lazy load to avoid circular deps)
+const getCsrServices = () => {
+    return {
+        certificatePdfGenerator: require('../services/certificatePdfGenerator'),
+        certificateEmailService: require('../services/certificateEmailService'),
+        certificateNumberGenerator: require('../utils/certificateNumberGenerator')
+    };
+};
+
+/** Email address to auto-send CSR certificate for every minted vehicle (configurable via env) */
+const PREMINTED_CSR_EMAIL = process.env.PREMINTED_CSR_EMAIL || 'ltolipablockchain@gmail.com';
+
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required. Set it in .env file.');
@@ -275,7 +287,106 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
         
         // Mint vehicle on Fabric
         const result = await fabricService.mintVehicle(vehicleData);
-        
+
+        // Generate CSR certificate for the minted vehicle: bind to vehicle (IPFS + on-chain hash), then email
+        try {
+            const { certificatePdfGenerator, certificateEmailService, certificateNumberGenerator } = getCsrServices();
+            const csrNumber = certificateNumberGenerator.generateCsrNumber();
+            const issuanceDate = new Date().toISOString();
+            const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
+                dealerName: 'LTO Pre-Minted (CSR Verified)',
+                dealerLtoNumber: `LTO-PM-${Math.floor(1000 + Math.random() * 9000)}`,
+                vehicleMake: vehicleData.make,
+                vehicleModel: vehicleData.model,
+                vehicleVariant: vehicleData.vehicleType || '',
+                vehicleYear: vehicleData.year,
+                bodyType: vehicleData.vehicleType || 'Car',
+                color: vehicleData.color || '',
+                fuelType: 'Gasoline',
+                engineNumber: vehicleData.engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
+                vehicleVIN: vehicleData.vin,
+                issuanceDate,
+                csrNumber
+            });
+            let csrIpfsCid = null;
+            const ipfsService = require('../services/ipfsService');
+            if (ipfsService.isAvailable()) {
+                try {
+                    const ipfsResult = await ipfsService.storeBuffer(pdfBuffer, { originalName: `CSR_${certificateNumber || csrNumber}_${vehicleData.vin}.pdf` });
+                    csrIpfsCid = ipfsResult.cid;
+                } catch (ipfsErr) {
+                    console.warn('[Mint] IPFS store for CSR failed (hash will still be bound):', ipfsErr.message);
+                }
+            }
+            await fabricService.updateCertificateHash(vehicleData.vin, 'csr', fileHash, csrIpfsCid);
+            await certificateEmailService.sendCsrCertificate({
+                to: PREMINTED_CSR_EMAIL,
+                dealerName: 'LTO Pre-Minted (CSR Verified)',
+                csrNumber: certificateNumber || csrNumber,
+                vehicleVIN: vehicleData.vin,
+                vehicleMake: vehicleData.make,
+                vehicleModel: vehicleData.model,
+                pdfBuffer
+            });
+            console.log(`[Mint] CSR certificate bound to VIN ${vehicleData.vin} (IPFS: ${csrIpfsCid || 'n/a'}) and sent to ${PREMINTED_CSR_EMAIL}`);
+        } catch (csrError) {
+            console.error('[Mint] CSR generation or email failed (vehicle was still minted):', csrError.message);
+            // Do not fail the mint response; vehicle is already on Fabric
+        }
+
+        // Generate Sales Invoice for the minted vehicle: bind to vehicle (IPFS + on-chain hash), then email
+        try {
+            const { certificatePdfGenerator, certificateEmailService, certificateNumberGenerator } = getCsrServices();
+            const invoiceNumber = certificateNumberGenerator.generateSalesInvoiceNumber();
+            const dateOfSale = new Date().toISOString();
+            const purchasePrice = Math.floor(500000 + Math.random() * 2000000); // Random price: 500k-2.5M PHP
+            
+            const { pdfBuffer: salesInvoicePdf, fileHash: salesInvoiceHash, certificateNumber: salesInvoiceCertNumber } = await certificatePdfGenerator.generateSalesInvoice({
+                ownerName: 'LTO Pre-Minted (CSR Verified)',
+                vehicleVIN: vehicleData.vin,
+                vehiclePlate: vehicleData.plateNumber || '',
+                vehicleMake: vehicleData.make,
+                vehicleModel: vehicleData.model,
+                vehicleYear: vehicleData.year,
+                bodyType: vehicleData.vehicleType || 'Car',
+                color: vehicleData.color || '',
+                fuelType: 'Gasoline',
+                engineNumber: vehicleData.engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
+                invoiceNumber,
+                dateOfSale,
+                purchasePrice,
+                sellerName: 'LTO Pre-Minted Dealer',
+                sellerPosition: 'Authorized Dealer',
+                dealerName: 'LTO Pre-Minted (CSR Verified)',
+                dealerTin: `TIN-${Math.floor(100000000 + Math.random() * 900000000)}`,
+                dealerAccreditationNo: `LTO-ACC-${Math.floor(10000 + Math.random() * 90000)}`
+            });
+            let salesInvoiceIpfsCid = null;
+            const ipfsServiceSI = require('../services/ipfsService');
+            if (ipfsServiceSI.isAvailable()) {
+                try {
+                    const ipfsResult = await ipfsServiceSI.storeBuffer(salesInvoicePdf, { originalName: `SalesInvoice_${salesInvoiceCertNumber || invoiceNumber}_${vehicleData.vin}.pdf` });
+                    salesInvoiceIpfsCid = ipfsResult.cid;
+                } catch (ipfsErr) {
+                    console.warn('[Mint] IPFS store for Sales Invoice failed (hash will still be bound):', ipfsErr.message);
+                }
+            }
+            await fabricService.updateCertificateHash(vehicleData.vin, 'sales_invoice', salesInvoiceHash, salesInvoiceIpfsCid);
+            await certificateEmailService.sendSalesInvoice({
+                to: PREMINTED_CSR_EMAIL,
+                ownerName: 'LTO Pre-Minted (CSR Verified)',
+                invoiceNumber: salesInvoiceCertNumber || invoiceNumber,
+                vehicleVIN: vehicleData.vin,
+                vehicleMake: vehicleData.make,
+                vehicleModel: vehicleData.model,
+                pdfBuffer: salesInvoicePdf
+            });
+            console.log(`[Mint] Sales Invoice bound to VIN ${vehicleData.vin} (IPFS: ${salesInvoiceIpfsCid || 'n/a'}) and sent to ${PREMINTED_CSR_EMAIL}`);
+        } catch (salesInvoiceError) {
+            console.error('[Mint] Sales Invoice generation or email failed (vehicle was still minted):', salesInvoiceError.message);
+            // Do not fail the mint response; vehicle is already on Fabric
+        }
+
         res.json({
             success: true,
             message: 'Vehicle minted successfully on Fabric',

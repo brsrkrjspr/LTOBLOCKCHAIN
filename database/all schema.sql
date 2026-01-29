@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict iZ1mLiTx6tb7TZuJeEZAAdqqPgPunc95XAJeliScXtqWlvvfpOPrrsG9dNFpCIV
+\restrict 9fTAQ1cpHvPRGxEx5lSnehzbvPaDGGNviGKdB6HezocIrnFzXQVISfe605nHE8y
 
 -- Dumped from database version 15.15
 -- Dumped by pg_dump version 18.1
 
--- Started on 2026-01-29 12:19:16
+-- Started on 2026-01-30 02:49:05
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -22,41 +22,26 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 3 (class 3079 OID 16396)
--- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
+-- TOC entry 6 (class 2615 OID 2200)
+-- Name: public; Type: SCHEMA; Schema: -; Owner: pg_database_owner
 --
 
-CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+CREATE SCHEMA public;
 
+
+ALTER SCHEMA public OWNER TO pg_database_owner;
 
 --
 -- TOC entry 3969 (class 0 OID 0)
--- Dependencies: 3
--- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: 
+-- Dependencies: 6
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: pg_database_owner
 --
 
-COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
-
-
---
--- TOC entry 2 (class 3079 OID 16385)
--- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+COMMENT ON SCHEMA public IS 'standard public schema';
 
 
 --
--- TOC entry 3970 (class 0 OID 0)
--- Dependencies: 2
--- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: 
---
-
-COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
-
-
---
--- TOC entry 929 (class 1247 OID 16512)
+-- TOC entry 920 (class 1247 OID 16482)
 -- Name: document_type; Type: TYPE; Schema: public; Owner: lto_user
 --
 
@@ -79,8 +64,8 @@ CREATE TYPE public.document_type AS ENUM (
 ALTER TYPE public.document_type OWNER TO lto_user;
 
 --
--- TOC entry 3971 (class 0 OID 0)
--- Dependencies: 929
+-- TOC entry 3970 (class 0 OID 0)
+-- Dependencies: 920
 -- Name: TYPE document_type; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -88,7 +73,7 @@ COMMENT ON TYPE public.document_type IS 'Document type enum: registration_cert, 
 
 
 --
--- TOC entry 920 (class 1247 OID 16478)
+-- TOC entry 923 (class 1247 OID 16508)
 -- Name: user_role; Type: TYPE; Schema: public; Owner: lto_user
 --
 
@@ -107,7 +92,7 @@ CREATE TYPE public.user_role AS ENUM (
 ALTER TYPE public.user_role OWNER TO lto_user;
 
 --
--- TOC entry 926 (class 1247 OID 16498)
+-- TOC entry 926 (class 1247 OID 16526)
 -- Name: vehicle_status; Type: TYPE; Schema: public; Owner: lto_user
 --
 
@@ -129,7 +114,7 @@ CREATE TYPE public.vehicle_status AS ENUM (
 ALTER TYPE public.vehicle_status OWNER TO lto_user;
 
 --
--- TOC entry 3972 (class 0 OID 0)
+-- TOC entry 3971 (class 0 OID 0)
 -- Dependencies: 926
 -- Name: TYPE vehicle_status; Type: COMMENT; Schema: public; Owner: lto_user
 --
@@ -138,7 +123,7 @@ COMMENT ON TYPE public.vehicle_status IS 'Vehicle status enum: SUBMITTED, PENDIN
 
 
 --
--- TOC entry 923 (class 1247 OID 16490)
+-- TOC entry 929 (class 1247 OID 16550)
 -- Name: verification_status; Type: TYPE; Schema: public; Owner: lto_user
 --
 
@@ -152,7 +137,7 @@ CREATE TYPE public.verification_status AS ENUM (
 ALTER TYPE public.verification_status OWNER TO lto_user;
 
 --
--- TOC entry 304 (class 1255 OID 16771)
+-- TOC entry 286 (class 1255 OID 16557)
 -- Name: auto_cleanup_old_tokens(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -175,7 +160,7 @@ $$;
 ALTER FUNCTION public.auto_cleanup_old_tokens() OWNER TO lto_user;
 
 --
--- TOC entry 302 (class 1255 OID 16749)
+-- TOC entry 287 (class 1255 OID 16558)
 -- Name: cleanup_expired_blacklist(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -195,7 +180,7 @@ $$;
 ALTER FUNCTION public.cleanup_expired_blacklist() OWNER TO lto_user;
 
 --
--- TOC entry 301 (class 1255 OID 16737)
+-- TOC entry 288 (class 1255 OID 16559)
 -- Name: cleanup_expired_tokens(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -220,7 +205,7 @@ $$;
 ALTER FUNCTION public.cleanup_expired_tokens() OWNER TO lto_user;
 
 --
--- TOC entry 303 (class 1255 OID 16770)
+-- TOC entry 289 (class 1255 OID 16560)
 -- Name: cleanup_expired_verification_tokens(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -244,7 +229,7 @@ $$;
 ALTER FUNCTION public.cleanup_expired_verification_tokens() OWNER TO lto_user;
 
 --
--- TOC entry 305 (class 1255 OID 16853)
+-- TOC entry 301 (class 1255 OID 16561)
 -- Name: log_officer_vehicle_action(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -287,8 +272,8 @@ $$;
 ALTER FUNCTION public.log_officer_vehicle_action() OWNER TO lto_user;
 
 --
--- TOC entry 3973 (class 0 OID 0)
--- Dependencies: 305
+-- TOC entry 3972 (class 0 OID 0)
+-- Dependencies: 301
 -- Name: FUNCTION log_officer_vehicle_action(); Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -296,7 +281,7 @@ COMMENT ON FUNCTION public.log_officer_vehicle_action() IS 'Automatically logs o
 
 
 --
--- TOC entry 278 (class 1255 OID 16967)
+-- TOC entry 302 (class 1255 OID 16562)
 -- Name: update_clearance_requests_updated_at(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -313,7 +298,7 @@ $$;
 ALTER FUNCTION public.update_clearance_requests_updated_at() OWNER TO lto_user;
 
 --
--- TOC entry 265 (class 1255 OID 16876)
+-- TOC entry 303 (class 1255 OID 16563)
 -- Name: update_document_requirements_updated_at(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -330,7 +315,7 @@ $$;
 ALTER FUNCTION public.update_document_requirements_updated_at() OWNER TO lto_user;
 
 --
--- TOC entry 279 (class 1255 OID 17117)
+-- TOC entry 304 (class 1255 OID 16564)
 -- Name: update_transfer_requests_updated_at(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -347,7 +332,7 @@ $$;
 ALTER FUNCTION public.update_transfer_requests_updated_at() OWNER TO lto_user;
 
 --
--- TOC entry 300 (class 1255 OID 16678)
+-- TOC entry 305 (class 1255 OID 16565)
 -- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: lto_user
 --
 
@@ -388,7 +373,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- TOC entry 241 (class 1259 OID 17181)
+-- TOC entry 216 (class 1259 OID 16566)
 -- Name: certificate_submissions; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -406,15 +391,15 @@ CREATE TABLE public.certificate_submissions (
     submitted_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     verified_at timestamp without time zone,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT certificate_submissions_certificate_type_check CHECK (((certificate_type)::text = ANY ((ARRAY['insurance'::character varying, 'emission'::character varying, 'hpg_clearance'::character varying, 'csr'::character varying, 'sales_invoice'::character varying])::text[]))),
-    CONSTRAINT certificate_submissions_verification_status_check CHECK (((verification_status)::text = ANY ((ARRAY['VERIFIED'::character varying, 'REJECTED'::character varying, 'PENDING'::character varying, 'EXPIRED'::character varying])::text[])))
+    CONSTRAINT certificate_submissions_certificate_type_check CHECK (((certificate_type)::text = ANY (ARRAY[('insurance'::character varying)::text, ('emission'::character varying)::text, ('hpg_clearance'::character varying)::text, ('csr'::character varying)::text, ('sales_invoice'::character varying)::text]))),
+    CONSTRAINT certificate_submissions_verification_status_check CHECK (((verification_status)::text = ANY (ARRAY[('VERIFIED'::character varying)::text, ('REJECTED'::character varying)::text, ('PENDING'::character varying)::text, ('EXPIRED'::character varying)::text])))
 );
 
 
 ALTER TABLE public.certificate_submissions OWNER TO lto_user;
 
 --
--- TOC entry 234 (class 1259 OID 16914)
+-- TOC entry 217 (class 1259 OID 16577)
 -- Name: certificates; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -441,16 +426,16 @@ CREATE TABLE public.certificates (
     verified_by uuid,
     revocation_reason text,
     revoked_at timestamp without time zone,
-    CONSTRAINT certificates_certificate_type_check CHECK (((certificate_type)::text = ANY ((ARRAY['hpg_clearance'::character varying, 'insurance'::character varying, 'emission'::character varying])::text[]))),
-    CONSTRAINT certificates_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'EXPIRED'::character varying, 'REVOKED'::character varying])::text[])))
+    CONSTRAINT certificates_certificate_type_check CHECK (((certificate_type)::text = ANY (ARRAY[('hpg_clearance'::character varying)::text, ('insurance'::character varying)::text, ('emission'::character varying)::text]))),
+    CONSTRAINT certificates_status_check CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('EXPIRED'::character varying)::text, ('REVOKED'::character varying)::text])))
 );
 
 
 ALTER TABLE public.certificates OWNER TO lto_user;
 
 --
--- TOC entry 3974 (class 0 OID 0)
--- Dependencies: 234
+-- TOC entry 3973 (class 0 OID 0)
+-- Dependencies: 217
 -- Name: TABLE certificates; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -458,7 +443,7 @@ COMMENT ON TABLE public.certificates IS 'Stores issued clearance certificates an
 
 
 --
--- TOC entry 233 (class 1259 OID 16878)
+-- TOC entry 218 (class 1259 OID 16590)
 -- Name: clearance_requests; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -478,17 +463,17 @@ CREATE TABLE public.clearance_requests (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     verification_mode character varying(20) DEFAULT 'MANUAL'::character varying,
-    CONSTRAINT clearance_requests_request_type_check CHECK (((request_type)::text = ANY ((ARRAY['hpg'::character varying, 'insurance'::character varying, 'emission'::character varying])::text[]))),
-    CONSTRAINT clearance_requests_status_check CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SENT'::character varying, 'IN_PROGRESS'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'COMPLETED'::character varying])::text[]))),
-    CONSTRAINT clearance_requests_verification_mode_check CHECK (((verification_mode)::text = ANY ((ARRAY['MANUAL'::character varying, 'AUTOMATIC'::character varying, 'FAST_TRACK'::character varying])::text[])))
+    CONSTRAINT clearance_requests_request_type_check CHECK (((request_type)::text = ANY (ARRAY[('hpg'::character varying)::text, ('insurance'::character varying)::text, ('emission'::character varying)::text]))),
+    CONSTRAINT clearance_requests_status_check CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('SENT'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('COMPLETED'::character varying)::text]))),
+    CONSTRAINT clearance_requests_verification_mode_check CHECK (((verification_mode)::text = ANY (ARRAY[('MANUAL'::character varying)::text, ('AUTOMATIC'::character varying)::text, ('FAST_TRACK'::character varying)::text])))
 );
 
 
 ALTER TABLE public.clearance_requests OWNER TO lto_user;
 
 --
--- TOC entry 3975 (class 0 OID 0)
--- Dependencies: 233
+-- TOC entry 3974 (class 0 OID 0)
+-- Dependencies: 218
 -- Name: TABLE clearance_requests; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -496,7 +481,7 @@ COMMENT ON TABLE public.clearance_requests IS 'Tracks external clearances (HPG, 
 
 
 --
--- TOC entry 243 (class 1259 OID 17222)
+-- TOC entry 219 (class 1259 OID 16605)
 -- Name: cr_number_seq; Type: SEQUENCE; Schema: public; Owner: lto_user
 --
 
@@ -511,7 +496,7 @@ CREATE SEQUENCE public.cr_number_seq
 ALTER SEQUENCE public.cr_number_seq OWNER TO lto_user;
 
 --
--- TOC entry 219 (class 1259 OID 16595)
+-- TOC entry 220 (class 1259 OID 16606)
 -- Name: documents; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -539,8 +524,8 @@ CREATE TABLE public.documents (
 ALTER TABLE public.documents OWNER TO lto_user;
 
 --
--- TOC entry 3976 (class 0 OID 0)
--- Dependencies: 219
+-- TOC entry 3975 (class 0 OID 0)
+-- Dependencies: 220
 -- Name: TABLE documents; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -548,7 +533,7 @@ COMMENT ON TABLE public.documents IS 'Document metadata for local file storage';
 
 
 --
--- TOC entry 228 (class 1259 OID 16750)
+-- TOC entry 221 (class 1259 OID 16615)
 -- Name: email_verification_tokens; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -567,7 +552,7 @@ CREATE TABLE public.email_verification_tokens (
 ALTER TABLE public.email_verification_tokens OWNER TO lto_user;
 
 --
--- TOC entry 230 (class 1259 OID 16787)
+-- TOC entry 222 (class 1259 OID 16622)
 -- Name: expiry_notifications; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -585,7 +570,7 @@ CREATE TABLE public.expiry_notifications (
 ALTER TABLE public.expiry_notifications OWNER TO lto_user;
 
 --
--- TOC entry 240 (class 1259 OID 17162)
+-- TOC entry 223 (class 1259 OID 16629)
 -- Name: external_issuers; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -601,14 +586,14 @@ CREATE TABLE public.external_issuers (
     address text,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT external_issuers_issuer_type_check CHECK (((issuer_type)::text = ANY ((ARRAY['insurance'::character varying, 'emission'::character varying, 'hpg'::character varying, 'csr'::character varying, 'sales_invoice'::character varying])::text[])))
+    CONSTRAINT external_issuers_issuer_type_check CHECK (((issuer_type)::text = ANY (ARRAY[('insurance'::character varying)::text, ('emission'::character varying)::text, ('hpg'::character varying)::text, ('csr'::character varying)::text, ('sales_invoice'::character varying)::text])))
 );
 
 
 ALTER TABLE public.external_issuers OWNER TO lto_user;
 
 --
--- TOC entry 235 (class 1259 OID 16975)
+-- TOC entry 224 (class 1259 OID 16639)
 -- Name: issued_certificates; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -636,7 +621,7 @@ CREATE TABLE public.issued_certificates (
 ALTER TABLE public.issued_certificates OWNER TO lto_user;
 
 --
--- TOC entry 229 (class 1259 OID 16773)
+-- TOC entry 225 (class 1259 OID 16649)
 -- Name: mvir_number_seq; Type: SEQUENCE; Schema: public; Owner: lto_user
 --
 
@@ -651,7 +636,7 @@ CREATE SEQUENCE public.mvir_number_seq
 ALTER SEQUENCE public.mvir_number_seq OWNER TO lto_user;
 
 --
--- TOC entry 221 (class 1259 OID 16646)
+-- TOC entry 226 (class 1259 OID 16650)
 -- Name: notifications; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -670,8 +655,8 @@ CREATE TABLE public.notifications (
 ALTER TABLE public.notifications OWNER TO lto_user;
 
 --
--- TOC entry 3977 (class 0 OID 0)
--- Dependencies: 221
+-- TOC entry 3976 (class 0 OID 0)
+-- Dependencies: 226
 -- Name: TABLE notifications; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -679,7 +664,7 @@ COMMENT ON TABLE public.notifications IS 'User notifications and alerts';
 
 
 --
--- TOC entry 231 (class 1259 OID 16827)
+-- TOC entry 227 (class 1259 OID 16659)
 -- Name: officer_activity_log; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -703,8 +688,8 @@ CREATE TABLE public.officer_activity_log (
 ALTER TABLE public.officer_activity_log OWNER TO lto_user;
 
 --
--- TOC entry 3978 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3977 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: TABLE officer_activity_log; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -712,8 +697,8 @@ COMMENT ON TABLE public.officer_activity_log IS 'Detailed activity log for LTO o
 
 
 --
--- TOC entry 3979 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3978 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: COLUMN officer_activity_log.officer_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -721,8 +706,8 @@ COMMENT ON COLUMN public.officer_activity_log.officer_id IS 'User ID of the offi
 
 
 --
--- TOC entry 3980 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3979 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: COLUMN officer_activity_log.activity_type; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -730,8 +715,8 @@ COMMENT ON COLUMN public.officer_activity_log.activity_type IS 'Type of activity
 
 
 --
--- TOC entry 3981 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3980 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: COLUMN officer_activity_log.entity_type; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -739,8 +724,8 @@ COMMENT ON COLUMN public.officer_activity_log.entity_type IS 'Type of entity bei
 
 
 --
--- TOC entry 3982 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3981 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: COLUMN officer_activity_log.entity_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -748,8 +733,8 @@ COMMENT ON COLUMN public.officer_activity_log.entity_id IS 'ID of the entity bei
 
 
 --
--- TOC entry 3983 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3982 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: COLUMN officer_activity_log.action; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -757,8 +742,8 @@ COMMENT ON COLUMN public.officer_activity_log.action IS 'Specific action perform
 
 
 --
--- TOC entry 3984 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3983 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: COLUMN officer_activity_log.duration_seconds; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -766,8 +751,8 @@ COMMENT ON COLUMN public.officer_activity_log.duration_seconds IS 'Time taken to
 
 
 --
--- TOC entry 3985 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 3984 (class 0 OID 0)
+-- Dependencies: 227
 -- Name: COLUMN officer_activity_log.metadata; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -775,7 +760,7 @@ COMMENT ON COLUMN public.officer_activity_log.metadata IS 'Additional context da
 
 
 --
--- TOC entry 236 (class 1259 OID 17012)
+-- TOC entry 228 (class 1259 OID 16667)
 -- Name: transfer_requests; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -808,18 +793,18 @@ CREATE TABLE public.transfer_requests (
     hpg_approved_by uuid,
     expires_at timestamp without time zone,
     remarks text,
-    CONSTRAINT transfer_requests_emission_approval_status_check CHECK (((emission_approval_status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[]))),
-    CONSTRAINT transfer_requests_hpg_approval_status_check CHECK (((hpg_approval_status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[]))),
-    CONSTRAINT transfer_requests_insurance_approval_status_check CHECK (((insurance_approval_status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[]))),
-    CONSTRAINT transfer_requests_status_check CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'AWAITING_BUYER_DOCS'::character varying, 'UNDER_REVIEW'::character varying, 'REVIEWING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'EXPIRED'::character varying, 'COMPLETED'::character varying, 'FORWARDED_TO_HPG'::character varying])::text[])))
+    CONSTRAINT transfer_requests_emission_approval_status_check CHECK (((emission_approval_status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text]))),
+    CONSTRAINT transfer_requests_hpg_approval_status_check CHECK (((hpg_approval_status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text]))),
+    CONSTRAINT transfer_requests_insurance_approval_status_check CHECK (((insurance_approval_status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text]))),
+    CONSTRAINT transfer_requests_status_check CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('AWAITING_BUYER_DOCS'::character varying)::text, ('UNDER_REVIEW'::character varying)::text, ('REVIEWING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('EXPIRED'::character varying)::text, ('COMPLETED'::character varying)::text, ('FORWARDED_TO_HPG'::character varying)::text])))
 );
 
 
 ALTER TABLE public.transfer_requests OWNER TO lto_user;
 
 --
--- TOC entry 3986 (class 0 OID 0)
--- Dependencies: 236
+-- TOC entry 3985 (class 0 OID 0)
+-- Dependencies: 228
 -- Name: TABLE transfer_requests; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -827,8 +812,8 @@ COMMENT ON TABLE public.transfer_requests IS 'Tracks vehicle ownership transfer 
 
 
 --
--- TOC entry 3987 (class 0 OID 0)
--- Dependencies: 236
+-- TOC entry 3986 (class 0 OID 0)
+-- Dependencies: 228
 -- Name: CONSTRAINT transfer_requests_status_check ON transfer_requests; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -836,7 +821,7 @@ COMMENT ON CONSTRAINT transfer_requests_status_check ON public.transfer_requests
 
 
 --
--- TOC entry 216 (class 1259 OID 16521)
+-- TOC entry 229 (class 1259 OID 16686)
 -- Name: users; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -866,15 +851,16 @@ CREATE TABLE public.users (
     digital_signature_hash character varying(128),
     address character varying(500),
     is_trusted_partner boolean DEFAULT false,
-    trusted_partner_type character varying(50)
+    trusted_partner_type character varying(50),
+    personal_email character varying(255)
 );
 
 
 ALTER TABLE public.users OWNER TO lto_user;
 
 --
--- TOC entry 3988 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3987 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: TABLE users; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -882,8 +868,8 @@ COMMENT ON TABLE public.users IS 'System users with role-based access control';
 
 
 --
--- TOC entry 3989 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3988 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.employee_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -891,8 +877,8 @@ COMMENT ON COLUMN public.users.employee_id IS 'Unique employee identifier for LT
 
 
 --
--- TOC entry 3990 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3989 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.badge_number; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -900,8 +886,8 @@ COMMENT ON COLUMN public.users.badge_number IS 'Physical badge number for LTO of
 
 
 --
--- TOC entry 3991 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3990 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.department; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -909,8 +895,8 @@ COMMENT ON COLUMN public.users.department IS 'Department within LTO (e.g., Regis
 
 
 --
--- TOC entry 3992 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3991 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.branch_office; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -918,8 +904,8 @@ COMMENT ON COLUMN public.users.branch_office IS 'LTO branch office location';
 
 
 --
--- TOC entry 3993 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3992 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.supervisor_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -927,8 +913,8 @@ COMMENT ON COLUMN public.users.supervisor_id IS 'Reference to supervising office
 
 
 --
--- TOC entry 3994 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3993 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.hire_date; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -936,8 +922,8 @@ COMMENT ON COLUMN public.users.hire_date IS 'Date officer was hired';
 
 
 --
--- TOC entry 3995 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3994 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users."position"; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -945,8 +931,8 @@ COMMENT ON COLUMN public.users."position" IS 'Job position/title';
 
 
 --
--- TOC entry 3996 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3995 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.signature_file_path; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -954,8 +940,8 @@ COMMENT ON COLUMN public.users.signature_file_path IS 'Path to officer digital s
 
 
 --
--- TOC entry 3997 (class 0 OID 0)
--- Dependencies: 216
+-- TOC entry 3996 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: COLUMN users.digital_signature_hash; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -963,7 +949,7 @@ COMMENT ON COLUMN public.users.digital_signature_hash IS 'Hash of digital signat
 
 
 --
--- TOC entry 220 (class 1259 OID 16623)
+-- TOC entry 230 (class 1259 OID 16699)
 -- Name: vehicle_history; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -982,8 +968,8 @@ CREATE TABLE public.vehicle_history (
 ALTER TABLE public.vehicle_history OWNER TO lto_user;
 
 --
--- TOC entry 3998 (class 0 OID 0)
--- Dependencies: 220
+-- TOC entry 3997 (class 0 OID 0)
+-- Dependencies: 230
 -- Name: TABLE vehicle_history; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -991,7 +977,7 @@ COMMENT ON TABLE public.vehicle_history IS 'Audit trail for all vehicle-related 
 
 
 --
--- TOC entry 239 (class 1259 OID 17156)
+-- TOC entry 231 (class 1259 OID 16706)
 -- Name: officer_performance_metrics; Type: VIEW; Schema: public; Owner: lto_user
 --
 
@@ -1042,12 +1028,12 @@ CREATE VIEW public.officer_performance_metrics AS
     max(vh.performed_at) AS last_action_date,
     count(
         CASE
-            WHEN (((tr.status)::text = ANY ((ARRAY['PENDING'::character varying, 'REVIEWING'::character varying])::text[])) AND (tr.reviewed_by = u.id)) THEN 1
+            WHEN (((tr.status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('REVIEWING'::character varying)::text])) AND (tr.reviewed_by = u.id)) THEN 1
             ELSE NULL::integer
         END) AS pending_transfers,
     count(
         CASE
-            WHEN (((cr.status)::text = ANY ((ARRAY['PENDING'::character varying, 'IN_PROGRESS'::character varying])::text[])) AND (cr.assigned_to = u.id)) THEN 1
+            WHEN (((cr.status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('IN_PROGRESS'::character varying)::text])) AND (cr.assigned_to = u.id)) THEN 1
             ELSE NULL::integer
         END) AS pending_clearances,
     count(
@@ -1074,8 +1060,8 @@ CREATE VIEW public.officer_performance_metrics AS
 ALTER VIEW public.officer_performance_metrics OWNER TO lto_user;
 
 --
--- TOC entry 3999 (class 0 OID 0)
--- Dependencies: 239
+-- TOC entry 3998 (class 0 OID 0)
+-- Dependencies: 231
 -- Name: VIEW officer_performance_metrics; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1083,7 +1069,7 @@ COMMENT ON VIEW public.officer_performance_metrics IS 'Performance metrics for L
 
 
 --
--- TOC entry 242 (class 1259 OID 17221)
+-- TOC entry 232 (class 1259 OID 16711)
 -- Name: or_number_seq; Type: SEQUENCE; Schema: public; Owner: lto_user
 --
 
@@ -1098,7 +1084,7 @@ CREATE SEQUENCE public.or_number_seq
 ALTER SEQUENCE public.or_number_seq OWNER TO lto_user;
 
 --
--- TOC entry 225 (class 1259 OID 16697)
+-- TOC entry 233 (class 1259 OID 16712)
 -- Name: refresh_tokens; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1114,7 +1100,7 @@ CREATE TABLE public.refresh_tokens (
 ALTER TABLE public.refresh_tokens OWNER TO lto_user;
 
 --
--- TOC entry 232 (class 1259 OID 16857)
+-- TOC entry 234 (class 1259 OID 16717)
 -- Name: registration_document_requirements; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1138,8 +1124,8 @@ CREATE TABLE public.registration_document_requirements (
 ALTER TABLE public.registration_document_requirements OWNER TO lto_user;
 
 --
--- TOC entry 4000 (class 0 OID 0)
--- Dependencies: 232
+-- TOC entry 3999 (class 0 OID 0)
+-- Dependencies: 234
 -- Name: TABLE registration_document_requirements; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1147,7 +1133,7 @@ COMMENT ON TABLE public.registration_document_requirements IS 'Admin-configurabl
 
 
 --
--- TOC entry 244 (class 1259 OID 17225)
+-- TOC entry 235 (class 1259 OID 16731)
 -- Name: request_logs; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1167,7 +1153,7 @@ CREATE TABLE public.request_logs (
 ALTER TABLE public.request_logs OWNER TO lto_user;
 
 --
--- TOC entry 226 (class 1259 OID 16711)
+-- TOC entry 236 (class 1259 OID 16738)
 -- Name: sessions; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1186,7 +1172,7 @@ CREATE TABLE public.sessions (
 ALTER TABLE public.sessions OWNER TO lto_user;
 
 --
--- TOC entry 222 (class 1259 OID 16665)
+-- TOC entry 237 (class 1259 OID 16746)
 -- Name: system_settings; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1202,8 +1188,8 @@ CREATE TABLE public.system_settings (
 ALTER TABLE public.system_settings OWNER TO lto_user;
 
 --
--- TOC entry 4001 (class 0 OID 0)
--- Dependencies: 222
+-- TOC entry 4000 (class 0 OID 0)
+-- Dependencies: 237
 -- Name: TABLE system_settings; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1211,7 +1197,7 @@ COMMENT ON TABLE public.system_settings IS 'System configuration settings';
 
 
 --
--- TOC entry 227 (class 1259 OID 16738)
+-- TOC entry 238 (class 1259 OID 16752)
 -- Name: token_blacklist; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1227,7 +1213,7 @@ CREATE TABLE public.token_blacklist (
 ALTER TABLE public.token_blacklist OWNER TO lto_user;
 
 --
--- TOC entry 237 (class 1259 OID 17058)
+-- TOC entry 239 (class 1259 OID 16759)
 -- Name: transfer_documents; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1239,15 +1225,15 @@ CREATE TABLE public.transfer_documents (
     uploaded_by uuid NOT NULL,
     uploaded_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     notes text,
-    CONSTRAINT transfer_documents_document_type_check CHECK (((document_type)::text = ANY ((ARRAY['deed_of_sale'::character varying, 'seller_id'::character varying, 'buyer_id'::character varying, 'buyer_tin'::character varying, 'buyer_ctpl'::character varying, 'buyer_mvir'::character varying, 'buyer_hpg_clearance'::character varying, 'other'::character varying])::text[])))
+    CONSTRAINT transfer_documents_document_type_check CHECK (((document_type)::text = ANY (ARRAY[('deed_of_sale'::character varying)::text, ('seller_id'::character varying)::text, ('buyer_id'::character varying)::text, ('buyer_tin'::character varying)::text, ('buyer_ctpl'::character varying)::text, ('buyer_mvir'::character varying)::text, ('buyer_hpg_clearance'::character varying)::text, ('other'::character varying)::text])))
 );
 
 
 ALTER TABLE public.transfer_documents OWNER TO lto_user;
 
 --
--- TOC entry 4002 (class 0 OID 0)
--- Dependencies: 237
+-- TOC entry 4001 (class 0 OID 0)
+-- Dependencies: 239
 -- Name: TABLE transfer_documents; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1255,7 +1241,7 @@ COMMENT ON TABLE public.transfer_documents IS 'Transfer document links. Note: MV
 
 
 --
--- TOC entry 238 (class 1259 OID 17086)
+-- TOC entry 240 (class 1259 OID 16767)
 -- Name: transfer_verifications; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1269,15 +1255,15 @@ CREATE TABLE public.transfer_verifications (
     checklist jsonb DEFAULT '{}'::jsonb,
     flagged boolean DEFAULT false,
     verified_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT transfer_verifications_status_check CHECK (((status)::text = ANY ((ARRAY['APPROVED'::character varying, 'REJECTED'::character varying, 'PENDING'::character varying])::text[])))
+    CONSTRAINT transfer_verifications_status_check CHECK (((status)::text = ANY (ARRAY[('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('PENDING'::character varying)::text])))
 );
 
 
 ALTER TABLE public.transfer_verifications OWNER TO lto_user;
 
 --
--- TOC entry 4003 (class 0 OID 0)
--- Dependencies: 238
+-- TOC entry 4002 (class 0 OID 0)
+-- Dependencies: 240
 -- Name: TABLE transfer_verifications; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1285,7 +1271,7 @@ COMMENT ON TABLE public.transfer_verifications IS 'Verification/audit records fo
 
 
 --
--- TOC entry 217 (class 1259 OID 16540)
+-- TOC entry 241 (class 1259 OID 16777)
 -- Name: vehicles; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1344,8 +1330,8 @@ CREATE TABLE public.vehicles (
 ALTER TABLE public.vehicles OWNER TO lto_user;
 
 --
--- TOC entry 4004 (class 0 OID 0)
--- Dependencies: 217
+-- TOC entry 4003 (class 0 OID 0)
+-- Dependencies: 241
 -- Name: TABLE vehicles; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1353,8 +1339,8 @@ COMMENT ON TABLE public.vehicles IS 'Vehicle registration data with blockchain i
 
 
 --
--- TOC entry 4005 (class 0 OID 0)
--- Dependencies: 217
+-- TOC entry 4004 (class 0 OID 0)
+-- Dependencies: 241
 -- Name: COLUMN vehicles.blockchain_tx_id; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1362,7 +1348,7 @@ COMMENT ON COLUMN public.vehicles.blockchain_tx_id IS 'Hyperledger Fabric transa
 
 
 --
--- TOC entry 223 (class 1259 OID 16682)
+-- TOC entry 242 (class 1259 OID 16795)
 -- Name: vehicle_summary; Type: VIEW; Schema: public; Owner: lto_user
 --
 
@@ -1393,7 +1379,7 @@ CREATE VIEW public.vehicle_summary AS
 ALTER VIEW public.vehicle_summary OWNER TO lto_user;
 
 --
--- TOC entry 218 (class 1259 OID 16569)
+-- TOC entry 243 (class 1259 OID 16800)
 -- Name: vehicle_verifications; Type: TABLE; Schema: public; Owner: lto_user
 --
 
@@ -1418,8 +1404,8 @@ CREATE TABLE public.vehicle_verifications (
 ALTER TABLE public.vehicle_verifications OWNER TO lto_user;
 
 --
--- TOC entry 4006 (class 0 OID 0)
--- Dependencies: 218
+-- TOC entry 4005 (class 0 OID 0)
+-- Dependencies: 243
 -- Name: TABLE vehicle_verifications; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -1427,7 +1413,7 @@ COMMENT ON TABLE public.vehicle_verifications IS 'Verification status for insura
 
 
 --
--- TOC entry 224 (class 1259 OID 16687)
+-- TOC entry 244 (class 1259 OID 16811)
 -- Name: verification_summary; Type: VIEW; Schema: public; Owner: lto_user
 --
 
@@ -1465,7 +1451,7 @@ CREATE VIEW public.verification_summary AS
 ALTER VIEW public.verification_summary OWNER TO lto_user;
 
 --
--- TOC entry 3748 (class 2606 OID 17193)
+-- TOC entry 3565 (class 2606 OID 16828)
 -- Name: certificate_submissions certificate_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1474,7 +1460,7 @@ ALTER TABLE ONLY public.certificate_submissions
 
 
 --
--- TOC entry 3685 (class 2606 OID 16930)
+-- TOC entry 3571 (class 2606 OID 16830)
 -- Name: certificates certificates_certificate_number_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1483,7 +1469,7 @@ ALTER TABLE ONLY public.certificates
 
 
 --
--- TOC entry 3687 (class 2606 OID 16928)
+-- TOC entry 3573 (class 2606 OID 16832)
 -- Name: certificates certificates_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1492,7 +1478,7 @@ ALTER TABLE ONLY public.certificates
 
 
 --
--- TOC entry 3677 (class 2606 OID 16892)
+-- TOC entry 3587 (class 2606 OID 16834)
 -- Name: clearance_requests clearance_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1501,7 +1487,7 @@ ALTER TABLE ONLY public.clearance_requests
 
 
 --
--- TOC entry 3612 (class 2606 OID 16604)
+-- TOC entry 3595 (class 2606 OID 16836)
 -- Name: documents documents_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1510,7 +1496,7 @@ ALTER TABLE ONLY public.documents
 
 
 --
--- TOC entry 3651 (class 2606 OID 16758)
+-- TOC entry 3604 (class 2606 OID 16838)
 -- Name: email_verification_tokens email_verification_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1519,7 +1505,7 @@ ALTER TABLE ONLY public.email_verification_tokens
 
 
 --
--- TOC entry 3653 (class 2606 OID 16760)
+-- TOC entry 3606 (class 2606 OID 16840)
 -- Name: email_verification_tokens email_verification_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1528,7 +1514,7 @@ ALTER TABLE ONLY public.email_verification_tokens
 
 
 --
--- TOC entry 3659 (class 2606 OID 16795)
+-- TOC entry 3612 (class 2606 OID 16842)
 -- Name: expiry_notifications expiry_notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1537,7 +1523,7 @@ ALTER TABLE ONLY public.expiry_notifications
 
 
 --
--- TOC entry 3739 (class 2606 OID 17177)
+-- TOC entry 3617 (class 2606 OID 16844)
 -- Name: external_issuers external_issuers_api_key_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1546,7 +1532,7 @@ ALTER TABLE ONLY public.external_issuers
 
 
 --
--- TOC entry 3741 (class 2606 OID 17175)
+-- TOC entry 3619 (class 2606 OID 16846)
 -- Name: external_issuers external_issuers_license_number_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1555,7 +1541,7 @@ ALTER TABLE ONLY public.external_issuers
 
 
 --
--- TOC entry 3743 (class 2606 OID 17173)
+-- TOC entry 3621 (class 2606 OID 16848)
 -- Name: external_issuers external_issuers_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1564,7 +1550,7 @@ ALTER TABLE ONLY public.external_issuers
 
 
 --
--- TOC entry 3709 (class 2606 OID 16988)
+-- TOC entry 3634 (class 2606 OID 16850)
 -- Name: issued_certificates issued_certificates_certificate_number_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1573,7 +1559,7 @@ ALTER TABLE ONLY public.issued_certificates
 
 
 --
--- TOC entry 3711 (class 2606 OID 16992)
+-- TOC entry 3636 (class 2606 OID 16852)
 -- Name: issued_certificates issued_certificates_composite_hash_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1582,7 +1568,7 @@ ALTER TABLE ONLY public.issued_certificates
 
 
 --
--- TOC entry 3713 (class 2606 OID 16990)
+-- TOC entry 3638 (class 2606 OID 16854)
 -- Name: issued_certificates issued_certificates_file_hash_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1591,7 +1577,7 @@ ALTER TABLE ONLY public.issued_certificates
 
 
 --
--- TOC entry 3715 (class 2606 OID 16986)
+-- TOC entry 3640 (class 2606 OID 16856)
 -- Name: issued_certificates issued_certificates_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1600,7 +1586,7 @@ ALTER TABLE ONLY public.issued_certificates
 
 
 --
--- TOC entry 3631 (class 2606 OID 16656)
+-- TOC entry 3646 (class 2606 OID 16858)
 -- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1609,7 +1595,7 @@ ALTER TABLE ONLY public.notifications
 
 
 --
--- TOC entry 3670 (class 2606 OID 16836)
+-- TOC entry 3654 (class 2606 OID 16860)
 -- Name: officer_activity_log officer_activity_log_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1618,7 +1604,7 @@ ALTER TABLE ONLY public.officer_activity_log
 
 
 --
--- TOC entry 3638 (class 2606 OID 16703)
+-- TOC entry 3691 (class 2606 OID 16862)
 -- Name: refresh_tokens refresh_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1627,7 +1613,7 @@ ALTER TABLE ONLY public.refresh_tokens
 
 
 --
--- TOC entry 3640 (class 2606 OID 16705)
+-- TOC entry 3693 (class 2606 OID 16864)
 -- Name: refresh_tokens refresh_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1636,7 +1622,7 @@ ALTER TABLE ONLY public.refresh_tokens
 
 
 --
--- TOC entry 3673 (class 2606 OID 16874)
+-- TOC entry 3696 (class 2606 OID 16866)
 -- Name: registration_document_requirements registration_document_require_registration_type_vehicle_cat_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1645,7 +1631,7 @@ ALTER TABLE ONLY public.registration_document_requirements
 
 
 --
--- TOC entry 3675 (class 2606 OID 16872)
+-- TOC entry 3698 (class 2606 OID 16868)
 -- Name: registration_document_requirements registration_document_requirements_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1654,7 +1640,7 @@ ALTER TABLE ONLY public.registration_document_requirements
 
 
 --
--- TOC entry 3758 (class 2606 OID 17233)
+-- TOC entry 3704 (class 2606 OID 16870)
 -- Name: request_logs request_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1663,7 +1649,7 @@ ALTER TABLE ONLY public.request_logs
 
 
 --
--- TOC entry 3645 (class 2606 OID 16720)
+-- TOC entry 3709 (class 2606 OID 16872)
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1672,7 +1658,7 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- TOC entry 3633 (class 2606 OID 16672)
+-- TOC entry 3711 (class 2606 OID 16874)
 -- Name: system_settings system_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1681,7 +1667,7 @@ ALTER TABLE ONLY public.system_settings
 
 
 --
--- TOC entry 3649 (class 2606 OID 16746)
+-- TOC entry 3715 (class 2606 OID 16876)
 -- Name: token_blacklist token_blacklist_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1690,7 +1676,7 @@ ALTER TABLE ONLY public.token_blacklist
 
 
 --
--- TOC entry 3731 (class 2606 OID 17067)
+-- TOC entry 3720 (class 2606 OID 16878)
 -- Name: transfer_documents transfer_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1699,7 +1685,7 @@ ALTER TABLE ONLY public.transfer_documents
 
 
 --
--- TOC entry 3726 (class 2606 OID 17026)
+-- TOC entry 3665 (class 2606 OID 16880)
 -- Name: transfer_requests transfer_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1708,7 +1694,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3737 (class 2606 OID 17097)
+-- TOC entry 3726 (class 2606 OID 16882)
 -- Name: transfer_verifications transfer_verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1717,7 +1703,7 @@ ALTER TABLE ONLY public.transfer_verifications
 
 
 --
--- TOC entry 3574 (class 2606 OID 16536)
+-- TOC entry 3676 (class 2606 OID 16884)
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1726,7 +1712,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 3576 (class 2606 OID 16816)
+-- TOC entry 3678 (class 2606 OID 16886)
 -- Name: users users_employee_id_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1735,7 +1721,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 3578 (class 2606 OID 16534)
+-- TOC entry 3680 (class 2606 OID 16888)
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1744,7 +1730,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 3625 (class 2606 OID 16631)
+-- TOC entry 3686 (class 2606 OID 16890)
 -- Name: vehicle_history vehicle_history_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1753,7 +1739,7 @@ ALTER TABLE ONLY public.vehicle_history
 
 
 --
--- TOC entry 3608 (class 2606 OID 16579)
+-- TOC entry 3756 (class 2606 OID 16892)
 -- Name: vehicle_verifications vehicle_verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1762,7 +1748,7 @@ ALTER TABLE ONLY public.vehicle_verifications
 
 
 --
--- TOC entry 3610 (class 2606 OID 16581)
+-- TOC entry 3758 (class 2606 OID 16894)
 -- Name: vehicle_verifications vehicle_verifications_vehicle_id_verification_type_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1771,7 +1757,7 @@ ALTER TABLE ONLY public.vehicle_verifications
 
 
 --
--- TOC entry 3595 (class 2606 OID 16775)
+-- TOC entry 3743 (class 2606 OID 16896)
 -- Name: vehicles vehicles_mvir_number_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1780,7 +1766,7 @@ ALTER TABLE ONLY public.vehicles
 
 
 --
--- TOC entry 3597 (class 2606 OID 16554)
+-- TOC entry 3745 (class 2606 OID 16898)
 -- Name: vehicles vehicles_pkey; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1789,7 +1775,7 @@ ALTER TABLE ONLY public.vehicles
 
 
 --
--- TOC entry 3599 (class 2606 OID 16558)
+-- TOC entry 3747 (class 2606 OID 16900)
 -- Name: vehicles vehicles_plate_number_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1798,7 +1784,7 @@ ALTER TABLE ONLY public.vehicles
 
 
 --
--- TOC entry 3601 (class 2606 OID 16556)
+-- TOC entry 3749 (class 2606 OID 16902)
 -- Name: vehicles vehicles_vin_key; Type: CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -1807,7 +1793,7 @@ ALTER TABLE ONLY public.vehicles
 
 
 --
--- TOC entry 3749 (class 1259 OID 17217)
+-- TOC entry 3566 (class 1259 OID 16903)
 -- Name: idx_certificate_submissions_file_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1815,7 +1801,7 @@ CREATE INDEX idx_certificate_submissions_file_hash ON public.certificate_submiss
 
 
 --
--- TOC entry 3750 (class 1259 OID 17216)
+-- TOC entry 3567 (class 1259 OID 16904)
 -- Name: idx_certificate_submissions_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1823,7 +1809,7 @@ CREATE INDEX idx_certificate_submissions_status ON public.certificate_submission
 
 
 --
--- TOC entry 3751 (class 1259 OID 17215)
+-- TOC entry 3568 (class 1259 OID 16905)
 -- Name: idx_certificate_submissions_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1831,7 +1817,7 @@ CREATE INDEX idx_certificate_submissions_type ON public.certificate_submissions 
 
 
 --
--- TOC entry 3752 (class 1259 OID 17214)
+-- TOC entry 3569 (class 1259 OID 16906)
 -- Name: idx_certificate_submissions_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1839,7 +1825,7 @@ CREATE INDEX idx_certificate_submissions_vehicle ON public.certificate_submissio
 
 
 --
--- TOC entry 3688 (class 1259 OID 16972)
+-- TOC entry 3574 (class 1259 OID 16907)
 -- Name: idx_certificates_application_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1847,7 +1833,7 @@ CREATE INDEX idx_certificates_application_status ON public.certificates USING bt
 
 
 --
--- TOC entry 3689 (class 1259 OID 16971)
+-- TOC entry 3575 (class 1259 OID 16908)
 -- Name: idx_certificates_blockchain_tx_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1855,7 +1841,7 @@ CREATE INDEX idx_certificates_blockchain_tx_id ON public.certificates USING btre
 
 
 --
--- TOC entry 3690 (class 1259 OID 16970)
+-- TOC entry 3576 (class 1259 OID 16909)
 -- Name: idx_certificates_composite_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1863,7 +1849,7 @@ CREATE INDEX idx_certificates_composite_hash ON public.certificates USING btree 
 
 
 --
--- TOC entry 3691 (class 1259 OID 16973)
+-- TOC entry 3577 (class 1259 OID 16910)
 -- Name: idx_certificates_document_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1871,7 +1857,7 @@ CREATE INDEX idx_certificates_document_id ON public.certificates USING btree (do
 
 
 --
--- TOC entry 3692 (class 1259 OID 16969)
+-- TOC entry 3578 (class 1259 OID 16911)
 -- Name: idx_certificates_file_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1879,7 +1865,7 @@ CREATE INDEX idx_certificates_file_hash ON public.certificates USING btree (file
 
 
 --
--- TOC entry 3693 (class 1259 OID 16961)
+-- TOC entry 3579 (class 1259 OID 16912)
 -- Name: idx_certificates_issued_by; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1887,7 +1873,7 @@ CREATE INDEX idx_certificates_issued_by ON public.certificates USING btree (issu
 
 
 --
--- TOC entry 3694 (class 1259 OID 16959)
+-- TOC entry 3580 (class 1259 OID 16913)
 -- Name: idx_certificates_number; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1895,7 +1881,7 @@ CREATE INDEX idx_certificates_number ON public.certificates USING btree (certifi
 
 
 --
--- TOC entry 3695 (class 1259 OID 16956)
+-- TOC entry 3581 (class 1259 OID 16914)
 -- Name: idx_certificates_request; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1903,7 +1889,7 @@ CREATE INDEX idx_certificates_request ON public.certificates USING btree (cleara
 
 
 --
--- TOC entry 3696 (class 1259 OID 16960)
+-- TOC entry 3582 (class 1259 OID 16915)
 -- Name: idx_certificates_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1911,7 +1897,7 @@ CREATE INDEX idx_certificates_status ON public.certificates USING btree (status)
 
 
 --
--- TOC entry 3697 (class 1259 OID 16958)
+-- TOC entry 3583 (class 1259 OID 16916)
 -- Name: idx_certificates_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1919,7 +1905,7 @@ CREATE INDEX idx_certificates_type ON public.certificates USING btree (certifica
 
 
 --
--- TOC entry 3698 (class 1259 OID 16957)
+-- TOC entry 3584 (class 1259 OID 16917)
 -- Name: idx_certificates_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1927,7 +1913,7 @@ CREATE INDEX idx_certificates_vehicle ON public.certificates USING btree (vehicl
 
 
 --
--- TOC entry 3699 (class 1259 OID 16974)
+-- TOC entry 3585 (class 1259 OID 16918)
 -- Name: idx_certificates_verified_by; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1935,7 +1921,7 @@ CREATE INDEX idx_certificates_verified_by ON public.certificates USING btree (ve
 
 
 --
--- TOC entry 3678 (class 1259 OID 16911)
+-- TOC entry 3588 (class 1259 OID 16919)
 -- Name: idx_clearance_assigned; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1943,7 +1929,7 @@ CREATE INDEX idx_clearance_assigned ON public.clearance_requests USING btree (as
 
 
 --
--- TOC entry 3679 (class 1259 OID 16913)
+-- TOC entry 3589 (class 1259 OID 16920)
 -- Name: idx_clearance_created_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1951,7 +1937,7 @@ CREATE INDEX idx_clearance_created_at ON public.clearance_requests USING btree (
 
 
 --
--- TOC entry 3680 (class 1259 OID 16912)
+-- TOC entry 3590 (class 1259 OID 16921)
 -- Name: idx_clearance_requested_by; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1959,7 +1945,7 @@ CREATE INDEX idx_clearance_requested_by ON public.clearance_requests USING btree
 
 
 --
--- TOC entry 3681 (class 1259 OID 16910)
+-- TOC entry 3591 (class 1259 OID 16922)
 -- Name: idx_clearance_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1967,7 +1953,7 @@ CREATE INDEX idx_clearance_status ON public.clearance_requests USING btree (stat
 
 
 --
--- TOC entry 3682 (class 1259 OID 16909)
+-- TOC entry 3592 (class 1259 OID 16923)
 -- Name: idx_clearance_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1975,7 +1961,7 @@ CREATE INDEX idx_clearance_type ON public.clearance_requests USING btree (reques
 
 
 --
--- TOC entry 3683 (class 1259 OID 16908)
+-- TOC entry 3593 (class 1259 OID 16924)
 -- Name: idx_clearance_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1983,7 +1969,7 @@ CREATE INDEX idx_clearance_vehicle ON public.clearance_requests USING btree (veh
 
 
 --
--- TOC entry 3671 (class 1259 OID 16875)
+-- TOC entry 3694 (class 1259 OID 16925)
 -- Name: idx_doc_requirements_type_category; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1991,7 +1977,7 @@ CREATE INDEX idx_doc_requirements_type_category ON public.registration_document_
 
 
 --
--- TOC entry 3613 (class 1259 OID 16622)
+-- TOC entry 3596 (class 1259 OID 16926)
 -- Name: idx_documents_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -1999,7 +1985,7 @@ CREATE INDEX idx_documents_hash ON public.documents USING btree (file_hash);
 
 
 --
--- TOC entry 3614 (class 1259 OID 16780)
+-- TOC entry 3597 (class 1259 OID 16927)
 -- Name: idx_documents_inspection; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2007,7 +1993,7 @@ CREATE INDEX idx_documents_inspection ON public.documents USING btree (is_inspec
 
 
 --
--- TOC entry 3615 (class 1259 OID 16781)
+-- TOC entry 3598 (class 1259 OID 16928)
 -- Name: idx_documents_inspection_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2015,7 +2001,7 @@ CREATE INDEX idx_documents_inspection_type ON public.documents USING btree (insp
 
 
 --
--- TOC entry 3616 (class 1259 OID 17256)
+-- TOC entry 3599 (class 1259 OID 16929)
 -- Name: idx_documents_ipfs_cid; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2023,7 +2009,7 @@ CREATE INDEX idx_documents_ipfs_cid ON public.documents USING btree (ipfs_cid);
 
 
 --
--- TOC entry 3617 (class 1259 OID 16621)
+-- TOC entry 3600 (class 1259 OID 16930)
 -- Name: idx_documents_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2031,7 +2017,7 @@ CREATE INDEX idx_documents_type ON public.documents USING btree (document_type);
 
 
 --
--- TOC entry 3618 (class 1259 OID 16694)
+-- TOC entry 3601 (class 1259 OID 16931)
 -- Name: idx_documents_unverified; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2039,7 +2025,7 @@ CREATE INDEX idx_documents_unverified ON public.documents USING btree (id) WHERE
 
 
 --
--- TOC entry 3619 (class 1259 OID 16620)
+-- TOC entry 3602 (class 1259 OID 16932)
 -- Name: idx_documents_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2047,7 +2033,7 @@ CREATE INDEX idx_documents_vehicle ON public.documents USING btree (vehicle_id);
 
 
 --
--- TOC entry 3654 (class 1259 OID 16768)
+-- TOC entry 3607 (class 1259 OID 16933)
 -- Name: idx_email_verification_tokens_expires_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2055,7 +2041,7 @@ CREATE INDEX idx_email_verification_tokens_expires_at ON public.email_verificati
 
 
 --
--- TOC entry 3655 (class 1259 OID 16767)
+-- TOC entry 3608 (class 1259 OID 16934)
 -- Name: idx_email_verification_tokens_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2063,7 +2049,7 @@ CREATE INDEX idx_email_verification_tokens_hash ON public.email_verification_tok
 
 
 --
--- TOC entry 3656 (class 1259 OID 16769)
+-- TOC entry 3609 (class 1259 OID 16935)
 -- Name: idx_email_verification_tokens_used_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2071,7 +2057,7 @@ CREATE INDEX idx_email_verification_tokens_used_at ON public.email_verification_
 
 
 --
--- TOC entry 3657 (class 1259 OID 16766)
+-- TOC entry 3610 (class 1259 OID 16936)
 -- Name: idx_email_verification_tokens_user_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2079,7 +2065,7 @@ CREATE INDEX idx_email_verification_tokens_user_id ON public.email_verification_
 
 
 --
--- TOC entry 3660 (class 1259 OID 16808)
+-- TOC entry 3613 (class 1259 OID 16937)
 -- Name: idx_expiry_notifications_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2087,7 +2073,7 @@ CREATE INDEX idx_expiry_notifications_type ON public.expiry_notifications USING 
 
 
 --
--- TOC entry 3661 (class 1259 OID 16807)
+-- TOC entry 3614 (class 1259 OID 16938)
 -- Name: idx_expiry_notifications_user; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2095,7 +2081,7 @@ CREATE INDEX idx_expiry_notifications_user ON public.expiry_notifications USING 
 
 
 --
--- TOC entry 3662 (class 1259 OID 16806)
+-- TOC entry 3615 (class 1259 OID 16939)
 -- Name: idx_expiry_notifications_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2103,7 +2089,7 @@ CREATE INDEX idx_expiry_notifications_vehicle ON public.expiry_notifications USI
 
 
 --
--- TOC entry 3744 (class 1259 OID 17179)
+-- TOC entry 3622 (class 1259 OID 16940)
 -- Name: idx_external_issuers_active; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2111,7 +2097,7 @@ CREATE INDEX idx_external_issuers_active ON public.external_issuers USING btree 
 
 
 --
--- TOC entry 3745 (class 1259 OID 17180)
+-- TOC entry 3623 (class 1259 OID 16941)
 -- Name: idx_external_issuers_api_key; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2119,7 +2105,7 @@ CREATE INDEX idx_external_issuers_api_key ON public.external_issuers USING btree
 
 
 --
--- TOC entry 3746 (class 1259 OID 17178)
+-- TOC entry 3624 (class 1259 OID 16942)
 -- Name: idx_external_issuers_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2127,7 +2113,7 @@ CREATE INDEX idx_external_issuers_type ON public.external_issuers USING btree (i
 
 
 --
--- TOC entry 3620 (class 1259 OID 16643)
+-- TOC entry 3681 (class 1259 OID 16943)
 -- Name: idx_history_action; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2135,7 +2121,7 @@ CREATE INDEX idx_history_action ON public.vehicle_history USING btree (action);
 
 
 --
--- TOC entry 3621 (class 1259 OID 16645)
+-- TOC entry 3682 (class 1259 OID 16944)
 -- Name: idx_history_performed_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2143,7 +2129,7 @@ CREATE INDEX idx_history_performed_at ON public.vehicle_history USING btree (per
 
 
 --
--- TOC entry 3622 (class 1259 OID 16644)
+-- TOC entry 3683 (class 1259 OID 16945)
 -- Name: idx_history_performed_by; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2151,7 +2137,7 @@ CREATE INDEX idx_history_performed_by ON public.vehicle_history USING btree (per
 
 
 --
--- TOC entry 3623 (class 1259 OID 16642)
+-- TOC entry 3684 (class 1259 OID 16946)
 -- Name: idx_history_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2159,7 +2145,7 @@ CREATE INDEX idx_history_vehicle ON public.vehicle_history USING btree (vehicle_
 
 
 --
--- TOC entry 3700 (class 1259 OID 17001)
+-- TOC entry 3625 (class 1259 OID 16947)
 -- Name: idx_issued_certificates_blockchain_tx; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2167,7 +2153,7 @@ CREATE INDEX idx_issued_certificates_blockchain_tx ON public.issued_certificates
 
 
 --
--- TOC entry 3701 (class 1259 OID 17004)
+-- TOC entry 3626 (class 1259 OID 16948)
 -- Name: idx_issued_certificates_composite_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2175,7 +2161,7 @@ CREATE INDEX idx_issued_certificates_composite_hash ON public.issued_certificate
 
 
 --
--- TOC entry 3702 (class 1259 OID 17003)
+-- TOC entry 3627 (class 1259 OID 16949)
 -- Name: idx_issued_certificates_file_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2183,7 +2169,7 @@ CREATE INDEX idx_issued_certificates_file_hash ON public.issued_certificates USI
 
 
 --
--- TOC entry 3703 (class 1259 OID 17000)
+-- TOC entry 3628 (class 1259 OID 16950)
 -- Name: idx_issued_certificates_issuer; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2191,7 +2177,7 @@ CREATE INDEX idx_issued_certificates_issuer ON public.issued_certificates USING 
 
 
 --
--- TOC entry 3704 (class 1259 OID 17005)
+-- TOC entry 3629 (class 1259 OID 16951)
 -- Name: idx_issued_certificates_number; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2199,7 +2185,7 @@ CREATE INDEX idx_issued_certificates_number ON public.issued_certificates USING 
 
 
 --
--- TOC entry 3705 (class 1259 OID 17002)
+-- TOC entry 3630 (class 1259 OID 16952)
 -- Name: idx_issued_certificates_revoked; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2207,7 +2193,7 @@ CREATE INDEX idx_issued_certificates_revoked ON public.issued_certificates USING
 
 
 --
--- TOC entry 3706 (class 1259 OID 16998)
+-- TOC entry 3631 (class 1259 OID 16953)
 -- Name: idx_issued_certificates_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2215,7 +2201,7 @@ CREATE INDEX idx_issued_certificates_type ON public.issued_certificates USING bt
 
 
 --
--- TOC entry 3707 (class 1259 OID 16999)
+-- TOC entry 3632 (class 1259 OID 16954)
 -- Name: idx_issued_certificates_vin; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2223,7 +2209,7 @@ CREATE INDEX idx_issued_certificates_vin ON public.issued_certificates USING btr
 
 
 --
--- TOC entry 3626 (class 1259 OID 16663)
+-- TOC entry 3641 (class 1259 OID 16955)
 -- Name: idx_notifications_read; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2231,7 +2217,7 @@ CREATE INDEX idx_notifications_read ON public.notifications USING btree (read);
 
 
 --
--- TOC entry 3627 (class 1259 OID 16664)
+-- TOC entry 3642 (class 1259 OID 16956)
 -- Name: idx_notifications_sent_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2239,7 +2225,7 @@ CREATE INDEX idx_notifications_sent_at ON public.notifications USING btree (sent
 
 
 --
--- TOC entry 3628 (class 1259 OID 16693)
+-- TOC entry 3643 (class 1259 OID 16957)
 -- Name: idx_notifications_unread; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2247,7 +2233,7 @@ CREATE INDEX idx_notifications_unread ON public.notifications USING btree (id) W
 
 
 --
--- TOC entry 3629 (class 1259 OID 16662)
+-- TOC entry 3644 (class 1259 OID 16958)
 -- Name: idx_notifications_user; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2255,7 +2241,7 @@ CREATE INDEX idx_notifications_user ON public.notifications USING btree (user_id
 
 
 --
--- TOC entry 3663 (class 1259 OID 16851)
+-- TOC entry 3647 (class 1259 OID 16959)
 -- Name: idx_officer_activity_action; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2263,7 +2249,7 @@ CREATE INDEX idx_officer_activity_action ON public.officer_activity_log USING bt
 
 
 --
--- TOC entry 3664 (class 1259 OID 16849)
+-- TOC entry 3648 (class 1259 OID 16960)
 -- Name: idx_officer_activity_created_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2271,7 +2257,7 @@ CREATE INDEX idx_officer_activity_created_at ON public.officer_activity_log USIN
 
 
 --
--- TOC entry 3665 (class 1259 OID 16850)
+-- TOC entry 3649 (class 1259 OID 16961)
 -- Name: idx_officer_activity_entity; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2279,7 +2265,7 @@ CREATE INDEX idx_officer_activity_entity ON public.officer_activity_log USING bt
 
 
 --
--- TOC entry 3666 (class 1259 OID 16847)
+-- TOC entry 3650 (class 1259 OID 16962)
 -- Name: idx_officer_activity_officer; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2287,7 +2273,7 @@ CREATE INDEX idx_officer_activity_officer ON public.officer_activity_log USING b
 
 
 --
--- TOC entry 3667 (class 1259 OID 16852)
+-- TOC entry 3651 (class 1259 OID 16963)
 -- Name: idx_officer_activity_session; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2295,7 +2281,7 @@ CREATE INDEX idx_officer_activity_session ON public.officer_activity_log USING b
 
 
 --
--- TOC entry 3668 (class 1259 OID 16848)
+-- TOC entry 3652 (class 1259 OID 16964)
 -- Name: idx_officer_activity_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2303,7 +2289,7 @@ CREATE INDEX idx_officer_activity_type ON public.officer_activity_log USING btre
 
 
 --
--- TOC entry 3634 (class 1259 OID 16733)
+-- TOC entry 3687 (class 1259 OID 16965)
 -- Name: idx_refresh_tokens_expires_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2311,7 +2297,7 @@ CREATE INDEX idx_refresh_tokens_expires_at ON public.refresh_tokens USING btree 
 
 
 --
--- TOC entry 3635 (class 1259 OID 16732)
+-- TOC entry 3688 (class 1259 OID 16966)
 -- Name: idx_refresh_tokens_token_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2319,7 +2305,7 @@ CREATE INDEX idx_refresh_tokens_token_hash ON public.refresh_tokens USING btree 
 
 
 --
--- TOC entry 3636 (class 1259 OID 16731)
+-- TOC entry 3689 (class 1259 OID 16967)
 -- Name: idx_refresh_tokens_user_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2327,7 +2313,7 @@ CREATE INDEX idx_refresh_tokens_user_id ON public.refresh_tokens USING btree (us
 
 
 --
--- TOC entry 3753 (class 1259 OID 17239)
+-- TOC entry 3699 (class 1259 OID 16968)
 -- Name: idx_request_logs_created_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2335,7 +2321,7 @@ CREATE INDEX idx_request_logs_created_at ON public.request_logs USING btree (cre
 
 
 --
--- TOC entry 3754 (class 1259 OID 17242)
+-- TOC entry 3700 (class 1259 OID 16969)
 -- Name: idx_request_logs_path; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2343,7 +2329,7 @@ CREATE INDEX idx_request_logs_path ON public.request_logs USING btree (path);
 
 
 --
--- TOC entry 3755 (class 1259 OID 17241)
+-- TOC entry 3701 (class 1259 OID 16970)
 -- Name: idx_request_logs_status_code; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2351,7 +2337,7 @@ CREATE INDEX idx_request_logs_status_code ON public.request_logs USING btree (st
 
 
 --
--- TOC entry 3756 (class 1259 OID 17240)
+-- TOC entry 3702 (class 1259 OID 16971)
 -- Name: idx_request_logs_user_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2359,7 +2345,7 @@ CREATE INDEX idx_request_logs_user_id ON public.request_logs USING btree (user_i
 
 
 --
--- TOC entry 3641 (class 1259 OID 16736)
+-- TOC entry 3705 (class 1259 OID 16972)
 -- Name: idx_sessions_expires_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2367,7 +2353,7 @@ CREATE INDEX idx_sessions_expires_at ON public.sessions USING btree (expires_at)
 
 
 --
--- TOC entry 3642 (class 1259 OID 16735)
+-- TOC entry 3706 (class 1259 OID 16973)
 -- Name: idx_sessions_refresh_token_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2375,7 +2361,7 @@ CREATE INDEX idx_sessions_refresh_token_id ON public.sessions USING btree (refre
 
 
 --
--- TOC entry 3643 (class 1259 OID 16734)
+-- TOC entry 3707 (class 1259 OID 16974)
 -- Name: idx_sessions_user_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2383,7 +2369,7 @@ CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
 
 
 --
--- TOC entry 3646 (class 1259 OID 16747)
+-- TOC entry 3712 (class 1259 OID 16975)
 -- Name: idx_token_blacklist_expires_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2391,7 +2377,7 @@ CREATE INDEX idx_token_blacklist_expires_at ON public.token_blacklist USING btre
 
 
 --
--- TOC entry 3647 (class 1259 OID 16748)
+-- TOC entry 3713 (class 1259 OID 16976)
 -- Name: idx_token_blacklist_hash; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2399,7 +2385,7 @@ CREATE INDEX idx_token_blacklist_hash ON public.token_blacklist USING btree (tok
 
 
 --
--- TOC entry 3716 (class 1259 OID 17054)
+-- TOC entry 3655 (class 1259 OID 16977)
 -- Name: idx_transfer_buyer; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2407,7 +2393,7 @@ CREATE INDEX idx_transfer_buyer ON public.transfer_requests USING btree (buyer_i
 
 
 --
--- TOC entry 3727 (class 1259 OID 17085)
+-- TOC entry 3716 (class 1259 OID 16978)
 -- Name: idx_transfer_docs_document; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2415,7 +2401,7 @@ CREATE INDEX idx_transfer_docs_document ON public.transfer_documents USING btree
 
 
 --
--- TOC entry 3728 (class 1259 OID 17083)
+-- TOC entry 3717 (class 1259 OID 16979)
 -- Name: idx_transfer_docs_request; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2423,7 +2409,7 @@ CREATE INDEX idx_transfer_docs_request ON public.transfer_documents USING btree 
 
 
 --
--- TOC entry 3729 (class 1259 OID 17084)
+-- TOC entry 3718 (class 1259 OID 16980)
 -- Name: idx_transfer_docs_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2431,7 +2417,7 @@ CREATE INDEX idx_transfer_docs_type ON public.transfer_documents USING btree (do
 
 
 --
--- TOC entry 3717 (class 1259 OID 17151)
+-- TOC entry 3656 (class 1259 OID 16981)
 -- Name: idx_transfer_emission_approval; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2439,7 +2425,7 @@ CREATE INDEX idx_transfer_emission_approval ON public.transfer_requests USING bt
 
 
 --
--- TOC entry 3718 (class 1259 OID 17152)
+-- TOC entry 3657 (class 1259 OID 16982)
 -- Name: idx_transfer_hpg_approval; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2447,7 +2433,7 @@ CREATE INDEX idx_transfer_hpg_approval ON public.transfer_requests USING btree (
 
 
 --
--- TOC entry 3719 (class 1259 OID 17150)
+-- TOC entry 3658 (class 1259 OID 16983)
 -- Name: idx_transfer_insurance_approval; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2455,7 +2441,7 @@ CREATE INDEX idx_transfer_insurance_approval ON public.transfer_requests USING b
 
 
 --
--- TOC entry 3720 (class 1259 OID 17057)
+-- TOC entry 3659 (class 1259 OID 16984)
 -- Name: idx_transfer_reviewed_by; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2463,7 +2449,7 @@ CREATE INDEX idx_transfer_reviewed_by ON public.transfer_requests USING btree (r
 
 
 --
--- TOC entry 3721 (class 1259 OID 17053)
+-- TOC entry 3660 (class 1259 OID 16985)
 -- Name: idx_transfer_seller; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2471,7 +2457,7 @@ CREATE INDEX idx_transfer_seller ON public.transfer_requests USING btree (seller
 
 
 --
--- TOC entry 3722 (class 1259 OID 17055)
+-- TOC entry 3661 (class 1259 OID 16986)
 -- Name: idx_transfer_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2479,7 +2465,7 @@ CREATE INDEX idx_transfer_status ON public.transfer_requests USING btree (status
 
 
 --
--- TOC entry 3723 (class 1259 OID 17056)
+-- TOC entry 3662 (class 1259 OID 16987)
 -- Name: idx_transfer_submitted_at; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2487,7 +2473,7 @@ CREATE INDEX idx_transfer_submitted_at ON public.transfer_requests USING btree (
 
 
 --
--- TOC entry 3724 (class 1259 OID 17052)
+-- TOC entry 3663 (class 1259 OID 16988)
 -- Name: idx_transfer_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2495,7 +2481,7 @@ CREATE INDEX idx_transfer_vehicle ON public.transfer_requests USING btree (vehic
 
 
 --
--- TOC entry 3732 (class 1259 OID 17114)
+-- TOC entry 3721 (class 1259 OID 16989)
 -- Name: idx_transfer_verif_document; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2503,7 +2489,7 @@ CREATE INDEX idx_transfer_verif_document ON public.transfer_verifications USING 
 
 
 --
--- TOC entry 3733 (class 1259 OID 17113)
+-- TOC entry 3722 (class 1259 OID 16990)
 -- Name: idx_transfer_verif_request; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2511,7 +2497,7 @@ CREATE INDEX idx_transfer_verif_request ON public.transfer_verifications USING b
 
 
 --
--- TOC entry 3734 (class 1259 OID 17115)
+-- TOC entry 3723 (class 1259 OID 16991)
 -- Name: idx_transfer_verif_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2519,7 +2505,7 @@ CREATE INDEX idx_transfer_verif_status ON public.transfer_verifications USING bt
 
 
 --
--- TOC entry 3735 (class 1259 OID 17116)
+-- TOC entry 3724 (class 1259 OID 16992)
 -- Name: idx_transfer_verif_verified_by; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2527,7 +2513,7 @@ CREATE INDEX idx_transfer_verif_verified_by ON public.transfer_verifications USI
 
 
 --
--- TOC entry 3564 (class 1259 OID 16539)
+-- TOC entry 3666 (class 1259 OID 16993)
 -- Name: idx_users_active; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2535,7 +2521,7 @@ CREATE INDEX idx_users_active ON public.users USING btree (is_active);
 
 
 --
--- TOC entry 3565 (class 1259 OID 16823)
+-- TOC entry 3667 (class 1259 OID 16994)
 -- Name: idx_users_badge_number; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2543,7 +2529,7 @@ CREATE INDEX idx_users_badge_number ON public.users USING btree (badge_number) W
 
 
 --
--- TOC entry 3566 (class 1259 OID 16825)
+-- TOC entry 3668 (class 1259 OID 16995)
 -- Name: idx_users_branch_office; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2551,7 +2537,7 @@ CREATE INDEX idx_users_branch_office ON public.users USING btree (branch_office)
 
 
 --
--- TOC entry 3567 (class 1259 OID 16824)
+-- TOC entry 3669 (class 1259 OID 16996)
 -- Name: idx_users_department; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2559,7 +2545,7 @@ CREATE INDEX idx_users_department ON public.users USING btree (department) WHERE
 
 
 --
--- TOC entry 3568 (class 1259 OID 16537)
+-- TOC entry 3670 (class 1259 OID 16997)
 -- Name: idx_users_email; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2567,7 +2553,7 @@ CREATE INDEX idx_users_email ON public.users USING btree (email);
 
 
 --
--- TOC entry 3569 (class 1259 OID 16822)
+-- TOC entry 3671 (class 1259 OID 16998)
 -- Name: idx_users_employee_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2575,7 +2561,7 @@ CREATE INDEX idx_users_employee_id ON public.users USING btree (employee_id) WHE
 
 
 --
--- TOC entry 3570 (class 1259 OID 16538)
+-- TOC entry 3672 (class 1259 OID 16999)
 -- Name: idx_users_role; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2583,7 +2569,7 @@ CREATE INDEX idx_users_role ON public.users USING btree (role);
 
 
 --
--- TOC entry 3571 (class 1259 OID 16826)
+-- TOC entry 3673 (class 1259 OID 17000)
 -- Name: idx_users_supervisor; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2591,7 +2577,7 @@ CREATE INDEX idx_users_supervisor ON public.users USING btree (supervisor_id) WH
 
 
 --
--- TOC entry 3572 (class 1259 OID 17244)
+-- TOC entry 3674 (class 1259 OID 17001)
 -- Name: idx_users_trusted_partner; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2599,7 +2585,7 @@ CREATE INDEX idx_users_trusted_partner ON public.users USING btree (is_trusted_p
 
 
 --
--- TOC entry 3579 (class 1259 OID 16692)
+-- TOC entry 3727 (class 1259 OID 17002)
 -- Name: idx_vehicles_active; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2607,7 +2593,7 @@ CREATE INDEX idx_vehicles_active ON public.vehicles USING btree (id) WHERE (stat
 
 
 --
--- TOC entry 3580 (class 1259 OID 16809)
+-- TOC entry 3728 (class 1259 OID 17003)
 -- Name: idx_vehicles_blockchain_tx_id; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2615,7 +2601,7 @@ CREATE INDEX idx_vehicles_blockchain_tx_id ON public.vehicles USING btree (block
 
 
 --
--- TOC entry 3581 (class 1259 OID 17224)
+-- TOC entry 3729 (class 1259 OID 17004)
 -- Name: idx_vehicles_cr_number; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2623,7 +2609,7 @@ CREATE INDEX idx_vehicles_cr_number ON public.vehicles USING btree (cr_number) W
 
 
 --
--- TOC entry 3582 (class 1259 OID 16777)
+-- TOC entry 3730 (class 1259 OID 17005)
 -- Name: idx_vehicles_inspection_date; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2631,7 +2617,7 @@ CREATE INDEX idx_vehicles_inspection_date ON public.vehicles USING btree (inspec
 
 
 --
--- TOC entry 3583 (class 1259 OID 16778)
+-- TOC entry 3731 (class 1259 OID 17006)
 -- Name: idx_vehicles_inspection_result; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2639,7 +2625,7 @@ CREATE INDEX idx_vehicles_inspection_result ON public.vehicles USING btree (insp
 
 
 --
--- TOC entry 3584 (class 1259 OID 16786)
+-- TOC entry 3732 (class 1259 OID 17007)
 -- Name: idx_vehicles_insurance_expiry; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2647,7 +2633,7 @@ CREATE INDEX idx_vehicles_insurance_expiry ON public.vehicles USING btree (insur
 
 
 --
--- TOC entry 3585 (class 1259 OID 16568)
+-- TOC entry 3733 (class 1259 OID 17008)
 -- Name: idx_vehicles_make_model; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2655,7 +2641,7 @@ CREATE INDEX idx_vehicles_make_model ON public.vehicles USING btree (make, model
 
 
 --
--- TOC entry 3586 (class 1259 OID 16776)
+-- TOC entry 3734 (class 1259 OID 17009)
 -- Name: idx_vehicles_mvir; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2663,7 +2649,7 @@ CREATE INDEX idx_vehicles_mvir ON public.vehicles USING btree (mvir_number);
 
 
 --
--- TOC entry 3587 (class 1259 OID 17223)
+-- TOC entry 3735 (class 1259 OID 17010)
 -- Name: idx_vehicles_or_number; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2671,7 +2657,7 @@ CREATE INDEX idx_vehicles_or_number ON public.vehicles USING btree (or_number) W
 
 
 --
--- TOC entry 3588 (class 1259 OID 16566)
+-- TOC entry 3736 (class 1259 OID 17011)
 -- Name: idx_vehicles_owner; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2679,7 +2665,7 @@ CREATE INDEX idx_vehicles_owner ON public.vehicles USING btree (owner_id);
 
 
 --
--- TOC entry 3589 (class 1259 OID 16565)
+-- TOC entry 3737 (class 1259 OID 17012)
 -- Name: idx_vehicles_plate; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2687,7 +2673,7 @@ CREATE INDEX idx_vehicles_plate ON public.vehicles USING btree (plate_number);
 
 
 --
--- TOC entry 3590 (class 1259 OID 16785)
+-- TOC entry 3738 (class 1259 OID 17013)
 -- Name: idx_vehicles_registration_expiry; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2695,7 +2681,7 @@ CREATE INDEX idx_vehicles_registration_expiry ON public.vehicles USING btree (re
 
 
 --
--- TOC entry 3591 (class 1259 OID 17255)
+-- TOC entry 3739 (class 1259 OID 17014)
 -- Name: idx_vehicles_scrapped; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2703,7 +2689,7 @@ CREATE INDEX idx_vehicles_scrapped ON public.vehicles USING btree (scrapped_at) 
 
 
 --
--- TOC entry 3592 (class 1259 OID 16567)
+-- TOC entry 3740 (class 1259 OID 17015)
 -- Name: idx_vehicles_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2711,7 +2697,7 @@ CREATE INDEX idx_vehicles_status ON public.vehicles USING btree (status);
 
 
 --
--- TOC entry 3593 (class 1259 OID 16564)
+-- TOC entry 3741 (class 1259 OID 17016)
 -- Name: idx_vehicles_vin; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2719,7 +2705,7 @@ CREATE INDEX idx_vehicles_vin ON public.vehicles USING btree (vin);
 
 
 --
--- TOC entry 3602 (class 1259 OID 17155)
+-- TOC entry 3750 (class 1259 OID 17017)
 -- Name: idx_verifications_automated; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2727,7 +2713,7 @@ CREATE INDEX idx_verifications_automated ON public.vehicle_verifications USING b
 
 
 --
--- TOC entry 3603 (class 1259 OID 17011)
+-- TOC entry 3751 (class 1259 OID 17018)
 -- Name: idx_verifications_clearance_request; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2735,7 +2721,7 @@ CREATE INDEX idx_verifications_clearance_request ON public.vehicle_verifications
 
 
 --
--- TOC entry 3604 (class 1259 OID 16594)
+-- TOC entry 3752 (class 1259 OID 17019)
 -- Name: idx_verifications_status; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2743,7 +2729,7 @@ CREATE INDEX idx_verifications_status ON public.vehicle_verifications USING btre
 
 
 --
--- TOC entry 3605 (class 1259 OID 16593)
+-- TOC entry 3753 (class 1259 OID 17020)
 -- Name: idx_verifications_type; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2751,7 +2737,7 @@ CREATE INDEX idx_verifications_type ON public.vehicle_verifications USING btree 
 
 
 --
--- TOC entry 3606 (class 1259 OID 16592)
+-- TOC entry 3754 (class 1259 OID 17021)
 -- Name: idx_verifications_vehicle; Type: INDEX; Schema: public; Owner: lto_user
 --
 
@@ -2759,7 +2745,7 @@ CREATE INDEX idx_verifications_vehicle ON public.vehicle_verifications USING btr
 
 
 --
--- TOC entry 3815 (class 2620 OID 16856)
+-- TOC entry 3812 (class 2620 OID 17022)
 -- Name: email_verification_tokens trigger_cleanup_verification_tokens; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2767,7 +2753,7 @@ CREATE TRIGGER trigger_cleanup_verification_tokens AFTER INSERT ON public.email_
 
 
 --
--- TOC entry 3814 (class 2620 OID 17161)
+-- TOC entry 3815 (class 2620 OID 17023)
 -- Name: vehicle_history trigger_log_officer_vehicle_action; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2775,7 +2761,7 @@ CREATE TRIGGER trigger_log_officer_vehicle_action AFTER INSERT ON public.vehicle
 
 
 --
--- TOC entry 3817 (class 2620 OID 16968)
+-- TOC entry 3811 (class 2620 OID 17024)
 -- Name: clearance_requests trigger_update_clearance_requests_updated_at; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2783,7 +2769,7 @@ CREATE TRIGGER trigger_update_clearance_requests_updated_at BEFORE UPDATE ON pub
 
 
 --
--- TOC entry 3816 (class 2620 OID 16877)
+-- TOC entry 3816 (class 2620 OID 17025)
 -- Name: registration_document_requirements trigger_update_document_requirements_updated_at; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2791,7 +2777,7 @@ CREATE TRIGGER trigger_update_document_requirements_updated_at BEFORE UPDATE ON 
 
 
 --
--- TOC entry 3818 (class 2620 OID 17118)
+-- TOC entry 3813 (class 2620 OID 17026)
 -- Name: transfer_requests trigger_update_transfer_requests_updated_at; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2799,7 +2785,7 @@ CREATE TRIGGER trigger_update_transfer_requests_updated_at BEFORE UPDATE ON publ
 
 
 --
--- TOC entry 3811 (class 2620 OID 16679)
+-- TOC entry 3814 (class 2620 OID 17027)
 -- Name: users update_users_updated_at; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2807,7 +2793,7 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH RO
 
 
 --
--- TOC entry 3812 (class 2620 OID 16680)
+-- TOC entry 3817 (class 2620 OID 17028)
 -- Name: vehicles update_vehicles_updated_at; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2815,7 +2801,7 @@ CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON public.vehicles FOR E
 
 
 --
--- TOC entry 3813 (class 2620 OID 16681)
+-- TOC entry 3818 (class 2620 OID 17029)
 -- Name: vehicle_verifications update_verifications_updated_at; Type: TRIGGER; Schema: public; Owner: lto_user
 --
 
@@ -2823,7 +2809,7 @@ CREATE TRIGGER update_verifications_updated_at BEFORE UPDATE ON public.vehicle_v
 
 
 --
--- TOC entry 3806 (class 2606 OID 17199)
+-- TOC entry 3759 (class 2606 OID 17030)
 -- Name: certificate_submissions certificate_submissions_matched_certificate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2832,7 +2818,7 @@ ALTER TABLE ONLY public.certificate_submissions
 
 
 --
--- TOC entry 3807 (class 2606 OID 17204)
+-- TOC entry 3760 (class 2606 OID 17035)
 -- Name: certificate_submissions certificate_submissions_submitted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2841,7 +2827,7 @@ ALTER TABLE ONLY public.certificate_submissions
 
 
 --
--- TOC entry 3808 (class 2606 OID 17194)
+-- TOC entry 3761 (class 2606 OID 17040)
 -- Name: certificate_submissions certificate_submissions_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2850,7 +2836,7 @@ ALTER TABLE ONLY public.certificate_submissions
 
 
 --
--- TOC entry 3809 (class 2606 OID 17209)
+-- TOC entry 3762 (class 2606 OID 17045)
 -- Name: certificate_submissions certificate_submissions_verified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2859,7 +2845,7 @@ ALTER TABLE ONLY public.certificate_submissions
 
 
 --
--- TOC entry 3784 (class 2606 OID 16931)
+-- TOC entry 3763 (class 2606 OID 17050)
 -- Name: certificates certificates_clearance_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2868,7 +2854,7 @@ ALTER TABLE ONLY public.certificates
 
 
 --
--- TOC entry 3785 (class 2606 OID 16946)
+-- TOC entry 3764 (class 2606 OID 17055)
 -- Name: certificates certificates_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2877,7 +2863,7 @@ ALTER TABLE ONLY public.certificates
 
 
 --
--- TOC entry 3786 (class 2606 OID 16941)
+-- TOC entry 3765 (class 2606 OID 17060)
 -- Name: certificates certificates_issued_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2886,7 +2872,7 @@ ALTER TABLE ONLY public.certificates
 
 
 --
--- TOC entry 3787 (class 2606 OID 16936)
+-- TOC entry 3766 (class 2606 OID 17065)
 -- Name: certificates certificates_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2895,7 +2881,7 @@ ALTER TABLE ONLY public.certificates
 
 
 --
--- TOC entry 3788 (class 2606 OID 16951)
+-- TOC entry 3767 (class 2606 OID 17070)
 -- Name: certificates certificates_verified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2904,7 +2890,7 @@ ALTER TABLE ONLY public.certificates
 
 
 --
--- TOC entry 3780 (class 2606 OID 16903)
+-- TOC entry 3768 (class 2606 OID 17075)
 -- Name: clearance_requests clearance_requests_assigned_to_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2913,7 +2899,7 @@ ALTER TABLE ONLY public.clearance_requests
 
 
 --
--- TOC entry 3781 (class 2606 OID 16898)
+-- TOC entry 3769 (class 2606 OID 17080)
 -- Name: clearance_requests clearance_requests_requested_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2922,7 +2908,7 @@ ALTER TABLE ONLY public.clearance_requests
 
 
 --
--- TOC entry 3782 (class 2606 OID 16893)
+-- TOC entry 3770 (class 2606 OID 17085)
 -- Name: clearance_requests clearance_requests_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2931,7 +2917,7 @@ ALTER TABLE ONLY public.clearance_requests
 
 
 --
--- TOC entry 3765 (class 2606 OID 16610)
+-- TOC entry 3772 (class 2606 OID 17090)
 -- Name: documents documents_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2940,7 +2926,7 @@ ALTER TABLE ONLY public.documents
 
 
 --
--- TOC entry 3766 (class 2606 OID 16605)
+-- TOC entry 3773 (class 2606 OID 17095)
 -- Name: documents documents_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2949,7 +2935,7 @@ ALTER TABLE ONLY public.documents
 
 
 --
--- TOC entry 3767 (class 2606 OID 16615)
+-- TOC entry 3774 (class 2606 OID 17100)
 -- Name: documents documents_verified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2958,7 +2944,7 @@ ALTER TABLE ONLY public.documents
 
 
 --
--- TOC entry 3775 (class 2606 OID 16761)
+-- TOC entry 3775 (class 2606 OID 17105)
 -- Name: email_verification_tokens email_verification_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2967,7 +2953,7 @@ ALTER TABLE ONLY public.email_verification_tokens
 
 
 --
--- TOC entry 3776 (class 2606 OID 16801)
+-- TOC entry 3776 (class 2606 OID 17110)
 -- Name: expiry_notifications expiry_notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2976,7 +2962,7 @@ ALTER TABLE ONLY public.expiry_notifications
 
 
 --
--- TOC entry 3777 (class 2606 OID 16796)
+-- TOC entry 3777 (class 2606 OID 17115)
 -- Name: expiry_notifications expiry_notifications_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2985,7 +2971,7 @@ ALTER TABLE ONLY public.expiry_notifications
 
 
 --
--- TOC entry 3783 (class 2606 OID 16962)
+-- TOC entry 3771 (class 2606 OID 17120)
 -- Name: clearance_requests fk_clearance_certificate; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -2994,7 +2980,7 @@ ALTER TABLE ONLY public.clearance_requests
 
 
 --
--- TOC entry 3789 (class 2606 OID 17264)
+-- TOC entry 3778 (class 2606 OID 17125)
 -- Name: issued_certificates issued_certificates_issuer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3003,8 +2989,8 @@ ALTER TABLE ONLY public.issued_certificates
 
 
 --
--- TOC entry 4007 (class 0 OID 0)
--- Dependencies: 3789
+-- TOC entry 4006 (class 0 OID 0)
+-- Dependencies: 3778
 -- Name: CONSTRAINT issued_certificates_issuer_id_fkey ON issued_certificates; Type: COMMENT; Schema: public; Owner: lto_user
 --
 
@@ -3012,7 +2998,7 @@ COMMENT ON CONSTRAINT issued_certificates_issuer_id_fkey ON public.issued_certif
 
 
 --
--- TOC entry 3770 (class 2606 OID 16657)
+-- TOC entry 3779 (class 2606 OID 17130)
 -- Name: notifications notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3021,7 +3007,7 @@ ALTER TABLE ONLY public.notifications
 
 
 --
--- TOC entry 3778 (class 2606 OID 16837)
+-- TOC entry 3780 (class 2606 OID 17135)
 -- Name: officer_activity_log officer_activity_log_officer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3030,7 +3016,7 @@ ALTER TABLE ONLY public.officer_activity_log
 
 
 --
--- TOC entry 3779 (class 2606 OID 16842)
+-- TOC entry 3781 (class 2606 OID 17140)
 -- Name: officer_activity_log officer_activity_log_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3039,7 +3025,7 @@ ALTER TABLE ONLY public.officer_activity_log
 
 
 --
--- TOC entry 3772 (class 2606 OID 16706)
+-- TOC entry 3795 (class 2606 OID 17145)
 -- Name: refresh_tokens refresh_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3048,7 +3034,7 @@ ALTER TABLE ONLY public.refresh_tokens
 
 
 --
--- TOC entry 3810 (class 2606 OID 17234)
+-- TOC entry 3796 (class 2606 OID 17150)
 -- Name: request_logs request_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3057,7 +3043,7 @@ ALTER TABLE ONLY public.request_logs
 
 
 --
--- TOC entry 3773 (class 2606 OID 16726)
+-- TOC entry 3797 (class 2606 OID 17155)
 -- Name: sessions sessions_refresh_token_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3066,7 +3052,7 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- TOC entry 3774 (class 2606 OID 16721)
+-- TOC entry 3798 (class 2606 OID 17160)
 -- Name: sessions sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3075,7 +3061,7 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- TOC entry 3771 (class 2606 OID 16673)
+-- TOC entry 3799 (class 2606 OID 17165)
 -- Name: system_settings system_settings_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3084,7 +3070,7 @@ ALTER TABLE ONLY public.system_settings
 
 
 --
--- TOC entry 3800 (class 2606 OID 17073)
+-- TOC entry 3800 (class 2606 OID 17170)
 -- Name: transfer_documents transfer_documents_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3093,7 +3079,7 @@ ALTER TABLE ONLY public.transfer_documents
 
 
 --
--- TOC entry 3801 (class 2606 OID 17068)
+-- TOC entry 3801 (class 2606 OID 17175)
 -- Name: transfer_documents transfer_documents_transfer_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3102,7 +3088,7 @@ ALTER TABLE ONLY public.transfer_documents
 
 
 --
--- TOC entry 3802 (class 2606 OID 17078)
+-- TOC entry 3802 (class 2606 OID 17180)
 -- Name: transfer_documents transfer_documents_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3111,7 +3097,7 @@ ALTER TABLE ONLY public.transfer_documents
 
 
 --
--- TOC entry 3790 (class 2606 OID 17037)
+-- TOC entry 3782 (class 2606 OID 17185)
 -- Name: transfer_requests transfer_requests_buyer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3120,7 +3106,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3791 (class 2606 OID 17140)
+-- TOC entry 3783 (class 2606 OID 17190)
 -- Name: transfer_requests transfer_requests_emission_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3129,7 +3115,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3792 (class 2606 OID 17124)
+-- TOC entry 3784 (class 2606 OID 17195)
 -- Name: transfer_requests transfer_requests_emission_clearance_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3138,7 +3124,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3793 (class 2606 OID 17145)
+-- TOC entry 3785 (class 2606 OID 17200)
 -- Name: transfer_requests transfer_requests_hpg_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3147,7 +3133,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3794 (class 2606 OID 17047)
+-- TOC entry 3786 (class 2606 OID 17205)
 -- Name: transfer_requests transfer_requests_hpg_clearance_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3156,7 +3142,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3795 (class 2606 OID 17135)
+-- TOC entry 3787 (class 2606 OID 17210)
 -- Name: transfer_requests transfer_requests_insurance_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3165,7 +3151,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3796 (class 2606 OID 17119)
+-- TOC entry 3788 (class 2606 OID 17215)
 -- Name: transfer_requests transfer_requests_insurance_clearance_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3174,7 +3160,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3797 (class 2606 OID 17042)
+-- TOC entry 3789 (class 2606 OID 17220)
 -- Name: transfer_requests transfer_requests_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3183,7 +3169,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3798 (class 2606 OID 17032)
+-- TOC entry 3790 (class 2606 OID 17225)
 -- Name: transfer_requests transfer_requests_seller_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3192,7 +3178,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3799 (class 2606 OID 17027)
+-- TOC entry 3791 (class 2606 OID 17230)
 -- Name: transfer_requests transfer_requests_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3201,7 +3187,7 @@ ALTER TABLE ONLY public.transfer_requests
 
 
 --
--- TOC entry 3803 (class 2606 OID 17103)
+-- TOC entry 3803 (class 2606 OID 17235)
 -- Name: transfer_verifications transfer_verifications_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3210,7 +3196,7 @@ ALTER TABLE ONLY public.transfer_verifications
 
 
 --
--- TOC entry 3804 (class 2606 OID 17098)
+-- TOC entry 3804 (class 2606 OID 17240)
 -- Name: transfer_verifications transfer_verifications_transfer_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3219,7 +3205,7 @@ ALTER TABLE ONLY public.transfer_verifications
 
 
 --
--- TOC entry 3805 (class 2606 OID 17108)
+-- TOC entry 3805 (class 2606 OID 17245)
 -- Name: transfer_verifications transfer_verifications_verified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3228,7 +3214,7 @@ ALTER TABLE ONLY public.transfer_verifications
 
 
 --
--- TOC entry 3759 (class 2606 OID 16817)
+-- TOC entry 3792 (class 2606 OID 17250)
 -- Name: users users_supervisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3237,7 +3223,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 3768 (class 2606 OID 16637)
+-- TOC entry 3793 (class 2606 OID 17255)
 -- Name: vehicle_history vehicle_history_performed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3246,7 +3232,7 @@ ALTER TABLE ONLY public.vehicle_history
 
 
 --
--- TOC entry 3769 (class 2606 OID 16632)
+-- TOC entry 3794 (class 2606 OID 17260)
 -- Name: vehicle_history vehicle_history_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3255,7 +3241,7 @@ ALTER TABLE ONLY public.vehicle_history
 
 
 --
--- TOC entry 3762 (class 2606 OID 17006)
+-- TOC entry 3808 (class 2606 OID 17265)
 -- Name: vehicle_verifications vehicle_verifications_clearance_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3264,7 +3250,7 @@ ALTER TABLE ONLY public.vehicle_verifications
 
 
 --
--- TOC entry 3763 (class 2606 OID 16582)
+-- TOC entry 3809 (class 2606 OID 17270)
 -- Name: vehicle_verifications vehicle_verifications_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3273,7 +3259,7 @@ ALTER TABLE ONLY public.vehicle_verifications
 
 
 --
--- TOC entry 3764 (class 2606 OID 16587)
+-- TOC entry 3810 (class 2606 OID 17275)
 -- Name: vehicle_verifications vehicle_verifications_verified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3282,7 +3268,7 @@ ALTER TABLE ONLY public.vehicle_verifications
 
 
 --
--- TOC entry 3760 (class 2606 OID 16559)
+-- TOC entry 3806 (class 2606 OID 17280)
 -- Name: vehicles vehicles_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3291,7 +3277,7 @@ ALTER TABLE ONLY public.vehicles
 
 
 --
--- TOC entry 3761 (class 2606 OID 17245)
+-- TOC entry 3807 (class 2606 OID 17285)
 -- Name: vehicles vehicles_scrapped_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: lto_user
 --
 
@@ -3299,11 +3285,11 @@ ALTER TABLE ONLY public.vehicles
     ADD CONSTRAINT vehicles_scrapped_by_fkey FOREIGN KEY (scrapped_by) REFERENCES public.users(id);
 
 
--- Completed on 2026-01-29 12:19:26
+-- Completed on 2026-01-30 02:49:14
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict iZ1mLiTx6tb7TZuJeEZAAdqqPgPunc95XAJeliScXtqWlvvfpOPrrsG9dNFpCIV
+\unrestrict 9fTAQ1cpHvPRGxEx5lSnehzbvPaDGGNviGKdB6HezocIrnFzXQVISfe605nHE8y
 

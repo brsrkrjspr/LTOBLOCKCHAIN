@@ -131,6 +131,94 @@
 
 ---
 
+## ✅ Code status vs IMPLEMENTATION_PHASES / IMPLEMENTATION_SUMMARY
+
+| Area | Status | Notes |
+|------|--------|--------|
+| **docker-compose** | ✅ | Only `docker-compose.unified.yml` is used for deployment (3 orgs: LTO, HPG, Insurance). App error message points to `docker-compose.unified.yml`. |
+| **config/crypto-config.yaml** | ✅ | Defines LTO, HPG, Insurance (no Emission). |
+| **config/configtx.yaml** | ✅ | LTOMSP, HPGMSP, InsuranceMSP; Channel profile for `ltochannel`. |
+| **network-config.json** | ✅ | Multi-org peers, CAs, channel `ltochannel`. |
+| **Chaincode** | ✅ | `UpdateVerificationStatus`: `hpg` (emission removed); MintVehicle, AttachOwnerToMintedVehicle, UpdateCertificateHash, GetCertificateHash. |
+| **optimizedFabricService.js** | ✅ | `getFabricIdentityForUser()`, user context in `initialize()`, mint/attach/certificate methods. |
+| **Routes (lto, transfer, hpg, insurance, vehicles, admin, certificates, issuer)** | ✅ | User context passed to `fabricService.initialize()` where required. |
+| **blockchain.js** | ✅ | Fabric init failure message says `docker-compose.unified.yml`; no fallback. |
+| **setup-fabric-wallet.js** | ✅ | Puts `admin` and `admin-lto` from LTO Admin cert. |
+| **Scripts** | ✅ | `unified-setup.sh`, `complete-fabric-reset-reconfigure.sh`, and fix scripts use `docker-compose.unified.yml` for up/restart. |
+| **Emission references** | ⚠️ Legacy | DB columns, verifier-dashboard, admin.js transfer fields, and some UI labels still mention "emission"; documented as deprecated. Chaincode and verification model are LTO + HPG + Insurance only. |
+
+---
+
+## 📟 Exact SSH commands to run (copy-paste)
+
+**Assumption:** You are on the droplet (or `ssh root@<your-droplet-ip>`). Project path: `~/LTOBLOCKCHAIN` (adjust if different).
+
+### Path A — Fresh server or OK to lose existing volumes (recommended first-time)
+
+This runs the full unified setup: cleanup, crypto, channel, chaincode, wallet. **Warning:** `unified-setup.sh` runs `down -v` first, so **Postgres and other volumes are removed**. Backup DB first if you need to keep data.
+
+```bash
+cd ~/LTOBLOCKCHAIN
+
+# Optional: backup Postgres first (if you need to keep data)
+docker exec postgres pg_dump -U lto_user -d lto_blockchain > backup_$(date +%Y%m%d).sql 2>/dev/null || true
+
+# Pull latest code
+git pull origin main
+
+# Full setup (crypto + channel + chaincode + wallet). Destroys existing volumes.
+chmod +x scripts/unified-setup.sh
+./scripts/unified-setup.sh
+
+# Rebuild and start app so it uses latest code
+docker compose -f docker-compose.unified.yml up -d --build lto-app
+
+# Check app logs
+docker compose -f docker-compose.unified.yml logs -f lto-app
+```
+
+If Postgres was recreated, load schema and seed users (see step 3 and 8 in "One-Time Server Setup" above).
+
+---
+
+### Path B — Keep existing Postgres/data (crypto and channel already exist or you will create them manually)
+
+Use this if the stack is already running and you only need to fix channel/wallet or refresh the app.
+
+```bash
+cd ~/LTOBLOCKCHAIN
+
+# 1. Pull latest code
+git pull origin main
+
+# 2. Stop legacy Fabric stack if it was ever started (avoids port/conflict)
+docker compose -f docker-compose.fabric.yml down -v 2>/dev/null || true
+
+# 3. Start unified stack only (no volume removal)
+docker compose -f docker-compose.unified.yml up -d
+
+# 4. Wait for services (orderer, peers, couchdb, postgres)
+sleep 25
+docker compose -f docker-compose.unified.yml ps
+
+# 5. If channel not created yet: run full unified-setup (WARNING: removes volumes) OR
+#    run scripts/complete-fabric-reset-reconfigure.sh (also does down -v).
+#    If crypto and channel already exist, skip to step 6.
+
+# 6. Wallet (LTO admin identity for app)
+node scripts/setup-fabric-wallet.js
+
+# 7. Rebuild and start app
+docker compose -f docker-compose.unified.yml up -d --build lto-app
+
+# 8. Check logs
+docker compose -f docker-compose.unified.yml logs -f lto-app
+```
+
+If you get **"access denied"** after this, the channel `ltochannel` is still missing or the identity is not in the channel: run **Path A** (full `./scripts/unified-setup.sh`) on a copy/test server, or create the channel and join peers manually (see IMPLEMENTATION_PHASES.md Phase 1 / script Phase 5–7).
+
+---
+
 ## 🔧 502 and "access denied" troubleshooting
 
 **Why you see 502 in the browser**

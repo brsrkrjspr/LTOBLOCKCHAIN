@@ -94,15 +94,7 @@
                             <div class="doc-corner-accent doc-corner-top-left"></div>
                             <div class="doc-corner-accent doc-corner-bottom-right"></div>
                             
-                            <div class="doc-viewer-header">
-                                <h2 class="doc-title" id="docModalTitle">Document Viewer</h2>
-                                <div class="doc-zoom-controls">
-                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomOut()" title="Zoom Out (-)">−</button>
-                                    <span class="doc-zoom-level" id="docZoomLevel">100%</span>
-                                    <button class="doc-zoom-btn" onclick="DocumentModal.zoomIn()" title="Zoom In (+)">+</button>
-                                </div>
-                            </div>
-
+                            <!-- Document Display Area - Single Page, Centered -->
                             <div class="doc-pdf-container" id="docPdfContainer">
                                 <!-- Loading State -->
                                 <div class="doc-loading-overlay" id="docLoading">
@@ -127,7 +119,7 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Document Frame -->
+                                <!-- Document Frame - Single Page Display -->
                                 <div class="doc-frame-container" id="docFrameContainer" style="display: none;">
                                     <div class="doc-frame-wrapper" id="docFrameWrapper">
                                         <!-- PDF or Image will be rendered here -->
@@ -152,21 +144,9 @@
         styles.id = 'doc-modal-styles';
         styles.textContent = `
             /* ============================================
-               DOCUMENT MODAL - RUST/GOLD/CHARCOAL THEME
-               Matches Provided Design
+               DOCUMENT MODAL - SYSTEM THEME
+               Matches System Font and Colors
                ============================================ */
-            
-            @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-            
-            :root {
-                --cream: #FBF9F4;
-                --charcoal: #2B2D31;
-                --slate: #5A5D63;
-                --rust: #C7492A;
-                --gold: #D4A574;
-                --shadow: rgba(43, 45, 49, 0.08);
-                --shadow-heavy: rgba(43, 45, 49, 0.15);
-            }
             
             .doc-modal {
                 display: none;
@@ -176,7 +156,7 @@
                 width: 100%;
                 height: 100%;
                 z-index: 20000;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 align-items: center;
                 justify-content: center;
             }
@@ -249,9 +229,16 @@
             .doc-logo {
                 font-size: 1.5rem;
                 font-weight: 600;
-                color: var(--charcoal);
+                color: #0c4a6e;
                 letter-spacing: -0.02em;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            
+            .doc-logo::before {
+                content: '◆';
+                color: #0284c7;
+                margin-right: 0.5rem;
+                font-size: 0.8em;
             }
             
             .doc-toolbar {
@@ -264,11 +251,10 @@
                 padding: 0.6rem 1.2rem;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: var(--charcoal);
-                font-family: 'IBM Plex Mono', monospace;
-                font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
+                color: #0c4a6e;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.875rem;
+                font-weight: 500;
                 cursor: pointer;
                 transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                 position: relative;
@@ -282,7 +268,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: var(--rust);
+                background: #0284c7;
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -293,19 +279,19 @@
             
             .doc-btn:hover {
                 color: white;
-                border-color: var(--rust);
+                border-color: #0284c7;
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px var(--shadow-heavy);
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
             }
             
             .doc-btn-primary {
-                background: var(--rust);
+                background: #0284c7;
                 color: white;
-                border-color: var(--rust);
+                border-color: #0284c7;
             }
             
             .doc-btn-primary::before {
-                background: var(--charcoal);
+                background: #0369a1;
             }
             
             .doc-close-modal {
@@ -313,7 +299,7 @@
                 height: 40px;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: var(--rust);
+                color: #0284c7;
                 font-size: 1.5rem;
                 cursor: pointer;
                 transition: all 0.3s ease;
@@ -331,7 +317,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: var(--rust);
+                background: #0284c7;
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -342,9 +328,9 @@
             
             .doc-close-modal:hover {
                 color: white;
-                border-color: var(--rust);
+                border-color: #0284c7;
                 transform: translateY(-2px) rotate(90deg);
-                box-shadow: 0 4px 12px var(--shadow-heavy);
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
             }
             
             /* ============================================
@@ -355,7 +341,7 @@
                 flex: 1;
                 padding: 2rem;
                 overflow: auto;
-                background: linear-gradient(135deg, #E8E4DC 0%, #D4CFC4 100%);
+                background: #f8fafc;
             }
             
             .doc-container {
@@ -376,27 +362,25 @@
             }
             
             .doc-sidebar h3 {
-                font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 0.12em;
-                color: var(--slate);
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: #64748b;
                 margin-bottom: 1rem;
-                font-family: 'IBM Plex Mono', monospace;
-                font-weight: 500;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-info {
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px var(--shadow);
+                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
                 margin-bottom: 2rem;
             }
             
             .doc-info:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 4px 16px var(--shadow-heavy);
+                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
             }
             
             .doc-info-item {
@@ -414,18 +398,18 @@
             }
             
             .doc-info-label {
-                font-size: 0.7rem;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
-                color: var(--slate);
+                font-size: 0.75rem;
+                font-weight: 500;
+                color: #64748b;
                 margin-bottom: 0.3rem;
-                font-family: 'IBM Plex Mono', monospace;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-info-value {
                 font-size: 0.95rem;
-                color: var(--charcoal);
-                font-family: 'Crimson Pro', serif;
+                color: #0c4a6e;
+                font-weight: 500;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-list-section {
@@ -448,21 +432,21 @@
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s ease;
-                color: var(--charcoal);
+                color: #475569;
                 margin-bottom: 0.5rem;
                 border: 2px solid transparent;
             }
             
             .doc-sidebar-item:hover {
-                background: var(--cream);
-                color: var(--charcoal);
-                border-color: rgba(199, 73, 42, 0.2);
+                background: #f0f9ff;
+                color: #0284c7;
+                border-color: rgba(2, 132, 199, 0.2);
             }
             
             .doc-sidebar-item.active {
-                background: rgba(199, 73, 42, 0.1);
-                border-color: var(--rust);
-                color: var(--charcoal);
+                background: rgba(2, 132, 199, 0.1);
+                border-color: #0284c7;
+                color: #0284c7;
             }
             
             .doc-sidebar-item-icon {
@@ -472,14 +456,14 @@
                 align-items: center;
                 justify-content: center;
                 border-radius: 8px;
-                background: rgba(199, 73, 42, 0.1);
+                background: rgba(2, 132, 199, 0.1);
                 font-size: 1.125rem;
                 flex-shrink: 0;
-                color: var(--rust);
+                color: #0284c7;
             }
             
             .doc-sidebar-item.active .doc-sidebar-item-icon {
-                background: var(--rust);
+                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
                 color: white;
             }
             
@@ -495,20 +479,20 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 margin-bottom: 0.25rem;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-sidebar-item-type {
                 font-size: 0.75rem;
-                color: var(--slate);
-                font-family: 'Crimson Pro', serif;
+                color: #64748b;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-page-nav {
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px var(--shadow);
+                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
             }
             
             .doc-nav-controls {
@@ -526,12 +510,15 @@
                 cursor: pointer;
                 transition: all 0.2s ease;
                 font-size: 1rem;
-                color: var(--charcoal);
+                color: #0c4a6e;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-nav-btn:hover:not(:disabled) {
-                background: var(--cream);
+                background: #f0f9ff;
                 transform: scale(1.05);
+                border-color: #0284c7;
+                color: #0284c7;
             }
             
             .doc-nav-btn:disabled {
@@ -540,18 +527,20 @@
             }
             
             .doc-counter {
-                font-family: 'IBM Plex Mono', monospace;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 font-size: 0.85rem;
-                color: var(--slate);
+                color: #64748b;
                 min-width: 60px;
                 text-align: center;
+                font-weight: 500;
             }
             
             .doc-page-indicator {
                 text-align: center;
-                font-family: 'IBM Plex Mono', monospace;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 font-size: 0.85rem;
-                color: var(--slate);
+                color: #64748b;
+                font-weight: 500;
             }
             
             /* ============================================
@@ -573,7 +562,7 @@
                 position: absolute;
                 width: 40px;
                 height: 40px;
-                border: 2px solid var(--gold);
+                border: 2px solid #0284c7;
                 z-index: 1;
             }
             
@@ -591,64 +580,15 @@
                 border-top: none;
             }
             
-            .doc-viewer-header {
-                background: linear-gradient(135deg, var(--charcoal) 0%, var(--slate) 100%);
-                color: white;
-                padding: 1.5rem 2rem;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 3px solid var(--rust);
-            }
-            
-            .doc-title {
-                font-size: 1.5rem;
-                font-weight: 600;
-                letter-spacing: -0.01em;
-                margin: 0;
-                color: white;
-                font-family: 'Crimson Pro', serif;
-            }
-            
-            .doc-zoom-controls {
-                display: flex;
-                gap: 0.5rem;
-                align-items: center;
-            }
-            
-            .doc-zoom-btn {
-                width: 36px;
-                height: 36px;
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                background: rgba(255, 255, 255, 0.1);
-                color: white;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                font-size: 1.2rem;
+            .doc-pdf-container {
+                flex: 1;
+                background: #0f172a;
+                position: relative;
+                overflow: hidden;
+                min-height: 500px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                backdrop-filter: blur(8px);
-            }
-            
-            .doc-zoom-btn:hover {
-                background: rgba(255, 255, 255, 0.2);
-                transform: scale(1.1);
-            }
-            
-            .doc-zoom-level {
-                font-family: 'IBM Plex Mono', monospace;
-                font-size: 0.85rem;
-                min-width: 50px;
-                text-align: center;
-            }
-            
-            .doc-pdf-container {
-                flex: 1;
-                background: var(--cream);
-                position: relative;
-                overflow: auto;
-                min-height: 500px;
             }
             
             /* Loading Overlay */
@@ -669,8 +609,8 @@
             .doc-spinner {
                 width: 50px;
                 height: 50px;
-                border: 3px solid rgba(199, 73, 42, 0.1);
-                border-top-color: var(--rust);
+                border: 3px solid rgba(2, 132, 199, 0.1);
+                border-top-color: #0284c7;
                 border-radius: 50%;
                 animation: docSpin 1s linear infinite;
             }
@@ -681,11 +621,10 @@
             
             .doc-loading-text {
                 margin-top: 1rem;
-                font-family: 'IBM Plex Mono', monospace;
-                font-size: 0.85rem;
-                color: var(--slate);
-                text-transform: uppercase;
-                letter-spacing: 0.12em;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 0.875rem;
+                color: #94a3b8;
+                font-weight: 500;
             }
             
             /* Error State */
@@ -695,13 +634,13 @@
                 left: 50%;
                 transform: translate(-50%, -50%);
                 text-align: center;
-                color: var(--charcoal);
+                color: #0c4a6e;
                 z-index: 5;
                 max-width: 400px;
                 padding: 2rem;
                 background: white;
                 border-radius: 8px;
-                box-shadow: 0 4px 16px var(--shadow-heavy);
+                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
             }
             
             .doc-error-icon {
@@ -713,15 +652,16 @@
             .doc-error h3 {
                 margin: 0 0 0.5rem 0;
                 font-size: 1.25rem;
-                color: var(--charcoal);
-                font-family: 'Crimson Pro', serif;
+                color: #0c4a6e;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-weight: 600;
             }
             
             .doc-error p {
                 margin: 0 0 1.5rem 0;
-                color: var(--slate);
+                color: #64748b;
                 font-size: 0.9375rem;
-                font-family: 'Crimson Pro', serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
             
             .doc-error-actions {
@@ -730,15 +670,15 @@
                 justify-content: center;
             }
             
-            /* Document Frame Container */
+            /* Document Frame Container - Single Page, Centered */
             .doc-frame-container {
                 width: 100%;
                 height: 100%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 1rem;
-                overflow: auto;
+                padding: 2rem;
+                overflow: hidden;
                 position: relative;
                 box-sizing: border-box;
             }
@@ -746,45 +686,48 @@
             .doc-frame-wrapper {
                 position: relative;
                 background: #ffffff;
-                border-radius: 8px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                overflow: visible;
-                transition: transform 0.2s ease;
+                border-radius: 4px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+                overflow: hidden;
                 margin: auto;
-                max-width: calc(100% - 2rem);
-                max-height: calc(100% - 2rem);
+                max-width: 100%;
+                max-height: 100%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                width: fit-content;
+                height: fit-content;
             }
             
             .doc-frame-wrapper img {
                 display: block;
                 width: auto;
                 height: auto;
-                max-width: 100%;
-                max-height: 100%;
+                max-width: calc(100vw - 600px);
+                max-height: calc(100vh - 200px);
                 object-fit: contain;
-                margin: 0 auto;
-                border-radius: 8px;
+                margin: 0;
+                border-radius: 4px;
             }
             
             .doc-frame-wrapper iframe,
             .doc-frame-wrapper embed {
                 display: block;
-                width: 100%;
-                height: 100%;
-                min-width: 800px;
-                min-height: 600px;
+                width: auto;
+                height: auto;
+                max-width: calc(100vw - 600px);
+                max-height: calc(100vh - 200px);
                 border: none;
                 background: #ffffff;
-                border-radius: 8px;
+                border-radius: 4px;
             }
             
-            /* Ensure PDFs are readable by default */
+            /* Ensure PDFs are properly sized */
             .doc-frame-wrapper iframe[type="application/pdf"] {
-                width: 100% !important;
-                height: 100% !important;
+                width: auto !important;
+                height: auto !important;
+                max-width: calc(100vw - 600px) !important;
+                max-height: calc(100vh - 200px) !important;
             }
             
             /* Custom Scrollbar */
@@ -795,18 +738,18 @@
             
             .doc-sidebar-list::-webkit-scrollbar-track,
             .doc-pdf-container::-webkit-scrollbar-track {
-                background: rgba(199, 73, 42, 0.05);
+                background: rgba(2, 132, 199, 0.05);
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb,
             .doc-pdf-container::-webkit-scrollbar-thumb {
-                background: rgba(199, 73, 42, 0.2);
+                background: rgba(2, 132, 199, 0.2);
                 border-radius: 3px;
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb:hover,
             .doc-pdf-container::-webkit-scrollbar-thumb:hover {
-                background: rgba(199, 73, 42, 0.3);
+                background: rgba(2, 132, 199, 0.3);
             }
             
             /* ============================================
@@ -858,22 +801,14 @@
                     grid-template-columns: 1fr;
                 }
                 
-                .doc-title {
-                    font-size: 1.25rem;
-                }
-                
-                .doc-viewer-header {
-                    padding: 1rem 1.5rem;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                }
-                
-                .doc-zoom-controls {
-                    flex-wrap: wrap;
-                }
-                
                 .doc-pdf-container {
                     min-height: 400px;
+                }
+                
+                .doc-frame-wrapper img,
+                .doc-frame-wrapper iframe {
+                    max-width: calc(100vw - 300px);
+                    max-height: calc(100vh - 150px);
                 }
             }
             
@@ -896,8 +831,10 @@
                     font-size: 0.7rem;
                 }
                 
-                .doc-title {
-                    font-size: 1.125rem;
+                .doc-frame-wrapper img,
+                .doc-frame-wrapper iframe {
+                    max-width: calc(100vw - 200px);
+                    max-height: calc(100vh - 100px);
                 }
             }
         `;
@@ -1087,13 +1024,10 @@
         }
     }
     
-    // Apply zoom to document
+    // Apply zoom to document (disabled for single-page view)
     function applyZoom() {
-        const wrapper = document.getElementById('docFrameWrapper');
-        if (wrapper) {
-            wrapper.style.transform = `scale(${currentZoom / 100})`;
-            wrapper.style.transformOrigin = 'center center';
-        }
+        // Zoom functionality disabled - using auto-fit single-page view instead
+        // Keep function for compatibility but don't apply transforms
         updateZoomDisplay();
     }
     
@@ -1121,52 +1055,66 @@
         return scale;
     }
     
-    // Auto-fit document to container
+    // Auto-fit document to container - Single page, centered
     function autoFitDocument() {
         const wrapper = document.getElementById('docFrameWrapper');
         const container = document.getElementById('docFrameContainer');
+        const pdfContainer = document.getElementById('docPdfContainer');
         
-        if (!wrapper || !container) return;
+        if (!wrapper || !container || !pdfContainer) return;
         
         const img = wrapper.querySelector('img');
         const iframe = wrapper.querySelector('iframe');
         
+        // Get available space (accounting for padding)
+        const availableWidth = pdfContainer.clientWidth - 80; // 40px padding on each side
+        const availableHeight = pdfContainer.clientHeight - 80; // 40px padding on each side
+        
         if (img) {
-            // For images, calculate auto-fit scale
+            // For images, scale to fit while maintaining aspect ratio
             if (img.complete && img.naturalWidth) {
-                const scale = calculateAutoFitScale(img, container);
-                currentZoom = scale;
-                applyZoom();
+                const imgWidth = img.naturalWidth;
+                const imgHeight = img.naturalHeight;
+                
+                // Calculate scale to fit
+                const scaleX = availableWidth / imgWidth;
+                const scaleY = availableHeight / imgHeight;
+                const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+                
+                // Apply sizing
+                img.style.width = (imgWidth * scale) + 'px';
+                img.style.height = (imgHeight * scale) + 'px';
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
+                
+                wrapper.style.width = 'auto';
+                wrapper.style.height = 'auto';
             } else {
                 // Wait for image to load
                 const originalOnload = img.onload;
                 img.onload = function() {
                     if (originalOnload) originalOnload.call(this);
-                    const scale = calculateAutoFitScale(img, container);
-                    currentZoom = scale;
-                    applyZoom();
+                    autoFitDocument();
                 };
             }
         } else if (iframe) {
-            // For PDFs, ensure iframe uses full container size
-            const containerWidth = Math.max(container.clientWidth - 40, 1000);
-            const containerHeight = Math.max(container.clientHeight - 40, 700);
+            // For PDFs, calculate size to fit container while maintaining aspect ratio
+            // Standard PDF aspect ratio is approximately 8.5:11 (portrait) or 11:8.5 (landscape)
+            // We'll use a reasonable default and let the PDF renderer handle it
+            const pdfWidth = Math.min(availableWidth, 1200);
+            const pdfHeight = Math.min(availableHeight, 1600);
             
-            // Set wrapper to full container size for PDFs
-            wrapper.style.width = containerWidth + 'px';
-            wrapper.style.height = containerHeight + 'px';
-            wrapper.style.maxWidth = 'none';
-            wrapper.style.maxHeight = 'none';
+            // Set wrapper to fit content
+            wrapper.style.width = 'auto';
+            wrapper.style.height = 'auto';
+            wrapper.style.maxWidth = availableWidth + 'px';
+            wrapper.style.maxHeight = availableHeight + 'px';
             
-            // Ensure iframe fills wrapper completely
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.minWidth = '0';
-            iframe.style.minHeight = '0';
-            
-            // PDFs don't need zoom scaling - they use iframe size
-            currentZoom = 100;
-            applyZoom();
+            // Set iframe size
+            iframe.style.width = pdfWidth + 'px';
+            iframe.style.height = pdfHeight + 'px';
+            iframe.style.maxWidth = '100%';
+            iframe.style.maxHeight = '100%';
         }
     }
     
@@ -1198,15 +1146,17 @@
         currentPage = 1;
         totalPages = 1;
         
-        // Reset wrapper styles
+        // Reset wrapper styles for single-page display
         if (wrapper) {
             wrapper.style.width = 'auto';
             wrapper.style.height = 'auto';
-            wrapper.style.maxWidth = 'calc(100% - 2rem)';
-            wrapper.style.maxHeight = 'calc(100% - 2rem)';
+            wrapper.style.maxWidth = '100%';
+            wrapper.style.maxHeight = '100%';
+            wrapper.style.transform = 'none';
         }
         
-        applyZoom();
+        // Reset zoom (not used in single-page view)
+        currentZoom = 100;
         
         // Show loading
         if (loading) loading.style.display = 'flex';
@@ -1280,13 +1230,7 @@
             if (url.startsWith('data:')) {
                 if (isImage) {
                     if (wrapper) {
-                        // Reset wrapper styles for images
-                        wrapper.style.width = 'auto';
-                        wrapper.style.height = 'auto';
-                        wrapper.style.maxWidth = 'calc(100% - 2rem)';
-                        wrapper.style.maxHeight = 'calc(100% - 2rem)';
-                        
-                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;" />`;
+                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain;" />`;
                         // Auto-fit after image loads
                         setTimeout(() => {
                             const img = wrapper.querySelector('img');
@@ -1302,22 +1246,11 @@
                     }
                 } else {
                     if (wrapper) {
-                        const container = document.getElementById('docFrameContainer');
-                        let containerWidth = 1200;
-                        let containerHeight = 800;
-                        
-                        if (container) {
-                            containerWidth = Math.max(container.clientWidth - 40, 1000);
-                            containerHeight = Math.max(container.clientHeight - 40, 700);
-                        }
-                        
-                        // Set wrapper to match container size
-                        wrapper.style.width = containerWidth + 'px';
-                        wrapper.style.height = containerHeight + 'px';
-                        wrapper.style.maxWidth = 'none';
-                        wrapper.style.maxHeight = 'none';
-                        
-                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="width: 100%; height: 100%; border: none; display: block;"></iframe>`;
+                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>`;
+                        // Auto-fit after iframe loads
+                        setTimeout(() => {
+                            autoFitDocument();
+                        }, 100);
                     }
                 }
             }
@@ -1351,42 +1284,18 @@
                     // Construct iframe URL with token parameter
                     const iframeUrl = `/api/documents/${docId}/view?token=${viewToken}`;
                     
-                    // Calculate container size
-                    const container = document.getElementById('docFrameContainer');
-                    let containerWidth = 1200;
-                    let containerHeight = 800;
-                    
-                    if (container) {
-                        containerWidth = Math.max(container.clientWidth - 40, 1000);
-                        containerHeight = Math.max(container.clientHeight - 40, 700);
-                    }
-                    
                     if (wrapper) {
-                        // Set wrapper to match container size
-                        wrapper.style.width = containerWidth + 'px';
-                        wrapper.style.height = containerHeight + 'px';
-                        wrapper.style.maxWidth = 'none';
-                        wrapper.style.maxHeight = 'none';
-                        
-                        // Load directly via iframe URL with token - no blob URL needed!
+                        // Load directly via iframe URL with token - single page, centered
                         wrapper.innerHTML = `
                             <iframe src="${iframeUrl}" 
                                     type="application/pdf" 
                                     title="${escapeHtml(docName)}"
-                                    style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                                    style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>
                         `;
                         
-                        // Ensure iframe fills wrapper completely
+                        // Auto-fit after iframe loads
                         setTimeout(() => {
-                            const iframe = wrapper.querySelector('iframe');
-                            if (iframe && container) {
-                                const newWidth = Math.max(container.clientWidth - 40, 1000);
-                                const newHeight = Math.max(container.clientHeight - 40, 700);
-                                wrapper.style.width = newWidth + 'px';
-                                wrapper.style.height = newHeight + 'px';
-                                iframe.style.width = '100%';
-                                iframe.style.height = '100%';
-                            }
+                            autoFitDocument();
                         }, 100);
                     }
                     
@@ -1416,13 +1325,7 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             if (wrapper) {
-                                // Reset wrapper styles for images
-                                wrapper.style.width = 'auto';
-                                wrapper.style.height = 'auto';
-                                wrapper.style.maxWidth = 'calc(100% - 2rem)';
-                                wrapper.style.maxHeight = 'calc(100% - 2rem)';
-                                
-                                wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;" />`;
+                                wrapper.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain;" />`;
                                 // Auto-fit after image loads
                                 setTimeout(() => {
                                     const img = wrapper.querySelector('img');
@@ -1442,45 +1345,21 @@
                         };
                         reader.readAsDataURL(blob);
                     } else if (isPdf || blob.type === 'application/pdf') {
-                        // Use blob URL for PDFs
+                        // Use blob URL for PDFs - single page, centered
                         const blobUrl = URL.createObjectURL(blob);
                         activeBlobUrls.push(blobUrl);
                         
-                        // Calculate container size for PDF - use full available space
-                        const container = document.getElementById('docFrameContainer');
-                        let containerWidth = 1200; // Default fallback
-                        let containerHeight = 800; // Default fallback
-                        
-                        if (container) {
-                            containerWidth = Math.max(container.clientWidth - 40, 1000);
-                            containerHeight = Math.max(container.clientHeight - 40, 700);
-                        }
-                        
                         if (wrapper) {
-                            // Set wrapper to match container size
-                            wrapper.style.width = containerWidth + 'px';
-                            wrapper.style.height = containerHeight + 'px';
-                            wrapper.style.maxWidth = 'none';
-                            wrapper.style.maxHeight = 'none';
-                            
                             wrapper.innerHTML = `
                                 <iframe src="${blobUrl}" 
                                         type="application/pdf" 
                                         title="${escapeHtml(docName)}"
-                                        style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                                        style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>
                             `;
                             
-                            // Ensure iframe fills wrapper completely
+                            // Auto-fit after iframe loads
                             setTimeout(() => {
-                                const iframe = wrapper.querySelector('iframe');
-                                if (iframe && container) {
-                                    const newWidth = Math.max(container.clientWidth - 40, 1000);
-                                    const newHeight = Math.max(container.clientHeight - 40, 700);
-                                    wrapper.style.width = newWidth + 'px';
-                                    wrapper.style.height = newHeight + 'px';
-                                    iframe.style.width = '100%';
-                                    iframe.style.height = '100%';
-                                }
+                                autoFitDocument();
                             }, 100);
                         }
                         
@@ -1489,10 +1368,10 @@
                         // Other file types - show download option
                         if (wrapper) {
                             wrapper.innerHTML = `
-                                <div style="text-align: center; padding: 3rem; color: var(--charcoal); background: white; border-radius: 8px; box-shadow: 0 4px 16px var(--shadow-heavy);">
-                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: var(--rust); margin-bottom: 1rem;"></i>
-                                    <h3 style="margin: 0 0 0.5rem 0; color: var(--charcoal); font-family: 'Crimson Pro', serif;">Preview Not Available</h3>
-                                    <p style="color: var(--slate); margin: 0 0 1.5rem 0; font-family: 'Crimson Pro', serif;">This file type cannot be previewed in the browser.</p>
+                                <div style="text-align: center; padding: 3rem; color: #0c4a6e; background: white; border-radius: 8px; box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: #0284c7; margin-bottom: 1rem;"></i>
+                                    <h3 style="margin: 0 0 0.5rem 0; color: #0c4a6e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 600;">Preview Not Available</h3>
+                                    <p style="color: #64748b; margin: 0 0 1.5rem 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">This file type cannot be previewed in the browser.</p>
                                     <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">
                                         <i class="fas fa-download"></i> Download Document
                                     </button>
@@ -1513,16 +1392,10 @@
                     return; // Exit early on fetch error
                 }
             } else {
-                // Direct external URL
+                // Direct external URL - single page, centered
                 if (isImage) {
                     if (wrapper) {
-                        // Reset wrapper styles for images
-                        wrapper.style.width = 'auto';
-                        wrapper.style.height = 'auto';
-                        wrapper.style.maxWidth = 'calc(100% - 2rem)';
-                        wrapper.style.maxHeight = 'calc(100% - 2rem)';
-                        
-                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'text-align:center;padding:2rem;color:#ef4444;\\'><i class=\\'fas fa-exclamation-triangle\\' style=\\'font-size:2rem;margin-bottom:0.5rem;\\'></i><p>Image failed to load</p></div>';" />`;
+                        wrapper.innerHTML = `<img src="${url}" alt="${escapeHtml(docName)}" style="display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'text-align:center;padding:2rem;color:#ef4444;\\'><i class=\\'fas fa-exclamation-triangle\\' style=\\'font-size:2rem;margin-bottom:0.5rem;\\'></i><p>Image failed to load</p></div>';" />`;
                         // Auto-fit after image loads
                         setTimeout(() => {
                             const img = wrapper.querySelector('img');
@@ -1538,22 +1411,11 @@
                     }
                 } else {
                     if (wrapper) {
-                        const container = document.getElementById('docFrameContainer');
-                        let containerWidth = 1200;
-                        let containerHeight = 800;
-                        
-                        if (container) {
-                            containerWidth = Math.max(container.clientWidth - 40, 1000);
-                            containerHeight = Math.max(container.clientHeight - 40, 700);
-                        }
-                        
-                        // Set wrapper to match container size
-                        wrapper.style.width = containerWidth + 'px';
-                        wrapper.style.height = containerHeight + 'px';
-                        wrapper.style.maxWidth = 'none';
-                        wrapper.style.maxHeight = 'none';
-                        
-                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="width: 100%; height: 100%; border: none; display: block;"></iframe>`;
+                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none; max-width: 100%; max-height: 100%;"></iframe>`;
+                        // Auto-fit after iframe loads
+                        setTimeout(() => {
+                            autoFitDocument();
+                        }, 100);
                     }
                 }
             }
@@ -1567,7 +1429,7 @@
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     autoFitDocument();
-                }, 100);
+                }, 200);
             });
             
         } catch (err) {

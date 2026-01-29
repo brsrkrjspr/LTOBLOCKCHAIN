@@ -14,6 +14,11 @@
     let pdfViewer = null;
     let currentPage = 1;
     let totalPages = 1;
+
+    // PDF rendering state (for toolbar-free viewing)
+    let pdfJsLib = null;
+    let pdfJsLoadingPromise = null;
+    let lastPdfRenderState = null; // { data: ArrayBuffer, pageNumber: number }
     
     // Initialize modal container
     function initModal() {
@@ -94,16 +99,6 @@
                             <div class="doc-corner-accent doc-corner-top-left"></div>
                             <div class="doc-corner-accent doc-corner-bottom-right"></div>
                             
-                            <!-- Viewer header (matches screenshot) -->
-                            <div class="doc-viewer-header" aria-hidden="false">
-                                <h2 class="doc-viewer-title" id="docModalTitle">Document Viewer</h2>
-                                <div class="doc-viewer-zoom" aria-hidden="false">
-                                    <button class="doc-zoom-btn" type="button" onclick="DocumentModal.zoomOut()" title="Zoom out">−</button>
-                                    <span class="doc-zoom-level" id="docZoomLevel">100%</span>
-                                    <button class="doc-zoom-btn" type="button" onclick="DocumentModal.zoomIn()" title="Zoom in">+</button>
-                                </div>
-                            </div>
-
                             <!-- Document Display Area - Single Page, Centered -->
                             <div class="doc-pdf-container" id="docPdfContainer">
                                 <!-- Loading State -->
@@ -605,58 +600,7 @@
                 justify-content: center;
             }
 
-            /* Viewer header (matches screenshot) */
-            .doc-viewer-header {
-                background: linear-gradient(135deg, var(--dv-charcoal) 0%, var(--dv-slate) 100%);
-                color: #ffffff;
-                padding: 1.5rem 2rem;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                border-bottom: 3px solid var(--dv-rust);
-            }
-
-            .doc-viewer-title {
-                margin: 0;
-                font-size: 1.5rem;
-                font-weight: 600;
-                letter-spacing: -0.01em;
-                font-family: 'Crimson Pro', serif;
-            }
-
-            .doc-viewer-zoom {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                font-family: 'IBM Plex Mono', monospace;
-                font-size: 0.85rem;
-            }
-
-            .doc-zoom-btn {
-                width: 36px;
-                height: 36px;
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                background: rgba(255, 255, 255, 0.1);
-                color: #ffffff;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                font-size: 1.2rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                backdrop-filter: blur(8px);
-            }
-
-            .doc-zoom-btn:hover {
-                background: rgba(255, 255, 255, 0.2);
-                transform: scale(1.05);
-            }
-
-            .doc-zoom-level {
-                min-width: 52px;
-                text-align: center;
-                font-weight: 500;
-            }
+            /* No in-viewer header/toolbars (distraction-free) */
             
             /* Loading Overlay */
             .doc-loading-overlay {
@@ -755,6 +699,10 @@
                 overflow-y: auto;
             }
             
+            .doc-frame-container.doc-frame-scroll {
+                align-items: flex-start;
+            }
+
             .doc-frame-wrapper {
                 position: relative;
                 background: #ffffff;
@@ -773,6 +721,12 @@
                 flex-shrink: 0;
             }
             
+            .doc-frame-wrapper canvas.doc-pdf-canvas {
+                display: block;
+                width: 100%;
+                height: auto;
+            }
+
             .doc-frame-wrapper img {
                 display: block;
                 width: auto;
@@ -910,6 +864,79 @@
         `;
         
         document.head.appendChild(styles);
+    }
+
+    async function ensurePdfJsLoaded() {
+        if (pdfJsLib) return pdfJsLib;
+        if (pdfJsLoadingPromise) return pdfJsLoadingPromise;
+
+        const moduleUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs';
+        const workerUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs';
+
+        pdfJsLoadingPromise = import(moduleUrl)
+            .then((mod) => {
+                const lib = (mod && mod.getDocument) ? mod : (mod && mod.default ? mod.default : null);
+                if (!lib || typeof lib.getDocument !== 'function') {
+                    throw new Error('PDF.js failed to load (missing getDocument).');
+                }
+                if (lib.GlobalWorkerOptions) {
+                    lib.GlobalWorkerOptions.workerSrc = workerUrl;
+                }
+                pdfJsLib = lib;
+                return pdfJsLib;
+            })
+            .catch((e) => {
+                pdfJsLoadingPromise = null;
+                throw e;
+            });
+
+        return pdfJsLoadingPromise;
+    }
+
+    function dataUrlToArrayBuffer(dataUrl) {
+        const commaIndex = dataUrl.indexOf(',');
+        const base64 = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
+        const binary = atob(base64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+    }
+
+    async function renderPdfFirstPage(arrayBuffer) {
+        const frame = document.getElementById('docFrameContainer');
+        const wrapper = document.getElementById('docFrameWrapper');
+        const viewer = document.getElementById('docPdfContainer');
+
+        if (!frame || !wrapper || !viewer) return;
+
+        const pdfjs = await ensurePdfJsLoaded();
+        const docTask = pdfjs.getDocument({ data: arrayBuffer });
+        const pdf = await docTask.promise;
+        const pageNumber = 1;
+        const page = await pdf.getPage(pageNumber);
+
+        // Fit-to-width target (90% of viewer width), allow vertical scroll if needed
+        const targetWidth = Math.max(600, Math.floor(viewer.clientWidth * 0.9));
+        const viewportAt1 = page.getViewport({ scale: 1 });
+        const scale = targetWidth / viewportAt1.width;
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'doc-pdf-canvas';
+        const ctx = canvas.getContext('2d', { alpha: false });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+
+        wrapper.innerHTML = '';
+        wrapper.appendChild(canvas);
+        wrapper.style.width = canvas.width + 'px';
+        wrapper.style.height = canvas.height + 'px';
+
+        frame.style.display = 'flex';
+        frame.classList.toggle('doc-frame-scroll', canvas.height > Math.floor(viewer.clientHeight * 0.9));
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
     }
     
     // Get authentication token
@@ -1125,7 +1152,7 @@
         return scale;
     }
     
-    // Auto-fit document to container - Fit to width, large and readable
+    // Auto-fit document to container
     function autoFitDocument() {
         const wrapper = document.getElementById('docFrameWrapper');
         const container = document.getElementById('docFrameContainer');
@@ -1134,45 +1161,25 @@
         if (!wrapper || !container || !pdfContainer) return;
         
         const img = wrapper.querySelector('img');
-        const iframe = wrapper.querySelector('iframe');
-        
-        // Get available space - use 85% of container for optimal readability
-        const containerWidth = pdfContainer.clientWidth;
-        const containerHeight = pdfContainer.clientHeight;
-        const availableWidth = Math.floor(containerWidth * 0.85); // 85% of width
-        const availableHeight = Math.floor(containerHeight * 0.85); // 85% of height
+        const canvas = wrapper.querySelector('canvas.doc-pdf-canvas');
         
         if (img) {
-            // For images, scale to fit width (fit-to-width), allow vertical scrolling if needed
+            // Images: fit to container (90% width), allow vertical scroll if needed
             if (img.complete && img.naturalWidth) {
                 const imgWidth = img.naturalWidth;
                 const imgHeight = img.naturalHeight;
                 
-                if (imgWidth > 0 && imgHeight > 0) {
-                    // Fit to width - scale based on width, maintain aspect ratio
-                    // Use 85% of available width for optimal readability
-                    const scale = availableWidth / imgWidth;
-                    const scaledWidth = imgWidth * scale;
-                    const scaledHeight = imgHeight * scale;
-                    
-                    // Ensure minimum readable size - never render as thumbnail
-                    const minReadableWidth = Math.min(600, availableWidth * 0.7);
-                    const finalWidth = Math.max(scaledWidth, minReadableWidth);
-                    const finalHeight = (finalWidth / imgWidth) * imgHeight;
-                    
-                    // Apply sizing - ensure document is large and readable
-                    img.style.width = finalWidth + 'px';
-                    img.style.height = finalHeight + 'px';
-                    img.style.maxWidth = 'none';
-                    img.style.maxHeight = 'none';
-                    img.style.objectFit = 'contain';
-                    
-                    // Set wrapper to match image size
-                    wrapper.style.width = finalWidth + 'px';
-                    wrapper.style.height = finalHeight + 'px';
-                    wrapper.style.maxWidth = 'none';
-                    wrapper.style.maxHeight = 'none';
-                }
+                const targetWidth = Math.max(600, Math.floor(pdfContainer.clientWidth * 0.9));
+                const scale = targetWidth / imgWidth;
+                const finalWidth = imgWidth * scale;
+                const finalHeight = imgHeight * scale;
+
+                img.style.width = finalWidth + 'px';
+                img.style.height = finalHeight + 'px';
+                wrapper.style.width = finalWidth + 'px';
+                wrapper.style.height = finalHeight + 'px';
+
+                container.classList.toggle('doc-frame-scroll', finalHeight > Math.floor(pdfContainer.clientHeight * 0.9));
             } else {
                 // Wait for image to load
                 const originalOnload = img.onload;
@@ -1181,28 +1188,9 @@
                     autoFitDocument();
                 };
             }
-        } else if (iframe) {
-            // For PDFs, use fit-to-width approach
-            // Calculate width to fill 85% of container width for optimal readability
-            const pdfWidth = Math.max(availableWidth, 800); // Minimum 800px width
-            // Calculate height based on standard PDF aspect ratio (8.5:11 for portrait)
-            // Use the larger of: available height or calculated height from aspect ratio
-            const aspectRatioHeight = Math.floor(pdfWidth * 1.294); // 11/8.5 ratio
-            const pdfHeight = Math.max(availableHeight, aspectRatioHeight, 1000); // Minimum 1000px height
-            
-            // Set wrapper to match PDF size - ensure large display
-            wrapper.style.width = pdfWidth + 'px';
-            wrapper.style.height = pdfHeight + 'px';
-            wrapper.style.maxWidth = 'none';
-            wrapper.style.maxHeight = 'none';
-            
-            // Set iframe size - make it large and readable, never thumbnail
-            iframe.style.width = pdfWidth + 'px';
-            iframe.style.height = pdfHeight + 'px';
-            iframe.style.maxWidth = 'none';
-            iframe.style.maxHeight = 'none';
-            iframe.style.minWidth = '800px'; // Enforce minimum readable size
-            iframe.style.minHeight = '1000px';
+        } else if (canvas && lastPdfRenderState && lastPdfRenderState.data) {
+            // PDFs: re-render at new size (toolbar-free)
+            renderPdfFirstPage(lastPdfRenderState.data).catch(() => {});
         }
     }
     
@@ -1332,13 +1320,22 @@
                             }
                         }, 100);
                     }
+                } else if (isPdf) {
+                    // Render PDF without browser toolbar
+                    const buf = dataUrlToArrayBuffer(url);
+                    lastPdfRenderState = { data: buf, pageNumber: 1 };
+                    await renderPdfFirstPage(buf);
                 } else {
+                    // Non-previewable data URL type
                     if (wrapper) {
-                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none;"></iframe>`;
-                        // Auto-fit after iframe loads - ensure large display
-                        setTimeout(() => {
-                            autoFitDocument();
-                        }, 200);
+                        wrapper.innerHTML = `
+                            <div style="text-align: center; padding: 3rem; color: var(--dv-charcoal); background: white; border-radius: 8px; box-shadow: 0 4px 16px var(--dv-shadow-heavy); font-family: 'Crimson Pro', serif;">
+                                <i class="fas fa-file-alt" style="font-size: 4rem; color: var(--dv-rust); margin-bottom: 1rem;"></i>
+                                <h3 style="margin: 0 0 0.5rem 0; color: var(--dv-charcoal); font-weight: 600;">Preview Not Available</h3>
+                                <p style="color: var(--dv-slate); margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
+                                <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">Download Document</button>
+                            </div>
+                        `;
                     }
                 }
             }
@@ -1372,20 +1369,12 @@
                     // Construct iframe URL with token parameter
                     const iframeUrl = `/api/documents/${docId}/view?token=${viewToken}`;
                     
-                    if (wrapper) {
-                        // Load directly via iframe URL with token - large, readable display
-                        wrapper.innerHTML = `
-                            <iframe src="${iframeUrl}" 
-                                    type="application/pdf" 
-                                    title="${escapeHtml(docName)}"
-                                    style="display: block; border: none;"></iframe>
-                        `;
-                        
-                        // Auto-fit after iframe loads - ensure large display
-                        setTimeout(() => {
-                            autoFitDocument();
-                        }, 200);
-                    }
+                    // Fetch and render PDF without toolbar
+                    const pdfRes = await fetch(iframeUrl, { headers: { 'Accept': 'application/pdf' } });
+                    if (!pdfRes.ok) throw new Error(`Failed to fetch PDF: ${pdfRes.status} ${pdfRes.statusText}`);
+                    const buf = await pdfRes.arrayBuffer();
+                    lastPdfRenderState = { data: buf, pageNumber: 1 };
+                    await renderPdfFirstPage(buf);
                     
                     // PDF loaded successfully
                 } catch (error) {
@@ -1433,23 +1422,10 @@
                         };
                         reader.readAsDataURL(blob);
                     } else if (isPdf || blob.type === 'application/pdf') {
-                        // Use blob URL for PDFs - large, readable display
-                        const blobUrl = URL.createObjectURL(blob);
-                        activeBlobUrls.push(blobUrl);
-                        
-                        if (wrapper) {
-                            wrapper.innerHTML = `
-                                <iframe src="${blobUrl}" 
-                                        type="application/pdf" 
-                                        title="${escapeHtml(docName)}"
-                                        style="display: block; border: none;"></iframe>
-                            `;
-                            
-                            // Auto-fit after iframe loads - ensure large display
-                            setTimeout(() => {
-                                autoFitDocument();
-                            }, 200);
-                        }
+                        // Render PDF without toolbar
+                        const buf = await blob.arrayBuffer();
+                        lastPdfRenderState = { data: buf, pageNumber: 1 };
+                        await renderPdfFirstPage(buf);
                         
                         // PDF loaded successfully
                     } else {
@@ -1497,13 +1473,24 @@
                             }
                         }, 100);
                     }
+                } else if (isPdf) {
+                    // Try to fetch and render PDF without toolbar (may fail due to CORS)
+                    const pdfRes = await fetch(url, { headers: { 'Accept': 'application/pdf' } });
+                    if (!pdfRes.ok) throw new Error(`Failed to fetch PDF: ${pdfRes.status} ${pdfRes.statusText}`);
+                    const buf = await pdfRes.arrayBuffer();
+                    lastPdfRenderState = { data: buf, pageNumber: 1 };
+                    await renderPdfFirstPage(buf);
                 } else {
+                    // Other types: fallback to download-only UI
                     if (wrapper) {
-                        wrapper.innerHTML = `<iframe src="${url}" title="${escapeHtml(docName)}" style="display: block; border: none;"></iframe>`;
-                        // Auto-fit after iframe loads - ensure large display
-                        setTimeout(() => {
-                            autoFitDocument();
-                        }, 200);
+                        wrapper.innerHTML = `
+                            <div style="text-align: center; padding: 3rem; color: var(--dv-charcoal); background: white; border-radius: 8px; box-shadow: 0 4px 16px var(--dv-shadow-heavy); font-family: 'Crimson Pro', serif;">
+                                <i class="fas fa-file-alt" style="font-size: 4rem; color: var(--dv-rust); margin-bottom: 1rem;"></i>
+                                <h3 style="margin: 0 0 0.5rem 0; color: var(--dv-charcoal); font-weight: 600;">Preview Not Available</h3>
+                                <p style="color: var(--dv-slate); margin: 0 0 1.5rem 0;">This file type cannot be previewed in the browser.</p>
+                                <button class="doc-btn doc-btn-primary" onclick="DocumentModal.download()">Download Document</button>
+                            </div>
+                        `;
                     }
                 }
             }

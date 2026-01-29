@@ -680,18 +680,6 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                                     email: req.user.email
                                 }
                             );
-                                compositeHash,
-                                {
-                                    certificateType: 'hpg',
-                                    vehicleVIN: vehicle.vin,
-                                    vehicleId: clearanceRequest.vehicle_id,
-                                    certificateNumber: hpgCertificateNumber,
-                                    applicationStatus: 'APPROVED',
-                                    issuedAt: new Date().toISOString(),
-                                    issuedBy: req.user.userId,
-                                    fileHash: fileHash
-                                }
-                            );
                         } catch (blockchainError) {
                             console.error('[HPG Approve] Blockchain storage failed:', blockchainError);
                             // Continue - blockchain storage is optional but logged

@@ -94,6 +94,16 @@
                             <div class="doc-corner-accent doc-corner-top-left"></div>
                             <div class="doc-corner-accent doc-corner-bottom-right"></div>
                             
+                            <!-- Viewer header (matches screenshot) -->
+                            <div class="doc-viewer-header" aria-hidden="false">
+                                <h2 class="doc-viewer-title" id="docModalTitle">Document Viewer</h2>
+                                <div class="doc-viewer-zoom" aria-hidden="false">
+                                    <button class="doc-zoom-btn" type="button" onclick="DocumentModal.zoomOut()" title="Zoom out">−</button>
+                                    <span class="doc-zoom-level" id="docZoomLevel">100%</span>
+                                    <button class="doc-zoom-btn" type="button" onclick="DocumentModal.zoomIn()" title="Zoom in">+</button>
+                                </div>
+                            </div>
+
                             <!-- Document Display Area - Single Page, Centered -->
                             <div class="doc-pdf-container" id="docPdfContainer">
                                 <!-- Loading State -->
@@ -144,9 +154,21 @@
         styles.id = 'doc-modal-styles';
         styles.textContent = `
             /* ============================================
-               DOCUMENT MODAL - SYSTEM THEME
-               Matches System Font and Colors
+               DOCUMENT MODAL - SCREENSHOT THEME
+               Matches requested DocuView screenshot styling
                ============================================ */
+
+            @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+            :root {
+                --dv-cream: #FBF9F4;
+                --dv-charcoal: #2B2D31;
+                --dv-slate: #5A5D63;
+                --dv-rust: #C7492A;
+                --dv-gold: #D4A574;
+                --dv-shadow: rgba(43, 45, 49, 0.08);
+                --dv-shadow-heavy: rgba(43, 45, 49, 0.15);
+            }
             
             .doc-modal {
                 display: none;
@@ -156,7 +178,7 @@
                 width: 100%;
                 height: 100%;
                 z-index: 20000;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'Crimson Pro', serif;
                 align-items: center;
                 justify-content: center;
             }
@@ -229,16 +251,9 @@
             .doc-logo {
                 font-size: 1.5rem;
                 font-weight: 600;
-                color: #0c4a6e;
+                color: var(--dv-charcoal);
                 letter-spacing: -0.02em;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            
-            .doc-logo::before {
-                content: '◆';
-                color: #0284c7;
-                margin-right: 0.5rem;
-                font-size: 0.8em;
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-toolbar {
@@ -251,10 +266,11 @@
                 padding: 0.6rem 1.2rem;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: #0c4a6e;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                font-size: 0.875rem;
-                font-weight: 500;
+                color: var(--dv-charcoal);
+                font-family: 'IBM Plex Mono', monospace;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
                 cursor: pointer;
                 transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                 position: relative;
@@ -268,7 +284,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: #0284c7;
+                background: var(--dv-rust);
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -279,19 +295,19 @@
             
             .doc-btn:hover {
                 color: white;
-                border-color: #0284c7;
+                border-color: var(--dv-rust);
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+                box-shadow: 0 4px 12px var(--dv-shadow-heavy);
             }
             
             .doc-btn-primary {
-                background: #0284c7;
+                background: var(--dv-rust);
                 color: white;
-                border-color: #0284c7;
+                border-color: var(--dv-rust);
             }
             
             .doc-btn-primary::before {
-                background: #0369a1;
+                background: var(--dv-charcoal);
             }
             
             .doc-close-modal {
@@ -299,7 +315,7 @@
                 height: 40px;
                 border: 1px solid rgba(43, 45, 49, 0.12);
                 background: white;
-                color: #0284c7;
+                color: var(--dv-rust);
                 font-size: 1.5rem;
                 cursor: pointer;
                 transition: all 0.3s ease;
@@ -317,7 +333,7 @@
                 left: -100%;
                 width: 100%;
                 height: 100%;
-                background: #0284c7;
+                background: var(--dv-rust);
                 transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: -1;
             }
@@ -328,9 +344,9 @@
             
             .doc-close-modal:hover {
                 color: white;
-                border-color: #0284c7;
+                border-color: var(--dv-rust);
                 transform: translateY(-2px) rotate(90deg);
-                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+                box-shadow: 0 4px 12px var(--dv-shadow-heavy);
             }
             
             /* ============================================
@@ -341,7 +357,7 @@
                 flex: 1;
                 padding: 2rem;
                 overflow: auto;
-                background: #f8fafc;
+                background: linear-gradient(135deg, #E8E4DC 0%, #D4CFC4 100%);
             }
             
             .doc-container {
@@ -362,25 +378,27 @@
             }
             
             .doc-sidebar h3 {
-                font-size: 0.875rem;
-                font-weight: 600;
-                color: #64748b;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                color: var(--dv-slate);
                 margin-bottom: 1rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
+                font-weight: 500;
             }
             
             .doc-info {
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
+                box-shadow: 0 2px 8px var(--dv-shadow);
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
                 margin-bottom: 2rem;
             }
             
             .doc-info:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
+                box-shadow: 0 4px 16px var(--dv-shadow-heavy);
             }
             
             .doc-info-item {
@@ -398,18 +416,18 @@
             }
             
             .doc-info-label {
-                font-size: 0.75rem;
-                font-weight: 500;
-                color: #64748b;
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: var(--dv-slate);
                 margin-bottom: 0.3rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
             }
             
             .doc-info-value {
                 font-size: 0.95rem;
-                color: #0c4a6e;
-                font-weight: 500;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: var(--dv-charcoal);
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-list-section {
@@ -438,15 +456,15 @@
             }
             
             .doc-sidebar-item:hover {
-                background: #f0f9ff;
-                color: #0284c7;
-                border-color: rgba(2, 132, 199, 0.2);
+                background: var(--dv-cream);
+                color: var(--dv-charcoal);
+                border-color: rgba(199, 73, 42, 0.2);
             }
             
             .doc-sidebar-item.active {
-                background: rgba(2, 132, 199, 0.1);
-                border-color: #0284c7;
-                color: #0284c7;
+                background: rgba(199, 73, 42, 0.1);
+                border-color: var(--dv-rust);
+                color: var(--dv-charcoal);
             }
             
             .doc-sidebar-item-icon {
@@ -456,14 +474,14 @@
                 align-items: center;
                 justify-content: center;
                 border-radius: 8px;
-                background: rgba(2, 132, 199, 0.1);
+                background: rgba(199, 73, 42, 0.1);
                 font-size: 1.125rem;
                 flex-shrink: 0;
-                color: #0284c7;
+                color: var(--dv-rust);
             }
             
             .doc-sidebar-item.active .doc-sidebar-item-icon {
-                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+                background: var(--dv-rust);
                 color: white;
             }
             
@@ -479,20 +497,20 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 margin-bottom: 0.25rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-sidebar-item-type {
                 font-size: 0.75rem;
-                color: #64748b;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: var(--dv-slate);
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-page-nav {
                 background: white;
                 border: 1px solid rgba(43, 45, 49, 0.08);
                 padding: 1.5rem;
-                box-shadow: 0 2px 8px rgba(43, 45, 49, 0.08);
+                box-shadow: 0 2px 8px var(--dv-shadow);
             }
             
             .doc-nav-controls {
@@ -510,15 +528,13 @@
                 cursor: pointer;
                 transition: all 0.2s ease;
                 font-size: 1rem;
-                color: #0c4a6e;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: var(--dv-charcoal);
+                font-family: 'IBM Plex Mono', monospace;
             }
             
             .doc-nav-btn:hover:not(:disabled) {
-                background: #f0f9ff;
+                background: var(--dv-cream);
                 transform: scale(1.05);
-                border-color: #0284c7;
-                color: #0284c7;
             }
             
             .doc-nav-btn:disabled {
@@ -527,20 +543,18 @@
             }
             
             .doc-counter {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.85rem;
-                color: #64748b;
+                color: var(--dv-slate);
                 min-width: 60px;
                 text-align: center;
-                font-weight: 500;
             }
             
             .doc-page-indicator {
                 text-align: center;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.85rem;
-                color: #64748b;
-                font-weight: 500;
+                color: var(--dv-slate);
             }
             
             /* ============================================
@@ -562,7 +576,7 @@
                 position: absolute;
                 width: 40px;
                 height: 40px;
-                border: 2px solid #0284c7;
+                border: 2px solid var(--dv-gold);
                 z-index: 1;
             }
             
@@ -582,13 +596,66 @@
             
             .doc-pdf-container {
                 flex: 1;
-                background: #0f172a;
+                background: #e5e7eb;
                 position: relative;
                 overflow: hidden;
                 min-height: 500px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+            }
+
+            /* Viewer header (matches screenshot) */
+            .doc-viewer-header {
+                background: linear-gradient(135deg, var(--dv-charcoal) 0%, var(--dv-slate) 100%);
+                color: #ffffff;
+                padding: 1.5rem 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 3px solid var(--dv-rust);
+            }
+
+            .doc-viewer-title {
+                margin: 0;
+                font-size: 1.5rem;
+                font-weight: 600;
+                letter-spacing: -0.01em;
+                font-family: 'Crimson Pro', serif;
+            }
+
+            .doc-viewer-zoom {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-family: 'IBM Plex Mono', monospace;
+                font-size: 0.85rem;
+            }
+
+            .doc-zoom-btn {
+                width: 36px;
+                height: 36px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                background: rgba(255, 255, 255, 0.1);
+                color: #ffffff;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 1.2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                backdrop-filter: blur(8px);
+            }
+
+            .doc-zoom-btn:hover {
+                background: rgba(255, 255, 255, 0.2);
+                transform: scale(1.05);
+            }
+
+            .doc-zoom-level {
+                min-width: 52px;
+                text-align: center;
+                font-weight: 500;
             }
             
             /* Loading Overlay */
@@ -609,8 +676,8 @@
             .doc-spinner {
                 width: 50px;
                 height: 50px;
-                border: 3px solid rgba(2, 132, 199, 0.1);
-                border-top-color: #0284c7;
+                border: 3px solid rgba(199, 73, 42, 0.1);
+                border-top-color: var(--dv-rust);
                 border-radius: 50%;
                 animation: docSpin 1s linear infinite;
             }
@@ -621,10 +688,12 @@
             
             .doc-loading-text {
                 margin-top: 1rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'IBM Plex Mono', monospace;
                 font-size: 0.875rem;
-                color: #94a3b8;
+                color: var(--dv-slate);
                 font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
             }
             
             /* Error State */
@@ -634,13 +703,13 @@
                 left: 50%;
                 transform: translate(-50%, -50%);
                 text-align: center;
-                color: #0c4a6e;
+                color: var(--dv-charcoal);
                 z-index: 5;
                 max-width: 400px;
                 padding: 2rem;
                 background: white;
                 border-radius: 8px;
-                box-shadow: 0 4px 16px rgba(43, 45, 49, 0.15);
+                box-shadow: 0 4px 16px var(--dv-shadow-heavy);
             }
             
             .doc-error-icon {
@@ -652,16 +721,16 @@
             .doc-error h3 {
                 margin: 0 0 0.5rem 0;
                 font-size: 1.25rem;
-                color: #0c4a6e;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: var(--dv-charcoal);
+                font-family: 'Crimson Pro', serif;
                 font-weight: 600;
             }
             
             .doc-error p {
                 margin: 0 0 1.5rem 0;
-                color: #64748b;
+                color: var(--dv-slate);
                 font-size: 0.9375rem;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'Crimson Pro', serif;
             }
             
             .doc-error-actions {
@@ -743,18 +812,18 @@
             
             .doc-sidebar-list::-webkit-scrollbar-track,
             .doc-pdf-container::-webkit-scrollbar-track {
-                background: rgba(2, 132, 199, 0.05);
+                background: rgba(199, 73, 42, 0.05);
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb,
             .doc-pdf-container::-webkit-scrollbar-thumb {
-                background: rgba(2, 132, 199, 0.2);
+                background: rgba(199, 73, 42, 0.2);
                 border-radius: 3px;
             }
             
             .doc-sidebar-list::-webkit-scrollbar-thumb:hover,
             .doc-pdf-container::-webkit-scrollbar-thumb:hover {
-                background: rgba(2, 132, 199, 0.3);
+                background: rgba(199, 73, 42, 0.3);
             }
             
             /* ============================================

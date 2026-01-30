@@ -27,9 +27,23 @@ fi
 
 echo "[OK] Package ID: $PACKAGE_ID"
 
-# New sequence number (must be incremented)
-SEQUENCE=2
-echo "[INFO] Using sequence: $SEQUENCE"
+# Get current sequence number
+echo "[INFO] Detecting current sequence number..."
+CURRENT_SEQUENCE=$(docker exec cli bash -c "export CORE_PEER_LOCALMSPID=LTOMSP && \
+export CORE_PEER_TLS_ENABLED=true && \
+export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt && \
+export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp && \
+export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051 && \
+peer lifecycle chaincode querycommitted -C ltochannel --name vehicle-registration" | grep "Sequence:" | sed 's/.*Sequence: //;s/,.*//')
+
+if [ -z "$CURRENT_SEQUENCE" ]; then
+    echo "[WARN] Could not detect sequence. Defaulting to 2."
+    SEQUENCE=2
+else
+    SEQUENCE=$((CURRENT_SEQUENCE + 1))
+fi
+
+echo "[INFO] Using sequence: $SEQUENCE (Previous: ${CURRENT_SEQUENCE:-None})"
 
 # Function to approve for an org
 approve_org() {

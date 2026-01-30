@@ -108,14 +108,12 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
-      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       # Chaincode builder image substitution (avoids "FROM requires either one or three arguments")
       - DOCKER_NS=hyperledger
       - TWO_DIGIT_VERSION=2.5
     volumes:
       - /var/run/:/host/var/run/
       - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/msp:/etc/hyperledger/fabric/msp
-      - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls:/etc/hyperledger/fabric/tls
       - ./fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls:/etc/hyperledger/fabric/tls
       - peer-data:/var/hyperledger/production
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
@@ -168,13 +166,11 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
-      - FABRIC_CFG_PATH=/var/hyperledger/fabric/config
       - DOCKER_NS=hyperledger
       - TWO_DIGIT_VERSION=2.5
     volumes:
       - /var/run/:/host/var/run/
       - ./fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/peers/peer0.hpg.gov.ph/msp:/etc/hyperledger/fabric/msp
-      - ./fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/peers/peer0.hpg.gov.ph/tls:/etc/hyperledger/fabric/tls
       - ./fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/peers/peer0.hpg.gov.ph/tls:/etc/hyperledger/fabric/tls
       - peer-hpg-data:/var/hyperledger/production
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
@@ -227,13 +223,11 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
-      - FABRIC_CFG_PATH=/var/hyperledger/fabric/config
       - DOCKER_NS=hyperledger
       - TWO_DIGIT_VERSION=2.5
     volumes:
       - /var/run/:/host/var/run/
       - ./fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/peers/peer0.insurance.gov.ph/msp:/etc/hyperledger/fabric/msp
-      - ./fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/peers/peer0.insurance.gov.ph/tls:/etc/hyperledger/fabric/tls
       - ./fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/peers/peer0.insurance.gov.ph/tls:/etc/hyperledger/fabric/tls
       - peer-insurance-data:/var/hyperledger/production
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer

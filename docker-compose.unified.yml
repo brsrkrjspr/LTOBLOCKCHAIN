@@ -389,6 +389,25 @@ services:
           cpus: '0.25'
 
   # ============================================
+  # CHAINCODE AS A SERVICE (CCAAS) - vehicle-registration
+  # Bypasses peer Docker build (avoids "FROM requires either one or three arguments").
+  # Image built by: scripts/install-chaincode-ccaas.sh
+  # CORE_CHAINCODE_ID must be set after "peer lifecycle chaincode install" (see script).
+  # ============================================
+  chaincode-vehicle-reg:
+    image: vehicle-registration-cc:latest
+    container_name: chaincode-vehicle-reg
+    environment:
+      - CORE_CHAINCODE_ADDRESS=0.0.0.0:9999
+      - CORE_CHAINCODE_ID=${CHAINCODE_PACKAGE_ID:-}
+    ports:
+      - "9999:9999"
+    networks:
+      - trustchain
+    restart: "no"
+    # Start only after running: CHAINCODE_PACKAGE_ID=<id> docker compose up -d chaincode-vehicle-reg
+
+  # ============================================
   # POSTGRESQL DATABASE
   # ============================================
   postgres:

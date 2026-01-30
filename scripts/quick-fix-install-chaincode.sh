@@ -119,6 +119,11 @@ if echo "$INSTALL_OUTPUT" | grep -qi "error\|failed"; then
     else
         echo "❌ Failed to install chaincode:"
         echo "$INSTALL_OUTPUT" | tail -10
+        if echo "$INSTALL_OUTPUT" | grep -q "FROM requires either one or three arguments"; then
+            echo ""
+            echo "→ Use CCAAS install instead (bypasses peer Docker build):"
+            echo "  bash scripts/install-chaincode-ccaas.sh"
+        fi
         exit 1
     fi
 else

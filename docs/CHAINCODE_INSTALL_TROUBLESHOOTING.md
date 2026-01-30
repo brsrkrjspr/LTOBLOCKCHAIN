@@ -40,14 +40,22 @@
 
 ## If install still fails: "FROM requires either one or three arguments"
 
-Possible causes:
+The peer’s internal Dockerfile template can emit a `FROM` line with two arguments (image and tag separate), which Docker rejects. **Use CCAAS instead** so the peer never runs a Docker build.
 
-- Peer is using a different tag (e.g. from a custom `core.yaml`). Ensure the host has both tags:
-  ```bash
-  docker tag hyperledger/fabric-ccenv:2.5 hyperledger/fabric-ccenv:amd64-v2.5.0
-  # or the reverse, depending on what you pulled
-  ```
-- A custom `fabric-network/config/core.yaml` overrides chaincode builder. Use a **literal** value with no variables, e.g. `builder: hyperledger/fabric-ccenv:2.5`, so the generated Dockerfile has exactly one argument after `FROM`.
+**On the host:**
+
+```bash
+bash scripts/install-chaincode-ccaas.sh
+```
+
+This script will:
+
+1. Build the chaincode Docker image from `chaincode/vehicle-registration-production/Dockerfile`.
+2. Create a CCAAS package (metadata.json `type: "external"` + connection.json).
+3. Install that package on the peer (`peer lifecycle chaincode install`).
+4. Start the chaincode container with the package ID so the peer can connect.
+
+Then approve and commit the chaincode definition as usual (e.g. `complete-fix-restore-working-state.sh` or Fabric lifecycle docs).
 
 ## Fallback: Chaincode as a Service (CCAAS)
 

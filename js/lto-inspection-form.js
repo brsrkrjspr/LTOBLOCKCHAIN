@@ -490,9 +490,14 @@ async function loadPreMintedVehicles() {
         
         if (loadingEl) loadingEl.style.display = 'none';
         
-        if (response.success && response.vehicles) {
+        if (response.success && Array.isArray(response.vehicles)) {
             if (response.vehicles.length === 0) {
-                if (emptyEl) emptyEl.style.display = 'block';
+                if (emptyEl) {
+                    emptyEl.style.display = 'block';
+                    if (response.blockchainUnavailable && response.message) {
+                        emptyEl.textContent = response.message;
+                    }
+                }
                 if (containerEl) containerEl.style.display = 'none';
             } else {
                 if (containerEl) containerEl.style.display = 'block';
@@ -504,12 +509,16 @@ async function loadPreMintedVehicles() {
         }
     } catch (error) {
         console.error('Error loading pre-minted vehicles:', error);
-        showError('Failed to load pre-minted vehicles: ' + error.message);
-        
         const loadingEl = document.getElementById('preMintedVehiclesLoading');
         const containerEl = document.getElementById('preMintedVehiclesTableContainer');
+        const emptyEl = document.getElementById('preMintedVehiclesEmpty');
         if (loadingEl) loadingEl.style.display = 'none';
         if (containerEl) containerEl.style.display = 'none';
+        if (emptyEl) {
+            emptyEl.style.display = 'block';
+            emptyEl.textContent = 'Blockchain temporarily unavailable. Pre-minted list could not be loaded. You can still continue with inspection.';
+        }
+        showError('Pre-minted vehicles could not be loaded: ' + (error.message || 'network error'));
     }
 }
 

@@ -421,11 +421,29 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
         // Initialize Fabric service with user context
         await fabricService.initialize({ role: req.user.role, email: req.user.email });
         
-        // Get all vehicles from Fabric
-        const allVehicles = await fabricService.getAllTransactions({ 
-            role: req.user.role, 
-            email: req.user.email 
-        });
+        // Get all vehicles from Fabric (graceful degradation if chaincode not running)
+        let allVehicles;
+        try {
+            allVehicles = await fabricService.getAllTransactions({
+                role: req.user.role,
+                email: req.user.email
+            });
+        } catch (fabricErr) {
+            const msg = fabricErr.message || String(fabricErr);
+            const chaincodeDown = /not running chaincode|chaincode.*not found|peer.*not running/i.test(msg);
+            if (chaincodeDown) {
+                console.warn('Get vehicles from Fabric: chaincode unavailable, returning empty list:', msg);
+                return res.json({
+                    success: true,
+                    vehicles: [],
+                    count: 0,
+                    source: 'Hyperledger Fabric',
+                    blockchainUnavailable: true,
+                    message: 'Blockchain chaincode temporarily unavailable. Pre-minted vehicle list could not be loaded.'
+                });
+            }
+            throw fabricErr;
+        }
         
         // Filter by status if provided
         let vehicles = allVehicles;

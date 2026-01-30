@@ -2,6 +2,10 @@
 # Fix: Peer chaincode install fails with "manifest for hyperledger/fabric-ccenv:amd64-v2.5.0 not found"
 # The peer needs this image to build chaincode. Docker Hub may not have amd64-v2.5.0; we pull a valid tag and retag.
 # Run this on the host (where Docker runs), then re-run: bash scripts/quick-fix-install-chaincode.sh
+#
+# NOTE: For Node.js chaincode, the peer uses this same image as the *builder*. fabric-ccenv does not include npm,
+# so install will fail with "npm: not found". Use scripts/fix-node-chaincode-build.sh instead (pulls fabric-nodeenv
+# and tags as ccenv so the build has npm).
 
 set -e
 
@@ -35,4 +39,7 @@ echo "✓ Done."
 echo ""
 echo "Next: run chaincode install:"
 echo "  bash scripts/quick-fix-install-chaincode.sh"
+echo ""
+echo "If you use Node.js chaincode and get 'npm: not found', run instead:"
+echo "  bash scripts/fix-node-chaincode-build.sh"
 echo ""

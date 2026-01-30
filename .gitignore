@@ -50,4 +50,8 @@ wallet/*
 # Generated package files
 package-laptop.json
 
-fix.md
+# Fabric network state
+fabric-network/crypto-config/
+fabric-network/channel-artifacts/
+network-config.json
+wallet/

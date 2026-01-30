@@ -5,7 +5,7 @@ let currentVehicleId = null;
 let currentVehicle = null;
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Check authentication
     if (!AuthUtils.isAuthenticated()) {
         window.location.href = 'login-signup.html';
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Load pre-minted vehicles if on that tab
     const currentTab = localStorage.getItem('inspectionTab') || 'pre-minted';
     switchTab(currentTab);
-    
+
     if (currentTab === 'pre-minted') {
         await loadPreMintedVehicles();
     } else {
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 function setupTabs() {
     // Tab button click handlers
     document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             const tabName = this.getAttribute('data-tab');
             switchTab(tabName);
             localStorage.setItem('inspectionTab', tabName);
@@ -71,7 +71,7 @@ function setupTabs() {
     // Mint vehicle form submission
     const mintForm = document.getElementById('mintVehicleForm');
     if (mintForm) {
-        mintForm.addEventListener('submit', async function(e) {
+        mintForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             await submitMintVehicle();
         });
@@ -79,6 +79,14 @@ function setupTabs() {
 }
 
 function switchTab(tabName) {
+    // Validate tab existence, default to 'pre-minted' if invalid
+    let selectedTab = document.getElementById(`${tabName}Tab`);
+    if (!selectedTab) {
+        console.warn(`Tab '${tabName}' not found. Defaulting to 'preMinted'.`);
+        tabName = 'preMinted';
+        selectedTab = document.getElementById(`${tabName}Tab`);
+    }
+
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -87,16 +95,15 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     // Show selected tab
-    const selectedTab = document.getElementById(`${tabName}Tab`);
     const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
-    
+
     if (selectedTab) {
         selectedTab.classList.add('active');
         selectedTab.style.display = 'block';
     }
-    
+
     if (selectedButton) {
         selectedButton.classList.add('active');
     }
@@ -106,7 +113,7 @@ function setupEventListeners() {
     // Vehicle selection
     const vehicleSelect = document.getElementById('vehicleSelect');
     if (vehicleSelect) {
-        vehicleSelect.addEventListener('change', async function(e) {
+        vehicleSelect.addEventListener('change', async function (e) {
             const vehicleId = e.target.value;
             if (vehicleId) {
                 await loadVehicleDetails(vehicleId);
@@ -117,7 +124,7 @@ function setupEventListeners() {
     }
 
     // Form submission
-    document.getElementById('inspectionForm').addEventListener('submit', async function(e) {
+    document.getElementById('inspectionForm').addEventListener('submit', async function (e) {
         e.preventDefault();
         await submitInspection();
     });
@@ -125,20 +132,20 @@ function setupEventListeners() {
     // Photo preview
     const vehiclePhotosInput = document.getElementById('vehiclePhotos');
     if (vehiclePhotosInput) {
-        vehiclePhotosInput.addEventListener('change', function(e) {
+        vehiclePhotosInput.addEventListener('change', function (e) {
             const photoPreview = document.getElementById('photoPreview');
             if (!photoPreview) return;
-            
+
             photoPreview.innerHTML = '';
             const files = Array.from(this.files);
-            
+
             if (files.length === 0) {
                 return;
             }
-            
+
             files.forEach(file => {
                 const reader = new FileReader();
-                reader.onload = function(event) {
+                reader.onload = function (event) {
                     const img = document.createElement('img');
                     img.src = event.target.result;
                     img.style.cursor = 'pointer';
@@ -153,7 +160,7 @@ function setupEventListeners() {
     // Logout
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', async function(e) {
+        logoutBtn.addEventListener('click', async function (e) {
             e.preventDefault();
             const confirmed = await ToastNotification.confirm(
                 'Are you sure you want to logout?',
@@ -169,34 +176,34 @@ function setupEventListeners() {
 async function loadVehicles() {
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Get all vehicles that may need inspection.
         // We include:
         // - REGISTERED / APPROVED: vehicles that are already in the registry but may not have MVIR yet
         // - TRANSFER_IN_PROGRESS: vehicles currently in an ownership transfer (these MUST be inspectable)
         const response = await apiClient.get('/api/vehicles');
-        
+
         if (response.success && response.vehicles) {
             const vehicleSelect = document.getElementById('vehicleSelect');
             vehicleSelect.innerHTML = '<option value="">-- Select a vehicle --</option>';
-            
+
             // Filter eligible vehicles by status
-            const eligibleVehicles = response.vehicles.filter(v => 
+            const eligibleVehicles = response.vehicles.filter(v =>
                 v.status === 'APPROVED' ||
                 v.status === 'REGISTERED' ||
                 v.status === 'TRANSFER_IN_PROGRESS'
             );
-            
+
             eligibleVehicles.forEach(vehicle => {
                 const option = document.createElement('option');
                 option.value = vehicle.id;
-                const displayText = vehicle.plate_number 
+                const displayText = vehicle.plate_number
                     ? `${vehicle.plate_number} - ${vehicle.make} ${vehicle.model} (${vehicle.year})`
                     : `${vehicle.vin} - ${vehicle.make} ${vehicle.model} (${vehicle.year})`;
                 option.textContent = displayText;
                 vehicleSelect.appendChild(option);
             });
-            
+
             if (eligibleVehicles.length === 0) {
                 vehicleSelect.innerHTML = '<option value="">No vehicles available for inspection</option>';
             }
@@ -211,11 +218,11 @@ async function loadVehicleDetails(vehicleId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
-        
+
         if (response.success && response.vehicle) {
             currentVehicle = response.vehicle;
             currentVehicleId = vehicleId;
-            
+
             // Check if vehicle already has inspection
             if (response.vehicle.mvir_number) {
                 const proceed = await ToastNotification.confirm(
@@ -228,22 +235,22 @@ async function loadVehicleDetails(vehicleId) {
                         document.getElementById('vehicleSelect').value = '';
                     }
                 );
-                
+
                 if (!proceed) {
                     document.getElementById('vehicleSelect').value = '';
                     return;
                 }
             }
-            
+
             // Populate vehicle info - handle multiple field name variations and null values
             const vehicle = response.vehicle;
-            
+
             // Debug: Log vehicle data to help diagnose N/A issues
             // Check if we're in development mode (browser-compatible check)
-            const isDevelopment = window.location.hostname === 'localhost' || 
-                                  window.location.hostname === '127.0.0.1' ||
-                                  window.location.hostname.includes('localhost');
-            
+            const isDevelopment = window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
+                window.location.hostname.includes('localhost');
+
             if (isDevelopment) {
                 console.log('[LTO Inspection] Vehicle data received:', {
                     hasOwner: !!vehicle.owner,
@@ -259,51 +266,51 @@ async function loadVehicleDetails(vehicleId) {
                     vin: vehicle.vin
                 });
             }
-            
+
             // Owner name - try multiple field variations (current owner after transfer)
-            const ownerFirstName = vehicle.ownerFirstName || vehicle.owner_first_name || 
+            const ownerFirstName = vehicle.ownerFirstName || vehicle.owner_first_name ||
                 (vehicle.owner && vehicle.owner.firstName) || '';
-            const ownerLastName = vehicle.ownerLastName || vehicle.owner_last_name || 
+            const ownerLastName = vehicle.ownerLastName || vehicle.owner_last_name ||
                 (vehicle.owner && vehicle.owner.lastName) || '';
-            const ownerName = vehicle.ownerName || vehicle.owner_name || 
-                (vehicle.owner && vehicle.owner.name) || 
+            const ownerName = vehicle.ownerName || vehicle.owner_name ||
+                (vehicle.owner && vehicle.owner.name) ||
                 (ownerFirstName && ownerLastName ? `${ownerFirstName} ${ownerLastName}` : '') ||
                 vehicle.ownerEmail || vehicle.owner_email || '';
-            
+
             document.getElementById('ownerName').value = ownerName.trim() || 'Not Available';
-            
+
             // Plate number - try multiple variations
-            document.getElementById('plateNumber').value = 
+            document.getElementById('plateNumber').value =
                 vehicle.plateNumber || vehicle.plate_number || 'Pending Assignment';
-            
+
             // VIN - should always be present
             document.getElementById('vin').value = vehicle.vin || 'Not Available';
-            
+
             // Make/Model - combine with proper handling
             const make = vehicle.make || '';
             const model = vehicle.model || '';
-            document.getElementById('makeModel').value = 
+            document.getElementById('makeModel').value =
                 `${make} ${model}`.trim() || 'Not Available';
-            
+
             // Year - handle null/undefined (convert to string for input field)
             const yearValue = vehicle.year ? String(vehicle.year) : 'Not Available';
             document.getElementById('year').value = yearValue;
-            
+
             // Engine number - try multiple field variations
-            const engineNumber = vehicle.engineNumber || vehicle.engine_number || vehicle.engine_no || 
+            const engineNumber = vehicle.engineNumber || vehicle.engine_number || vehicle.engine_no ||
                 vehicle.engineNo || '';
             document.getElementById('engineNumber').value = engineNumber || 'Not Recorded';
-            
+
             // Chassis number - try multiple field variations, fallback to VIN if available
-            const chassisNumber = vehicle.chassisNumber || vehicle.chassis_number || vehicle.chassis_no || 
+            const chassisNumber = vehicle.chassisNumber || vehicle.chassis_number || vehicle.chassis_no ||
                 vehicle.chassisNo || '';
             document.getElementById('chassisNumber').value = chassisNumber || vehicle.vin || 'Not Recorded';
-            
+
             // Show vehicle info and inspection form
             document.getElementById('vehicleInfoCard').style.display = 'block';
             document.getElementById('inspectionFormCard').style.display = 'block';
             document.getElementById('successCard').style.display = 'none';
-            
+
             // Scroll to form
             document.getElementById('inspectionFormCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
@@ -328,73 +335,73 @@ async function submitInspection() {
         showError('Please select a vehicle first');
         return;
     }
-    
+
     const form = document.getElementById('inspectionForm');
-    
+
     // Get form values
     const inspectionResult = form.querySelector('input[name="inspectionResult"]:checked')?.value;
     const roadworthinessStatus = form.querySelector('input[name="roadworthinessStatus"]:checked')?.value;
     const inspectionOfficer = document.getElementById('inspectionOfficer').value.trim();
     const inspectionNotes = document.getElementById('inspectionNotes').value.trim();
-    
+
     // Get file inputs
     const mvirDocument = document.getElementById('mvirDocument').files[0];
     const vehiclePhotos = document.getElementById('vehiclePhotos').files;
     const additionalDocuments = document.getElementById('additionalDocuments').files;
-    
+
     // Validate required fields
     if (!inspectionResult || !roadworthinessStatus || !inspectionOfficer) {
         showError('Please fill in all required inspection fields');
         return;
     }
-    
+
     // Validate file uploads
     if (!mvirDocument) {
         showError('Please upload the MVIR document');
         return;
     }
-    
+
     if (vehiclePhotos.length === 0) {
         showError('Please upload at least one vehicle photo');
         return;
     }
-    
+
     // Validate file sizes
     const maxFileSize = 10 * 1024 * 1024; // 10MB
     if (mvirDocument.size > maxFileSize) {
         showError('MVIR document is too large (max 10MB)');
         return;
     }
-    
+
     for (let photo of vehiclePhotos) {
         if (photo.size > maxFileSize) {
             showError('One or more vehicle photos are too large (max 10MB each)');
             return;
         }
     }
-    
+
     // Show loading
     const submitButton = form.querySelector('button[type="submit"]');
     const originalText = submitButton.innerHTML;
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading and submitting...';
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // First upload the inspection documents
         const inspectionDocumentsFormData = new FormData();
         inspectionDocumentsFormData.append('vehicleId', currentVehicleId);
         inspectionDocumentsFormData.append('mvirDocument', mvirDocument);
-        
+
         for (let photo of vehiclePhotos) {
             inspectionDocumentsFormData.append('vehiclePhotos', photo);
         }
-        
+
         for (let doc of additionalDocuments) {
             inspectionDocumentsFormData.append('additionalDocuments', doc);
         }
-        
+
         // Upload inspection documents
         const docResponse = await fetch('/api/lto/inspect-documents', {
             method: 'POST',
@@ -403,14 +410,14 @@ async function submitInspection() {
             },
             body: inspectionDocumentsFormData
         });
-        
+
         if (!docResponse.ok) {
             const errorData = await docResponse.json();
             throw new Error(errorData.error || 'Failed to upload inspection documents');
         }
-        
+
         const docData = await docResponse.json();
-        
+
         // Now submit the inspection results with document references
         const inspectionResponse = await apiClient.post('/api/lto/inspect', {
             vehicleId: currentVehicleId,
@@ -420,16 +427,16 @@ async function submitInspection() {
             inspectionNotes: inspectionNotes || null,
             documentReferences: docData.documentReferences || {}
         });
-        
+
         if (inspectionResponse.success) {
             // Show success message
             document.getElementById('mvirNumberDisplay').textContent = inspectionResponse.inspection.mvirNumber;
             document.getElementById('inspectionFormCard').style.display = 'none';
             document.getElementById('successCard').style.display = 'block';
-            
+
             // Scroll to success message
             document.getElementById('successCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            
+
             // Show toast notification
             if (window.ToastNotification) {
                 ToastNotification.show(`Inspection completed! MVIR: ${inspectionResponse.inspection.mvirNumber}`, 'success');
@@ -448,16 +455,16 @@ async function submitInspection() {
 function resetForm() {
     document.getElementById('vehicleSelect').value = '';
     document.getElementById('inspectionForm').reset();
-    
+
     // Reset inspection officer to current user
     const currentUser = AuthUtils.getCurrentUser();
     const officerName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim();
     if (officerName) {
         document.getElementById('inspectionOfficer').value = officerName;
     }
-    
+
     hideVehicleInfo();
-    
+
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -480,16 +487,16 @@ async function loadPreMintedVehicles() {
         const containerEl = document.getElementById('preMintedVehiclesTableContainer');
         const emptyEl = document.getElementById('preMintedVehiclesEmpty');
         const tbodyEl = document.getElementById('preMintedVehiclesTableBody');
-        
+
         if (loadingEl) loadingEl.style.display = 'block';
         if (containerEl) containerEl.style.display = 'none';
         if (emptyEl) emptyEl.style.display = 'none';
-        
+
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/blockchain/vehicles?status=MINTED');
-        
+
         if (loadingEl) loadingEl.style.display = 'none';
-        
+
         if (response.success && Array.isArray(response.vehicles)) {
             if (response.vehicles.length === 0) {
                 if (emptyEl) {
@@ -525,19 +532,19 @@ async function loadPreMintedVehicles() {
 function displayPreMintedVehicles(vehicles) {
     const tbodyEl = document.getElementById('preMintedVehiclesTableBody');
     if (!tbodyEl) return;
-    
+
     tbodyEl.innerHTML = '';
-    
+
     vehicles.forEach(vehicle => {
         const row = document.createElement('tr');
-        
+
         const mintedDate = vehicle.mintedAt || vehicle.createdAt || vehicle.lastUpdated || 'N/A';
         const formattedDate = mintedDate !== 'N/A' ? new Date(mintedDate).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
         }) : 'N/A';
-        
+
         row.innerHTML = `
             <td><strong>${vehicle.vin || 'N/A'}</strong></td>
             <td>${vehicle.make || ''} ${vehicle.model || ''}</td>
@@ -551,7 +558,7 @@ function displayPreMintedVehicles(vehicles) {
                 </button>
             </td>
         `;
-        
+
         tbodyEl.appendChild(row);
     });
 }
@@ -560,10 +567,10 @@ async function viewPreMintedVehicle(vin) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/blockchain/vehicles/${vin}`);
-        
+
         if (response.success && response.vehicle) {
             const vehicle = response.vehicle;
-            
+
             // Show vehicle details in a modal or alert
             const details = `
 VIN: ${vehicle.vin}
@@ -577,7 +584,7 @@ Chassis Number: ${vehicle.chassisNumber || 'N/A'}
 Status: ${vehicle.status}
 Minted Date: ${vehicle.mintedAt ? new Date(vehicle.mintedAt).toLocaleString() : 'N/A'}
             `;
-            
+
             alert(details);
         } else {
             throw new Error(response.error || 'Vehicle not found');
@@ -591,7 +598,7 @@ Minted Date: ${vehicle.mintedAt ? new Date(vehicle.mintedAt).toLocaleString() : 
 async function submitMintVehicle() {
     const form = document.getElementById('mintVehicleForm');
     if (!form) return;
-    
+
     // Get form values
     const vehicleData = {
         vin: document.getElementById('mintVin').value.trim(),
@@ -607,39 +614,39 @@ async function submitMintVehicle() {
         vehicleCategory: document.getElementById('mintVehicleCategory').value.trim() || '',
         classification: document.getElementById('mintClassification').value || 'Private'
     };
-    
+
     // Validate required fields
     if (!vehicleData.vin || !vehicleData.make || !vehicleData.model || !vehicleData.year) {
         showError('Please fill in all required fields: VIN, Make, Model, Year');
         return;
     }
-    
+
     // Validate year
     if (vehicleData.year < 1900 || vehicleData.year > 2100) {
         showError('Please enter a valid year');
         return;
     }
-    
+
     // Show loading
     const submitButton = form.querySelector('button[type="submit"]');
     const originalText = submitButton.innerHTML;
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Minting on Blockchain...';
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.post('/api/blockchain/vehicles/mint', vehicleData);
-        
+
         if (response.success) {
             if (window.ToastNotification) {
                 ToastNotification.show(`Vehicle ${vehicleData.vin} minted successfully on Fabric!`, 'success');
             } else {
                 alert(`Vehicle ${vehicleData.vin} minted successfully!`);
             }
-            
+
             // Reset form
             resetMintForm();
-            
+
             // Reload pre-minted vehicles list
             await loadPreMintedVehicles();
         } else {

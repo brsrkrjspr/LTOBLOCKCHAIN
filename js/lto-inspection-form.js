@@ -612,7 +612,10 @@ async function submitMintVehicle() {
         chassisNumber: document.getElementById('mintChassisNumber').value.trim() || '',
         vehicleType: document.getElementById('mintVehicleType').value || 'Car',
         vehicleCategory: document.getElementById('mintVehicleCategory').value.trim() || '',
-        classification: document.getElementById('mintClassification').value || 'Private'
+        classification: document.getElementById('mintClassification').value || 'Private',
+        passengerCapacity: 0,
+        grossVehicleWeight: 0,
+        netWeight: 0
     };
 
     // Validate required fields

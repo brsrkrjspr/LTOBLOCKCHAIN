@@ -25,7 +25,7 @@ class OptimizedFabricService {
             // Check if userEmail is enrolled, otherwise use admin-lto
             return userEmail || 'admin-lto';
         }
-        if (['hpg_admin', 'hpg_officer'].includes(userRole) || 
+        if (['hpg_admin', 'hpg_officer'].includes(userRole) ||
             (userRole === 'admin' && userEmail && userEmail.toLowerCase().includes('hpg'))) {
             return userEmail || 'admin-hpg';
         }
@@ -46,7 +46,7 @@ class OptimizedFabricService {
 
         // Check if network configuration exists
         let connectionProfilePath = path.join(__dirname, '../../network-config.json');
-        
+
         if (!fs.existsSync(connectionProfilePath)) {
             // Try YAML file
             connectionProfilePath = path.join(__dirname, '../../network-config.yaml');
@@ -55,7 +55,7 @@ class OptimizedFabricService {
             }
             throw new Error('YAML connection profile not supported. Please use network-config.json');
         }
-        
+
         // Load JSON connection profile
         let connectionProfile;
         try {
@@ -63,23 +63,23 @@ class OptimizedFabricService {
         } catch (error) {
             throw new Error(`Failed to parse network configuration: ${error.message}`);
         }
-        
+
         console.log('🔗 Connecting to Hyperledger Fabric network...');
 
         // Create wallet
         const walletPath = path.join(__dirname, '../../wallet');
         this.wallet = await Wallets.newFileSystemWallet(walletPath);
-        
+
         // Determine identity to use based on user context
         let identityToUse = 'admin'; // default fallback
-        
+
         if (userContext) {
             identityToUse = this.getFabricIdentityForUser(
-                userContext.role, 
+                userContext.role,
                 userContext.email
             );
         }
-        
+
         // Check if identity exists in wallet
         const identityExists = await this.wallet.get(identityToUse);
         if (!identityExists) {
@@ -97,7 +97,7 @@ class OptimizedFabricService {
             // Note: asLocalhost setting - true for localhost access, false for Docker network names
             // Set FABRIC_AS_LOCALHOST=false in .env to use Docker network names instead of localhost
             const asLocalhost = process.env.FABRIC_AS_LOCALHOST !== 'false';
-            
+
             // Disconnect existing connection if any
             if (this.isConnected) {
                 try {
@@ -106,11 +106,15 @@ class OptimizedFabricService {
                     // Ignore disconnect errors
                 }
             }
-            
+
             await this.gateway.connect(connectionProfile, {
                 wallet: this.wallet,
                 identity: identityToUse, // Dynamic identity selection
                 discovery: { enabled: true, asLocalhost: asLocalhost },
+                queryHandlerOptions: {
+                    timeout: 60, // Increase query timeout from default
+                    strategy: 'MSPID_SCOPE_SINGLE'
+                },
                 eventHandlerOptions: {
                     commitTimeout: 300,
                     strategy: null
@@ -240,13 +244,13 @@ class OptimizedFabricService {
                     return expiry.toISOString();
                 })()
             };
-            
+
             const vehicleJson = JSON.stringify(vehiclePayload);
             // Use createTransaction() to get access to transaction ID
             const transaction = this.contract.createTransaction('RegisterVehicle');
             const fabricResult = await transaction.submit(vehicleJson);
             const transactionId = transaction.getTransactionId();
-            
+
             const result = {
                 success: true,
                 message: 'Vehicle registered successfully on Fabric',
@@ -270,7 +274,7 @@ class OptimizedFabricService {
         if (this.mode !== 'fabric') {
             throw new Error('CRITICAL: Mock blockchain service is not allowed. Real Hyperledger Fabric connection required.');
         }
-        
+
         if (!this.isConnected) {
             throw new Error('Not connected to Fabric network. Cannot query vehicle.');
         }
@@ -281,23 +285,23 @@ class OptimizedFabricService {
             if (userContext) {
                 const userRole = userContext.role;
                 const userEmail = userContext.email;
-                
+
                 // HPG and Insurance should use filtered query
-                if (['hpg_admin', 'hpg_officer'].includes(userRole) || 
+                if (['hpg_admin', 'hpg_officer'].includes(userRole) ||
                     (userRole === 'admin' && userEmail && userEmail.toLowerCase().includes('hpg'))) {
                     useFilteredQuery = true;
                 }
-                
+
                 if (['insurance_verifier', 'insurance_admin'].includes(userRole)) {
                     useFilteredQuery = true;
                 }
             }
-            
+
             // Use appropriate query function
             const queryFunction = useFilteredQuery ? 'GetVehicleForVerification' : 'GetVehicle';
             const result = await this.contract.evaluateTransaction(queryFunction, vin);
             const vehicle = JSON.parse(result.toString());
-            
+
             return {
                 success: true,
                 vehicle: vehicle,
@@ -307,16 +311,16 @@ class OptimizedFabricService {
         } catch (error) {
             // Check if it's a "not found" error
             const errorMessage = error.message || error.toString();
-            const isNotFound = errorMessage.includes('not found') || 
-                              errorMessage.includes('Vehicle with VIN') ||
-                              errorMessage.includes('does not exist') ||
-                              (error.status === 500 && errorMessage.includes('Failed to get vehicle'));
-            
+            const isNotFound = errorMessage.includes('not found') ||
+                errorMessage.includes('Vehicle with VIN') ||
+                errorMessage.includes('does not exist') ||
+                (error.status === 500 && errorMessage.includes('Failed to get vehicle'));
+
             if (isNotFound) {
                 // Return a structured error that can be handled gracefully
                 throw new Error(`Vehicle with VIN ${vin} not found`);
             }
-            
+
             console.error('❌ Failed to get vehicle from Fabric:', error);
             throw new Error(`Vehicle query failed: ${errorMessage}`);
         }
@@ -333,7 +337,7 @@ class OptimizedFabricService {
             const transaction = this.contract.createTransaction('UpdateVerificationStatus');
             const fabricResult = await transaction.submit(vin, verificationType, status, notes || '');
             const transactionId = transaction.getTransactionId();
-            
+
             const result = {
                 success: true,
                 message: 'Verification status updated successfully on Fabric',
@@ -361,12 +365,12 @@ class OptimizedFabricService {
         try {
             const newOwnerJson = JSON.stringify(newOwnerData);
             const transferJson = JSON.stringify(transferData);
-            
+
             // Use createTransaction() to get access to transaction ID
             const transaction = this.contract.createTransaction('TransferOwnership');
             const fabricResult = await transaction.submit(vin, newOwnerJson, transferJson);
             const transactionId = transaction.getTransactionId();
-            
+
             return {
                 success: true,
                 message: 'Ownership transferred successfully on Fabric',
@@ -386,17 +390,17 @@ class OptimizedFabricService {
         if (this.mode !== 'fabric') {
             throw new Error('Blockchain service is not available. BLOCKCHAIN_MODE must be fabric.');
         }
-        
+
         if (!this.isConnected || !this.contract) {
             throw new Error('Not connected to Fabric network. Cannot delete vehicle.');
         }
-        
+
         try {
             // Use createTransaction() to get access to transaction ID
             const transaction = this.contract.createTransaction('DeleteVehicle');
             const fabricResult = await transaction.submit(vin);
             const transactionId = transaction.getTransactionId();
-            
+
             return {
                 success: true,
                 message: 'Vehicle deleted successfully from blockchain',
@@ -414,17 +418,17 @@ class OptimizedFabricService {
         if (this.mode !== 'fabric') {
             throw new Error('Blockchain service is not available. BLOCKCHAIN_MODE must be fabric.');
         }
-        
+
         if (!this.isConnected || !this.contract) {
             throw new Error('Not connected to Fabric network. Cannot scrap vehicle.');
         }
-        
+
         try {
             // Use createTransaction() to get access to transaction ID
             const transaction = this.contract.createTransaction('ScrapVehicle');
             const fabricResult = await transaction.submit(vin, scrapReason);
             const transactionId = transaction.getTransactionId();
-            
+
             return {
                 success: true,
                 message: 'Vehicle scrapped successfully on blockchain',
@@ -446,7 +450,7 @@ class OptimizedFabricService {
         try {
             const result = await this.contract.evaluateTransaction('GetVehiclesByOwner', ownerEmail);
             const vehicles = JSON.parse(result.toString());
-            
+
             return {
                 success: true,
                 vehicles: vehicles
@@ -467,7 +471,7 @@ class OptimizedFabricService {
         try {
             const result = await this.contract.evaluateTransaction('GetVehicleHistory', vin);
             const history = JSON.parse(result.toString());
-            
+
             return {
                 success: true,
                 history: history
@@ -488,7 +492,7 @@ class OptimizedFabricService {
         try {
             const result = await this.contract.evaluateTransaction('GetOwnershipHistory', vin);
             const ownershipData = JSON.parse(result.toString());
-            
+
             return {
                 success: true,
                 currentOwner: ownershipData.currentOwner,
@@ -511,7 +515,7 @@ class OptimizedFabricService {
         try {
             const result = await this.contract.evaluateTransaction('GetSystemStats');
             const stats = JSON.parse(result.toString());
-            
+
             return {
                 success: true,
                 stats: stats
@@ -534,12 +538,12 @@ class OptimizedFabricService {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     const vehicleResult = await this.getVehicle(vin);
-                    
+
                     if (vehicleResult.success && vehicleResult.vehicle) {
                         const vehicle = vehicleResult.vehicle;
-                        
+
                         // Check if this vehicle has the matching transaction ID
-                        if (vehicle.blockchainTxId === transactionId || 
+                        if (vehicle.blockchainTxId === transactionId ||
                             vehicle.history?.some(h => h.transactionId === transactionId)) {
                             return {
                                 status: 'committed',
@@ -557,11 +561,11 @@ class OptimizedFabricService {
                     // Continue retrying
                     if (attempt < maxRetries) {
                         const isNotFoundError = vehicleError.message && (
-                            vehicleError.message.includes('not found') || 
+                            vehicleError.message.includes('not found') ||
                             vehicleError.message.includes('Vehicle with VIN') ||
                             vehicleError.message.includes('does not exist')
                         );
-                        
+
                         if (isNotFoundError) {
                             console.log(`⏳ Vehicle ${vin} not yet available on ledger (attempt ${attempt}/${maxRetries}), retrying in ${retryDelay}ms...`);
                         } else {
@@ -582,7 +586,7 @@ class OptimizedFabricService {
                     }
                 }
             }
-            
+
             // If we get here, all retries exhausted without finding vehicle
             return {
                 status: 'pending',
@@ -614,15 +618,15 @@ class OptimizedFabricService {
             }
 
             const channelName = 'ltochannel'; // Your channel name
-            
+
             // Use qscc (Query System Chaincode) to get chain info
             // qscc is a built-in system chaincode available on all Fabric networks
             try {
                 const qscc = this.network.getContract('qscc');
-                
+
                 // GetChainInfo returns: height, currentBlockHash, previousBlockHash
                 const chainInfoBytes = await qscc.evaluateTransaction('GetChainInfo', channelName);
-                
+
                 if (!chainInfoBytes || chainInfoBytes.length === 0) {
                     throw new Error('GetChainInfo returned empty result');
                 }
@@ -636,9 +640,9 @@ class OptimizedFabricService {
                     console.warn('⚠️ fabric-protos not found, using alternative parsing');
                     throw new Error('fabric-protos not available');
                 }
-                
+
                 const blockchainInfo = fabricProtos.common.BlockchainInfo.decode(chainInfoBytes);
-                
+
                 return {
                     height: Number(blockchainInfo.height.toString()),
                     currentBlockHash: this.bufferToHex(blockchainInfo.currentBlockHash),
@@ -649,7 +653,7 @@ class OptimizedFabricService {
                 console.error('❌ CRITICAL: qscc GetChainInfo failed:', qsccError.message);
                 throw new Error(`Failed to query chain info from Fabric: ${qsccError.message}. Chaincode query failed - Fabric network may be unavailable.`);
             }
-            
+
         } catch (error) {
             console.error('❌ CRITICAL: Failed to query chain info from Fabric:', error);
             console.error('Error details:', {
@@ -666,27 +670,27 @@ class OptimizedFabricService {
         try {
             const fabricProtos = require('fabric-protos');
             const txIds = [];
-            
+
             // Check if block.data exists
             if (!block || !block.data) {
                 console.warn('⚠️ Block or block.data is missing');
                 return [];
             }
-            
+
             // In fabric-protos, block.data.data is an array of Envelope bytes
             const envelopeBytes = block.data.data || [];
-            
+
             if (!Array.isArray(envelopeBytes) || envelopeBytes.length === 0) {
                 console.log(`ℹ️ Block ${block.header?.number?.toString() || 'unknown'} has no envelopes`);
                 return [];
             }
-            
+
             console.log(`🔍 Processing block ${block.header?.number?.toString() || 'unknown'} with ${envelopeBytes.length} envelopes`);
-            
+
             for (let i = 0; i < envelopeBytes.length; i++) {
                 try {
                     const envelopeBytesItem = envelopeBytes[i];
-                    
+
                     // Check if it's already a Buffer or needs to be converted
                     let envelopeBuffer = envelopeBytesItem;
                     if (Buffer.isBuffer(envelopeBytesItem)) {
@@ -699,25 +703,25 @@ class OptimizedFabricService {
                         console.warn(`⚠️ Envelope ${i} is not in expected format:`, typeof envelopeBytesItem);
                         continue;
                     }
-                    
+
                     // Decode the envelope
                     const envelope = fabricProtos.common.Envelope.decode(envelopeBuffer);
-                    
+
                     if (!envelope || !envelope.payload) {
                         console.warn(`⚠️ Envelope ${i} has no payload`);
                         continue;
                     }
-                    
+
                     // Extract transaction ID from channel header
                     const payload = fabricProtos.common.Payload.decode(envelope.payload);
-                    
+
                     if (!payload || !payload.header || !payload.header.channel_header) {
                         console.warn(`⚠️ Envelope ${i} has no channel header`);
                         continue;
                     }
-                    
+
                     const channelHeader = fabricProtos.common.ChannelHeader.decode(payload.header.channel_header);
-                    
+
                     if (channelHeader && channelHeader.tx_id) {
                         const txId = channelHeader.tx_id;
                         txIds.push(txId);
@@ -732,7 +736,7 @@ class OptimizedFabricService {
                     continue;
                 }
             }
-            
+
             console.log(`✅ Block ${block.header?.number?.toString() || 'unknown'} extracted ${txIds.length} transaction IDs`);
             return txIds;
         } catch (error) {
@@ -751,7 +755,7 @@ class OptimizedFabricService {
     summarizeBlock(block) {
         const header = block?.header || {};
         const txIds = this.extractTxIdsFromBlock(block);
-        
+
         // Extract timestamp from first transaction envelope
         let firstTimestamp = null;
         try {
@@ -762,7 +766,7 @@ class OptimizedFabricService {
                     const envelope = fabricProtos.common.Envelope.decode(envelopeBytesItem);
                     const payload = fabricProtos.common.Payload.decode(envelope.payload);
                     const channelHeader = fabricProtos.common.ChannelHeader.decode(payload.header.channel_header);
-                    
+
                     if (channelHeader.timestamp) {
                         // Convert protobuf Timestamp to JavaScript Date
                         const seconds = channelHeader.timestamp.seconds?.toNumber() || 0;
@@ -820,13 +824,13 @@ class OptimizedFabricService {
             const channelName = 'ltochannel';
             const qscc = this.network.getContract('qscc');
             const fabricProtos = require('fabric-protos');
-            
+
             const blockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, numericBlock.toString());
-            
+
             if (!blockBytes || blockBytes.length === 0) {
                 throw new Error(`Block ${blockNumber} not found`);
             }
-            
+
             const block = fabricProtos.common.Block.decode(blockBytes);
             return this.summarizeBlock(block);
         } catch (error) {
@@ -851,16 +855,16 @@ class OptimizedFabricService {
             const channelName = 'ltochannel';
             const qscc = this.network.getContract('qscc');
             const fabricProtos = require('fabric-protos');
-            
+
             const blockBytes = await qscc.evaluateTransaction('GetBlockByTxID', channelName, txId);
-            
+
             if (!blockBytes || blockBytes.length === 0) {
                 throw new Error(`Block containing transaction ${txId} not found`);
             }
-            
+
             const block = fabricProtos.common.Block.decode(blockBytes);
             const summary = this.summarizeBlock(block);
-            
+
             return {
                 ...summary,
                 txId,
@@ -1018,10 +1022,10 @@ class OptimizedFabricService {
             // REAL FABRIC ONLY: Both methods below use REAL Fabric services (no mocks)
             // Method 1: Try native queryTransaction + queryBlockByTxID (if available in SDK version)
             // Method 2: Use qscc (Query System Chaincode) - REAL Fabric system chaincode, not a mock
-            
+
             const hasQueryTransaction = typeof this.channel.queryTransaction === 'function';
             const hasQueryBlockByTxID = typeof this.channel.queryBlockByTxID === 'function';
-            
+
             if (hasQueryTransaction && hasQueryBlockByTxID) {
                 try {
                     const [processedTx, block] = await Promise.all([
@@ -1080,27 +1084,27 @@ class OptimizedFabricService {
             // qscc is built into Hyperledger Fabric and provides real blockchain queries
             // This is NOT a mock - it's a real Fabric system chaincode
             console.log('📋 Querying transaction proof via qscc (REAL Fabric system chaincode)');
-            
+
             if (!this.network) {
                 throw new Error('Network not initialized. Cannot query transaction proof.');
             }
-            
+
             const channelName = 'ltochannel';
             const qscc = this.network.getContract('qscc');
             const fabricProtos = require('fabric-protos');
-            
+
             try {
                 // Use qscc GetBlockByTxID to get the block containing the transaction
                 const blockBytes = await qscc.evaluateTransaction('GetBlockByTxID', channelName, txId);
-                
+
                 if (!blockBytes || blockBytes.length === 0) {
                     throw new Error(`Transaction ${txId} not found on ledger`);
                 }
-                
+
                 const block = fabricProtos.common.Block.decode(blockBytes);
                 const summary = this.summarizeBlock(block);
                 const txIndex = summary.txIds.findIndex(id => id === txId);
-                
+
                 // Try to get transaction details via qscc GetTransactionByID
                 let transactionDetails = null;
                 try {
@@ -1116,7 +1120,7 @@ class OptimizedFabricService {
                 } catch (txError) {
                     console.warn('⚠️ Could not get transaction details via qscc:', txError.message);
                 }
-                
+
                 return {
                     transactionId: txId,
                     validationCode: transactionDetails?.validationCode ?? 0,
@@ -1142,7 +1146,7 @@ class OptimizedFabricService {
                 console.error('❌ REAL Fabric qscc query failed:', qsccError.message);
                 throw new Error(`REAL Fabric transaction proof query failed via qscc: ${qsccError.message}. No fallbacks to mocks allowed.`);
             }
-            
+
         } catch (error) {
             console.error('❌ Failed to build transaction proof:', error);
             console.error('Error details:', {
@@ -1172,33 +1176,33 @@ class OptimizedFabricService {
             if (userContext) {
                 const userRole = userContext.role;
                 const userEmail = userContext.email;
-                
+
                 // HPG and Insurance should use filtered query
-                if (['hpg_admin', 'hpg_officer'].includes(userRole) || 
+                if (['hpg_admin', 'hpg_officer'].includes(userRole) ||
                     (userRole === 'admin' && userEmail && userEmail.toLowerCase().includes('hpg'))) {
                     useFilteredQuery = true;
                 }
-                
+
                 if (['insurance_verifier', 'insurance_admin'].includes(userRole)) {
                     useFilteredQuery = true;
                 }
             }
-            
+
             // Query all vehicles from chaincode
             const queryFunction = useFilteredQuery ? 'QueryVehiclesForVerification' : 'GetAllVehicles';
             const vehiclesResult = await this.contract.evaluateTransaction(queryFunction);
-            
+
             if (!vehiclesResult || vehiclesResult.length === 0) {
                 console.log('⚠️  GetAllVehicles returned empty result');
                 return [];
             }
-            
+
             const vehiclesJson = vehiclesResult.toString();
             if (!vehiclesJson || vehiclesJson.trim() === '') {
                 console.log('⚠️  GetAllVehicles returned empty string');
                 return [];
             }
-            
+
             let vehicles;
             try {
                 vehicles = JSON.parse(vehiclesJson);
@@ -1207,20 +1211,20 @@ class OptimizedFabricService {
                 console.error('Raw response:', vehiclesJson.substring(0, 200));
                 throw new Error(`Invalid JSON response from chaincode: ${parseError.message}`);
             }
-            
+
             // Ensure vehicles is an array
             if (!Array.isArray(vehicles)) {
                 console.warn('⚠️  GetAllVehicles did not return an array, got:', typeof vehicles);
                 return [];
             }
-            
+
             // Build transactions from vehicle histories
             const transactions = [];
-            
-            // Get all blocks to map transactions to block numbers
+
+            // Get recent blocks to map transactions to block numbers (optimized)
             let blockMap = new Map(); // txId -> blockNumber
             try {
-                const blocks = await this.getAllBlocks();
+                const blocks = await this.getAllBlocks(50); // Only get last 50 blocks for mapping
                 blocks.forEach(block => {
                     if (block.txIds && Array.isArray(block.txIds)) {
                         block.txIds.forEach(txId => {
@@ -1234,7 +1238,7 @@ class OptimizedFabricService {
             } catch (blockError) {
                 console.warn('⚠️ Could not get blocks for transaction mapping:', blockError.message);
             }
-            
+
             vehicles.forEach(vehicle => {
                 // Add registration transaction
                 if (vehicle.blockchainTxId) {
@@ -1259,7 +1263,7 @@ class OptimizedFabricService {
                         }
                     });
                 }
-                
+
                 // Add history entries as transactions
                 if (vehicle.history && Array.isArray(vehicle.history)) {
                     vehicle.history.forEach(historyEntry => {
@@ -1283,7 +1287,7 @@ class OptimizedFabricService {
                     });
                 }
             });
-            
+
             // Sort by timestamp (newest first)
             return transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         } catch (error) {
@@ -1298,8 +1302,8 @@ class OptimizedFabricService {
         return '0x' + crypto.createHash('sha256').update(data).digest('hex');
     }
 
-    // Get all blocks from Fabric using qscc (REAL blocks, not simulated)
-    async getAllBlocks() {
+    // Get latest blocks from Fabric using qscc (optimized with limit)
+    async getAllBlocks(limit = 20) {
         if (!this.isConnected || this.mode !== 'fabric') {
             throw new Error('Not connected to Fabric network. Cannot query blocks.');
         }
@@ -1311,11 +1315,11 @@ class OptimizedFabricService {
         try {
             const channelName = 'ltochannel';
             const qscc = this.network.getContract('qscc');
-            
+
             // Get chain height
             const chainInfo = await this.getChainInfo();
             const height = chainInfo.height || 0;
-            
+
             if (height === 0) {
                 return [{
                     blockNumber: 0,
@@ -1331,9 +1335,10 @@ class OptimizedFabricService {
 
             const blocks = [];
             const fabricProtos = require('fabric-protos');
-            
-            // Query each actual block from Fabric using qscc
-            for (let i = 0; i < height; i++) {
+
+            // Query actual blocks from Fabric using qscc (most recent first)
+            const startBlock = Math.max(0, height - limit);
+            for (let i = height - 1; i >= startBlock; i--) {
                 try {
                     const blockBytes = await qscc.evaluateTransaction('GetBlockByNumber', channelName, i.toString());
                     if (blockBytes && blockBytes.length > 0) {
@@ -1349,7 +1354,7 @@ class OptimizedFabricService {
                     // Continue with other blocks - don't fail entire operation
                 }
             }
-            
+
             return blocks;
         } catch (error) {
             console.error('❌ Failed to get blocks from Fabric:', error);
@@ -1389,7 +1394,7 @@ class OptimizedFabricService {
         if (!this.isConnected || this.mode !== 'fabric') {
             throw new Error('Not connected to Fabric network');
         }
-        
+
         // CRITICAL: Do NOT scan entire ledger - this is extremely inefficient
         // Instead, throw an error indicating that DB-first lookup is required
         // The backend route should use vehicle_history table to map txId -> vin first,
@@ -1400,7 +1405,7 @@ class OptimizedFabricService {
             'then query Fabric by VIN. Transaction IDs are not directly indexed in Fabric.'
         );
     }
-    
+
     // Helper method: Get transaction by VIN (if chaincode supports it)
     // This is more efficient than scanning all transactions
     async getTransactionByVin(vin) {
@@ -1408,11 +1413,11 @@ class OptimizedFabricService {
         if (this.mode !== 'fabric') {
             throw new Error('Real Hyperledger Fabric connection required');
         }
-        
+
         if (!this.isConnected) {
             throw new Error('Not connected to Fabric network');
         }
-        
+
         try {
             // Query vehicle by VIN (this is indexed in chaincode)
             const vehicle = await this.getVehicle(vin);
@@ -1448,7 +1453,7 @@ class OptimizedFabricService {
             const transaction = this.contract.createTransaction('MintVehicle');
             const fabricResult = await transaction.submit(vehicleJson);
             const transactionId = transaction.getTransactionId();
-            
+
             return {
                 success: true,
                 message: 'Vehicle minted successfully on Fabric',
@@ -1472,11 +1477,11 @@ class OptimizedFabricService {
         try {
             const ownerJson = JSON.stringify(ownerData);
             const registrationJson = JSON.stringify(registrationData || {});
-            
+
             const transaction = this.contract.createTransaction('AttachOwnerToMintedVehicle');
             const fabricResult = await transaction.submit(vin, ownerJson, registrationJson);
             const transactionId = transaction.getTransactionId();
-            
+
             return {
                 success: true,
                 message: 'Owner attached to minted vehicle successfully on Fabric',
@@ -1501,7 +1506,7 @@ class OptimizedFabricService {
             const transaction = this.contract.createTransaction('UpdateCertificateHash');
             const result = await transaction.submit(vin, certificateType, pdfHash, ipfsCid);
             const transactionId = transaction.getTransactionId();
-            
+
             return {
                 success: true,
                 message: 'Certificate hash updated on Fabric',

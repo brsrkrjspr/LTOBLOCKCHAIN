@@ -30,6 +30,8 @@ for NODEENV_IMAGE in \
         echo "✓ Pulled ${NODEENV_IMAGE}"
         echo "  Tagging as ${TARGET_IMAGE} (required by peer build)..."
         docker tag "${NODEENV_IMAGE}" "${TARGET_IMAGE}"
+        echo "  Tagging as hyperledger/fabric-ccenv:2.5 (peer may use TWO_DIGIT_VERSION=2.5)..."
+        docker tag "${NODEENV_IMAGE}" "hyperledger/fabric-ccenv:2.5"
         echo "✓ Done."
         echo ""
         echo "Next: run chaincode install:"

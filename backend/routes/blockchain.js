@@ -53,15 +53,68 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
             });
         }
 
-        // Invoke blockchain chaincode
-        const result = await fabricService.registerVehicle(vehicleData);
+        // Check if vehicle already exists on blockchain (to handle Pre-Minted logic)
+        // This is critical for the "No Dealership Node" workflow where vehicles are pre-minted by LTO
+        let existingVehicle = null;
+        try {
+            const checkResult = await fabricService.getVehicle(vehicleData.vin);
+            if (checkResult.success && checkResult.vehicle) {
+                existingVehicle = checkResult.vehicle;
+            }
+        } catch (checkError) {
+            // Ignore "not found" errors - that's the happy path for new registrations
+            // Real errors will be caught by the register attempt if critical
+            if (!checkError.message.includes('not found') && !checkError.message.includes('does not exist')) {
+                console.warn('Pre-registration check warning:', checkError.message);
+            }
+        }
+
+        let result;
+        if (existingVehicle) {
+            console.log(`[Registration] VIN ${vehicleData.vin} found on blockchain. Status: ${existingVehicle.status}`);
+
+            // BRANCH 1: Vehicle is Pre-Minted (Ownerless) -> Claim it
+            if (existingVehicle.status === 'MINTED') {
+                console.log(`[Registration] Claiming Pre-Minted Vehicle ${vehicleData.vin} for owner ${vehicleData.ownerId}`);
+
+                // Construct owner data for attachment
+                // Note: In a real app, we'd fetch the full user profile. Here we use what's passed or defaults.
+                const ownerData = {
+                    email: req.user.email || vehicleData.ownerId,
+                    name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || vehicleData.ownerName || 'Unknown Owner',
+                    id: req.user.userId || vehicleData.ownerId
+                };
+
+                const registrationDetails = {
+                    dateOfRegistration: new Date().toISOString(),
+                    orNumber: vehicleData.orNumber || ''
+                };
+
+                result = await fabricService.attachOwnerToMintedVehicle(
+                    vehicleData.vin,
+                    ownerData,
+                    registrationDetails
+                );
+            }
+            // BRANCH 2: Vehicle is already registered/active -> Error
+            else {
+                return res.status(409).json({
+                    success: false,
+                    error: `Vehicle with VIN ${vehicleData.vin} is already registered on the blockchain. Status: ${existingVehicle.status}`
+                });
+            }
+        } else {
+            // BRANCH 3: Vehicle does not exist -> Register new (Standard Flow)
+            console.log(`[Registration] Registering new vehicle ${vehicleData.vin} on blockchain`);
+            result = await fabricService.registerVehicle(vehicleData);
+        }
 
         if (result.success) {
             res.json({
                 success: true,
-                message: 'Vehicle registered on blockchain successfully',
+                message: existingVehicle ? 'Pre-minted vehicle claimed successfully' : 'Vehicle registered on blockchain successfully',
                 transactionId: result.transactionId,
-                vehicle: result.result
+                vehicle: result.result || result // Handle varying return shapes
             });
         } else {
             res.status(500).json({
@@ -266,14 +319,14 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
     try {
         // Only LTO admin can mint
         if (!['admin', 'lto_admin'].includes(req.user.role)) {
-            return res.status(403).json({ 
-                success: false, 
-                error: 'Unauthorized: Only LTO admin can mint vehicles' 
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized: Only LTO admin can mint vehicles'
             });
         }
-        
+
         const vehicleData = req.body;
-        
+
         // Validate required fields
         if (!vehicleData.vin || !vehicleData.make || !vehicleData.model || !vehicleData.year) {
             return res.status(400).json({
@@ -281,10 +334,10 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
                 error: 'Missing required fields: VIN, make, model, year'
             });
         }
-        
+
         // Initialize Fabric service with user context
         await fabricService.initialize({ role: req.user.role, email: req.user.email });
-        
+
         // Mint vehicle on Fabric
         const result = await fabricService.mintVehicle(vehicleData);
 
@@ -340,7 +393,7 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
             const invoiceNumber = certificateNumberGenerator.generateSalesInvoiceNumber();
             const dateOfSale = new Date().toISOString();
             const purchasePrice = Math.floor(500000 + Math.random() * 2000000); // Random price: 500k-2.5M PHP
-            
+
             const { pdfBuffer: salesInvoicePdf, fileHash: salesInvoiceHash, certificateNumber: salesInvoiceCertNumber } = await certificatePdfGenerator.generateSalesInvoice({
                 ownerName: 'LTO Pre-Minted (CSR Verified)',
                 vehicleVIN: vehicleData.vin,
@@ -394,7 +447,7 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
             vin: result.vin,
             status: result.status
         });
-        
+
     } catch (error) {
         console.error('Mint vehicle error:', error);
         res.status(500).json({
@@ -410,17 +463,17 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
     try {
         // Only LTO staff can query
         if (!['admin', 'lto_admin', 'lto_officer'].includes(req.user.role)) {
-            return res.status(403).json({ 
-                success: false, 
-                error: 'Unauthorized' 
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized'
             });
         }
-        
+
         const { status } = req.query;
-        
+
         // Initialize Fabric service with user context
         await fabricService.initialize({ role: req.user.role, email: req.user.email });
-        
+
         // Get all vehicles from Fabric (graceful degradation if chaincode not running)
         let allVehicles;
         try {
@@ -444,21 +497,21 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
             }
             throw fabricErr;
         }
-        
+
         // Filter by status if provided
         let vehicles = allVehicles;
         if (status) {
             const statusUpper = status.toUpperCase();
             vehicles = allVehicles.filter(v => v.status === statusUpper);
         }
-        
+
         res.json({
             success: true,
             vehicles: vehicles,
             count: vehicles.length,
             source: 'Hyperledger Fabric'
         });
-        
+
     } catch (error) {
         console.error('Get vehicles from Fabric error:', error);
         const msg = error.message || String(error);
@@ -485,7 +538,7 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
 router.get('/status', optionalAuth, (req, res) => {
     try {
         const fabricStatus = fabricService.getStatus();
-        
+
         const status = {
             networkName: process.env.FABRIC_NETWORK_NAME || 'trustchain-network',
             channelName: process.env.FABRIC_CHANNEL_NAME || 'trustchain-channel',
@@ -537,7 +590,7 @@ router.get('/transactions', authenticateToken, authorizeRole(['admin', 'lto_admi
 
         // Query transactions from Fabric
         const allTransactions = await fabricService.getAllTransactions();
-        
+
         // Apply pagination
         const limitNum = parseInt(limit);
         const offsetNum = parseInt(offset);
@@ -608,16 +661,16 @@ function authorizeRole(allowedRoles) {
 router.get('/transactions/:txId', optionalAuth, async (req, res) => {
     try {
         const { txId } = req.params;
-        
+
         if (!txId || txId === 'undefined' || txId === 'null') {
             return res.status(400).json({
                 success: false,
                 error: 'Transaction ID is required'
             });
         }
-        
+
         const db = require('../database/db');
-        
+
         // STRICT FABRIC: Ensure Fabric service is available
         if (fabricService.mode !== 'fabric') {
             return res.status(503).json({
@@ -626,7 +679,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 message: 'Real Hyperledger Fabric connection required for transaction verification'
             });
         }
-        
+
         // Ensure Fabric connection
         if (!fabricService.isConnected) {
             try {
@@ -640,12 +693,12 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 });
             }
         }
-        
+
         // Check if txId is a UUID (vehicle ID) - handle differently
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(txId);
         if (isUuid) {
             console.log(`🔍 Received UUID ${txId}, attempting vehicle lookup...`);
-            
+
             try {
                 const vehicle = await db.getVehicleById(txId);
                 if (vehicle && vehicle.vin) {
@@ -654,12 +707,12 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                     if (blockchainResult && blockchainResult.success && blockchainResult.vehicle) {
                         const blockchainVehicle = blockchainResult.vehicle;
                         const actualTxId = blockchainVehicle.lastTxId || blockchainVehicle.transactionId || blockchainVehicle.blockchainTxId;
-                        
+
                         if (actualTxId) {
                             // Verify the actual transaction ID on Fabric
                             try {
                                 const transactionProof = await fabricService.getTransactionProof(actualTxId);
-                                
+
                                 if (transactionProof && transactionProof.validationCode === 0) {
                                     return res.json({
                                         success: true,
@@ -712,7 +765,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             } catch (lookupError) {
                 console.warn('UUID lookup failed:', lookupError.message);
             }
-            
+
             // UUID provided but vehicle not found on blockchain
             return res.status(404).json({
                 success: false,
@@ -721,7 +774,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 isVehicleId: true
             });
         }
-        
+
         // STRICT FABRIC: For non-UUID transaction IDs, MUST verify on Fabric
         // Validate transaction ID format (should be 64-char hex for Fabric)
         const isValidFabricTxId = /^[a-f0-9]{64}$/i.test(txId);
@@ -733,17 +786,17 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 providedFormat: txId.length < 50 ? 'short' : txId.includes('-') ? 'uuid' : 'unknown'
             });
         }
-        
+
         // STRICT FABRIC: Verify transaction exists on Fabric FIRST
         let transactionProof = null;
         try {
             console.log(`🔍 STRICT FABRIC: Verifying transaction ${txId.substring(0, 20)}... on Fabric...`);
             transactionProof = await fabricService.getTransactionProof(txId);
-            
+
             if (!transactionProof) {
                 throw new Error('Transaction proof returned null');
             }
-            
+
             if (transactionProof.validationCode !== 0) {
                 return res.status(404).json({
                     success: false,
@@ -754,11 +807,11 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                     fabricVerified: false
                 });
             }
-            
+
             console.log(`✅ STRICT FABRIC: Transaction ${txId.substring(0, 20)}... verified on Fabric (Block ${transactionProof.block?.number})`);
         } catch (fabricError) {
             console.error(`❌ STRICT FABRIC: Transaction ${txId.substring(0, 20)}... NOT FOUND on Fabric:`, fabricError.message);
-            
+
             // Even if found in database, reject if not on Fabric
             return res.status(404).json({
                 success: false,
@@ -769,7 +822,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 strictEnforcement: true
             });
         }
-        
+
         // Transaction verified on Fabric - now get additional details from database if available
         let dbTransaction = null;
         try {
@@ -782,7 +835,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                  LIMIT 1`,
                 [txId]
             );
-            
+
             if (historyResult.rows.length > 0) {
                 dbTransaction = historyResult.rows[0];
             }
@@ -790,7 +843,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             console.warn('Could not fetch transaction from database:', dbError.message);
             // Continue without database data - Fabric verification is primary
         }
-        
+
         // Build response with Fabric-verified data
         const response = {
             success: true,
@@ -817,7 +870,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 endorsements: transactionProof.endorsements || []
             }
         };
-        
+
         // Add vehicle details if available from database
         if (dbTransaction) {
             response.transaction.blockchainData = {
@@ -828,9 +881,9 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 plateNumber: dbTransaction.plate_number
             };
         }
-        
+
         return res.json(response);
-        
+
     } catch (error) {
         console.error('Error getting transaction:', error);
         res.status(500).json({

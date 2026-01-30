@@ -93,7 +93,7 @@ services:
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
       - CORE_PEER_CHAINCODEADDRESS=peer0.lto.gov.ph:7052
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.lto.gov.ph:7051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.lto.gov.ph:7051 peer0.hpg.gov.ph:8051 peer0.insurance.gov.ph:9051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.lto.gov.ph:7051
       - CORE_PEER_LOCALMSPID=LTOMSP
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
@@ -152,7 +152,7 @@ services:
       - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
       - CORE_PEER_CHAINCODEADDRESS=peer0.hpg.gov.ph:8052
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:8052
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.hpg.gov.ph:8051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.hpg.gov.ph:8051 peer0.lto.gov.ph:7051 peer0.insurance.gov.ph:9051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.hpg.gov.ph:8051
       - CORE_PEER_LOCALMSPID=HPGMSP
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
@@ -209,7 +209,7 @@ services:
       - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
       - CORE_PEER_CHAINCODEADDRESS=peer0.insurance.gov.ph:9052
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.insurance.gov.ph:9051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.insurance.gov.ph:9051 peer0.lto.gov.ph:7051 peer0.hpg.gov.ph:8051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.insurance.gov.ph:9051
       - CORE_PEER_LOCALMSPID=InsuranceMSP
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp

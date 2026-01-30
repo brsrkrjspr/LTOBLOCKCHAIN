@@ -41,8 +41,9 @@ cat > "$CCAAS_DIR/connection.json" << EOF
   "tls_required": false
 }
 EOF
+# Peer's built-in ccaas_builder expects type "ccaas" (not "external") to avoid "Unknown chaincodeType: EXTERNAL"
 cat > "$CCAAS_DIR/metadata.json" << EOF
-{"path":"","type":"external","label":"${LABEL}"}
+{"path":"","type":"ccaas","label":"${LABEL}"}
 EOF
 (cd "$CCAAS_DIR" && tar czf code.tar.gz connection.json)
 (cd "$CCAAS_DIR" && tar czf "$ROOT/$PACKAGE_NAME" metadata.json code.tar.gz)

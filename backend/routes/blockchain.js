@@ -461,6 +461,19 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
         
     } catch (error) {
         console.error('Get vehicles from Fabric error:', error);
+        const msg = error.message || String(error);
+        const chaincodeDown = /not running chaincode|chaincode.*not found|peer.*not running/i.test(msg);
+        if (chaincodeDown) {
+            console.warn('Get vehicles from Fabric: chaincode unavailable (outer catch), returning empty list');
+            return res.json({
+                success: true,
+                vehicles: [],
+                count: 0,
+                source: 'Hyperledger Fabric',
+                blockchainUnavailable: true,
+                message: 'Blockchain chaincode temporarily unavailable. Pre-minted vehicle list could not be loaded.'
+            });
+        }
         res.status(500).json({
             success: false,
             error: error.message || 'Failed to get vehicles from Fabric'

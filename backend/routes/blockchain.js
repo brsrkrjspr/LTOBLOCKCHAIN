@@ -95,6 +95,48 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                     ownerData,
                     registrationDetails
                 );
+
+                // CR/OR number generation: Generate official CR and OR numbers after successful owner attachment
+                // These are the final registration documents that prove vehicle ownership
+                if (result.success) {
+                    try {
+                        const dbServices = require('../database/services');
+
+                        // Generate unique OR and CR numbers using database sequences
+                        const orNumber = await dbServices.generateOrNumber();
+                        const crNumber = await dbServices.generateCrNumber();
+                        const registrationTimestamp = new Date().toISOString();
+
+                        console.log(`[Registration] Generated OR: ${orNumber}, CR: ${crNumber} for VIN ${vehicleData.vin}`);
+
+                        // Update the vehicle record in PostgreSQL with the new OR/CR numbers
+                        // This ties the blockchain registration to the official LTO document numbers
+                        const db = require('../database/db');
+                        await db.query(`
+                            UPDATE vehicles SET 
+                                or_number = $1,
+                                cr_number = $2,
+                                or_issued_at = $3,
+                                cr_issued_at = $3,
+                                status = 'REGISTERED',
+                                registration_date = $3,
+                                updated_at = NOW()
+                            WHERE vin = $4
+                        `, [orNumber, crNumber, registrationTimestamp, vehicleData.vin]);
+
+                        console.log(`[Registration] Updated PostgreSQL with OR/CR for VIN ${vehicleData.vin}`);
+
+                        // Include OR/CR numbers in the response for the frontend
+                        result.orNumber = orNumber;
+                        result.crNumber = crNumber;
+                        result.registrationDate = registrationTimestamp;
+
+                    } catch (orCrError) {
+                        // Log but don't fail - the blockchain registration succeeded
+                        console.error('[Registration] Failed to generate/store OR/CR numbers:', orCrError.message);
+                        // The vehicle is registered on blockchain, OR/CR can be generated later
+                    }
+                }
             }
             // BRANCH 2: Vehicle is already registered/active -> Error
             else {
@@ -114,7 +156,10 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                 success: true,
                 message: existingVehicle ? 'Pre-minted vehicle claimed successfully' : 'Vehicle registered on blockchain successfully',
                 transactionId: result.transactionId,
-                vehicle: result.result || result // Handle varying return shapes
+                vehicle: result.result || result, // Handle varying return shapes
+                orNumber: result.orNumber || null,
+                crNumber: result.crNumber || null,
+                registrationDate: result.registrationDate || null
             });
         } else {
             res.status(500).json({

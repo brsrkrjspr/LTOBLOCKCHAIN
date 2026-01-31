@@ -20,19 +20,19 @@ const walletPath = path.join(process.cwd(), 'wallet');
 // CA Configuration
 const caConfig = {
     lto: {
-        url: process.env.FABRIC_CA_LTO_URL || 'https://ca-lto:7054',
+        url: process.env.FABRIC_CA_LTO_URL || 'https://127.0.0.1:7054', // Changed to 127.0.0.1
         caName: 'ca-lto',
         mspId: 'LTOMSP',
         adminUsername: 'admin-lto'
     },
     hpg: {
-        url: process.env.FABRIC_CA_HPG_URL || 'https://ca-hpg:7054',
+        url: process.env.FABRIC_CA_HPG_URL || 'https://127.0.0.1:8054', // Changed to 127.0.0.1
         caName: 'ca-hpg',
         mspId: 'HPGMSP',
         adminUsername: 'admin-hpg'
     },
     insurance: {
-        url: process.env.FABRIC_CA_INSURANCE_URL || 'https://ca-insurance:7054',
+        url: process.env.FABRIC_CA_INSURANCE_URL || 'https://127.0.0.1:9054', // Changed to 127.0.0.1
         caName: 'ca-insurance',
         mspId: 'InsuranceMSP',
         adminUsername: 'admin-insurance'
@@ -136,12 +136,13 @@ async function main() {
 
         // Enroll backend signers for all organizations
         const results = {};
-        
+
         for (const [orgName, config] of Object.entries(caConfig)) {
             try {
                 results[orgName] = await enrollBackendSigner(orgName, config);
             } catch (error) {
                 console.error(`❌ Failed to enroll ${orgName} backend signer:`, error.message);
+                if (error.code) console.error(`   Error Code: ${error.code}`);
                 results[orgName] = { success: false, error: error.message };
             }
         }

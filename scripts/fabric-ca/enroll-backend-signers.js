@@ -11,6 +11,7 @@
 
 const FabricCAServices = require('fabric-ca-client');
 const { Wallets } = require('fabric-network');
+const { User } = require('fabric-common');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -75,14 +76,12 @@ async function enrollBackendSigner(orgName, config) {
 
         // Step 2: Register backend signer identity
         console.log(`   📝 Registering backend signer identity (${config.adminUsername})...`);
-        const adminUser = {
-            username: caAdminUser,
-            mspid: config.mspId,
-            cryptoContent: {
-                privateKeyPEM: caAdminEnrollment.key.toBytes(),
-                signedCertPEM: caAdminEnrollment.certificate
-            }
-        };
+
+        // Create User instance for the registrar
+        const provider = wallet.getProviderRegistry().getProvider('X.509');
+        const adminUser = new User(caAdminUser);
+        adminUser.setCryptoSuite(provider.getCryptoSuite());
+        await adminUser.setEnrollment(caAdminEnrollment.key, caAdminEnrollment.certificate, config.mspId);
 
         const secret = await ca.register({
             enrollmentID: config.adminUsername,

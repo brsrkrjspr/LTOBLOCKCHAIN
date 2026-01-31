@@ -1,7 +1,7 @@
 // Login/Signup JavaScript
 // All functions are defined as window properties immediately to ensure global accessibility
 
-(function() {
+(function () {
     'use strict';
 
     // ============================================
@@ -9,18 +9,18 @@
     // ============================================
 
     // Toggle between login and signup forms
-    window.showLogin = function() {
+    window.showLogin = function () {
         try {
             const loginForm = document.getElementById('loginForm');
             const signupForm = document.getElementById('signupForm');
             if (loginForm) loginForm.style.display = 'block';
             if (signupForm) signupForm.style.display = 'none';
-            
+
             // Update tab buttons
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             const loginTab = document.querySelector('.tab-btn:first-child');
             if (loginTab) loginTab.classList.add('active');
-            
+
             // Update footer text
             const footer = document.getElementById('authFooterText');
             if (footer) {
@@ -31,18 +31,18 @@
         }
     };
 
-    window.showSignup = function() {
+    window.showSignup = function () {
         try {
             const loginForm = document.getElementById('loginForm');
             const signupForm = document.getElementById('signupForm');
             if (loginForm) loginForm.style.display = 'none';
             if (signupForm) signupForm.style.display = 'block';
-            
+
             // Update tab buttons
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             const signupTab = document.querySelector('.tab-btn:last-child');
             if (signupTab) signupTab.classList.add('active');
-            
+
             // Update footer text
             const footer = document.getElementById('authFooterText');
             if (footer) {
@@ -54,14 +54,14 @@
     };
 
     // Fill demo credentials
-    window.fillCredentials = function(email, password, role = '') {
+    window.fillCredentials = function (email, password, role = '') {
         try {
             console.log('Filling credentials:', email, password, role);
             const emailInput = document.getElementById('loginEmail');
             const passwordInput = document.getElementById('loginPassword');
             if (emailInput) emailInput.value = email || '';
             if (passwordInput) passwordInput.value = password || '';
-            
+
             // Show a notification that credentials were filled
             if (typeof showNotification === 'function') {
                 showNotification(`Credentials filled: ${email}`, 'info');
@@ -72,7 +72,7 @@
     };
 
     // Handle login form submission
-    window.handleLogin = function(event) {
+    window.handleLogin = function (event) {
         try {
             if (event) {
                 event.preventDefault();
@@ -139,7 +139,7 @@
         try {
             const emailInput = document.getElementById('loginEmail');
             const passwordInput = document.getElementById('loginPassword');
-            
+
             if (!emailInput || !passwordInput) {
                 showNotification('Form elements not found. Please refresh the page.', 'error');
                 return;
@@ -153,7 +153,7 @@
                 showNotification('Please fill in all fields', 'error');
                 return;
             }
-            
+
             // Check for existing session (prevent multiple accounts)
             if (typeof AuthUtils !== 'undefined') {
                 const existingSession = AuthUtils.checkExistingSession();
@@ -207,7 +207,7 @@
             }
 
             console.log('Attempting login with:', email);
-            
+
             // ALWAYS call backend login API - no demo accounts, all accounts are real database accounts
             try {
                 const response = await fetch('/api/auth/login', {
@@ -222,11 +222,28 @@
                 console.log('Login response:', result);
 
                 if (result.success) {
+                    // CHECK FOR 2FA
+                    if (result.require2fa || result.require_2fa) {
+                        console.log('2FA required for login');
+                        // Store tempToken from backend for 2FA verification
+                        sessionStorage.setItem('pending2faTempToken', result.tempToken);
+                        sessionStorage.setItem('pending2faEmail', email);
+
+                        // Show 2FA UI
+                        const loginForm = document.getElementById('loginForm');
+                        const twoFAForm = document.getElementById('twoFAForm');
+                        if (loginForm) loginForm.style.display = 'none';
+                        if (twoFAForm) twoFAForm.style.display = 'block';
+
+                        showNotification('Please enter the verification code sent to your email.', 'info');
+                        return;
+                    }
+
                     // Store user data in localStorage (non-sensitive)
                     if (result.user) {
                         localStorage.setItem('currentUser', JSON.stringify(result.user));
                     }
-                    
+
                     // Store access token in AuthManager (memory), NOT localStorage
                     if (result.token && typeof window !== 'undefined' && window.authManager) {
                         // IMPORTANT: Clear any demo tokens first
@@ -243,20 +260,20 @@
                         localStorage.setItem('authToken', result.token);
                         localStorage.setItem('token', result.token);
                     }
-                    
-                    console.log('✅ Real API login successful:', { 
-                        email: result.user?.email, 
+
+                    console.log('✅ Real API login successful:', {
+                        email: result.user?.email,
                         role: result.user?.role,
                         tokenType: result.token?.startsWith('demo-token-') ? 'demo' : 'JWT'
                     });
-                    
+
                     showNotification('Login successful! Redirecting to dashboard...', 'success');
-                    
+
                     // Check for redirect parameter (e.g., from transfer confirmation)
                     const urlParams = new URLSearchParams(window.location.search);
                     const redirect = urlParams.get('redirect');
                     const token = urlParams.get('token');
-                    
+
                     // Handle transfer confirmation redirect
                     if (redirect === 'transfer-confirmation' && token) {
                         setTimeout(() => {
@@ -267,7 +284,7 @@
                         }, 1500);
                         return;
                     }
-                    
+
                     // Handle other redirects
                     if (redirect && redirect !== 'transfer-confirmation') {
                         setTimeout(() => {
@@ -275,11 +292,11 @@
                         }, 1500);
                         return;
                     }
-                    
+
                     // Redirect based on user role
                     setTimeout(() => {
                         const userRole = result.user?.role;
-                        switch(userRole) {
+                        switch (userRole) {
                             case 'hpg_admin':
                                 window.location.href = 'hpg-admin-dashboard.html';
                                 break;
@@ -315,13 +332,13 @@
                 } else if (result.code === 'EMAIL_NOT_VERIFIED') {
                     // Email verification required - redirect to verification prompt
                     console.log('Email verification required:', result.email);
-                    
+
                     // Store pending verification info in localStorage
                     localStorage.setItem('pendingVerificationEmail', result.email);
                     if (result.userId) {
                         localStorage.setItem('pendingVerificationUserId', result.userId);
                     }
-                    
+
                     // Show warning and redirect
                     showNotification('Please verify your email before continuing. Redirecting...', 'warning');
                     setTimeout(() => {
@@ -343,16 +360,123 @@
     // Make validateLogin globally accessible (for debugging)
     window.validateLogin = validateLogin;
 
+    // 2FA FUNCTIONS
+    window.handle2FAVerification = async function () {
+        try {
+            const codeInput = document.getElementById('twofaCode');
+            const code = codeInput ? codeInput.value.trim() : '';
+            const tempToken = sessionStorage.getItem('pending2faTempToken');
+
+            if (!code || code.length !== 6) {
+                showNotification('Please enter a valid 6-digit code', 'error');
+                return;
+            }
+            if (!tempToken) {
+                showNotification('Session expired. Please login again.', 'error');
+                window.cancel2FA();
+                return;
+            }
+
+            // Call verify API with tempToken (not userId)
+            const response = await fetch('/api/auth/verify-2fa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tempToken, code })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Success! Proceed with login flow (store tokens etc)
+                // We'll reuse the logic from validateLogin or duplicate it here for safety
+
+                if (result.user) {
+                    localStorage.setItem('currentUser', JSON.stringify(result.user));
+                }
+
+                if (result.token) {
+                    if (window.authManager) {
+                        window.authManager.setAccessToken(result.token);
+                    }
+                    localStorage.setItem('authToken', result.token);
+                    localStorage.setItem('token', result.token);
+                }
+
+                showNotification('Verification successful! Redirecting...', 'success');
+
+                // Clear pending 2FA data
+                sessionStorage.removeItem('pending2faTempToken');
+                sessionStorage.removeItem('pending2faEmail');
+
+                // Redirect
+                setTimeout(() => {
+                    const userRole = result.user?.role || 'vehicle_owner';
+                    switch (userRole) {
+                        case 'hpg_admin':
+                        case 'hpg_officer':
+                            window.location.href = 'hpg-admin-dashboard.html';
+                            break;
+                        case 'admin':
+                        case 'lto_admin':
+                            window.location.href = 'admin-dashboard.html';
+                            break;
+                        case 'lto_officer': window.location.href = 'lto-officer-dashboard.html'; break;
+                        case 'insurance_verifier': window.location.href = 'insurance-verifier-dashboard.html'; break;
+                        case 'emission_verifier': window.location.href = 'verifier-dashboard.html'; break;
+                        default: window.location.href = 'owner-dashboard.html';
+                    }
+                }, 1500);
+
+            } else {
+                showNotification(result.error || 'Invalid code', 'error');
+            }
+
+        } catch (error) {
+            console.error('2FA Error:', error);
+            showNotification('Verification failed', 'error');
+        }
+    };
+
+    window.resend2FACode = async function () {
+        const userId = sessionStorage.getItem('pending2faUserId');
+        const email = sessionStorage.getItem('pending2faEmail');
+        if (!userId) return;
+
+        try {
+            showNotification('Resending code...', 'info');
+            const response = await fetch('/api/auth/resend-2fa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, email })
+            });
+            const result = await response.json();
+            if (result.success) {
+                showNotification('Code resent successfully', 'success');
+            } else {
+                showNotification(result.error || 'Failed to resend code', 'error');
+            }
+        } catch (e) {
+            showNotification('Failed to resend code', 'error');
+        }
+    };
+
+    window.cancel2FA = function () {
+        document.getElementById('twoFAForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+        sessionStorage.removeItem('pending2faTempToken');
+        sessionStorage.removeItem('pending2faEmail');
+    };
+
     // ============================================
     // SIGNUP VALIDATION
     // ============================================
 
-    window.validateSignup = async function(event) {
+    window.validateSignup = async function (event) {
         // Prevent form submission immediately
         if (event) {
             event.preventDefault();
         }
-        
+
         try {
             const firstName = document.getElementById('firstName')?.value?.trim();
             const lastName = document.getElementById('lastName')?.value?.trim();
@@ -403,18 +527,18 @@
 
             // Call backend registration API
             console.log('Attempting registration with:', email);
-            
+
             const requestBody = {
-                    email,
-                    password,
-                    firstName,
-                    lastName,
-                    phone,
-                    address: address || null,
-                    role: 'vehicle_owner',
-                    organization: 'Individual'
+                email,
+                password,
+                firstName,
+                lastName,
+                phone,
+                address: address || null,
+                role: 'vehicle_owner',
+                organization: 'Individual'
             };
-            
+
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
@@ -431,7 +555,7 @@
             } catch (parseError) {
                 throw parseError;
             }
-            
+
             console.log('Registration response:', result);
             console.log('Response status:', response.status);
             console.log('User object:', result.user);
@@ -442,26 +566,26 @@
                 // Handle both camelCase and snake_case for emailVerified
                 const emailVerified = result.user?.emailVerified ?? result.user?.email_verified ?? false;
                 console.log('Email verified (normalized):', emailVerified);
-                
+
                 // Always redirect to verification prompt if emailVerified is false or undefined
                 // This ensures unverified users go to verification prompt
                 if (result.user && (emailVerified === false || emailVerified === undefined || !emailVerified)) {
                     // Email verification required - redirect to verification prompt
                     console.log('Email verification required for:', result.user.email);
-                    
+
                     // Store pending verification info in localStorage (DO NOT store tokens yet)
                     localStorage.setItem('pendingVerificationEmail', result.user.email);
                     if (result.user.id) {
                         localStorage.setItem('pendingVerificationUserId', result.user.id);
                     }
-                    
+
                     // Verify it was stored
                     console.log('Stored pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
-                    
+
                     showNotification('Account created! Please check your email to verify your account.', 'success');
-                    
+
                     // Redirect to email verification prompt immediately (no delay to prevent form submission)
-                        window.location.href = 'email-verification-prompt.html';
+                    window.location.href = 'email-verification-prompt.html';
                     return false; // Prevent any further execution
                 } else {
                     // Email already verified or verification disabled - proceed normally
@@ -472,9 +596,9 @@
                         localStorage.setItem('authToken', result.token);
                         localStorage.setItem('token', result.token); // Also store as 'token' for compatibility
                     }
-                    
+
                     showNotification('Account created successfully! Redirecting to dashboard...', 'success');
-                    
+
                     // Redirect to dashboard after successful registration
                     setTimeout(() => {
                         window.location.href = 'owner-dashboard.html';
@@ -520,14 +644,14 @@
     function showFieldError(field, message) {
         try {
             hideFieldError(field); // Remove existing error
-            
+
             const errorDiv = document.createElement('div');
             errorDiv.className = 'field-error';
             errorDiv.textContent = message;
-            
+
             // Find the form-group container
             const formGroup = field.closest('.form-group');
-            
+
             if (formGroup) {
                 // Find the input-wrapper to insert error before it
                 const inputWrapper = formGroup.querySelector('.input-wrapper');
@@ -563,7 +687,7 @@
                     formGroup = formGroup.parentElement;
                 }
             }
-            
+
             if (formGroup) {
                 const existingError = formGroup.querySelector('.field-error');
                 if (existingError) {
@@ -590,7 +714,7 @@
 
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             initializeFormValidation();
             handleURLParameters();
         });
@@ -604,7 +728,7 @@
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const roleParam = urlParams.get('role');
-            
+
             if (roleParam) {
                 // Map URL parameter to real account emails (passwords not shown for security)
                 const accountEmails = {
@@ -619,7 +743,7 @@
                     'owner': 'owner@example.com',
                     'vehicle_owner': 'owner@example.com'
                 };
-                
+
                 const mappedRole = roleParam.toLowerCase();
                 if (accountEmails[mappedRole]) {
                     const emailInput = document.getElementById('loginEmail');
@@ -636,7 +760,7 @@
             // Email validation on blur
             const emailInputs = document.querySelectorAll('input[type="email"]');
             emailInputs.forEach(input => {
-                input.addEventListener('blur', function() {
+                input.addEventListener('blur', function () {
                     if (this.value && !validateEmail(this.value)) {
                         this.classList.add('invalid');
                         showFieldError(this, 'Please enter a valid email address');
@@ -650,7 +774,7 @@
             // Password validation on blur
             const passwordInputs = document.querySelectorAll('input[type="password"]');
             passwordInputs.forEach(input => {
-                input.addEventListener('blur', function() {
+                input.addEventListener('blur', function () {
                     if (this.value && !validatePassword(this.value)) {
                         this.classList.add('invalid');
                         showFieldError(this, 'Password must be at least 8 characters with letters and numbers');
@@ -664,7 +788,7 @@
             // Phone validation on blur
             const phoneInput = document.getElementById('phone');
             if (phoneInput) {
-                phoneInput.addEventListener('blur', function() {
+                phoneInput.addEventListener('blur', function () {
                     if (this.value && !validatePhone(this.value)) {
                         this.classList.add('invalid');
                         showFieldError(this, 'Please enter a valid phone number');
@@ -678,9 +802,9 @@
             // Confirm password validation
             const confirmPasswordInput = document.getElementById('confirmPassword');
             const signupPasswordInput = document.getElementById('signupPassword');
-            
+
             if (confirmPasswordInput && signupPasswordInput) {
-                confirmPasswordInput.addEventListener('blur', function() {
+                confirmPasswordInput.addEventListener('blur', function () {
                     if (this.value && this.value !== signupPasswordInput.value) {
                         this.classList.add('invalid');
                         showFieldError(this, 'Passwords do not match');

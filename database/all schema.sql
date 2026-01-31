@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict ICO6bMLF5kvaYV2NlO6iu8gf1vz9zgA2Gbb2tf3YK42HxEywCNGLlYXmduMB3DQ
+\restrict CfliyKrhVaGGAe3jG4lYUh0TiEdJYp0rgXrBw8Qd9y1W8REjorKDo1xfppjTEYy
 
 -- Dumped from database version 15.15
--- Dumped by pg_dump version 18.0
+-- Dumped by pg_dump version 18.1
 
--- Started on 2026-01-30 22:02:13
+-- Started on 2026-01-31 18:14:56
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -3300,11 +3300,11 @@ ALTER TABLE ONLY public.vehicles
     ADD CONSTRAINT vehicles_scrapped_by_fkey FOREIGN KEY (scrapped_by) REFERENCES public.users(id);
 
 
--- Completed on 2026-01-30 22:02:19
+-- Completed on 2026-01-31 18:15:01
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ICO6bMLF5kvaYV2NlO6iu8gf1vz9zgA2Gbb2tf3YK42HxEywCNGLlYXmduMB3DQ
+\unrestrict CfliyKrhVaGGAe3jG4lYUh0TiEdJYp0rgXrBw8Qd9y1W8REjorKDo1xfppjTEYy
 

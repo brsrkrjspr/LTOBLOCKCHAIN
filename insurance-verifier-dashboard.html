@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +12,7 @@
         /* ============================================
            INSURANCE THEME - PROFESSIONAL BLUE/TEAL
            ============================================ */
-        
+
         :root {
             /* Insurance Color Palette */
             --insurance-blue: #0066cc;
@@ -34,119 +35,119 @@
             --insurance-danger: #e74c3c;
             --insurance-info: #4da6ff;
         }
-        
+
         /* ============================================
            SIDEBAR - INSURANCE BLUE/TEAL GRADIENT
            ============================================ */
-        
+
         .dashboard-sidebar {
             background: linear-gradient(180deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 50%, var(--insurance-teal) 100%);
             border-right: 2px solid var(--insurance-teal-light);
             transition: width 0.3s ease-in-out;
         }
-        
+
         .dashboard-sidebar .logo-icon {
             background: linear-gradient(135deg, var(--insurance-teal-light) 0%, var(--insurance-light-blue) 100%);
             color: var(--insurance-white);
             transition: opacity 0.2s ease, transform 0.2s ease;
             cursor: pointer;
         }
-        
+
         .dashboard-sidebar .logo-icon:hover {
             opacity: 0.9;
             transform: scale(1.05);
             background: linear-gradient(135deg, var(--insurance-light-blue) 0%, var(--insurance-teal-light) 100%);
         }
-        
+
         .dashboard-sidebar .logo-icon:active {
             transform: scale(0.95);
         }
-        
+
         .dashboard-sidebar .logo-icon:focus {
             outline: 2px solid rgba(255, 255, 255, 0.5);
             outline-offset: 2px;
             border-radius: 4px;
         }
-        
+
         .dashboard-sidebar .logo-text h2,
         .dashboard-sidebar .logo-text p {
             color: var(--insurance-white);
         }
-        
+
         .dashboard-sidebar .nav-item {
             color: rgba(255, 255, 255, 0.9);
             transition: all 0.3s ease;
         }
-        
+
         .dashboard-sidebar .nav-item:hover {
             background: rgba(255, 255, 255, 0.15);
             color: var(--insurance-white);
         }
-        
+
         .dashboard-sidebar .nav-item.active {
             background: rgba(255, 255, 255, 0.2);
             color: var(--insurance-white);
             border-left: 3px solid var(--insurance-teal-light);
         }
-        
+
         .dashboard-sidebar .sidebar-user-name,
         .dashboard-sidebar .sidebar-user-role {
             color: rgba(255, 255, 255, 0.9);
         }
-        
+
         .dashboard-main {
             transition: margin-left 0.3s ease-in-out;
             background: var(--insurance-gray-light);
         }
-        
+
         /* ============================================
            HEADER - WHITE WITH BLUE ACCENTS
            ============================================ */
-        
+
         .dashboard-header {
             background: var(--insurance-white);
             border-bottom: 2px solid var(--insurance-blue);
             box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
         }
-        
+
         .dashboard-header .container {
             padding-left: 1.5rem;
             padding-right: 1.5rem;
         }
-        
+
         .dashboard-header .dashboard-nav {
             display: flex;
             align-items: center;
         }
-        
+
         .dashboard-header .logo {
             display: flex;
             flex-direction: column;
             gap: 0;
         }
-        
+
         .dashboard-header h1 {
             margin: 0;
             font-size: 2rem;
             font-weight: 700;
             color: var(--insurance-blue-dark);
         }
-        
+
         .dashboard-header p {
             color: var(--insurance-gray-dark);
             font-size: 0.9rem;
         }
-        
+
         /* ============================================
            TYPOGRAPHY & CONTENT
            ============================================ */
-        
+
         .dashboard-content {
             padding: 1.5rem;
             color: var(--insurance-charcoal);
             line-height: 1.6;
         }
-        
+
         .dashboard-content h1,
         .dashboard-content .page-title {
             font-size: 2rem;
@@ -155,7 +156,7 @@
             margin: 0 0 0.5rem 0;
             color: var(--insurance-blue-dark);
         }
-        
+
         .dashboard-content h2,
         .section-title {
             font-size: 1.5rem;
@@ -164,7 +165,7 @@
             margin: 0 0 0.5rem 0;
             color: var(--insurance-blue-dark);
         }
-        
+
         .dashboard-content h3 {
             font-size: 1.25rem;
             font-weight: 600;
@@ -172,7 +173,7 @@
             margin: 0 0 0.75rem 0;
             color: var(--insurance-charcoal);
         }
-        
+
         .section-subtitle,
         .dashboard-content p.subtitle {
             font-size: 0.9375rem;
@@ -181,17 +182,17 @@
             color: var(--insurance-gray-dark);
             margin: 0 0 1.5rem 0;
         }
-        
+
         .section-header {
             margin-bottom: 1.5rem;
             padding-bottom: 1rem;
             border-bottom: 1px solid var(--insurance-gray);
         }
-        
+
         /* ============================================
            BUTTONS - INSURANCE BLUE PRIMARY
            ============================================ */
-        
+
         button,
         .btn,
         .btn-primary,
@@ -221,19 +222,19 @@
             text-decoration: none;
             white-space: nowrap;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
             color: var(--insurance-white);
             box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
         }
-        
+
         .btn-primary:hover {
             background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
         }
-        
+
         .btn-secondary,
         a.btn-secondary {
             height: 44px;
@@ -256,7 +257,7 @@
             text-decoration: none;
             white-space: nowrap;
         }
-        
+
         .btn-secondary:hover,
         a.btn-secondary:hover {
             background-color: var(--insurance-light-blue);
@@ -264,44 +265,44 @@
             border-color: var(--insurance-blue);
             color: var(--insurance-white);
         }
-        
+
         .btn-success {
             background: linear-gradient(135deg, var(--insurance-green) 0%, var(--insurance-green-dark) 100%);
             color: var(--insurance-white);
             box-shadow: 0 2px 8px rgba(0, 184, 148, 0.2);
         }
-        
+
         .btn-success:hover {
             background: linear-gradient(135deg, var(--insurance-green-dark) 0%, var(--insurance-green) 100%);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
         }
-        
+
         .btn-danger {
             background: linear-gradient(135deg, var(--insurance-danger) 0%, #c0392b 100%);
             color: var(--insurance-white);
             box-shadow: 0 2px 8px rgba(231, 76, 60, 0.2);
         }
-        
+
         .btn-danger:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
         }
-        
+
         .btn-sm {
             height: 36px;
             min-height: 36px;
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
         }
-        
+
         .btn-lg {
             height: 52px;
             min-height: 52px;
             padding: 1rem 2rem;
             font-size: 1.0625rem;
         }
-        
+
         .btn-group,
         .button-group {
             display: flex;
@@ -309,11 +310,11 @@
             align-items: center;
             flex-wrap: wrap;
         }
-        
+
         /* ============================================
            CARDS - WHITE WITH SUBTLE SHADOWS
            ============================================ */
-        
+
         .dashboard-card-modern,
         .card,
         .dashboard-card {
@@ -325,14 +326,14 @@
             border: 1px solid var(--insurance-gray);
             transition: all 0.3s ease;
         }
-        
+
         .dashboard-card-modern:hover,
         .card:hover,
         .dashboard-card:hover {
             box-shadow: 0 4px 16px rgba(0, 102, 204, 0.12);
             border-color: var(--insurance-light-blue);
         }
-        
+
         .stat-card {
             background: var(--insurance-white);
             border-radius: 12px;
@@ -341,16 +342,16 @@
             border-left: 4px solid var(--insurance-blue);
             transition: all 0.3s ease;
         }
-        
+
         .stat-card:hover {
             box-shadow: 0 4px 16px rgba(0, 102, 204, 0.15);
             transform: translateY(-2px);
         }
-        
+
         /* ============================================
            TABLES - BLUE HEADERS, STRIPED ROWS
            ============================================ */
-        
+
         .table-modern,
         table {
             width: 100%;
@@ -359,12 +360,12 @@
             border-radius: 8px;
             overflow: hidden;
         }
-        
+
         .table-modern thead,
         table thead {
             background: linear-gradient(135deg, var(--insurance-blue-dark) 0%, var(--insurance-blue) 100%);
         }
-        
+
         .table-modern th,
         table th {
             padding: 1rem;
@@ -376,34 +377,34 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .table-modern tbody tr,
         table tbody tr {
             border-bottom: 1px solid var(--insurance-gray);
             transition: all 0.2s ease;
         }
-        
+
         .table-modern tbody tr:nth-child(even),
         table tbody tr:nth-child(even) {
             background: var(--insurance-gray-light);
         }
-        
+
         .table-modern tbody tr:hover,
         table tbody tr:hover {
             background: rgba(77, 166, 255, 0.1);
         }
-        
+
         .table-modern td,
         table td {
             padding: 1rem;
             font-size: 0.9375rem;
             color: var(--insurance-charcoal);
         }
-        
+
         /* ============================================
            STATUS BADGES - INSURANCE COLORS
            ============================================ */
-        
+
         .badge {
             display: inline-block;
             padding: 0.4rem 0.8rem;
@@ -413,36 +414,36 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .badge-pending,
         .badge-warning {
             background: rgba(253, 203, 110, 0.2);
             color: #d68910;
             border: 1px solid var(--insurance-warning);
         }
-        
+
         .badge-approved,
         .badge-success {
             background: rgba(0, 184, 148, 0.2);
             color: var(--insurance-green-dark);
             border: 1px solid var(--insurance-green);
         }
-        
+
         .badge-rejected,
         .badge-danger {
             background: rgba(231, 76, 60, 0.2);
             color: #c0392b;
             border: 1px solid var(--insurance-danger);
         }
-        
+
         /* ============================================
            FORMS - CLEAN INPUTS WITH BLUE FOCUS
            ============================================ */
-        
+
         .form-group {
             margin-bottom: 1.5rem;
         }
-        
+
         .form-group label,
         label {
             font-size: 0.9375rem;
@@ -452,7 +453,7 @@
             display: block;
             line-height: 1.5;
         }
-        
+
         input[type="text"],
         input[type="email"],
         input[type="password"],
@@ -470,7 +471,7 @@
             background: var(--insurance-white);
             transition: all 0.2s ease;
         }
-        
+
         input:focus,
         textarea:focus,
         select:focus {
@@ -478,7 +479,7 @@
             border-color: var(--insurance-blue);
             box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
         }
-        
+
         .hint,
         small.hint,
         .form-group small {
@@ -488,18 +489,19 @@
             display: block;
             line-height: 1.4;
         }
-        
+
         .form-row {
             display: flex;
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
-        
+
         /* ============================================
            RESPONSIVE DESIGN
            ============================================ */
-        
+
         @media (max-width: 768px) {
+
             /* Sidebar - Mobile Overlay */
             .dashboard-sidebar {
                 position: fixed !important;
@@ -515,15 +517,15 @@
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch !important;
             }
-            
+
             .dashboard-sidebar.mobile-open {
                 transform: translateX(0) !important;
             }
-            
+
             .dashboard-sidebar.collapsed {
                 transform: translateX(-100%) !important;
             }
-            
+
             /* Mobile overlay when sidebar is open */
             .sidebar-overlay {
                 display: none;
@@ -537,17 +539,17 @@
                 backdrop-filter: blur(2px);
                 -webkit-backdrop-filter: blur(2px);
             }
-            
+
             .sidebar-overlay.active {
                 display: block;
             }
-            
+
             /* Main content full width on mobile */
             .dashboard-main {
                 margin-left: 0 !important;
                 width: 100% !important;
             }
-            
+
             /* Fixed Mobile Header */
             .dashboard-header {
                 position: fixed !important;
@@ -560,12 +562,12 @@
                 z-index: 100 !important;
                 height: 60px !important;
             }
-            
+
             .dashboard-header .container {
                 padding: 0 !important;
                 width: 100% !important;
             }
-            
+
             .dashboard-nav {
                 display: flex !important;
                 align-items: center !important;
@@ -573,23 +575,23 @@
                 gap: 0.75rem !important;
                 width: 100% !important;
             }
-            
+
             .dashboard-nav .logo {
                 flex: 1;
                 min-width: 0;
             }
-            
+
             .dashboard-nav .logo h1 {
                 font-size: 1.5rem !important;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
-            
+
             .dashboard-nav .logo p {
                 display: none !important;
             }
-            
+
             /* Mobile menu toggle button */
             .mobile-menu-toggle {
                 display: flex !important;
@@ -610,30 +612,30 @@
                 box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3) !important;
                 margin-right: 1rem !important;
             }
-            
+
             .mobile-menu-toggle:active {
                 transform: scale(0.95) !important;
             }
-            
+
             /* Dashboard content padding for fixed header */
             .dashboard-content {
                 padding: 80px 1rem 1rem 1rem !important;
             }
-            
+
             .dashboard-content h1,
             .dashboard-content .page-title {
                 font-size: 1.5rem;
             }
-            
+
             .dashboard-content h2,
             .section-title {
                 font-size: 1.25rem;
             }
-            
+
             .dashboard-content h3 {
                 font-size: 1.125rem;
             }
-            
+
             button,
             .btn,
             .btn-primary,
@@ -643,200 +645,228 @@
                 width: 100%;
                 margin-bottom: 0.75rem;
             }
-            
+
             .btn-group,
             .button-group {
                 flex-direction: column;
                 width: 100%;
             }
-            
+
             .form-row {
                 flex-direction: column;
                 gap: 0;
             }
-            
+
             .dashboard-card-modern,
             .card,
             .dashboard-card {
                 padding: 1rem;
                 margin-bottom: 1rem;
             }
-            
+
             .section-header {
                 margin-bottom: 1rem;
             }
-            
+
             .table-container {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
             }
-            
+
             .stats-grid {
                 grid-template-columns: 1fr !important;
                 gap: 1rem !important;
             }
-            
+
             .stat-card {
                 padding: 1rem !important;
             }
-            
+
             .summary-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
                 gap: 1rem !important;
             }
-            
+
             .filter-tabs {
                 flex-wrap: wrap !important;
                 gap: 0.5rem !important;
             }
-            
+
             .filter-tab {
                 flex: 1 1 auto !important;
                 min-width: calc(50% - 0.25rem) !important;
             }
         }
-        
+
         @media (min-width: 769px) and (max-width: 1024px) {
             .form-row {
                 gap: 1rem;
             }
-            
+
             .btn-group,
             .button-group {
                 flex-wrap: wrap;
             }
-            
+
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
             }
-            
+
             .summary-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
             }
         }
-        
+
         @media (min-width: 1025px) {
             .dashboard-content .container {
                 max-width: 1400px;
                 margin: 0 auto;
             }
-            
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--insurance-blue-dark);
+                margin-bottom: 0.5rem;
+            }
+
+            .stat-label {
+                font-size: 0.875rem;
+                color: var(--insurance-gray-dark);
+                font-weight: 500;
+            }
+
+            .summary-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1.5rem;
+            }
+
+            .summary-item {
+                text-align: center;
+                padding: 1rem;
+                background: var(--insurance-gray-light);
+                border-radius: 8px;
+            }
+
+            .summary-number {
+                font-size: 1.75rem;
+                font-weight: 700;
+                color: var(--insurance-blue-dark);
+                margin-bottom: 0.5rem;
+            }
+
+            .summary-label {
+                font-size: 0.875rem;
+                color: var(--insurance-gray-dark);
+                font-weight: 500;
+            }
+
+            .filter-tabs {
+                display: flex;
+                gap: 0.5rem;
+                margin: 1rem 0;
+                flex-wrap: wrap;
+            }
+
+            .filter-tab {
+                padding: 0.5rem 1rem;
+                border: 2px solid var(--insurance-gray);
+                background: var(--insurance-white);
+                color: var(--insurance-charcoal);
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.875rem;
+                font-weight: 600;
+                transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            .filter-tab:hover {
+                border-color: var(--insurance-blue);
+                background: var(--insurance-gray-light);
+            }
+
+            .filter-tab.active {
+                background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
+                color: var(--insurance-white);
+                border-color: var(--insurance-blue);
+            }
+
+            .card-icon {
+                margin-right: 0.5rem;
+            }
         }
-        
-        .stat-number {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--insurance-blue-dark);
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-label {
-            font-size: 0.875rem;
-            color: var(--insurance-gray-dark);
-            font-weight: 500;
-        }
-        
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
-        }
-        
-        .summary-item {
-            text-align: center;
-            padding: 1rem;
-            background: var(--insurance-gray-light);
-            border-radius: 8px;
-        }
-        
-        .summary-number {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--insurance-blue-dark);
-            margin-bottom: 0.5rem;
-        }
-        
-        .summary-label {
-            font-size: 0.875rem;
-            color: var(--insurance-gray-dark);
-            font-weight: 500;
-        }
-        
-        .filter-tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin: 1rem 0;
-            flex-wrap: wrap;
-        }
-        
-        .filter-tab {
-            padding: 0.5rem 1rem;
-            border: 2px solid var(--insurance-gray);
-            background: var(--insurance-white);
-            color: var(--insurance-charcoal);
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .filter-tab:hover {
-            border-color: var(--insurance-blue);
-            background: var(--insurance-gray-light);
-        }
-        
-        .filter-tab.active {
-            background: linear-gradient(135deg, var(--insurance-blue) 0%, var(--insurance-blue-dark) 100%);
-            color: var(--insurance-white);
-            border-color: var(--insurance-blue);
-        }
-        
-        .card-icon {
-            margin-right: 0.5rem;
-        }
-        }
-        
+
         /* ============================================
            UTILITY CLASSES
            ============================================ */
-        
-        .text-left { text-align: left; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        
-        .flex { display: flex; }
-        .flex-column { flex-direction: column; }
-        .items-center { align-items: center; }
-        .justify-between { justify-content: space-between; }
-        .gap-1 { gap: 0.5rem; }
-        .gap-2 { gap: 1rem; }
-        .gap-3 { gap: 1.5rem; }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .flex-column {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-1 {
+            gap: 0.5rem;
+        }
+
+        .gap-2 {
+            gap: 1rem;
+        }
+
+        .gap-3 {
+            gap: 1.5rem;
+        }
     </style>
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
-        (function() {
+        (function () {
             function initSidebar() {
                 const sidebar = document.querySelector('.dashboard-sidebar');
                 if (sidebar) {
                     // Disable transitions during page load
                     sidebar.classList.add('no-transition');
-                    
+
                     const savedState = localStorage.getItem('insuranceVerifierSidebarCollapsed');
                     if (savedState === 'true') {
                         sidebar.classList.add('collapsed');
                     }
-                    
+
                     // Re-enable transitions after page loads
-                    setTimeout(function() {
+                    setTimeout(function () {
                         sidebar.classList.remove('no-transition');
                     }, 100);
                 } else {
@@ -852,13 +882,15 @@
         })();
     </script>
 </head>
+
 <body>
     <div class="dashboard">
         <!-- Sidebar Navigation -->
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon" id="insuranceSidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">IV</div>
+                    <div class="logo-icon" id="insuranceSidebarToggleIcon" role="button" tabindex="0"
+                        aria-label="Toggle sidebar">IV</div>
                     <div class="logo-text">
                         <h2>Insurance</h2>
                         <p>Verifier Dashboard</p>
@@ -885,7 +917,7 @@
                     <span>Reports</span>
                 </a>
             </nav>
-            
+
             <!-- Sidebar Footer with User Info -->
             <div class="sidebar-footer">
                 <div class="sidebar-user-profile">
@@ -923,98 +955,100 @@
                 </div>
             </header>
 
-        <main class="dashboard-content">
-            <div class="container">
-                <!-- Quick Stats -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number">12</div>
-                        <div class="stat-label">Assigned Tasks</div>
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Quick Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">12</div>
+                            <div class="stat-label">Assigned Tasks</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">18</div>
+                            <div class="stat-label">Completed Today</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">95</div>
+                            <div class="stat-label">This Week</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">98%</div>
+                            <div class="stat-label">Accuracy Rate</div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">18</div>
-                        <div class="stat-label">Completed Today</div>
+
+                    <!-- Insurance Certificate Verification -->
+                    <div class="dashboard-card">
+                        <div class="section-header">
+                            <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
+                            <p class="subtitle">Review and verify insurance certificates uploaded by users</p>
+                        </div>
+
+                        <!-- Status filter tabs -->
+                        <div class="filter-tabs"
+                            style="display: flex; gap: 0.5rem; margin: 0.5rem 0 1rem 0; flex-wrap: wrap;">
+                            <button class="filter-tab active" onclick="filterInsuranceByStatus('all', this)">
+                                <i class="fas fa-list"></i> All
+                            </button>
+                            <button class="filter-tab" onclick="filterInsuranceByStatus('pending', this)">
+                                <i class="fas fa-clock"></i> Pending
+                            </button>
+                            <button class="filter-tab" onclick="filterInsuranceByStatus('approved', this)">
+                                <i class="fas fa-check"></i> Approved
+                            </button>
+                            <button class="filter-tab" onclick="filterInsuranceByStatus('rejected', this)">
+                                <i class="fas fa-times"></i> Rejected
+                            </button>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="table" id="insuranceVerificationTable">
+                                <thead>
+                                    <tr>
+                                        <th>Application ID</th>
+                                        <th>User Information</th>
+                                        <th>Vehicle Details</th>
+                                        <th>Insurance Certificate</th>
+                                        <th>Submitted Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="insuranceVerificationTableBody">
+                                    <!-- Applications will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">95</div>
-                        <div class="stat-label">This Week</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">98%</div>
-                        <div class="stat-label">Accuracy Rate</div>
+
+
+                    <!-- Insurance Verification Summary -->
+                    <div class="dashboard-card">
+                        <div class="section-header">
+                            <h3><span class="card-icon">📊</span> Insurance Verification Summary</h3>
+                        </div>
+                        <div class="summary-grid"
+                            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 1rem;">
+                            <div class="summary-item">
+                                <div class="summary-number">8</div>
+                                <div class="summary-label">Approved Today</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-number">2</div>
+                                <div class="summary-label">Pending Review</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-number">1</div>
+                                <div class="summary-label">Rejected</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-number">₱1.55M</div>
+                                <div class="summary-label">Total Coverage</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Insurance Certificate Verification -->
-                <div class="dashboard-card">
-                    <div class="section-header">
-                        <h3><span class="card-icon">🛡️</span> Insurance Certificate Verification</h3>
-                        <p class="subtitle">Review and verify insurance certificates uploaded by users</p>
-                    </div>
-
-                    <!-- Status filter tabs -->
-                    <div class="filter-tabs" style="display: flex; gap: 0.5rem; margin: 0.5rem 0 1rem 0; flex-wrap: wrap;">
-                        <button class="filter-tab active" onclick="filterInsuranceByStatus('all', this)">
-                            <i class="fas fa-list"></i> All
-                        </button>
-                        <button class="filter-tab" onclick="filterInsuranceByStatus('pending', this)">
-                            <i class="fas fa-clock"></i> Pending
-                        </button>
-                        <button class="filter-tab" onclick="filterInsuranceByStatus('approved', this)">
-                            <i class="fas fa-check"></i> Approved
-                        </button>
-                        <button class="filter-tab" onclick="filterInsuranceByStatus('rejected', this)">
-                            <i class="fas fa-times"></i> Rejected
-                        </button>
-                    </div>
-
-                    <div class="table-container">
-                        <table class="table" id="insuranceVerificationTable">
-                            <thead>
-                                <tr>
-                                    <th>Application ID</th>
-                                    <th>User Information</th>
-                                    <th>Vehicle Details</th>
-                                    <th>Insurance Certificate</th>
-                                    <th>Submitted Date</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="insuranceVerificationTableBody">
-                                <!-- Applications will be loaded here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-
-                <!-- Insurance Verification Summary -->
-                <div class="dashboard-card">
-                    <div class="section-header">
-                        <h3><span class="card-icon">📊</span> Insurance Verification Summary</h3>
-                    </div>
-                    <div class="summary-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 1rem;">
-                        <div class="summary-item">
-                            <div class="summary-number">8</div>
-                            <div class="summary-label">Approved Today</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-number">2</div>
-                            <div class="summary-label">Pending Review</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-number">1</div>
-                            <div class="summary-label">Rejected</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-number">₱1.55M</div>
-                            <div class="summary-label">Total Coverage</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+            </main>
         </div>
     </div>
     <script src="js/auth-manager.js"></script>
@@ -1022,7 +1056,7 @@
     <script src="js/status-utils.js"></script>
     <script>
         // Initialize AuthManager on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (typeof window.authManager !== 'undefined') {
                 window.authManager.init().catch(error => {
                     console.error('AuthManager init error:', error);
@@ -1040,7 +1074,7 @@
     <script src="js/insurance-verifier-dashboard.js"></script>
     <script>
         // Initialize user data on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // ===== AUTHENTICATION CHECK - MUST BE FIRST =====
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
@@ -1050,12 +1084,12 @@
                     return;
                 }
                 // ================================================
-                
+
                 // Sidebar user info elements
                 const sidebarUserNameEl = document.getElementById('sidebarUserName');
                 const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
                 const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                
+
                 const displayName = AuthUtils.getUserDisplayName() || 'Insurance Verifier';
                 const userInitials = AuthUtils.getUserInitials() || 'IV';
                 const roleNames = {
@@ -1065,7 +1099,7 @@
                     'emission_verifier': 'Emission Verifier'
                 };
                 const userRole = roleNames[user.role] || user.role;
-                
+
                 // Update sidebar user info
                 if (sidebarUserNameEl) {
                     sidebarUserNameEl.textContent = displayName;
@@ -1090,12 +1124,12 @@
 
             // Sidebar toggle via IV icon (desktop only)
             const insuranceSidebarToggleIcon = document.getElementById('insuranceSidebarToggleIcon');
-            
+
             if (insuranceSidebarToggleIcon && sidebar) {
-                const toggleSidebar = function(e) {
+                const toggleSidebar = function (e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    
+
                     // On mobile, use mobile navigation
                     if (window.innerWidth <= 768) {
                         if (typeof window.MobileNav !== 'undefined') {
@@ -1103,42 +1137,42 @@
                         }
                         return;
                     }
-                    
+
                     // Desktop: toggle collapsed state
                     sidebar.classList.toggle('collapsed');
-                    
+
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('insuranceVerifierSidebarCollapsed', isCollapsed ? 'true' : 'false');
                 };
-                
+
                 insuranceSidebarToggleIcon.addEventListener('click', toggleSidebar);
-                insuranceSidebarToggleIcon.addEventListener('keydown', function(e) {
+                insuranceSidebarToggleIcon.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         toggleSidebar(e);
                     }
                 });
             }
-            
+
             // Initialize mobile navigation
             if (typeof window.MobileNav !== 'undefined') {
                 window.MobileNav.init();
             }
-            
+
             // Close mobile sidebar when clicking nav items
             const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
             navItems.forEach(item => {
-                item.addEventListener('click', function() {
+                item.addEventListener('click', function () {
                     if (window.innerWidth <= 768 && typeof window.MobileNav !== 'undefined') {
                         window.MobileNav.close();
                     }
                 });
             });
-            
+
             // Handle Verification link scroll to section
             const verificationNavLink = document.getElementById('verificationNavLink');
             if (verificationNavLink) {
-                verificationNavLink.addEventListener('click', function(e) {
+                verificationNavLink.addEventListener('click', function (e) {
                     e.preventDefault();
                     const verificationSection = document.getElementById('verification');
                     if (verificationSection) {
@@ -1154,7 +1188,7 @@
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', function(e) {
+                sidebarLogoutBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     const doLogout = () => {
                         if (typeof window.authManager !== 'undefined') {
@@ -1172,7 +1206,7 @@
                             window.location.href = 'index.html';
                         }
                     };
-                    
+
                     // Check if ToastNotification is available, otherwise use native confirm
                     if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.confirm === 'function') {
                         ToastNotification.confirm('Are you sure you want to logout?').then((ok) => {
@@ -1195,4 +1229,5 @@
         });
     </script>
 </body>
+
 </html>

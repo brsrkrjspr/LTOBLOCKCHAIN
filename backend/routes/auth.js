@@ -138,7 +138,7 @@ function validateSignupInput(data) {
         }
     }
 
-    return errors.length === 0 
+    return errors.length === 0
         ? { valid: true }
         : { valid: false, errors };
 }
@@ -146,7 +146,7 @@ function validateSignupInput(data) {
 // Register new user - with comprehensive security hardening
 router.post('/register', signupLimiter, async (req, res) => {
     const clientIp = req.ip || req.connection.remoteAddress;
-    
+
     try {
         // Extract only safe fields - explicitly ignore 'role' to prevent escalation
         const { email: rawEmail, password, firstName: rawFirstName, lastName: rawLastName, organization, phone, address } = req.body;
@@ -198,7 +198,7 @@ router.post('/register', signupLimiter, async (req, res) => {
                 existingUserActive: existingUser.is_active,
                 timestamp: new Date().toISOString()
             });
-            
+
             return res.status(409).json({
                 success: false,
                 error: 'Email already registered'
@@ -254,7 +254,7 @@ router.post('/register', signupLimiter, async (req, res) => {
             try {
                 const tokenResult = await emailVerificationService.generateVerificationToken(newUser.id);
                 verificationToken = tokenResult.token;
-                
+
                 const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
                 verificationLink = `${baseUrl}/email-verification.html?token=${verificationToken}`;
 
@@ -311,7 +311,7 @@ router.post('/register', signupLimiter, async (req, res) => {
             sameSite: isProduction ? 'strict' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
-        
+
         // Return user data (without password)
         const responseData = {
             success: true,
@@ -330,7 +330,7 @@ router.post('/register', signupLimiter, async (req, res) => {
             },
             token: accessToken
         };
-        
+
         res.status(201).json(responseData);
 
     } catch (error) {
@@ -361,7 +361,7 @@ router.post('/register', signupLimiter, async (req, res) => {
     }
 });
 
-// Login user
+// Login user - with Organization-Level 2FA
 router.post('/login', async (req, res) => {
     try {
         const { email: rawEmail, password } = req.body;
@@ -405,6 +405,104 @@ router.post('/login', async (req, res) => {
             });
             // Continue with login - don't block
         }
+
+        // ============================================================
+        // ORGANIZATION-LEVEL 2FA - Check if role requires 2FA
+        // ============================================================
+        const TFA_REQUIRED_ROLES = ['lto_admin', 'insurance_verifier', 'hpg_officer'];
+
+        if (TFA_REQUIRED_ROLES.includes(user.role)) {
+            console.log('🔐 2FA required for organization account:', {
+                userId: user.id,
+                email: user.email,
+                role: user.role
+            });
+
+            // Generate 6-digit 2FA code
+            const tfaCode = String(crypto.randomInt(100000, 999999));
+            const tfaCodeHash = crypto.createHash('sha256').update(tfaCode).digest('hex');
+
+            // Generate temp token for 2FA session
+            const tempToken = crypto.randomUUID();
+            const tempTokenHash = crypto.createHash('sha256').update(tempToken).digest('hex');
+
+            // Store 2FA code in email_verification_tokens table
+            // Using token_secret to store the 2FA code hash
+            // Using token_hash to store the tempToken hash for lookup
+            const dbModule = require('../database/db');
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+            await dbModule.query(`
+                INSERT INTO email_verification_tokens (user_id, token_hash, token_secret, expires_at)
+                VALUES ($1, $2, $3, $4)
+            `, [user.id, tempTokenHash, tfaCodeHash, expiresAt]);
+
+            console.log('✅ 2FA code generated and stored:', {
+                userId: user.id,
+                tempToken: tempToken.substring(0, 8) + '...',
+                expiresAt: expiresAt.toISOString()
+            });
+
+            // Determine which email to send the code to
+            // Use personal_email (aliased email) if available, otherwise use primary email
+            const targetEmail = user.personal_email || user.email;
+
+            // Map organizational emails to their aliases
+            const emailAliases = {
+                'admin@lto.gov.ph': 'lto.lipaph@gmail.com',
+                'insurance@insurance.gov.ph': 'insurance.lipaph@gmail.com',
+                'hpg@hpg.gov.ph': 'hpg.lipaph@gmail.com'
+            };
+            const finalEmail = emailAliases[user.email.toLowerCase()] || targetEmail;
+
+            // Send 2FA code via email
+            try {
+                await gmailApiService.sendMail({
+                    to: finalEmail,
+                    subject: 'TrustChain LTO - Your 2FA Verification Code',
+                    text: `Your verification code is: ${tfaCode}\n\nThis code expires in 10 minutes.\n\nIf you did not attempt to log in, please contact LTO support immediately.`,
+                    html: `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <h2 style="color: #0284c7;">TrustChain LTO - Two-Factor Authentication</h2>
+                            <p>Hello ${user.first_name || 'Administrator'},</p>
+                            <p>Your verification code is:</p>
+                            <div style="background: #f0f9ff; border: 2px solid #0284c7; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+                                <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #0c4a6e;">${tfaCode}</span>
+                            </div>
+                            <p style="color: #dc2626;"><strong>This code expires in 10 minutes.</strong></p>
+                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                            <p style="color: #64748b; font-size: 12px;">
+                                If you did not attempt to log in, please contact LTO support immediately.
+                                <br>IP Address: ${req.ip || req.connection?.remoteAddress || 'Unknown'}
+                                <br>Time: ${new Date().toISOString()}
+                            </p>
+                        </div>
+                    `
+                });
+
+                console.log('✅ 2FA code sent via email:', {
+                    userId: user.id,
+                    targetEmail: finalEmail.substring(0, 5) + '***'
+                });
+            } catch (emailError) {
+                console.error('❌ Failed to send 2FA code via email:', emailError.message);
+                // Don't reveal email failure to prevent enumeration
+                // The 2FA code is still stored, user can request resend
+            }
+
+            // Return 202 Accepted with tempToken for 2FA verification
+            return res.status(202).json({
+                success: false,
+                require2fa: true,
+                tempToken: tempToken,
+                message: '2FA code sent to your registered email',
+                expiresIn: 600 // 10 minutes in seconds
+            });
+        }
+
+        // ============================================================
+        // STANDARD LOGIN (Non-2FA roles like vehicle_owner)
+        // ============================================================
 
         // Update last login
         await db.updateUserLastLogin(user.id);
@@ -488,13 +586,13 @@ router.post('/login', async (req, res) => {
             hint: error.hint,
             table: error.table
         });
-        
+
         // Log full error details in development/production for debugging
-        const errorMessage = process.env.NODE_ENV === 'production' 
-            ? 'Internal server error' 
+        const errorMessage = process.env.NODE_ENV === 'production'
+            ? 'Internal server error'
             : error.message || 'Internal server error';
         const errorStack = process.env.NODE_ENV === 'development' ? error.stack : undefined;
-        
+
         // Provide more helpful error messages for common database errors
         let userFriendlyError = errorMessage;
         if (error.code === '42P01') { // Table does not exist
@@ -504,16 +602,173 @@ router.post('/login', async (req, res) => {
         } else if (error.code === '23503') { // Foreign key violation
             userFriendlyError = 'Database integrity error. Please contact support.';
         }
-        
+
         res.status(500).json({
             success: false,
             error: userFriendlyError,
             ...(errorStack && { stack: errorStack }),
-            ...(process.env.NODE_ENV === 'development' && { 
+            ...(process.env.NODE_ENV === 'development' && {
                 code: error.code,
                 detail: error.detail,
                 hint: error.hint
             })
+        });
+    }
+});
+
+// ============================================================
+// VERIFY 2FA CODE - Complete login for organization accounts
+// ============================================================
+router.post('/verify-2fa', async (req, res) => {
+    try {
+        const { tempToken, code } = req.body;
+
+        // Validate required fields
+        if (!tempToken || !code) {
+            return res.status(400).json({
+                success: false,
+                error: 'tempToken and code are required'
+            });
+        }
+
+        // Validate code format (must be 6 digits)
+        if (!/^\d{6}$/.test(code)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid code format. Must be 6 digits.'
+            });
+        }
+
+        // Hash the inputs for secure lookup
+        const tempTokenHash = crypto.createHash('sha256').update(tempToken).digest('hex');
+        const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+        // Look up the 2FA token in database
+        const dbModule = require('../database/db');
+        const tokenResult = await dbModule.query(`
+            SELECT evt.*, u.id as user_id, u.email, u.first_name, u.last_name, u.role, 
+                   u.organization, u.phone, u.is_active, u.email_verified, u.created_at
+            FROM email_verification_tokens evt
+            JOIN users u ON evt.user_id = u.id
+            WHERE evt.token_hash = $1
+              AND evt.expires_at > NOW()
+              AND evt.used_at IS NULL
+        `, [tempTokenHash]);
+
+        if (tokenResult.rows.length === 0) {
+            console.warn('⚠️ Invalid or expired 2FA token:', {
+                tempToken: tempToken.substring(0, 8) + '...'
+            });
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid or expired verification code. Please login again.'
+            });
+        }
+
+        const tokenRecord = tokenResult.rows[0];
+
+        // Verify the code matches
+        if (tokenRecord.token_secret !== codeHash) {
+            console.warn('⚠️ Invalid 2FA code submitted:', {
+                userId: tokenRecord.user_id,
+                email: tokenRecord.email
+            });
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid verification code'
+            });
+        }
+
+        // Mark token as used
+        await dbModule.query(`
+            UPDATE email_verification_tokens 
+            SET used_at = NOW(), used_by_ip = $1
+            WHERE id = $2
+        `, [req.ip || req.connection?.remoteAddress || null, tokenRecord.id]);
+
+        console.log('✅ 2FA verification successful:', {
+            userId: tokenRecord.user_id,
+            email: tokenRecord.email,
+            role: tokenRecord.role
+        });
+
+        // Update last login
+        await db.updateUserLastLogin(tokenRecord.user_id);
+
+        // Generate access token with JTI
+        const accessToken = generateAccessToken({
+            userId: tokenRecord.user_id,
+            email: tokenRecord.email,
+            role: tokenRecord.role
+        });
+
+        // Generate refresh token
+        const refreshToken = generateRefreshToken({
+            userId: tokenRecord.user_id,
+            email: tokenRecord.email,
+            role: tokenRecord.role
+        });
+
+        // Store refresh token in database
+        const refreshTokenRecord = await refreshTokenService.createRefreshToken(tokenRecord.user_id, refreshToken);
+
+        // Create or update session
+        await refreshTokenService.createOrUpdateSession(
+            tokenRecord.user_id,
+            refreshTokenRecord.id,
+            req.ip || req.connection.remoteAddress,
+            req.get('user-agent') || ''
+        );
+
+        // Generate CSRF token
+        const csrfToken = crypto.randomBytes(32).toString('hex');
+
+        // Set refresh token as HttpOnly cookie
+        const isProduction = process.env.NODE_ENV === 'production';
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        // Set CSRF token as readable cookie
+        res.cookie('XSRF-TOKEN', csrfToken, {
+            httpOnly: false,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        // Prevent caching
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+
+        // Return success with user data and tokens
+        res.json({
+            success: true,
+            message: '2FA verification successful',
+            user: {
+                id: tokenRecord.user_id,
+                email: tokenRecord.email,
+                firstName: tokenRecord.first_name,
+                lastName: tokenRecord.last_name,
+                role: tokenRecord.role,
+                organization: tokenRecord.organization,
+                phone: tokenRecord.phone,
+                isActive: tokenRecord.is_active,
+                emailVerified: tokenRecord.email_verified,
+                createdAt: tokenRecord.created_at
+            },
+            token: accessToken
+        });
+
+    } catch (error) {
+        console.error('2FA verification error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Verification failed. Please try again.'
         });
     }
 });
@@ -560,7 +815,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
     try {
         const { firstName, lastName, organization, phone, address } = req.body;
         const user = await db.getUserById(req.user.userId);
-        
+
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -1018,17 +1273,17 @@ router.post('/check-verification-status', async (req, res) => {
  * Lookup user by email (for certificate generator owner lookup)
  * Authorization: Admin only (to prevent email enumeration)
  */
-router.get('/users/lookup', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.get('/users/lookup', authenticateToken, authorizeRole(['admin', 'lto_admin', 'insurance_verifier', 'hpg_officer']), async (req, res) => {
     try {
         const { email } = req.query;
-        
+
         if (!email) {
             return res.status(400).json({
                 success: false,
                 error: 'Email parameter is required'
             });
         }
-        
+
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
@@ -1037,17 +1292,17 @@ router.get('/users/lookup', authenticateToken, authorizeRole(['admin']), async (
                 error: 'Invalid email format'
             });
         }
-        
+
         // Lookup user by email
         const user = await db.getUserByEmail(email, false); // false = check all users (active and inactive)
-        
+
         if (!user) {
             return res.status(404).json({
                 success: false,
                 error: 'User not found. User must be registered in the system.'
             });
         }
-        
+
         // Return user data (excluding sensitive information)
         res.json({
             success: true,
@@ -1063,7 +1318,7 @@ router.get('/users/lookup', authenticateToken, authorizeRole(['admin']), async (
                 role: user.role
             }
         });
-        
+
     } catch (error) {
         console.error('User lookup error:', error);
         res.status(500).json({

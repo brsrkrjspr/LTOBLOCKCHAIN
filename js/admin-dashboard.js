@@ -1,5 +1,5 @@
 // Admin Dashboard JavaScript
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // SECURITY: Require authentication before initializing dashboard
     // Always check authentication in production (non-localhost)
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Small delay to allow scripts/localStorage writes to settle after redirects
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Wait for AuthManager to initialize and load token from localStorage
     if (typeof window !== 'undefined' && window.authManager) {
         try {
@@ -20,11 +20,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Continue anyway - init() doesn't throw, but token might not be loaded
         }
     }
-    
+
     if (typeof AuthUtils !== 'undefined') {
         // Check if auth is disabled (dev mode)
         const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
-        
+
         // In production, always require authentication regardless of DISABLE_AUTH setting
         if (isProduction) {
             // Check for token - localStorage FIRST (most reliable), then AuthManager
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 token = window.authManager.getAccessToken();
                 console.log('🔍 Token from AuthManager:', token ? 'Found' : 'Not found');
             }
-            
+
             if (!token || token === 'dev-token-bypass' || token.startsWith('demo-token-')) {
                 console.warn('❌ No valid authentication token - redirecting to login');
                 console.log('Debug info:', {
@@ -48,13 +48,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
                 return;
             }
-            
+
             // Verify token is valid JWT
             try {
                 const parts = token.split('.');
                 if (parts.length === 3) {
                     const payload = JSON.parse(atob(parts[1]));
-                    
+
                     // Check expiration
                     if (payload.exp && payload.exp * 1000 < Date.now()) {
                         console.warn('❌ Token expired - redirecting to login');
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         window.location.href = 'login-signup.html?expired=true';
                         return;
                     }
-                    
+
                     // Check admin or lto_admin role (lto_officer should use officer dashboard)
                     if (!['admin', 'lto_admin'].includes(payload.role)) {
                         console.warn('❌ Access denied: Admin or LTO Admin role required');
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (!AuthUtils.requireAuth()) {
                 return; // Redirect to login page
             }
-            
+
             // Verify admin or lto_admin role (lto_officer should use officer dashboard)
             if (!AuthUtils.hasRole('admin') && !AuthUtils.hasRole('lto_admin')) {
                 console.warn('❌ Access denied: Admin or LTO Admin role required');
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         // If localhost and DISABLE_AUTH = true, allow access (dev mode)
     }
-    
+
     initializeAdminDashboard();
     initializeKeyboardShortcuts();
     initializePagination();
@@ -149,17 +149,17 @@ function createSmartInterval(callback, interval, name) {
         if (!isAutoRefreshEnabled) {
             return;
         }
-        
+
         // Skip if page is hidden
         if (!isPageVisible) {
             return;
         }
-        
+
         // Skip if user is actively interacting (within last 30 seconds)
         if (isUserInteracting && (Date.now() - lastInteractionTime) < 30000) {
             return;
         }
-        
+
         // Execute callback
         callback();
     }, interval);
@@ -174,19 +174,19 @@ function clearAllAutoRefresh() {
 // Function to setup auto-refresh with smart intervals
 function setupAutoRefresh() {
     clearAllAutoRefresh();
-    
+
     if (!isAutoRefreshEnabled) return;
-    
+
     // Stats: Every 5 minutes (was 2 minutes)
     autoRefreshIntervals.push(
         createSmartInterval(updateSystemStats, 300000, 'stats')
     );
-    
+
     // Org verification: Every 10 minutes (was 5 minutes)
     autoRefreshIntervals.push(
         createSmartInterval(loadOrgVerificationStatus, 600000, 'org-verification')
     );
-    
+
     // Applications: Every 5 minutes (was 2 minutes) - but only refresh if not actively viewing
     autoRefreshIntervals.push(
         createSmartInterval(() => {
@@ -203,16 +203,16 @@ function setupAutoRefresh() {
 async function updateBlockchainStatus() {
     const badge = document.getElementById('blockchainStatusBadge');
     if (!badge) return;
-    
+
     const indicator = badge.querySelector('.status-indicator');
     const text = badge.querySelector('.status-text');
-    
+
     if (!indicator || !text) return;
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/blockchain/status');
-        
+
         if (response.success && response.blockchain) {
             const blockchain = response.blockchain;
             if (blockchain.status === 'CONNECTED') {
@@ -243,27 +243,31 @@ function initializeAdminDashboard() {
     if (!checkAndClearDemoAccount()) {
         return; // Stop initialization if demo account detected
     }
-    
+
     // PRIORITY 1: Load applications first (most important)
     initializeSubmittedApplications();
-    
+
     // PRIORITY 2: Load stats (defer slightly)
     setTimeout(() => {
-    updateSystemStats();
+        updateSystemStats();
+        // Load pre-minted vehicles
+        if (typeof loadPreMintedVehicles === 'function') {
+            loadPreMintedVehicles();
+        }
     }, 500);
-    
+
     // PRIORITY 3: Defer non-critical features
     setTimeout(() => {
-    initializeUserManagement();
-    initializeOrganizationManagement();
-    initializeAuditLogs();
-    initializeReports();
-    loadOrgVerificationStatus();
+        initializeUserManagement();
+        initializeOrganizationManagement();
+        initializeAuditLogs();
+        initializeReports();
+        loadOrgVerificationStatus();
     }, 2000); // Load after 2 seconds
-    
+
     // Set up smart auto-refresh (replaces old setInterval calls)
     setupAutoRefresh();
-    
+
     // Initialize blockchain status
     updateBlockchainStatus();
     setInterval(updateBlockchainStatus, 30000);
@@ -273,7 +277,7 @@ function initializeAdminDashboard() {
 async function loadOrgVerificationStatus() {
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Try consolidated endpoint first, fallback to individual endpoints
         let response;
         try {
@@ -282,10 +286,10 @@ async function loadOrgVerificationStatus() {
             console.log('Consolidated endpoint not available, using individual endpoints');
             response = null;
         }
-        
+
         let hpgRequests = [], insuranceRequests = [];
         let stats = null;
-        
+
         if (response && response.success) {
             // Use consolidated response
             hpgRequests = response.grouped?.hpg || [];
@@ -297,11 +301,11 @@ async function loadOrgVerificationStatus() {
                 apiClient.get('/api/hpg/requests').catch(e => ({ success: false, requests: [] })),
                 apiClient.get('/api/insurance/requests').catch(e => ({ success: false, requests: [] }))
             ]);
-            
+
             hpgRequests = hpgResponse.requests || [];
             insuranceRequests = insuranceResponse.requests || [];
         }
-        
+
         // Calculate stats if not provided
         // Normalize status to uppercase for consistent comparison (database stores uppercase)
         if (!stats) {
@@ -325,7 +329,7 @@ async function loadOrgVerificationStatus() {
                 }
             };
         }
-        
+
         // Update HPG counts (with null checks for pages that don't have these elements)
         const hpgPendingEl = document.getElementById('hpgPendingCount');
         const hpgApprovedEl = document.getElementById('hpgApprovedCount');
@@ -333,7 +337,7 @@ async function loadOrgVerificationStatus() {
         if (hpgPendingEl) hpgPendingEl.textContent = stats.hpg.pending;
         if (hpgApprovedEl) hpgApprovedEl.textContent = stats.hpg.approved + (stats.hpg.completed || 0);
         if (hpgRejectedEl) hpgRejectedEl.textContent = stats.hpg.rejected;
-        
+
         // Update Insurance counts (with null checks)
         const insurancePendingEl = document.getElementById('insurancePendingCount');
         const insuranceApprovedEl = document.getElementById('insuranceApprovedCount');
@@ -341,21 +345,21 @@ async function loadOrgVerificationStatus() {
         if (insurancePendingEl) insurancePendingEl.textContent = stats.insurance.pending;
         if (insuranceApprovedEl) insuranceApprovedEl.textContent = stats.insurance.approved + (stats.insurance.completed || 0);
         if (insuranceRejectedEl) insuranceRejectedEl.textContent = stats.insurance.rejected;
-        
+
         // Combine all requests and sort by date for the table
         const allRequests = [
             ...hpgRequests.map(r => ({ ...r, orgType: 'HPG', orgIcon: 'fa-shield-alt', orgColor: '#2c3e50' })),
             ...insuranceRequests.map(r => ({ ...r, orgType: 'Insurance', orgIcon: 'fa-file-shield', orgColor: '#3498db' }))
         ].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
-        
+
         // Render the verification responses table (with null check)
         const verificationTbody = document.getElementById('verification-responses-tbody');
         if (verificationTbody) {
             renderVerificationResponsesTable(allRequests.slice(0, 20)); // Show latest 20
         }
-        
+
         console.log('📊 Organization verification status loaded:', stats);
-        
+
     } catch (error) {
         console.error('Error loading organization verification status:', error);
         const verificationTbody = document.getElementById('verification-responses-tbody');
@@ -375,7 +379,7 @@ async function loadOrgVerificationStatus() {
 function renderVerificationResponsesTable(requests) {
     const tbody = document.getElementById('verification-responses-tbody');
     if (!tbody) return;
-    
+
     if (requests.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -386,14 +390,14 @@ function renderVerificationResponsesTable(requests) {
         `;
         return;
     }
-    
+
     tbody.innerHTML = requests.map(req => {
         const metadata = typeof req.metadata === 'string' ? JSON.parse(req.metadata) : (req.metadata || {});
         const vehicleInfo = metadata.vehiclePlate || req.plate_number || req.vin || 'N/A';
         const statusClass = getVerificationStatusClass(req.status);
         const statusIcon = getVerificationStatusIcon(req.status);
         const responseDate = req.updated_at || req.created_at;
-        
+
         return `
             <tr>
                 <td>
@@ -455,26 +459,26 @@ async function viewVerificationDetails(requestId, orgType) {
         'hpg': 'HPG Clearance',
         'insurance': 'Insurance Verification'
     };
-    
+
     const orgIcons = {
         'hpg': 'fa-shield-alt',
         'insurance': 'fa-file-shield'
     };
-    
+
     const orgColors = {
         'hpg': '#2c3e50',
         'insurance': '#3498db'
     };
-    
+
     // Create and show modal with loading state
     const existingModal = document.getElementById('verificationDetailsModal');
     if (existingModal) existingModal.remove();
-    
+
     const modal = document.createElement('div');
     modal.id = 'verificationDetailsModal';
     modal.className = 'modal';
     modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;';
-    
+
     modal.innerHTML = `
         <div class="modal-content" style="background: white; border-radius: 16px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
             <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; gap: 1rem;">
@@ -499,20 +503,20 @@ async function viewVerificationDetails(requestId, orgType) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Close on backdrop click
-    modal.addEventListener('click', function(e) {
+    modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             modal.remove();
         }
     });
-    
+
     // Fetch verification details
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Get clearance request to find vehicle_id
         let requestEndpoint = '';
         if (orgType === 'insurance') {
@@ -520,31 +524,31 @@ async function viewVerificationDetails(requestId, orgType) {
         } else {
             requestEndpoint = `/api/hpg/requests/${requestId}`;
         }
-        
+
         const requestResponse = await apiClient.get(requestEndpoint);
         if (!requestResponse.success || !requestResponse.request) {
             throw new Error('Failed to fetch request details');
         }
-        
+
         const request = requestResponse.request;
         const vehicleId = request.vehicle_id;
-        
+
         // Get vehicle verifications to find auto-verification results
         const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
         if (!vehicleResponse.success || !vehicleResponse.vehicle) {
             throw new Error('Failed to fetch vehicle details');
         }
-        
+
         const vehicle = vehicleResponse.vehicle;
         const verifications = vehicle.verifications || [];
-        
+
         // Find the relevant verification (insurance or emission)
         const verificationType = orgType === 'hpg' ? 'hpg' : orgType;
         const verification = verifications.find(v => v.verification_type === verificationType);
-        
+
         // Build content HTML
         let contentHTML = '';
-        
+
         // Basic request info
         contentHTML += `
             <div style="display: grid; gap: 1rem; margin-bottom: 1.5rem;">
@@ -564,7 +568,7 @@ async function viewVerificationDetails(requestId, orgType) {
                 </div>
             </div>
         `;
-        
+
         // Display auto-verification results if available
         // Handle both verification_metadata (from DB) and metadata.verificationMetadata structures
         let verificationMetadata = null;
@@ -572,8 +576,8 @@ async function viewVerificationDetails(requestId, orgType) {
             // Try verification_metadata column (direct from DB - may be JSON string)
             if (verification.verification_metadata) {
                 try {
-                    verificationMetadata = typeof verification.verification_metadata === 'string' 
-                        ? JSON.parse(verification.verification_metadata) 
+                    verificationMetadata = typeof verification.verification_metadata === 'string'
+                        ? JSON.parse(verification.verification_metadata)
                         : verification.verification_metadata;
                 } catch (e) {
                     console.warn('Failed to parse verification_metadata:', e);
@@ -581,22 +585,22 @@ async function viewVerificationDetails(requestId, orgType) {
             }
             // Try metadata.verificationMetadata (nested structure)
             if (!verificationMetadata && verification.metadata) {
-                const metadata = typeof verification.metadata === 'string' 
-                    ? JSON.parse(verification.metadata) 
+                const metadata = typeof verification.metadata === 'string'
+                    ? JSON.parse(verification.metadata)
                     : verification.metadata;
                 if (metadata && metadata.verificationMetadata) {
                     verificationMetadata = metadata.verificationMetadata;
                 }
             }
         }
-        
+
         if (verificationMetadata) {
             const metadata = verificationMetadata;
             const isAutoVerified = metadata.autoVerified === true;
             const verificationResult = metadata.verificationResult || (verification.status === 'APPROVED' ? 'PASSED' : 'FAILED');
             const verificationScore = metadata.verificationScore?.percentage || metadata.verificationScore || verification.verification_score || 0;
             const flagReasons = metadata.flagReasons || [];
-            
+
             if (isAutoVerified) {
                 contentHTML += `
                     <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${verificationResult === 'PASSED' ? '#27ae60' : '#e67e22'};">
@@ -616,7 +620,7 @@ async function viewVerificationDetails(requestId, orgType) {
                                 <span style="font-weight: 600; color: #2c3e50;">${verificationScore}%</span>
                             </div>
                 `;
-                
+
                 // Show flag reasons if verification failed
                 if (flagReasons.length > 0) {
                     contentHTML += `
@@ -628,7 +632,7 @@ async function viewVerificationDetails(requestId, orgType) {
                             </div>
                     `;
                 }
-                
+
                 // Show detailed checks if available
                 if (metadata.patternCheck || metadata.authenticityCheck || metadata.hashCheck || metadata.expiryCheck) {
                     contentHTML += `
@@ -636,7 +640,7 @@ async function viewVerificationDetails(requestId, orgType) {
                                 <label style="display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.5rem; font-weight: 600;">Verification Checks</label>
                                 <div style="display: grid; gap: 0.5rem; font-size: 0.875rem;">
                     `;
-                    
+
                     if (metadata.patternCheck) {
                         const isValid = metadata.patternCheck.valid !== false;
                         contentHTML += `
@@ -649,7 +653,7 @@ async function viewVerificationDetails(requestId, orgType) {
                                     </div>
                         `;
                     }
-                    
+
                     if (metadata.authenticityCheck) {
                         const isAuthentic = metadata.authenticityCheck.authentic !== false;
                         contentHTML += `
@@ -661,7 +665,7 @@ async function viewVerificationDetails(requestId, orgType) {
                                     </div>
                         `;
                     }
-                    
+
                     if (metadata.hashCheck) {
                         const isUnique = !metadata.hashCheck.exists;
                         contentHTML += `
@@ -673,7 +677,7 @@ async function viewVerificationDetails(requestId, orgType) {
                                     </div>
                         `;
                     }
-                    
+
                     if (metadata.expiryCheck) {
                         const isValid = metadata.expiryCheck.isValid !== false;
                         contentHTML += `
@@ -685,20 +689,20 @@ async function viewVerificationDetails(requestId, orgType) {
                                     </div>
                         `;
                     }
-                    
+
                     contentHTML += `
                                 </div>
                             </div>
                     `;
                 }
-                
+
                 contentHTML += `
                         </div>
                     </div>
                 `;
             }
         }
-        
+
         // Add View Remarks button for HPG if remarks are available
         let hasHpgRemarks = false;
         let hpgRemarksData = null;
@@ -713,7 +717,7 @@ async function viewVerificationDetails(requestId, orgType) {
                 };
             }
         }
-        
+
         // Check if Manual Verify button should be shown (for insurance only)
         let showManualVerify = false;
         let manualVerifyData = null;
@@ -721,10 +725,10 @@ async function viewVerificationDetails(requestId, orgType) {
             const isPending = verification.status === 'PENDING';
             const isAutoVerified = verificationMetadata && verificationMetadata.autoVerified === true;
             const hasFailed = verificationMetadata && (
-                verificationMetadata.verificationResult === 'FAILED' || 
+                verificationMetadata.verificationResult === 'FAILED' ||
                 (verificationMetadata.flagReasons && verificationMetadata.flagReasons.length > 0)
             );
-            
+
             if (isPending && isAutoVerified && hasFailed) {
                 showManualVerify = true;
                 manualVerifyData = {
@@ -738,14 +742,14 @@ async function viewVerificationDetails(requestId, orgType) {
                 };
             }
         }
-        
+
         // Add action buttons section
         if (hasHpgRemarks || showManualVerify || verification) {
             contentHTML += `
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e9ecef;">
                     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
             `;
-            
+
             if (hasHpgRemarks) {
                 contentHTML += `
                         <button id="viewHpgRemarksBtn" class="btn-secondary" style="padding: 0.75rem 1.5rem; display: inline-flex; align-items: center; gap: 0.5rem;">
@@ -753,7 +757,7 @@ async function viewVerificationDetails(requestId, orgType) {
                         </button>
                 `;
             }
-            
+
             if (showManualVerify) {
                 contentHTML += `
                         <button id="manualVerifyBtn" class="btn-primary" style="padding: 0.75rem 1.5rem; display: inline-flex; align-items: center; gap: 0.5rem; background: #ff9800; border-color: #ff9800;">
@@ -761,13 +765,13 @@ async function viewVerificationDetails(requestId, orgType) {
                         </button>
                 `;
             }
-            
+
             contentHTML += `
                     </div>
                 </div>
             `;
         }
-        
+
         // Show note if no auto-verification results and no HPG remarks
         if (!verificationMetadata && !hasHpgRemarks) {
             contentHTML += `
@@ -780,32 +784,32 @@ async function viewVerificationDetails(requestId, orgType) {
                 </div>
             `;
         }
-        
+
         // Update modal content
         document.getElementById('verification-loading').style.display = 'none';
         document.getElementById('verification-content').style.display = 'block';
         document.getElementById('verification-content').innerHTML = contentHTML;
-        
+
         // Add click handler for View Remarks button
         if (hasHpgRemarks && hpgRemarksData) {
             const viewRemarksBtn = document.getElementById('viewHpgRemarksBtn');
             if (viewRemarksBtn) {
-                viewRemarksBtn.addEventListener('click', function() {
+                viewRemarksBtn.addEventListener('click', function () {
                     showHpgRemarksModal(hpgRemarksData, orgLabels[orgType], orgColors[orgType], orgIcons[orgType]);
                 });
             }
         }
-        
+
         // Add click handler for Manual Verify button
         if (showManualVerify && manualVerifyData) {
             const manualVerifyBtn = document.getElementById('manualVerifyBtn');
             if (manualVerifyBtn) {
-                manualVerifyBtn.addEventListener('click', function() {
+                manualVerifyBtn.addEventListener('click', function () {
                     showManualVerificationModal(manualVerifyData, orgLabels[orgType], orgColors[orgType], orgIcons[orgType]);
                 });
             }
         }
-        
+
     } catch (error) {
         console.error('Error loading verification details:', error);
         document.getElementById('verification-loading').innerHTML = `
@@ -821,23 +825,23 @@ async function viewVerificationDetails(requestId, orgType) {
 function showManualVerificationModal(verifyData, orgLabel, orgColor, orgIcon) {
     const existingModal = document.getElementById('manualVerificationModal');
     if (existingModal) existingModal.remove();
-    
+
     const { vehicleId, requestId, verificationType, verification, verificationMetadata, vehicle, request } = verifyData;
     const metadata = verificationMetadata || {};
     const flagReasons = metadata.flagReasons || [];
     const verificationScore = metadata.verificationScore?.percentage || metadata.verificationScore || verification.verification_score || 0;
     const verificationResult = metadata.verificationResult || 'FAILED';
-    
+
     // Get document for viewing
     const documents = vehicle.documents || [];
     const docType = verificationType === 'insurance' ? 'insurance' : 'emission';
     const document = documents.find(d => d.document_type === docType);
-    
+
     const modal = document.createElement('div');
     modal.id = 'manualVerificationModal';
     modal.className = 'modal';
     modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10002; align-items: center; justify-content: center;';
-    
+
     modal.innerHTML = `
         <div class="modal-content" style="background: white; border-radius: 16px; max-width: 1200px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
             <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; gap: 1rem;">
@@ -993,25 +997,25 @@ function showManualVerificationModal(verifyData, orgLabel, orgColor, orgIcon) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Close on backdrop click
-    modal.addEventListener('click', function(e) {
+    modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             modal.remove();
         }
     });
-    
+
     // Handle form validation and submission
     const form = document.getElementById('manualVerificationForm');
     const decisionRadios = form.querySelectorAll('input[name="decision"]');
     const notesTextarea = document.getElementById('manualNotes');
     const notesRequired = document.getElementById('notesRequired');
-    
+
     // Update required indicator based on decision
     decisionRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
+        radio.addEventListener('change', function () {
             if (this.value === 'REJECTED') {
                 notesRequired.style.display = 'inline';
                 notesTextarea.setAttribute('required', 'required');
@@ -1021,14 +1025,14 @@ function showManualVerificationModal(verifyData, orgLabel, orgColor, orgIcon) {
             }
         });
     });
-    
+
     // Form submission
-    form.addEventListener('submit', async function(e) {
+    form.addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         const decision = form.querySelector('input[name="decision"]:checked').value;
         const notes = notesTextarea.value.trim();
-        
+
         // Validate notes for rejection
         if (decision === 'REJECTED' && !notes) {
             if (typeof ToastNotification !== 'undefined') {
@@ -1038,7 +1042,7 @@ function showManualVerificationModal(verifyData, orgLabel, orgColor, orgIcon) {
             }
             return;
         }
-        
+
         // Submit manual verification
         await submitManualVerification(vehicleId, requestId, verificationType, decision, notes || null);
     });
@@ -1048,7 +1052,7 @@ function showManualVerificationModal(verifyData, orgLabel, orgColor, orgIcon) {
 async function submitManualVerification(vehicleId, requestId, verificationType, decision, notes) {
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Call API endpoint
         const response = await apiClient.post('/api/admin/verifications/manual-verify', {
             vehicleId: vehicleId,
@@ -1057,16 +1061,16 @@ async function submitManualVerification(vehicleId, requestId, verificationType, 
             decision: decision,
             notes: notes
         });
-        
+
         if (response.success) {
             if (typeof ToastNotification !== 'undefined') {
                 ToastNotification.show(`${verificationType === 'insurance' ? 'Insurance' : 'Emission'} verification ${decision.toLowerCase()} successfully`, 'success');
             }
-            
+
             // Close modal
             const modal = document.getElementById('manualVerificationModal');
             if (modal) modal.remove();
-            
+
             // Refresh verification details if modal is still open
             const detailsModal = document.getElementById('verificationDetailsModal');
             if (detailsModal) {
@@ -1093,12 +1097,12 @@ async function submitManualVerification(vehicleId, requestId, verificationType, 
 function showHpgRemarksModal(remarksData, orgLabel, orgColor, orgIcon) {
     const existingRemarksModal = document.getElementById('hpgRemarksModal');
     if (existingRemarksModal) existingRemarksModal.remove();
-    
+
     const remarksModal = document.createElement('div');
     remarksModal.id = 'hpgRemarksModal';
     remarksModal.className = 'modal';
     remarksModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; align-items: center; justify-content: center;';
-    
+
     remarksModal.innerHTML = `
         <div class="modal-content" style="background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
             <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e9ecef; display: flex; align-items: center; gap: 1rem;">
@@ -1138,11 +1142,11 @@ function showHpgRemarksModal(remarksData, orgLabel, orgColor, orgIcon) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(remarksModal);
-    
+
     // Close on backdrop click
-    remarksModal.addEventListener('click', function(e) {
+    remarksModal.addEventListener('click', function (e) {
         if (e.target === remarksModal) {
             remarksModal.remove();
         }
@@ -1157,7 +1161,7 @@ async function acknowledgeVerification(requestId, orgType) {
         } else {
             alert(`${orgType.toUpperCase()} verification acknowledged`);
         }
-        
+
         // Refresh the table
         loadOrgVerificationStatus();
     } catch (error) {
@@ -1170,7 +1174,7 @@ function checkAndClearDemoAccount() {
     const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     const currentUser = localStorage.getItem('currentUser');
-    
+
     // If auth is disabled (dev mode), allow access but still check for admin role
     if (isAuthDisabled) {
         // In dev mode, check if user has admin role
@@ -1191,7 +1195,7 @@ function checkAndClearDemoAccount() {
         }
         return true; // Allow access in dev mode
     }
-    
+
     // Production mode: Require valid authentication
     if (!token) {
         console.warn('❌ No authentication token found - redirecting to login');
@@ -1201,7 +1205,7 @@ function checkAndClearDemoAccount() {
         }, 2000);
         return false;
     }
-    
+
     // Check if it's a demo token
     if (token.startsWith('demo-token-')) {
         console.warn('❌ Demo account detected - clearing credentials');
@@ -1212,7 +1216,7 @@ function checkAndClearDemoAccount() {
         }, 2000);
         return false;
     }
-    
+
     // Check if currentUser has admin or lto_admin role
     if (currentUser) {
         try {
@@ -1232,14 +1236,14 @@ function checkAndClearDemoAccount() {
             // If parsing fails, don't block - let token check handle it
         }
     }
-    
+
     // Check JWT token role if it's a real token
     if (!token.startsWith('demo-token-')) {
         try {
             const parts = token.split('.');
             if (parts.length === 3) {
                 const payload = JSON.parse(atob(parts[1]));
-                
+
                 // Check token expiration
                 if (payload.exp && payload.exp * 1000 < Date.now()) {
                     console.warn('❌ Token expired - redirecting to login');
@@ -1250,7 +1254,7 @@ function checkAndClearDemoAccount() {
                     }, 2000);
                     return false;
                 }
-                
+
                 // Check admin or lto_admin role
                 if (!['admin', 'lto_admin'].includes(payload.role)) {
                     console.warn('❌ Token does not have admin or lto_admin role - clearing credentials');
@@ -1282,14 +1286,14 @@ function checkAndClearDemoAccount() {
             return false;
         }
     }
-    
+
     return true;
 }
 
 async function updateSystemStats() {
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Load stats from backend API
         const [adminStatsResponse, transferStatsResponse] = await Promise.all([
             apiClient.get('/api/admin/stats').catch(e => {
@@ -1301,26 +1305,26 @@ async function updateSystemStats() {
                 return { success: false, stats: null };
             })
         ]);
-        
+
         // Update dashboard stat cards if they exist
         const totalAppsEl = document.getElementById('totalApplications');
         const pendingTransfersEl = document.getElementById('pendingTransfers');
         const approvedAppsEl = document.getElementById('approvedApplications');
         const totalUsersEl = document.getElementById('totalUsers');
-        
+
         // Update total applications (vehicles)
         if (totalAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
             const totalVehicles = adminStatsResponse.stats.vehicles?.total || 0;
             totalAppsEl.textContent = totalVehicles.toLocaleString();
         }
-        
+
         // Update pending transfers (PENDING + REVIEWING - both need admin attention)
         if (pendingTransfersEl && transferStatsResponse.success && transferStatsResponse.stats) {
             const stats = transferStatsResponse.stats;
             // PENDING = waiting for buyer, REVIEWING = waiting for admin
             const pendingCount = (stats.pending || 0) + (stats.reviewing || 0);
             pendingTransfersEl.textContent = pendingCount.toLocaleString();
-            
+
             // Update badge
             const transferBadge = document.getElementById('transferBadge');
             if (transferBadge) {
@@ -1332,26 +1336,26 @@ async function updateSystemStats() {
                 }
             }
         }
-        
+
         // Update approved applications
         if (approvedAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
             const vehicles = adminStatsResponse.stats.vehicles || {};
             const approvedCount = (vehicles.approved || 0) + (vehicles.registered || 0);
             approvedAppsEl.textContent = approvedCount.toLocaleString();
         }
-        
+
         // Update total users
         if (totalUsersEl && adminStatsResponse.success && adminStatsResponse.stats) {
             const totalUsers = adminStatsResponse.stats.users?.total || 0;
             totalUsersEl.textContent = totalUsers.toLocaleString();
         }
-        
+
         console.log('✅ System stats updated:', {
             vehicles: adminStatsResponse.stats?.vehicles,
             transfers: transferStatsResponse.stats,
             users: adminStatsResponse.stats?.users
         });
-        
+
     } catch (error) {
         console.error('Failed to update system stats:', error);
     }
@@ -1361,16 +1365,16 @@ function initializeUserManagement() {
     // Add click handler for User Management button
     const userMgmtBtn = document.querySelector('a[href="#users"]');
     if (userMgmtBtn) {
-        userMgmtBtn.addEventListener('click', function(e) {
+        userMgmtBtn.addEventListener('click', function (e) {
             e.preventDefault();
             showUserManagementModal();
         });
     }
-    
+
     // Add event listeners for user management actions
     const userTable = document.querySelector('.table tbody');
     if (userTable) {
-        userTable.addEventListener('click', function(e) {
+        userTable.addEventListener('click', function (e) {
             if (e.target.classList.contains('btn-danger')) {
                 handleUserSuspend(e);
             } else if (e.target.classList.contains('btn-secondary')) {
@@ -1384,7 +1388,7 @@ async function handleUserSuspend(e) {
     const row = e.target.closest('tr');
     const userId = row.querySelector('td:first-child').textContent;
     const userName = row.querySelector('td:nth-child(2)').textContent;
-    
+
     const confirmed = await ConfirmationDialog.show({
         title: 'Suspend User',
         message: `Are you sure you want to suspend user ${userName} (${userId})? This action can be reversed later.`,
@@ -1393,15 +1397,15 @@ async function handleUserSuspend(e) {
         confirmColor: '#e74c3c',
         type: 'warning'
     });
-    
+
     if (confirmed) {
         const button = e.target;
         LoadingManager.show(button, 'Suspending...');
-        
+
         try {
             // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
             ToastNotification.show('User suspended successfully', 'success');
             row.querySelector('.status-badge').textContent = 'Suspended';
             row.querySelector('.status-badge').className = 'status-badge status-suspended';
@@ -1416,7 +1420,7 @@ async function handleUserSuspend(e) {
 function handleUserEdit(e) {
     const row = e.target.closest('tr');
     const userId = row.querySelector('td:first-child').textContent;
-    
+
     // Open user edit modal (placeholder)
     showNotification(`Edit user ${userId} - Feature coming soon`, 'info');
 }
@@ -1425,16 +1429,16 @@ function initializeOrganizationManagement() {
     // Add click handler for Organization Management button
     const orgMgmtBtn = document.querySelector('a[href="#orgs"]');
     if (orgMgmtBtn) {
-        orgMgmtBtn.addEventListener('click', function(e) {
+        orgMgmtBtn.addEventListener('click', function (e) {
             e.preventDefault();
             showOrganizationManagementModal();
         });
     }
-    
+
     // Add event listeners for organization management
     const orgTable = document.querySelector('.dashboard-card:nth-child(3) .table tbody');
     if (orgTable) {
-        orgTable.addEventListener('click', function(e) {
+        orgTable.addEventListener('click', function (e) {
             if (e.target.classList.contains('btn-danger')) {
                 handleOrgDeactivate(e);
             } else if (e.target.classList.contains('btn-secondary')) {
@@ -1448,7 +1452,7 @@ function handleOrgDeactivate(e) {
     const row = e.target.closest('tr');
     const orgId = row.querySelector('td:first-child').textContent;
     const orgName = row.querySelector('td:nth-child(2)').textContent;
-    
+
     if (confirm(`Are you sure you want to deactivate organization ${orgName} (${orgId})?`)) {
         showNotification('Organization deactivated successfully', 'success');
         row.querySelector('.status-badge').textContent = 'Inactive';
@@ -1459,7 +1463,7 @@ function handleOrgDeactivate(e) {
 function handleOrgEdit(e) {
     const row = e.target.closest('tr');
     const orgId = row.querySelector('td:first-child').textContent;
-    
+
     showNotification(`Edit organization ${orgId} - Feature coming soon`, 'info');
 }
 
@@ -1467,12 +1471,12 @@ function initializeAuditLogs() {
     // Add click handler for Audit Logs button
     const auditBtn = document.querySelector('a[href="#audit"]');
     if (auditBtn) {
-        auditBtn.addEventListener('click', function(e) {
+        auditBtn.addEventListener('click', function (e) {
             e.preventDefault();
             showAuditLogsModal();
         });
     }
-    
+
     // Add real-time audit log updates
     addNewAuditLog();
 }
@@ -1481,7 +1485,7 @@ function initializeReports() {
     // Add click handler for Reports button
     const reportsBtn = document.querySelector('a[href="#reports"]');
     if (reportsBtn) {
-        reportsBtn.addEventListener('click', function(e) {
+        reportsBtn.addEventListener('click', function (e) {
             e.preventDefault();
             showReportsModal();
         });
@@ -1491,20 +1495,20 @@ function initializeReports() {
 function addNewAuditLog() {
     const auditLogs = document.querySelector('.audit-logs');
     if (!auditLogs) return;
-    
+
     const auditEvents = [
         { icon: '🔐', title: 'User Login', description: 'New user logged in from IP 192.168.1.105', time: new Date().toLocaleString() },
         { icon: '📝', title: 'Document Upload', description: 'New document uploaded to blockchain', time: new Date().toLocaleString() },
         { icon: '✅', title: 'Application Approved', description: 'Vehicle registration application approved', time: new Date().toLocaleString() },
         { icon: '⚠️', title: 'System Alert', description: 'High CPU usage detected', time: new Date().toLocaleString() }
     ];
-    
+
     // Add random audit log every 2 minutes
     setInterval(() => {
         const randomEvent = auditEvents[Math.floor(Math.random() * auditEvents.length)];
         const newLog = createAuditLogElement(randomEvent);
         auditLogs.insertBefore(newLog, auditLogs.firstChild);
-        
+
         // Remove oldest log if more than 5
         if (auditLogs.children.length > 5) {
             auditLogs.removeChild(auditLogs.lastChild);
@@ -1530,12 +1534,64 @@ function showNotification(message, type = 'info') {
     ToastNotification.show(message, type);
 }
 
+// Load Pre-minted Vehicles
+async function loadPreMintedVehicles() {
+    const tbody = document.getElementById('pre-minted-vehicles-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading pre-minted vehicles...</td></tr>';
+
+    try {
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get('/api/vehicles/pre-minted');
+
+        if (response && response.success) {
+            renderPreMintedVehiclesTable(response.vehicles || []);
+        } else {
+            // No mock fallbacks - show error state
+            const errorMsg = response?.error || 'Failed to fetch vehicles from API';
+            console.error('Pre-minted vehicles API error:', errorMsg);
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;"><i class="fas fa-exclamation-triangle"></i> ${errorMsg}</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error loading pre-minted vehicles:', error);
+        // No mock fallbacks - show error state
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #e74c3c;"><i class="fas fa-exclamation-triangle"></i> Failed to load vehicles: ${error.message}</td></tr>`;
+    }
+}
+
+function renderPreMintedVehiclesTable(vehicles) {
+    const tbody = document.getElementById('pre-minted-vehicles-tbody');
+    if (!tbody) return;
+
+    if (!vehicles || vehicles.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;">No pre-minted vehicles available.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = vehicles.map(vehicle => `
+        <tr>
+            <td style="font-family: monospace; font-weight: 600;">${vehicle.vin}</td>
+            <td>${vehicle.make} ${vehicle.model}</td>
+            <td>${vehicle.year}</td>
+            <td>${vehicle.dealer || 'N/A'}</td>
+            <td>${vehicle.importDate ? new Date(vehicle.importDate).toLocaleDateString() : 'N/A'}</td>
+             <td><span class="status-badge status-pending" style="background-color: #e0f2fe; color: #0284c7;">Available</span></td>
+            <td>
+                 <button class="btn-secondary btn-sm" onclick="showNotification('Details view coming soon', 'info')">
+                    <i class="fas fa-eye"></i> Details
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
 function initializeSubmittedApplications() {
     // Load and display submitted applications (legacy - for backward compatibility)
     // Now using separate functions for registrations and transfers
     loadRegistrationApplications();
     loadTransferApplications();
-    
+
     // Auto-refresh is now handled by setupAutoRefresh() in initializeAdminDashboard
     // No separate setInterval here anymore
 }
@@ -1543,16 +1599,16 @@ function initializeSubmittedApplications() {
 async function loadSubmittedApplications() {
     const tbody = document.getElementById('submitted-applications-tbody');
     if (!tbody) return;
-    
+
     // Show loading state
     tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
-    
+
     try {
         // Check for demo account first
-        const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
+        const token = (typeof window !== 'undefined' && window.authManager)
+            ? window.authManager.getAccessToken()
             : (localStorage.getItem('authToken') || localStorage.getItem('token'));
-        
+
         if (token && token.startsWith('demo-token-')) {
             console.warn('Demo token detected - cannot load applications');
             showNotification('Demo accounts cannot access admin features. Please login with a real admin account.', 'error');
@@ -1562,7 +1618,7 @@ async function loadSubmittedApplications() {
             }, 2000);
             return;
         }
-        
+
         // Try to load from API first
         if (token && typeof APIClient !== 'undefined') {
             try {
@@ -1570,7 +1626,7 @@ async function loadSubmittedApplications() {
                 // Use combined status query with optimized limit
                 let response = await apiClient.get('/api/vehicles?status=SUBMITTED,PENDING_BLOCKCHAIN&limit=50&page=1');
                 let allVehicles = response && response.success && response.vehicles ? response.vehicles : [];
-                
+
                 if (allVehicles.length > 0) {
                     response = {
                         success: true,
@@ -1578,7 +1634,7 @@ async function loadSubmittedApplications() {
                         pagination: response.pagination || null
                     };
                 }
-                
+
                 if (response && response.success && response.vehicles) {
                     // Convert vehicles to application format using canonical mapper + admin extensions
                     const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
@@ -1586,14 +1642,14 @@ async function loadSubmittedApplications() {
                         console.error('❌ VehicleMapper not available. Make sure js/models/vehicle-mapper.js is loaded.');
                         throw new Error('VehicleMapper not available');
                     }
-                    
+
                     allApplications = response.vehicles.map(vehicle => {
                         // Start with canonical mapping
                         const app = mapper(vehicle);
-                        
+
                         // Extend with admin-specific fields
                         const verificationStatus = app.verificationStatus || {};
-                        
+
                         // Use Object.assign for compatibility instead of spread operator
                         return Object.assign({}, app, {
                             // Add engine and chassis numbers to vehicle info
@@ -1619,22 +1675,22 @@ async function loadSubmittedApplications() {
                             status: (vehicle.status || 'SUBMITTED').toLowerCase()
                         });
                     });
-                    
+
                     // Save to localStorage for offline access (v2 format)
                     localStorage.setItem('submittedApplications_v2', JSON.stringify(allApplications));
                     console.log(`💾 Saved ${allApplications.length} applications to localStorage (v2)`);
-                    
+
                     // Keep v1 for backward compatibility (read-only, don't overwrite if it exists)
                     if (!localStorage.getItem('submittedApplications')) {
                         localStorage.setItem('submittedApplications', JSON.stringify(allApplications));
                     }
-                    
+
                     // Sort applications by submission date (newest first)
                     allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
-                    
+
                     // Apply filters/search if any
                     filteredApplications = applyFilters(allApplications);
-                    
+
                     // Update pagination
                     updatePagination();
                     renderApplications();
@@ -1644,20 +1700,20 @@ async function loadSubmittedApplications() {
                 console.warn('API load failed, trying localStorage:', apiError);
             }
         }
-        
+
         // Fallback to localStorage with migration support
         console.log('📦 Loading from localStorage...');
-        
+
         // Try v2 first
         let localApps = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
-        
+
         // If v2 is empty but v1 exists, migrate
         if (localApps.length === 0) {
             const v1Apps = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
             if (v1Apps.length > 0) {
                 console.log(`🔄 Migrating ${v1Apps.length} applications from v1 to v2...`);
                 const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
-                
+
                 if (mapper) {
                     // Attempt to migrate old entries
                     try {
@@ -1680,7 +1736,7 @@ async function loadSubmittedApplications() {
                                 }, oldApp.vehicle);
                                 const baseApp = mapper(vehicleLike);
                                 const verificationStatus = baseApp.verificationStatus || {};
-                                
+
                                 // Return with admin extensions (using Object.assign for compatibility)
                                 return Object.assign({}, baseApp, {
                                     vehicle: Object.assign({}, baseApp.vehicle, {
@@ -1701,7 +1757,7 @@ async function loadSubmittedApplications() {
                             }
                             return oldApp; // Fallback to old structure if migration fails
                         });
-                        
+
                         // Save migrated data to v2
                         localStorage.setItem('submittedApplications_v2', JSON.stringify(localApps));
                         console.log(`✅ Migration complete: ${localApps.length} applications migrated`);
@@ -1715,16 +1771,16 @@ async function loadSubmittedApplications() {
                 }
             }
         }
-        
+
         console.log(`📦 Found ${localApps.length} applications in localStorage`);
         allApplications = localApps;
-        
+
         // Sort applications by submission date (newest first)
         allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
-        
+
         // Apply filters/search if any
         filteredApplications = applyFilters(allApplications);
-        
+
         // Update pagination
         updatePagination();
         renderApplications();
@@ -1738,20 +1794,20 @@ function applyFilters(applications) {
     // Get search/filter values if they exist
     const searchInput = document.getElementById('applicationSearch');
     const statusFilter = document.getElementById('statusFilter');
-    
+
     let filtered = [...applications];
-    
+
     // Apply search
     if (searchInput && searchInput.value.trim()) {
         const searchTerm = searchInput.value.toLowerCase();
-        filtered = filtered.filter(app => 
+        filtered = filtered.filter(app =>
             app.id.toLowerCase().includes(searchTerm) ||
             (app.vehicle && `${app.vehicle.make || ''} ${app.vehicle.model || ''}`.toLowerCase().includes(searchTerm)) ||
             (app.owner && `${app.owner.firstName || app.owner.first_name || ''} ${app.owner.lastName || app.owner.last_name || ''}`.toLowerCase().includes(searchTerm)) ||
             (app.vehicle && (app.vehicle.plateNumber || app.vehicle.plate_number) && (app.vehicle.plateNumber || app.vehicle.plate_number).toLowerCase().includes(searchTerm))
         );
     }
-    
+
     // Apply status filter (case-insensitive comparison)
     if (statusFilter && statusFilter.value !== 'all') {
         const filterStatus = statusFilter.value.toLowerCase();
@@ -1760,17 +1816,17 @@ function applyFilters(applications) {
             return appStatus === filterStatus;
         });
     }
-    
+
     return filtered;
 }
 
 function renderApplications() {
     const tbody = document.getElementById('submitted-applications-tbody');
     if (!tbody) return;
-    
+
     // Clear existing rows
     tbody.innerHTML = '';
-    
+
     if (filteredApplications.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -1781,12 +1837,12 @@ function renderApplications() {
         `;
         return;
     }
-    
+
     // Calculate pagination
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const pageApplications = filteredApplications.slice(startIndex, endIndex);
-    
+
     // Display applications
     pageApplications.forEach(app => {
         const row = createApplicationRow(app);
@@ -1814,7 +1870,7 @@ function initializePagination() {
                 </select>
             </div>
         `;
-        
+
         // Find the table-container div (which contains the table)
         const tableContainerDiv = tableContainer.querySelector('.table-container');
         if (tableContainerDiv) {
@@ -1827,7 +1883,7 @@ function initializePagination() {
                 table.parentElement.insertBefore(toolbar, table);
             }
         }
-        
+
         // Add event listeners
         document.getElementById('applicationSearch')?.addEventListener('input', () => {
             currentPage = 1;
@@ -1835,18 +1891,18 @@ function initializePagination() {
             updatePagination();
             renderApplications();
         });
-        
+
         document.getElementById('statusFilter')?.addEventListener('change', () => {
             currentPage = 1;
             filteredApplications = applyFilters(allApplications);
             updatePagination();
             renderApplications();
         });
-        
+
         // Add refresh button
         addRefreshButton();
     }
-    
+
     // Add pagination container
     const tbody = document.getElementById('submitted-applications-tbody');
     if (tbody && !document.getElementById('pagination-container')) {
@@ -1860,7 +1916,7 @@ function initializePagination() {
 function updatePagination() {
     const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
     const container = document.getElementById('pagination-container');
-    
+
     if (container) {
         PaginationHelper.createPagination(container, currentPage, totalPages, (page) => {
             currentPage = page;
@@ -1873,17 +1929,17 @@ function updatePagination() {
 // Load integrity status for a vehicle
 async function loadIntegrityStatus(vehicleId, vin, cellElement) {
     if (!cellElement || !vin) return;
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/integrity/check/${vin}`);
-        
+
         if (response.success) {
             const status = response.status;
             let badgeClass = 'verified';
             let badgeIcon = 'fa-check-circle';
             let badgeText = 'VERIFIED';
-            
+
             if (status === 'TAMPERED') {
                 badgeClass = 'tampered';
                 badgeIcon = 'fa-exclamation-triangle';
@@ -1901,7 +1957,7 @@ async function loadIntegrityStatus(vehicleId, vin, cellElement) {
                 badgeIcon = 'fa-times-circle';
                 badgeText = 'ERROR';
             }
-            
+
             cellElement.innerHTML = `
                 <span class="integrity-badge ${badgeClass}" title="${response.message || ''}">
                     <i class="fas ${badgeIcon}"></i> ${badgeText}
@@ -1920,10 +1976,10 @@ async function loadIntegrityStatus(vehicleId, vin, cellElement) {
 function addRefreshButton() {
     const tableContainer = document.querySelector('.dashboard-card:has(#submitted-applications-tbody)');
     if (!tableContainer) return;
-    
+
     // Check if refresh button already exists
     if (document.getElementById('refreshApplicationsBtn')) return;
-    
+
     const toolbar = tableContainer.querySelector('.management-toolbar');
     if (toolbar) {
         // Manual refresh button
@@ -1937,17 +1993,17 @@ function addRefreshButton() {
         refreshBtn.onclick = async () => {
             refreshBtn.disabled = true;
             refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
-            
+
             // Clear localStorage to force fresh API load
             localStorage.removeItem('submittedApplications');
             localStorage.removeItem('submittedApplications_v2');
-            
+
             // Reload applications
             await loadSubmittedApplications();
-            
+
             refreshBtn.disabled = false;
             refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
-            
+
             // Show notification
             if (typeof showNotification !== 'undefined') {
                 showNotification('Applications refreshed', 'success');
@@ -1955,12 +2011,12 @@ function addRefreshButton() {
                 ToastNotification.show('Applications refreshed', 'success');
             }
         };
-        
+
         // Auto-refresh toggle button
         const autoRefreshToggle = document.createElement('button');
         autoRefreshToggle.id = 'autoRefreshToggle';
-        autoRefreshToggle.innerHTML = isAutoRefreshEnabled 
-            ? '<i class="fas fa-pause"></i> Pause Auto-Refresh' 
+        autoRefreshToggle.innerHTML = isAutoRefreshEnabled
+            ? '<i class="fas fa-pause"></i> Pause Auto-Refresh'
             : '<i class="fas fa-play"></i> Enable Auto-Refresh';
         autoRefreshToggle.className = 'btn btn-secondary';
         autoRefreshToggle.style.marginLeft = '0.5rem';
@@ -1985,14 +2041,14 @@ function addRefreshButton() {
                 }
             }
         };
-        
+
         toolbar.appendChild(refreshBtn);
         toolbar.appendChild(autoRefreshToggle);
     }
 }
 
 function initializeKeyboardShortcuts() {
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         // Ctrl+F or Cmd+F to focus search
         if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
             const searchInput = document.getElementById('applicationSearch');
@@ -2001,7 +2057,7 @@ function initializeKeyboardShortcuts() {
                 searchInput.focus();
             }
         }
-        
+
         // Ctrl+P or Cmd+P to print
         if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
             e.preventDefault();
@@ -2017,7 +2073,7 @@ function createApplicationRow(application) {
     const vehicle = application.vehicle || {};
     const originType = vehicle.origin_type || vehicle.originType || application.origin_type || application.originType || 'NEW_REG';
     const isTransferWorkflow = originType === 'TRANSFER';
-    
+
     // Check inspection status - for TRANSFER workflows only.
     // MVIR / inspection MUST NOT be part of the new registration approval workflow.
     const hasInspection = isTransferWorkflow && (
@@ -2029,9 +2085,9 @@ function createApplicationRow(application) {
     const mvirNumber = hasInspection
         ? (vehicle.mvir_number || application.mvir_number || vehicle.mvirNumber || application.mvirNumber)
         : null;
-    
+
     const inspectionStatus = isTransferWorkflow
-        ? (hasInspection 
+        ? (hasInspection
             ? `<span class="badge badge-success" title="MVIR: ${mvirNumber}" style="margin-top: 0.25rem; display: inline-block;">
                     <i class="fas fa-check-circle"></i> Inspected
                </span>`
@@ -2039,16 +2095,16 @@ function createApplicationRow(application) {
                     <i class="fas fa-exclamation-triangle"></i> Not Inspected
                </span>`)
         : ''; // For pure registration workflows, do not surface MVIR/inspection UI at all.
-    
+
     // Get verification status and auto-verification info
     const verifications = application.verifications || [];
     const insuranceVerification = verifications.find(v => v.verification_type === 'insurance');
     const emissionVerification = verifications.find(v => v.verification_type === 'emission');
     const hpgVerification = verifications.find(v => v.verification_type === 'hpg');
-    
+
     // Build auto-verification status badges
     let autoVerificationBadges = '';
-    
+
     if (insuranceVerification && insuranceVerification.automated) {
         const score = insuranceVerification.verification_score || 0;
         const status = insuranceVerification.status || 'PENDING';
@@ -2058,7 +2114,7 @@ function createApplicationRow(application) {
             <i class="fas ${icon}"></i> Insurance: ${status === 'APPROVED' ? 'Auto-Approved' : 'Auto-Flagged'} (${score}%)
         </span>`;
     }
-    
+
     if (emissionVerification && emissionVerification.automated) {
         const score = emissionVerification.verification_score || 0;
         const status = emissionVerification.status || 'PENDING';
@@ -2068,20 +2124,20 @@ function createApplicationRow(application) {
             <i class="fas ${icon}"></i> Emission: ${status === 'APPROVED' ? 'Auto-Approved' : 'Auto-Flagged'} (${score}%)
         </span>`;
     }
-    
+
     if (hpgVerification && hpgVerification.automated) {
         const score = hpgVerification.verification_score || 0;
         autoVerificationBadges += `<span class="badge badge-info" title="HPG Pre-Verified: Data extracted (Score: ${score}%)" style="margin-top: 0.25rem; display: inline-block; margin-right: 0.25rem;">
             <i class="fas fa-robot"></i> HPG: Pre-Verified (${score}%)
         </span>`;
     }
-    
+
     // Determine if approval should be disabled (allow admin override for now)
     const canApprove = true; // Approval is not blocked by MVIR for registration; transfer checks are enforced on backend.
     const approveButtonClass = canApprove ? 'btn-primary' : 'btn-secondary';
     const approveButtonDisabled = canApprove ? '' : 'disabled';
     const approveButtonTitle = canApprove ? 'Approve application' : 'Inspection required before approval';
-    
+
     const vehicleData = application.vehicle || {};
     const ownerData = application.owner || {};
     const vehicleMake = vehicleData.make || 'N/A';
@@ -2090,7 +2146,7 @@ function createApplicationRow(application) {
     const vehiclePlate = vehicleData.plateNumber || vehicleData.plate_number || 'N/A';
     const ownerFirstName = ownerData.firstName || ownerData.first_name || 'N/A';
     const ownerLastName = ownerData.lastName || ownerData.last_name || 'N/A';
-    
+
     row.innerHTML = `
         <td>${application.id}</td>
         <td>
@@ -2136,14 +2192,14 @@ function createApplicationRow(application) {
             </div>
         </td>
     `;
-    
+
     // Lazy load integrity status after row is created
     if (vin) {
         setTimeout(() => loadIntegrityStatus(vehicleId, vin, row.querySelector('.integrity-status-cell')), 100);
     } else {
         row.querySelector('.integrity-status-cell').innerHTML = '<span class="integrity-badge error"><i class="fas fa-question"></i> N/A</span>';
     }
-    
+
     return row;
 }
 
@@ -2170,17 +2226,17 @@ async function viewApplication(applicationId) {
     console.log('🔍 viewApplication called with ID:', applicationId);
     try {
         // Check authentication first
-        const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
+        const token = (typeof window !== 'undefined' && window.authManager)
+            ? window.authManager.getAccessToken()
             : (localStorage.getItem('authToken') || localStorage.getItem('token'));
-        
+
         if (!token) {
             console.warn('❌ No token found');
             showNotification('Please login to view applications', 'error');
             window.location.href = 'login-signup.html';
             return;
         }
-        
+
         // Check if it's a demo token
         if (token.startsWith('demo-token-')) {
             console.warn('❌ Demo token detected');
@@ -2191,12 +2247,12 @@ async function viewApplication(applicationId) {
             }, 2000);
             return;
         }
-        
+
         console.log('✅ Token valid, loading application...');
-        
+
         // Try to load from API first
         let application = null;
-        
+
         if (token && typeof APIClient !== 'undefined') {
             try {
                 const apiClient = new APIClient();
@@ -2204,16 +2260,16 @@ async function viewApplication(applicationId) {
                 // Use /id/:id route for UUID vehicle IDs
                 const response = await apiClient.get(`/api/vehicles/id/${applicationId}`);
                 console.log('📡 API Response:', response);
-                
+
                 if (response && response.success && response.vehicle) {
                     const vehicle = response.vehicle;
                     const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
-                    
+
                     if (mapper) {
                         // Start with canonical mapping
                         const baseApp = mapper(vehicle);
                         const verificationStatus = baseApp.verificationStatus || {};
-                        
+
                         // Extend with admin-specific fields (using Object.assign for compatibility)
                         application = Object.assign({}, baseApp, {
                             // Add engine and chassis numbers to vehicle info
@@ -2270,7 +2326,7 @@ async function viewApplication(applicationId) {
                             verificationStatus: vehicle.verificationStatus || {}
                         };
                     }
-                    
+
                     console.log('✅ Application loaded from API:', application);
                 }
             } catch (apiError) {
@@ -2278,31 +2334,31 @@ async function viewApplication(applicationId) {
                 console.error('API Error details:', apiError);
             }
         }
-        
+
         // Fallback to localStorage (try v2 first, then v1)
         if (!application) {
             console.log('📦 Loading from localStorage...');
             // Try v2 first
             let applications = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
             application = applications.find(app => app.id === applicationId);
-            
+
             // If not found in v2, try v1
             if (!application) {
                 applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
                 application = applications.find(app => app.id === applicationId);
             }
-            
+
             if (application) {
                 console.log('✅ Application found in localStorage:', application);
             }
         }
-        
+
         if (!application) {
             console.error('❌ Application not found');
             showNotification('Application not found', 'error');
             return;
         }
-        
+
         console.log('📋 Showing modal for application:', application.id);
         showApplicationModal(application);
     } catch (error) {
@@ -2317,18 +2373,18 @@ window.viewApplication = viewApplication;
 
 function showApplicationModal(application) {
     console.log('📋 showApplicationModal called with:', application);
-    
+
     // Normalize status to lowercase for consistent comparison
     const normalizedStatus = (application.status || '').toLowerCase();
     const isFinalState = ['approved', 'registered', 'rejected'].includes(normalizedStatus);
     const isApprovedOrRegistered = ['approved', 'registered'].includes(normalizedStatus);
-    
+
     // Remove any existing modals first
     const existingModal = document.querySelector('.modal');
     if (existingModal) {
         existingModal.remove();
     }
-    
+
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex'; // Ensure modal is visible
@@ -2341,7 +2397,7 @@ function showApplicationModal(application) {
     modal.style.zIndex = '10000';
     modal.style.alignItems = 'center';
     modal.style.justifyContent = 'center';
-    
+
     // Prepare vehicle data (handle both nested and flat structures)
     const vehicle = application.vehicle || {};
     const inspectionStatus = vehicle.inspection_result || vehicle.inspectionResult || 'PENDING';
@@ -2351,7 +2407,7 @@ function showApplicationModal(application) {
     const roadworthinessStatus = vehicle.roadworthiness_status || vehicle.roadworthinessStatus || 'PENDING';
     // Format date for input field
     const formattedInspectionDate = inspectionDate ? inspectionDate.split('T')[0] : '';
-    
+
     // Prepare owner data with safe property access
     const owner = application.owner || {};
     const ownerFirstName = owner.firstName || owner.first_name || 'N/A';
@@ -2360,7 +2416,7 @@ function showApplicationModal(application) {
     const ownerPhone = owner.phone || 'N/A';
     const ownerIdType = owner.idType || owner.id_type || 'N/A';
     const ownerIdNumber = owner.idNumber || owner.id_number || 'N/A';
-    
+
     // Helper function to get status badge color
     const getStatusColor = (status) => {
         const colorMap = {
@@ -2376,7 +2432,7 @@ function showApplicationModal(application) {
         };
         return colorMap[status] || '#fff3cd';
     };
-    
+
     const getStatusTextColor = (status) => {
         const colorMap = {
             'PASS': '#155724',
@@ -2391,7 +2447,7 @@ function showApplicationModal(application) {
         };
         return colorMap[status] || '#856404';
     };
-    
+
     modal.innerHTML = `
         <div class="modal-content" style="background: white; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
             <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e2e8f0; flex-shrink: 0;">
@@ -2474,29 +2530,29 @@ function showApplicationModal(application) {
                         <h4>Documents (${application.documents ? application.documents.length : 0})</h4>
                         <div class="document-list">
                             ${application.documents && application.documents.length > 0 ?
-                                application.documents.map((doc, index) => {
-                                    const docType = doc.documentType || doc.document_type || 'document';
-                                    const typeNames = {
-                                        'registration_cert': '📄 Registration Certificate (OR/CR)',
-                                        'or_cr': '📄 Registration Certificate (OR/CR)',
-                                        'insurance_cert': '🛡️ Insurance Certificate',
-                                        'emission_cert': '🌱 Emission Certificate',
-                                        'owner_id': '🆔 Owner Valid ID',
-                                        'csr': '📋 Certificate of Stock Report (CSR)',
-                                        'hpg_clearance': '🚔 PNP-HPG Motor Vehicle Clearance',
-                                        'sales_invoice': '🧾 Sales Invoice',
-                                        'deed_of_sale': '📜 Deed of Sale',
-                                        'seller_id': '🆔 Seller Valid ID',
-                                        'buyer_id': '🆔 Buyer Valid ID'
-                                    };
-                                    const docName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
-                                    return `<div class="document-item" data-doc-index="${index}" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;">
+            application.documents.map((doc, index) => {
+                const docType = doc.documentType || doc.document_type || 'document';
+                const typeNames = {
+                    'registration_cert': '📄 Registration Certificate (OR/CR)',
+                    'or_cr': '📄 Registration Certificate (OR/CR)',
+                    'insurance_cert': '🛡️ Insurance Certificate',
+                    'emission_cert': '🌱 Emission Certificate',
+                    'owner_id': '🆔 Owner Valid ID',
+                    'csr': '📋 Certificate of Stock Report (CSR)',
+                    'hpg_clearance': '🚔 PNP-HPG Motor Vehicle Clearance',
+                    'sales_invoice': '🧾 Sales Invoice',
+                    'deed_of_sale': '📜 Deed of Sale',
+                    'seller_id': '🆔 Seller Valid ID',
+                    'buyer_id': '🆔 Buyer Valid ID'
+                };
+                const docName = typeNames[docType] || `📄 ${doc.originalName || doc.original_name || doc.filename || 'Document'}`;
+                return `<div class="document-item" data-doc-index="${index}" style="cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;">
                                         <span>${docName}</span>
                                         <span style="color: #3498db;">View →</span>
                                     </div>`;
-                                }).join('') :
-                                '<p style="color: #999;">No documents uploaded yet</p>'
-                            }
+            }).join('') :
+            '<p style="color: #999;">No documents uploaded yet</p>'
+        }
                         </div>
                         <!-- Strict: do not provide links that open full-page/new-tab document viewers -->
                     </div>
@@ -2655,9 +2711,9 @@ function showApplicationModal(application) {
                 ` : `
                 <div style="display: flex; gap: 10px;">
                     <span style="padding: 8px 16px; color: #666; font-style: italic;">
-                        ${normalizedStatus === 'approved' || normalizedStatus === 'registered' 
-                            ? 'Application has been approved' 
-                            : 'Application has been rejected'}
+                        ${normalizedStatus === 'approved' || normalizedStatus === 'registered'
+            ? 'Application has been approved'
+            : 'Application has been rejected'}
                     </span>
                 </div>
                 `}
@@ -2665,13 +2721,13 @@ function showApplicationModal(application) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
     console.log('✅ Modal appended to body');
-    
+
     // Load certificates for this vehicle
     loadCertificatesForVehicle(application.id, application.vehicle?.id || application.id);
-    
+
     // Attach document click handlers using DocumentModal (mirroring HPG behavior)
     if (application.documents && application.documents.length > 0) {
         try {
@@ -2719,7 +2775,7 @@ function showApplicationModal(application) {
                     document_type: docType
                 };
             });
-            
+
             const docItems = modal.querySelectorAll('.document-item[data-doc-index]');
             docItems.forEach(item => {
                 const idx = parseInt(item.getAttribute('data-doc-index'), 10);
@@ -2735,7 +2791,7 @@ function showApplicationModal(application) {
             console.error('Error binding document viewer handlers:', e);
         }
     }
-    
+
     // Ensure modal content is styled properly
     const modalContent = modal.querySelector('.modal-content');
     if (modalContent) {
@@ -2747,17 +2803,17 @@ function showApplicationModal(application) {
         modalContent.style.padding = '0';
         modalContent.style.margin = '20px';
     }
-    
+
     // Close modal when clicking outside
-    modal.addEventListener('click', function(e) {
+    modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             console.log('Closing modal (clicked outside)');
             modal.remove();
         }
     });
-    
+
     // Close modal with Escape key
-    const escapeHandler = function(e) {
+    const escapeHandler = function (e) {
         if (e.key === 'Escape') {
             console.log('Closing modal (Escape key)');
             modal.remove();
@@ -2765,7 +2821,7 @@ function showApplicationModal(application) {
         }
     };
     document.addEventListener('keydown', escapeHandler);
-    
+
     console.log('✅ Modal setup complete');
 }
 
@@ -2774,15 +2830,15 @@ async function approveApplication(applicationId) {
     try {
         const apiClient = new APIClient();
         const vehicleResponse = await apiClient.get(`/api/vehicles/id/${applicationId}`);
-        
+
         if (!vehicleResponse.success || !vehicleResponse.vehicle) {
             throw new Error('Failed to load vehicle data');
         }
-        
+
         const vehicle = vehicleResponse.vehicle;
         const originType = vehicle.origin_type || vehicle.originType || 'NEW_REG';
         const isTransferWorkflow = originType === 'TRANSFER';
-        
+
         // Only transfers require MVIR/inspection before approval.
         // Registrations MUST NOT be gated by inspection.
         if (isTransferWorkflow && !vehicle.mvir_number) {
@@ -2794,7 +2850,7 @@ async function approveApplication(applicationId) {
                 confirmColor: '#f59e0b',
                 type: 'warning'
             });
-            
+
             if (!proceedWithoutInspection) {
                 return;
             }
@@ -2804,7 +2860,7 @@ async function approveApplication(applicationId) {
         ToastNotification.show('Failed to check inspection status. Please try again.', 'error');
         return;
     }
-    
+
     const confirmed = await ConfirmationDialog.show({
         title: 'Approve Application',
         message: 'Are you sure you want to approve this application? This will assign OR/CR numbers, register on blockchain, and notify the user.',
@@ -2813,37 +2869,37 @@ async function approveApplication(applicationId) {
         confirmColor: '#27ae60',
         type: 'question'
     });
-    
+
     if (confirmed) {
         const button = event?.target || document.querySelector(`[onclick*="approveApplication('${applicationId}')"]`);
         if (button) LoadingManager.show(button, 'Approving...');
-        
+
         try {
-                const apiClient = new APIClient();
+            const apiClient = new APIClient();
             // FIX: Use approve-clearance endpoint instead of status update
             const response = await apiClient.post(`/api/lto/approve-clearance`, {
                 vehicleId: applicationId,
-                    notes: 'Application approved by admin'
-                });
-                
-                if (response && response.success) {
+                notes: 'Application approved by admin'
+            });
+
+            if (response && response.success) {
                 const message = `Application approved successfully! OR: ${response.orNumber || 'N/A'}, CR: ${response.crNumber || 'N/A'}`;
                 if (response.mvirNumber) {
                     ToastNotification.show(`${message} MVIR: ${response.mvirNumber}`, 'success');
                 } else {
                     ToastNotification.show(message, 'success');
                 }
-                    
-                    // Close any open modals
-                    const openModal = document.querySelector('.modal');
-                    if (openModal) {
-                        openModal.remove();
-                    }
-                    
-                    // Refresh the table
-                    await loadSubmittedApplications();
-                } else {
-                    throw new Error(response?.error || 'Failed to approve application');
+
+                // Close any open modals
+                const openModal = document.querySelector('.modal');
+                if (openModal) {
+                    openModal.remove();
+                }
+
+                // Refresh the table
+                await loadSubmittedApplications();
+            } else {
+                throw new Error(response?.error || 'Failed to approve application');
             }
         } catch (error) {
             console.error('Error approving application:', error);
@@ -2874,41 +2930,41 @@ async function rejectApplication(applicationId) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     return new Promise((resolve) => {
-        modal.querySelector('#confirmReject').onclick = async function() {
+        modal.querySelector('#confirmReject').onclick = async function () {
             const reason = document.getElementById('rejectionReason').value.trim();
             if (!reason) {
                 ToastNotification.show('Please provide a reason for rejection', 'error');
                 return;
             }
-            
+
             const button = this;
             LoadingManager.show(button, 'Rejecting...');
-            
+
             try {
                 // Call API to update vehicle status
-                const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
-            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
+                const token = (typeof window !== 'undefined' && window.authManager)
+                    ? window.authManager.getAccessToken()
+                    : (localStorage.getItem('authToken') || localStorage.getItem('token'));
                 if (token && typeof APIClient !== 'undefined') {
                     const apiClient = new APIClient();
                     const response = await apiClient.put(`/api/vehicles/id/${applicationId}/status`, {
                         status: 'REJECTED',
                         notes: `Application rejected: ${reason}`
                     });
-                    
+
                     if (response && response.success) {
                         ToastNotification.show('Application rejected successfully! User will be notified.', 'success');
-                        
+
                         // Update local storage
                         updateApplicationStatus(applicationId, 'rejected', `Application rejected: ${reason}`);
-                        
+
                         // Add notification for user
                         addUserNotification(applicationId, 'rejected', `Your application has been rejected. Reason: ${reason}. Please review and resubmit.`);
-                        
+
                         // Refresh the table
                         await loadSubmittedApplications();
                         modal.remove();
@@ -2931,12 +2987,12 @@ async function rejectApplication(applicationId) {
                 LoadingManager.hide(button);
             }
         };
-        
+
         modal.querySelector('.modal-close').onclick = () => {
             modal.remove();
             resolve();
         };
-        
+
         modal.onclick = (e) => {
             if (e.target === modal) {
                 modal.remove();
@@ -2952,13 +3008,13 @@ async function inspectVehicle(vehicleId) {
         // Get vehicle details first
         const apiClient = new APIClient();
         const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
-        
+
         if (!vehicleResponse.success || !vehicleResponse.vehicle) {
             throw new Error('Failed to load vehicle data');
         }
-        
+
         const vehicle = vehicleResponse.vehicle;
-        
+
         // Check if already inspected
         if (vehicle.mvir_number) {
             // Show inspection details modal instead
@@ -3004,15 +3060,15 @@ async function inspectVehicle(vehicleId) {
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.9rem;">
                                 <div>
                                     <strong style="color: #92400e;">Owner Name:</strong><br>
-                                    <span style="color: #78350f;">${vehicle.ownerName || vehicle.owner_name || 
-                                        (vehicle.owner_first_name && vehicle.owner_last_name ? 
-                                            `${vehicle.owner_first_name} ${vehicle.owner_last_name}` : 
-                                            (vehicle.owner && vehicle.owner.name ? vehicle.owner.name : 'Not Available'))}</span>
+                                    <span style="color: #78350f;">${vehicle.ownerName || vehicle.owner_name ||
+                (vehicle.owner_first_name && vehicle.owner_last_name ?
+                    `${vehicle.owner_first_name} ${vehicle.owner_last_name}` :
+                    (vehicle.owner && vehicle.owner.name ? vehicle.owner.name : 'Not Available'))}</span>
                                 </div>
                                 <div>
                                     <strong style="color: #92400e;">Owner Email:</strong><br>
-                                    <span style="color: #78350f;">${vehicle.ownerEmail || vehicle.owner_email || 
-                                        (vehicle.owner && vehicle.owner.email ? vehicle.owner.email : 'Not Available')}</span>
+                                    <span style="color: #78350f;">${vehicle.ownerEmail || vehicle.owner_email ||
+                (vehicle.owner && vehicle.owner.email ? vehicle.owner.email : 'Not Available')}</span>
                                 </div>
                                 ${(vehicle.ownerPhone || vehicle.owner_phone || (vehicle.owner && vehicle.owner.phone)) ? `
                                 <div>
@@ -3045,7 +3101,7 @@ async function inspectVehicle(vehicleId) {
             document.body.appendChild(modal);
             return;
         }
-        
+
         // Create inspection modal
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -3089,15 +3145,15 @@ async function inspectVehicle(vehicleId) {
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.9rem;">
                             <div>
                                 <strong style="color: #92400e;">Owner Name:</strong><br>
-                                <span style="color: #78350f;">${vehicle.ownerName || vehicle.owner_name || 
-                                    (vehicle.owner_first_name && vehicle.owner_last_name ? 
-                                        `${vehicle.owner_first_name} ${vehicle.owner_last_name}` : 
-                                        (vehicle.owner && vehicle.owner.name ? vehicle.owner.name : 'Not Available'))}</span>
+                                <span style="color: #78350f;">${vehicle.ownerName || vehicle.owner_name ||
+            (vehicle.owner_first_name && vehicle.owner_last_name ?
+                `${vehicle.owner_first_name} ${vehicle.owner_last_name}` :
+                (vehicle.owner && vehicle.owner.name ? vehicle.owner.name : 'Not Available'))}</span>
                             </div>
                             <div>
                                 <strong style="color: #92400e;">Owner Email:</strong><br>
-                                <span style="color: #78350f;">${vehicle.ownerEmail || vehicle.owner_email || 
-                                    (vehicle.owner && vehicle.owner.email ? vehicle.owner.email : 'Not Available')}</span>
+                                <span style="color: #78350f;">${vehicle.ownerEmail || vehicle.owner_email ||
+            (vehicle.owner && vehicle.owner.email ? vehicle.owner.email : 'Not Available')}</span>
                             </div>
                             ${(vehicle.ownerPhone || vehicle.owner_phone || (vehicle.owner && vehicle.owner.phone)) ? `
                             <div>
@@ -3157,25 +3213,25 @@ async function inspectVehicle(vehicleId) {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         // Handle form submission
-        modal.querySelector('#confirmInspect').onclick = async function() {
+        modal.querySelector('#confirmInspect').onclick = async function () {
             const inspectionResult = document.getElementById('inspectionResult').value;
             const roadworthinessStatus = document.getElementById('roadworthinessStatus').value;
             const inspectionOfficer = document.getElementById('inspectionOfficer').value.trim();
             const inspectionNotes = document.getElementById('inspectionNotes').value.trim();
-            
+
             // Validate required fields
             if (!inspectionResult || !roadworthinessStatus) {
                 ToastNotification.show('Please fill in all required fields', 'error');
                 return;
             }
-            
+
             const button = this;
             LoadingManager.show(button, 'Processing...');
-            
+
             try {
                 const response = await apiClient.post(`/api/lto/inspect`, {
                     vehicleId: vehicleId,
@@ -3184,13 +3240,13 @@ async function inspectVehicle(vehicleId) {
                     inspectionOfficer: inspectionOfficer || undefined,
                     inspectionNotes: inspectionNotes || undefined
                 });
-                
+
                 if (response && response.success) {
                     ToastNotification.show(
-                        `Inspection completed! MVIR: ${response.inspection.mvirNumber}`, 
+                        `Inspection completed! MVIR: ${response.inspection.mvirNumber}`,
                         'success'
                     );
-                    
+
                     modal.remove();
                     await loadSubmittedApplications();
                 } else {
@@ -3203,7 +3259,7 @@ async function inspectVehicle(vehicleId) {
                 LoadingManager.hide(button);
             }
         };
-        
+
     } catch (error) {
         console.error('Error opening inspection modal:', error);
         ToastNotification.show(`Error: ${error.message}`, 'error');
@@ -3213,29 +3269,29 @@ async function inspectVehicle(vehicleId) {
 function updateApplicationStatus(applicationId, newStatus, notes) {
     // Update in submitted applications (try v2 first, fallback to v1)
     let applications = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
-    
+
     if (applications.length === 0) {
         applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
     }
-    
+
     let application = applications.find(app => app.id === applicationId);
-    
+
     if (application) {
         application.status = newStatus;
         application.lastUpdated = new Date().toISOString();
         application.adminNotes = notes;
-        
+
         // Update in localStorage (prefer v2, update both if v1 exists)
         localStorage.setItem('submittedApplications_v2', JSON.stringify(applications));
         if (localStorage.getItem('submittedApplications')) {
             localStorage.setItem('submittedApplications', JSON.stringify(applications));
         }
     }
-    
+
     // Update in user applications
     let userApplications = JSON.parse(localStorage.getItem('userApplications') || '[]');
     let userApp = userApplications.find(app => app.id === applicationId);
-    
+
     if (userApp) {
         userApp.status = newStatus;
         userApp.lastUpdated = new Date().toISOString();
@@ -3251,11 +3307,11 @@ function addUserNotification(applicationId, type, message) {
     if (applications.length === 0) {
         applications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
     }
-    
+
     let application = applications.find(app => app.id === applicationId);
-    
+
     if (!application) return;
-    
+
     // Create notification
     const notification = {
         id: 'notif-' + Date.now(),
@@ -3267,16 +3323,16 @@ function addUserNotification(applicationId, type, message) {
         timestamp: new Date().toISOString(),
         read: false
     };
-    
+
     // Store notification
     let notifications = JSON.parse(localStorage.getItem('userNotifications') || '[]');
     notifications.unshift(notification); // Add to beginning
-    
+
     // Keep only last 20 notifications
     if (notifications.length > 20) {
         notifications = notifications.slice(0, 20);
     }
-    
+
     localStorage.setItem('userNotifications', JSON.stringify(notifications));
 }
 
@@ -3305,7 +3361,7 @@ function updateWorkflowUI() {
     const insuranceDocItem = document.getElementById('insuranceDocItem');
     const hpgDocItem = document.getElementById('hpgDocItem');
     const finalizeBtn = document.getElementById('finalizeBtn');
-    
+
     if (emissionDocItem) {
         emissionDocItem.style.display = workflowState.emissionRequested ? 'flex' : 'none';
         if (workflowState.emissionReceived) {
@@ -3319,7 +3375,7 @@ function updateWorkflowUI() {
             document.getElementById('emissionLoadingBadge').style.display = 'inline-block';
         }
     }
-    
+
     if (insuranceDocItem) {
         insuranceDocItem.style.display = workflowState.insuranceRequested ? 'flex' : 'none';
         if (workflowState.insuranceReceived) {
@@ -3329,7 +3385,7 @@ function updateWorkflowUI() {
             document.getElementById('rejectInsuranceBtn').style.display = 'inline-block';
         }
     }
-    
+
     if (hpgDocItem) {
         hpgDocItem.style.display = workflowState.hpgRequested ? 'flex' : 'none';
         if (workflowState.hpgReceived) {
@@ -3341,12 +3397,12 @@ function updateWorkflowUI() {
             document.getElementById('hpgStatus').className = 'status-badge status-pending';
         }
     }
-    
+
     // Enable finalize button only when all three are complete
     if (finalizeBtn) {
-        const allComplete = workflowState.emissionReceived && 
-                           workflowState.insuranceReceived && 
-                           workflowState.hpgReceived;
+        const allComplete = workflowState.emissionReceived &&
+            workflowState.insuranceReceived &&
+            workflowState.hpgReceived;
         finalizeBtn.disabled = !allComplete;
         if (allComplete) {
             finalizeBtn.classList.add('enabled');
@@ -3370,14 +3426,14 @@ async function requestEmissionTest() {
         confirmColor: '#27ae60',
         type: 'question'
     });
-    
+
     if (confirmed) {
         workflowState.emissionRequested = true;
         workflowState.emissionReceived = false;
         saveWorkflowState();
-        
+
         ToastNotification.show('Request sent to Emission. Status: Awaiting Test Result', 'success');
-        
+
         // Simulate receiving result after delay (for demo)
         // In real app, this would be triggered by Emission sending the result
     }
@@ -3392,12 +3448,12 @@ async function requestInsuranceProof() {
         confirmColor: '#3498db',
         type: 'question'
     });
-    
+
     if (confirmed) {
         workflowState.insuranceRequested = true;
         workflowState.insuranceReceived = false;
         saveWorkflowState();
-        
+
         ToastNotification.show('Request sent to Insurance. Status: Insurance Verification Pending', 'success');
     }
 }
@@ -3427,18 +3483,18 @@ async function requestHPGClearance() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
-    modal.querySelector('#confirmHPGRequest').onclick = async function() {
+
+    modal.querySelector('#confirmHPGRequest').onclick = async function () {
         workflowState.hpgRequested = true;
         workflowState.hpgReceived = false;
         saveWorkflowState();
-        
+
         ToastNotification.show('Request sent to HPG. Status: HPG Clearance Pending', 'success');
         modal.remove();
     };
-    
+
     modal.querySelector('.modal-close').onclick = () => modal.remove();
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
@@ -3458,7 +3514,7 @@ async function approveInsurance() {
         confirmColor: '#27ae60',
         type: 'question'
     });
-    
+
     if (confirmed) {
         ToastNotification.show('Insurance papers approved successfully', 'success');
         // Update status
@@ -3486,22 +3542,22 @@ async function requestInsuranceCorrection() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
-    modal.querySelector('#confirmCorrection').onclick = function() {
+
+    modal.querySelector('#confirmCorrection').onclick = function () {
         const reason = document.getElementById('correctionReason').value.trim();
         if (!reason) {
             ToastNotification.show('Please provide a reason for correction', 'error');
             return;
         }
-        
+
         ToastNotification.show('Correction request sent to Insurance', 'success');
         workflowState.insuranceReceived = false;
         saveWorkflowState();
         modal.remove();
     };
-    
+
     modal.querySelector('.modal-close').onclick = () => modal.remove();
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
@@ -3515,11 +3571,11 @@ async function approveHPGClearance() {
         confirmColor: '#27ae60',
         type: 'question'
     });
-    
+
     if (confirmed) {
         workflowState.hpgReceived = true;
         saveWorkflowState();
-        
+
         ToastNotification.show('HPG MV Clearance approved. Status: Clearance Approved', 'success');
     }
 }
@@ -3529,7 +3585,7 @@ async function finalizeRegistration() {
         ToastNotification.show('Cannot finalize: All verifications must be complete', 'error');
         return;
     }
-    
+
     const confirmed = await ConfirmationDialog.show({
         title: 'Finalize Registration',
         message: 'Finalize this registration and send final output to User?',
@@ -3538,7 +3594,7 @@ async function finalizeRegistration() {
         confirmColor: '#27ae60',
         type: 'question'
     });
-    
+
     if (confirmed) {
         ToastNotification.show('Registration finalized successfully! Final output sent to User.', 'success');
         // In real app, this would trigger sending final documents to user
@@ -3549,7 +3605,7 @@ async function finalizeRegistration() {
 // when vehicle registration is submitted
 
 // Initialize workflow state on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     checkWorkflowState();
 });
 
@@ -3559,14 +3615,14 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
     try {
         const tbody = document.getElementById('registration-applications-tbody');
         if (!tbody) return;
-        
+
         tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
-        
+
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/vehicles?status=${encodeURIComponent(statusFilter)}&limit=50&page=1`);
-        
+
         console.log('[loadRegistrationApplications] API Response:', response);
-        
+
         if (!response.success || !response.vehicles || response.vehicles.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -3577,7 +3633,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
             `;
             return;
         }
-        
+
         tbody.innerHTML = response.vehicles.map(v => {
             // Handle BOTH camelCase and snake_case field names
             const plateNumber = v.plateNumber || v.plate_number || 'N/A';
@@ -3589,7 +3645,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
             const formattedDate = submittedDate ? new Date(submittedDate).toLocaleDateString() : 'N/A';
             const vin = v.vin || '';
             const vehicleId = v.id || '';
-            
+
             console.log('[loadRegistrationApplications] Vehicle row:', {
                 id: v.id,
                 plateNumber,
@@ -3597,7 +3653,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
                 submittedDate,
                 status: v.status
             });
-            
+
             return `
                 <tr>
                     <td><code style="font-size: 0.85rem;">${(v.id || '').substring(0, 8)}...</code></td>
@@ -3620,7 +3676,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
                 </tr>
             `;
         }).join('');
-        
+
         // Load integrity status for all rows after table is rendered
         setTimeout(() => {
             const integrityCells = document.querySelectorAll('.integrity-status-cell[data-vin]');
@@ -3648,12 +3704,12 @@ async function loadTransferApplications() {
     try {
         const tbody = document.getElementById('transfer-applications-tbody');
         if (!tbody) return;
-        
+
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
-        
+
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/vehicles/transfer/requests?limit=10');
-        
+
         if (!response.success || !response.requests || response.requests.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -3664,7 +3720,7 @@ async function loadTransferApplications() {
             `;
             return;
         }
-        
+
         tbody.innerHTML = response.requests.map(r => `
             <tr>
                 <td><code style="font-size: 0.85rem;">${(r.id || '').substring(0, 8)}...</code></td>
@@ -3699,7 +3755,7 @@ function renderOrgStatusIndicators(vehicle) {
     const hpg = verificationStatus.hpg || vehicle.hpg_clearance_status || vehicle.hpg_status || 'NOT_STARTED';
     const insurance = verificationStatus.insurance || vehicle.insurance_status || 'NOT_STARTED';
     const emission = verificationStatus.emission || vehicle.emission_status || 'NOT_STARTED';
-    
+
     return `
         <div class="org-status-indicators">
             <span class="org-indicator ${getOrgStatusClass(hpg)}" title="HPG: ${hpg}">H</span>
@@ -3713,7 +3769,7 @@ function renderOrgStatusIndicators(vehicle) {
 function renderTransferOrgStatus(request) {
     const hpg = request.hpg_approval_status || 'NOT_FORWARDED';
     const insurance = request.insurance_approval_status || 'NOT_FORWARDED';
-    
+
     return `
         <div class="org-status-indicators">
             <span class="org-indicator ${getOrgStatusClass(hpg)}" title="HPG: ${hpg}">H</span>
@@ -3760,7 +3816,7 @@ function filterTransfers(status, btn) {
     const tabs = document.querySelectorAll('#transfer-applications-table ~ .table-header-actions .filter-tab, .table-header-actions:has(#transfer-applications-table) .filter-tab');
     tabs.forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    
+
     // Filter logic - reload with status filter
     if (status === 'all') {
         loadTransferApplications();
@@ -3819,27 +3875,27 @@ window.inspectVehicle = inspectVehicle;
 async function generateCertificates(vehicleId) {
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Show loading
         const button = event?.target || document.querySelector(`[onclick*="generateCertificates('${vehicleId}')"]`);
         if (button) {
             const originalText = button.innerHTML;
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-            
+
             try {
                 const response = await apiClient.post('/api/certificates/generate', {
                     vehicleId: vehicleId,
                     types: ['insurance', 'emission', 'hpg']
                 });
-                
+
                 if (response && response.success) {
                     const successCount = response.results.filter(r => r.success).length;
                     ToastNotification.show(
                         `Certificates generated: ${successCount}/${response.results.length} successful`,
                         'success'
                     );
-                    
+
                     // Reload certificates list
                     loadCertificatesForVehicle(vehicleId, vehicleId);
                 } else {
@@ -3865,10 +3921,10 @@ async function loadCertificatesForVehicle(applicationId, vehicleId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/certificates/vehicle/${vehicleId}`);
-        
+
         const certificatesList = document.getElementById(`certificates-list-${applicationId}`);
         if (!certificatesList) return;
-        
+
         if (response && response.success && response.certificates && response.certificates.length > 0) {
             const certsHtml = response.certificates.map(cert => {
                 const typeNames = {
@@ -3884,7 +3940,7 @@ async function loadCertificatesForVehicle(applicationId, vehicleId) {
                     'ACTIVE': '#10b981',
                     'EXPIRED': '#f59e0b'
                 };
-                
+
                 return `
                     <div style="padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center;">
                         <div>
@@ -3906,7 +3962,7 @@ async function loadCertificatesForVehicle(applicationId, vehicleId) {
                     </div>
                 `;
             }).join('');
-            
+
             certificatesList.innerHTML = certsHtml;
         } else {
             certificatesList.innerHTML = '<p style="color: #999; font-style: italic;">No certificates generated yet. Click "Generate Certificates" to create them.</p>';
@@ -3928,7 +3984,7 @@ async function downloadCertificate(certificateId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const url = `/api/certificates/${certificateId}/download`;
-        
+
         // Create download link
         const link = document.createElement('a');
         link.href = url;
@@ -3937,7 +3993,7 @@ async function downloadCertificate(certificateId) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         ToastNotification.show('Certificate download started', 'info');
     } catch (error) {
         console.error('Error downloading certificate:', error);
@@ -3953,7 +4009,7 @@ async function verifyCertificateOnBlockchain(certificateId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.post(`/api/certificates/${certificateId}/verify`);
-        
+
         if (response && response.success) {
             if (response.valid) {
                 ToastNotification.show('Certificate verified on blockchain ✓', 'success');
@@ -3983,27 +4039,27 @@ async function checkDataIntegrity(vehicleId, vin) {
     const blockchainValuesDiv = document.getElementById('blockchainValues');
     const detailsDiv = document.getElementById('comparisonDetails');
     const timestampSpan = document.getElementById('integrityTimestamp');
-    
+
     if (!modal || !statusDiv) {
         console.error('Integrity modal elements not found');
         return;
     }
-    
+
     // Show modal with loading state
     modal.style.display = 'flex';
     statusDiv.innerHTML = '<div class="loading-spinner"></div> Checking integrity...';
     if (dbValuesDiv) dbValuesDiv.innerHTML = '';
     if (blockchainValuesDiv) blockchainValuesDiv.innerHTML = '';
     if (detailsDiv) detailsDiv.innerHTML = '';
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/integrity/check/${vin}`);
-        
+
         if (!response.success) {
             throw new Error(response.error || 'Integrity check failed');
         }
-        
+
         // Render status badge
         const statusClass = {
             'VERIFIED': 'verified',
@@ -4011,38 +4067,38 @@ async function checkDataIntegrity(vehicleId, vin) {
             'MISMATCH': 'mismatch',
             'NOT_REGISTERED': 'not-registered'
         }[response.integrityStatus] || 'error';
-        
+
         const statusIcon = {
             'VERIFIED': 'check-circle',
             'TAMPERED': 'exclamation-triangle',
             'MISMATCH': 'exclamation-circle',
             'NOT_REGISTERED': 'question-circle'
         }[response.integrityStatus] || 'times-circle';
-        
+
         statusDiv.innerHTML = `
             <div class="integrity-badge ${statusClass}">
                 <i class="fas fa-${statusIcon}"></i>
                 <span>${response.integrityStatus || 'ERROR'}</span>
             </div>
             <p class="integrity-message" style="margin-top: 10px; color: #666;">
-                ${response.integrityStatus === 'VERIFIED' ? 'All data matches between database and blockchain' : 
-                  response.integrityStatus === 'TAMPERED' ? 'Critical data mismatch detected - possible tampering' :
-                  response.integrityStatus === 'MISMATCH' ? 'Some fields do not match between database and blockchain' :
-                  response.integrityStatus === 'NOT_REGISTERED' ? 'Vehicle not found on blockchain' :
-                  'Error checking integrity'}
+                ${response.integrityStatus === 'VERIFIED' ? 'All data matches between database and blockchain' :
+                response.integrityStatus === 'TAMPERED' ? 'Critical data mismatch detected - possible tampering' :
+                    response.integrityStatus === 'MISMATCH' ? 'Some fields do not match between database and blockchain' :
+                        response.integrityStatus === 'NOT_REGISTERED' ? 'Vehicle not found on blockchain' :
+                            'Error checking integrity'}
             </p>
         `;
-        
+
         // Render database values
         if (response.database && dbValuesDiv) {
             dbValuesDiv.innerHTML = renderVehicleValues(response.database, 'database');
         }
-        
+
         // Render blockchain values
         if (response.blockchain && blockchainValuesDiv) {
             blockchainValuesDiv.innerHTML = renderVehicleValues(response.blockchain, 'blockchain');
         }
-        
+
         // Render field comparisons
         if (detailsDiv) {
             if (response.mismatches && response.mismatches.length > 0) {
@@ -4051,11 +4107,11 @@ async function checkDataIntegrity(vehicleId, vin) {
                 detailsDiv.innerHTML = '<p style="text-align: center; color: #27ae60; padding: 20px;"><i class="fas fa-check-circle"></i> All fields match perfectly!</p>';
             }
         }
-        
+
         if (timestampSpan) {
             timestampSpan.textContent = `Checked at: ${new Date(response.timestamp || Date.now()).toLocaleString()}`;
         }
-        
+
     } catch (error) {
         statusDiv.innerHTML = `
             <div class="integrity-badge error">
@@ -4090,17 +4146,17 @@ function renderVehicleValues(vehicle, source) {
         { key: 'classification', label: 'Classification' },
         { key: 'registration_type', label: 'Classification' }
     ];
-    
+
     const uniqueFields = [];
     const seenLabels = new Set();
-    
+
     fields.forEach(field => {
         if (!seenLabels.has(field.label)) {
             seenLabels.add(field.label);
             uniqueFields.push(field);
         }
     });
-    
+
     return uniqueFields.map(field => {
         const value = vehicle[field.key] || 'N/A';
         return `
@@ -4122,7 +4178,7 @@ function renderComparisonDetails(mismatches, dbData, blockchainData) {
         { dbKey: 'model', blockchainKey: 'model', label: 'Model' },
         { dbKey: 'year', blockchainKey: 'year', label: 'Year' }
     ];
-    
+
     return `
         <h4 style="margin-top: 20px; margin-bottom: 15px;"><i class="fas fa-list-check"></i> Field-by-Field Comparison</h4>
         <table class="comparison-table">
@@ -4136,12 +4192,12 @@ function renderComparisonDetails(mismatches, dbData, blockchainData) {
             </thead>
             <tbody>
                 ${allFields.map(field => {
-                    const dbValue = dbData?.[field.dbKey] || 'N/A';
-                    const blockchainValue = blockchainData?.[field.blockchainKey] || 'N/A';
-                    const isMismatch = mismatches.some(m => m.fieldKey === field.dbKey || m.field === field.label);
-                    const mismatch = mismatches.find(m => m.fieldKey === field.dbKey || m.field === field.label);
-                    
-                    return `
+        const dbValue = dbData?.[field.dbKey] || 'N/A';
+        const blockchainValue = blockchainData?.[field.blockchainKey] || 'N/A';
+        const isMismatch = mismatches.some(m => m.fieldKey === field.dbKey || m.field === field.label);
+        const mismatch = mismatches.find(m => m.fieldKey === field.dbKey || m.field === field.label);
+
+        return `
                         <tr class="${isMismatch ? 'mismatch' : 'match'}">
                             <td>
                                 ${field.label}
@@ -4150,14 +4206,14 @@ function renderComparisonDetails(mismatches, dbData, blockchainData) {
                             <td><code>${dbValue}</code></td>
                             <td><code>${blockchainValue}</code></td>
                             <td>
-                                ${isMismatch ? 
-                                    '<i class="fas fa-times-circle" style="color: #e74c3c;"></i>' : 
-                                    '<i class="fas fa-check-circle" style="color: #27ae60;"></i>'
-                                }
+                                ${isMismatch ?
+                '<i class="fas fa-times-circle" style="color: #e74c3c;"></i>' :
+                '<i class="fas fa-check-circle" style="color: #27ae60;"></i>'
+            }
                             </td>
                         </tr>
                     `;
-                }).join('')}
+    }).join('')}
             </tbody>
         </table>
     `;
@@ -4189,12 +4245,12 @@ function switchModalTab(tabName) {
             tab.style.borderBottom = 'none';
         }
     });
-    
+
     // Update tab content panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.style.display = 'none';
     });
-    
+
     const activePane = document.getElementById(tabName + '-pane');
     if (activePane) {
         activePane.style.display = 'block';
@@ -4209,13 +4265,13 @@ function switchModalTab(tabName) {
 async function viewInspectionDocument(docType, applicationId) {
     try {
         showNotification('Loading inspection documents...', 'info');
-        
+
         // Get vehicle documents using the new endpoint
         const response = await ApiClient.get(`/api/lto/inspect-documents/${applicationId}`);
         if (response.success && response.documentReferences) {
             const docs = response.documentReferences;
             let documentToView = null;
-            
+
             // Determine which document to view based on docType
             if (docType === 'mvir' && docs.mvirDocument) {
                 documentToView = docs.mvirDocument;
@@ -4228,7 +4284,7 @@ async function viewInspectionDocument(docType, applicationId) {
                 showInspectionDocumentsGallery(docs.additionalDocuments);
                 return;
             }
-            
+
             if (documentToView) {
                 // Use existing DocumentModal if available
                 if (typeof DocumentModal !== 'undefined') {
@@ -4258,7 +4314,7 @@ function showInspectionPhotoGallery(photos) {
     const galleryModal = document.createElement('div');
     galleryModal.className = 'modal';
     galleryModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; align-items: center; justify-content: center;';
-    
+
     galleryModal.innerHTML = `
         <div style="max-width: 90%; max-height: 90%; overflow: auto; background: white; border-radius: 8px; padding: 1.5rem; max-width: 1000px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
@@ -4275,7 +4331,7 @@ function showInspectionPhotoGallery(photos) {
             </div>
         </div>
     `;
-    
+
     galleryModal.onclick = (e) => { if (e.target === galleryModal) galleryModal.remove(); };
     document.body.appendChild(galleryModal);
 }
@@ -4287,7 +4343,7 @@ function showInspectionDocumentsGallery(documents) {
     const galleryModal = document.createElement('div');
     galleryModal.className = 'modal';
     galleryModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; align-items: center; justify-content: center;';
-    
+
     galleryModal.innerHTML = `
         <div style="max-width: 90%; max-height: 90%; overflow: auto; background: white; border-radius: 8px; padding: 1.5rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
@@ -4307,7 +4363,7 @@ function showInspectionDocumentsGallery(documents) {
             </div>
         </div>
     `;
-    
+
     galleryModal.onclick = (e) => { if (e.target === galleryModal) galleryModal.remove(); };
     document.body.appendChild(galleryModal);
 }
@@ -4324,7 +4380,7 @@ async function viewInspectionGallery(applicationId) {
             const galleryModal = document.createElement('div');
             galleryModal.className = 'modal';
             galleryModal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; align-items: center; justify-content: center;';
-            
+
             galleryModal.innerHTML = `
                 <div style="max-width: 90%; max-height: 90%; overflow: auto; background: white; border-radius: 8px; padding: 1.5rem; max-width: 1000px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
@@ -4341,7 +4397,7 @@ async function viewInspectionGallery(applicationId) {
                     </div>
                 </div>
             `;
-            
+
             galleryModal.onclick = (e) => { if (e.target === galleryModal) galleryModal.remove(); };
             document.body.appendChild(galleryModal);
         } else {
@@ -4359,25 +4415,25 @@ async function viewInspectionGallery(applicationId) {
  */
 async function markInspectionPassed(applicationId) {
     if (!confirm('Confirm that the vehicle inspection has PASSED?')) return;
-    
+
     try {
         const mvirNumber = document.getElementById('mvirNumberInput')?.value;
         const inspectionDate = document.getElementById('inspectionDateInput')?.value;
-        
+
         if (!mvirNumber || mvirNumber.trim() === '') {
             showNotification('Please enter the MVIR Number', 'warning');
             return;
         }
-        
+
         showNotification('Updating inspection status...', 'info');
-        
+
         const response = await ApiClient.post(`/api/applications/${applicationId}/inspection-status`, {
             status: 'PASS',
             mvirNumber: mvirNumber.trim(),
             inspectionDate: inspectionDate || new Date().toISOString().split('T')[0],
             roadworthinessStatus: 'ROADWORTHY'
         });
-        
+
         if (response.success) {
             showNotification('✓ Inspection marked as PASSED successfully!', 'success');
             // Update badge
@@ -4407,16 +4463,16 @@ async function markInspectionPassed(applicationId) {
 async function markInspectionFailed(applicationId) {
     const reason = prompt('Please enter the reason for inspection failure:');
     if (!reason || reason.trim() === '') return;
-    
+
     try {
         showNotification('Updating inspection status...', 'info');
-        
+
         const response = await ApiClient.post(`/api/applications/${applicationId}/inspection-status`, {
             status: 'FAIL',
             roadworthinessStatus: 'NOT_ROADWORTHY',
             inspectionNotes: reason.trim()
         });
-        
+
         if (response.success) {
             showNotification('✓ Inspection marked as FAILED', 'warning');
             // Update badge

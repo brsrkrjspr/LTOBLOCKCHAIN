@@ -1560,6 +1560,54 @@ class OptimizedFabricService {
             throw new Error(`Fabric query failed: ${error.message}`);
         }
     }
+
+    // Get pre-minted vehicles from Fabric - Source of Truth
+    // Returns vehicles with status PRE_MINTED for LTO admin dashboard
+    async getPreMintedVehicles() {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            console.log('⚠️ Fabric connection lost, attempting to reconnect...');
+            try {
+                await this.initialize();
+                console.log('✅ Fabric connection restored');
+            } catch (reconnectError) {
+                throw new Error(`Not connected to Fabric network and reconnection failed: ${reconnectError.message}`);
+            }
+        }
+
+        try {
+            console.log('🔍 Querying Fabric for PRE_MINTED vehicles...');
+
+            // Use the existing getVehiclesByStatus method
+            const vehicles = await this.getVehiclesByStatus('PRE_MINTED');
+
+            // Format vehicles for the frontend
+            const formattedVehicles = vehicles.map(vehicle => ({
+                vin: vehicle.vin || vehicle.VIN,
+                make: vehicle.make || vehicle.Make || '',
+                model: vehicle.model || vehicle.Model || '',
+                year: vehicle.year || vehicle.Year || vehicle.modelYear || null,
+                plateNumber: vehicle.plateNumber || vehicle.plate_number || vehicle.PlateNumber || '',
+                status: 'PRE_MINTED',
+                mintedDate: vehicle.createdAt || vehicle.created_at || vehicle.registrationDate || new Date().toISOString(),
+                // Include additional fields that may be useful
+                color: vehicle.color || vehicle.Color || '',
+                engineNumber: vehicle.engineNumber || vehicle.engine_number || '',
+                chassisNumber: vehicle.chassisNumber || vehicle.chassis_number || '',
+                ownerEmail: vehicle.ownerEmail || vehicle.owner_email || '',
+                ownerName: vehicle.ownerName || vehicle.owner_name || ''
+            }));
+
+            console.log(`✅ Found ${formattedVehicles.length} PRE_MINTED vehicles from Fabric`);
+
+            return {
+                success: true,
+                vehicles: formattedVehicles
+            };
+        } catch (error) {
+            console.error('❌ Failed to get pre-minted vehicles from Fabric:', error);
+            throw new Error(`Pre-minted vehicles query failed: ${error.message}`);
+        }
+    }
 }
 
 // Create singleton instance

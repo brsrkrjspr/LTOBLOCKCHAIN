@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const integrityService = require('../services/integrityService');
+const fabricSyncService = require('../services/fabricSyncService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 
@@ -9,7 +10,7 @@ const { authorizeRole } = require('../middleware/authorize');
 router.get('/check/:vin', optionalAuth, async (req, res) => {
     try {
         const { vin } = req.params;
-        
+
         if (!vin || vin.trim().length === 0) {
             return res.status(400).json({
                 success: false,
@@ -18,7 +19,7 @@ router.get('/check/:vin', optionalAuth, async (req, res) => {
         }
 
         const result = await integrityService.checkIntegrityByVin(vin.trim().toUpperCase());
-        
+
         res.json({
             success: true,
             ...result
@@ -38,7 +39,7 @@ router.get('/check/:vin', optionalAuth, async (req, res) => {
 router.get('/vehicle/:vehicleId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { vehicleId } = req.params;
-        
+
         if (!vehicleId) {
             return res.status(400).json({
                 success: false,
@@ -47,7 +48,7 @@ router.get('/vehicle/:vehicleId', authenticateToken, authorizeRole(['admin']), a
         }
 
         const result = await integrityService.checkIntegrityById(vehicleId);
-        
+
         res.json({
             success: true,
             ...result
@@ -67,7 +68,7 @@ router.get('/vehicle/:vehicleId', authenticateToken, authorizeRole(['admin']), a
 router.post('/batch', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { vehicleIds } = req.body;
-        
+
         if (!Array.isArray(vehicleIds) || vehicleIds.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -106,5 +107,41 @@ router.post('/batch', authenticateToken, authorizeRole(['admin']), async (req, r
     }
 });
 
+// ============================================
+// FABRIC-POSTGRES SYNC ENDPOINTS
+// ============================================
+
+// GET /sync-status - Get current sync status without running a new sync
+router.get('/sync-status', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        const status = fabricSyncService.getSyncStatus();
+        res.json(status);
+    } catch (error) {
+        console.error('Get sync status error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get sync status',
+            message: error.message
+        });
+    }
+});
+
+// POST /sync-run - Trigger a full sync check (admin only)
+router.post('/sync-run', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+    try {
+        console.log('📊 Admin triggered full sync check');
+        const result = await fabricSyncService.runFullSync();
+        res.json(result);
+    } catch (error) {
+        console.error('Run sync error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Sync failed',
+            message: error.message
+        });
+    }
+});
+
 module.exports = router;
+
 

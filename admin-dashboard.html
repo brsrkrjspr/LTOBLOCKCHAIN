@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,20 +10,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
-        (function() {
+        (function () {
             function initSidebar() {
                 const sidebar = document.querySelector('.dashboard-sidebar');
                 if (sidebar) {
                     // Disable transitions during page load
                     sidebar.classList.add('no-transition');
-                    
+
                     const savedState = localStorage.getItem('adminSidebarCollapsed');
                     if (savedState === 'true') {
                         sidebar.classList.add('collapsed');
                     }
-                    
+
                     // Re-enable transitions after page loads
-                    setTimeout(function() {
+                    setTimeout(function () {
                         sidebar.classList.remove('no-transition');
                     }, 100);
                 } else {
@@ -52,19 +53,19 @@
            LIGHT THEME ADMIN DASHBOARD
            Clean, Professional, Trustworthy
            ============================================ */
-        
+
         /* Light Sidebar - White with Subtle Blue Gradient */
         .dashboard-sidebar {
             background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 40%, #ffffff 100%) !important;
             border-right: 1px solid #e0f2fe;
             transition: width 0.3s ease-in-out;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
         }
-        
+
         .dashboard-sidebar .sidebar-header {
             border-bottom: 1px solid #e0f2fe;
         }
-        
+
         .dashboard-sidebar .logo-icon {
             background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
             color: #ffffff;
@@ -76,148 +77,148 @@
             overflow: hidden;
             padding: 0;
         }
-        
+
         .dashboard-sidebar .logo-icon img {
             width: 100%;
             height: 100%;
             object-fit: contain;
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
-        
+
         .dashboard-sidebar .logo-icon:hover {
             opacity: 0.9;
             transform: scale(1.05);
             background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
         }
-        
+
         .dashboard-sidebar .logo-icon:hover img {
             opacity: 0.95;
             transform: scale(1.05);
         }
-        
+
         .dashboard-sidebar .logo-icon:active {
             transform: scale(0.95);
         }
-        
+
         .dashboard-sidebar .logo-icon:active img {
             transform: scale(0.95);
         }
-        
+
         .dashboard-sidebar .logo-text h2 {
             color: #0c4a6e;
         }
-        
+
         .dashboard-sidebar .logo-text p {
             color: #64748b;
         }
-        
+
         .dashboard-sidebar .nav-item {
             color: #475569;
             transition: all 0.2s ease;
         }
-        
+
         .dashboard-sidebar .nav-item:hover {
             background: #f0f9ff;
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .nav-item.active {
             background: #87ceeb;
             color: #0284c7;
             border-left: 3px solid #0ea5e9;
         }
-        
+
         .dashboard-sidebar .nav-item.active i {
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .nav-item i {
             color: #64748b;
         }
-        
+
         .dashboard-sidebar .nav-item:hover i {
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .sidebar-footer {
             border-top: 1px solid #e0f2fe;
         }
-        
+
         .dashboard-sidebar .sidebar-user-profile {
             color: #1e293b;
         }
-        
+
         .dashboard-sidebar .sidebar-user-name {
             color: #000000 !important;
             font-weight: 600;
         }
-        
+
         .dashboard-sidebar .sidebar-user-avatar {
             color: #000000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-user-role {
             color: #000000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-nav .nav-item span {
             color: inherit;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item {
             color: #000000;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item span {
             color: inherit;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item:hover {
             background: #f0f9ff;
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item:hover span {
             color: #0284c7;
         }
-        
+
         /* Logout button - solid red */
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn {
             color: #ff0000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn span {
             color: #ff0000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn i {
             color: #ff0000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover {
             background: #fee2e2;
             color: #dc2626 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover span {
             color: #dc2626 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover i {
             color: #dc2626 !important;
         }
-        
+
         /* Main Content Area - Light Background */
         .dashboard-main {
             background: #f8fafc;
             transition: margin-left 0.3s ease-in-out;
         }
-        
+
         .dashboard-content {
             padding: 2rem;
             max-width: 100%;
         }
-        
+
         .dashboard-content .container {
             max-width: 100%;
             padding: 0;
@@ -237,14 +238,14 @@
         .dashboard-content th {
             color: #0f172a;
         }
-        
+
         /* White Header with Subtle Shadow */
         .dashboard-header {
             background: #ffffff;
             border-bottom: 1px solid #e0f2fe;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
         }
-        
+
         .dashboard-header .logo h1 {
             margin: 0;
             font-size: 1.25rem;
@@ -252,7 +253,7 @@
             color: #0c4a6e;
             letter-spacing: -0.01em;
         }
-        
+
         /* Welcome Section - Sky Blue Gradient */
         .welcome-section-admin {
             background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%);
@@ -262,13 +263,13 @@
             box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
             border: 1px solid rgba(186, 230, 253, 0.5);
         }
-        
+
         .welcome-content {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
         }
-        
+
         .welcome-title {
             font-size: 1.875rem;
             font-weight: 700;
@@ -277,12 +278,12 @@
             line-height: 1.3;
             letter-spacing: -0.01em;
         }
-        
+
         .welcome-title #welcomeAdminName {
             color: #f97316;
             font-weight: 700;
         }
-        
+
         .welcome-subtitle {
             color: #000000;
             font-size: 1rem;
@@ -290,7 +291,7 @@
             line-height: 1.6;
             font-weight: 400;
         }
-        
+
         /* Stats Grid - Maximize Whitespace */
         .stats-grid-modern {
             display: grid;
@@ -298,28 +299,28 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-        
+
         .stat-card-modern {
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
             gap: 1.25rem;
         }
-        
+
         .stat-card-modern:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             transform: translateY(-2px);
         }
-        
+
         .stat-icon-wrapper {
             flex-shrink: 0;
         }
-        
+
         .stat-icon {
             width: 56px;
             height: 56px;
@@ -330,28 +331,28 @@
             font-size: 1.5rem;
             color: #ffffff;
         }
-        
+
         .stat-card-primary .stat-icon {
             background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
         }
-        
+
         .stat-card-warning .stat-icon {
             background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
         }
-        
+
         .stat-card-success .stat-icon {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         }
-        
+
         .stat-card-info .stat-icon {
             background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
         }
-        
+
         .stat-content-modern {
             flex: 1;
             min-width: 0;
         }
-        
+
         .stat-number-modern {
             font-size: 2rem;
             font-weight: 700;
@@ -359,14 +360,14 @@
             line-height: 1.2;
             margin-bottom: 0.25rem;
         }
-        
+
         .stat-label-modern {
             font-size: 0.875rem;
             color: #64748b;
             font-weight: 500;
             margin-bottom: 0.5rem;
         }
-        
+
         .stat-trend {
             display: flex;
             align-items: center;
@@ -374,7 +375,7 @@
             font-size: 0.8125rem;
             color: #94a3b8;
         }
-        
+
         /* Dashboard Cards - Full Width Usage */
         .dashboard-card-modern {
             background: #ffffff;
@@ -382,16 +383,16 @@
             border-radius: 12px;
             padding: 2rem;
             margin-bottom: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
-        
+
         .dashboard-grid-modern {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-        
+
         /* Section Headers */
         .section-header {
             display: flex;
@@ -401,7 +402,7 @@
             padding-bottom: 1rem;
             border-bottom: 1px solid #e2e8f0;
         }
-        
+
         .section-title {
             font-size: 1.5rem;
             font-weight: 700;
@@ -411,14 +412,14 @@
             align-items: center;
             gap: 0.75rem;
         }
-        
+
         .section-subtitle {
             font-size: 0.9375rem;
             color: #64748b;
             margin: 0;
             font-weight: 400;
         }
-        
+
         /* Action Cards */
         .action-card-transfer,
         .action-card-primary,
@@ -426,26 +427,26 @@
             border-left: 4px solid;
             transition: all 0.2s ease;
         }
-        
+
         .action-card-transfer {
             border-left-color: #f97316;
         }
-        
+
         .action-card-primary {
             border-left-color: #0284c7;
         }
-        
+
         .action-card-secondary {
             border-left-color: #0ea5e9;
         }
-        
+
         .card-header-modern {
             display: flex;
             align-items: center;
             gap: 1rem;
             margin-bottom: 1rem;
         }
-        
+
         .card-icon-modern {
             width: 48px;
             height: 48px;
@@ -456,33 +457,33 @@
             font-size: 1.25rem;
             color: #ffffff;
         }
-        
+
         .action-card-transfer .card-icon-modern {
             background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
         }
-        
+
         .action-card-primary .card-icon-modern {
             background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
         }
-        
+
         .action-card-secondary .card-icon-modern {
             background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
         }
-        
+
         .card-header-modern h3 {
             font-size: 1.125rem;
             font-weight: 600;
             color: #0f172a;
             margin: 0;
         }
-        
+
         .card-description {
             color: #64748b;
             font-size: 0.9375rem;
             margin-bottom: 1.5rem;
             line-height: 1.6;
         }
-        
+
         /* Buttons - Consistent Styles */
         .btn-card-transfer,
         .btn-card-primary,
@@ -500,44 +501,44 @@
             cursor: pointer;
             width: 100%;
         }
-        
+
         .btn-card-transfer {
             background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
             color: #ffffff;
         }
-        
+
         .btn-card-primary {
             background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
             color: #ffffff;
         }
-        
+
         .btn-card-secondary {
             background: #e0f2fe;
             color: #0284c7;
             border: 1px solid #bae6fd;
         }
-        
+
         .btn-card-transfer:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
         }
-        
+
         .btn-card-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
         }
-        
+
         .btn-card-secondary:hover {
             background: #bae6fd;
             border-color: #7dd3fc;
         }
-        
+
         /* Tables - Dense & Clean */
         .table-card {
             padding: 0;
             overflow: hidden;
         }
-        
+
         .table-header-actions {
             display: flex;
             justify-content: space-between;
@@ -546,13 +547,13 @@
             border-bottom: 1px solid #e2e8f0;
             background: #f8fafc;
         }
-        
+
         .filter-tabs {
             display: flex;
             gap: 0.5rem;
             flex-wrap: wrap;
         }
-        
+
         .filter-tab {
             padding: 0.625rem 1.25rem;
             border-radius: 8px;
@@ -564,38 +565,38 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        
+
         .filter-tab:hover {
             border-color: #2563eb;
             color: #2563eb;
         }
-        
+
         .filter-tab.active {
             background: #0284c7;
             border-color: #0284c7;
             color: #ffffff;
         }
-        
+
         .filter-tab:hover {
             border-color: #0ea5e9;
             color: #0284c7;
         }
-        
+
         .table-container-modern {
             overflow-x: auto;
             width: 100%;
         }
-        
+
         .table-modern {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9375rem;
         }
-        
+
         .table-modern thead {
             background: #f8fafc;
         }
-        
+
         .table-modern th {
             padding: 1rem 1.5rem;
             text-align: left;
@@ -607,22 +608,22 @@
             border-bottom: 2px solid #e2e8f0;
             white-space: nowrap;
         }
-        
+
         .table-modern td {
             padding: 1rem 1.5rem;
             color: #1e293b;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
         }
-        
+
         .table-modern tbody tr {
             transition: background-color 0.15s ease;
         }
-        
+
         .table-modern tbody tr:hover {
             background: #f8fafc;
         }
-        
+
         /* Organization Status Cards - White Cards with Blue Accents */
         .org-status-card {
             background: #ffffff;
@@ -630,17 +631,17 @@
             border-left: 4px solid #0ea5e9;
             padding: 1.5rem;
             border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
-        
+
         .org-status-card h4 {
             color: #0c4a6e;
         }
-        
+
         .org-status-card small {
             color: #64748b;
         }
-        
+
         /* Blockchain Status Badge */
         .blockchain-status-badge {
             display: flex;
@@ -651,31 +652,38 @@
             border-radius: 8px;
             font-size: 0.875rem;
         }
-        
+
         .status-indicator {
             width: 8px;
             height: 8px;
             border-radius: 50%;
         }
-        
+
         .status-indicator.loading {
             background: #f59e0b;
             animation: pulse 2s infinite;
         }
-        
+
         .status-indicator.connected {
             background: #10b981;
         }
-        
+
         .status-indicator.disconnected {
             background: #ef4444;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
-        
+
         /* Search Transaction Section */
         .dashboard-card-modern h3 {
             font-size: 1.125rem;
@@ -686,7 +694,7 @@
             align-items: center;
             gap: 0.5rem;
         }
-        
+
         .dashboard-card-modern input[type="text"] {
             width: 100%;
             padding: 0.75rem 1rem;
@@ -696,78 +704,79 @@
             font-family: monospace;
             transition: all 0.2s ease;
         }
-        
+
         .dashboard-card-modern input[type="text"]:focus {
             outline: none;
             border-color: #0ea5e9;
             box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
-        
+
         .dashboard-card-modern .btn-primary {
             background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
             color: #ffffff;
             border: none;
         }
-        
+
         .dashboard-card-modern .btn-primary:hover {
             background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
             box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
         }
-        
+
         /* Verification Responses Table */
         #verification-responses-table {
             width: 100%;
         }
-        
+
         /* Responsive - Maximize Space */
         @media (min-width: 1400px) {
             .dashboard-content {
                 padding: 2rem 3rem;
             }
-            
+
             .stats-grid-modern {
                 grid-template-columns: repeat(4, 1fr);
             }
-            
+
             .dashboard-grid-modern {
                 grid-template-columns: repeat(3, 1fr);
             }
         }
-        
+
         @media (min-width: 1200px) and (max-width: 1399px) {
             .stats-grid-modern {
                 grid-template-columns: repeat(4, 1fr);
             }
-            
+
             .dashboard-grid-modern {
                 grid-template-columns: repeat(3, 1fr);
             }
         }
-        
+
         @media (min-width: 992px) and (max-width: 1199px) {
             .stats-grid-modern {
                 grid-template-columns: repeat(2, 1fr);
             }
-            
+
             .dashboard-grid-modern {
                 grid-template-columns: repeat(2, 1fr);
             }
         }
-        
+
         /* ============================================
            MOBILE RESPONSIVE DESIGN
            ============================================ */
-        
+
         @media (max-width: 768px) {
+
             /* Welcome Section - Tablet */
             .welcome-section-admin {
                 padding: 1.75rem 1.5rem !important;
             }
-            
+
             .welcome-title {
                 font-size: 1.625rem !important;
             }
-            
+
             /* Table Container - Horizontal Scroll (No Collapsible Rows) */
             .table-container-modern {
                 overflow-x: auto;
@@ -780,13 +789,16 @@
 
             .table-modern {
                 width: 100%;
-                min-width: 800px; /* Ensure table doesn't shrink too much */
+                min-width: 800px;
+                /* Ensure table doesn't shrink too much */
                 border-collapse: collapse;
-                font-size: 0.875rem; /* Readable on mobile */
+                font-size: 0.875rem;
+                /* Readable on mobile */
             }
 
             .table-modern thead {
-                display: table-header-group; /* Keep headers visible */
+                display: table-header-group;
+                /* Keep headers visible */
             }
 
             .table-modern th {
@@ -915,7 +927,7 @@
                 font-size: 0.875rem !important;
             }
         }
-        
+
         /* Data Health Status Badges */
         .integrity-badge {
             display: inline-block;
@@ -926,77 +938,91 @@
             text-transform: uppercase;
             white-space: nowrap;
         }
+
         .integrity-badge.verified {
             background: #d4edda;
             color: #155724;
         }
+
         .integrity-badge.tampered {
             background: #f8d7da;
             color: #721c24;
             animation: flash 1s infinite;
         }
+
         @keyframes flash {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
         }
+
         .integrity-badge.mismatch {
             background: #fff3cd;
             color: #856404;
         }
+
         .integrity-badge.not-registered {
             background: #e2e3e5;
             color: #383d41;
         }
+
         .integrity-badge.loading {
             background: #f8f9fa;
             color: #6c757d;
         }
+
         .integrity-badge.error {
             background: #f8d7da;
             color: #721c24;
         }
 
-            /* Welcome Section */
-            .welcome-section-admin {
-                padding: 1.5rem 1rem !important;
-                background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%) !important;
-            }
-
-            .welcome-title {
-                font-size: 1.5rem !important;
-                color: #000000 !important;
-            }
-            
-            .welcome-subtitle {
-                color: #000000 !important;
-                font-size: 0.9375rem !important;
-            }
-
-            /* Container Padding */
-            .container {
-                padding: 1rem !important;
-            }
-
-            /* Ensure No Overlap */
-            * {
-                max-width: 100%;
-                box-sizing: border-box;
-            }
-
-            /* Consistent Spacing */
-            .dashboard-card-modern {
-                margin-bottom: 1.5rem;
-                padding: 1rem;
-            }
-
-            /* Action Links in Cards */
-            .btn-card-primary,
-            .btn-card-secondary,
-            .btn-card-transfer {
-                width: 100% !important;
-                justify-content: center !important;
+        /* Welcome Section */
+        .welcome-section-admin {
+            padding: 1.5rem 1rem !important;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%) !important;
         }
-        
+
+        .welcome-title {
+            font-size: 1.5rem !important;
+            color: #000000 !important;
+        }
+
+        .welcome-subtitle {
+            color: #000000 !important;
+            font-size: 0.9375rem !important;
+        }
+
+        /* Container Padding */
+        .container {
+            padding: 1rem !important;
+        }
+
+        /* Ensure No Overlap */
+        * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Consistent Spacing */
+        .dashboard-card-modern {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+        }
+
+        /* Action Links in Cards */
+        .btn-card-primary,
+        .btn-card-secondary,
+        .btn-card-transfer {
+            width: 100% !important;
+            justify-content: center !important;
+        }
+
 
         /* Small Mobile (up to 480px) */
         @media (max-width: 480px) {
@@ -1022,13 +1048,15 @@
         }
     </style>
 </head>
+
 <body>
     <div class="dashboard">
         <!-- Sidebar Navigation -->
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">
+                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0"
+                        aria-label="Toggle sidebar">
                         <img src="css/logo.png" alt="LTO Logo">
                     </div>
                     <div class="logo-text">
@@ -1065,7 +1093,7 @@
                     <span>Vehicle Inspection</span>
                 </a>
             </nav>
-            
+
             <!-- Sidebar Footer with User Info -->
             <div class="sidebar-footer">
                 <div class="sidebar-user-profile">
@@ -1100,381 +1128,457 @@
                 </div>
             </header>
 
-        <main class="dashboard-content">
-            <div class="container">
-                <!-- Welcome Section -->
-                <div class="welcome-section-admin">
-                    <div class="welcome-content">
-                        <h1 class="welcome-title">Welcome back, <span id="welcomeAdminName">Administrator</span>!</h1>
-                        <p class="welcome-subtitle">Manage vehicle registrations and transfer of ownership requests</p>
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Welcome Section -->
+                    <div class="welcome-section-admin">
+                        <div class="welcome-content">
+                            <h1 class="welcome-title">Welcome back, <span id="welcomeAdminName">Administrator</span>!
+                            </h1>
+                            <p class="welcome-subtitle">Manage vehicle registrations and transfer of ownership requests
+                            </p>
+                        </div>
                     </div>
-                </div>
 
-                <!-- System Stats -->
-                <div class="stats-grid-modern">
-                    <div class="stat-card-modern stat-card-primary">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon">
-                                <i class="fas fa-file-alt"></i>
+                    <!-- System Stats -->
+                    <div class="stats-grid-modern">
+                        <div class="stat-card-modern stat-card-primary">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="totalApplications">0</div>
+                                <div class="stat-label-modern">Total Applications</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>All time</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="totalApplications">0</div>
-                            <div class="stat-label-modern">Total Applications</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-chart-line"></i>
-                                <span>All time</span>
+
+                        <div class="stat-card-modern stat-card-warning">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="pendingTransfers">0</div>
+                                <div class="stat-label-modern">Pending Transfers</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Awaiting review</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card-modern stat-card-success">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="approvedApplications">0</div>
+                                <div class="stat-label-modern">Approved Applications</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-check"></i>
+                                    <span>Completed</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card-modern stat-card-info">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="totalUsers">0</div>
+                                <div class="stat-label-modern">Total Users</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Registered</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="stat-card-modern stat-card-warning">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon">
-                                <i class="fas fa-exchange-alt"></i>
-                            </div>
-                        </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="pendingTransfers">0</div>
-                            <div class="stat-label-modern">Pending Transfers</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-clock"></i>
-                                <span>Awaiting review</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card-modern stat-card-success">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="approvedApplications">0</div>
-                            <div class="stat-label-modern">Approved Applications</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-check"></i>
-                                <span>Completed</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card-modern stat-card-info">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon">
-                                <i class="fas fa-users"></i>
-                            </div>
-                        </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="totalUsers">0</div>
-                            <div class="stat-label-modern">Total Users</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-user-plus"></i>
-                                <span>Registered</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                     <!-- Transaction Search Section -->
                     <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
                         <h3><i class="fas fa-search"></i> Search Transaction</h3>
-                        <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details</p>
+                        <p style="color: #666; margin-bottom: 1rem;">Enter a Transaction ID to view blockchain details
+                        </p>
                         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; position: relative;">
-                            <input type="text" 
-                                   id="txSearchInput" 
-                                   placeholder="Enter Transaction ID" 
-                                   style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"
-                                   aria-label="Transaction ID search">
-                            <button onclick="searchTransaction()" class="btn-primary" id="txSearchBtn" style="padding: 0.75rem 1.5rem;">
+                            <input type="text" id="txSearchInput" placeholder="Enter Transaction ID"
+                                style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"
+                                aria-label="Transaction ID search">
+                            <button onclick="searchTransaction()" class="btn-primary" id="txSearchBtn"
+                                style="padding: 0.75rem 1.5rem;">
                                 <i class="fas fa-search"></i> Search
                             </button>
                         </div>
-                        <div id="txSearchError" style="display: none; color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem;"></div>
-                        <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in blockchain records.</small>
+                        <div id="txSearchError"
+                            style="display: none; color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem;"></div>
+                        <small style="color: #999;">You can find Transaction IDs on vehicle certificates or in
+                            blockchain records.</small>
                     </div>
 
-                <!-- Quick Actions -->
-                <div class="section-header">
-                    <h2 class="section-title">Quick Actions</h2>
-                    <p class="section-subtitle">Access frequently used features</p>
-                </div>
-                <div class="dashboard-grid-modern">
-                    <div class="dashboard-card-modern action-card-transfer">
-                        <div class="card-header-modern">
-                            <div class="card-icon-modern">
-                                <i class="fas fa-exchange-alt"></i>
-                            </div>
-                            <h3>Transfer of Ownership</h3>
-                        </div>
-                        <p class="card-description">Review and manage ownership transfer requests</p>
-                        <a href="admin-transfer-requests.html" class="btn-card-transfer">
-                            <span>View Requests</span>
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
+                    <!-- Pre-minted Vehicles Section -->
+                    <div class="section-header">
+                        <h2 class="section-title"><i class="fas fa-car" style="color: #8e44ad;"></i> Pre-minted Vehicles
+                        </h2>
+                        <p class="section-subtitle">Manage pre-minted vehicles available for initial registration</p>
                     </div>
-                    
-                    <div class="dashboard-card-modern action-card-primary">
-                        <div class="card-header-modern">
-                            <div class="card-icon-modern">
-                                <i class="fas fa-link"></i>
-                            </div>
-                            <h3>Blockchain Ledger</h3>
+                    <div class="dashboard-card-modern" style="margin-bottom: 2rem;"
+                        id="preMintedVehiclesTableContainer">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0;"><i class="fas fa-list"></i> Available Vehicles</h3>
+                            <button class="btn-secondary btn-sm" onclick="loadPreMintedVehicles()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
                         </div>
-                        <p class="card-description">View all blockchain transactions and blocks</p>
-                        <a href="admin-blockchain-viewer.html" class="btn-card-primary">
-                            <span>View Ledger</span>
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
-                    
-                    <div class="dashboard-card-modern action-card-secondary">
-                        <div class="card-header-modern">
-                            <div class="card-icon-modern">
-                                <i class="fas fa-users"></i>
-                            </div>
-                            <h3>User Management</h3>
+                        <div class="table-container-modern" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table-modern" id="pre-minted-vehicles-table">
+                                <thead>
+                                    <tr>
+                                        <th>VIN</th>
+                                        <th>Make / Model</th>
+                                        <th>Year</th>
+                                        <th>Dealer</th>
+                                        <th>Import Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pre-minted-vehicles-tbody">
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                            <i class="fas fa-spinner fa-spin"></i> Loading pre-minted vehicles...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-                        <p class="card-description">Manage system users and permissions</p>
-                        <a href="user-management.html" class="btn-card-secondary">
-                            <span>Manage Users</span>
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
                     </div>
-                </div>
 
-                <!-- Document Management Section -->
-                <div class="section-header">
-                    <h2 class="section-title">Document Management</h2>
-                    <p class="section-subtitle">View and manage all documents across the system</p>
-                </div>
-                <div class="dashboard-grid-modern">
-                    <div class="dashboard-card-modern action-card-primary">
-                        <div class="card-header-modern">
-                            <div class="card-icon-modern">
-                                <i class="fas fa-file-alt"></i>
-                            </div>
-                            <h3>Document Viewer</h3>
-                        </div>
-                        <p class="card-description">View all documents from applications, verifications, and certificates</p>
-                        <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
-                        <a href="#applications" class="btn-card-primary" onclick="event.preventDefault(); ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');">
-                            <span>View Documents</span>
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
+                    <!-- Quick Actions -->
+                    <div class="section-header">
+                        <h2 class="section-title">Quick Actions</h2>
+                        <p class="section-subtitle">Access frequently used features</p>
                     </div>
-                    
-                    <div class="dashboard-card-modern action-card-secondary">
-                        <div class="card-header-modern">
-                            <div class="card-icon-modern">
-                                <i class="fas fa-search"></i>
+                    <div class="dashboard-grid-modern">
+                        <div class="dashboard-card-modern action-card-transfer">
+                            <div class="card-header-modern">
+                                <div class="card-icon-modern">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </div>
+                                <h3>Transfer of Ownership</h3>
                             </div>
-                            <h3>Search Documents</h3>
+                            <p class="card-description">Review and manage ownership transfer requests</p>
+                            <a href="admin-transfer-requests.html" class="btn-card-transfer">
+                                <span>View Requests</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
                         </div>
-                        <p class="card-description">Search documents by VIN, application ID, or document type</p>
-                        <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
-                        <a href="#applications" class="btn-card-secondary" onclick="event.preventDefault(); ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');">
-                            <span>View Documents</span>
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
 
-                <!-- Organization Verification Tracker -->
-                <div class="section-header">
-                    <h2 class="section-title"><i class="fas fa-tasks" style="color: #3498db;"></i> Organization Verification Tracker</h2>
-                    <p class="section-subtitle">Track verification request statuses from HPG, Insurance, and Emission</p>
-                </div>
-                <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3 style="margin: 0;"><i class="fas fa-clipboard-check"></i> Pending Verification Requests</h3>
-                        <button class="btn-secondary btn-sm" onclick="loadOrgVerificationStatus()">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
-                    
-                    <!-- Organization Status Cards -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
-                        <!-- HPG Status Card -->
-                        <div class="org-status-card" id="hpgStatusCard" style="border-left-color: #0ea5e9;">
-                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                                <div style="background: #e0f2fe; padding: 0.75rem; border-radius: 50%;">
-                                    <i class="fas fa-shield-alt" style="font-size: 1.5rem; color: #0284c7;"></i>
+                        <div class="dashboard-card-modern action-card-primary">
+                            <div class="card-header-modern">
+                                <div class="card-icon-modern">
+                                    <i class="fas fa-link"></i>
                                 </div>
-                                <div>
-                                    <h4 style="margin: 0; font-size: 1.1rem; color: #0c4a6e;">HPG Clearance</h4>
-                                    <small style="color: #64748b;">Highway Patrol Group</small>
-                                </div>
+                                <h3>Blockchain Ledger</h3>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div style="font-size: 2rem; font-weight: bold; color: #f97316;" id="hpgPendingCount">0</div>
-                                    <small style="color: #64748b;">Pending</small>
-                                </div>
-                                <div style="text-align: center;">
-                                    <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;" id="hpgApprovedCount">0</div>
-                                    <small style="color: #64748b;">Approved</small>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;" id="hpgRejectedCount">0</div>
-                                    <small style="color: #64748b;">Rejected</small>
-                                </div>
-                            </div>
+                            <p class="card-description">View all blockchain transactions and blocks</p>
+                            <a href="admin-blockchain-viewer.html" class="btn-card-primary">
+                                <span>View Ledger</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
                         </div>
-                        
-                        <!-- Insurance Status Card -->
-                        <div class="org-status-card" id="insuranceStatusCard" style="border-left-color: #38bdf8;">
-                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                                <div style="background: #e0f2fe; padding: 0.75rem; border-radius: 50%;">
-                                    <i class="fas fa-file-shield" style="font-size: 1.5rem; color: #0ea5e9;"></i>
-                                </div>
-                                <div>
-                                    <h4 style="margin: 0; font-size: 1.1rem; color: #0c4a6e;">Insurance Verification</h4>
-                                    <small style="color: #64748b;">Insurance Provider</small>
-                                </div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div style="font-size: 2rem; font-weight: bold; color: #f97316;" id="insurancePendingCount">0</div>
-                                    <small style="color: #64748b;">Pending</small>
-                                </div>
-                                <div style="text-align: center;">
-                                    <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;" id="insuranceApprovedCount">0</div>
-                                    <small style="color: #64748b;">Approved</small>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;" id="insuranceRejectedCount">0</div>
-                                    <small style="color: #64748b;">Rejected</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Emission Status Card -->
-                        <div class="org-status-card" id="emissionStatusCard" style="border-left-color: #10b981;">
-                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                                <div style="background: #d1fae5; padding: 0.75rem; border-radius: 50%;">
-                                    <i class="fas fa-leaf" style="font-size: 1.5rem; color: #059669;"></i>
-                                </div>
-                                <div>
-                                    <h4 style="margin: 0; font-size: 1.1rem; color: #0c4a6e;">Emission Verification</h4>
-                                    <small style="color: #64748b;">Emission Testing Center</small>
-                                </div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div style="font-size: 2rem; font-weight: bold; color: #f97316;" id="emissionPendingCount">0</div>
-                                    <small style="color: #64748b;">Pending</small>
-                                </div>
-                                <div style="text-align: center;">
-                                    <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;" id="emissionApprovedCount">0</div>
-                                    <small style="color: #64748b;">Approved</small>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;" id="emissionRejectedCount">0</div>
-                                    <small style="color: #64748b;">Rejected</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Recent Verification Responses Table -->
-                    <h4 style="margin: 1.5rem 0 1rem 0; font-size: 1.125rem; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;"><i class="fas fa-bell"></i> Recent Verification Responses</h4>
-                    <div class="table-container-modern" style="max-height: 500px; overflow-y: auto;">
-                        <table class="table-modern" id="verification-responses-table">
-                            <thead>
-                                <tr>
-                                    <th>Vehicle</th>
-                                    <th>Organization</th>
-                                    <th>Status</th>
-                                    <th>Response Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="verification-responses-tbody">
-                                <tr>
-                                    <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                                        <i class="fas fa-spinner fa-spin"></i> Loading verification statuses...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
-                <!-- Vehicle Registration Applications Section -->
-                <div class="section-header">
-                    <h2 class="section-title"><i class="fas fa-car" style="color: #3498db;"></i> Vehicle Registration Applications</h2>
-                    <p class="section-subtitle">New vehicle registrations submitted by owners</p>
-                </div>
-                <div id="submitted-applications" class="dashboard-card-modern table-card">
-                    <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <div class="filter-tabs" id="registrationFilterTabs">
-                            <button class="filter-tab active" data-filter="all" onclick="filterRegistrations('all', this)">All</button>
-                            <button class="filter-tab" data-filter="SUBMITTED" onclick="filterRegistrations('SUBMITTED', this)">Pending</button>
-                            <button class="filter-tab" data-filter="PROCESSING" onclick="filterRegistrations('PROCESSING', this)">Processing</button>
-                            <button class="filter-tab" data-filter="APPROVED" onclick="filterRegistrations('APPROVED', this)">Approved</button>
-                            <button class="filter-tab" data-filter="REGISTERED" onclick="filterRegistrations('REGISTERED', this)">Registered</button>
+                        <div class="dashboard-card-modern action-card-secondary">
+                            <div class="card-header-modern">
+                                <div class="card-icon-modern">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <h3>User Management</h3>
+                            </div>
+                            <p class="card-description">Manage system users and permissions</p>
+                            <a href="user-management.html" class="btn-card-secondary">
+                                <span>Manage Users</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
                         </div>
-                        <a href="#submitted-applications" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
                     </div>
-                    <div class="table-container-modern">
-                        <table class="table-modern" id="registration-applications-table">
-                            <thead>
-                                <tr>
-                                    <th>Application ID</th>
-                                    <th>Vehicle</th>
-                                    <th>Owner</th>
-                                    <th>Submitted</th>
-                                    <th>Org Status</th>
-                                    <th>Status</th>
-                                    <th>Data Health</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="registration-applications-tbody">
-                                <!-- Registrations loaded dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
-                <!-- Transfer of Ownership Applications Section -->
-                <div class="section-header">
-                    <h2 class="section-title"><i class="fas fa-exchange-alt" style="color: #27ae60;"></i> Transfer of Ownership Applications</h2>
-                    <p class="section-subtitle">Ownership transfer requests between sellers and buyers</p>
-                </div>
-                <div class="dashboard-card-modern table-card">
-                    <div class="table-header-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <div class="filter-tabs">
-                            <button class="filter-tab active" data-filter="all" onclick="window.filterTransfers('all', this)">All</button>
-                            <button class="filter-tab" data-filter="PENDING" onclick="window.filterTransfers('PENDING', this)">Pending Buyer</button>
-                            <button class="filter-tab" data-filter="REVIEWING" onclick="window.filterTransfers('REVIEWING', this)">Reviewing</button>
-                            <button class="filter-tab" data-filter="APPROVED" onclick="window.filterTransfers('APPROVED', this)">Approved</button>
+                    <!-- Document Management Section -->
+                    <div class="section-header">
+                        <h2 class="section-title">Document Management</h2>
+                        <p class="section-subtitle">View and manage all documents across the system</p>
+                    </div>
+                    <div class="dashboard-grid-modern">
+                        <div class="dashboard-card-modern action-card-primary">
+                            <div class="card-header-modern">
+                                <div class="card-icon-modern">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <h3>Document Viewer</h3>
+                            </div>
+                            <p class="card-description">View all documents from applications, verifications, and
+                                certificates</p>
+                            <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
+                            <a href="#applications" class="btn-card-primary"
+                                onclick="event.preventDefault(); ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');">
+                                <span>View Documents</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
                         </div>
-                        <a href="admin-transfer-requests.html" class="btn-secondary btn-sm">View All <i class="fas fa-arrow-right"></i></a>
+
+                        <div class="dashboard-card-modern action-card-secondary">
+                            <div class="card-header-modern">
+                                <div class="card-icon-modern">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <h3>Search Documents</h3>
+                            </div>
+                            <p class="card-description">Search documents by VIN, application ID, or document type</p>
+                            <!-- Full-page document viewer disabled: documents are viewed via in-page modal -->
+                            <a href="#applications" class="btn-card-secondary"
+                                onclick="event.preventDefault(); ToastNotification.show('Use the in-page document modal inside an application to view documents.','info');">
+                                <span>View Documents</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
                     </div>
-                    <div class="table-container-modern">
-                        <table class="table-modern" id="transfer-applications-table">
-                            <thead>
-                                <tr>
-                                    <th>Request ID</th>
-                                    <th>Vehicle</th>
-                                    <th>Seller → Buyer</th>
-                                    <th>Submitted</th>
-                                    <th>Org Approvals</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="transfer-applications-tbody">
-                                <!-- Transfers loaded dynamically -->
-                            </tbody>
-                        </table>
+
+                    <!-- Organization Verification Tracker -->
+                    <div class="section-header">
+                        <h2 class="section-title"><i class="fas fa-tasks" style="color: #3498db;"></i> Organization
+                            Verification Tracker</h2>
+                        <p class="section-subtitle">Track verification request statuses from HPG, Insurance, and
+                            Emission</p>
+                    </div>
+                    <div class="dashboard-card-modern" style="margin-bottom: 2rem;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0;"><i class="fas fa-clipboard-check"></i> Pending Verification Requests
+                            </h3>
+                            <button class="btn-secondary btn-sm" onclick="loadOrgVerificationStatus()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+
+                        <!-- Organization Status Cards -->
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                            <!-- HPG Status Card -->
+                            <div class="org-status-card" id="hpgStatusCard" style="border-left-color: #0ea5e9;">
+                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                    <div style="background: #e0f2fe; padding: 0.75rem; border-radius: 50%;">
+                                        <i class="fas fa-shield-alt" style="font-size: 1.5rem; color: #0284c7;"></i>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin: 0; font-size: 1.1rem; color: #0c4a6e;">HPG Clearance</h4>
+                                        <small style="color: #64748b;">Highway Patrol Group</small>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-size: 2rem; font-weight: bold; color: #f97316;"
+                                            id="hpgPendingCount">0</div>
+                                        <small style="color: #64748b;">Pending</small>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;"
+                                            id="hpgApprovedCount">0</div>
+                                        <small style="color: #64748b;">Approved</small>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;"
+                                            id="hpgRejectedCount">0</div>
+                                        <small style="color: #64748b;">Rejected</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Insurance Status Card -->
+                            <div class="org-status-card" id="insuranceStatusCard" style="border-left-color: #38bdf8;">
+                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                    <div style="background: #e0f2fe; padding: 0.75rem; border-radius: 50%;">
+                                        <i class="fas fa-file-shield" style="font-size: 1.5rem; color: #0ea5e9;"></i>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin: 0; font-size: 1.1rem; color: #0c4a6e;">Insurance Verification
+                                        </h4>
+                                        <small style="color: #64748b;">Insurance Provider</small>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-size: 2rem; font-weight: bold; color: #f97316;"
+                                            id="insurancePendingCount">0</div>
+                                        <small style="color: #64748b;">Pending</small>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;"
+                                            id="insuranceApprovedCount">0</div>
+                                        <small style="color: #64748b;">Approved</small>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;"
+                                            id="insuranceRejectedCount">0</div>
+                                        <small style="color: #64748b;">Rejected</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Emission Status Card -->
+                            <div class="org-status-card" id="emissionStatusCard" style="border-left-color: #10b981;">
+                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                    <div style="background: #d1fae5; padding: 0.75rem; border-radius: 50%;">
+                                        <i class="fas fa-leaf" style="font-size: 1.5rem; color: #059669;"></i>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin: 0; font-size: 1.1rem; color: #0c4a6e;">Emission Verification
+                                        </h4>
+                                        <small style="color: #64748b;">Emission Testing Center</small>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-size: 2rem; font-weight: bold; color: #f97316;"
+                                            id="emissionPendingCount">0</div>
+                                        <small style="color: #64748b;">Pending</small>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;"
+                                            id="emissionApprovedCount">0</div>
+                                        <small style="color: #64748b;">Approved</small>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;"
+                                            id="emissionRejectedCount">0</div>
+                                        <small style="color: #64748b;">Rejected</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="table-container-modern" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table-modern" id="verification-responses-table">
+                                <thead>
+                                    <tr>
+                                        <th>Vehicle</th>
+                                        <th>Organization</th>
+                                        <th>Status</th>
+                                        <th>Response Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="verification-responses-tbody">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                                            <i class="fas fa-spinner fa-spin"></i> Loading verification statuses...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Vehicle Registration Applications Section -->
+                    <div class="section-header">
+                        <h2 class="section-title"><i class="fas fa-car" style="color: #3498db;"></i> Vehicle
+                            Registration Applications</h2>
+                        <p class="section-subtitle">New vehicle registrations submitted by owners</p>
+                    </div>
+                    <div id="submitted-applications" class="dashboard-card-modern table-card">
+                        <div class="table-header-actions"
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div class="filter-tabs" id="registrationFilterTabs">
+                                <button class="filter-tab active" data-filter="all"
+                                    onclick="filterRegistrations('all', this)">All</button>
+                                <button class="filter-tab" data-filter="SUBMITTED"
+                                    onclick="filterRegistrations('SUBMITTED', this)">Pending</button>
+                                <button class="filter-tab" data-filter="PROCESSING"
+                                    onclick="filterRegistrations('PROCESSING', this)">Processing</button>
+                                <button class="filter-tab" data-filter="APPROVED"
+                                    onclick="filterRegistrations('APPROVED', this)">Approved</button>
+                                <button class="filter-tab" data-filter="REGISTERED"
+                                    onclick="filterRegistrations('REGISTERED', this)">Registered</button>
+                            </div>
+                            <a href="#submitted-applications" class="btn-secondary btn-sm">View All <i
+                                    class="fas fa-arrow-right"></i></a>
+                        </div>
+                        <div class="table-container-modern">
+                            <table class="table-modern" id="registration-applications-table">
+                                <thead>
+                                    <tr>
+                                        <th>Application ID</th>
+                                        <th>Vehicle</th>
+                                        <th>Owner</th>
+                                        <th>Submitted</th>
+                                        <th>Org Status</th>
+                                        <th>Status</th>
+                                        <th>Data Health</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="registration-applications-tbody">
+                                    <!-- Registrations loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Transfer of Ownership Applications Section -->
+                    <div class="section-header">
+                        <h2 class="section-title"><i class="fas fa-exchange-alt" style="color: #27ae60;"></i> Transfer
+                            of Ownership Applications</h2>
+                        <p class="section-subtitle">Ownership transfer requests between sellers and buyers</p>
+                    </div>
+                    <div class="dashboard-card-modern table-card">
+                        <div class="table-header-actions"
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div class="filter-tabs">
+                                <button class="filter-tab active" data-filter="all"
+                                    onclick="window.filterTransfers('all', this)">All</button>
+                                <button class="filter-tab" data-filter="PENDING"
+                                    onclick="window.filterTransfers('PENDING', this)">Pending Buyer</button>
+                                <button class="filter-tab" data-filter="REVIEWING"
+                                    onclick="window.filterTransfers('REVIEWING', this)">Reviewing</button>
+                                <button class="filter-tab" data-filter="APPROVED"
+                                    onclick="window.filterTransfers('APPROVED', this)">Approved</button>
+                            </div>
+                            <a href="admin-transfer-requests.html" class="btn-secondary btn-sm">View All <i
+                                    class="fas fa-arrow-right"></i></a>
+                        </div>
+                        <div class="table-container-modern">
+                            <table class="table-modern" id="transfer-applications-table">
+                                <thead>
+                                    <tr>
+                                        <th>Request ID</th>
+                                        <th>Vehicle</th>
+                                        <th>Seller → Buyer</th>
+                                        <th>Submitted</th>
+                                        <th>Org Approvals</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transfer-applications-tbody">
+                                    <!-- Transfers loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </main>
         </div>
     </div>
     <script src="js/models/vehicle-mapper.js"></script>
@@ -1482,27 +1586,27 @@
     <script src="js/admin-modals.js"></script>
     <script>
         // Initialize user data on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
-                
+
                 // Check if auth is disabled (dev mode)
                 if (user && user._devMode) {
                     console.log('🔓 [DEV MODE] Authentication is disabled - UI development mode active');
                 }
-                
+
                 if (user) {
                     const welcomeAdminNameEl = document.getElementById('welcomeAdminName');
                     if (welcomeAdminNameEl) {
                         // Always show "ADMIN" for admin dashboard
                         welcomeAdminNameEl.textContent = 'ADMIN';
                     }
-                    
+
                     // Update sidebar user info
                     const sidebarUserNameEl = document.getElementById('sidebarUserName');
                     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
                     const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    
+
                     if (sidebarUserNameEl) {
                         sidebarUserNameEl.textContent = 'ADMIN';
                     }
@@ -1518,7 +1622,7 @@
                     if (sidebarUserAvatarEl) {
                         sidebarUserAvatarEl.textContent = 'AD';
                     }
-                    
+
                     // Load dashboard stats
                     loadDashboardStats();
                 } else {
@@ -1539,20 +1643,20 @@
 
             // Sidebar toggle via AD icon
             const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
-            
+
             if (sidebarToggleIcon && sidebar) {
-                const toggleSidebar = function(e) {
+                const toggleSidebar = function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
-                    
+
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
                 };
-                
+
                 sidebarToggleIcon.addEventListener('click', toggleSidebar);
-                sidebarToggleIcon.addEventListener('keydown', function(e) {
+                sidebarToggleIcon.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         toggleSidebar(e);
                     }
@@ -1562,7 +1666,7 @@
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', async function(e) {
+                sidebarLogoutBtn.addEventListener('click', async function (e) {
                     e.preventDefault();
                     const confirmed = await ToastNotification.confirm(
                         'Are you sure you want to logout?',
@@ -1585,11 +1689,11 @@
                     );
                 });
             }
-            
+
             // Setup filter tab event delegation for registration filters
             const registrationFilterTabs = document.getElementById('registrationFilterTabs');
             if (registrationFilterTabs) {
-                registrationFilterTabs.addEventListener('click', function(e) {
+                registrationFilterTabs.addEventListener('click', function (e) {
                     if (e.target.classList.contains('filter-tab')) {
                         const filter = e.target.dataset.filter;
                         if (typeof filterRegistrations === 'function') {
@@ -1606,7 +1710,7 @@
         async function loadDashboardStats() {
             try {
                 const apiClient = window.apiClient || new APIClient();
-                
+
                 // Load stats from backend API
                 const [adminStatsResponse, transferStatsResponse] = await Promise.all([
                     apiClient.get('/api/admin/stats').catch(e => {
@@ -1618,13 +1722,13 @@
                         return { success: false, stats: null };
                     })
                 ]);
-                
+
                 // Update stats elements
                 const totalAppsEl = document.getElementById('totalApplications');
                 const pendingTransfersEl = document.getElementById('pendingTransfers');
                 const approvedAppsEl = document.getElementById('approvedApplications');
                 const totalUsersEl = document.getElementById('totalUsers');
-                
+
                 // Update total applications (vehicles)
                 if (totalAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
                     const totalVehicles = adminStatsResponse.stats.vehicles?.total || 0;
@@ -1632,7 +1736,7 @@
                 } else if (totalAppsEl) {
                     totalAppsEl.textContent = '0';
                 }
-                
+
                 // Update pending transfers (REVIEWING status - after buyer accepts)
                 if (pendingTransfersEl) {
                     let pendingCount = 0;
@@ -1641,7 +1745,7 @@
                         pendingCount = transferStatsResponse.stats.reviewing || 0;
                     }
                     pendingTransfersEl.textContent = pendingCount.toLocaleString();
-                    
+
                     // Update badge
                     const transferBadge = document.getElementById('transferBadge');
                     if (transferBadge) {
@@ -1653,7 +1757,7 @@
                         }
                     }
                 }
-                
+
                 // Update approved applications (vehicles with approved/registered status)
                 if (approvedAppsEl && adminStatsResponse.success && adminStatsResponse.stats) {
                     const vehicles = adminStatsResponse.stats.vehicles || {};
@@ -1662,7 +1766,7 @@
                 } else if (approvedAppsEl) {
                     approvedAppsEl.textContent = '0';
                 }
-                
+
                 // Update total users
                 if (totalUsersEl && adminStatsResponse.success && adminStatsResponse.stats) {
                     const totalUsers = adminStatsResponse.stats.users?.total || 0;
@@ -1670,7 +1774,7 @@
                 } else if (totalUsersEl) {
                     totalUsersEl.textContent = '0';
                 }
-                
+
                 console.log('✅ Dashboard stats loaded:', {
                     vehicles: adminStatsResponse.stats?.vehicles,
                     transfers: transferStatsResponse.stats,
@@ -1680,7 +1784,7 @@
                 console.error('Error loading dashboard stats:', error);
             }
         }
-        
+
         // Call loadDashboardStats on page load
         loadDashboardStats();
     </script>
@@ -1690,13 +1794,13 @@
             const txId = document.getElementById('txSearchInput').value.trim();
             const searchBtn = document.getElementById('txSearchBtn');
             const errorDiv = document.getElementById('txSearchError');
-            
+
             // Clear previous errors
             if (errorDiv) {
                 errorDiv.style.display = 'none';
                 errorDiv.textContent = '';
             }
-            
+
             if (!txId) {
                 if (errorDiv) {
                     errorDiv.textContent = 'Please enter a Transaction ID';
@@ -1706,17 +1810,17 @@
                 document.getElementById('txSearchInput').focus();
                 return;
             }
-            
+
             // Show loading state
             if (searchBtn) {
                 const originalHTML = searchBtn.innerHTML;
                 searchBtn.disabled = true;
                 searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
-                
+
                 try {
                     // Small delay to show loading state
                     await new Promise(resolve => setTimeout(resolve, 300));
-                    
+
                     // Redirect to blockchain viewer with transaction ID
                     window.location.href = `admin-blockchain-viewer.html?txId=${encodeURIComponent(txId)}`;
                 } catch (error) {
@@ -1732,12 +1836,12 @@
                 window.location.href = `admin-blockchain-viewer.html?txId=${encodeURIComponent(txId)}`;
             }
         }
-        
+
         // Allow Enter key to trigger search
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const txSearchInput = document.getElementById('txSearchInput');
             if (txSearchInput) {
-                txSearchInput.addEventListener('keypress', function(e) {
+                txSearchInput.addEventListener('keypress', function (e) {
                     if (e.key === 'Enter') {
                         searchTransaction();
                     }
@@ -1745,7 +1849,7 @@
             }
         });
     </script>
-    
+
     <!-- Integrity Check Modal -->
     <div id="integrityModal" class="modal-overlay" style="display: none;">
         <div class="modal-content integrity-modal">
@@ -1796,4 +1900,5 @@
         </div>
     </div>
 </body>
+
 </html>

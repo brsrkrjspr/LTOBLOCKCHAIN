@@ -69,7 +69,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
 
         const { status, page = 1, limit = 10 } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
-        
+
         let vehicles;
         let totalCount;
         const dbModule = require('../database/db');
@@ -77,7 +77,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
         if (status) {
             // Handle comma-separated status values
             const statusValues = status.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
-            
+
             if (statusValues.length === 0) {
                 return res.status(400).json({
                     success: false,
@@ -108,13 +108,13 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                     LIMIT $${statusValues.length + 1} OFFSET $${statusValues.length + 2}
                 `;
                 const params = [...statusValues, parseInt(limit), offset];
-                
+
                 console.log('[API /api/vehicles] Query:', query);
                 console.log('[API /api/vehicles] Params:', params);
-                
+
                 const result = await dbModule.query(query, params);
                 vehicles = result.rows;
-                
+
                 // Get total count
                 const countQuery = `SELECT COUNT(*) FROM vehicles WHERE status::text IN (${placeholders})`;
                 const countResult = await dbModule.query(countQuery, statusValues);
@@ -130,7 +130,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                 // For now, allow officers to see all vehicles (will be restricted later)
                 console.log('[API /api/vehicles] lto_officer accessing - assignment filtering not yet implemented');
             }
-            
+
             vehicles = await db.getAllVehicles(parseInt(limit), offset);
             // Get total count
             const countResult = await dbModule.query('SELECT COUNT(*) FROM vehicles');
@@ -140,7 +140,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
         // Get verifications and documents for each vehicle (BATCH QUERIES - fixes N+1 problem)
         if (vehicles.length > 0) {
             const vehicleIds = vehicles.map(v => v.id);
-            
+
             // Batch fetch all verifications at once
             const verificationsQuery = `
                 SELECT * FROM vehicle_verifications 
@@ -148,7 +148,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                 ORDER BY created_at DESC
             `;
             const verificationsResult = await dbModule.query(verificationsQuery, [vehicleIds]);
-            
+
             // Batch fetch all documents at once
             const documentsQuery = `
                 SELECT * FROM documents 
@@ -156,7 +156,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                 ORDER BY uploaded_at DESC
             `;
             const documentsResult = await dbModule.query(documentsQuery, [vehicleIds]);
-            
+
             // Group verifications and documents by vehicle_id
             const verificationsByVehicle = {};
             verificationsResult.rows.forEach(v => {
@@ -165,7 +165,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                 }
                 verificationsByVehicle[v.vehicle_id].push(v);
             });
-            
+
             const documentsByVehicle = {};
             documentsResult.rows.forEach(d => {
                 if (!documentsByVehicle[d.vehicle_id]) {
@@ -173,12 +173,12 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                 }
                 documentsByVehicle[d.vehicle_id].push(d);
             });
-            
+
             // Attach to vehicles
             for (let vehicle of vehicles) {
                 vehicle.verifications = verificationsByVehicle[vehicle.id] || [];
                 vehicle.documents = documentsByVehicle[vehicle.id] || [];
-                
+
                 // Format verification status
                 vehicle.verificationStatus = {};
                 vehicle.verifications.forEach(v => {
@@ -218,6 +218,62 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
     }
 });
 
+// ============================================================
+// GET PRE-MINTED VEHICLES FROM FABRIC (SOURCE OF TRUTH)
+// ============================================================
+// This endpoint queries Fabric directly for vehicles with PRE_MINTED status
+// MUST come before /:vin route to avoid parameter collision
+router.get('/pre-minted', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
+    try {
+        console.log('[API /api/vehicles/pre-minted] Request received:', {
+            user: req.user?.email,
+            role: req.user?.role,
+            timestamp: new Date().toISOString()
+        });
+
+        // Query Fabric directly for pre-minted vehicles
+        const result = await fabricService.getPreMintedVehicles();
+
+        if (!result.success) {
+            throw new Error('Failed to query Fabric for pre-minted vehicles');
+        }
+
+        console.log('[API /api/vehicles/pre-minted] Success:', {
+            vehicleCount: result.vehicles.length
+        });
+
+        res.json({
+            success: true,
+            vehicles: result.vehicles,
+            count: result.vehicles.length,
+            source: 'fabric' // Indicate this is from blockchain, not PostgreSQL cache
+        });
+
+    } catch (error) {
+        console.error('[API /api/vehicles/pre-minted] Error:', {
+            message: error.message,
+            stack: error.stack
+        });
+
+        // Check if it's a Fabric connection error
+        if (error.message.includes('Not connected') || error.message.includes('Fabric')) {
+            return res.status(503).json({
+                success: false,
+                error: 'Blockchain service unavailable',
+                message: 'Unable to connect to Fabric network. Please try again later.',
+                vehicles: []
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch pre-minted vehicles',
+            message: error.message,
+            vehicles: []
+        });
+    }
+});
+
 // Get vehicles by current user (convenience endpoint) - MUST come before /:vin route
 router.get('/my-vehicles', authenticateToken, async (req, res) => {
     try {
@@ -228,13 +284,13 @@ router.get('/my-vehicles', authenticateToken, async (req, res) => {
         for (let vehicle of vehicles) {
             vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
             vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
-            
+
             // Format verification status
             vehicle.verificationStatus = {};
             vehicle.verifications.forEach(v => {
                 vehicle.verificationStatus[v.verification_type] = v.status;
             });
-            
+
             // Extract rejection reason from verifications if vehicle is rejected
             if (vehicle.status === 'REJECTED') {
                 // Check for rejection in verifications
@@ -242,14 +298,14 @@ router.get('/my-vehicles', authenticateToken, async (req, res) => {
                 if (rejectedVerification) {
                     // Try to extract from verification metadata
                     let rejectionReason = rejectedVerification.notes || null;
-                    
+
                     // Check metadata for manual review notes
                     if (rejectedVerification.verification_metadata) {
                         try {
-                            const metadata = typeof rejectedVerification.verification_metadata === 'string' 
+                            const metadata = typeof rejectedVerification.verification_metadata === 'string'
                                 ? JSON.parse(rejectedVerification.verification_metadata)
                                 : rejectedVerification.verification_metadata;
-                            
+
                             if (metadata.manualReview && metadata.manualReview.manualNotes) {
                                 rejectionReason = metadata.manualReview.manualNotes;
                             } else if (metadata.verificationMetadata && metadata.verificationMetadata.reason) {
@@ -259,7 +315,7 @@ router.get('/my-vehicles', authenticateToken, async (req, res) => {
                             console.warn('Failed to parse verification metadata:', e);
                         }
                     }
-                    
+
                     vehicle.rejectionReason = rejectionReason;
                 }
             }
@@ -300,7 +356,7 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
         for (let vehicle of vehicles) {
             vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
             vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
-            
+
             // Format verification status
             vehicle.verificationStatus = {};
             vehicle.verifications.forEach(v => {
@@ -328,7 +384,7 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
 router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
     try {
         const vehicleId = req.params.id;
-        
+
         // Get vehicle to verify it exists
         const vehicle = await db.getVehicleById(vehicleId);
         if (!vehicle) {
@@ -337,16 +393,16 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                 error: 'Vehicle not found'
             });
         }
-        
+
         // Get latest blockchain transaction ID from vehicle history
         const history = await db.getVehicleHistory(vehicleId, 50);
-        
+
         // Find the most recent transaction with a transaction_id
         let transactionId = null;
         let transactionSource = null;
-        
+
         // Priority 1: BLOCKCHAIN_REGISTERED action (from initial registration or LTO approval)
-        const blockchainRegistered = history.find(h => 
+        const blockchainRegistered = history.find(h =>
             h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id
         );
         if (blockchainRegistered) {
@@ -354,17 +410,17 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
             transactionSource = 'BLOCKCHAIN_REGISTERED';
             console.log(`✅ Found transaction ID from BLOCKCHAIN_REGISTERED: ${transactionId}`);
         }
-        
+
         // Priority 2: CLEARANCE_APPROVED action (LTO approval with blockchain - for backward compatibility)
         if (!transactionId) {
-            const clearanceApproved = history.find(h => 
+            const clearanceApproved = history.find(h =>
                 h.action === 'CLEARANCE_APPROVED' && h.transaction_id && !h.transaction_id.includes('-')
             );
             if (clearanceApproved) {
                 transactionId = clearanceApproved.transaction_id;
                 transactionSource = 'CLEARANCE_APPROVED';
                 console.log(`✅ Found transaction ID from CLEARANCE_APPROVED: ${transactionId}`);
-                
+
                 // Backfill: Create BLOCKCHAIN_REGISTERED entry for future lookups
                 try {
                     const dbServices = require('../database/services');
@@ -374,8 +430,8 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                         description: 'Transaction ID recovered from CLEARANCE_APPROVED history',
                         performedBy: null,
                         transactionId: transactionId,
-                        metadata: JSON.stringify({ 
-                            recovered: true, 
+                        metadata: JSON.stringify({
+                            recovered: true,
                             source: 'clearance_approved_backfill',
                             recoveredAt: new Date().toISOString()
                         })
@@ -386,7 +442,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                 }
             }
         }
-        
+
         // Priority 3: Any history entry with valid transaction_id (non-UUID)
         if (!transactionId) {
             const anyTx = history.find(h => h.transaction_id && !h.transaction_id.includes('-'));
@@ -396,13 +452,13 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                 console.log(`✅ Found transaction ID from ${anyTx.action}: ${transactionId}`);
             }
         }
-        
+
         // Priority 4: For REGISTERED vehicles only, query Fabric directly
         // NOTE: APPROVED vehicles are not yet on blockchain (registration happens during approval)
         if (!transactionId && vehicle.status === 'REGISTERED') {
             try {
                 const fabricService = require('../services/optimizedFabricService');
-                
+
                 // Ensure we're using real Fabric, not mock
                 if (fabricService.mode !== 'fabric') {
                     console.error('❌ Mock blockchain service detected - real Fabric required');
@@ -412,21 +468,21 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                         message: 'Real Hyperledger Fabric connection required'
                     });
                 }
-                
+
                 // Initialize with user context for MSP-based filtering
                 await fabricService.initialize(req.user ? { role: req.user.role, email: req.user.email } : {});
-                
+
                 // Query Fabric by VIN with user context for filtering
                 const blockchainResult = await fabricService.getVehicle(vehicle.vin, req.user ? { role: req.user.role, email: req.user.email } : null);
                 if (blockchainResult && blockchainResult.success && blockchainResult.vehicle) {
                     // Try to get transaction ID from vehicle data
                     // Chaincode may store it in different fields
                     const fabricVehicle = blockchainResult.vehicle;
-                    transactionId = fabricVehicle.lastTxId || 
-                                   fabricVehicle.transactionId || 
-                                   fabricVehicle.blockchainTxId ||
-                                   null;
-                    
+                    transactionId = fabricVehicle.lastTxId ||
+                        fabricVehicle.transactionId ||
+                        fabricVehicle.blockchainTxId ||
+                        null;
+
                     // If we found a transaction ID, backfill to vehicle_history
                     if (transactionId) {
                         const dbServices = require('../database/services');
@@ -436,9 +492,9 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                             description: 'Transaction ID recovered from blockchain ledger',
                             performedBy: null,
                             transactionId: transactionId,
-                            metadata: JSON.stringify({ 
-                                recovered: true, 
-                                source: 'fabric_ledger_query', 
+                            metadata: JSON.stringify({
+                                recovered: true,
+                                source: 'fabric_ledger_query',
                                 vin: vehicle.vin,
                                 recoveredAt: new Date().toISOString()
                             })
@@ -451,7 +507,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                 // Don't fallback - if Fabric fails, report the actual status
             }
         }
-        
+
         // Return result based on what we found
         if (transactionId) {
             return res.json({
@@ -462,10 +518,10 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                 isPending: false
             });
         }
-        
+
         // Determine if vehicle is actually pending
         const isPending = ['SUBMITTED', 'PROCESSING'].includes(vehicle.status);
-        
+
         if (isPending) {
             // Vehicle is genuinely pending - this is expected
             return res.json({
@@ -477,7 +533,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                 message: 'Vehicle registration is being processed on the blockchain'
             });
         }
-        
+
         // Handle APPROVED vehicles (awaiting blockchain registration during approval)
         if (vehicle.status === 'APPROVED') {
             return res.json({
@@ -489,7 +545,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                 message: 'Vehicle is approved and awaiting blockchain registration during final approval'
             });
         }
-        
+
         // Vehicle is REGISTERED but no transaction ID found - this is an error state
         // Per Chapter 2 requirements: "all registrations are recorded on blockchain IMMEDIATELY"
         console.error(`❌ Data integrity issue: Vehicle ${vehicle.vin} is ${vehicle.status} but has no blockchain transaction ID`);
@@ -500,7 +556,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
             vehicleStatus: vehicle.status,
             vin: vehicle.vin
         });
-        
+
     } catch (error) {
         console.error('Error getting vehicle transaction ID:', error);
         res.status(500).json({
@@ -516,50 +572,50 @@ router.get('/:id/certificate-data', optionalAuth, async (req, res) => {
         const vehicleId = req.params.id;
         const vehicle = await db.getVehicleById(vehicleId);
         if (!vehicle) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Vehicle not found' 
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
             });
         }
 
         // Get owner data
         const owner = vehicle.owner_id ? await db.getUserById(vehicle.owner_id) : null;
-        
+
         // Get transfer information if applicable
         let transferInfo = null;
         const originType = vehicle.origin_type || vehicle.originType;
         const transactionType = vehicle.transaction_type;
-        
+
         // Check if this is a transfer (origin_type = 'TRANSFER' or transaction_type contains 'TRANSFER')
-        if (originType === 'TRANSFER' || 
+        if (originType === 'TRANSFER' ||
             (transactionType && transactionType.toUpperCase().includes('TRANSFER'))) {
-            
+
             const history = await db.getOwnershipHistory(vehicleId);
-            const transferRecord = history.find(h => 
-                h.action === 'OWNERSHIP_TRANSFERRED' || 
+            const transferRecord = history.find(h =>
+                h.action === 'OWNERSHIP_TRANSFERRED' ||
                 (h.metadata && h.metadata.previousOwnerName)
             );
-            
+
             if (transferRecord) {
                 const metadata = transferRecord.metadata || {};
                 transferInfo = {
                     isTransfer: true,
-                    previousOwnerName: transferRecord.previousOwnerName || 
-                                      metadata.previousOwnerName || null,
-                    previousOwnerEmail: transferRecord.previousOwnerEmail || 
-                                       metadata.previousOwnerEmail || null,
-                    transferDate: transferRecord.transferDate || 
-                                 metadata.transferDate || 
-                                 transferRecord.timestamp || null,
-                    transferReason: transferRecord.transferReason || 
-                                   metadata.transferReason || null
+                    previousOwnerName: transferRecord.previousOwnerName ||
+                        metadata.previousOwnerName || null,
+                    previousOwnerEmail: transferRecord.previousOwnerEmail ||
+                        metadata.previousOwnerEmail || null,
+                    transferDate: transferRecord.transferDate ||
+                        metadata.transferDate ||
+                        transferRecord.timestamp || null,
+                    transferReason: transferRecord.transferReason ||
+                        metadata.transferReason || null
                 };
             }
         }
 
         // Format vehicle response
         const formattedVehicle = formatVehicleResponse(vehicle, req, res);
-        
+
         // Format owner response
         const formattedOwner = owner ? {
             id: owner.id,
@@ -578,9 +634,9 @@ router.get('/:id/certificate-data', optionalAuth, async (req, res) => {
         });
     } catch (error) {
         console.error('Certificate data error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Internal server error' 
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
         });
     }
 });
@@ -590,29 +646,29 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
     try {
         const vehicleId = req.params.id;
         const vehicle = await db.getVehicleById(vehicleId);
-        
+
         if (!vehicle) {
             return res.status(404).json({
                 success: false,
                 error: 'Vehicle not found'
             });
         }
-        
+
         // Check permission
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        
+
         if (!isAdmin && !isOwner) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied'
             });
         }
-        
+
         // Get vehicle history and verifications
         const history = await db.getVehicleHistory(vehicleId);
         const verifications = await db.getVehicleVerifications(vehicleId);
-        
+
         // Get clearance requests
         const dbModule = require('../database/db');
         const clearanceQuery = await dbModule.query(
@@ -620,7 +676,7 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
             [vehicleId]
         );
         const clearanceRequests = clearanceQuery.rows;
-        
+
         // Build progress object
         const progress = {
             applicationSubmitted: {
@@ -651,7 +707,7 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
                 date: vehicle.status === 'REGISTERED' ? (vehicle.last_updated || vehicle.created_at) : null
             }
         };
-        
+
         // Check HPG clearance
         const hpgClearance = clearanceRequests.find(cr => cr.type === 'hpg');
         if (hpgClearance) {
@@ -672,7 +728,7 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
                 };
             }
         }
-        
+
         // Check Insurance verification
         const insuranceVerification = verifications.find(v => v.organization_type === 'insurance');
         if (insuranceVerification) {
@@ -693,13 +749,13 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
                 };
             }
         }
-        
+
         // NOTE: LTO inspection (MVIR) is intentionally excluded from the registration
         // progress timeline. Inspection/MVIR is handled only for transfer-of-ownership
         // workflows and should not appear as a registration application step.
-        
+
         // Check Blockchain Registration
-        const blockchainHistory = history.find(h => 
+        const blockchainHistory = history.find(h =>
             h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id && !h.transaction_id.includes('-')
         );
         if (blockchainHistory) {
@@ -714,13 +770,13 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
                 date: null
             };
         }
-        
+
         res.json({
             success: true,
             progress,
             vehicle: formatVehicleResponse(vehicle, req, res)
         });
-        
+
     } catch (error) {
         console.error('Error getting vehicle progress:', error);
         res.status(500).json({
@@ -747,7 +803,7 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
         const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
-        
+
         // Debug logging in development
         if (process.env.NODE_ENV === 'development') {
             console.log('Vehicle view permission check:', {
@@ -759,7 +815,7 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
                 isVerifier
             });
         }
-        
+
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
                 success: false,
@@ -772,11 +828,11 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
         vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
         vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
         vehicle.history = await db.getVehicleHistory(vehicle.id);
-        
+
         // CRITICAL: Verify blockchain transaction ID against Fabric
         // This ensures the transaction ID from PostgreSQL actually exists on Fabric
         await verifyBlockchainTransactionId(vehicle);
-        
+
         // Generate QR code server-side
         vehicle.qr_code_base64 = await generateVehicleQRCode(vehicle);
 
@@ -812,7 +868,7 @@ router.get('/:vin', authenticateToken, async (req, res) => {
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
         const isVerifier = req.user.role === 'insurance_verifier';
-        
+
         // Debug logging (temporary)
         if (process.env.NODE_ENV === 'development') {
             console.log('Permission check:', {
@@ -827,7 +883,7 @@ router.get('/:vin', authenticateToken, async (req, res) => {
                 isVerifier
             });
         }
-        
+
         if (!isAdmin && !isOwner && !isVerifier) {
             return res.status(403).json({
                 success: false,
@@ -839,31 +895,31 @@ router.get('/:vin', authenticateToken, async (req, res) => {
         vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
         vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
         vehicle.history = await db.getVehicleHistory(vehicle.id);
-        
+
         // CRITICAL: Verify blockchain transaction ID against Fabric
         // This ensures the transaction ID from PostgreSQL actually exists on Fabric
         await verifyBlockchainTransactionId(vehicle);
-        
+
         // Apply additional filtering based on role (application-level privacy)
         let responseVehicle = vehicle;
-        
+
         // HPG sees minimal data
-        const isHPG = ['hpg_admin', 'hpg_officer'].includes(req.user.role) || 
-                      (req.user.role === 'admin' && req.user.email?.toLowerCase().includes('hpg'));
-        
+        const isHPG = ['hpg_admin', 'hpg_officer'].includes(req.user.role) ||
+            (req.user.role === 'admin' && req.user.email?.toLowerCase().includes('hpg'));
+
         // Insurance sees minimal data
         const isInsurance = ['insurance_verifier', 'insurance_admin'].includes(req.user.role);
-        
+
         if (isHPG) {
             // Filter documents - only HPG-relevant
             if (responseVehicle.documents) {
-                responseVehicle.documents = responseVehicle.documents.filter(d => 
+                responseVehicle.documents = responseVehicle.documents.filter(d =>
                     ['or_cr', 'hpg_clearance', 'owner_id'].includes(d.document_type)
                 );
             }
             // Filter history - only HPG-related actions
             if (responseVehicle.history) {
-                responseVehicle.history = responseVehicle.history.filter(h => 
+                responseVehicle.history = responseVehicle.history.filter(h =>
                     h.action?.includes('HPG') || h.action?.includes('VERIFICATION')
                 );
             }
@@ -875,17 +931,17 @@ router.get('/:vin', authenticateToken, async (req, res) => {
                 };
             }
         }
-        
+
         if (isInsurance) {
             // Filter documents - only insurance-relevant
             if (responseVehicle.documents) {
-                responseVehicle.documents = responseVehicle.documents.filter(d => 
+                responseVehicle.documents = responseVehicle.documents.filter(d =>
                     ['insurance_cert', 'or_cr'].includes(d.document_type)
                 );
             }
             // Filter history - only insurance-related actions
             if (responseVehicle.history) {
-                responseVehicle.history = responseVehicle.history.filter(h => 
+                responseVehicle.history = responseVehicle.history.filter(h =>
                     h.action?.includes('INSURANCE') || h.action?.includes('VERIFICATION')
                 );
             }
@@ -1003,7 +1059,7 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
 router.post('/register', optionalAuth, async (req, res) => {
     try {
         const registrationData = req.body;
-        
+
         // Validate required fields
         if (!registrationData.vehicle || !registrationData.owner) {
             return res.status(400).json({
@@ -1011,23 +1067,23 @@ router.post('/register', optionalAuth, async (req, res) => {
                 error: 'Missing required vehicle or owner information'
             });
         }
-        
+
         const { vehicle, owner } = registrationData;
-        
+
         if (!vehicle.vin || !vehicle.plateNumber || !vehicle.make || !vehicle.model) {
             return res.status(400).json({
                 success: false,
                 error: 'Missing required vehicle information (VIN, plate number, make, model)'
             });
         }
-        
+
         if (!owner.firstName || !owner.lastName || !owner.email) {
             return res.status(400).json({
                 success: false,
                 error: 'Missing required owner information (name, email)'
             });
         }
-        
+
         // Normalize VIN to uppercase (VINs are standardized as uppercase)
         // This ensures consistent comparison and storage
         const normalizedVin = vehicle.vin ? vehicle.vin.toUpperCase().trim() : vehicle.vin;
@@ -1037,23 +1093,23 @@ router.post('/register', optionalAuth, async (req, res) => {
                 error: 'Invalid VIN: VIN cannot be empty'
             });
         }
-        
+
         // Update vehicle object with normalized VIN for use throughout registration
         vehicle.vin = normalizedVin;
 
         // Determine owner user - prioritize logged-in user
         let ownerUser = null;
-        
+
         // If user is authenticated, use their account
         if (req.user && req.user.userId) {
             ownerUser = await db.getUserById(req.user.userId);
-            
+
             // Verify email matches (for security)
             if (ownerUser && ownerUser.email.toLowerCase() !== owner.email.toLowerCase()) {
                 // Email mismatch - log warning but allow if user is logged in
                 console.warn(`⚠️ Email mismatch: logged-in user (${ownerUser.email}) vs registration email (${owner.email}). Using logged-in user account.`);
             }
-            
+
             // Update user info if provided and different
             if (ownerUser && (
                 ownerUser.first_name !== owner.firstName ||
@@ -1073,11 +1129,11 @@ router.post('/register', optionalAuth, async (req, res) => {
                 ownerUser = await db.getUserById(req.user.userId);
             }
         }
-        
+
         // If no logged-in user or user not found, find or create by email
         if (!ownerUser) {
             ownerUser = await db.getUserByEmail(owner.email);
-            
+
             if (!ownerUser) {
                 // Create new owner user (only if not logged in)
                 const bcrypt = require('bcryptjs');
@@ -1106,7 +1162,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                 ownerUser = await db.getUserById(ownerUser.id);
             }
         }
-        
+
         // Ensure we have a valid owner user
         if (!ownerUser || !ownerUser.id) {
             return res.status(500).json({
@@ -1114,7 +1170,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                 error: 'Failed to determine or create owner account'
             });
         }
-        
+
         // Validate new LTO required fields
         if (!vehicle.vehicleCategory || !vehicle.passengerCapacity || !vehicle.grossVehicleWeight || !vehicle.netWeight) {
             const missing = [];
@@ -1122,39 +1178,39 @@ router.post('/register', optionalAuth, async (req, res) => {
             if (!vehicle.passengerCapacity) missing.push('Passenger Capacity');
             if (!vehicle.grossVehicleWeight) missing.push('Gross Vehicle Weight');
             if (!vehicle.netWeight) missing.push('Net Weight');
-            
+
             return res.status(400).json({
                 success: false,
                 error: `Missing required vehicle information: ${missing.join(', ')}. Please complete all fields in Step 2 (Vehicle Information).`
             });
         }
-        
+
         // Validate numeric fields are valid numbers and positive
         const passengerCapacity = parseInt(vehicle.passengerCapacity);
         const grossWeight = parseFloat(vehicle.grossVehicleWeight);
         const netWeight = parseFloat(vehicle.netWeight);
-        
+
         if (isNaN(passengerCapacity) || passengerCapacity < 1) {
             return res.status(400).json({
                 success: false,
                 error: 'Passenger Capacity must be a positive number'
             });
         }
-        
+
         if (isNaN(grossWeight) || grossWeight <= 0) {
             return res.status(400).json({
                 success: false,
                 error: 'Gross Vehicle Weight must be a positive number'
             });
         }
-        
+
         if (isNaN(netWeight) || netWeight <= 0) {
             return res.status(400).json({
                 success: false,
                 error: 'Net Weight must be a positive number'
             });
         }
-        
+
         // Validate net weight is less than GVW
         if (netWeight >= grossWeight) {
             return res.status(400).json({
@@ -1162,16 +1218,16 @@ router.post('/register', optionalAuth, async (req, res) => {
                 error: 'Net Weight must be less than Gross Vehicle Weight'
             });
         }
-        
+
         // Validate vehicle category (PNS code)
-        const validCategories = ['L1','L2','L3','L5','M1','M2','M3','N1','N2','N3','O1','O2','O3','O4'];
+        const validCategories = ['L1', 'L2', 'L3', 'L5', 'M1', 'M2', 'M3', 'N1', 'N2', 'N3', 'O1', 'O2', 'O3', 'O4'];
         if (!validCategories.includes(vehicle.vehicleCategory)) {
             return res.status(400).json({
                 success: false,
                 error: 'Invalid vehicle category. Must be a valid PNS code (L1-L5, M1-M3, N1-N3, O1-O4)'
             });
         }
-        
+
         // Validate classification
         const validClassifications = ['Private', 'For Hire', 'Government', 'Exempt'];
         if (vehicle.classification && !validClassifications.includes(vehicle.classification)) {
@@ -1185,7 +1241,7 @@ router.post('/register', optionalAuth, async (req, res) => {
         // This ensures atomicity - all succeed or all fail
         const vehicleRegistrationTransaction = require('../services/vehicleRegistrationTransaction');
         const safeMetadata = createSafeRegistrationMetadata(registrationData, vehicle, owner);
-        
+
         let newVehicle;
         let documentCids = {};
         let documentLinkingResults = {
@@ -1195,7 +1251,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             failures: [],
             linkedDocuments: []
         };
-        
+
         try {
             const transactionResult = await vehicleRegistrationTransaction.createVehicleWithDocumentsTransaction({
                 vehicle,
@@ -1203,7 +1259,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                 registrationData,
                 safeMetadata
             });
-            
+
             newVehicle = transactionResult.vehicle;
             documentCids = transactionResult.documentCids;
             documentLinkingResults = transactionResult.documentLinkingResults;
@@ -1211,7 +1267,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             // Transaction was rolled back automatically
             console.error('❌ Transaction rolled back due to error:', transactionError);
             console.error('   Error stack:', transactionError.stack);
-            
+
             // Handle duplicate VIN/plate errors from transaction
             if (transactionError.code === 'DUPLICATE_VIN' || transactionError.code === 'DUPLICATE_PLATE') {
                 return res.status(409).json({
@@ -1222,17 +1278,17 @@ router.post('/register', optionalAuth, async (req, res) => {
                     canResubmit: false
                 });
             }
-            
+
             // Handle PostgreSQL unique constraint violations (23505)
             // This is a fallback in case the SELECT FOR UPDATE check missed something
             if (transactionError.code === '23505') {
                 // Extract which field caused the duplicate
                 let fieldName = 'record';
                 let fieldValue = '';
-                
+
                 const constraintName = transactionError.constraint || '';
                 const errorDetail = transactionError.detail || '';
-                
+
                 if (constraintName === 'vehicles_plate_number_key' || constraintName === 'vehicles_plate_active_unique' || errorDetail.includes('plate_number')) {
                     fieldName = 'plate number';
                     fieldValue = errorDetail.match(/\(plate_number\)=\(([^)]+)\)/)?.[1] || '';
@@ -1240,7 +1296,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                     fieldName = 'VIN';
                     fieldValue = errorDetail.match(/\(vin\)=\(([^)]+)\)/)?.[1] || '';
                 }
-                
+
                 return res.status(409).json({
                     success: false,
                     error: `Vehicle with this ${fieldName}${fieldValue ? ` (${fieldValue})` : ''} already exists and is currently registered or pending`,
@@ -1248,16 +1304,16 @@ router.post('/register', optionalAuth, async (req, res) => {
                     duplicateValue: fieldValue
                 });
             }
-            
+
             return res.status(500).json({
                 success: false,
                 error: 'Vehicle registration failed. Please try again.',
                 details: process.env.NODE_ENV === 'development' ? transactionError.message : undefined
             });
         }
-        
+
         // After transaction commits successfully, continue with non-critical operations
-        
+
         // Registration validation - check for critical documents (warn but allow)
         const requiredDocuments = ['pnpHpgClearance', 'insuranceCert']; // Configurable per registration type
         const docTypes = require('../config/documentTypes');
@@ -1265,7 +1321,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             const logicalType = docTypes.mapLegacyType(docType);
             return logicalType && documentCids[logicalType];
         });
-        
+
         if (documentLinkingResults.linked === 0) {
             // Fail registration - no documents at all
             console.error(`❌ Registration ${newVehicle.id} failed: No documents were linked`);
@@ -1284,7 +1340,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                 }
             });
         }
-        
+
         if (!hasCriticalDocs) {
             // Warn but allow - log for admin review
             const missingDocs = requiredDocuments.filter(docType => {
@@ -1294,7 +1350,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             console.warn(`⚠️ Registration ${newVehicle.id} missing critical documents: ${missingDocs.join(', ')}`);
             // Continue - frontend will show warning via documentLinking status
         }
-        
+
         // Note: Blockchain registration is now deferred until admin approval
         // This ensures OR/CR numbers are included in the blockchain record
 
@@ -1305,7 +1361,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             if (!fullVehicle) {
                 throw new Error('Vehicle not found after creation');
             }
-            
+
             // Safely get verifications and documents
             try {
                 fullVehicle.verifications = await db.getVehicleVerifications(newVehicle.id);
@@ -1313,7 +1369,7 @@ router.post('/register', optionalAuth, async (req, res) => {
                 console.error('❌ Failed to get vehicle verifications:', verifError);
                 fullVehicle.verifications = [];
             }
-            
+
             try {
                 fullVehicle.documents = await db.getDocumentsByVehicle(newVehicle.id);
             } catch (docError) {
@@ -1335,7 +1391,7 @@ router.post('/register', optionalAuth, async (req, res) => {
             const ownerName = `${ownerUser.first_name || owner.firstName} ${ownerUser.last_name || owner.lastName}`.trim() || ownerUser.email;
             const subject = 'Vehicle Registration Submitted - TrustChain LTO';
             const registrationUrl = `${process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org'}`;
-            
+
             const text = `
 Dear ${ownerName},
 
@@ -1520,8 +1576,8 @@ LTO Lipa City Team
             vehicle: formatVehicleResponse(fullVehicle, req, res),
             blockchainStatus: 'PENDING', // Blockchain registration will occur during admin approval
             documentLinking: {
-                status: documentLinkingResults.linked === 0 ? 'failed' : 
-                        documentLinkingResults.linked < documentLinkingResults.total ? 'partial' : 'success',
+                status: documentLinkingResults.linked === 0 ? 'failed' :
+                    documentLinkingResults.linked < documentLinkingResults.total ? 'partial' : 'success',
                 summary: {
                     total: documentLinkingResults.total,
                     linked: documentLinkingResults.linked,
@@ -1541,7 +1597,7 @@ LTO Lipa City Team
             } : null,
             autoVerification: Object.keys(autoVerificationSummary).length > 0 ? autoVerificationSummary : null
         });
-        
+
     } catch (error) {
         console.error('Vehicle registration error:', error);
         console.error('Error stack:', error.stack);
@@ -1550,16 +1606,16 @@ LTO Lipa City Team
             name: error.name,
             code: error.code
         });
-        
+
         // Handle PostgreSQL unique constraint violations (duplicate key errors)
         if (error.code === '23505') {
             // Extract which field caused the duplicate
             let fieldName = 'record';
             let fieldValue = '';
-            
+
             // Handle both old constraint names and new partial unique index names
             const constraintName = error.constraint || '';
-            
+
             if (constraintName === 'vehicles_plate_number_key' || constraintName === 'vehicles_plate_active_unique') {
                 fieldName = 'plate number';
                 fieldValue = error.detail?.match(/\(plate_number\)=\(([^)]+)\)/)?.[1] || '';
@@ -1575,7 +1631,7 @@ LTO Lipa City Team
                 fieldName = 'VIN';
                 fieldValue = error.detail?.match(/\(vin\)=\(([^)]+)\)/)?.[1] || '';
             }
-            
+
             return res.status(409).json({
                 success: false,
                 error: `Vehicle with this ${fieldName}${fieldValue ? ` (${fieldValue})` : ''} already exists and is currently registered or pending`,
@@ -1583,7 +1639,7 @@ LTO Lipa City Team
                 duplicateValue: fieldValue
             });
         }
-        
+
         // Provide more detailed error in development
         const isDevelopment = process.env.NODE_ENV !== 'production';
         res.status(500).json({
@@ -1600,7 +1656,7 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_adm
     try {
         const { id } = req.params;
         const { status, notes } = req.body;
-        
+
         console.log(`[PUT /api/vehicles/id/${id}/status] Updating vehicle status to ${status}`);
 
         // Validate status
@@ -1622,7 +1678,7 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_adm
         }
 
         // Update vehicle status
-        await db.updateVehicle(id, { 
+        await db.updateVehicle(id, {
             status: status,
             notes: notes || vehicle.notes || null
         });
@@ -1693,7 +1749,7 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'lto
                 error: 'Insufficient permissions for this verification type'
             });
         }
-        
+
         // STRICT: lto_officer can only verify admin/insurance types, not system-level verifications
         if (req.user.role === 'lto_officer' && !['insurance', 'admin'].includes(verificationType)) {
             return res.status(403).json({
@@ -1723,14 +1779,14 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'lto
         // Sync verification status to blockchain (only if vehicle is REGISTERED)
         let blockchainTxId = null;
         let blockchainSynced = false;
-        
+
         if (vehicle.status === 'REGISTERED') {
             try {
                 const fabricService = require('../services/optimizedFabricService');
-                
+
                 // Fetch current user to get employee_id
                 const currentUser = await db.getUserById(req.user.userId);
-                
+
                 // Include officer information in notes for traceability (chaincode will parse if JSON)
                 const notesWithOfficer = JSON.stringify({
                     notes: notes || '',
@@ -1741,20 +1797,20 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'lto
                         employeeId: currentUser?.employee_id || null
                     }
                 });
-                
+
                 // Initialize Fabric service with current user context for dynamic identity selection
                 await fabricService.initialize({
                     role: req.user.role,
                     email: req.user.email
                 });
-                
+
                 const blockchainResult = await fabricService.updateVerificationStatus(
                     vin,
                     verificationType,
                     status,
                     notesWithOfficer
                 );
-                
+
                 if (blockchainResult && blockchainResult.transactionId) {
                     blockchainTxId = blockchainResult.transactionId;
                     blockchainSynced = true;
@@ -1782,7 +1838,7 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'lto
         // Check if all verifications are complete
         const verifications = await db.getVehicleVerifications(vehicle.id);
         const allApproved = verifications.every(v => v.status === 'APPROVED');
-        
+
         if (allApproved && verifications.length >= 3) {
             await db.updateVehicle(vehicle.id, { status: 'REGISTERED' });
         }
@@ -1811,14 +1867,14 @@ router.put('/:vin/verification', authenticateToken, authorizeRole(['admin', 'lto
 router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.userId;
-        
+
         if (!userId) {
             return res.status(400).json({
                 success: false,
                 error: 'User ID is required'
             });
         }
-        
+
         // Safely get vehicles with error handling
         let vehicles = [];
         try {
@@ -1832,7 +1888,7 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                 ownershipHistory: []
             });
         }
-        
+
         if (!vehicles || !Array.isArray(vehicles)) {
             console.warn('getVehiclesByOwner returned invalid result:', vehicles);
             return res.json({
@@ -1860,9 +1916,9 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                 ...record,
                 previousOwnerName: null,
                 previousOwnerEmail: null,
-                newOwnerName: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                newOwnerName: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED')
                     ? record.newOwnerName : null,
-                newOwnerEmail: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                newOwnerEmail: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED')
                     ? record.newOwnerEmail : null,
                 performerName: 'LTO Officer',
                 performerEmail: null,
@@ -1880,13 +1936,13 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                     console.warn('Skipping invalid vehicle:', vehicle);
                     continue;
                 }
-                
+
                 // Safely get ownership history for each vehicle
                 let history = await db.getOwnershipHistory(vehicle.id);
-                
+
                 // Apply privacy filtering for non-admin users
                 history = filterHistoryForPrivacy(history);
-                
+
                 // Include complete vehicle information
                 ownershipHistory.push({
                     vehicle: {
@@ -1927,7 +1983,7 @@ router.get('/my-vehicles/ownership-history', authenticateToken, async (req, res)
                 // Log error for this specific vehicle but continue with others
                 console.error(`Error loading history for vehicle ${vehicle?.id} (${vehicle?.vin || 'unknown'}):`, vehicleError);
                 console.error('Vehicle error stack:', vehicleError.stack);
-                
+
                 // Still include the vehicle with empty history
                 ownershipHistory.push({
                     vehicle: {
@@ -1989,7 +2045,7 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
         // Check permissions
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        
+
         if (!isAdmin && !isOwner) {
             return res.status(403).json({
                 success: false,
@@ -2001,7 +2057,7 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
         let ownershipHistory = [];
         try {
             const fabricService = require('../services/optimizedFabricService');
-            
+
             // Ensure Fabric is connected
             if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
                 console.warn('⚠️ Fabric not connected, falling back to database (not recommended)');
@@ -2009,10 +2065,10 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
             } else {
                 // Initialize with user context for MSP-based filtering
                 await fabricService.initialize(req.user ? { role: req.user.role, email: req.user.email } : {});
-                
+
                 // Query Fabric blockchain for ownership history
                 const fabricResult = await fabricService.getOwnershipHistory(vin);
-                
+
                 if (fabricResult.success) {
                     // Get full vehicle history to find initial registration
                     let fullHistory = [];
@@ -2024,7 +2080,7 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
                     } catch (historyError) {
                         console.warn('Could not retrieve full vehicle history:', historyError);
                     }
-                    
+
                     // Transform Fabric data to frontend format
                     ownershipHistory = transformFabricOwnershipHistory(
                         fabricResult.currentOwner,
@@ -2070,9 +2126,9 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
                     previousOwnerName: null,
                     previousOwnerEmail: null,
                     // Only show new owner info if it's the current user (for registration)
-                    newOwnerName: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                    newOwnerName: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED')
                         ? record.newOwnerName : null,
-                    newOwnerEmail: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED') 
+                    newOwnerEmail: (record.action === 'REGISTERED' || record.action === 'BLOCKCHAIN_REGISTERED')
                         ? record.newOwnerEmail : null,
                     // Generic officer name, hide email
                     performerName: 'LTO Officer',
@@ -2131,12 +2187,12 @@ router.get('/:vin/ownership-history', authenticateToken, async (req, res) => {
 // Helper function to transform Fabric ownership history to frontend format
 function transformFabricOwnershipHistory(currentOwner, pastOwners, ownershipTransfers, fullHistory, vehicle) {
     const history = [];
-    
+
     // Find initial registration entry
-    const registrationEntry = fullHistory.find(h => 
+    const registrationEntry = fullHistory.find(h =>
         h.action === 'REGISTERED' || h.action === 'BLOCKCHAIN_REGISTERED'
     );
-    
+
     // Add initial registration entry if found
     if (registrationEntry) {
         history.push({
@@ -2164,12 +2220,12 @@ function transformFabricOwnershipHistory(currentOwner, pastOwners, ownershipTran
             }
         });
     }
-    
+
     // Transform ownership transfers from Fabric
     ownershipTransfers.forEach((transfer, index) => {
         const previousOwner = transfer.previousOwner || {};
         const newOwner = transfer.newOwner || {};
-        
+
         history.push({
             id: null,
             vehicleId: vehicle.id,
@@ -2184,15 +2240,15 @@ function transformFabricOwnershipHistory(currentOwner, pastOwners, ownershipTran
             transaction_id: transfer.transactionId,
             vin: vehicle.vin,
             plateNumber: vehicle.plate_number,
-            previousOwnerName: previousOwner.firstName && previousOwner.lastName 
+            previousOwnerName: previousOwner.firstName && previousOwner.lastName
                 ? `${previousOwner.firstName} ${previousOwner.lastName}`.trim()
                 : previousOwner.email || null,
             previousOwnerEmail: previousOwner.email || null,
-            newOwnerName: newOwner.firstName && newOwner.lastName 
+            newOwnerName: newOwner.firstName && newOwner.lastName
                 ? `${newOwner.firstName} ${newOwner.lastName}`.trim()
                 : newOwner.email || null,
             newOwnerEmail: newOwner.email || null,
-            currentOwnerName: newOwner.firstName && newOwner.lastName 
+            currentOwnerName: newOwner.firstName && newOwner.lastName
                 ? `${newOwner.firstName} ${newOwner.lastName}`.trim()
                 : newOwner.email || null,
             currentOwnerEmail: newOwner.email || null,
@@ -2207,14 +2263,14 @@ function transformFabricOwnershipHistory(currentOwner, pastOwners, ownershipTran
             }
         });
     });
-    
+
     // Sort by timestamp (oldest first)
     history.sort((a, b) => {
         const dateA = new Date(a.performed_at || a.timestamp);
         const dateB = new Date(b.performed_at || b.timestamp);
         return dateA - dateB;
     });
-    
+
     return history;
 }
 
@@ -2222,7 +2278,7 @@ function transformFabricOwnershipHistory(currentOwner, pastOwners, ownershipTran
 router.get('/:vehicleId/registration-progress', authenticateToken, async (req, res) => {
     try {
         const { vehicleId } = req.params;
-        
+
         const vehicle = await db.getVehicleById(vehicleId);
         if (!vehicle) {
             return res.status(404).json({
@@ -2234,7 +2290,7 @@ router.get('/:vehicleId/registration-progress', authenticateToken, async (req, r
         // Check permissions
         const isAdmin = req.user.role === 'admin';
         const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        
+
         if (!isAdmin && !isOwner) {
             return res.status(403).json({
                 success: false,
@@ -2339,7 +2395,7 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
         // Check if all verifications are approved
         const verifications = await db.getVehicleVerifications(vehicle.id);
         const allApproved = verifications.every(v => v.status === 'APPROVED');
-        
+
         if (!allApproved || verifications.length < 3) {
             return res.status(400).json({
                 success: false,
@@ -2405,26 +2461,26 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
 // This ensures the transaction ID from PostgreSQL actually exists on Fabric
 async function verifyBlockchainTransactionId(vehicle) {
     // Only verify if we have a valid transaction ID format
-    if (!vehicle.blockchain_tx_id || 
-        vehicle.blockchain_tx_id.includes('-') || 
+    if (!vehicle.blockchain_tx_id ||
+        vehicle.blockchain_tx_id.includes('-') ||
         vehicle.blockchain_tx_id.length < 40) {
         vehicle.blockchain_tx_verified = null;
         vehicle.blockchain_tx_validation = null;
         return;
     }
-    
+
     try {
         const fabricService = require('../services/optimizedFabricService');
-        
+
         // Initialize Fabric service with current user context (if available) for dynamic identity selection
         await fabricService.initialize(req.user ? {
             role: req.user.role,
             email: req.user.email
         } : {});
-        
+
         // Verify transaction exists on Fabric
         const transactionProof = await fabricService.getTransactionProof(vehicle.blockchain_tx_id);
-        
+
         if (transactionProof && transactionProof.validationCode === 0) {
             // Transaction is valid on Fabric
             vehicle.blockchain_tx_verified = true;
@@ -2451,20 +2507,20 @@ async function generateVehicleQRCode(vehicle) {
         // CRITICAL: Only use real blockchain transaction IDs, NOT vehicle.id (UUID)
         // QR codes must point to verifiable blockchain transactions
         let transactionId = null;
-        
+
         // Priority 1: Check blockchain_tx_id field (if it's a real transaction ID, not UUID)
-        if (vehicle.blockchain_tx_id && 
-            !vehicle.blockchain_tx_id.includes('-') && 
+        if (vehicle.blockchain_tx_id &&
+            !vehicle.blockchain_tx_id.includes('-') &&
             vehicle.blockchain_tx_id.length >= 40) {
             // Valid blockchain transaction ID (no hyphens, long enough)
             transactionId = vehicle.blockchain_tx_id;
         }
-        
+
         // Priority 2: Check history for BLOCKCHAIN_REGISTERED entry
         if (!transactionId && vehicle.history && vehicle.history.length > 0) {
-            const blockchainRegistered = vehicle.history.find(h => 
-                h.action === 'BLOCKCHAIN_REGISTERED' && 
-                h.transaction_id && 
+            const blockchainRegistered = vehicle.history.find(h =>
+                h.action === 'BLOCKCHAIN_REGISTERED' &&
+                h.transaction_id &&
                 !h.transaction_id.includes('-') &&
                 h.transaction_id.length >= 40
             );
@@ -2472,8 +2528,8 @@ async function generateVehicleQRCode(vehicle) {
                 transactionId = blockchainRegistered.transaction_id;
             } else {
                 // Priority 3: Any history entry with valid transaction_id (non-UUID)
-                const anyTx = vehicle.history.find(h => 
-                    h.transaction_id && 
+                const anyTx = vehicle.history.find(h =>
+                    h.transaction_id &&
                     !h.transaction_id.includes('-') &&
                     h.transaction_id.length >= 40
                 );
@@ -2482,20 +2538,20 @@ async function generateVehicleQRCode(vehicle) {
                 }
             }
         }
-        
+
         // If no valid blockchain transaction ID found, return null
         // QR code should only be generated for vehicles with blockchain transactions
         if (!transactionId) {
             console.log(`[QR Code] No blockchain transaction ID found for vehicle ${vehicle.id || vehicle.vin}. QR code not generated.`);
             return null;
         }
-        
+
         // Generate verification URL with certificate view parameter
         const baseUrl = process.env.FRONTEND_URL || process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
         const verifyUrl = `${baseUrl}/verify/${transactionId}?view=certificate`;
-        
+
         console.log(`[QR Code] Generating QR code for vehicle ${vehicle.id || vehicle.vin} with transaction ID: ${transactionId.substring(0, 20)}...`);
-        
+
         // Generate QR code as base64 data URL
         const qrCodeBase64 = await QRCode.toDataURL(verifyUrl, {
             width: 200,
@@ -2506,7 +2562,7 @@ async function generateVehicleQRCode(vehicle) {
             },
             errorCorrectionLevel: 'H'
         });
-        
+
         return qrCodeBase64;
     } catch (error) {
         console.error('Error generating QR code:', error);
@@ -2634,7 +2690,7 @@ function formatVehicleResponseV1(vehicle) {
         notes: vehicle.notes,
         qr_code_base64: vehicle.qr_code_base64 || null
     };
-    
+
     return baseResponse;
 }
 
@@ -2700,10 +2756,10 @@ function formatVehicleResponseV2(vehicle) {
 // Also sets deprecation headers for v1 API
 function formatVehicleResponse(vehicle, req = null, res = null) {
     if (!vehicle) return null;
-    
+
     // Determine API version from request
     let apiVersion = 'v2'; // Default to v2 (LTO-compliant)
-    
+
     if (req) {
         // Check query parameter
         const versionParam = req.query?.version || req.query?.v;
@@ -2717,7 +2773,7 @@ function formatVehicleResponse(vehicle, req = null, res = null) {
             apiVersion = (versionParam || versionHeader).toLowerCase();
         }
     }
-    
+
     // Set deprecation headers for v1 API
     if (apiVersion === 'v1' && res) {
         res.set('X-API-Deprecated', 'true');
@@ -2728,7 +2784,7 @@ function formatVehicleResponse(vehicle, req = null, res = null) {
         res.set('Sunset', sunsetDate.toUTCString());
         res.set('Link', '</api/v2/vehicles>; rel="successor-version"');
     }
-    
+
     if (apiVersion === 'v1') {
         return formatVehicleResponseV1(vehicle);
     } else {

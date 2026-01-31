@@ -1,427 +1,505 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transfer Certificate Generator - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/auth-manager.js"></script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/toast-notification.js"></script>
+    <script src="js/mobile-nav.js"></script>
     <style>
+        /* Modern Form Styles to match Dashboard */
         .form-section {
-            background: #f8f9fa;
+            background: #f8fafc;
             padding: 1.5rem;
             border-radius: 8px;
             margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
         }
+
         .form-section h4 {
             margin-top: 0;
             margin-bottom: 1rem;
-            color: #333;
+            color: #1e293b;
             font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
         }
+
         .form-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
+            gap: 1.5rem;
             margin-bottom: 1rem;
         }
+
         .form-group {
             display: flex;
             flex-direction: column;
+            gap: 0.5rem;
         }
+
         .form-group label {
-            margin-bottom: 0.5rem;
             font-weight: 500;
-            color: #555;
+            color: #475569;
+            font-size: 0.9rem;
         }
+
         .form-control {
             padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            width: 100%;
         }
+
         .form-control:focus {
             outline: none;
-            border-color: #2196F3;
-            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
+
         .info-badge {
-            background: #e3f2fd;
-            border-left: 4px solid #2196F3;
-            padding: 12px 15px;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #1976d2;
-            margin-bottom: 20px;
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            line-height: 1.5;
         }
-        .info-badge.success {
-            background: #e8f5e9;
-            border-left-color: #4caf50;
-            color: #2e7d32;
+
+        .info-badge.primary {
+            background: #e0f2fe;
+            color: #0369a1;
+            border-left: 4px solid #0ea5e9;
         }
+
         .autofill-preview {
-            background: #f0f7ff;
-            border: 1px solid #2196F3;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            display: none;
         }
+
         .autofill-preview h5 {
             margin-top: 0;
-            color: #1e4b7a;
+            color: #0f172a;
+            font-size: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 1rem;
         }
-        .autofill-preview .preview-row {
+
+        .preview-row {
             display: grid;
-            grid-template-columns: 150px 1fr;
+            grid-template-columns: 140px 1fr;
             gap: 1rem;
-            margin: 0.5rem 0;
+            margin-bottom: 0.5rem;
             font-size: 0.9rem;
         }
-        .autofill-preview .preview-label {
-            font-weight: bold;
-            color: #666;
+
+        .preview-label {
+            color: #64748b;
+            font-weight: 500;
         }
-        .autofill-preview .preview-value {
-            color: #333;
+
+        .preview-value {
+            color: #334155;
+            font-family: monospace;
         }
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            opacity: 0;
         }
-        .btn-primary {
-            background: #2196F3;
-            color: white;
+
+        .collapsible-content.show {
+            max-height: 2000px;
+            opacity: 1;
+            transition: opacity 0.3s ease-in, max-height 0.5s ease-in;
         }
-        .btn-primary:hover {
-            background: #1976d2;
-        }
-        .btn-secondary {
-            background: #757575;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background: #616161;
-        }
+
         .certificate-status {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: 8px;
+            margin-top: 2rem;
             display: none;
         }
+
         .certificate-status.show {
             display: block;
+            animation: slideIn 0.3s ease-out;
         }
+
         .certificate-status.success {
-            background: #e8f5e9;
-            border-left: 4px solid #4caf50;
+            padding: 1.5rem;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            color: #166534;
         }
+
         .certificate-status.error {
-            background: #ffebee;
-            border-left: 4px solid #f44336;
+            padding: 1.5rem;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            color: #991b1b;
         }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .loading-overlay {
-            display: none;
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
             justify-content: center;
             align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
         }
+
         .loading-overlay.show {
-            display: flex;
+            opacity: 1;
+            pointer-events: all;
         }
-        .loading-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            text-align: center;
-        }
+
         .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #2196F3;
-            border-radius: 50%;
             width: 50px;
             height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0ea5e9;
+            border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
         }
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .collapsible {
-            cursor: pointer;
-            user-select: none;
-        }
-        .collapsible-content {
-            display: none;
-            margin-top: 1rem;
-        }
-        .collapsible-content.show {
-            display: block;
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="dashboard-container">
         <!-- Sidebar -->
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
-                <div class="logo-icon" onclick="window.location.href='admin-dashboard.html'">
-                    <i class="fas fa-car"></i>
+                <div class="logo-icon">
+                    <img src="assets/lto-logo.png" alt="LTO Logo"
+                        onerror="this.src='https://via.placeholder.com/40?text=LTO'">
                 </div>
                 <div class="logo-text">
-                    <h2>LTO</h2>
-                    <p>Blockchain</p>
+                    <span class="logo-title">LTO Portal</span>
+                    <span class="logo-subtitle">Admin System</span>
                 </div>
+                <button id="sidebarToggle" class="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
             </div>
+
             <nav class="sidebar-nav">
                 <a href="admin-dashboard.html" class="nav-item">
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
+                <a href="admin-dashboard.html#vehicles" class="nav-item">
+                    <i class="fas fa-car"></i>
+                    <span>Vehicles</span>
+                </a>
+                <a href="admin-dashboard.html#applications" class="nav-item">
+                    <i class="fas fa-file-contract"></i>
+                    <span>Applications</span>
+                </a>
                 <a href="certificate-generator.html" class="nav-item">
                     <i class="fas fa-certificate"></i>
-                    <span>Certificate Generator</span>
+                    <span>Certificate Gen</span>
                 </a>
                 <a href="transfer-certificate-generator.html" class="nav-item active">
                     <i class="fas fa-exchange-alt"></i>
-                    <span>Transfer Certificates</span>
+                    <span>Transfer Gen</span>
                 </a>
             </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-user-profile">
+                    <div class="sidebar-user-avatar">AD</div>
+                    <div class="sidebar-user-details">
+                        <span class="sidebar-user-name">ADMIN</span>
+                        <span class="sidebar-user-role">Administrator</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <a href="#" class="sidebar-action-item" onclick="AuthUtils.logout(); return false;">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
         </aside>
 
-        <div class="dashboard-main">
+        <!-- Main Content -->
+        <main class="dashboard-main">
             <header class="dashboard-header">
                 <div class="container">
                     <div class="dashboard-nav">
-                        <div class="nav-left">
-                            <div class="logo">
-                                <h1>Transfer Certificate Generator</h1>
-                            </div>
+                        <div class="logo">
+                            <h1>LTO MANAGEMENT SYSTEM</h1>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <main class="dashboard-content">
+            <div class="dashboard-content">
                 <div class="container">
-                <div class="info-badge">
-                    <strong><i class="fas fa-info-circle"></i> Quick Start:</strong> 
-                    Select a registered vehicle (or transfer request) to autofill vehicle data. Then provide buyer/seller information and document-specific details.
-                </div>
+                    <!-- Welcome Section -->
+                    <div class="welcome-section-admin" style="margin-bottom: 2rem;">
+                        <div class="welcome-content">
+                            <h1 class="welcome-title">Transfer Certificate Generator</h1>
+                            <p class="welcome-subtitle">Generate Deed of Sale, HPG Clearance, CTPL, and MVIR for vehicle
+                                transfers</p>
+                        </div>
+                    </div>
 
-                <form id="transferCertificateForm">
-                    <!-- Vehicle Selection (Primary) -->
-                    <div class="form-section">
-                        <h4><i class="fas fa-car"></i> Select Vehicle</h4>
-                        <div class="form-row">
-                            <div class="form-group" style="grid-column: 1 / -1;">
-                                <label for="vehicleSelect">Registered Vehicle *</label>
-                                <select id="vehicleSelect" name="vehicleId" class="form-control" required>
-                                    <option value="">-- Loading vehicles... --</option>
-                                </select>
-                                <small style="color: #666; margin-top: 0.5rem; display: block;">Select any registered vehicle to generate transfer certificates</small>
+                    <div class="dashboard-card-modern">
+
+                        <div class="info-badge primary">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <strong>Tool Purpose:</strong> This tool automates the creation of compliance documents
+                                required for transferring vehicle ownership.
+                                Select a vehicle or transfer request to auto-fill details.
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Transfer Request Selection (Optional - for autofill) -->
-                    <div class="form-section" style="margin-top: 1rem;">
-                        <h4><i class="fas fa-list"></i> Optional: Link to Transfer Request</h4>
-                        <div class="form-row">
-                            <div class="form-group" style="grid-column: 1 / -1;">
-                                <label for="transferRequestSelect">Transfer Request (Optional)</label>
-                                <select id="transferRequestSelect" name="transferRequestId" class="form-control">
-                                    <option value="">-- None (standalone certificate generation) --</option>
-                                </select>
-                                <small style="color: #666; margin-top: 0.5rem; display: block;">If you have an existing transfer request, select it to autofill buyer/seller info</small>
+                        <form id="transferCertificateForm">
+                            <!-- Selection Section -->
+                            <div class="form-section">
+                                <h4><i class="fas fa-search"></i> Select Context</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="vehicleSelect">Registered Vehicle</label>
+                                        <select id="vehicleSelect" name="vehicleSelect" class="form-control" required>
+                                            <option value="">-- Loading vehicles... --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="transferRequestSelect">Link to Transfer Request (Optional)</label>
+                                        <select id="transferRequestSelect" name="transferRequestSelect"
+                                            class="form-control">
+                                            <option value="">-- None (Standalone) --</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Auto-filled Preview (Read-only) -->
-                    <div id="autofillPreview" class="autofill-preview" style="display: none;">
-                        <h5><i class="fas fa-check-circle"></i> Auto-filled Information</h5>
-                        <div id="previewContent"></div>
-                    </div>
-
-                    <!-- Buyer Information (for standalone generation - shown when no transfer request) -->
-                    <div class="form-section" id="buyerInfoSection" style="display: none;">
-                        <h4><i class="fas fa-user"></i> Buyer Information</h4>
-                        <div class="info-badge">
-                            <strong><i class="fas fa-info-circle"></i> Note:</strong> 
-                            Buyer information is required for standalone certificate generation. Buyer must be registered in the system.
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group" style="grid-column: 1 / -1;">
-                                <label for="buyerEmail">Buyer Email *</label>
-                                <input type="email" id="buyerEmail" name="buyerEmail" 
-                                       class="form-control" placeholder="buyer@example.com">
-                                <small style="color: #666; margin-top: 0.5rem; display: block;">Buyer must be registered in the system. Enter email to lookup buyer details.</small>
+                            <!-- Autofill Preview -->
+                            <div id="autofillPreview" class="autofill-preview">
+                                <h5><i class="fas fa-eye"></i> Selected Vehicle Context</h5>
+                                <div id="previewContent"></div>
                             </div>
-                        </div>
-                        <!-- Buyer Details Preview (read-only, auto-filled) -->
-                        <div id="buyerPreview" style="display: none; margin-top: 1rem; padding: 1rem; background: #e8f5e9; border-radius: 4px; border-left: 4px solid #4caf50;">
-                            <h5 style="margin: 0 0 0.5rem 0; color: #2e7d32;"><i class="fas fa-check-circle"></i> Buyer Found</h5>
-                            <div id="buyerDetails" style="font-size: 0.9rem; color: #333;"></div>
-                        </div>
-                        <div id="buyerError" style="display: none; margin-top: 1rem; padding: 1rem; background: #ffebee; border-radius: 4px; border-left: 4px solid #f44336; color: #c62828; font-size: 0.9rem;"></div>
-                    </div>
 
-                    <!-- Seller Documents -->
-                    <div class="form-section">
-                        <h4 class="collapsible" onclick="toggleSection('sellerDocs')">
-                            <i class="fas fa-chevron-down"></i> Seller Documents
-                        </h4>
-                        <div id="sellerDocs" class="collapsible-content show">
+                            <!-- Buyer Information (Standalone Mode) -->
+                            <div id="buyerInfoSection" class="form-section">
+                                <h4><i class="fas fa-user"></i> Buyer Information</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="buyerEmail">Buyer Email (Must be registered)</label>
+                                        <input type="email" id="buyerEmail" name="buyerEmail" class="form-control"
+                                            placeholder="Enter buyer's email address">
+                                    </div>
+                                </div>
+
+                                <div id="buyerPreview" class="autofill-preview"
+                                    style="display: none; margin-top: 1rem; border-color: #22c55e;">
+                                    <h5 style="color: #166534;"><i class="fas fa-check-circle"></i> Verified Buyer</h5>
+                                    <div id="buyerDetails"></div>
+                                </div>
+                                <div id="buyerError" class="info-badge"
+                                    style="display: none; background: #fef2f2; color: #991b1b; border-left-color: #ef4444;">
+                                </div>
+                            </div>
+
+                            <!-- Form Sections -->
+
                             <!-- Deed of Sale -->
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="purchasePrice">Purchase Price *</label>
-                                    <input type="text" id="purchasePrice" name="purchasePrice" class="form-control" 
-                                           placeholder="PHP 500,000" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="saleDate">Sale Date</label>
-                                    <input type="date" id="saleDate" name="saleDate" class="form-control">
-                                </div>
-                                <div class="form-group">
-                                    <label for="odometerReading">Odometer Reading (km)</label>
-                                    <input type="number" id="odometerReading" name="odometerReading" class="form-control" 
-                                           placeholder="50000">
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="notaryName">Notary Public Name (Optional)</label>
-                                    <input type="text" id="notaryName" name="notaryName" class="form-control" 
-                                           placeholder="Atty. Juan Dela Cruz">
-                                </div>
-                                <div class="form-group">
-                                    <label for="notaryCommission">Notary Commission No. (Optional)</label>
-                                    <input type="text" id="notaryCommission" name="notaryCommission" class="form-control" 
-                                           placeholder="12345">
+                            <div class="form-section">
+                                <h4 class="collapsible" onclick="toggleSection('sellerDocs')">
+                                    <i class="fas fa-chevron-down"></i> Deed of Sale Details
+                                </h4>
+                                <div id="sellerDocs" class="collapsible-content show">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="purchasePrice">Purchase Price (PHP)</label>
+                                            <input type="number" id="purchasePrice" name="purchasePrice"
+                                                class="form-control" placeholder="0.00">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="saleDate">Date of Sale</label>
+                                            <input type="date" id="saleDate" name="saleDate" class="form-control">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="odometerReading">Odometer Reading (km)</label>
+                                            <input type="number" id="odometerReading" name="odometerReading"
+                                                class="form-control" placeholder="e.g. 50000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="notaryName">Notary Public (Optional)</label>
+                                            <input type="text" id="notaryName" name="notaryName" class="form-control"
+                                                placeholder="Atty. Name">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="notaryCommission">Commission No. (Optional)</label>
+                                            <input type="text" id="notaryCommission" name="notaryCommission"
+                                                class="form-control" placeholder="Commission No.">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Seller ID removed: IDs should not be generated as certificates -->
-                            <!-- IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users -->
-                        </div>
+                            <!-- Compliance Documents -->
+                            <div class="form-section">
+                                <h4 class="collapsible" onclick="toggleSection('buyerDocs')">
+                                    <i class="fas fa-chevron-down"></i> Compliance Documents
+                                </h4>
+                                <div id="buyerDocs" class="collapsible-content show">
+
+                                    <h5
+                                        style="margin-top: 1rem; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+                                        HPG Clearance</h5>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="hpgClearanceNumber">Clearance Number (Auto if empty)</label>
+                                            <input type="text" id="hpgClearanceNumber" name="hpgClearanceNumber"
+                                                class="form-control" placeholder="Generated if blank">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="hpgOfficerName">Officer Name (Optional)</label>
+                                            <input type="text" id="hpgOfficerName" name="hpgOfficerName"
+                                                class="form-control" placeholder="Officer Name">
+                                        </div>
+                                    </div>
+
+                                    <h5
+                                        style="margin-top: 1.5rem; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+                                        CTPL Insurance</h5>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="ctplPolicyNumber">Policy Number (Auto if empty)</label>
+                                            <input type="text" id="ctplPolicyNumber" name="ctplPolicyNumber"
+                                                class="form-control" placeholder="Generated if blank">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="ctplCoverageAmount">Coverage Amount</label>
+                                            <input type="text" id="ctplCoverageAmount" name="ctplCoverageAmount"
+                                                class="form-control" value="PHP 200,000 / PHP 50,000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="ctplInsurerName">Insurer Name (Optional)</label>
+                                            <input type="text" id="ctplInsurerName" name="ctplInsurerName"
+                                                class="form-control" placeholder="Standard Insurance">
+                                        </div>
+                                    </div>
+
+                                    <h5
+                                        style="margin-top: 1.5rem; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+                                        MVIR Inspection</h5>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="mvirNumber">MVIR Number (Auto if empty)</label>
+                                            <input type="text" id="mvirNumber" name="mvirNumber" class="form-control"
+                                                placeholder="Generated if blank">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="mvirResult">Result</label>
+                                            <select id="mvirResult" name="mvirResult" class="form-control">
+                                                <option value="PASS">PASS</option>
+                                                <option value="FAIL">FAIL</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="mvirInspectorName">Inspector (Optional)</label>
+                                            <input type="text" id="mvirInspectorName" name="mvirInspectorName"
+                                                class="form-control" placeholder="Inspector Name">
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                                <button type="reset" class="btn btn-secondary"
+                                    style="background: #f1f5f9; color: #475569;">
+                                    <i class="fas fa-undo"></i> Reset
+                                </button>
+                                <button type="submit" class="btn-primary" style="padding: 0.75rem 2rem;">
+                                    <i class="fas fa-magic"></i> Generate All Certificates
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="certificateStatus" class="certificate-status"></div>
                     </div>
-
-                    <!-- Buyer Documents -->
-                    <div class="form-section">
-                        <h4 class="collapsible" onclick="toggleSection('buyerDocs')">
-                            <i class="fas fa-chevron-down"></i> Buyer Documents
-                        </h4>
-                        <div id="buyerDocs" class="collapsible-content show">
-                            <!-- Buyer ID removed: IDs should not be generated as certificates -->
-                            <!-- IDs (Owner ID, Seller ID, Buyer ID) require no backend validation and should only be uploaded by users -->
-                            
-                            <!-- Buyer TIN removed: TIN is not required for certificate generation -->
-                            
-                            <!-- HPG Clearance -->
-                            <h5 style="margin-top: 1.5rem;">HPG Clearance</h5>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="hpgClearanceNumber">Clearance Number (Auto-generated if empty)</label>
-                                    <input type="text" id="hpgClearanceNumber" name="hpgClearanceNumber" class="form-control" 
-                                           placeholder="HPG-2026-0120-ABC123">
-                                </div>
-                                <div class="form-group">
-                                    <label for="hpgOfficerName">Officer Name (Optional)</label>
-                                    <input type="text" id="hpgOfficerName" name="hpgOfficerName" class="form-control" 
-                                           placeholder="P03 Juan Dela Cruz">
-                                </div>
-                            </div>
-
-                            <!-- CTPL Insurance -->
-                            <h5 style="margin-top: 1.5rem;">CTPL Insurance</h5>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="ctplPolicyNumber">Policy Number (Auto-generated if empty)</label>
-                                    <input type="text" id="ctplPolicyNumber" name="ctplPolicyNumber" class="form-control" 
-                                           placeholder="CTPL-2026-XYZ789">
-                                </div>
-                                <div class="form-group">
-                                    <label for="ctplCoverageAmount">Coverage Amount</label>
-                                    <input type="text" id="ctplCoverageAmount" name="ctplCoverageAmount" class="form-control" 
-                                           placeholder="PHP 200,000 / PHP 50,000" value="PHP 200,000 / PHP 50,000">
-                                </div>
-                                <div class="form-group">
-                                    <label for="ctplInsurerName">Insurer Name (Optional)</label>
-                                    <input type="text" id="ctplInsurerName" name="ctplInsurerName" class="form-control" 
-                                           placeholder="Standard Insurance">
-                                </div>
-                            </div>
-
-                            <!-- MVIR -->
-                            <h5 style="margin-top: 1.5rem;">MVIR</h5>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="mvirNumber">MVIR Number (Auto-generated if empty)</label>
-                                    <input type="text" id="mvirNumber" name="mvirNumber" class="form-control" 
-                                           placeholder="MVIR-2026-000001">
-                                </div>
-                                <div class="form-group">
-                                    <label for="mvirResult">Inspection Result</label>
-                                    <select id="mvirResult" name="mvirResult" class="form-control">
-                                        <option value="PASS">PASS</option>
-                                        <option value="FAIL">FAIL</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="mvirInspectorName">Inspector Name (Optional)</label>
-                                    <input type="text" id="mvirInspectorName" name="mvirInspectorName" class="form-control" 
-                                           placeholder="LTO Inspector">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                        <button type="reset" class="btn btn-secondary">
-                            <i class="fas fa-undo"></i> Clear
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane"></i> Generate All Certificates
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Certificate Generation Status -->
-                <div id="certificateStatus" class="certificate-status"></div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </main>
     </div>
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay">
-        <div class="loading-content">
-            <div class="spinner"></div>
-            <h3>Generating Certificates...</h3>
-            <p>Please wait while we generate all compliance documents</p>
-        </div>
-                </div>
-            </main>
+        <div style="text-align: center;">
+            <div class="spinner" style="margin: 0 auto 1.5rem;"></div>
+            <h3 style="color: #0f172a; margin: 0 0 0.5rem;">Generating Certificates...</h3>
+            <p style="color: #64748b; margin: 0;">Generating compliance documents on blockchain</p>
         </div>
     </div>
 
-    <script src="js/auth-manager.js"></script>
-    <script src="js/auth-utils.js"></script>
-    <script src="js/api-client.js"></script>
     <script src="js/error-handler.js"></script>
     <script src="js/transfer-certificate-generator.js"></script>
+    <script>
+        // Init Mobile Nav
+        if (typeof MobileNav !== 'undefined') {
+            MobileNav.init();
+        }
+    </script>
 </body>
+
 </html>

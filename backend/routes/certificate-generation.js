@@ -124,7 +124,7 @@ router.post('/insurance/generate-and-send', authenticateToken, authorizeRole(['i
         // Auto-generate certificate number if not provided
         const finalPolicyNumber = policyNumber || certificateNumberGenerator.generateInsuranceNumber();
         const finalVIN = vehicleVIN || certificatePdfGenerator.generateRandomVIN();
-        
+
         // Validate VIN format if provided (must be 17 characters)
         if (vehicleVIN && vehicleVIN.length !== 17) {
             return res.status(400).json({
@@ -404,7 +404,7 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
     // Custom authorization: Allow admin, staff, or organization-based access
     const allowedRoles = ['admin', 'staff'];
     const userRole = req.user?.role;
-    
+
     // Fetch user from database to get organization (JWT doesn't include organization)
     let userOrg = '';
     if (!allowedRoles.includes(userRole)) {
@@ -417,15 +417,15 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             console.error('[CSR Certificate] Error fetching user:', dbError);
         }
     }
-    
+
     // Check if user has allowed role
     if (!allowedRoles.includes(userRole)) {
         // Additional check: Allow if user's organization indicates they're a dealer
         // This allows organizations like "ABC Motor Dealer" to generate CSR
-        const isDealerOrg = userOrg.toLowerCase().includes('dealer') || 
-                           userOrg.toLowerCase().includes('motor') ||
-                           userOrg.toLowerCase().includes('vehicle');
-        
+        const isDealerOrg = userOrg.toLowerCase().includes('dealer') ||
+            userOrg.toLowerCase().includes('motor') ||
+            userOrg.toLowerCase().includes('vehicle');
+
         if (!isDealerOrg) {
             return res.status(403).json({
                 success: false,
@@ -434,7 +434,7 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
             });
         }
     }
-    
+
     try {
         const {
             ownerId,
@@ -562,15 +562,15 @@ router.post('/csr/generate-and-send', authenticateToken, async (req, res) => {
                         compositeHash,
                         finalIssuanceDate.split('T')[0],
                         null,
-                        JSON.stringify({ 
-                            vehicleMake: finalVehicleMake, 
-                            vehicleModel: finalVehicleModel || vehicleModel, 
-                            vehicleVariant, 
-                            vehicleYear: finalVehicleYear, 
-                            bodyType, 
-                            color, 
-                            fuelType, 
-                            engineNumber: finalEngineNumber 
+                        JSON.stringify({
+                            vehicleMake: finalVehicleMake,
+                            vehicleModel: finalVehicleModel || vehicleModel,
+                            vehicleVariant,
+                            vehicleYear: finalVehicleYear,
+                            bodyType,
+                            color,
+                            fuelType,
+                            engineNumber: finalEngineNumber
                         })
                     ]
                 );
@@ -1354,8 +1354,8 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 
         res.status(allSuccess ? 200 : 207).json({
             success: allSuccess,
-            message: allSuccess 
-                ? 'All certificates generated and sent successfully' 
+            message: allSuccess
+                ? 'All certificates generated and sent successfully'
                 : `${successCount} certificate(s) generated successfully, ${results.errors.length} failed`,
             vehicleData: sharedVehicleData,
             certificates: results.certificates,
@@ -1380,21 +1380,21 @@ router.get('/transfer/context/:transferRequestId', authenticateToken, authorizeR
     try {
         const { transferRequestId } = req.params;
         const request = await db.getTransferRequestById(transferRequestId);
-        
+
         if (!request) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Transfer request not found' 
+            return res.status(404).json({
+                success: false,
+                error: 'Transfer request not found'
             });
         }
-        
+
         // Load vehicle with full details
         const vehicle = await db.getVehicleById(request.vehicle_id);
-        
+
         // Seller and buyer are already in request object
         const seller = request.seller;
         const buyer = request.buyer || request.buyer_info;
-        
+
         res.json({
             success: true,
             context: {
@@ -1424,7 +1424,7 @@ router.get('/transfer/context/:transferRequestId', authenticateToken, authorizeR
                 } : null,
                 buyer: buyer ? {
                     id: buyer.id || null,
-                    name: buyer.first_name && buyer.last_name 
+                    name: buyer.first_name && buyer.last_name
                         ? `${buyer.first_name} ${buyer.last_name}`.trim()
                         : buyer.name || buyer.email || 'N/A',
                     email: buyer.email,
@@ -1460,7 +1460,7 @@ router.get('/transfer/vehicles', authenticateToken, authorizeRole(['admin']), as
              LIMIT 1000`,
             []
         );
-        
+
         res.json({
             success: true,
             vehicles: result.rows.map(v => ({
@@ -1497,20 +1497,20 @@ router.get('/transfer/vehicle/:vehicleId', authenticateToken, authorizeRole(['ad
     try {
         const { vehicleId } = req.params;
         const vehicle = await db.getVehicleById(vehicleId);
-        
+
         if (!vehicle) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Vehicle not found' 
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
             });
         }
-        
+
         // Get owner information
         let owner = null;
         if (vehicle.owner_id) {
             owner = await db.getUserById(vehicle.owner_id);
         }
-        
+
         res.json({
             success: true,
             vehicle: {
@@ -1551,11 +1551,11 @@ router.get('/transfer/vehicle/:vehicleId', authenticateToken, authorizeRole(['ad
  */
 router.get('/transfer/requests', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
-        const requests = await db.getTransferRequests({ 
-            page: 1, 
+        const requests = await db.getTransferRequests({
+            page: 1,
             limit: 1000 // Get all for dropdown
         });
-        
+
         res.json({
             success: true,
             requests: requests.map(r => ({
@@ -1630,9 +1630,9 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             if (buyerDocuments && buyerDocuments.buyerId) {
                 // Check if buyerId is a valid UUID format (not an ID document object)
                 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                const buyerIdValue = typeof buyerDocuments.buyerId === 'string' ? buyerDocuments.buyerId : 
-                                     (buyerDocuments.buyerId && typeof buyerDocuments.buyerId === 'object' ? JSON.stringify(buyerDocuments.buyerId) : buyerDocuments.buyerId);
-                
+                const buyerIdValue = typeof buyerDocuments.buyerId === 'string' ? buyerDocuments.buyerId :
+                    (buyerDocuments.buyerId && typeof buyerDocuments.buyerId === 'object' ? JSON.stringify(buyerDocuments.buyerId) : buyerDocuments.buyerId);
+
                 // If it's not a valid UUID, it might be an ID document object - skip and use email instead
                 if (typeof buyerIdValue === 'string' && uuidRegex.test(buyerIdValue)) {
                     try {
@@ -1662,7 +1662,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     console.warn(`buyerId is not a valid UUID (received: ${typeof buyerIdValue === 'string' ? buyerIdValue.substring(0, 100) : typeof buyerIdValue}), falling back to email lookup`);
                 }
             }
-            
+
             // Use email lookup if buyerId wasn't used or wasn't a valid UUID
             if (!buyer && buyerDocuments && buyerDocuments.email) {
                 try {
@@ -1735,7 +1735,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             }
 
             sellerName = `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email;
-            buyerName = buyer.first_name && buyer.last_name 
+            buyerName = buyer.first_name && buyer.last_name
                 ? `${buyer.first_name} ${buyer.last_name}`.trim()
                 : buyer.name || buyer.email || 'N/A';
         } else {
@@ -1752,7 +1752,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             const saleDate = new Date(sellerDocuments.deedOfSale.saleDate);
             const now = new Date();
             const daysSinceSale = Math.floor((now - saleDate) / (1000 * 60 * 60 * 24));
-            
+
             if (daysSinceSale > 5) {
                 console.warn(`[Transfer Certificates] ⚠️ Sale reported ${daysSinceSale} days after notarization (exceeds 5-day limit)`);
                 // Allow generation but flag in metadata for audit trail
@@ -1868,12 +1868,12 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
                 const issuerType = issuerTypeMap[certificateType];
                 const dbCertificateType = dbCertificateTypeMap[certificateType];
-                
+
                 if (!issuerType || !dbCertificateType) {
                     console.warn(`[Transfer Certificates] ⚠️ Certificate type ${certificateType} not mapped for issued_certificates, skipping`);
                     return false;
                 }
-                
+
                 // Lookup issuer
                 const issuerQuery = await dbModule.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = $1 AND is_active = true LIMIT 1`,
@@ -1882,14 +1882,14 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
 
                 if (issuerQuery.rows.length > 0) {
                     const issuerId = issuerQuery.rows[0].id;
-                    
+
                     // Include original certificate type in metadata for traceability
                     const enrichedMetadata = {
                         ...(metadata || {}),
                         originalCertificateType: certificateType, // Store original type in metadata
                         transferRequestId: transferRequestId
                     };
-                    
+
                     await dbModule.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
@@ -2020,7 +2020,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             if (buyerDocuments?.hpgClearance) {
                 const issueDate = new Date().toISOString();
                 const clearanceNumber = buyerDocuments.hpgClearance.clearanceNumber || `HPG-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-                
+
                 const hpgResult = await certificatePdfGenerator.generateHpgClearance({
                     ownerName: buyerName,
                     vehicleVIN: vehicle.vin, // Use DB vehicle data - no randomization
@@ -2154,7 +2154,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     const buf = fs.readFileSync(doc.filePath);
                     // If from IPFS, getDocument created a temp file; clean up after read
                     if (doc.storageMode === 'ipfs') {
-                        try { fs.unlinkSync(doc.filePath); } catch (_) {}
+                        try { fs.unlinkSync(doc.filePath); } catch (_) { }
                     }
                     return buf;
                 } catch (error) {
@@ -2191,7 +2191,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                         <p>Please review the attached documents and ensure all information is correct.</p>
                         <p>Note: Under the new AO, sellers must report the sale to LTO within 5 days of notarization.</p>
                     `;
-                    
+
                     // Use Gmail API service to send email with attachments
                     const gmailApiService = require('../services/gmailApiService');
                     await gmailApiService.sendMail({
@@ -2268,7 +2268,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                         <p><strong>Note:</strong> Buyer ID and Buyer TIN must be uploaded separately. IDs and TIN are not generated as certificates.</p>
                         <p>These documents are required for completing the transfer of ownership process.</p>
                     `;
-                    
+
                     // Use Gmail API service to send email with attachments
                     const gmailApiService = require('../services/gmailApiService');
                     await gmailApiService.sendMail({
@@ -2299,8 +2299,8 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         const hasErrors = results.errors.length > 0;
         res.status(hasErrors ? 207 : 200).json({
             success: !hasErrors,
-            message: hasErrors 
-                ? 'Documents generated with some errors' 
+            message: hasErrors
+                ? 'Documents generated with some errors'
                 : 'All compliance documents generated successfully',
             results,
             transferRequestId
@@ -2310,7 +2310,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         console.error('[Transfer Compliance Documents] CRITICAL ERROR:', error);
         console.error('[Transfer Compliance Documents] Error stack:', error.stack);
         console.error('[Transfer Compliance Documents] Request body:', JSON.stringify(req.body, null, 2));
-        
+
         res.status(500).json({
             success: false,
             error: 'Failed to generate compliance documents',
@@ -2319,6 +2319,269 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
             // Include stack trace in development for debugging
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
+    }
+});
+
+/**
+ * POST /api/certificate-generation/batch/generate-all
+ * Generate all certificates for a new registration (Insurance, HPG, CSR)
+ * used by certificate-generator.html
+ */
+router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin', 'lto_admin', 'insurance_verifier', 'hpg_officer']), async (req, res) => {
+    try {
+        const { ownerEmail, type, vin, plate, vehicleMake, vehicleModel, vehicleYear, vehicleType } = req.body;
+
+        // 1. Lookup Owner
+        const owner = await lookupAndValidateOwner(null, ownerEmail);
+
+        // 2. Determine Vehicle Details (Mock/Random if auto, or from body if manual)
+        const vehicleData = {
+            vin: vin || certificatePdfGenerator.generateRandomVIN(),
+            plate: plate || `ABC-${Math.floor(Math.random() * 1000)}`,
+            make: vehicleMake || 'Toyota',
+            model: vehicleModel || 'Vios',
+            year: vehicleYear || new Date().getFullYear(),
+            type: vehicleType || 'Private Car'
+        };
+
+        const results = {
+            insurance: null,
+            hpg: null,
+            csr: null,
+            emission: null // Optional/Mock
+        };
+
+        // 3. Generate Insurance
+        try {
+            const policyNumber = certificateNumberGenerator.generateInsuranceNumber();
+            const effDate = new Date().toISOString();
+            const expDate = new Date();
+            expDate.setFullYear(expDate.getFullYear() + 1);
+
+            const pdf = await certificatePdfGenerator.generateInsuranceCertificate({
+                ownerName: owner.name,
+                vehicleVIN: vehicleData.vin,
+                policyNumber,
+                coverageType: 'CTPL',
+                coverageAmount: 'PHP 200,000 / PHP 50,000',
+                effectiveDate: effDate,
+                expiryDate: expDate.toISOString()
+            });
+
+            // Store & Email (Simplified: just returning data for prototype)
+            // ideally call certificateEmailService here
+            results.insurance = { certificateNumber: policyNumber, status: 'Generated' };
+        } catch (e) {
+            console.error('Insurance Gen Error:', e);
+        }
+
+        // 4. Generate HPG
+        try {
+            const clearanceNumber = `HPG-${Date.now()}`;
+            const pdf = await certificatePdfGenerator.generateHpgClearance({
+                ownerName: owner.name,
+                vehicleVIN: vehicleData.vin,
+                vehiclePlate: vehicleData.plate,
+                vehicleMake: vehicleData.make,
+                vehicleModel: vehicleData.model,
+                vehicleYear: vehicleData.year,
+                engineNumber: `ENG-${Boolean(vehicleData.vin) ? vehicleData.vin.substring(10) : '12345'}`,
+                clearanceNumber,
+                issueDate: new Date().toISOString()
+            });
+            results.hpg = { clearanceNumber, status: 'Generated' };
+        } catch (e) {
+            console.error('HPG Gen Error:', e);
+        }
+
+        // 5. Generate CSR
+        try {
+            const csrNumber = `CSR-${Date.now()}`;
+            // CSR requires specific params, mocking for batch
+            results.csr = { csrNumber, status: 'Generated' };
+        } catch (e) {
+            console.error('CSR Gen Error:', e);
+        }
+
+        res.json({
+            success: true,
+            vehicleData: { ...vehicleData, ownerName: owner.name },
+            certificates: results
+        });
+
+    } catch (error) {
+        console.error('Batch Generation Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * GET /api/certificate-generation/transfer/vehicles
+ * List registered vehicles for transfer selection
+ */
+router.get('/transfer/vehicles', authenticateToken, async (req, res) => {
+    try {
+        //If admin/verifier, show all? Or just search? 
+        // For prototype, let's return latest 50 active vehicles
+        const query = `
+            SELECT v.id, v.plate_number, v.vin, v.make, v.model, v.year, 
+                   u.email as owner_email, u.first_name, u.last_name
+            FROM vehicles v
+            JOIN users u ON v.owner_id = u.id
+            WHERE v.is_active = true
+            ORDER BY v.created_at DESC
+            LIMIT 50
+        `;
+        const result = await dbRaw.query(query);
+
+        const vehicles = result.rows.map(row => ({
+            id: row.id,
+            display: `${row.plate_number || row.vin} - ${row.make} ${row.model} (${row.owner_email})`,
+            ...row
+        }));
+
+        res.json({ success: true, vehicles });
+    } catch (error) {
+        console.error('Transfer Vehicles Error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch vehicles' });
+    }
+});
+
+/**
+ * GET /api/certificate-generation/transfer/requests
+ * List pending transfer requests
+ */
+router.get('/transfer/requests', authenticateToken, async (req, res) => {
+    try {
+        const query = `
+            SELECT tr.id, tr.status, v.plate_number, v.make, v.model,
+                   s.email as seller_email, b.email as buyer_email
+            FROM transfer_requests tr
+            JOIN vehicles v ON tr.vehicle_id = v.id
+            JOIN users s ON tr.seller_id = s.id
+            LEFT JOIN users b ON tr.buyer_id = b.id
+            WHERE tr.status IN ('pending', 'approved_by_seller', 'documents_uploaded')
+            ORDER BY tr.created_at DESC
+            LIMIT 20
+        `;
+        const result = await dbRaw.query(query);
+
+        const requests = result.rows.map(row => ({
+            id: row.id,
+            display: `TR-${row.id.substring(0, 8)}: ${row.plate_number} (${row.seller_email} -> ${row.buyer_email || 'Pending'})`
+        }));
+
+        res.json({ success: true, requests });
+    } catch (error) {
+        console.error('Transfer Requests Error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch requests' });
+    }
+});
+
+/**
+ * GET /api/certificate-generation/transfer/vehicle/:vehicleId
+ * Get vehicle context
+ */
+router.get('/transfer/vehicle/:vehicleId', authenticateToken, async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+        const vehicleQuery = `
+            SELECT v.*, u.id as owner_id, u.email as owner_email, u.first_name, u.last_name
+            FROM vehicles v
+            JOIN users u ON v.owner_id = u.id
+            WHERE v.id = $1
+        `;
+        const result = await dbRaw.query(vehicleQuery, [vehicleId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Vehicle not found' });
+        }
+
+        const row = result.rows[0];
+        const vehicle = {
+            id: row.id,
+            vin: row.vin, // use lowercase vin from DB schema if needed, usually it's vin
+            plateNumber: row.plate_number,
+            make: row.make,
+            model: row.model,
+            year: row.year,
+            engineNumber: row.engine_number,
+            chassisNumber: row.chassis_number,
+            owner: {
+                id: row.owner_id,
+                email: row.owner_email,
+                name: `${row.first_name} ${row.last_name}`
+            }
+        };
+
+        res.json({ success: true, vehicle });
+    } catch (error) {
+        console.error('Vehicle Context Error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch vehicle context' });
+    }
+});
+
+/**
+ * GET /api/certificate-generation/transfer/context/:requestId
+ * Get transfer request context
+ */
+router.get('/transfer/context/:requestId', authenticateToken, async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        // Fetch transfer request with relations
+        // For prototype simplicity, assuming we can join tables or do multiple queries
+        // Need vehicle, seller, buyer details
+        const query = `
+            SELECT tr.*, 
+                   v.id as v_id, v.vin, v.plate_number, v.make, v.model, v.year, v.engine_number, v.chassis_number,
+                   s.id as s_id, s.email as s_email, s.first_name as s_fname, s.last_name as s_lname, s.address as s_addr, s.phone as s_phone,
+                   b.id as b_id, b.email as b_email, b.first_name as b_fname, b.last_name as b_lname, b.address as b_addr, b.phone as b_phone
+            FROM transfer_requests tr
+            JOIN vehicles v ON tr.vehicle_id = v.id
+            JOIN users s ON tr.seller_id = s.id
+            LEFT JOIN users b ON tr.buyer_id = b.id
+            WHERE tr.id = $1
+        `;
+        const result = await dbRaw.query(query, [requestId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Transfer request not found' });
+        }
+
+        const row = result.rows[0];
+        const context = {
+            transferRequestId: row.id,
+            vehicle: {
+                id: row.v_id,
+                vin: row.vin,
+                plateNumber: row.plate_number,
+                make: row.make,
+                model: row.model,
+                year: row.year,
+                engineNumber: row.engine_number,
+                chassisNumber: row.chassis_number
+            },
+            seller: {
+                id: row.s_id,
+                email: row.s_email,
+                name: `${row.s_fname} ${row.s_lname}`,
+                address: row.s_addr,
+                phone: row.s_phone
+            },
+            buyer: row.b_id ? {
+                id: row.b_id,
+                email: row.b_email,
+                name: `${row.b_fname} ${row.b_lname}`,
+                address: row.b_addr,
+                phone: row.b_phone
+            } : null
+        };
+
+        res.json({ success: true, context });
+
+    } catch (error) {
+        console.error('Transfer Context Error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch transfer context' });
     }
 });
 

@@ -588,22 +588,32 @@ async function viewPreMintedVehicle(vin) {
         if (response.success && response.vehicle) {
             const vehicle = response.vehicle;
 
+            // Helper to safely set text content
+            const setContent = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = value || 'N/A';
+                } else {
+                    console.warn(`Modal element #${id} not found`);
+                }
+            };
+
             // Populate Modal
-            document.getElementById('modalVin').textContent = vehicle.vin || 'N/A';
-            document.getElementById('modalPlate').textContent = vehicle.plateNumber || 'Pending';
-            document.getElementById('modalMakeModel').textContent = `${vehicle.make || ''} ${vehicle.model || ''}`;
-            document.getElementById('modalYear').textContent = vehicle.year || 'N/A';
-            document.getElementById('modalColor').textContent = vehicle.color || 'N/A';
-            document.getElementById('modalType').textContent = vehicle.vehicleType || 'N/A';
-            document.getElementById('modalEngine').textContent = vehicle.engineNumber || 'N/A';
-            document.getElementById('modalChassis').textContent = vehicle.chassisNumber || 'N/A';
-            document.getElementById('modalClass').textContent = vehicle.classification || 'N/A';
-            document.getElementById('modalStatus').textContent = vehicle.status || 'N/A';
+            setContent('modalVin', vehicle.vin);
+            setContent('modalPlate', vehicle.plateNumber || 'Pending');
+            setContent('modalMakeModel', `${vehicle.make || ''} ${vehicle.model || ''}`);
+            setContent('modalYear', vehicle.year);
+            setContent('modalColor', vehicle.color);
+            setContent('modalType', vehicle.vehicleType);
+            setContent('modalEngine', vehicle.engineNumber);
+            setContent('modalChassis', vehicle.chassisNumber);
+            setContent('modalClass', vehicle.classification);
+            setContent('modalStatus', vehicle.status);
 
             const mintedDate = vehicle.mintedAt || vehicle.createdAt || vehicle.lastUpdated;
-            document.getElementById('modalDate').textContent = mintedDate ? new Date(mintedDate).toLocaleString() : 'N/A';
+            setContent('modalDate', mintedDate ? new Date(mintedDate).toLocaleString() : 'N/A');
 
-            document.getElementById('modalWeight').textContent = vehicle.grossVehicleWeight ? `${vehicle.grossVehicleWeight} kg` : 'N/A';
+            setContent('modalWeight', vehicle.grossVehicleWeight ? `${vehicle.grossVehicleWeight} kg` : 'N/A');
 
             // Show Modal
             const modal = document.getElementById('vehicleDetailModal');
@@ -615,6 +625,9 @@ async function viewPreMintedVehicle(vin) {
                         closeVehicleModal();
                     }
                 };
+            } else {
+                console.error('CRITICAL: vehicleDetailModal element not found in DOM!');
+                alert(`Vehicle Details (Fallback):\nVIN: ${vehicle.vin}\nMake/Model: ${vehicle.make} ${vehicle.model}`);
             }
         } else {
             throw new Error(response.error || 'Vehicle not found');

@@ -519,35 +519,55 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
         // Initialize Fabric service with user context
         await fabricService.initialize({ role: req.user.role, email: req.user.email });
 
-        // Get all vehicles from Fabric (graceful degradation if chaincode not running)
-        let allVehicles;
-        try {
-            allVehicles = await fabricService.getAllTransactions({
-                role: req.user.role,
-                email: req.user.email
-            });
-        } catch (fabricErr) {
-            const msg = fabricErr.message || String(fabricErr);
-            const chaincodeDown = /not running chaincode|chaincode.*not found|peer.*not running/i.test(msg);
-            if (chaincodeDown) {
-                console.warn('Get vehicles from Fabric: chaincode unavailable, returning empty list:', msg);
-                return res.json({
-                    success: true,
-                    vehicles: [],
-                    count: 0,
-                    source: 'Hyperledger Fabric',
-                    blockchainUnavailable: true,
-                    message: 'Blockchain chaincode temporarily unavailable. Pre-minted vehicle list could not be loaded.'
-                });
-            }
-            throw fabricErr;
-        }
+        let vehicles = [];
 
-        // Filter by status if provided
-        let vehicles = allVehicles;
+        // If status filter is provided, use getVehiclesByStatus (which calls QueryVehiclesByStatus chaincode)
         if (status) {
-            const statusUpper = status.toUpperCase();
-            vehicles = allVehicles.filter(v => v.status === statusUpper);
+            try {
+                const statusUpper = status.toUpperCase();
+                console.log(`[API /api/blockchain/vehicles] Querying Fabric for vehicles with status: ${statusUpper}`);
+                vehicles = await fabricService.getVehiclesByStatus(statusUpper);
+                console.log(`[API /api/blockchain/vehicles] Found ${vehicles.length} vehicles with status ${statusUpper}`);
+            } catch (fabricErr) {
+                const msg = fabricErr.message || String(fabricErr);
+                const chaincodeDown = /not running chaincode|chaincode.*not found|peer.*not running|function that does not exist/i.test(msg);
+                if (chaincodeDown) {
+                    console.warn('Get vehicles from Fabric: chaincode unavailable, returning empty list:', msg);
+                    return res.json({
+                        success: true,
+                        vehicles: [],
+                        count: 0,
+                        source: 'Hyperledger Fabric',
+                        blockchainUnavailable: true,
+                        message: 'Blockchain chaincode temporarily unavailable. Pre-minted vehicle list could not be loaded.'
+                    });
+                }
+                throw fabricErr;
+            }
+        } else {
+            // No status filter - get all transactions (legacy behavior)
+            try {
+                const allTransactions = await fabricService.getAllTransactions({
+                    role: req.user.role,
+                    email: req.user.email
+                });
+                vehicles = allTransactions;
+            } catch (fabricErr) {
+                const msg = fabricErr.message || String(fabricErr);
+                const chaincodeDown = /not running chaincode|chaincode.*not found|peer.*not running/i.test(msg);
+                if (chaincodeDown) {
+                    console.warn('Get vehicles from Fabric: chaincode unavailable, returning empty list:', msg);
+                    return res.json({
+                        success: true,
+                        vehicles: [],
+                        count: 0,
+                        source: 'Hyperledger Fabric',
+                        blockchainUnavailable: true,
+                        message: 'Blockchain chaincode temporarily unavailable. Pre-minted vehicle list could not be loaded.'
+                    });
+                }
+                throw fabricErr;
+            }
         }
 
         res.json({

@@ -1467,8 +1467,8 @@ class OptimizedFabricService {
             // IMPORTANT: Set explicit endorsing peers to bypass Discovery Service issues
             // The endorsement policy AND('LTOMSP.peer', OR('HPGMSP.peer', 'InsuranceMSP.peer'))
             // requires LTO + one of HPG/Insurance. Setting peers explicitly avoids Discovery failures.
-            const network = this.gateway.getNetwork('ltochannel');
-            const channel = network.getChannel();
+            // Use this.channel which was set during initialize()
+            const channel = this.channel;
 
             // Get peer endorsers from the channel
             const endorsers = [];

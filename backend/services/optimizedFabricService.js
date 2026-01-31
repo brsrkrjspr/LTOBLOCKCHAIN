@@ -1,7 +1,7 @@
 // TrustChain LTO - Real Hyperledger Fabric Service
 // NO FALLBACKS - Requires real Fabric network connection
 
-const { Gateway, Wallets } = require('fabric-network');
+const { Gateway, Wallets, DefaultQueryHandlerStrategies, DefaultEventHandlerStrategies } = require('fabric-network');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -113,11 +113,11 @@ class OptimizedFabricService {
                 discovery: { enabled: true, asLocalhost: asLocalhost },
                 queryHandlerOptions: {
                     timeout: 60, // Increase query timeout from default
-                    strategy: 'MSPID_SCOPE_SINGLE'
+                    strategy: DefaultQueryHandlerStrategies.MSPID_SCOPE_SINGLE
                 },
                 eventHandlerOptions: {
                     commitTimeout: 300,
-                    strategy: null
+                    strategy: DefaultEventHandlerStrategies.MSPID_SCOPE_ALL
                 }
             });
 

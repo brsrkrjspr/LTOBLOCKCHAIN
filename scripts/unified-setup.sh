@@ -105,9 +105,19 @@ docker run --rm \
 log_success "Channel artifacts generated"
 
 # ============================================
-# PHASE 4: START CONTAINERS
+# PHASE 4: BUILD CHAINCODE IMAGE
 # ============================================
-log_info "Phase 4: Starting containers..."
+log_info "Phase 4: Building Chaincode Docker image..."
+
+# Build the chaincode-as-a-service image from the production chaincode folder
+docker build -t vehicle-registration-cc:latest ./chaincode/vehicle-registration-production/
+
+log_success "Chaincode image built"
+
+# ============================================
+# PHASE 5: START CONTAINERS
+# ============================================
+log_info "Phase 5: Starting containers..."
 
 docker compose -f docker-compose.unified.yml up -d
 
@@ -125,9 +135,9 @@ done
 log_success "Containers running"
 
 # ============================================
-# PHASE 5: CREATE & JOIN CHANNEL
+# PHASE 6: CREATE & JOIN CHANNEL
 # ============================================
-log_info "Phase 5: Creating and joining channel 'ltochannel'..."
+log_info "Phase 6: Creating and joining channel 'ltochannel'..."
 
 # Create Channel (by LTO)
 docker exec cli bash -c "export CORE_PEER_LOCALMSPID=LTOMSP && \
@@ -160,9 +170,9 @@ join_channel "insurance" "InsuranceMSP" "9051"
 log_success "All peers joined channel"
 
 # ============================================
-# PHASE 6: INSTALL CHAINCODE (CCAAS)
+# PHASE 7: INSTALL CHAINCODE (CCAAS)
 # ============================================
-log_info "Phase 6: Installing Chaincode (CCAAS)..."
+log_info "Phase 7: Installing Chaincode (CCAAS)..."
 
 # 1. Build Package (Once)
 # We assume vehicle-registration-ccaas.tar.gz exists or we create it
@@ -220,9 +230,9 @@ log_info "Starting Chaincode Container..."
 CHAINCODE_PACKAGE_ID="$PACKAGE_ID" docker compose -f docker-compose.unified.yml up -d chaincode-vehicle-reg
 
 # ============================================
-# PHASE 7: APPROVE & COMMIT
+# PHASE 8: APPROVE & COMMIT
 # ============================================
-log_info "Phase 7: Approving and Committing Chaincode..."
+log_info "Phase 8: Approving and Committing Chaincode..."
 
 approve_org() {
     local ORG=$1
@@ -252,9 +262,9 @@ peer lifecycle chaincode commit -o orderer.lto.gov.ph:7050 --ordererTLSHostnameO
 log_success "Chaincode committed"
 
 # ============================================
-# PHASE 8: SETUP WALLET
+# PHASE 9: SETUP WALLET
 # ============================================
-log_info "Phase 8: Setting up wallet..."
+log_info "Phase 9: Setting up wallet..."
 
 cp config/network-config.json network-config.json || true
 node scripts/setup-fabric-wallet.js
